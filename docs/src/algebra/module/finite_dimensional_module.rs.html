@@ -25,7 +25,7 @@
 
 </head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">algebra/module/</div>finite_dimensional_module.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{fmt::Write <span class="kw">as _</span>, sync::Arc};
 <a href=#2 id=2 data-nosnippet>2</a>
-<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>anyhow::{anyhow, Context};
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>anyhow::{Context, anyhow};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>bivec::BiVec;
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>fp::vector::{FpSliceMut, FpVector};
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>serde::Deserialize;
@@ -505,8 +505,8 @@
 <a href=#480 id=480 data-nosnippet>480</a>        json[<span class="string">"type"</span>] = Value::from(<span class="string">"finite dimensional module"</span>);
 <a href=#481 id=481 data-nosnippet>481</a>        json[<span class="string">"gens"</span>] = <span class="macro">json!</span>({});
 <a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span><span class="self">self</span>.gen_names.iter_enum() {
-<a href=#483 id=483 data-nosnippet>483</a>            <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens {
-<a href=#484 id=484 data-nosnippet>484</a>                json[<span class="string">"gens"</span>][gen] = Value::from(i);
+<a href=#483 id=483 data-nosnippet>483</a>            <span class="kw">for </span>g <span class="kw">in </span>deg_i_gens {
+<a href=#484 id=484 data-nosnippet>484</a>                json[<span class="string">"gens"</span>][g] = Value::from(i);
 <a href=#485 id=485 data-nosnippet>485</a>            }
 <a href=#486 id=486 data-nosnippet>486</a>        }
 <a href=#487 id=487 data-nosnippet>487</a>
@@ -525,7 +525,7 @@
 <a href=#500 id=500 data-nosnippet>500</a>            .split_once(<span class="string">" = "</span>)
 <a href=#501 id=501 data-nosnippet>501</a>            .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">"Invalid action: {entry}"</span>))<span class="question-mark">?</span>;
 <a href=#502 id=502 data-nosnippet>502</a>
-<a href=#503 id=503 data-nosnippet>503</a>        <span class="kw">let </span>(action, gen) = lhs
+<a href=#503 id=503 data-nosnippet>503</a>        <span class="kw">let </span>(action, g) = lhs
 <a href=#504 id=504 data-nosnippet>504</a>            .rsplit_once(<span class="string">' '</span>)
 <a href=#505 id=505 data-nosnippet>505</a>            .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">"Invalid action: {entry}"</span>))<span class="question-mark">?</span>;
 <a href=#506 id=506 data-nosnippet>506</a>
@@ -533,7 +533,7 @@
 <a href=#508 id=508 data-nosnippet>508</a>            .basis_element_from_string(action)
 <a href=#509 id=509 data-nosnippet>509</a>            .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">"Invalid algebra element: {action}"</span>))<span class="question-mark">?</span>;
 <a href=#510 id=510 data-nosnippet>510</a>
-<a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>(input_deg, input_idx) = gen_to_idx(gen.trim())<span class="question-mark">?</span>;
+<a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>(input_deg, input_idx) = gen_to_idx(g.trim())<span class="question-mark">?</span>;
 <a href=#512 id=512 data-nosnippet>512</a>
 <a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">let </span>row = <span class="self">self</span>.action_mut(op_deg, op_idx, input_deg, input_idx);
 <a href=#514 id=514 data-nosnippet>514</a>
@@ -546,18 +546,18 @@
 <a href=#521 id=521 data-nosnippet>521</a>        }
 <a href=#522 id=522 data-nosnippet>522</a>
 <a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">for </span>item <span class="kw">in </span>rhs.split(<span class="string">" + "</span>) {
-<a href=#524 id=524 data-nosnippet>524</a>            <span class="kw">let </span>(coef, gen) = <span class="kw">match </span>item.split_once(<span class="string">' '</span>) {
-<a href=#525 id=525 data-nosnippet>525</a>                <span class="prelude-val">Some</span>((coef, gen)) =&gt; (
+<a href=#524 id=524 data-nosnippet>524</a>            <span class="kw">let </span>(coef, g) = <span class="kw">match </span>item.split_once(<span class="string">' '</span>) {
+<a href=#525 id=525 data-nosnippet>525</a>                <span class="prelude-val">Some</span>((coef, g)) =&gt; (
 <a href=#526 id=526 data-nosnippet>526</a>                    str::parse(coef)
 <a href=#527 id=527 data-nosnippet>527</a>                        .map_err(|<span class="kw">_</span>| <span class="macro">anyhow!</span>(<span class="string">"Invalid item on right-hand side: {item}"</span>))<span class="question-mark">?</span>,
-<a href=#528 id=528 data-nosnippet>528</a>                    gen,
+<a href=#528 id=528 data-nosnippet>528</a>                    g,
 <a href=#529 id=529 data-nosnippet>529</a>                ),
 <a href=#530 id=530 data-nosnippet>530</a>                <span class="prelude-val">None </span>=&gt; (<span class="number">1</span>, item),
 <a href=#531 id=531 data-nosnippet>531</a>            };
-<a href=#532 id=532 data-nosnippet>532</a>            <span class="kw">let </span>(deg, idx) = gen_to_idx(gen.trim())<span class="question-mark">?</span>;
+<a href=#532 id=532 data-nosnippet>532</a>            <span class="kw">let </span>(deg, idx) = gen_to_idx(g.trim())<span class="question-mark">?</span>;
 <a href=#533 id=533 data-nosnippet>533</a>            <span class="kw">if </span>deg != input_deg + op_deg {
 <a href=#534 id=534 data-nosnippet>534</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-<a href=#535 id=535 data-nosnippet>535</a>                    <span class="string">"Degree of {gen} is {deg} but degree of LHS is {}"</span>,
+<a href=#535 id=535 data-nosnippet>535</a>                    <span class="string">"Degree of {g} is {deg} but degree of LHS is {}"</span>,
 <a href=#536 id=536 data-nosnippet>536</a>                    input_deg + op_deg
 <a href=#537 id=537 data-nosnippet>537</a>                ));
 <a href=#538 id=538 data-nosnippet>538</a>            }

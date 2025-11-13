@@ -158,10 +158,10 @@
 <a href=#133 id=133 data-nosnippet>133</a>        <span class="self">self</span>.dimension = <span class="number">0</span>;
 <a href=#134 id=134 data-nosnippet>134</a>    }
 <a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, gen: FpSlice) {
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, g: FpSlice) {
 <a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.gens.update_then_row_reduce(|gens_matrix| {
 <a href=#138 id=138 data-nosnippet>138</a>            <span class="kw">let </span><span class="kw-2">mut </span>new_row = gens_matrix.row_mut(<span class="self">self</span>.dimension);
-<a href=#139 id=139 data-nosnippet>139</a>            new_row.assign(gen);
+<a href=#139 id=139 data-nosnippet>139</a>            new_row.assign(g);
 <a href=#140 id=140 data-nosnippet>140</a>            <span class="self">self</span>.quotient.reduce(new_row);
 <a href=#141 id=141 data-nosnippet>141</a>        });
 <a href=#142 id=142 data-nosnippet>142</a>        <span class="self">self</span>.dimension = <span class="self">self</span>.gens.dimension();
@@ -212,8 +212,8 @@
 <a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 <a href=#188 id=188 data-nosnippet>188</a>
 <a href=#189 id=189 data-nosnippet>189</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">use </span><span class="kw">crate</span>::matrix::subspace::arbitrary::SubspaceArbParams;
-<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">pub use </span><span class="kw">crate</span>::matrix::subspace::arbitrary::MAX_DIM;
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">pub use </span><span class="kw">crate</span>::matrix::subspace::arbitrary::MAX_DIM;
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">use </span><span class="kw">crate</span>::matrix::subspace::arbitrary::SubspaceArbParams;
 <a href=#192 id=192 data-nosnippet>192</a>
 <a href=#193 id=193 data-nosnippet>193</a>    <span class="attr">#[derive(Debug, Clone)]
 <a href=#194 id=194 data-nosnippet>194</a>    </span><span class="kw">pub struct </span>SubquotientArbParams {

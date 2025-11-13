@@ -32,9 +32,9 @@
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>once::OnceBiVec;
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::module::{
-<a href=#10 id=10 data-nosnippet>10</a>    block_structure::GeneratorBasisEltPair,
-<a href=#11 id=11 data-nosnippet>11</a>    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
-<a href=#12 id=12 data-nosnippet>12</a>    FreeModule, HomModule, Module,
+<a href=#10 id=10 data-nosnippet>10</a>    FreeModule, HomModule, Module,
+<a href=#11 id=11 data-nosnippet>11</a>    block_structure::GeneratorBasisEltPair,
+<a href=#12 id=12 data-nosnippet>12</a>    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 <a href=#13 id=13 data-nosnippet>13</a>};
 <a href=#14 id=14 data-nosnippet>14</a>
 <a href=#15 id=15 data-nosnippet>15</a><span class="doccomment">/// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
@@ -170,7 +170,7 @@
 <a href=#145 id=145 data-nosnippet>145</a>    <span class="kw">use </span>fp::{matrix::Matrix, vector::FpVector};
 <a href=#146 id=146 data-nosnippet>146</a>
 <a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">use crate</span>::{module::FDModule, MilnorAlgebra};
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">use crate</span>::{MilnorAlgebra, module::FDModule};
 <a href=#149 id=149 data-nosnippet>149</a>
 <a href=#150 id=150 data-nosnippet>150</a>    <span class="attr">#[test]
 <a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">fn </span>test_pullback_id() {

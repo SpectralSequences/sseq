@@ -27,18 +27,18 @@
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>algebra::{
-<a href=#5 id=5 data-nosnippet>5</a>    module::{steenrod_module, FDModule, Module, SteenrodModule},
-<a href=#6 id=6 data-nosnippet>6</a>    AlgebraType, MilnorAlgebra, SteenrodAlgebra,
+<a href=#5 id=5 data-nosnippet>5</a>    AlgebraType, MilnorAlgebra, SteenrodAlgebra,
+<a href=#6 id=6 data-nosnippet>6</a>    module::{FDModule, Module, SteenrodModule, steenrod_module},
 <a href=#7 id=7 data-nosnippet>7</a>};
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>anyhow::{anyhow, Context};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>anyhow::{Context, anyhow};
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>serde_json::Value;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
 <a href=#11 id=11 data-nosnippet>11</a>
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use crate</span>::{
-<a href=#13 id=13 data-nosnippet>13</a>    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
-<a href=#14 id=14 data-nosnippet>14</a>    resolution::{Resolution, UnstableResolution},
-<a href=#15 id=15 data-nosnippet>15</a>    save::SaveDirectory,
-<a href=#16 id=16 data-nosnippet>16</a>    CCC,
+<a href=#13 id=13 data-nosnippet>13</a>    CCC,
+<a href=#14 id=14 data-nosnippet>14</a>    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
+<a href=#15 id=15 data-nosnippet>15</a>    resolution::{Resolution, UnstableResolution},
+<a href=#16 id=16 data-nosnippet>16</a>    save::SaveDirectory,
 <a href=#17 id=17 data-nosnippet>17</a>};
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a><span class="comment">// We build docs with --all-features so the docs are at the feature = "nassau" version
@@ -545,7 +545,7 @@
 <a href=#520 id=520 data-nosnippet>520</a>
 <a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">use </span>tracing_subscriber::{
 <a href=#522 id=522 data-nosnippet>522</a>            filter::EnvFilter,
-<a href=#523 id=523 data-nosnippet>523</a>            fmt::{format::FmtSpan, Subscriber},
+<a href=#523 id=523 data-nosnippet>523</a>            fmt::{Subscriber, format::FmtSpan},
 <a href=#524 id=524 data-nosnippet>524</a>        };
 <a href=#525 id=525 data-nosnippet>525</a>
 <a href=#526 id=526 data-nosnippet>526</a>        Subscriber::builder()
@@ -571,7 +571,7 @@
 <a href=#546 id=546 data-nosnippet>546</a>    }
 <a href=#547 id=547 data-nosnippet>547</a>}
 <a href=#548 id=548 data-nosnippet>548</a>
-<a href=#549 id=549 data-nosnippet>549</a><span class="kw">pub use </span>logging::{ext_tracing_subscriber, init_logging, LogWriter};
+<a href=#549 id=549 data-nosnippet>549</a><span class="kw">pub use </span>logging::{LogWriter, ext_tracing_subscriber, init_logging};
 <a href=#550 id=550 data-nosnippet>550</a>
 <a href=#551 id=551 data-nosnippet>551</a><span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
 <a href=#552 id=552 data-nosnippet>552</a>///

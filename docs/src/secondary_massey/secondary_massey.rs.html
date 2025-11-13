@@ -48,7 +48,7 @@
 <a href=#23 id=23 data-nosnippet>23</a>    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
 <a href=#24 id=24 data-nosnippet>24</a>    resolution_homomorphism::ResolutionHomomorphism,
 <a href=#25 id=25 data-nosnippet>25</a>    secondary::<span class="kw-2">*</span>,
-<a href=#26 id=26 data-nosnippet>26</a>    utils::{query_module, QueryModuleResolution},
+<a href=#26 id=26 data-nosnippet>26</a>    utils::{QueryModuleResolution, query_module},
 <a href=#27 id=27 data-nosnippet>27</a>};
 <a href=#28 id=28 data-nosnippet>28</a><span class="kw">use </span>fp::{
 <a href=#29 id=29 data-nosnippet>29</a>    matrix::{Matrix, Subspace},
@@ -324,13 +324,13 @@
 <a href=#299 id=299 data-nosnippet>299</a>                        .get_map(c.s() + b.underlying().shift.s())
 <a href=#300 id=300 data-nosnippet>300</a>                        .hom_k(c.t()),
 <a href=#301 id=301 data-nosnippet>301</a>                );
-<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">for </span>(gen, out) <span class="kw">in </span>target_page_data
+<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">for </span>(g, out) <span class="kw">in </span>target_page_data
 <a href=#303 id=303 data-nosnippet>303</a>                    .subspace_gens()
 <a href=#304 id=304 data-nosnippet>304</a>                    .zip_eq(product_matrix.iter_mut())
 <a href=#305 id=305 data-nosnippet>305</a>                {
 <a href=#306 id=306 data-nosnippet>306</a>                    out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens)
-<a href=#307 id=307 data-nosnippet>307</a>                        .add(gen, <span class="number">1</span>);
-<a href=#308 id=308 data-nosnippet>308</a>                    <span class="kw">for </span>(i, v) <span class="kw">in </span>gen.iter_nonzero() {
+<a href=#307 id=307 data-nosnippet>307</a>                        .add(g, <span class="number">1</span>);
+<a href=#308 id=308 data-nosnippet>308</a>                    <span class="kw">for </span>(i, v) <span class="kw">in </span>g.iter_nonzero() {
 <a href=#309 id=309 data-nosnippet>309</a>                        out.slice_mut(<span class="number">0</span>, prod_num_gens).add(m0[i].as_slice(), v);
 <a href=#310 id=310 data-nosnippet>310</a>                    }
 <a href=#311 id=311 data-nosnippet>311</a>                }
@@ -411,12 +411,12 @@
 <a href=#386 id=386 data-nosnippet>386</a>            .hom_k(c.t() + b_shift.t());
 <a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
 <a href=#388 id=388 data-nosnippet>388</a>
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">for </span>gen <span class="kw">in </span>e3_kernel.iter() {
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">for </span>g <span class="kw">in </span>e3_kernel.iter() {
 <a href=#390 id=390 data-nosnippet>390</a>            <span class="comment">// Print name
 <a href=#391 id=391 data-nosnippet>391</a>            </span>{
 <a href=#392 id=392 data-nosnippet>392</a>                <span class="macro">print!</span>(<span class="string">"&lt;{a_name}, {b_name}, "</span>);
 <a href=#393 id=393 data-nosnippet>393</a>                <span class="kw">let </span>has_ext = {
-<a href=#394 id=394 data-nosnippet>394</a>                    <span class="kw">let </span>ext_part = gen.slice(<span class="number">0</span>, target_num_gens);
+<a href=#394 id=394 data-nosnippet>394</a>                    <span class="kw">let </span>ext_part = g.slice(<span class="number">0</span>, target_num_gens);
 <a href=#395 id=395 data-nosnippet>395</a>                    <span class="kw">if </span>ext_part.iter_nonzero().count() &gt; <span class="number">0 </span>{
 <a href=#396 id=396 data-nosnippet>396</a>                        <span class="macro">print!</span>(
 <a href=#397 id=397 data-nosnippet>397</a>                            <span class="string">"[{basis_string}]"</span>,
@@ -429,7 +429,7 @@
 <a href=#404 id=404 data-nosnippet>404</a>                    </span>}
 <a href=#405 id=405 data-nosnippet>405</a>                };
 <a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">let </span>lambda_part = gen.slice(target_num_gens, target_all_gens);
+<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">let </span>lambda_part = g.slice(target_num_gens, target_all_gens);
 <a href=#408 id=408 data-nosnippet>408</a>                <span class="kw">let </span>num_entries = lambda_part.iter_nonzero().count();
 <a href=#409 id=409 data-nosnippet>409</a>                <span class="kw">if </span>num_entries &gt; <span class="number">0 </span>{
 <a href=#410 id=410 data-nosnippet>410</a>                    <span class="kw">if </span>has_ext {
@@ -439,7 +439,7 @@
 <a href=#414 id=414 data-nosnippet>414</a>
 <a href=#415 id=415 data-nosnippet>415</a>                    <span class="kw">let </span>basis_string = BidegreeElement::new(
 <a href=#416 id=416 data-nosnippet>416</a>                        c + LAMBDA_BIDEGREE,
-<a href=#417 id=417 data-nosnippet>417</a>                        gen.slice(target_num_gens, target_all_gens).to_owned(),
+<a href=#417 id=417 data-nosnippet>417</a>                        g.slice(target_num_gens, target_all_gens).to_owned(),
 <a href=#418 id=418 data-nosnippet>418</a>                    )
 <a href=#419 id=419 data-nosnippet>419</a>                    .to_basis_string();
 <a href=#420 id=420 data-nosnippet>420</a>                    <span class="kw">if </span>num_entries == <span class="number">1 </span>{
@@ -456,20 +456,20 @@
 <a href=#431 id=431 data-nosnippet>431</a>            scratch1.set_scratch_vector_size(source_lambda_num_gens);
 <a href=#432 id=432 data-nosnippet>432</a>
 <a href=#433 id=433 data-nosnippet>433</a>            <span class="comment">// First deal with the null-homotopy of ab
-<a href=#434 id=434 data-nosnippet>434</a>            </span><span class="kw">for </span>(i, v) <span class="kw">in </span>gen.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
+<a href=#434 id=434 data-nosnippet>434</a>            </span><span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
 <a href=#435 id=435 data-nosnippet>435</a>                scratch0
 <a href=#436 id=436 data-nosnippet>436</a>                    .iter_mut()
 <a href=#437 id=437 data-nosnippet>437</a>                    .zip_eq(<span class="kw-2">&amp;</span>m0[i])
 <a href=#438 id=438 data-nosnippet>438</a>                    .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
 <a href=#439 id=439 data-nosnippet>439</a>                scratch1.add(<span class="kw-2">&amp;</span>m1[i], v);
 <a href=#440 id=440 data-nosnippet>440</a>            }
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>gen.slice(target_num_gens, target_all_gens).iter_nonzero() {
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(target_num_gens, target_all_gens).iter_nonzero() {
 <a href=#442 id=442 data-nosnippet>442</a>                scratch1.add(<span class="kw-2">&amp;</span>mt[i], v);
 <a href=#443 id=443 data-nosnippet>443</a>            }
 <a href=#444 id=444 data-nosnippet>444</a>            <span class="comment">// Now do the -1 part of the null-homotopy of bc.
 <a href=#445 id=445 data-nosnippet>445</a>            </span>{
 <a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">let </span>sign = p * p - <span class="number">1</span>;
-<a href=#447 id=447 data-nosnippet>447</a>                <span class="kw">let </span>out = b.product_nullhomotopy(b_lambda.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, gen);
+<a href=#447 id=447 data-nosnippet>447</a>                <span class="kw">let </span>out = b.product_nullhomotopy(b_lambda.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, g);
 <a href=#448 id=448 data-nosnippet>448</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>out.iter_nonzero() {
 <a href=#449 id=449 data-nosnippet>449</a>                    scratch0
 <a href=#450 id=450 data-nosnippet>450</a>                        .iter_mut()
@@ -490,7 +490,7 @@
 <a href=#465 id=465 data-nosnippet>465</a>            </span>scratch0.clear();
 <a href=#466 id=466 data-nosnippet>466</a>            scratch0.resize(prod_num_gens, <span class="number">0</span>);
 <a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>gen.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
+<a href=#468 id=468 data-nosnippet>468</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
 <a href=#469 id=469 data-nosnippet>469</a>                scratch0
 <a href=#470 id=470 data-nosnippet>470</a>                    .iter_mut()
 <a href=#471 id=471 data-nosnippet>471</a>                    .zip_eq(<span class="kw-2">&amp;</span>mb[i])

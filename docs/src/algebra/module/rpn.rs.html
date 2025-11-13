@@ -34,9 +34,9 @@
 <a href=#9 id=9 data-nosnippet>9</a>
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use crate</span>::{
 <a href=#11 id=11 data-nosnippet>11</a>    algebra::{
-<a href=#12 id=12 data-nosnippet>12</a>        adem_algebra::AdemBasisElement,
-<a href=#13 id=13 data-nosnippet>13</a>        milnor_algebra::{MilnorBasisElement, PPartEntry},
-<a href=#14 id=14 data-nosnippet>14</a>        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+<a href=#12 id=12 data-nosnippet>12</a>        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+<a href=#13 id=13 data-nosnippet>13</a>        adem_algebra::AdemBasisElement,
+<a href=#14 id=14 data-nosnippet>14</a>        milnor_algebra::{MilnorBasisElement, PPartEntry},
 <a href=#15 id=15 data-nosnippet>15</a>    },
 <a href=#16 id=16 data-nosnippet>16</a>    module::{Module, ZeroModule},
 <a href=#17 id=17 data-nosnippet>17</a>};
@@ -101,10 +101,10 @@
 <a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">if </span>degree &lt; <span class="self">self</span>.min {
 <a href=#77 id=77 data-nosnippet>77</a>            <span class="kw">return </span><span class="number">0</span>;
 <a href=#78 id=78 data-nosnippet>78</a>        }
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = <span class="self">self</span>.max {
-<a href=#80 id=80 data-nosnippet>80</a>            <span class="kw">if </span>degree &gt; m {
-<a href=#81 id=81 data-nosnippet>81</a>                <span class="kw">return </span><span class="number">0</span>;
-<a href=#82 id=82 data-nosnippet>82</a>            }
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = <span class="self">self</span>.max
+<a href=#80 id=80 data-nosnippet>80</a>            &amp;&amp; degree &gt; m
+<a href=#81 id=81 data-nosnippet>81</a>        {
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">return </span><span class="number">0</span>;
 <a href=#83 id=83 data-nosnippet>83</a>        }
 <a href=#84 id=84 data-nosnippet>84</a>
 <a href=#85 id=85 data-nosnippet>85</a>        <span class="kw">if </span><span class="self">self</span>.clear_bottom

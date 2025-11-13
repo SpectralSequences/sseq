@@ -26,7 +26,7 @@
 </head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">algebra/algebra/</div>milnor_algebra.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::cell::Cell;
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>fp::{
-<a href=#4 id=4 data-nosnippet>4</a>    prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
+<a href=#4 id=4 data-nosnippet>4</a>    prime::{Binomial, Prime, ValidPrime, factor_pk, iter::BitflagIterator},
 <a href=#5 id=5 data-nosnippet>5</a>    vector::{FpSlice, FpSliceMut, FpVector},
 <a href=#6 id=6 data-nosnippet>6</a>};
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>itertools::Itertools;
@@ -34,7 +34,7 @@
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>serde::{Deserialize, Serialize};
 <a href=#11 id=11 data-nosnippet>11</a>
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span><span class="kw">crate</span>::algebra::{combinatorics, Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="comment">// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 <a href=#15 id=15 data-nosnippet>15</a>// In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -607,13 +607,13 @@
 <a href=#582 id=582 data-nosnippet>582</a>
 <a href=#583 id=583 data-nosnippet>583</a>    <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt; {
 <a href=#584 id=584 data-nosnippet>584</a>        <span class="kw">use </span>nom::{
-<a href=#585 id=585 data-nosnippet>585</a>            branch::alt,
-<a href=#586 id=586 data-nosnippet>586</a>            bytes::complete::tag,
-<a href=#587 id=587 data-nosnippet>587</a>            character::complete::char,
-<a href=#588 id=588 data-nosnippet>588</a>            combinator::{map, opt},
-<a href=#589 id=589 data-nosnippet>589</a>            multi::{many0, separated_list1},
-<a href=#590 id=590 data-nosnippet>590</a>            sequence::preceded,
-<a href=#591 id=591 data-nosnippet>591</a>            Parser,
+<a href=#585 id=585 data-nosnippet>585</a>            Parser,
+<a href=#586 id=586 data-nosnippet>586</a>            branch::alt,
+<a href=#587 id=587 data-nosnippet>587</a>            bytes::complete::tag,
+<a href=#588 id=588 data-nosnippet>588</a>            character::complete::char,
+<a href=#589 id=589 data-nosnippet>589</a>            combinator::{map, opt},
+<a href=#590 id=590 data-nosnippet>590</a>            multi::{many0, separated_list1},
+<a href=#591 id=591 data-nosnippet>591</a>            sequence::preceded,
 <a href=#592 id=592 data-nosnippet>592</a>        };
 <a href=#593 id=593 data-nosnippet>593</a>
 <a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::{brackets, digits, p_or_sq};
@@ -765,14 +765,14 @@
 <a href=#740 id=740 data-nosnippet>740</a>            <span class="kw">if </span>!(degree <span class="kw">as </span>u32).is_multiple_of(q) {
 <a href=#741 id=741 data-nosnippet>741</a>                <span class="kw">return </span><span class="macro">vec!</span>[];
 <a href=#742 id=742 data-nosnippet>742</a>            }
-<a href=#743 id=743 data-nosnippet>743</a>            <span class="kw">if let </span>(k, <span class="number">1</span>) = factor_pk(p, degree <span class="kw">as </span>u32 / q) {
-<a href=#744 id=744 data-nosnippet>744</a>                <span class="kw">if </span>(k <span class="kw">as </span>PPartEntry) &lt; <span class="self">self</span>.profile.get_p_part(<span class="number">0</span>) {
-<a href=#745 id=745 data-nosnippet>745</a>                    <span class="kw">return </span><span class="macro">vec!</span>[<span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>MilnorBasisElement {
-<a href=#746 id=746 data-nosnippet>746</a>                        degree,
-<a href=#747 id=747 data-nosnippet>747</a>                        q_part: <span class="number">0</span>,
-<a href=#748 id=748 data-nosnippet>748</a>                        p_part: <span class="macro">vec!</span>[(degree <span class="kw">as </span>u32 / q) <span class="kw">as </span>PPartEntry],
-<a href=#749 id=749 data-nosnippet>749</a>                    })];
-<a href=#750 id=750 data-nosnippet>750</a>                }
+<a href=#743 id=743 data-nosnippet>743</a>            <span class="kw">if let </span>(k, <span class="number">1</span>) = factor_pk(p, degree <span class="kw">as </span>u32 / q)
+<a href=#744 id=744 data-nosnippet>744</a>                &amp;&amp; (k <span class="kw">as </span>PPartEntry) &lt; <span class="self">self</span>.profile.get_p_part(<span class="number">0</span>)
+<a href=#745 id=745 data-nosnippet>745</a>            {
+<a href=#746 id=746 data-nosnippet>746</a>                <span class="kw">return </span><span class="macro">vec!</span>[<span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>MilnorBasisElement {
+<a href=#747 id=747 data-nosnippet>747</a>                    degree,
+<a href=#748 id=748 data-nosnippet>748</a>                    q_part: <span class="number">0</span>,
+<a href=#749 id=749 data-nosnippet>749</a>                    p_part: <span class="macro">vec!</span>[(degree <span class="kw">as </span>u32 / q) <span class="kw">as </span>PPartEntry],
+<a href=#750 id=750 data-nosnippet>750</a>                })];
 <a href=#751 id=751 data-nosnippet>751</a>            }
 <a href=#752 id=752 data-nosnippet>752</a>            <span class="macro">vec!</span>[]
 <a href=#753 id=753 data-nosnippet>753</a>        } <span class="kw">else </span>{
@@ -2080,32 +2080,40 @@
 <a href=#2055 id=2055 data-nosnippet>2055</a>
 <a href=#2056 id=2056 data-nosnippet>2056</a>    <span class="attr">#[test]
 <a href=#2057 id=2057 data-nosnippet>2057</a>    </span><span class="kw">fn </span>test_valid_profile() {
-<a href=#2058 id=2058 data-nosnippet>2058</a>        <span class="macro">assert!</span>((MilnorProfile {
-<a href=#2059 id=2059 data-nosnippet>2059</a>            p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
-<a href=#2060 id=2060 data-nosnippet>2060</a>            q_part: !<span class="number">0</span>,
-<a href=#2061 id=2061 data-nosnippet>2061</a>            truncated: <span class="bool-val">true
-<a href=#2062 id=2062 data-nosnippet>2062</a>        </span>})
-<a href=#2063 id=2063 data-nosnippet>2063</a>        .is_valid());
-<a href=#2064 id=2064 data-nosnippet>2064</a>
-<a href=#2065 id=2065 data-nosnippet>2065</a>        <span class="macro">assert!</span>(!(MilnorProfile {
-<a href=#2066 id=2066 data-nosnippet>2066</a>            p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>],
-<a href=#2067 id=2067 data-nosnippet>2067</a>            q_part: !<span class="number">0</span>,
-<a href=#2068 id=2068 data-nosnippet>2068</a>            truncated: <span class="bool-val">true
-<a href=#2069 id=2069 data-nosnippet>2069</a>        </span>})
-<a href=#2070 id=2070 data-nosnippet>2070</a>        .is_valid());
-<a href=#2071 id=2071 data-nosnippet>2071</a>
-<a href=#2072 id=2072 data-nosnippet>2072</a>        <span class="macro">assert!</span>((MilnorProfile {
-<a href=#2073 id=2073 data-nosnippet>2073</a>            p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
-<a href=#2074 id=2074 data-nosnippet>2074</a>            q_part: <span class="number">0b1111</span>,
-<a href=#2075 id=2075 data-nosnippet>2075</a>            truncated: <span class="bool-val">true
-<a href=#2076 id=2076 data-nosnippet>2076</a>        </span>})
-<a href=#2077 id=2077 data-nosnippet>2077</a>        .is_valid());
-<a href=#2078 id=2078 data-nosnippet>2078</a>
-<a href=#2079 id=2079 data-nosnippet>2079</a>        <span class="macro">assert!</span>(!(MilnorProfile {
-<a href=#2080 id=2080 data-nosnippet>2080</a>            p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
-<a href=#2081 id=2081 data-nosnippet>2081</a>            q_part: <span class="number">0b111</span>,
-<a href=#2082 id=2082 data-nosnippet>2082</a>            truncated: <span class="bool-val">true
-<a href=#2083 id=2083 data-nosnippet>2083</a>        </span>})
-<a href=#2084 id=2084 data-nosnippet>2084</a>        .is_valid());
-<a href=#2085 id=2085 data-nosnippet>2085</a>    }
-<a href=#2086 id=2086 data-nosnippet>2086</a>}</code></pre></div></section></main></body></html>
+<a href=#2058 id=2058 data-nosnippet>2058</a>        <span class="macro">assert!</span>(
+<a href=#2059 id=2059 data-nosnippet>2059</a>            (MilnorProfile {
+<a href=#2060 id=2060 data-nosnippet>2060</a>                p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
+<a href=#2061 id=2061 data-nosnippet>2061</a>                q_part: !<span class="number">0</span>,
+<a href=#2062 id=2062 data-nosnippet>2062</a>                truncated: <span class="bool-val">true
+<a href=#2063 id=2063 data-nosnippet>2063</a>            </span>})
+<a href=#2064 id=2064 data-nosnippet>2064</a>            .is_valid()
+<a href=#2065 id=2065 data-nosnippet>2065</a>        );
+<a href=#2066 id=2066 data-nosnippet>2066</a>
+<a href=#2067 id=2067 data-nosnippet>2067</a>        <span class="macro">assert!</span>(
+<a href=#2068 id=2068 data-nosnippet>2068</a>            !(MilnorProfile {
+<a href=#2069 id=2069 data-nosnippet>2069</a>                p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>],
+<a href=#2070 id=2070 data-nosnippet>2070</a>                q_part: !<span class="number">0</span>,
+<a href=#2071 id=2071 data-nosnippet>2071</a>                truncated: <span class="bool-val">true
+<a href=#2072 id=2072 data-nosnippet>2072</a>            </span>})
+<a href=#2073 id=2073 data-nosnippet>2073</a>            .is_valid()
+<a href=#2074 id=2074 data-nosnippet>2074</a>        );
+<a href=#2075 id=2075 data-nosnippet>2075</a>
+<a href=#2076 id=2076 data-nosnippet>2076</a>        <span class="macro">assert!</span>(
+<a href=#2077 id=2077 data-nosnippet>2077</a>            (MilnorProfile {
+<a href=#2078 id=2078 data-nosnippet>2078</a>                p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
+<a href=#2079 id=2079 data-nosnippet>2079</a>                q_part: <span class="number">0b1111</span>,
+<a href=#2080 id=2080 data-nosnippet>2080</a>                truncated: <span class="bool-val">true
+<a href=#2081 id=2081 data-nosnippet>2081</a>            </span>})
+<a href=#2082 id=2082 data-nosnippet>2082</a>            .is_valid()
+<a href=#2083 id=2083 data-nosnippet>2083</a>        );
+<a href=#2084 id=2084 data-nosnippet>2084</a>
+<a href=#2085 id=2085 data-nosnippet>2085</a>        <span class="macro">assert!</span>(
+<a href=#2086 id=2086 data-nosnippet>2086</a>            !(MilnorProfile {
+<a href=#2087 id=2087 data-nosnippet>2087</a>                p_part: <span class="macro">vec!</span>[<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>],
+<a href=#2088 id=2088 data-nosnippet>2088</a>                q_part: <span class="number">0b111</span>,
+<a href=#2089 id=2089 data-nosnippet>2089</a>                truncated: <span class="bool-val">true
+<a href=#2090 id=2090 data-nosnippet>2090</a>            </span>})
+<a href=#2091 id=2091 data-nosnippet>2091</a>            .is_valid()
+<a href=#2092 id=2092 data-nosnippet>2092</a>        );
+<a href=#2093 id=2093 data-nosnippet>2093</a>    }
+<a href=#2094 id=2094 data-nosnippet>2094</a>}</code></pre></div></section></main></body></html>

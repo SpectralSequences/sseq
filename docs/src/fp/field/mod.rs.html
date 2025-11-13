@@ -58,7 +58,7 @@
 <a href=#33 id=33 data-nosnippet>33</a></span><span class="kw">mod </span>tests {
 <a href=#34 id=34 data-nosnippet>34</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 <a href=#35 id=35 data-nosnippet>35</a>
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">use super</span>::{element::FieldElement, Field, SmallFq};
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">use super</span>::{Field, SmallFq, element::FieldElement};
 <a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">use </span><span class="kw">crate</span>::prime::P2;
 <a href=#38 id=38 data-nosnippet>38</a>
 <a href=#39 id=39 data-nosnippet>39</a>    <span class="attr">#[test]
@@ -168,8 +168,8 @@
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="macro">assert_eq!</span>(elements, expansions);
 <a href=#144 id=144 data-nosnippet>144</a>    }
 <a href=#145 id=145 data-nosnippet>145</a>
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>arb_elements&lt;F: Field, <span class="kw">const </span>N: usize&gt;(
-<a href=#147 id=147 data-nosnippet>147</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, [FieldElement&lt;F&gt;; N])&gt; {
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>arb_elements&lt;F: Field, <span class="kw">const </span>N: usize&gt;()
+<a href=#147 id=147 data-nosnippet>147</a>    -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, [FieldElement&lt;F&gt;; N])&gt; {
 <a href=#148 id=148 data-nosnippet>148</a>        any::&lt;F&gt;().prop_flat_map(<span class="kw">move </span>|f| (Just(f), std::array::from_fn(|<span class="kw">_</span>| f.arb_element())))
 <a href=#149 id=149 data-nosnippet>149</a>    }
 <a href=#150 id=150 data-nosnippet>150</a>

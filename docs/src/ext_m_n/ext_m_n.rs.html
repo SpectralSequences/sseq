@@ -25,7 +25,7 @@
 
 </head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">ext_m_n/</div>ext_m_n.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::sync::Arc;
 <a href=#2 id=2 data-nosnippet>2</a>
-<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>algebra::{module::Module, Algebra};
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>algebra::{Algebra, module::Module};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>ext::chain_complex::ChainComplex;
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>hom_cochain_complex::HomCochainComplex;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>sseq::coordinates::Bidegree;
@@ -77,8 +77,8 @@
 <a href=#52 id=52 data-nosnippet>52</a>    <span class="kw">use </span>std::sync::Arc;
 <a href=#53 id=53 data-nosnippet>53</a>
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="kw">use </span>algebra::module::{
-<a href=#55 id=55 data-nosnippet>55</a>        homomorphism::{HomPullback, ModuleHomomorphism},
-<a href=#56 id=56 data-nosnippet>56</a>        HomModule, Module,
+<a href=#55 id=55 data-nosnippet>55</a>        HomModule, Module,
+<a href=#56 id=56 data-nosnippet>56</a>        homomorphism::{HomPullback, ModuleHomomorphism},
 <a href=#57 id=57 data-nosnippet>57</a>    };
 <a href=#58 id=58 data-nosnippet>58</a>    <span class="kw">use </span>ext::chain_complex::FreeChainComplex;
 <a href=#59 id=59 data-nosnippet>59</a>    <span class="kw">use </span>fp::matrix::Subquotient;

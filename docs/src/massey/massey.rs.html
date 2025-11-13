@@ -140,8 +140,8 @@
 <a href=#115 id=115 data-nosnippet>115</a>
 <a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">for </span>(k, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>b_class.iter().enumerate() {
 <a href=#117 id=117 data-nosnippet>117</a>                <span class="kw">if </span>v != <span class="number">0 </span>{
-<a href=#118 id=118 data-nosnippet>118</a>                    <span class="kw">let </span>gen = BidegreeGenerator::new(b, k);
-<a href=#119 id=119 data-nosnippet>119</a>                    hom.act(product[idx].slice_mut(<span class="number">0</span>, product_num_gens), v, gen);
+<a href=#118 id=118 data-nosnippet>118</a>                    <span class="kw">let </span>g = BidegreeGenerator::new(b, k);
+<a href=#119 id=119 data-nosnippet>119</a>                    hom.act(product[idx].slice_mut(<span class="number">0</span>, product_num_gens), v, g);
 <a href=#120 id=120 data-nosnippet>120</a>                }
 <a href=#121 id=121 data-nosnippet>121</a>            }
 <a href=#122 id=122 data-nosnippet>122</a>        }

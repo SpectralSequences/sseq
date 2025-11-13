@@ -43,7 +43,7 @@
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a>    <span class="kw">use super</span>::{arbitrary::MAX_LEN <span class="kw">as </span>MAX_TEST_VEC_LEN, inner::FqVector};
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">use crate</span>::{
-<a href=#21 id=21 data-nosnippet>21</a>        field::{element::FieldElement, fp::F2, Field},
+<a href=#21 id=21 data-nosnippet>21</a>        field::{Field, element::FieldElement, fp::F2},
 <a href=#22 id=22 data-nosnippet>22</a>        limb,
 <a href=#23 id=23 data-nosnippet>23</a>    };
 <a href=#24 id=24 data-nosnippet>24</a>
@@ -155,15 +155,15 @@
 <a href=#130 id=130 data-nosnippet>130</a>    }
 <a href=#131 id=131 data-nosnippet>131</a>
 <a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// An Fq vector together with valid slice indices
-<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">fn </span>arb_vec_and_slice&lt;F: Field&gt;(
-<a href=#134 id=134 data-nosnippet>134</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, (usize, usize))&gt; {
+<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">fn </span>arb_vec_and_slice&lt;F: Field&gt;()
+<a href=#134 id=134 data-nosnippet>134</a>    -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, (usize, usize))&gt; {
 <a href=#135 id=135 data-nosnippet>135</a>        arb_field_dim()
 <a href=#136 id=136 data-nosnippet>136</a>            .prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim), arb_slice(dim)))
 <a href=#137 id=137 data-nosnippet>137</a>    }
 <a href=#138 id=138 data-nosnippet>138</a>
 <a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// A pair of vectors of the same length over the same field
-<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">fn </span>arb_vec_pair&lt;F: Field&gt;(
-<a href=#141 id=141 data-nosnippet>141</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;)&gt; {
+<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">fn </span>arb_vec_pair&lt;F: Field&gt;()
+<a href=#141 id=141 data-nosnippet>141</a>    -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;)&gt; {
 <a href=#142 id=142 data-nosnippet>142</a>        arb_field_dim().prop_flat_map(|(fq, dim)| {
 <a href=#143 id=143 data-nosnippet>143</a>            (Just(fq), arb_element_vec(fq, dim), arb_element_vec(fq, dim))
 <a href=#144 id=144 data-nosnippet>144</a>        })
@@ -190,8 +190,8 @@
 <a href=#165 id=165 data-nosnippet>165</a>
 <a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// A pair of vectors of the same length over the same field, together with a mask (in the sense
 <a href=#167 id=167 data-nosnippet>167</a>    /// of [`FqVector::add_masked`] and [`FqVector::add_unmasked`])
-<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">fn </span>arb_vec_pair_and_mask&lt;F: Field&gt;(
-<a href=#169 id=169 data-nosnippet>169</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;usize&gt;)&gt; {
+<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">fn </span>arb_vec_pair_and_mask&lt;F: Field&gt;()
+<a href=#169 id=169 data-nosnippet>169</a>    -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;usize&gt;)&gt; {
 <a href=#170 id=170 data-nosnippet>170</a>        any::&lt;F&gt;()
 <a href=#171 id=171 data-nosnippet>171</a>            .prop_flat_map(|fq| (Just(fq), arb_slice(MAX_TEST_VEC_LEN)))
 <a href=#172 id=172 data-nosnippet>172</a>            .prop_flat_map(|(fq, (dim_small, dim_large))| {

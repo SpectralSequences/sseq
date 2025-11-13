@@ -31,7 +31,7 @@
 <a href=#6 id=6 data-nosnippet>6</a>
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use crate</span>::{
 <a href=#8 id=8 data-nosnippet>8</a>    algebra::Field,
-<a href=#9 id=9 data-nosnippet>9</a>    module::{block_structure::BlockStructure, FreeModule, Module},
+<a href=#9 id=9 data-nosnippet>9</a>    module::{FreeModule, Module, block_structure::BlockStructure},
 <a href=#10 id=10 data-nosnippet>10</a>};
 <a href=#11 id=11 data-nosnippet>11</a>
 <a href=#12 id=12 data-nosnippet>12</a><span class="doccomment">/// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
@@ -149,7 +149,7 @@
 <a href=#124 id=124 data-nosnippet>124</a><span class="attr">#[cfg(test)]
 <a href=#125 id=125 data-nosnippet>125</a></span><span class="kw">mod </span>tests {
 <a href=#126 id=126 data-nosnippet>126</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">use crate</span>::{module::FDModule, MilnorAlgebra};
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">use crate</span>::{MilnorAlgebra, module::FDModule};
 <a href=#128 id=128 data-nosnippet>128</a>
 <a href=#129 id=129 data-nosnippet>129</a>    <span class="attr">#[test]
 <a href=#130 id=130 data-nosnippet>130</a>    </span><span class="kw">fn </span>test_hom_dim() {

@@ -28,16 +28,16 @@
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a></span><span class="kw">use </span>std::str::FromStr;
 <a href=#5 id=5 data-nosnippet>5</a>
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>anyhow::{anyhow, Context};
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>anyhow::{Context, anyhow};
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>nom::{
-<a href=#8 id=8 data-nosnippet>8</a>    branch::alt,
-<a href=#9 id=9 data-nosnippet>9</a>    bytes::complete::tag,
-<a href=#10 id=10 data-nosnippet>10</a>    character::complete::{alpha1, alphanumeric0, char, digit1 <span class="kw">as </span>digit, space0},
-<a href=#11 id=11 data-nosnippet>11</a>    combinator::{map, map_res, opt, peek},
-<a href=#12 id=12 data-nosnippet>12</a>    error::{context, ErrorKind, ParseError},
-<a href=#13 id=13 data-nosnippet>13</a>    multi::{many0, separated_list1},
-<a href=#14 id=14 data-nosnippet>14</a>    sequence::{delimited, pair, preceded},
-<a href=#15 id=15 data-nosnippet>15</a>    IResult <span class="kw">as </span>IResultBase, Parser,
+<a href=#8 id=8 data-nosnippet>8</a>    IResult <span class="kw">as </span>IResultBase, Parser,
+<a href=#9 id=9 data-nosnippet>9</a>    branch::alt,
+<a href=#10 id=10 data-nosnippet>10</a>    bytes::complete::tag,
+<a href=#11 id=11 data-nosnippet>11</a>    character::complete::{alpha1, alphanumeric0, char, digit1 <span class="kw">as </span>digit, space0},
+<a href=#12 id=12 data-nosnippet>12</a>    combinator::{map, map_res, opt, peek},
+<a href=#13 id=13 data-nosnippet>13</a>    error::{ErrorKind, ParseError, context},
+<a href=#14 id=14 data-nosnippet>14</a>    multi::{many0, separated_list1},
+<a href=#15 id=15 data-nosnippet>15</a>    sequence::{delimited, pair, preceded},
 <a href=#16 id=16 data-nosnippet>16</a>};
 <a href=#17 id=17 data-nosnippet>17</a>
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use crate</span>::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
@@ -231,7 +231,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>    .parse(i)<span class="question-mark">?</span>;
 <a href=#207 id=207 data-nosnippet>207</a>
 <a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">match </span>space(module_generator).parse(i) {
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="prelude-val">Ok</span>((i, gen)) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((i, <span class="macro">vec!</span>[(prefix.unwrap_or(Scalar(<span class="number">1</span>)), gen)])),
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="prelude-val">Ok</span>((i, g)) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((i, <span class="macro">vec!</span>[(prefix.unwrap_or(Scalar(<span class="number">1</span>)), g)])),
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="prelude-val">Err</span>(nom::Err::Error(<span class="kw">_</span>)) =&gt; (),
 <a href=#211 id=211 data-nosnippet>211</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
 <a href=#212 id=212 data-nosnippet>212</a>    }
@@ -302,7 +302,7 @@
 <a href=#277 id=277 data-nosnippet>277</a>
 <a href=#278 id=278 data-nosnippet>278</a><span class="attr">#[cfg(test)]
 <a href=#279 id=279 data-nosnippet>279</a></span><span class="kw">mod </span>tests {
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">use </span>expect_test::{expect, Expect};
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">use </span>expect_test::{Expect, expect};
 <a href=#281 id=281 data-nosnippet>281</a>
 <a href=#282 id=282 data-nosnippet>282</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#283 id=283 data-nosnippet>283</a>

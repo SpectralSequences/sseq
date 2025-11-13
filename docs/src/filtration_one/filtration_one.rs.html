@@ -46,9 +46,9 @@
 <a href=#21 id=21 data-nosnippet>21</a>            <span class="comment">// TODO: This doesn't work with the reordered Adams basis
 <a href=#22 id=22 data-nosnippet>22</a>            </span><span class="kw">let </span>products = resolution.filtration_one_product(<span class="number">1 </span>&lt;&lt; i, <span class="number">0</span>, b).unwrap();
 <a href=#23 id=23 data-nosnippet>23</a>            <span class="kw">for </span>(idx, row) <span class="kw">in </span>products.into_iter().enumerate() {
-<a href=#24 id=24 data-nosnippet>24</a>                <span class="kw">let </span>gen = BidegreeGenerator::new(b, idx);
+<a href=#24 id=24 data-nosnippet>24</a>                <span class="kw">let </span>g = BidegreeGenerator::new(b, idx);
 <a href=#25 id=25 data-nosnippet>25</a>                <span class="kw">if </span>!row.is_empty() {
-<a href=#26 id=26 data-nosnippet>26</a>                    <span class="macro">println!</span>(<span class="string">"h_{i} x_{gen} = {row:?}"</span>);
+<a href=#26 id=26 data-nosnippet>26</a>                    <span class="macro">println!</span>(<span class="string">"h_{i} x_{g} = {row:?}"</span>);
 <a href=#27 id=27 data-nosnippet>27</a>                }
 <a href=#28 id=28 data-nosnippet>28</a>            }
 <a href=#29 id=29 data-nosnippet>29</a>            i += <span class="number">1</span>;

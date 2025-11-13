@@ -38,9 +38,9 @@
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a>    <span class="kw">for </span>b <span class="kw">in </span>resolution.iter_stem() {
 <a href=#15 id=15 data-nosnippet>15</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..resolution.number_of_gens_in_bidegree(b) {
-<a href=#16 id=16 data-nosnippet>16</a>            <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
-<a href=#17 id=17 data-nosnippet>17</a>            <span class="kw">let </span>boundary = resolution.boundary_string(gen);
-<a href=#18 id=18 data-nosnippet>18</a>            <span class="macro">println!</span>(<span class="string">"d x_{gen:#} = {boundary}"</span>);
+<a href=#16 id=16 data-nosnippet>16</a>            <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
+<a href=#17 id=17 data-nosnippet>17</a>            <span class="kw">let </span>boundary = resolution.boundary_string(g);
+<a href=#18 id=18 data-nosnippet>18</a>            <span class="macro">println!</span>(<span class="string">"d x_{g:#} = {boundary}"</span>);
 <a href=#19 id=19 data-nosnippet>19</a>        }
 <a href=#20 id=20 data-nosnippet>20</a>    }
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="prelude-val">Ok</span>(())

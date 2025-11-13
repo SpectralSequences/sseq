@@ -175,8 +175,8 @@
 <a href=#150 id=150 data-nosnippet>150</a>        </span><span class="kw">if </span>target_num_gens &gt; <span class="number">0 </span>{
 <a href=#151 id=151 data-nosnippet>151</a>            <span class="kw">let </span>hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
 <a href=#152 id=152 data-nosnippet>152</a>            <span class="kw">for </span>i <span class="kw">in </span>page_data.complement_pivots() {
-<a href=#153 id=153 data-nosnippet>153</a>                <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
-<a href=#154 id=154 data-nosnippet>154</a>                <span class="macro">println!</span>(<span class="string">"{name} λ x_{gen} = λ {:?}"</span>, <span class="kw-2">&amp;</span>hom_k[i]);
+<a href=#153 id=153 data-nosnippet>153</a>                <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
+<a href=#154 id=154 data-nosnippet>154</a>                <span class="macro">println!</span>(<span class="string">"{name} λ x_{g} = λ {:?}"</span>, <span class="kw-2">&amp;</span>hom_k[i]);
 <a href=#155 id=155 data-nosnippet>155</a>            }
 <a href=#156 id=156 data-nosnippet>156</a>        }
 <a href=#157 id=157 data-nosnippet>157</a>
@@ -196,12 +196,12 @@
 <a href=#171 id=171 data-nosnippet>171</a>            page_data.subspace_gens(),
 <a href=#172 id=172 data-nosnippet>172</a>            outputs.iter_mut().map(FpVector::as_slice_mut),
 <a href=#173 id=173 data-nosnippet>173</a>        );
-<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">for </span>(gen, output) <span class="kw">in </span>page_data.subspace_gens().zip_eq(outputs) {
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">for </span>(g, output) <span class="kw">in </span>page_data.subspace_gens().zip_eq(outputs) {
 <a href=#175 id=175 data-nosnippet>175</a>            <span class="macro">println!</span>(
 <a href=#176 id=176 data-nosnippet>176</a>                <span class="string">"{name} [{basis_string}] = {} + λ {}"</span>,
 <a href=#177 id=177 data-nosnippet>177</a>                output.slice(<span class="number">0</span>, target_num_gens),
 <a href=#178 id=178 data-nosnippet>178</a>                output.slice(target_num_gens, target_num_gens + lambda_num_gens),
-<a href=#179 id=179 data-nosnippet>179</a>                basis_string = BidegreeElement::new(b, gen.to_owned()).to_basis_string(),
+<a href=#179 id=179 data-nosnippet>179</a>                basis_string = BidegreeElement::new(b, g.to_owned()).to_basis_string(),
 <a href=#180 id=180 data-nosnippet>180</a>            );
 <a href=#181 id=181 data-nosnippet>181</a>        }
 <a href=#182 id=182 data-nosnippet>182</a>    }

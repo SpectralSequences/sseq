@@ -32,7 +32,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>};
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use crate</span>::{
-<a href=#10 id=10 data-nosnippet>10</a>    algebra::{adem_algebra::AdemBasisElement, AdemAlgebra, Algebra, MilnorAlgebra},
+<a href=#10 id=10 data-nosnippet>10</a>    algebra::{AdemAlgebra, Algebra, MilnorAlgebra, adem_algebra::AdemBasisElement},
 <a href=#11 id=11 data-nosnippet>11</a>    milnor_algebra::{MilnorBasisElement, PPartEntry},
 <a href=#12 id=12 data-nosnippet>12</a>    steenrod_parser::<span class="kw-2">*</span>,
 <a href=#13 id=13 data-nosnippet>13</a>};
@@ -89,13 +89,13 @@
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="kw">if </span>items.is_empty() {
 <a href=#65 id=65 data-nosnippet>65</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(result);
 <a href=#66 id=66 data-nosnippet>66</a>        }
-<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">for </span>(op, gen) <span class="kw">in </span>parse_module(items)<span class="question-mark">? </span>{
-<a href=#68 id=68 data-nosnippet>68</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((deg, vec)) = result.get_mut(<span class="kw-2">&amp;</span>gen) {
+<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">for </span>(op, g) <span class="kw">in </span>parse_module(items)<span class="question-mark">? </span>{
+<a href=#68 id=68 data-nosnippet>68</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((deg, vec)) = result.get_mut(<span class="kw-2">&amp;</span>g) {
 <a href=#69 id=69 data-nosnippet>69</a>                <span class="kw">let </span>(<span class="kw">_</span>, adem_v) = <span class="self">self</span>.evaluate_algebra_node(<span class="prelude-val">Some</span>(<span class="kw-2">*</span>deg), op)<span class="question-mark">?</span>;
 <a href=#70 id=70 data-nosnippet>70</a>                vec.add(<span class="kw-2">&amp;</span>adem_v, <span class="number">1</span>);
 <a href=#71 id=71 data-nosnippet>71</a>            } <span class="kw">else </span>{
 <a href=#72 id=72 data-nosnippet>72</a>                <span class="kw">let </span>(deg, adem_v) = <span class="self">self</span>.evaluate_algebra_node(<span class="prelude-val">None</span>, op)<span class="question-mark">?</span>;
-<a href=#73 id=73 data-nosnippet>73</a>                result.insert(gen, (deg, adem_v));
+<a href=#73 id=73 data-nosnippet>73</a>                result.insert(g, (deg, adem_v));
 <a href=#74 id=74 data-nosnippet>74</a>            }
 <a href=#75 id=75 data-nosnippet>75</a>        }
 <a href=#76 id=76 data-nosnippet>76</a>        <span class="prelude-val">Ok</span>(result)
@@ -154,10 +154,10 @@
 <a href=#129 id=129 data-nosnippet>129</a>                <span class="self">self</span>.evaluate_basis_element(output_degree, basis_elt)
 <a href=#130 id=130 data-nosnippet>130</a>            }
 <a href=#131 id=131 data-nosnippet>131</a>            AlgebraNode::Scalar(x) =&gt; {
-<a href=#132 id=132 data-nosnippet>132</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(degree) = output_degree {
-<a href=#133 id=133 data-nosnippet>133</a>                    <span class="kw">if </span>degree != <span class="number">0 </span>{
-<a href=#134 id=134 data-nosnippet>134</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Mismatched Degree"</span>));
-<a href=#135 id=135 data-nosnippet>135</a>                    }
+<a href=#132 id=132 data-nosnippet>132</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(degree) = output_degree
+<a href=#133 id=133 data-nosnippet>133</a>                    &amp;&amp; degree != <span class="number">0
+<a href=#134 id=134 data-nosnippet>134</a>                </span>{
+<a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Mismatched Degree"</span>));
 <a href=#136 id=136 data-nosnippet>136</a>                }
 <a href=#137 id=137 data-nosnippet>137</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(p, <span class="number">1</span>);
 <a href=#138 id=138 data-nosnippet>138</a>                result.set_entry(<span class="number">0</span>, x.rem_euclid(p.as_i32()) <span class="kw">as </span>u32);
@@ -212,10 +212,10 @@
 <a href=#187 id=187 data-nosnippet>187</a>                (degree, result)
 <a href=#188 id=188 data-nosnippet>188</a>            }
 <a href=#189 id=189 data-nosnippet>189</a>        };
-<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(requested_degree) = output_degree {
-<a href=#191 id=191 data-nosnippet>191</a>            <span class="kw">if </span>degree != requested_degree {
-<a href=#192 id=192 data-nosnippet>192</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Mismatched degree"</span>));
-<a href=#193 id=193 data-nosnippet>193</a>            }
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(requested_degree) = output_degree
+<a href=#191 id=191 data-nosnippet>191</a>            &amp;&amp; degree != requested_degree
+<a href=#192 id=192 data-nosnippet>192</a>        {
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Mismatched degree"</span>));
 <a href=#194 id=194 data-nosnippet>194</a>        }
 <a href=#195 id=195 data-nosnippet>195</a>        <span class="prelude-val">Ok</span>((degree, result))
 <a href=#196 id=196 data-nosnippet>196</a>    }
@@ -417,7 +417,7 @@
 <a href=#392 id=392 data-nosnippet>392</a>
 <a href=#393 id=393 data-nosnippet>393</a><span class="attr">#[cfg(test)]
 <a href=#394 id=394 data-nosnippet>394</a></span><span class="kw">mod </span>tests {
-<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">use </span>expect_test::{expect, Expect};
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">use </span>expect_test::{Expect, expect};
 <a href=#396 id=396 data-nosnippet>396</a>    <span class="kw">use </span>rstest::rstest;
 <a href=#397 id=397 data-nosnippet>397</a>
 <a href=#398 id=398 data-nosnippet>398</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;

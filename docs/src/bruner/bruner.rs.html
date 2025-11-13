@@ -49,9 +49,9 @@
 <a href=#24 id=24 data-nosnippet>24</a>};
 <a href=#25 id=25 data-nosnippet>25</a>
 <a href=#26 id=26 data-nosnippet>26</a><span class="kw">use </span>algebra::{
-<a href=#27 id=27 data-nosnippet>27</a>    milnor_algebra::MilnorBasisElement,
-<a href=#28 id=28 data-nosnippet>28</a>    module::{homomorphism::FreeModuleHomomorphism <span class="kw">as </span>FMH, FreeModule <span class="kw">as </span>FM, Module},
-<a href=#29 id=29 data-nosnippet>29</a>    Algebra, MilnorAlgebra,
+<a href=#27 id=27 data-nosnippet>27</a>    Algebra, MilnorAlgebra,
+<a href=#28 id=28 data-nosnippet>28</a>    milnor_algebra::MilnorBasisElement,
+<a href=#29 id=29 data-nosnippet>29</a>    module::{FreeModule <span class="kw">as </span>FM, Module, homomorphism::FreeModuleHomomorphism <span class="kw">as </span>FMH},
 <a href=#30 id=30 data-nosnippet>30</a>};
 <a href=#31 id=31 data-nosnippet>31</a><span class="kw">use </span>anyhow::{Context, Error, <span class="prelude-ty">Result</span>};
 <a href=#32 id=32 data-nosnippet>32</a><span class="kw">use </span>ext::{
@@ -221,9 +221,9 @@
 <a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;FpVector&gt; = Vec::new();
 <a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">let </span><span class="kw-2">mut </span>cur_degree: i32 = <span class="number">0</span>;
 <a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>((t, gen)) = get_element(algebra, cc.module(s - <span class="number">1</span>).as_ref(), <span class="kw-2">&amp;mut </span>f)<span class="question-mark">? </span>{
+<a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>((t, g)) = get_element(algebra, cc.module(s - <span class="number">1</span>).as_ref(), <span class="kw-2">&amp;mut </span>f)<span class="question-mark">? </span>{
 <a href=#200 id=200 data-nosnippet>200</a>            <span class="kw">if </span>t == cur_degree {
-<a href=#201 id=201 data-nosnippet>201</a>                entries.push(gen);
+<a href=#201 id=201 data-nosnippet>201</a>                entries.push(g);
 <a href=#202 id=202 data-nosnippet>202</a>            } <span class="kw">else </span>{
 <a href=#203 id=203 data-nosnippet>203</a>                m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
 <a href=#204 id=204 data-nosnippet>204</a>                d.add_generators_from_rows(cur_degree, entries);
@@ -231,7 +231,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>                m.extend_by_zero(t - <span class="number">1</span>);
 <a href=#207 id=207 data-nosnippet>207</a>                d.extend_by_zero(t - <span class="number">1</span>);
 <a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a>                entries = <span class="macro">vec!</span>[gen];
+<a href=#209 id=209 data-nosnippet>209</a>                entries = <span class="macro">vec!</span>[g];
 <a href=#210 id=210 data-nosnippet>210</a>                cur_degree = t;
 <a href=#211 id=211 data-nosnippet>211</a>            }
 <a href=#212 id=212 data-nosnippet>212</a>        }
@@ -285,8 +285,8 @@
 <a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>matrix = hom.get_map(b.s()).hom_k(b.t());
 <a href=#261 id=261 data-nosnippet>261</a>
 <a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.into_iter().enumerate() {
-<a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
-<a href=#264 id=264 data-nosnippet>264</a>            <span class="macro">println!</span>(<span class="string">"x_{gen:#} = {row:?}"</span>);
+<a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
+<a href=#264 id=264 data-nosnippet>264</a>            <span class="macro">println!</span>(<span class="string">"x_{g:#} = {row:?}"</span>);
 <a href=#265 id=265 data-nosnippet>265</a>        }
 <a href=#266 id=266 data-nosnippet>266</a>    }
 <a href=#267 id=267 data-nosnippet>267</a>
