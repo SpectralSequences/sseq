@@ -20,6 +20,7 @@ type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHa
 use std::io;
 
 /// A lift of an algebra to a split pair algebra. See module introduction for more.
+// We can't use `enum_dispatch` here because of the associated type.
 pub trait PairAlgebra: Algebra {
     /// An element in the cohomological degree zero part of the pair algebra. This tends to not be
     /// a ring over Fp, so we let the algebra specify how it wants to represent the elements.

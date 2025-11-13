@@ -2,6 +2,7 @@ use crate::algebra::Algebra;
 
 /// An [`Algebra`] equipped with a coproduct operation that makes it into a
 /// bialgebra.
+#[enum_dispatch::enum_dispatch]
 pub trait Bialgebra: Algebra {
     /// Computes a coproduct $\Delta(x)$, expressed as
     ///

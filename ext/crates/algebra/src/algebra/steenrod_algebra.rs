@@ -9,19 +9,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    algebra::{
-        AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra,
-        MilnorAlgebraT,
-    },
-    dispatch_algebra,
+    algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra},
+    pair_algebra::PairAlgebra,
 };
-
-// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
-// In order for things to work SteenrodAlgebraT cannot implement Algebra.
-// Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait SteenrodAlgebraT: Send + Sync + Algebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_>;
-}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum AlgebraType {
@@ -62,12 +52,8 @@ impl std::str::FromStr for AlgebraType {
     }
 }
 
-pub enum SteenrodAlgebraBorrow<'a> {
-    BorrowAdem(&'a AdemAlgebra),
-    BorrowMilnor(&'a MilnorAlgebra),
-}
-
 #[allow(clippy::large_enum_variant)]
+#[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
     MilnorAlgebra(MilnorAlgebra),
@@ -78,33 +64,6 @@ impl std::fmt::Display for SteenrodAlgebra {
         match self {
             Self::AdemAlgebra(a) => a.fmt(f),
             Self::MilnorAlgebra(a) => a.fmt(f),
-        }
-    }
-}
-
-impl SteenrodAlgebraT for SteenrodAlgebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_> {
-        match self {
-            Self::AdemAlgebra(a) => SteenrodAlgebraBorrow::BorrowAdem(a),
-            Self::MilnorAlgebra(a) => SteenrodAlgebraBorrow::BorrowMilnor(a),
-        }
-    }
-}
-
-impl<A: SteenrodAlgebraT> AdemAlgebraT for A {
-    fn adem_algebra(&self) -> &AdemAlgebra {
-        match self.steenrod_algebra() {
-            SteenrodAlgebraBorrow::BorrowAdem(a) => a,
-            SteenrodAlgebraBorrow::BorrowMilnor(_) => panic!(),
-        }
-    }
-}
-
-impl<A: SteenrodAlgebraT> MilnorAlgebraT for A {
-    fn milnor_algebra(&self) -> &MilnorAlgebra {
-        match self.steenrod_algebra() {
-            SteenrodAlgebraBorrow::BorrowAdem(_) => panic!(),
-            SteenrodAlgebraBorrow::BorrowMilnor(a) => a,
         }
     }
 }
@@ -131,22 +90,6 @@ impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
             SteenrodAlgebra::AdemAlgebra(_) => {
                 Err(anyhow!("Expected MilnorAlgebra, found AdemAlgebra"))
             }
-        }
-    }
-}
-
-impl Bialgebra for SteenrodAlgebra {
-    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
-        match self {
-            Self::AdemAlgebra(a) => a.decompose(op_deg, op_idx),
-            Self::MilnorAlgebra(a) => a.decompose(op_deg, op_idx),
-        }
-    }
-
-    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
-        match self {
-            Self::AdemAlgebra(a) => a.coproduct(op_deg, op_idx),
-            Self::MilnorAlgebra(a) => a.coproduct(op_deg, op_idx),
         }
     }
 }
@@ -199,26 +142,7 @@ macro_rules! dispatch_steenrod {
     };
 }
 
-dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
-
-/// An algebra with a specified list of generators and generating relations. This data can be used
-/// to specify modules by specifying the actions of the generators.
-impl GeneratedAlgebra for SteenrodAlgebra {
-    dispatch_steenrod! {
-        fn generators(&self, degree: i32) -> Vec<usize>;
-        fn generator_to_string(&self, degree: i32, idx: usize) -> String;
-
-        fn decompose_basis_element(
-            &self,
-            degree: i32,
-            idx: usize,
-        ) -> Vec<(u32, (i32, usize), (i32, usize))>;
-
-        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
-    }
-}
-
-impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
+impl PairAlgebra for AdemAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
     fn element_is_zero(_elt: &Self::Element) -> bool {
@@ -278,7 +202,7 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
     }
 }
 
-impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
+impl PairAlgebra for SteenrodAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
     dispatch_steenrod! {
@@ -297,15 +221,5 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
 
     fn finalize_element(elt: &mut Self::Element) {
         MilnorAlgebra::finalize_element(elt);
-    }
-}
-
-impl crate::UnstableAlgebra for SteenrodAlgebra {
-    dispatch_steenrod! {
-        fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
-        fn multiply_basis_elements_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
-        fn multiply_basis_element_by_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: FpSlice, excess: i32);
-        fn multiply_element_by_basis_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s_idx: usize, excess: i32);
-        fn multiply_element_by_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice, excess: i32);
     }
 }
