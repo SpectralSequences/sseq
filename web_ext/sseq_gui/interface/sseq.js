@@ -46,8 +46,8 @@ const KEEP_LOG = new Set([
     'SetClassName',
 ]);
 
-function bidegreeToCoordinates(b) {
-    return [b.t - b.s, b.s];
+function bidegreeToCoordinates({s, t}) {
+    return [t - s, s];
 }
 
 function coordinatesToBidegree(x, y) {
