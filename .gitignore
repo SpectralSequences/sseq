@@ -36,3 +36,7 @@ chart/python/*.egg-info
 
 # pre-commit
 .pre-commit-config.yaml
+
+# Claude
+.claude
+
