@@ -46,12 +46,12 @@ const KEEP_LOG = new Set([
     'SetClassName',
 ]);
 
-function bidegreeToCoordinates({ n, s }) {
-    return [n, s];
+function bidegreeToCoordinates({ coords }) {
+    return coords;
 }
 
 function coordinatesToBidegree(x, y) {
-    return { n: x, s: y };
+    return { coords: [x, y] };
 }
 
 export class BiVec {
