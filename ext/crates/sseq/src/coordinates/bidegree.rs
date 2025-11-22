@@ -23,10 +23,6 @@ impl Bidegree {
         Self::n_s(t - s, s)
     }
 
-    pub const fn t_s(t: i32, s: i32) -> Self {
-        Self::s_t(s, t)
-    }
-
     pub const fn n_s(n: i32, s: i32) -> Self {
         Self { n, s }
     }
