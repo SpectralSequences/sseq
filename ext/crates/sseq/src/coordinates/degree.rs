@@ -36,7 +36,7 @@ impl<const N: usize> MultiDegree<N> {
     }
 
     pub fn n(&self) -> i32 {
-        self.coords.get(0).copied().unwrap_or(0)
+        self.coords.first().copied().unwrap_or(0)
     }
 
     pub fn s(&self) -> i32 {

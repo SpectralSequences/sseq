@@ -107,8 +107,8 @@ impl<const N: usize> MultiDegreeOrdering<N> for ByInternalDegree {
         let mut a_coords = a.coords();
         let mut b_coords = b.coords();
         if N > 1 {
-            a_coords[0] = a_coords[0] + a_coords[1];
-            b_coords[0] = b_coords[0] + b_coords[1];
+            a_coords[0] += a_coords[1];
+            b_coords[0] += b_coords[1];
         }
         a_coords.cmp(&b_coords)
     }
