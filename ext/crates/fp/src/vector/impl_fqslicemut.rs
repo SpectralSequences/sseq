@@ -566,6 +566,6 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
 impl<'a, F: Field> From<&'a mut FqVector<F>> for FqSliceMut<'a, F> {
     fn from(v: &'a mut FqVector<F>) -> Self {
-        v.slice_mut(0, v.len)
+        v.slice_mut(0, v.len())
     }
 }

@@ -10,7 +10,7 @@ use crate::{field::Field, limb::Limb};
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FqVector<F: Field> {
     fq: F,
-    pub(super) len: usize,
+    len: usize,
     pub(super) limbs: Vec<Limb>,
 }
 

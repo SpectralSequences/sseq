@@ -169,7 +169,7 @@ impl<F: Field> FqSlice<'_, F> {
 
 impl<'a, F: Field> From<&'a FqVector<F>> for FqSlice<'a, F> {
     fn from(v: &'a FqVector<F>) -> Self {
-        v.slice(0, v.len)
+        v.slice(0, v.len())
     }
 }
 
