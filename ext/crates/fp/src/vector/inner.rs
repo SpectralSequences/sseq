@@ -9,7 +9,7 @@ use crate::{field::Field, limb::Limb};
 /// not leave the `fp` library.
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FqVector<F: Field> {
-    pub(super) fq: F,
+    fq: F,
     pub(super) len: usize,
     pub(super) limbs: Vec<Limb>,
 }
@@ -39,3 +39,36 @@ pub struct FqSliceMut<'a, F: Field> {
 }
 
 // See impl_* for implementations
+
+// Accessors
+
+impl<F: Field> FqVector<F> {
+    pub fn from_raw_parts(fq: F, len: usize, limbs: Vec<Limb>) -> Self {
+        debug_assert_eq!(limbs.len(), fq.number(len));
+        Self { fq, len, limbs }
+    }
+
+    pub fn fq(&self) -> F {
+        self.fq
+    }
+
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    pub(super) fn limbs(&self) -> &[Limb] {
+        &self.limbs
+    }
+
+    pub(super) fn limbs_mut(&mut self) -> &mut [Limb] {
+        &mut self.limbs
+    }
+
+    pub(super) fn vec_mut(&mut self) -> &mut Vec<Limb> {
+        &mut self.limbs
+    }
+
+    pub(super) fn len_mut(&mut self) -> &mut usize {
+        &mut self.len
+    }
+}

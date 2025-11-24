@@ -19,7 +19,7 @@ use crate::field::Field;
 
 impl<F: Field> FqVector<F> {
     pub(super) fn scale_helper(&mut self, c: F::ElementContainer) {
-        self.scale(self.fq.el(c))
+        self.scale(self.fq().el(c))
     }
 
     pub(super) fn entry_helper(&self, index: usize) -> F::ElementContainer {
@@ -27,11 +27,11 @@ impl<F: Field> FqVector<F> {
     }
 
     pub(super) fn set_entry_helper(&mut self, index: usize, value: F::ElementContainer) {
-        self.set_entry(index, self.fq.el(value))
+        self.set_entry(index, self.fq().el(value))
     }
 
     pub(super) fn add_helper(&mut self, other: &Self, c: F::ElementContainer) {
-        self.add(other, self.fq.el(c))
+        self.add(other, self.fq().el(c))
     }
 
     pub(super) fn add_offset_helper(
@@ -40,15 +40,15 @@ impl<F: Field> FqVector<F> {
         c: F::ElementContainer,
         offset: usize,
     ) {
-        self.add_offset(other, self.fq.el(c), offset)
+        self.add_offset(other, self.fq().el(c), offset)
     }
 
     pub(super) fn add_basis_element_helper(&mut self, index: usize, value: F::ElementContainer) {
-        self.add_basis_element(index, self.fq.el(value))
+        self.add_basis_element(index, self.fq().el(value))
     }
 
     pub(super) fn copy_from_slice_helper(&mut self, other: &[F::ElementContainer]) {
-        self.copy_from_slice(&other.iter().map(|x| self.fq.el(x.clone())).collect_vec())
+        self.copy_from_slice(&other.iter().map(|x| self.fq().el(x.clone())).collect_vec())
     }
 
     pub(super) fn add_truncate_helper(
@@ -56,7 +56,7 @@ impl<F: Field> FqVector<F> {
         other: &Self,
         c: F::ElementContainer,
     ) -> Option<()> {
-        self.add_truncate(other, self.fq.el(c))
+        self.add_truncate(other, self.fq().el(c))
     }
 
     pub(super) fn add_carry_helper<T>(
@@ -68,7 +68,7 @@ impl<F: Field> FqVector<F> {
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
-        self.add_carry(other, self.fq.el(c), rest)
+        self.add_carry(other, self.fq().el(c), rest)
     }
 
     pub(super) fn first_nonzero_helper(&self) -> Option<(usize, F::ElementContainer)> {
