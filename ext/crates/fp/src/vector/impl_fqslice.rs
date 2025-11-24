@@ -101,10 +101,10 @@ impl<'a, F: Field> FqSlice<'a, F> {
         let mut new = FqVector::new(self.fq, self.len());
         if self.start.is_multiple_of(self.fq.entries_per_limb()) {
             let limb_range = self.limb_range();
-            new.limbs[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
-            if !new.limbs.is_empty() {
-                let len = new.limbs.len();
-                new.limbs[len - 1] &= self.limb_masks().1;
+            new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
+            if !new.limbs().is_empty() {
+                let len = new.limbs().len();
+                new.limbs_mut()[len - 1] &= self.limb_masks().1;
             }
         } else {
             new.as_slice_mut().assign(self);

@@ -11,7 +11,7 @@ use crate::{field::Field, limb::Limb};
 pub struct FqVector<F: Field> {
     fq: F,
     len: usize,
-    pub(super) limbs: Vec<Limb>,
+    limbs: Vec<Limb>,
 }
 
 /// A slice of an `FqVector`.

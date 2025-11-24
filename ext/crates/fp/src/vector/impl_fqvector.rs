@@ -207,8 +207,8 @@ impl<F: Field> FqVector<F> {
         assert_eq!(self.len(), slice.len());
 
         let fq = self.fq();
-        self.limbs.clear();
-        self.limbs.extend(
+        self.vec_mut().clear();
+        self.vec_mut().extend(
             slice
                 .chunks(fq.entries_per_limb())
                 .map(|x| fq.pack(x.iter().cloned())),
@@ -220,9 +220,9 @@ impl<F: Field> FqVector<F> {
         assert_eq!(self.fq().q(), 2);
 
         let mut result = 0;
-        for target_limb_idx in 0..self.limbs.len() {
-            let target_limb = other.limbs[target_limb_idx];
-            let source_limb = self.limbs[target_limb_idx];
+        for target_limb_idx in 0..self.limbs().len() {
+            let target_limb = other.limbs()[target_limb_idx];
+            let source_limb = self.limbs()[target_limb_idx];
             result ^= crate::limb::sign_rule(target_limb, source_limb);
             if target_limb.count_ones().is_multiple_of(2) {
                 continue;
@@ -237,7 +237,7 @@ impl<F: Field> FqVector<F> {
     pub fn add_truncate(&mut self, other: &Self, c: FieldElement<F>) -> Option<()> {
         assert_eq!(self.fq(), other.fq());
         let fq = self.fq();
-        for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs) {
+        for (left, right) in self.limbs_mut().iter_mut().zip_eq(other.limbs()) {
             *left = fq.fma_limb(*left, *right, c.clone());
             *left = fq.truncate(*left)?;
         }
@@ -267,16 +267,16 @@ impl<F: Field> FqVector<F> {
                     .try_into()
                     .ok()
                     .expect("rest vectors in add_carry must be of the same prime");
-                let rem = cur_vec.limbs[idx] ^ carry;
-                let quot = cur_vec.limbs[idx] & carry;
-                cur_vec.limbs[idx] = rem;
+                let rem = cur_vec.limbs()[idx] ^ carry;
+                let quot = cur_vec.limbs()[idx] & carry;
+                cur_vec.limbs_mut()[idx] = rem;
                 carry = quot;
                 cur_vec = carry_vec;
                 if quot == 0 {
                     return false;
                 }
             }
-            cur_vec.limbs[idx] ^= carry;
+            cur_vec.limbs_mut()[idx] ^= carry;
             true
         } else {
             unimplemented!()
@@ -289,8 +289,8 @@ impl<F: Field> FqVector<F> {
     {
         assert_eq!(self.fq(), other.fq());
         let mut result = false;
-        for i in 0..self.limbs.len() {
-            result |= self.add_carry_limb(i, other.limbs[i], c.clone(), rest);
+        for i in 0..self.limbs().len() {
+            result |= self.add_carry_limb(i, other.limbs()[i], c.clone(), rest);
         }
         result
     }
@@ -300,7 +300,7 @@ impl<F: Field> FqVector<F> {
         let entries_per_limb = self.fq().entries_per_limb();
         let bit_length = self.fq().bit_length();
         let bitmask = self.fq().bitmask();
-        for (i, &limb) in self.limbs.iter().enumerate() {
+        for (i, &limb) in self.limbs().iter().enumerate() {
             if limb == 0 {
                 continue;
             }
@@ -315,7 +315,7 @@ impl<F: Field> FqVector<F> {
 
     pub fn density(&self) -> f32 {
         let num_nonzero = if self.fq().q() == 2 {
-            self.limbs
+            self.limbs()
                 .iter()
                 .copied()
                 .map(Limb::count_ones)
