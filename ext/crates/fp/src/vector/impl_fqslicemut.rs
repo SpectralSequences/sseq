@@ -173,17 +173,17 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        let result = other.limbs[source_range.start] & min_mask;
+        let result = other.limbs()[source_range.start] & min_mask;
         self.limbs[target_range.start] &= !min_mask;
         self.limbs[target_range.start] |= result;
 
         let target_inner_range = self.as_slice().limb_range_inner();
         let source_inner_range = other.limb_range_inner();
         if !target_inner_range.is_empty() && !source_inner_range.is_empty() {
-            self.limbs[target_inner_range].clone_from_slice(&other.limbs[source_inner_range]);
+            self.limbs[target_inner_range].clone_from_slice(&other.limbs()[source_inner_range]);
         }
 
-        let result = other.limbs[source_range.end - 1] & max_mask;
+        let result = other.limbs()[source_range.end - 1] & max_mask;
         self.limbs[target_range.end - 1] &= !max_mask;
         self.limbs[target_range.end - 1] |= result;
     }
@@ -217,7 +217,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
         self.limbs[target_range.start] = self.fq.fma_limb(
             self.limbs[target_range.start],
-            other.limbs[source_range.start] & min_mask,
+            other.limbs()[source_range.start] & min_mask,
             c.clone(),
         );
         self.limbs[target_range.start] = self.fq.reduce(self.limbs[target_range.start]);
@@ -227,7 +227,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         if !source_inner_range.is_empty() {
             for (left, right) in self.limbs[target_inner_range]
                 .iter_mut()
-                .zip_eq(&other.limbs[source_inner_range])
+                .zip_eq(&other.limbs()[source_inner_range])
             {
                 *left = self.fq.fma_limb(*left, *right, c.clone());
                 *left = self.fq.reduce(*left);
@@ -237,7 +237,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             // The first and last limbs are distinct, so we process the last.
             self.limbs[target_range.end - 1] = self.fq.fma_limb(
                 self.limbs[target_range.end - 1],
-                other.limbs[source_range.end - 1] & max_mask,
+                other.limbs()[source_range.end - 1] & max_mask,
                 c,
             );
             self.limbs[target_range.end - 1] = self.fq.reduce(self.limbs[target_range.end - 1]);
@@ -295,24 +295,24 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             }
 
             fn mask_first_limb<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs[i] & self.min_mask) >> self.offset_shift
+                (other.limbs()[i] & self.min_mask) >> self.offset_shift
             }
 
             fn mask_middle_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                other.limbs[i] >> self.offset_shift
+                other.limbs()[i] >> self.offset_shift
             }
 
             fn mask_middle_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
+                (other.limbs()[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
             }
 
             fn mask_last_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.max_mask;
+                let source_limb_masked = other.limbs()[i] & self.max_mask;
                 source_limb_masked << self.tail_shift
             }
 
             fn mask_last_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.max_mask;
+                let source_limb_masked = other.limbs()[i] & self.max_mask;
                 source_limb_masked >> self.offset_shift
             }
         }
@@ -414,30 +414,30 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             }
 
             fn mask_first_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.min_mask;
+                let source_limb_masked = other.limbs()[i] & self.min_mask;
                 (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
             fn mask_first_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.min_mask;
+                let source_limb_masked = other.limbs()[i] & self.min_mask;
                 source_limb_masked >> self.tail_shift
             }
 
             fn mask_middle_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
+                (other.limbs()[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
             fn mask_middle_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                other.limbs[i] >> self.tail_shift
+                other.limbs()[i] >> self.tail_shift
             }
 
             fn mask_last_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.max_mask;
+                let source_limb_masked = other.limbs()[i] & self.max_mask;
                 source_limb_masked << self.offset_shift
             }
 
             fn mask_last_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs[i] & self.max_mask;
+                let source_limb_masked = other.limbs()[i] & self.max_mask;
                 source_limb_masked >> self.tail_shift
             }
         }

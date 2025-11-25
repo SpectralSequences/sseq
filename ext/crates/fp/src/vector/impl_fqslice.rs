@@ -35,7 +35,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
         );
         let bit_mask = self.fq().bitmask();
         let limb_index = self.fq().limb_bit_index_pair(index + self.start);
-        let mut result = self.limbs[limb_index.limb];
+        let mut result = self.limbs()[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
         self.fq().decode(result)
@@ -60,15 +60,15 @@ impl<'a, F: Field> FqSlice<'a, F> {
             return true;
         }
         let (min_mask, max_mask) = self.limb_masks();
-        if self.limbs[limb_range.start] & min_mask != 0 {
+        if self.limbs()[limb_range.start] & min_mask != 0 {
             return false;
         }
 
         let inner_range = self.limb_range_inner();
-        if !inner_range.is_empty() && self.limbs[inner_range].iter().any(|&x| x != 0) {
+        if !inner_range.is_empty() && self.limbs()[inner_range].iter().any(|&x| x != 0) {
             return false;
         }
-        if self.limbs[limb_range.end - 1] & max_mask != 0 {
+        if self.limbs()[limb_range.end - 1] & max_mask != 0 {
             return false;
         }
         true
@@ -78,7 +78,12 @@ impl<'a, F: Field> FqSlice<'a, F> {
     pub fn slice(self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
 
-        FqSlice::new(self.fq(), self.limbs, self.start + start, self.start + end)
+        FqSlice::new(
+            self.fq(),
+            self.limbs(),
+            self.start + start,
+            self.start + end,
+        )
     }
 
     /// Converts a slice to an owned FqVector. This is vastly more efficient if the start of the vector is aligned.
@@ -87,7 +92,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
         let mut new = FqVector::new(self.fq(), self.len());
         if self.start.is_multiple_of(self.fq().entries_per_limb()) {
             let limb_range = self.limb_range();
-            new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
+            new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs()[limb_range]);
             if !new.limbs().is_empty() {
                 let len = new.limbs().len();
                 new.limbs_mut()[len - 1] &= self.limb_masks().1;

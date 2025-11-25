@@ -20,7 +20,7 @@ pub struct FqVector<F: Field> {
 #[derive(Debug, Copy, Clone)]
 pub struct FqSlice<'a, F: Field> {
     fq: F,
-    pub(super) limbs: &'a [Limb],
+    limbs: &'a [Limb],
     pub(super) start: usize,
     pub(super) end: usize,
 }
@@ -85,5 +85,9 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
     pub fn fq(&self) -> F {
         self.fq
+    }
+
+    pub(super) fn limbs(&self) -> &'a [Limb] {
+        self.limbs
     }
 }
