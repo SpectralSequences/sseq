@@ -88,11 +88,11 @@ impl<F: Field> FqSlice<'_, F> {
 
 impl<F: Field> FqSliceMut<'_, F> {
     pub(super) fn scale_helper(&mut self, c: F::ElementContainer) {
-        self.scale(self.fq.el(c))
+        self.scale(self.fq().el(c))
     }
 
     pub(super) fn add_helper(&mut self, other: FqSlice<F>, c: F::ElementContainer) {
-        self.add(other, self.fq.el(c))
+        self.add(other, self.fq().el(c))
     }
 
     pub(super) fn add_offset_helper(
@@ -101,15 +101,15 @@ impl<F: Field> FqSliceMut<'_, F> {
         c: F::ElementContainer,
         offset: usize,
     ) {
-        self.add_offset(other, self.fq.el(c), offset)
+        self.add_offset(other, self.fq().el(c), offset)
     }
 
     pub(super) fn set_entry_helper(&mut self, index: usize, value: F::ElementContainer) {
-        self.set_entry(index, self.fq.el(value))
+        self.set_entry(index, self.fq().el(value))
     }
 
     pub(super) fn add_basis_element_helper(&mut self, index: usize, value: F::ElementContainer) {
-        self.add_basis_element(index, self.fq.el(value))
+        self.add_basis_element(index, self.fq().el(value))
     }
 
     pub(super) fn add_masked_helper(
@@ -118,7 +118,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         c: F::ElementContainer,
         mask: &[usize],
     ) {
-        self.add_masked(other, self.fq.el(c), mask)
+        self.add_masked(other, self.fq().el(c), mask)
     }
 
     pub(super) fn add_unmasked_helper(
@@ -127,7 +127,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         c: F::ElementContainer,
         mask: &[usize],
     ) {
-        self.add_unmasked(other, self.fq.el(c), mask)
+        self.add_unmasked(other, self.fq().el(c), mask)
     }
 
     pub(super) fn add_tensor_helper(
@@ -137,7 +137,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         left: FqSlice<F>,
         right: FqSlice<F>,
     ) {
-        self.add_tensor(offset, self.fq.el(coeff), left, right)
+        self.add_tensor(offset, self.fq().el(coeff), left, right)
     }
 }
 
