@@ -19,11 +19,11 @@ impl<'a, F: Field> FqSlice<'a, F> {
     }
 
     pub fn len(&self) -> usize {
-        self.end - self.start()
+        self.end() - self.start()
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.start() == self.end
+        self.start() == self.end()
     }
 
     pub fn entry(&self, index: usize) -> FieldElement<F> {
@@ -115,10 +115,10 @@ impl<F: Field> FqSlice<'_, F> {
 
     #[inline]
     pub(super) fn limb_range(&self) -> std::ops::Range<usize> {
-        self.fq().range(self.start(), self.end)
+        self.fq().range(self.start(), self.end())
     }
 
-    /// This function underflows if `self.end == 0`, which happens if and only if we are taking a
+    /// This function underflows if `self.end() == 0`, which happens if and only if we are taking a
     /// slice of width 0 at the start of an `FpVector`. This should be a very rare edge case.
     /// Dealing with the underflow properly would probably require using `saturating_sub` or
     /// something of that nature, and that has a nontrivial (10%) performance hit.
@@ -135,7 +135,7 @@ impl<F: Field> FqSlice<'_, F> {
 
     #[inline(always)]
     pub(super) fn max_limb_mask(&self) -> Limb {
-        let num_entries = 1 + (self.end - 1) % self.fq().entries_per_limb();
+        let num_entries = 1 + (self.end() - 1) % self.fq().entries_per_limb();
         let bit_max = num_entries * self.fq().bit_length();
 
         (!0) >> (constants::BITS_PER_LIMB - bit_max)
