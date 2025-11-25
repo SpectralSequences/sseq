@@ -34,7 +34,7 @@ impl<'a, F: Field> FqVectorIterator<'a, F> {
                 counter,
             };
         }
-        let pair = vec.fq().limb_bit_index_pair(vec.start);
+        let pair = vec.fq().limb_bit_index_pair(vec.start());
 
         let bit_length = vec.fq().bit_length();
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
@@ -47,7 +47,7 @@ impl<'a, F: Field> FqVectorIterator<'a, F> {
             entries_per_limb_m_1: entries_per_limb - 1,
             bit_mask: vec.fq().bitmask(),
             limb_index: pair.limb,
-            entries_left: entries_per_limb - (vec.start % entries_per_limb),
+            entries_left: entries_per_limb - (vec.start() % entries_per_limb),
             cur_limb,
             counter,
         }
@@ -142,7 +142,7 @@ impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
                 dim: 0,
             };
         }
-        let min_index = vec.start;
+        let min_index = vec.start();
         let pair = vec.fq().limb_bit_index_pair(min_index);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
         let cur_limb_entries_left = entries_per_limb - (min_index % entries_per_limb);

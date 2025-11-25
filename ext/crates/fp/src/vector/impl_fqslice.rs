@@ -19,11 +19,11 @@ impl<'a, F: Field> FqSlice<'a, F> {
     }
 
     pub fn len(&self) -> usize {
-        self.end - self.start
+        self.end - self.start()
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.start == self.end
+        self.start() == self.end
     }
 
     pub fn entry(&self, index: usize) -> FieldElement<F> {
@@ -34,7 +34,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
             self.len()
         );
         let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start);
+        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
         let mut result = self.limbs()[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
@@ -81,8 +81,8 @@ impl<'a, F: Field> FqSlice<'a, F> {
         FqSlice::new(
             self.fq(),
             self.limbs(),
-            self.start + start,
-            self.start + end,
+            self.start() + start,
+            self.start() + end,
         )
     }
 
@@ -90,7 +90,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
     #[must_use]
     pub fn to_owned(self) -> FqVector<F> {
         let mut new = FqVector::new(self.fq(), self.len());
-        if self.start.is_multiple_of(self.fq().entries_per_limb()) {
+        if self.start().is_multiple_of(self.fq().entries_per_limb()) {
             let limb_range = self.limb_range();
             new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs()[limb_range]);
             if !new.limbs().is_empty() {
@@ -106,20 +106,16 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
 // Limb methods
 impl<F: Field> FqSlice<'_, F> {
-    pub(crate) fn limbs(&self) -> &[Limb] {
-        self.limbs
-    }
-
     #[inline]
     pub(super) fn offset(&self) -> usize {
         let bit_length = self.fq().bit_length();
         let entries_per_limb = self.fq().entries_per_limb();
-        (self.start % entries_per_limb) * bit_length
+        (self.start() % entries_per_limb) * bit_length
     }
 
     #[inline]
     pub(super) fn limb_range(&self) -> std::ops::Range<usize> {
-        self.fq().range(self.start, self.end)
+        self.fq().range(self.start(), self.end)
     }
 
     /// This function underflows if `self.end == 0`, which happens if and only if we are taking a
