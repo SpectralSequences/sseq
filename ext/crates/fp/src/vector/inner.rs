@@ -291,6 +291,17 @@ impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
     pub(super) fn limbs_mut(&mut self) -> &mut [Limb] {
         &mut *self.limbs
     }
+
+    pub(super) fn reduce_limbs(&mut self) {
+        let fq = self.fq();
+        if fq.q() != 2 {
+            let limb_range = self.limb_range();
+
+            for limb in self.limbs_mut()[limb_range].iter_mut() {
+                *limb = fq.reduce(*limb);
+            }
+        }
+    }
 }
 
 impl<F: Field> FqVector<F> {
