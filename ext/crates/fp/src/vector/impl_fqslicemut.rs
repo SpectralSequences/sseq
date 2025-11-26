@@ -2,11 +2,11 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
-use super::inner::{FqSlice, FqSliceMut, FqVector};
 use crate::{
     constants,
     field::{Field, element::FieldElement},
     limb::Limb,
+    vector::{FqSlice, FqSliceMut, FqVectorBase, ReprMut},
 };
 
 impl<F: Field> FqSliceMut<'_, F> {
@@ -439,8 +439,10 @@ impl<F: Field> FqSliceMut<'_, F> {
     }
 }
 
-impl<'a, F: Field> From<&'a mut FqVector<F>> for FqSliceMut<'a, F> {
-    fn from(v: &'a mut FqVector<F>) -> Self {
-        v.slice_mut(0, v.len())
+impl<'a, const A: bool, R: ReprMut, F: Field> From<&'a mut FqVectorBase<A, R, F>>
+    for FqSliceMut<'a, F>
+{
+    fn from(v: &'a mut FqVectorBase<A, R, F>) -> Self {
+        v.as_slice_mut()
     }
 }
