@@ -10,18 +10,6 @@ use crate::{
 };
 
 impl<F: Field> FqSliceMut<'_, F> {
-    pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        if self.fq().q() == 2 {
-            let pair = self.fq().limb_bit_index_pair(index + self.start());
-            self.limbs_mut()[pair.limb] ^= self.fq().encode(value) << pair.bit_index;
-        } else {
-            let mut x = self.as_slice().entry(index);
-            x += value;
-            self.set_entry(index, x);
-        }
-    }
-
     fn reduce_limbs(&mut self) {
         let fq = self.fq();
         if fq.q() != 2 {
