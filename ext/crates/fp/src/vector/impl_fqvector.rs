@@ -70,20 +70,6 @@ impl<F: Field> FqVector<F> {
         self.as_slice().iter_nonzero()
     }
 
-    pub fn scale(&mut self, c: FieldElement<F>) {
-        assert_eq!(self.fq(), c.field());
-        let fq = self.fq();
-
-        if c == fq.zero() {
-            self.set_to_zero();
-        }
-        if fq.q() != 2 {
-            for limb in self.limbs_mut() {
-                *limb = fq.reduce(fq.fma_limb(0, *limb, c.clone()));
-            }
-        }
-    }
-
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
     pub fn add_offset(&mut self, other: &Self, c: FieldElement<F>, offset: usize) {

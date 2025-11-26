@@ -250,6 +250,49 @@ impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
         self.limbs_mut()[limb_range.end - 1] &= !max_mask;
     }
 
+    pub fn scale(&mut self, c: FieldElement<F>) {
+        assert_eq!(self.fq(), c.field());
+        let fq = self.fq();
+
+        if c == fq.zero() {
+            self.set_to_zero();
+        }
+
+        if fq.q() == 2 {
+            return;
+        }
+
+        if A {
+            for limb in self.limbs_mut() {
+                *limb = fq.fma_limb(0, *limb, c.clone());
+            }
+        } else {
+            let limb_range = self.limb_range();
+            if limb_range.is_empty() {
+                return;
+            }
+            let (min_mask, max_mask) = self.limb_masks();
+
+            let limb = self.limbs()[limb_range.start];
+            let masked_limb = limb & min_mask;
+            let rest_limb = limb & !min_mask;
+            self.limbs_mut()[limb_range.start] = fq.fma_limb(0, masked_limb, c.clone()) | rest_limb;
+
+            let inner_range = self.limb_range_inner();
+            for limb in self.limbs_mut()[inner_range].iter_mut() {
+                *limb = fq.fma_limb(0, *limb, c.clone());
+            }
+            if limb_range.len() > 1 {
+                let full_limb = self.limbs()[limb_range.end - 1];
+                let masked_limb = full_limb & max_mask;
+                let rest_limb = full_limb & !max_mask;
+                self.limbs_mut()[limb_range.end - 1] = fq.fma_limb(0, masked_limb, c) | rest_limb;
+            }
+        }
+
+        self.reduce_limbs();
+    }
+
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         assert_eq!(self.fq(), value.field());
         assert!(index < self.len());
