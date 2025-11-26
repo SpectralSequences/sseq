@@ -9,7 +9,6 @@ use super::{
 use crate::{
     field::{Field, element::FieldElement},
     limb::Limb,
-    prime::{Prime, ValidPrime},
 };
 
 impl<F: Field> FqVector<F> {
@@ -49,10 +48,6 @@ impl<F: Field> FqVector<F> {
         // necessary ones.
         let num_limbs = self.fq().number(self.len());
         crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
-    }
-
-    pub fn prime(&self) -> ValidPrime {
-        self.fq().characteristic().to_dyn()
     }
 
     #[must_use]
