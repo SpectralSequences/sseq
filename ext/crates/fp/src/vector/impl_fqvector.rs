@@ -260,12 +260,6 @@ impl<F: Field> From<&FqVector<F>> for Vec<FieldElement<F>> {
     }
 }
 
-impl<F: Field> std::fmt::Display for FqVector<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_slice().fmt(f)
-    }
-}
-
 #[cfg(feature = "proptest")]
 pub mod arbitrary {
     use proptest::prelude::*;

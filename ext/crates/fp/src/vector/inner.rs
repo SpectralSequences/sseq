@@ -6,6 +6,8 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
+use itertools::Itertools;
+
 use super::iter::{FqVectorIterator, FqVectorNonZeroIterator};
 use crate::{
     field::{Field, element::FieldElement},
@@ -366,6 +368,34 @@ impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
         }
     }
 }
+
+impl<const A: bool, R: Repr, F: Field> std::fmt::Display for FqVectorBase<A, R, F> {
+    /// # Example
+    /// ```
+    /// # use fp::field::{Field, SmallFq};
+    /// # use fp::prime::{P2, ValidPrime};
+    /// # use fp::vector::FqVector;
+    /// let fq = SmallFq::new(P2, 3);
+    /// let v = FqVector::from_slice(fq, &[fq.zero(), fq.one(), fq.a(), fq.a() * fq.a()]);
+    /// assert_eq!(&format!("{v}"), "[0, 1, a, a^2]");
+    ///
+    /// // This only looks reasonable over prime fields of order less than 10
+    /// assert_eq!(&format!("{v:#}"), "01aa^2");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if f.alternate() {
+            for v in self.iter() {
+                // If self.p >= 11, this will look funky
+                write!(f, "{v}")?;
+            }
+            Ok(())
+        } else {
+            write!(f, "[{}]", self.iter().format(", "))
+        }
+    }
+}
+
+// Accessors
 
 impl<F: Field> FqVector<F> {
     pub fn from_raw_parts(fq: F, len: usize, limbs: Vec<Limb>) -> Self {
