@@ -1269,7 +1269,7 @@ impl<const N: usize> AugmentedMatrix<N> {
     pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice<'_> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
-        self.row(i).slice(start_idx, end_idx)
+        self.row(i).restrict(start_idx, end_idx)
     }
 
     pub fn into_matrix(self) -> Matrix {
