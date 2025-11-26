@@ -231,6 +231,12 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
 }
 
 impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
+    #[inline]
+    #[must_use]
+    pub fn as_slice_mut(&mut self) -> FqSliceMut<'_, F> {
+        self.slice_mut(0, self.len())
+    }
+
     pub fn set_to_zero(&mut self) {
         if A {
             // This is sound because `fq.encode(fq.zero())` is always zero.
