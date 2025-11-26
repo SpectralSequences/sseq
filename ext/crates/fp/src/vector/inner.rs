@@ -95,6 +95,22 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
         self.fq
     }
 
+    pub fn len(&self) -> usize {
+        self.end() - self.start()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub(super) fn start(&self) -> usize {
+        self.start
+    }
+
+    pub(super) fn end(&self) -> usize {
+        self.end
+    }
+
     pub(super) fn limbs(&self) -> &[Limb] {
         &self.limbs
     }
@@ -113,10 +129,6 @@ impl<F: Field> FqVector<F> {
         Self::_new(fq, limbs, 0, len)
     }
 
-    pub const fn len(&self) -> usize {
-        self.end
-    }
-
     pub(super) fn vec_mut(&mut self) -> &mut Vec<Limb> {
         &mut self.limbs
     }
@@ -130,25 +142,9 @@ impl<'a, F: Field> FqSlice<'a, F> {
     pub(super) fn into_limbs(self) -> &'a [Limb] {
         self.limbs
     }
-
-    pub(super) const fn start(&self) -> usize {
-        self.start
-    }
-
-    pub(super) const fn end(&self) -> usize {
-        self.end
-    }
 }
 
 impl<'a, F: Field> FqSliceMut<'a, F> {
-    pub(super) fn start(&self) -> usize {
-        self.start
-    }
-
-    pub(super) fn end(&self) -> usize {
-        self.end
-    }
-
     pub(super) fn end_mut(&mut self) -> &mut usize {
         &mut self.end
     }
