@@ -10,41 +10,6 @@ use crate::{
 };
 
 impl<F: Field> FqSliceMut<'_, F> {
-    pub fn scale(&mut self, c: FieldElement<F>) {
-        assert_eq!(self.fq(), c.field());
-        let fq = self.fq();
-
-        if fq.q() == 2 {
-            if c == fq.zero() {
-                self.set_to_zero();
-            }
-            return;
-        }
-
-        let limb_range = self.as_slice().limb_range();
-        if limb_range.is_empty() {
-            return;
-        }
-        let (min_mask, max_mask) = self.as_slice().limb_masks();
-
-        let limb = self.limbs()[limb_range.start];
-        let masked_limb = limb & min_mask;
-        let rest_limb = limb & !min_mask;
-        self.limbs_mut()[limb_range.start] = fq.fma_limb(0, masked_limb, c.clone()) | rest_limb;
-
-        let inner_range = self.as_slice().limb_range_inner();
-        for limb in self.limbs_mut()[inner_range].iter_mut() {
-            *limb = fq.fma_limb(0, *limb, c.clone());
-        }
-        if limb_range.len() > 1 {
-            let full_limb = self.limbs()[limb_range.end - 1];
-            let masked_limb = full_limb & max_mask;
-            let rest_limb = full_limb & !max_mask;
-            self.limbs_mut()[limb_range.end - 1] = fq.fma_limb(0, masked_limb, c) | rest_limb;
-        }
-        self.reduce_limbs();
-    }
-
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
