@@ -20,14 +20,14 @@ impl<F: Field> FqSliceMut<'_, F> {
 
         if self.fq().q() == 2 {
             if c != self.fq().zero() {
-                match self.as_slice().offset().cmp(&other.offset()) {
+                match self.offset().cmp(&other.offset()) {
                     Ordering::Equal => self.add_shift_none(other, self.fq().one()),
                     Ordering::Less => self.add_shift_left(other, self.fq().one()),
                     Ordering::Greater => self.add_shift_right(other, self.fq().one()),
                 };
             }
         } else {
-            match self.as_slice().offset().cmp(&other.offset()) {
+            match self.offset().cmp(&other.offset()) {
                 Ordering::Equal => self.add_shift_none(other, c),
                 Ordering::Less => self.add_shift_left(other, c),
                 Ordering::Greater => self.add_shift_right(other, c),
@@ -64,12 +64,12 @@ impl<F: Field> FqSliceMut<'_, F> {
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: FqSlice<'_, F>) {
         assert_eq!(self.fq(), other.fq());
-        if self.as_slice().offset() != other.offset() {
+        if self.offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq().one());
             return;
         }
-        let target_range = self.as_slice().limb_range();
+        let target_range = self.limb_range();
         let source_range = other.limb_range();
 
         if target_range.is_empty() {
@@ -82,7 +82,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         self.limbs_mut()[target_range.start] &= !min_mask;
         self.limbs_mut()[target_range.start] |= result;
 
-        let target_inner_range = self.as_slice().limb_range_inner();
+        let target_inner_range = self.limb_range_inner();
         let source_inner_range = other.limb_range_inner();
         if !target_inner_range.is_empty() && !source_inner_range.is_empty() {
             self.limbs_mut()[target_inner_range]
@@ -117,7 +117,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         assert_eq!(self.fq(), other.fq());
         let fq = self.fq();
 
-        let target_range = self.as_slice().limb_range();
+        let target_range = self.limb_range();
         let source_range = other.limb_range();
 
         let (min_mask, max_mask) = other.limb_masks();
@@ -129,7 +129,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         );
         self.limbs_mut()[target_range.start] = fq.reduce(self.limbs()[target_range.start]);
 
-        let target_inner_range = self.as_slice().limb_range_inner();
+        let target_inner_range = self.limb_range_inner();
         let source_inner_range = other.limb_range_inner();
         if !source_inner_range.is_empty() {
             for (left, right) in self.limbs_mut()[target_inner_range]
@@ -409,7 +409,7 @@ impl<F: Field> FqSliceMut<'_, F> {
         // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
-        assert_eq!(self.as_slice().len(), mask.len());
+        assert_eq!(self.len(), mask.len());
         for (i, &x) in mask.iter().enumerate() {
             let entry = other.entry(x);
             if entry != self.fq().zero() {
