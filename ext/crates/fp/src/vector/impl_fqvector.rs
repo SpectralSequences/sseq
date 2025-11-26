@@ -3,7 +3,7 @@ use std::io;
 use itertools::Itertools;
 
 use super::{
-    inner::{FqSlice, FqSliceMut, FqVector},
+    inner::{FqSliceMut, FqVector},
     iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
 use crate::{
@@ -48,12 +48,6 @@ impl<F: Field> FqVector<F> {
         // necessary ones.
         let num_limbs = self.fq().number(self.len());
         crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_slice(&self) -> FqSlice<'_, F> {
-        self.into()
     }
 
     #[inline]
