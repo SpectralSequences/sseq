@@ -190,8 +190,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         }
         if self.start() == 0 && shift.is_multiple_of(self.fq().entries_per_limb()) {
             let limb_shift = shift / self.fq().entries_per_limb();
-            self.end -= shift;
-            let new_num_limbs = self.fq().number(self.end);
+            *self.end_mut() -= shift;
+            let new_num_limbs = self.fq().number(self.end());
             for idx in 0..new_num_limbs {
                 self.limbs_mut()[idx] = self.limbs()[idx + limb_shift];
             }
@@ -532,7 +532,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     #[inline]
     #[must_use]
     pub fn as_slice(&self) -> FqSlice<'_, F> {
-        FqSlice::new(self.fq(), self.limbs(), self.start(), self.end)
+        FqSlice::new(self.fq(), self.limbs(), self.start(), self.end())
     }
 
     /// Generates a version of itself with a shorter lifetime
@@ -540,7 +540,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     #[must_use]
     pub fn copy(&mut self) -> FqSliceMut<'_, F> {
         let start = self.start();
-        let end = self.end;
+        let end = self.end();
 
         FqSliceMut::new(self.fq(), self.limbs_mut(), start, end)
     }
