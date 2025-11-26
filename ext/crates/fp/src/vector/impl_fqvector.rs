@@ -67,11 +67,6 @@ impl<F: Field> FqVector<F> {
         self.as_slice_mut().add_basis_element(index, value);
     }
 
-    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        self.as_slice_mut().set_entry(index, value);
-    }
-
     pub fn iter(&self) -> FqVectorIterator<'_, F> {
         self.as_slice().iter()
     }

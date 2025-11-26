@@ -152,6 +152,19 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
 }
 
 impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
+    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
+        assert_eq!(self.fq(), value.field());
+        assert!(index < self.len());
+
+        let bit_mask = self.fq().bitmask();
+        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
+
+        let mut result = self.limbs()[limb_index.limb];
+        result &= !(bit_mask << limb_index.bit_index);
+        result |= self.fq().encode(value) << limb_index.bit_index;
+        self.limbs_mut()[limb_index.limb] = result;
+    }
+
     #[must_use]
     pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
         assert!(start <= end && end <= self.len());
