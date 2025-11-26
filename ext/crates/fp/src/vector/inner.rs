@@ -3,7 +3,7 @@
 
 use std::{
     borrow::Cow,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
 };
 
 use crate::{
@@ -138,6 +138,8 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
         self.fq().decode(result)
     }
 
+    // Repr accessors
+
     pub(super) fn start(&self) -> usize {
         self.start
     }
@@ -148,6 +150,55 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
 
     pub(super) fn limbs(&self) -> &[Limb] {
         &self.limbs
+    }
+
+    // Limb methods
+
+    #[inline]
+    pub(super) fn offset(&self) -> usize {
+        let bit_length = self.fq().bit_length();
+        let entries_per_limb = self.fq().entries_per_limb();
+        (self.start() % entries_per_limb) * bit_length
+    }
+
+    #[inline]
+    pub(super) fn limb_range(&self) -> Range<usize> {
+        self.fq().range(self.start(), self.end())
+    }
+
+    /// This function underflows if `self.end() == 0`, which happens if and only if we are taking a
+    /// slice of width 0 at the start of an `FpVector`. This should be a very rare edge case.
+    /// Dealing with the underflow properly would probably require using `saturating_sub` or
+    /// something of that nature, and that has a nontrivial (10%) performance hit.
+    #[inline]
+    pub(super) fn limb_range_inner(&self) -> Range<usize> {
+        let range = self.limb_range();
+        (range.start + 1)..(usize::max(range.start + 1, range.end - 1))
+    }
+
+    #[inline(always)]
+    pub(super) fn min_limb_mask(&self) -> Limb {
+        !0 << self.offset()
+    }
+
+    #[inline(always)]
+    pub(super) fn max_limb_mask(&self) -> Limb {
+        let num_entries = 1 + (self.end() - 1) % self.fq().entries_per_limb();
+        let bit_max = num_entries * self.fq().bit_length();
+
+        (!0) >> (crate::constants::BITS_PER_LIMB - bit_max)
+    }
+
+    #[inline(always)]
+    pub(super) fn limb_masks(&self) -> (Limb, Limb) {
+        if self.limb_range().len() == 1 {
+            (
+                self.min_limb_mask() & self.max_limb_mask(),
+                self.min_limb_mask() & self.max_limb_mask(),
+            )
+        } else {
+            (self.min_limb_mask(), self.max_limb_mask())
+        }
     }
 }
 
