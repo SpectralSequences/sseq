@@ -6,7 +6,7 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
-use super::iter::FqVectorIterator;
+use super::iter::{FqVectorIterator, FqVectorNonZeroIterator};
 use crate::{
     field::{Field, element::FieldElement},
     limb::Limb,
@@ -131,6 +131,10 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
     /// TODO: implement prime 2 version
     pub fn iter(&self) -> FqVectorIterator<'_, F> {
         FqVectorIterator::new(self.as_slice())
+    }
+
+    pub fn iter_nonzero(&self) -> FqVectorNonZeroIterator<'_, F> {
+        FqVectorNonZeroIterator::new(self.as_slice())
     }
 
     pub fn is_zero(&self) -> bool {

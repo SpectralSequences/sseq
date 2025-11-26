@@ -1,18 +1,11 @@
 use itertools::Itertools;
 
-use super::{
-    inner::{FqSlice, FqVector},
-    iter::FqVectorNonZeroIterator,
-};
+use super::inner::{FqSlice, FqVector};
 use crate::field::{Field, element::FieldElement};
 
 // Public methods
 
 impl<'a, F: Field> FqSlice<'a, F> {
-    pub fn iter_nonzero(self) -> FqVectorNonZeroIterator<'a, F> {
-        FqVectorNonZeroIterator::new(self)
-    }
-
     pub fn first_nonzero(&self) -> Option<(usize, FieldElement<F>)> {
         self.iter_nonzero().next()
     }
