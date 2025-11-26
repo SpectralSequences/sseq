@@ -111,6 +111,18 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
         self.len() == 0
     }
 
+    #[must_use]
+    pub fn slice(&self, start: usize, end: usize) -> FqSlice<'_, F> {
+        assert!(start <= end && end <= self.len());
+
+        FqSlice::_new(
+            self.fq(),
+            self.limbs(),
+            self.start() + start,
+            self.start() + end,
+        )
+    }
+
     pub(super) fn start(&self) -> usize {
         self.start
     }
