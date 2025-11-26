@@ -6,7 +6,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{field::Field, limb::Limb};
+use crate::{
+    field::Field,
+    limb::Limb,
+    prime::{Prime, ValidPrime},
+};
 
 pub trait Repr: Deref<Target = [Limb]> {}
 
@@ -93,6 +97,10 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
 
     pub fn fq(&self) -> F {
         self.fq
+    }
+
+    pub fn prime(&self) -> ValidPrime {
+        self.fq().characteristic().to_dyn()
     }
 
     pub fn len(&self) -> usize {

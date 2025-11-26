@@ -8,16 +8,11 @@ use crate::{
     constants,
     field::{Field, element::FieldElement},
     limb::Limb,
-    prime::{Prime, ValidPrime},
 };
 
 // Public methods
 
 impl<'a, F: Field> FqSlice<'a, F> {
-    pub fn prime(&self) -> ValidPrime {
-        self.fq().characteristic().to_dyn()
-    }
-
     pub fn entry(&self, index: usize) -> FieldElement<F> {
         debug_assert!(
             index < self.len(),
