@@ -134,10 +134,6 @@ impl<F: Field> FqVector<F> {
         }
     }
 
-    pub fn is_zero(&self) -> bool {
-        self.limbs().iter().all(|&x| x == 0)
-    }
-
     /// This function ensures the length of the vector is at least `len`. See also
     /// `set_scratch_vector_size`.
     pub fn extend_len(&mut self, len: usize) {

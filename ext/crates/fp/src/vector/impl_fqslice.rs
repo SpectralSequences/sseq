@@ -4,7 +4,7 @@ use super::{
     inner::{FqSlice, FqVector},
     iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
-use crate::field::Field;
+use crate::field::{Field, element::FieldElement};
 
 // Public methods
 
@@ -20,26 +20,6 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
     pub fn first_nonzero(&self) -> Option<(usize, FieldElement<F>)> {
         self.iter_nonzero().next()
-    }
-
-    pub fn is_zero(&self) -> bool {
-        let limb_range = self.limb_range();
-        if limb_range.is_empty() {
-            return true;
-        }
-        let (min_mask, max_mask) = self.limb_masks();
-        if self.limbs()[limb_range.start] & min_mask != 0 {
-            return false;
-        }
-
-        let inner_range = self.limb_range_inner();
-        if !inner_range.is_empty() && self.limbs()[inner_range].iter().any(|&x| x != 0) {
-            return false;
-        }
-        if self.limbs()[limb_range.end - 1] & max_mask != 0 {
-            return false;
-        }
-        true
     }
 
     #[must_use]
