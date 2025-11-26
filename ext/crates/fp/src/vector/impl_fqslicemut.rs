@@ -428,12 +428,6 @@ impl<F: Field> FqSliceMut<'_, F> {
         }
     }
 
-    #[inline]
-    #[must_use]
-    pub fn as_slice(&self) -> FqSlice<'_, F> {
-        FqSlice::_new(self.fq(), self.limbs(), self.start(), self.end())
-    }
-
     /// Generates a version of itself with a shorter lifetime
     #[inline]
     #[must_use]
