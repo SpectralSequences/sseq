@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    field::Field,
+    field::{Field, element::FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
@@ -121,6 +121,21 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
             self.start() + start,
             self.start() + end,
         )
+    }
+
+    pub fn entry(&self, index: usize) -> FieldElement<F> {
+        debug_assert!(
+            index < self.len(),
+            "Index {} too large, length of vector is only {}.",
+            index,
+            self.len()
+        );
+        let bit_mask = self.fq().bitmask();
+        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
+        let mut result = self.limbs()[limb_index.limb];
+        result >>= limb_index.bit_index;
+        result &= bit_mask;
+        self.fq().decode(result)
     }
 
     pub(super) fn start(&self) -> usize {

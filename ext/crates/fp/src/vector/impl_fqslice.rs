@@ -4,30 +4,11 @@ use super::{
     inner::{FqSlice, FqVector},
     iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
-use crate::{
-    constants,
-    field::{Field, element::FieldElement},
-    limb::Limb,
-};
+use crate::{constants, field::Field, limb::Limb};
 
 // Public methods
 
 impl<'a, F: Field> FqSlice<'a, F> {
-    pub fn entry(&self, index: usize) -> FieldElement<F> {
-        debug_assert!(
-            index < self.len(),
-            "Index {} too large, length of vector is only {}.",
-            index,
-            self.len()
-        );
-        let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
-        let mut result = self.limbs()[limb_index.limb];
-        result >>= limb_index.bit_index;
-        result &= bit_mask;
-        self.fq().decode(result)
-    }
-
     /// TODO: implement prime 2 version
     pub fn iter(self) -> FqVectorIterator<'a, F> {
         FqVectorIterator::new(self)
