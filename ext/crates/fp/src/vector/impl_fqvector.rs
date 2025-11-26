@@ -51,10 +51,6 @@ impl<F: Field> FqVector<F> {
         crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
     }
 
-    pub const fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     pub fn prime(&self) -> ValidPrime {
         self.fq().characteristic().to_dyn()
     }

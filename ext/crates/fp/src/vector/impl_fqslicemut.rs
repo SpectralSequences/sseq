@@ -103,7 +103,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
 
-        if self.as_slice().is_empty() {
+        if self.is_empty() {
             return;
         }
 
