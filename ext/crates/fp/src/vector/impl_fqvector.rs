@@ -50,12 +50,6 @@ impl<F: Field> FqVector<F> {
         crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
     }
 
-    #[must_use]
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
-        assert!(start <= end && end <= self.len());
-        FqSliceMut::_new(self.fq(), self.limbs_mut(), start, end)
-    }
-
     #[inline]
     #[must_use]
     pub fn as_slice(&self) -> FqSlice<'_, F> {

@@ -137,6 +137,19 @@ impl<const A: bool, R: Repr, F: Field> FqVectorBase<A, R, F> {
 }
 
 impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
+    #[must_use]
+    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
+        assert!(start <= end && end <= self.len());
+        let orig_start = self.start();
+
+        FqSliceMut::_new(
+            self.fq(),
+            self.limbs_mut(),
+            orig_start + start,
+            orig_start + end,
+        )
+    }
+
     pub(super) fn limbs_mut(&mut self) -> &mut [Limb] {
         &mut *self.limbs
     }
