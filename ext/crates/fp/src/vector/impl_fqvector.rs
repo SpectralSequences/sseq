@@ -67,10 +67,6 @@ impl<F: Field> FqVector<F> {
         self.as_slice_mut().add_basis_element(index, value);
     }
 
-    pub fn entry(&self, index: usize) -> FieldElement<F> {
-        self.as_slice().entry(index)
-    }
-
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         assert_eq!(self.fq(), value.field());
         self.as_slice_mut().set_entry(index, value);
