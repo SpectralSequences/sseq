@@ -70,13 +70,6 @@ impl<F: Field> FqVector<F> {
         self.as_slice().iter_nonzero()
     }
 
-    pub fn set_to_zero(&mut self) {
-        // This is sound because `fq.encode(fq.zero())` is always zero.
-        for limb in self.limbs_mut() {
-            *limb = 0;
-        }
-    }
-
     pub fn scale(&mut self, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         let fq = self.fq();
