@@ -34,7 +34,7 @@ pub struct FqSlice<'a, F: Field> {
 pub struct FqSliceMut<'a, F: Field> {
     fq: F,
     limbs: &'a mut [Limb],
-    pub(super) start: usize,
+    start: usize,
     pub(super) end: usize,
 }
 
@@ -112,6 +112,10 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
     pub fn fq(&self) -> F {
         self.fq
+    }
+
+    pub(super) fn start(&self) -> usize {
+        self.start
     }
 
     pub(super) fn limbs(&self) -> &[Limb] {
