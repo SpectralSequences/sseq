@@ -56,21 +56,6 @@ impl<F: Field> FqSliceMut<'_, F> {
         self.reduce_limbs();
     }
 
-    pub fn set_to_zero(&mut self) {
-        let limb_range = self.as_slice().limb_range();
-        if limb_range.is_empty() {
-            return;
-        }
-        let (min_mask, max_mask) = self.as_slice().limb_masks();
-        self.limbs_mut()[limb_range.start] &= !min_mask;
-
-        let inner_range = self.as_slice().limb_range_inner();
-        for limb in self.limbs_mut()[inner_range].iter_mut() {
-            *limb = 0;
-        }
-        self.limbs_mut()[limb_range.end - 1] &= !max_mask;
-    }
-
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
