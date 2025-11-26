@@ -51,12 +51,6 @@ impl<F: Field> FqVector<F> {
     }
 
     #[must_use]
-    pub fn slice(&self, start: usize, end: usize) -> FqSlice<'_, F> {
-        assert!(start <= end && end <= self.len());
-        FqSlice::_new(self.fq(), self.limbs(), start, end)
-    }
-
-    #[must_use]
     pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
         assert!(start <= end && end <= self.len());
         FqSliceMut::_new(self.fq(), self.limbs_mut(), start, end)

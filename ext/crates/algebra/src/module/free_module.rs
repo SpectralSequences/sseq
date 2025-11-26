@@ -364,7 +364,7 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         let len = self
             .algebra()
             .dimension_unstable(degree - gen_degree, gen_degree);
-        v.slice(
+        v.restrict(
             std::cmp::min(v.len(), start),
             std::cmp::min(v.len(), start + len),
         )
