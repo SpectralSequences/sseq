@@ -512,18 +512,6 @@ impl<F: Field> FqSliceMut<'_, F> {
         }
     }
 
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
-        assert!(start <= end && end <= self.as_slice().len());
-        let orig_start = self.start();
-
-        FqSliceMut::_new(
-            self.fq(),
-            self.limbs_mut(),
-            orig_start + start,
-            orig_start + end,
-        )
-    }
-
     #[inline]
     #[must_use]
     pub fn as_slice(&self) -> FqSlice<'_, F> {
