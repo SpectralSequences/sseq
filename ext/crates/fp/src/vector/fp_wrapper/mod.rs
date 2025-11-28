@@ -72,26 +72,33 @@ dispatch_struct! {
     pub FpVectorNonZeroIterator<'a> from FqVectorNonZeroIterator
 }
 
-impl FpVector {
+impl<const A: bool, R: Repr> FpVectorBase<A, R> {
     dispatch_vector! {
         pub fn prime(&self) -> ValidPrime;
         pub fn len(&self) -> usize;
         pub fn is_empty(&self) -> bool;
+        pub fn slice(&self, start: usize, end: usize) -> (dispatch FpSlice<'_>);
+        pub fn as_slice(&self) -> (dispatch FpSlice<'_>);
+        pub fn iter(&self) -> (dispatch FpVectorIterator<'_>);
+        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator<'_>);
+        pub fn is_zero(&self) -> bool;
+        pub fn @entry(&self, index: usize) -> u32;
+
+        pub(crate) fn limbs(&self) -> (&[Limb]);
+    }
+}
+
+impl FpVector {
+    dispatch_vector! {
         pub fn @scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
-        pub fn @entry(&self, index: usize) -> u32;
         pub fn @set_entry(&mut self, index: usize, value: u32);
         pub fn assign(&mut self, other: &Self);
         pub fn assign_partial(&mut self, other: &Self);
         pub fn @add(&mut self, other: &Self, c: u32);
         pub fn @add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn slice(&self, start: usize, end: usize) -> (dispatch FpSlice<'_>);
-        pub fn as_slice(&self) -> (dispatch FpSlice<'_>);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
         pub fn as_slice_mut(&mut self) -> (dispatch FpSliceMut<'_>);
-        pub fn is_zero(&self) -> bool;
-        pub fn iter(&self) -> (dispatch FpVectorIterator<'_>);
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator<'_>);
         pub fn extend_len(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn @add_basis_element(&mut self, index: usize, value: u32);
@@ -101,8 +108,6 @@ impl FpVector {
         pub fn @add_carry(&mut self, other: &Self, c: u32, rest: &mut [Self]) -> bool;
         pub fn @first_nonzero(&self) -> (Option<(usize, u32)>);
         pub fn density(&self) -> f32;
-
-        pub(crate) fn limbs(&self) -> (&[Limb]);
 
         pub fn new<P: Prime>(p: P, len: usize) -> (from FqVector);
         pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> (from FqVector);
@@ -132,25 +137,15 @@ impl FpVector {
 impl<'a> FpSlice<'a> {
     dispatch_vector! {
         pub(crate) fn _new<P: Prime>(p: P, limbs: &'a [Limb], start: usize, end: usize) -> (from FqSlice);
-        pub fn prime(&self) -> ValidPrime;
-        pub fn len(&self) -> usize;
-        pub fn is_empty(&self) -> bool;
-        pub fn @entry(&self, index: usize) -> u32;
-        pub fn iter(&self) -> (dispatch FpVectorIterator<'_>);
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator<'_>);
         pub fn @first_nonzero(&self) -> (Option<(usize, u32)>);
-        pub fn is_zero(&self) -> bool;
         pub fn restrict(self, start: usize, end: usize) -> (dispatch FpSlice<'a>);
         pub fn to_owned(self) -> (dispatch FpVector);
-
-        pub(crate) fn limbs(&self) -> (&[Limb]);
     }
 }
 
 impl<'a> FpSliceMut<'a> {
     dispatch_vector! {
         pub(crate) fn _new<P: Prime>(p: P, limbs: &'a mut [Limb], start: usize, end: usize) -> (from FqSliceMut);
-        pub fn prime(&self) -> ValidPrime;
         pub fn @scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
         pub fn @add(&mut self, other: FpSlice, c: u32);
@@ -158,7 +153,6 @@ impl<'a> FpSliceMut<'a> {
         pub fn assign(&mut self, other: FpSlice);
         pub fn shl_assign(&mut self, shift: usize);
         pub fn @set_entry(&mut self, index: usize, value: u32);
-        pub fn as_slice(&self) -> (dispatch FpSlice<'_>);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
         pub fn @add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy(&mut self) -> (dispatch FpSliceMut<'_>);
@@ -166,7 +160,6 @@ impl<'a> FpSliceMut<'a> {
         pub fn @add_unmasked(&mut self, other: FpSlice, c: u32, mask: &[usize]);
         pub fn @add_tensor(&mut self, offset: usize, coeff: u32, @left: FpSlice, right: FpSlice);
 
-        pub(crate) fn limbs(&self) -> (&[Limb]);
         pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 }
