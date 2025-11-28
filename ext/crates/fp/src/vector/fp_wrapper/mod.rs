@@ -257,33 +257,15 @@ impl<'de> Deserialize<'de> for FpVector {
     }
 }
 
-impl<'a, 'b> From<&'a mut FpSliceMut<'b>> for FpSliceMut<'a> {
-    fn from(slice: &'a mut FpSliceMut<'b>) -> Self {
-        slice.copy()
+impl<'a, const A: bool, R: Repr> From<&'a FpVectorBase<A, R>> for FpSlice<'a> {
+    fn from(value: &'a FpVectorBase<A, R>) -> Self {
+        value.as_slice()
     }
 }
 
-impl<'a, 'b> From<&'a FpSlice<'b>> for FpSlice<'a> {
-    fn from(slice: &'a FpSlice<'b>) -> Self {
-        *slice
-    }
-}
-
-impl<'a, 'b> From<&'a FpSliceMut<'b>> for FpSlice<'a> {
-    fn from(slice: &'a FpSliceMut<'b>) -> Self {
-        slice.as_slice()
-    }
-}
-
-impl<'a> From<&'a FpVector> for FpSlice<'a> {
-    fn from(v: &'a FpVector) -> Self {
-        v.as_slice()
-    }
-}
-
-impl<'a> From<&'a mut FpVector> for FpSliceMut<'a> {
-    fn from(v: &'a mut FpVector) -> Self {
-        v.as_slice_mut()
+impl<'a, const A: bool, R: ReprMut> From<&'a mut FpVectorBase<A, R>> for FpSliceMut<'a> {
+    fn from(value: &'a mut FpVectorBase<A, R>) -> Self {
+        value.as_slice_mut()
     }
 }
 
