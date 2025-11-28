@@ -17,12 +17,14 @@ use std::{convert::TryInto, io};
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::iter::{FqVectorIterator, FqVectorNonZeroIterator};
+use super::{
+    FqSlice, FqSliceMut, FqVector, FqVectorBase, Repr,
+    iter::{FqVectorIterator, FqVectorNonZeroIterator},
+};
 use crate::{
     field::{Fp, field_internal::FieldInternal},
     limb::Limb,
     prime::Prime,
-    vector::inner::{FqSlice, FqSliceMut, FqVector},
 };
 
 mod helpers;
@@ -43,20 +45,24 @@ use macros_2::{dispatch_struct, dispatch_vector, impl_try_into, use_primes};
 
 use_primes!();
 
-dispatch_struct! {
-    #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-    pub FpVector from FqVector
+cfg_if::cfg_if! {
+    if #[cfg(feature = "odd-primes")] {
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum FpVectorBase<const A: bool, R: Repr> {
+            _2(FqVectorBase<A, R, Fp<P2>>),
+            _3(FqVectorBase<A, R, Fp<P3>>),
+            _5(FqVectorBase<A, R, Fp<P5>>),
+            _7(FqVectorBase<A, R, Fp<P7>>),
+            Big(FqVectorBase<A, R, Fp<ValidPrime>>),
+        }
+    } else {
+        pub struct FpVectorBase<const A: bool, R>(FqVectorBase<A, R, Fp<P2>>);
+    }
 }
 
-dispatch_struct! {
-    #[derive(Debug, Copy, Clone)]
-    pub FpSlice<'a> from FqSlice
-}
-
-dispatch_struct! {
-    #[derive(Debug)]
-    pub FpSliceMut<'a> from FqSliceMut
-}
+pub type FpVector = FpVectorBase<true, Vec<Limb>>;
+pub type FpSlice<'a> = FpVectorBase<false, &'a [Limb]>;
+pub type FpSliceMut<'a> = FpVectorBase<false, &'a mut [Limb]>;
 
 dispatch_struct! {
     pub FpVectorIterator<'a> from FqVectorIterator
