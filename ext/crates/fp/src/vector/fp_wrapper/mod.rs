@@ -18,7 +18,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{
-    FqSlice, FqSliceMut, FqVector, FqVectorBase, Repr,
+    FqSlice, FqSliceMut, FqVector, FqVectorBase, Repr, ReprMut,
     iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
 use crate::{
@@ -88,20 +88,27 @@ impl<const A: bool, R: Repr> FpVectorBase<A, R> {
     }
 }
 
+impl<const A: bool, R: ReprMut> FpVectorBase<A, R> {
+    dispatch_vector! {
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
+        pub fn as_slice_mut(&mut self) -> (dispatch FpSliceMut<'_>);
+        pub fn set_to_zero(&mut self);
+        pub fn @scale(&mut self, c: u32);
+        pub fn @set_entry(&mut self, index: usize, value: u32);
+        pub fn @add_basis_element(&mut self, index: usize, value: u32);
+
+        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
+    }
+}
+
 impl FpVector {
     dispatch_vector! {
-        pub fn @scale(&mut self, c: u32);
-        pub fn set_to_zero(&mut self);
-        pub fn @set_entry(&mut self, index: usize, value: u32);
         pub fn assign(&mut self, other: &Self);
         pub fn assign_partial(&mut self, other: &Self);
         pub fn @add(&mut self, other: &Self, c: u32);
         pub fn @add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
-        pub fn as_slice_mut(&mut self) -> (dispatch FpSliceMut<'_>);
         pub fn extend_len(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
-        pub fn @add_basis_element(&mut self, index: usize, value: u32);
         pub fn @copy_from_slice(&mut self, slice: &[u32]);
         pub fn @add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
         pub fn sign_rule(&self, other: &Self) -> bool;
@@ -146,21 +153,14 @@ impl<'a> FpSlice<'a> {
 impl<'a> FpSliceMut<'a> {
     dispatch_vector! {
         pub(crate) fn _new<P: Prime>(p: P, limbs: &'a mut [Limb], start: usize, end: usize) -> (from FqSliceMut);
-        pub fn @scale(&mut self, c: u32);
-        pub fn set_to_zero(&mut self);
         pub fn @add(&mut self, other: FpSlice, c: u32);
         pub fn @add_offset(&mut self, other: FpSlice, c: u32, offset: usize);
         pub fn assign(&mut self, other: FpSlice);
         pub fn shl_assign(&mut self, shift: usize);
-        pub fn @set_entry(&mut self, index: usize, value: u32);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
-        pub fn @add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy(&mut self) -> (dispatch FpSliceMut<'_>);
         pub fn @add_masked(&mut self, other: FpSlice, c: u32, mask: &[usize]);
         pub fn @add_unmasked(&mut self, other: FpSlice, c: u32, mask: &[usize]);
         pub fn @add_tensor(&mut self, offset: usize, coeff: u32, @left: FpSlice, right: FpSlice);
-
-        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 }
 
