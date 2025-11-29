@@ -170,13 +170,7 @@ impl FpVectorIterator<'_> {
     }
 }
 
-impl std::fmt::Display for FpVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_slice().fmt(f)
-    }
-}
-
-impl std::fmt::Display for FpSlice<'_> {
+impl<const A: bool, R: Repr> std::fmt::Display for FpVectorBase<A, R> {
     /// # Example
     /// ```
     /// # use fp::vector::FpVector;
