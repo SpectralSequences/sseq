@@ -19,11 +19,11 @@ pub struct FqVectorIterator<'a, F> {
 impl<'a, F: Field> FqVectorIterator<'a, F> {
     pub(super) fn new(vec: FqSlice<'a, F>) -> Self {
         let counter = vec.len();
-        let limbs = vec.limbs;
+        let limbs = vec.into_limbs();
 
         if counter == 0 {
             return Self {
-                fq: vec.fq,
+                fq: vec.fq(),
                 limbs,
                 bit_length: 0,
                 entries_per_limb_m_1: 0,
@@ -34,20 +34,20 @@ impl<'a, F: Field> FqVectorIterator<'a, F> {
                 counter,
             };
         }
-        let pair = vec.fq.limb_bit_index_pair(vec.start);
+        let pair = vec.fq().limb_bit_index_pair(vec.start());
 
-        let bit_length = vec.fq.bit_length();
+        let bit_length = vec.fq().bit_length();
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
-        let entries_per_limb = vec.fq.entries_per_limb();
+        let entries_per_limb = vec.fq().entries_per_limb();
         Self {
-            fq: vec.fq,
+            fq: vec.fq(),
             limbs,
             bit_length,
             entries_per_limb_m_1: entries_per_limb - 1,
-            bit_mask: vec.fq.bitmask(),
+            bit_mask: vec.fq().bitmask(),
             limb_index: pair.limb,
-            entries_left: entries_per_limb - (vec.start % entries_per_limb),
+            entries_left: entries_per_limb - (vec.start() % entries_per_limb),
             cur_limb,
             counter,
         }
@@ -126,14 +126,14 @@ pub struct FqVectorNonZeroIterator<'a, F> {
 
 impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
     pub(super) fn new(vec: FqSlice<'a, F>) -> Self {
-        let entries_per_limb = vec.fq.entries_per_limb();
+        let entries_per_limb = vec.fq().entries_per_limb();
 
         let dim = vec.len();
-        let limbs = vec.limbs;
+        let limbs = vec.into_limbs();
 
         if dim == 0 {
             return Self {
-                fq: vec.fq,
+                fq: vec.fq(),
                 limbs,
                 limb_index: 0,
                 cur_limb_entries_left: 0,
@@ -142,12 +142,12 @@ impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
                 dim: 0,
             };
         }
-        let min_index = vec.start;
-        let pair = vec.fq.limb_bit_index_pair(min_index);
+        let min_index = vec.start();
+        let pair = vec.fq().limb_bit_index_pair(min_index);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
         let cur_limb_entries_left = entries_per_limb - (min_index % entries_per_limb);
         Self {
-            fq: vec.fq,
+            fq: vec.fq(),
             limbs,
             limb_index: pair.limb,
             cur_limb_entries_left,
