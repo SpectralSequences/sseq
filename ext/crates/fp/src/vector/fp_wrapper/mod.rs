@@ -192,8 +192,8 @@ impl<const A: bool, R: Repr> std::fmt::Display for FpVectorBase<A, R> {
     }
 }
 
-impl From<&FpVector> for Vec<u32> {
-    fn from(v: &FpVector) -> Self {
+impl<const A: bool, R: Repr> From<&FpVectorBase<A, R>> for Vec<u32> {
+    fn from(v: &FpVectorBase<A, R>) -> Self {
         v.iter().collect()
     }
 }
