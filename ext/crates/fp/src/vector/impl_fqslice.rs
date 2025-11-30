@@ -80,7 +80,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
         FqSlice::new(
             self.fq(),
-            self.limbs(),
+            self.into_limbs(),
             self.start() + start,
             self.start() + end,
         )

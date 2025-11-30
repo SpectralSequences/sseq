@@ -87,6 +87,10 @@ impl<'a, F: Field> FqSlice<'a, F> {
         self.fq
     }
 
+    pub(super) fn into_limbs(self) -> &'a [Limb] {
+        self.limbs
+    }
+
     pub(super) const fn start(&self) -> usize {
         self.start
     }
@@ -95,7 +99,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
         self.end
     }
 
-    pub(super) fn limbs(&self) -> &'a [Limb] {
+    pub(super) fn limbs(&self) -> &[Limb] {
         self.limbs
     }
 }

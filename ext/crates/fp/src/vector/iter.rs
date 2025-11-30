@@ -19,7 +19,7 @@ pub struct FqVectorIterator<'a, F> {
 impl<'a, F: Field> FqVectorIterator<'a, F> {
     pub(super) fn new(vec: FqSlice<'a, F>) -> Self {
         let counter = vec.len();
-        let limbs = vec.limbs();
+        let limbs = vec.into_limbs();
 
         if counter == 0 {
             return Self {
@@ -129,7 +129,7 @@ impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
         let entries_per_limb = vec.fq().entries_per_limb();
 
         let dim = vec.len();
-        let limbs = vec.limbs();
+        let limbs = vec.into_limbs();
 
         if dim == 0 {
             return Self {
