@@ -16,6 +16,18 @@ pub trait ReprMut: DerefMut<Target = [Limb]> {}
 
 impl<T: DerefMut<Target = [Limb]>> ReprMut for T {}
 
+/// A vector over a finite field.
+///
+/// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
+/// not leave the `fp` library.
+///
+/// We are generic over a number of types to provide maximal flexibility:
+/// - `A` determines whether the vector type is aligned, i.e. if it always starts on a limb
+///   boundary. This allows a number of methods to use a fast path.
+/// - `R` determines where the limbs are stored. An owned vector will own its limbs in a `Vec`, but
+///   a (mutable) slice will hold a (mutable) reference, etc. This allows for more exotic storage
+///   options such as `Cow` or `Arc`.
+/// - `F` is the underlying field.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FqVectorBase<const A: bool, R: Repr, F: Field> {
     fq: F,
@@ -29,10 +41,6 @@ pub type FqSlice<'a, F> = FqVectorBase<false, &'a [Limb], F>;
 pub type FqSliceMut<'a, F> = FqVectorBase<false, &'a mut [Limb], F>;
 pub type FqCow<'a, F> = FqVectorBase<false, Cow<'a, [Limb]>, F>;
 
-// /// A vector over a finite field.
-// ///
-// /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
-// /// not leave the `fp` library.
 // #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 // pub struct FqVector<F: Field> {
 //     fq: F,
