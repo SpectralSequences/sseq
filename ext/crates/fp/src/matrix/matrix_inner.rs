@@ -367,12 +367,12 @@ impl Matrix {
 
     pub fn row(&self, row: usize) -> FpSlice<'_> {
         let limb_range = row_to_limb_range(row, self.stride);
-        FpSlice::new(self.prime(), &self.data[limb_range], 0, self.columns)
+        FpSlice::_new(self.prime(), &self.data[limb_range], 0, self.columns)
     }
 
     pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
         let limb_range = row_to_limb_range(row, self.stride);
-        FpSliceMut::new(self.prime(), &mut self.data[limb_range], 0, self.columns)
+        FpSliceMut::_new(self.prime(), &mut self.data[limb_range], 0, self.columns)
     }
 }
 
@@ -393,7 +393,7 @@ impl Matrix {
                 .data
                 .chunks_mut(self.stride)
                 .take(logical_rows) // Only iterate over logical rows
-                .map(move |row| FpSliceMut::new(p, row, 0, columns));
+                .map(move |row| FpSliceMut::_new(p, row, 0, columns));
             Either::Right(rows)
         }
     }
@@ -412,7 +412,7 @@ impl Matrix {
                 .data
                 .maybe_par_chunks_mut(self.stride)
                 .take(logical_rows) // Only iterate over logical rows
-                .map(move |row| FpSliceMut::new(p, row, 0, columns));
+                .map(move |row| FpSliceMut::_new(p, row, 0, columns));
             Either::Right(rows)
         }
     }
@@ -516,8 +516,8 @@ impl Matrix {
         let row1 = unsafe { std::slice::from_raw_parts_mut(ptr.add(i * self.stride), self.stride) };
         let row2 = unsafe { std::slice::from_raw_parts_mut(ptr.add(j * self.stride), self.stride) };
         (
-            FpSliceMut::new(self.prime(), row1, 0, self.columns),
-            FpSliceMut::new(self.prime(), row2, 0, self.columns),
+            FpSliceMut::_new(self.prime(), row1, 0, self.columns),
+            FpSliceMut::_new(self.prime(), row2, 0, self.columns),
         )
     }
 
@@ -1263,7 +1263,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         let limb_range = row_to_limb_range(i, self.stride);
-        FpSliceMut::new(self.prime(), &mut self.data[limb_range], start_idx, end_idx)
+        FpSliceMut::_new(self.prime(), &mut self.data[limb_range], start_idx, end_idx)
     }
 
     pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice<'_> {
@@ -1414,7 +1414,7 @@ impl<'a> MatrixSliceMut<'a> {
         let end = self.col_end;
         (0..self.rows).map(move |row_idx| {
             let limb_range = row_to_limb_range(row_idx, self.stride);
-            FpSlice::new(self.prime(), &self.data[limb_range], start, end)
+            FpSlice::_new(self.prime(), &self.data[limb_range], start, end)
         })
     }
 
@@ -1429,7 +1429,7 @@ impl<'a> MatrixSliceMut<'a> {
             let rows = self
                 .data
                 .chunks_mut(self.stride)
-                .map(move |row| FpSliceMut::new(p, row, start, end));
+                .map(move |row| FpSliceMut::_new(p, row, start, end));
             Either::Right(rows)
         }
     }
@@ -1447,14 +1447,14 @@ impl<'a> MatrixSliceMut<'a> {
             let rows = self
                 .data
                 .maybe_par_chunks_mut(self.stride)
-                .map(move |row| FpSliceMut::new(p, row, start, end));
+                .map(move |row| FpSliceMut::_new(p, row, start, end));
             Either::Right(rows)
         }
     }
 
     pub fn row(&mut self, row: usize) -> FpSlice<'_> {
         let limb_range = row_to_limb_range(row, self.stride);
-        FpSlice::new(
+        FpSlice::_new(
             self.prime(),
             &self.data[limb_range],
             self.col_start,
@@ -1464,7 +1464,7 @@ impl<'a> MatrixSliceMut<'a> {
 
     pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
         let limb_range = row_to_limb_range(row, self.stride);
-        FpSliceMut::new(
+        FpSliceMut::_new(
             self.prime(),
             &mut self.data[limb_range],
             self.col_start,
