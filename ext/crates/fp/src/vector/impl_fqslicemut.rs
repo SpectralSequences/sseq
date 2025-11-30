@@ -521,7 +521,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         assert!(start <= end && end <= self.as_slice().len());
         let orig_start = self.start();
 
-        FqSliceMut::new(
+        FqSliceMut::_new(
             self.fq(),
             self.limbs_mut(),
             orig_start + start,
@@ -532,7 +532,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     #[inline]
     #[must_use]
     pub fn as_slice(&self) -> FqSlice<'_, F> {
-        FqSlice::new(self.fq(), self.limbs(), self.start(), self.end())
+        FqSlice::_new(self.fq(), self.limbs(), self.start(), self.end())
     }
 
     /// Generates a version of itself with a shorter lifetime
@@ -542,7 +542,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         let start = self.start();
         let end = self.end();
 
-        FqSliceMut::new(self.fq(), self.limbs_mut(), start, end)
+        FqSliceMut::_new(self.fq(), self.limbs_mut(), start, end)
     }
 }
 

@@ -125,7 +125,7 @@ impl FpVector {
 
 impl<'a> FpSlice<'a> {
     dispatch_vector! {
-        pub(crate) fn new<P: Prime>(p: P, limbs: &'a [Limb], start: usize, end: usize) -> (from FqSlice);
+        pub(crate) fn _new<P: Prime>(p: P, limbs: &'a [Limb], start: usize, end: usize) -> (from FqSlice);
         pub fn prime(&self) -> ValidPrime;
         pub fn len(&self) -> usize;
         pub fn is_empty(&self) -> bool;
@@ -143,7 +143,7 @@ impl<'a> FpSlice<'a> {
 
 impl<'a> FpSliceMut<'a> {
     dispatch_vector! {
-        pub(crate) fn new<P: Prime>(p: P, limbs: &'a mut [Limb], start: usize, end: usize) -> (from FqSliceMut);
+        pub(crate) fn _new<P: Prime>(p: P, limbs: &'a mut [Limb], start: usize, end: usize) -> (from FqSliceMut);
         pub fn prime(&self) -> ValidPrime;
         pub fn @scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
