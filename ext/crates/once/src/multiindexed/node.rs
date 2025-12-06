@@ -166,7 +166,7 @@ impl<V> Node<V> {
     ///
     /// Can only be called on an inner node.
     pub(super) unsafe fn inner(&self) -> &TwoEndedGrove<Self> {
-        &self.inner
+        unsafe { &self.inner }
     }
 
     /// Returns a reference to the leaf grove.
@@ -175,7 +175,7 @@ impl<V> Node<V> {
     ///
     /// Can only be called on a leaf node.
     pub(super) unsafe fn leaf(&self) -> &TwoEndedGrove<V> {
-        &self.leaf
+        unsafe { &self.leaf }
     }
 
     /// Recursively drops the node and all its children.
