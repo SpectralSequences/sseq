@@ -23,7 +23,7 @@ impl<T> Benchable<1, T> for OnceBiVec<T> {
     where
         T: 'a,
     {
-        self.iter().enumerate().map(|(i, v)| ([i as i32], v))
+        self.iter_enum().map(|(i, v)| ([i as i32], v))
     }
 }
 
@@ -56,11 +56,8 @@ impl<T> Benchable<2, T> for OnceBiVec<OnceBiVec<T>> {
     where
         T: 'a,
     {
-        self.iter().enumerate().flat_map(|(i, v)| {
-            v.iter()
-                .enumerate()
-                .map(move |(j, w)| ([i as i32, j as i32], w))
-        })
+        Benchable::<1, _>::iter(self)
+            .flat_map(|(start, v)| v.iter_enum().map(move |(end, val)| ([start[0], end], val)))
     }
 }
 
@@ -98,12 +95,9 @@ impl<T> Benchable<3, T> for OnceBiVec<OnceBiVec<OnceBiVec<T>>> {
     where
         T: 'a,
     {
-        self.iter().enumerate().flat_map(|(i, v)| {
-            v.iter().enumerate().flat_map(move |(j, w)| {
-                w.iter()
-                    .enumerate()
-                    .map(move |(k, z)| ([i as i32, j as i32, k as i32], z))
-            })
+        Benchable::<2, _>::iter(self).flat_map(|(start, v)| {
+            v.iter_enum()
+                .map(move |(end, val)| ([start[0], start[1], end], val))
         })
     }
 }
@@ -147,14 +141,9 @@ impl<T> Benchable<4, T> for OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<T>>>> {
     where
         T: 'a,
     {
-        self.iter().enumerate().flat_map(|(i, v)| {
-            v.iter().enumerate().flat_map(move |(j, w)| {
-                w.iter().enumerate().flat_map(move |(k, z)| {
-                    z.iter()
-                        .enumerate()
-                        .map(move |(l, x)| ([i as i32, j as i32, k as i32, l as i32], x))
-                })
-            })
+        Benchable::<3, _>::iter(self).flat_map(|(start, v)| {
+            v.iter_enum()
+                .map(move |(end, val)| ([start[0], start[1], start[2], end], val))
         })
     }
 }
@@ -203,16 +192,9 @@ impl<T> Benchable<5, T> for OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<T>
     where
         T: 'a,
     {
-        self.iter().enumerate().flat_map(|(i, v)| {
-            v.iter().enumerate().flat_map(move |(j, w)| {
-                w.iter().enumerate().flat_map(move |(k, z)| {
-                    z.iter().enumerate().flat_map(move |(l, x)| {
-                        x.iter().enumerate().map(move |(m, y)| {
-                            ([i as i32, j as i32, k as i32, l as i32, m as i32], y)
-                        })
-                    })
-                })
-            })
+        Benchable::<4, _>::iter(self).flat_map(|(start, v)| {
+            v.iter_enum()
+                .map(move |(end, val)| ([start[0], start[1], start[2], start[3], end], val))
         })
     }
 }
