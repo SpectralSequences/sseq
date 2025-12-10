@@ -45,20 +45,17 @@ use macros_2::{dispatch_struct, dispatch_vector, impl_try_into, use_primes};
 
 use_primes!();
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "odd-primes")] {
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-        pub enum FpVectorBase<const A: bool, R> {
-            _2(FqVectorBase<A, R, Fp<P2>>),
-            _3(FqVectorBase<A, R, Fp<P3>>),
-            _5(FqVectorBase<A, R, Fp<P5>>),
-            _7(FqVectorBase<A, R, Fp<P7>>),
-            Big(FqVectorBase<A, R, Fp<ValidPrime>>),
-        }
-    } else {
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-        pub struct FpVectorBase<const A: bool, R>(FqVectorBase<A, R, Fp<P2>>);
-    }
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum FpVectorBase<const A: bool, R> {
+    _2(FqVectorBase<A, R, Fp<P2>>),
+    #[cfg(feature = "odd-primes")]
+    _3(FqVectorBase<A, R, Fp<P3>>),
+    #[cfg(feature = "odd-primes")]
+    _5(FqVectorBase<A, R, Fp<P5>>),
+    #[cfg(feature = "odd-primes")]
+    _7(FqVectorBase<A, R, Fp<P7>>),
+    #[cfg(feature = "odd-primes")]
+    Big(FqVectorBase<A, R, Fp<ValidPrime>>),
 }
 
 pub type FpVector = FpVectorBase<true, Vec<Limb>>;
