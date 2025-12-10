@@ -7,6 +7,12 @@ let wasm_bindgen;
     }
     let wasm = undefined;
 
+    function addToExternrefTable0(obj) {
+        const idx = wasm.__externref_table_alloc();
+        wasm.__wbindgen_externrefs.set(idx, obj);
+        return idx;
+    }
+
     function debugString(val) {
         // primitive types
         const type = typeof val;
@@ -72,10 +78,20 @@ let wasm_bindgen;
         return className;
     }
 
-    let WASM_VECTOR_LEN = 0;
+    let cachedDataViewMemory0 = null;
+    function getDataViewMemory0() {
+        if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
+            cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
+        }
+        return cachedDataViewMemory0;
+    }
+
+    function getStringFromWasm0(ptr, len) {
+        ptr = ptr >>> 0;
+        return decodeText(ptr, len);
+    }
 
     let cachedUint8ArrayMemory0 = null;
-
     function getUint8ArrayMemory0() {
         if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
             cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
@@ -83,21 +99,16 @@ let wasm_bindgen;
         return cachedUint8ArrayMemory0;
     }
 
-    const cachedTextEncoder = new TextEncoder();
-
-    if (!('encodeInto' in cachedTextEncoder)) {
-        cachedTextEncoder.encodeInto = function (arg, view) {
-            const buf = cachedTextEncoder.encode(arg);
-            view.set(buf);
-            return {
-                read: arg.length,
-                written: buf.length
-            };
+    function handleError(f, args) {
+        try {
+            return f.apply(this, args);
+        } catch (e) {
+            const idx = addToExternrefTable0(e);
+            wasm.__wbindgen_exn_store(idx);
         }
     }
 
     function passStringToWasm0(arg, malloc, realloc) {
-
         if (realloc === undefined) {
             const buf = cachedTextEncoder.encode(arg);
             const ptr = malloc(buf.length, 1) >>> 0;
@@ -118,7 +129,6 @@ let wasm_bindgen;
             if (code > 0x7F) break;
             mem[ptr + offset] = code;
         }
-
         if (offset !== len) {
             if (offset !== 0) {
                 arg = arg.slice(offset);
@@ -135,49 +145,36 @@ let wasm_bindgen;
         return ptr;
     }
 
-    let cachedDataViewMemory0 = null;
-
-    function getDataViewMemory0() {
-        if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
-            cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
-        }
-        return cachedDataViewMemory0;
-    }
-
     let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
-
     cachedTextDecoder.decode();
-
     function decodeText(ptr, len) {
         return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
     }
 
-    function getStringFromWasm0(ptr, len) {
-        ptr = ptr >>> 0;
-        return decodeText(ptr, len);
-    }
+    const cachedTextEncoder = new TextEncoder();
 
-    function addToExternrefTable0(obj) {
-        const idx = wasm.__externref_table_alloc();
-        wasm.__wbindgen_externrefs.set(idx, obj);
-        return idx;
-    }
-
-    function handleError(f, args) {
-        try {
-            return f.apply(this, args);
-        } catch (e) {
-            const idx = addToExternrefTable0(e);
-            wasm.__wbindgen_exn_store(idx);
+    if (!('encodeInto' in cachedTextEncoder)) {
+        cachedTextEncoder.encodeInto = function (arg, view) {
+            const buf = cachedTextEncoder.encode(arg);
+            view.set(buf);
+            return {
+                read: arg.length,
+                written: buf.length
+            };
         }
     }
+
+    let WASM_VECTOR_LEN = 0;
 
     const ResolutionFinalization = (typeof FinalizationRegistry === 'undefined')
         ? { register: () => {}, unregister: () => {} }
         : new FinalizationRegistry(ptr => wasm.__wbg_resolution_free(ptr >>> 0, 1));
 
-    class Resolution {
+    const SseqFinalization = (typeof FinalizationRegistry === 'undefined')
+        ? { register: () => {}, unregister: () => {} }
+        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr >>> 0, 1));
 
+    class Resolution {
         static __wrap(ptr) {
             ptr = ptr >>> 0;
             const obj = Object.create(Resolution.prototype);
@@ -185,14 +182,12 @@ let wasm_bindgen;
             ResolutionFinalization.register(obj, obj.__wbg_ptr, obj);
             return obj;
         }
-
         __destroy_into_raw() {
             const ptr = this.__wbg_ptr;
             this.__wbg_ptr = 0;
             ResolutionFinalization.unregister(this);
             return ptr;
         }
-
         free() {
             const ptr = this.__destroy_into_raw();
             wasm.__wbg_resolution_free(ptr, 0);
@@ -215,15 +210,9 @@ let wasm_bindgen;
         }
     }
     if (Symbol.dispose) Resolution.prototype[Symbol.dispose] = Resolution.prototype.free;
-
     __exports.Resolution = Resolution;
 
-    const SseqFinalization = (typeof FinalizationRegistry === 'undefined')
-        ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr >>> 0, 1));
-
     class Sseq {
-
         static __wrap(ptr) {
             ptr = ptr >>> 0;
             const obj = Object.create(Sseq.prototype);
@@ -231,14 +220,12 @@ let wasm_bindgen;
             SseqFinalization.register(obj, obj.__wbg_ptr, obj);
             return obj;
         }
-
         __destroy_into_raw() {
             const ptr = this.__wbg_ptr;
             this.__wbg_ptr = 0;
             SseqFinalization.unregister(this);
             return ptr;
         }
-
         free() {
             const ptr = this.__destroy_into_raw();
             wasm.__wbg_sseq_free(ptr, 0);
@@ -261,7 +248,6 @@ let wasm_bindgen;
         }
     }
     if (Symbol.dispose) Sseq.prototype[Symbol.dispose] = Sseq.prototype.free;
-
     __exports.Sseq = Sseq;
 
     const EXPECTED_RESPONSE_TYPES = new Set(['basic', 'cors', 'default']);
@@ -271,7 +257,6 @@ let wasm_bindgen;
             if (typeof WebAssembly.instantiateStreaming === 'function') {
                 try {
                     return await WebAssembly.instantiateStreaming(module, imports);
-
                 } catch (e) {
                     const validResponse = module.ok && EXPECTED_RESPONSE_TYPES.has(module.type);
 
@@ -286,13 +271,11 @@ let wasm_bindgen;
 
             const bytes = await module.arrayBuffer();
             return await WebAssembly.instantiate(bytes, imports);
-
         } else {
             const instance = await WebAssembly.instantiate(module, imports);
 
             if (instance instanceof WebAssembly.Instance) {
                 return { instance, module };
-
             } else {
                 return instance;
             }
@@ -302,17 +285,17 @@ let wasm_bindgen;
     function __wbg_get_imports() {
         const imports = {};
         imports.wbg = {};
-        imports.wbg.__wbg___wbindgen_debug_string_df47ffb5e35e6763 = function(arg0, arg1) {
+        imports.wbg.__wbg___wbindgen_debug_string_adfb662ae34724b6 = function(arg0, arg1) {
             const ret = debugString(arg1);
             const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         };
-        imports.wbg.__wbg___wbindgen_throw_b855445ff6a94295 = function(arg0, arg1) {
+        imports.wbg.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         };
-        imports.wbg.__wbg_call_525440f72fbfc0ea = function() { return handleError(function (arg0, arg1, arg2) {
+        imports.wbg.__wbg_call_3020136f7a2d6e44 = function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.call(arg1, arg2);
             return ret;
         }, arguments) };
@@ -329,7 +312,6 @@ let wasm_bindgen;
             table.set(offset + 1, null);
             table.set(offset + 2, true);
             table.set(offset + 3, false);
-            ;
         };
 
         return imports;
@@ -359,13 +341,10 @@ let wasm_bindgen;
         }
 
         const imports = __wbg_get_imports();
-
         if (!(module instanceof WebAssembly.Module)) {
             module = new WebAssembly.Module(module);
         }
-
         const instance = new WebAssembly.Instance(module, imports);
-
         return __wbg_finalize_init(instance, module);
     }
 
@@ -396,5 +375,4 @@ let wasm_bindgen;
     }
 
     wasm_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
-
 })();

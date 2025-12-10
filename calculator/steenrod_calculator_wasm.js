@@ -7,8 +7,12 @@ let wasm_bindgen;
     }
     let wasm = undefined;
 
-    let cachedUint8ArrayMemory0 = null;
+    function getStringFromWasm0(ptr, len) {
+        ptr = ptr >>> 0;
+        return decodeText(ptr, len);
+    }
 
+    let cachedUint8ArrayMemory0 = null;
     function getUint8ArrayMemory0() {
         if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
             cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
@@ -16,36 +20,7 @@ let wasm_bindgen;
         return cachedUint8ArrayMemory0;
     }
 
-    let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
-
-    cachedTextDecoder.decode();
-
-    function decodeText(ptr, len) {
-        return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
-    }
-
-    function getStringFromWasm0(ptr, len) {
-        ptr = ptr >>> 0;
-        return decodeText(ptr, len);
-    }
-
-    let WASM_VECTOR_LEN = 0;
-
-    const cachedTextEncoder = new TextEncoder();
-
-    if (!('encodeInto' in cachedTextEncoder)) {
-        cachedTextEncoder.encodeInto = function (arg, view) {
-            const buf = cachedTextEncoder.encode(arg);
-            view.set(buf);
-            return {
-                read: arg.length,
-                written: buf.length
-            };
-        }
-    }
-
     function passStringToWasm0(arg, malloc, realloc) {
-
         if (realloc === undefined) {
             const buf = cachedTextEncoder.encode(arg);
             const ptr = malloc(buf.length, 1) >>> 0;
@@ -66,7 +41,6 @@ let wasm_bindgen;
             if (code > 0x7F) break;
             mem[ptr + offset] = code;
         }
-
         if (offset !== len) {
             if (offset !== 0) {
                 arg = arg.slice(offset);
@@ -89,12 +63,32 @@ let wasm_bindgen;
         return value;
     }
 
+    let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+    cachedTextDecoder.decode();
+    function decodeText(ptr, len) {
+        return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
+    }
+
+    const cachedTextEncoder = new TextEncoder();
+
+    if (!('encodeInto' in cachedTextEncoder)) {
+        cachedTextEncoder.encodeInto = function (arg, view) {
+            const buf = cachedTextEncoder.encode(arg);
+            view.set(buf);
+            return {
+                read: arg.length,
+                written: buf.length
+            };
+        }
+    }
+
+    let WASM_VECTOR_LEN = 0;
+
     const SteenrodCalculatorFinalization = (typeof FinalizationRegistry === 'undefined')
         ? { register: () => {}, unregister: () => {} }
         : new FinalizationRegistry(ptr => wasm.__wbg_steenrodcalculator_free(ptr >>> 0, 1));
 
     class SteenrodCalculator {
-
         static __wrap(ptr) {
             ptr = ptr >>> 0;
             const obj = Object.create(SteenrodCalculator.prototype);
@@ -102,14 +96,12 @@ let wasm_bindgen;
             SteenrodCalculatorFinalization.register(obj, obj.__wbg_ptr, obj);
             return obj;
         }
-
         __destroy_into_raw() {
             const ptr = this.__wbg_ptr;
             this.__wbg_ptr = 0;
             SteenrodCalculatorFinalization.unregister(this);
             return ptr;
         }
-
         free() {
             const ptr = this.__destroy_into_raw();
             wasm.__wbg_steenrodcalculator_free(ptr, 0);
@@ -172,7 +164,6 @@ let wasm_bindgen;
         }
     }
     if (Symbol.dispose) SteenrodCalculator.prototype[Symbol.dispose] = SteenrodCalculator.prototype.free;
-
     __exports.SteenrodCalculator = SteenrodCalculator;
 
     const EXPECTED_RESPONSE_TYPES = new Set(['basic', 'cors', 'default']);
@@ -182,7 +173,6 @@ let wasm_bindgen;
             if (typeof WebAssembly.instantiateStreaming === 'function') {
                 try {
                     return await WebAssembly.instantiateStreaming(module, imports);
-
                 } catch (e) {
                     const validResponse = module.ok && EXPECTED_RESPONSE_TYPES.has(module.type);
 
@@ -197,13 +187,11 @@ let wasm_bindgen;
 
             const bytes = await module.arrayBuffer();
             return await WebAssembly.instantiate(bytes, imports);
-
         } else {
             const instance = await WebAssembly.instantiate(module, imports);
 
             if (instance instanceof WebAssembly.Instance) {
                 return { instance, module };
-
             } else {
                 return instance;
             }
@@ -213,7 +201,7 @@ let wasm_bindgen;
     function __wbg_get_imports() {
         const imports = {};
         imports.wbg = {};
-        imports.wbg.__wbg___wbindgen_throw_b855445ff6a94295 = function(arg0, arg1) {
+        imports.wbg.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         };
         imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
@@ -229,7 +217,6 @@ let wasm_bindgen;
             table.set(offset + 1, null);
             table.set(offset + 2, true);
             table.set(offset + 3, false);
-            ;
         };
 
         return imports;
@@ -258,13 +245,10 @@ let wasm_bindgen;
         }
 
         const imports = __wbg_get_imports();
-
         if (!(module instanceof WebAssembly.Module)) {
             module = new WebAssembly.Module(module);
         }
-
         const instance = new WebAssembly.Instance(module, imports);
-
         return __wbg_finalize_init(instance, module);
     }
 
@@ -295,5 +279,4 @@ let wasm_bindgen;
     }
 
     wasm_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
-
 })();

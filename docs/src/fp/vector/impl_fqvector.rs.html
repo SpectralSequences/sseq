@@ -99,11 +99,11 @@
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) {
 <a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">let </span>num_bytes = num_limbs * size_of::&lt;Limb&gt;();
-<a href=#77 id=77 data-nosnippet>77</a>            <span class="kw">unsafe </span>{
-<a href=#78 id=78 data-nosnippet>78</a>                <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] =
-<a href=#79 id=79 data-nosnippet>79</a>                    std::slice::from_raw_parts_mut(<span class="self">self</span>.limbs().as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u8, num_bytes);
-<a href=#80 id=80 data-nosnippet>80</a>                buffer.write_all(buf)<span class="question-mark">?</span>;
-<a href=#81 id=81 data-nosnippet>81</a>            }
+<a href=#77 id=77 data-nosnippet>77</a>
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] = <span class="kw">unsafe </span>{
+<a href=#79 id=79 data-nosnippet>79</a>                std::slice::from_raw_parts(<span class="self">self</span>.limbs().as_ptr() <span class="kw">as </span><span class="kw-2">*const </span>u8, num_bytes)
+<a href=#80 id=80 data-nosnippet>80</a>            };
+<a href=#81 id=81 data-nosnippet>81</a>            buffer.write_all(buf)<span class="question-mark">?</span>;
 <a href=#82 id=82 data-nosnippet>82</a>        } <span class="kw">else </span>{
 <a href=#83 id=83 data-nosnippet>83</a>            <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.limbs()[<span class="number">0</span>..num_limbs] {
 <a href=#84 id=84 data-nosnippet>84</a>                <span class="kw">let </span>bytes = limb.to_le_bytes();
