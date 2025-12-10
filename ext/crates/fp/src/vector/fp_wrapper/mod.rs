@@ -48,7 +48,7 @@ use_primes!();
 cfg_if::cfg_if! {
     if #[cfg(feature = "odd-primes")] {
         #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-        pub enum FpVectorBase<const A: bool, R: Repr> {
+        pub enum FpVectorBase<const A: bool, R> {
             _2(FqVectorBase<A, R, Fp<P2>>),
             _3(FqVectorBase<A, R, Fp<P3>>),
             _5(FqVectorBase<A, R, Fp<P5>>),
@@ -56,6 +56,7 @@ cfg_if::cfg_if! {
             Big(FqVectorBase<A, R, Fp<ValidPrime>>),
         }
     } else {
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
         pub struct FpVectorBase<const A: bool, R>(FqVectorBase<A, R, Fp<P2>>);
     }
 }

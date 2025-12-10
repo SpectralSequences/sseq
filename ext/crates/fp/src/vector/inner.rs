@@ -36,7 +36,7 @@ impl<T: DerefMut<Target = [Limb]>> ReprMut for T {}
 ///   options such as `Cow` or `Arc`.
 /// - `F` is the underlying field.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FqVectorBase<const A: bool, R: Repr, F: Field> {
+pub struct FqVectorBase<const A: bool, R, F> {
     fq: F,
     limbs: R,
     start: usize,
