@@ -1,2 +1,2 @@
-define_module fd 2 1 "" -1 "" "" "" x10
+define_module -- fd 2 1 "" -1 "" "" "" x10
 {"p":2,"type":"finite dimensional module","gens":{"x_10":-1,"x10":1},"actions":["Sq2 x_10 = x10"]}

@@ -1,4 +1,4 @@
-resolve A-mod-Sq1-Sq2[-2]@adem
+resolve -- A-mod-Sq1-Sq2[-2]@adem
 ·       ·       ·       ·       ·   
 ·       ·       ·       ·       ·     
 ·       ·       ·       ·       ·       
