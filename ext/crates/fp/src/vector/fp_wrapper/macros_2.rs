@@ -57,14 +57,6 @@ macro_rules! dispatch_vector_inner {
             $ret(self.0.$helper_method($($arg),*))
         }
     };
-
-    // ($vis:vis fn $method:ident $helper_method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt $lifetime:tt)) => {
-    //     #[must_use]
-    //     $vis fn $method(self, $($arg: $ty),* ) -> $ret<$lifetime> {
-    //         $ret(self.0.$helper_method($($arg),*))
-    //     }
-    // };
-
     ($vis:vis fn $method:ident $helper_method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         #[allow(unused_parens)]
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
