@@ -12,37 +12,33 @@ pub(crate) struct LimbBitIndexPair {
 pub(crate) fn from_bytes(limbs: &mut [Limb], data: &mut impl std::io::Read) -> std::io::Result<()> {
     if cfg!(target_endian = "little") {
         let num_bytes = std::mem::size_of_val(limbs);
-        unsafe {
-            let buf: &mut [u8] =
-                std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-            data.read_exact(buf).unwrap();
-        }
+        let buf: &mut [u8] =
+            unsafe { std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes) };
+        data.read_exact(buf)
     } else {
         for entry in limbs {
             let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
             data.read_exact(&mut bytes)?;
             *entry = Limb::from_le_bytes(bytes);
         }
-    };
-    Ok(())
+        Ok(())
+    }
 }
 
 /// Store an array of `Limb`s.
 pub(crate) fn to_bytes(limbs: &[Limb], data: &mut impl std::io::Write) -> std::io::Result<()> {
-    let num_limbs = limbs.len();
-
     if cfg!(target_endian = "little") {
         let num_bytes = std::mem::size_of_val(limbs);
         let buf: &[u8] =
             unsafe { std::slice::from_raw_parts(limbs.as_ptr() as *const u8, num_bytes) };
-        data.write_all(buf)?;
+        data.write_all(buf)
     } else {
-        for limb in &limbs[0..num_limbs] {
+        for limb in limbs {
             let bytes = limb.to_le_bytes();
             data.write_all(&bytes)?;
         }
+        Ok(())
     }
-    Ok(())
 }
 
 pub(crate) fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
