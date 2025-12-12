@@ -33,10 +33,9 @@ pub(crate) fn to_bytes(limbs: &[Limb], data: &mut impl std::io::Write) -> std::i
 
     if cfg!(target_endian = "little") {
         let num_bytes = std::mem::size_of_val(limbs);
-        unsafe {
-            let buf: &[u8] = std::slice::from_raw_parts_mut(limbs.as_ptr() as *mut u8, num_bytes);
-            data.write_all(buf)?;
-        }
+        let buf: &[u8] =
+            unsafe { std::slice::from_raw_parts(limbs.as_ptr() as *const u8, num_bytes) };
+        data.write_all(buf)?;
     } else {
         for limb in &limbs[0..num_limbs] {
             let bytes = limb.to_le_bytes();
