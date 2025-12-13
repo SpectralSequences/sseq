@@ -93,3 +93,17 @@ where
 {
     op(&Scope(&()))
 }
+
+pub struct Empty<T>(std::marker::PhantomData<T>);
+
+impl<T: Send> Iterator for Empty<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+pub fn empty<T: Send>() -> Empty<T> {
+    Empty(std::marker::PhantomData)
+}

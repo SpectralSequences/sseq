@@ -359,7 +359,7 @@ impl Matrix {
         let columns = self.columns;
 
         if self.stride == 0 {
-            Either::Left(std::iter::empty())
+            Either::Left(maybe_rayon::empty())
         } else {
             let rows = self
                 .data
@@ -1400,7 +1400,7 @@ impl<'a> MatrixSliceMut<'a> {
         let end = self.col_end;
 
         if self.stride == 0 {
-            Either::Left(std::iter::empty())
+            Either::Left(maybe_rayon::empty())
         } else {
             let rows = self
                 .data

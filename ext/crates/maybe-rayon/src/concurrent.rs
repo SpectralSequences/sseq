@@ -71,3 +71,7 @@ where
 {
     rayon::in_place_scope(op)
 }
+
+pub fn empty<T: Send>() -> rayon::iter::Empty<T> {
+    rayon::iter::empty()
+}
