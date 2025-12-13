@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
         product.segment(1, 1).add_identity();
 
         let mut matrix = Matrix::new(p, num_gens, 1);
-        for idx in 0..num_gens {
+        for (idx, answer_row) in answers.iter_mut().enumerate() {
             let hom = Arc::new(ResolutionHomomorphism::new(
                 String::new(),
                 Arc::clone(&resolution),
@@ -93,9 +93,9 @@ fn main() -> anyhow::Result<()> {
                 c,
             ));
 
-            matrix[idx].set_entry(0, 1);
+            matrix.row_mut(idx).set_entry(0, 1);
             hom.extend_step(c, Some(&matrix));
-            matrix[idx].set_entry(0, 0);
+            matrix.row_mut(idx).set_entry(0, 0);
 
             hom.extend_through_stem(tot);
 
@@ -104,7 +104,7 @@ fn main() -> anyhow::Result<()> {
             homotopy.extend(tot);
 
             let last = homotopy.homotopy(tot.s());
-            for (i, answer) in answers[idx].iter_mut().enumerate() {
+            for (i, answer) in answer_row.iter_mut().enumerate() {
                 let output = last.output(tot.t(), i);
                 for (k, &v) in a_class.iter().enumerate() {
                     if v != 0 {
@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
             for (k, &v) in b_class.iter().enumerate() {
                 if v != 0 {
                     let g = BidegreeGenerator::new(b, k);
-                    hom.act(product[idx].slice_mut(0, product_num_gens), v, g);
+                    hom.act(product.row_mut(idx).slice_mut(0, product_num_gens), v, g);
                 }
             }
         }

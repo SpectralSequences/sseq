@@ -43,7 +43,7 @@ impl Differential {
     pub fn add(&mut self, source: FpSlice, target: Option<FpSlice>) -> bool {
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;
-        let next_row = &mut self.matrix[self.first_empty_row];
+        let mut next_row = self.matrix.row_mut(self.first_empty_row);
         next_row.slice_mut(0, source_dim).add(source, 1);
 
         // The last row is always empty
@@ -52,12 +52,12 @@ impl Differential {
                 .slice_mut(source_dim, source_dim + target_dim)
                 .assign(t);
         };
-        if next_row.is_zero() {
+        if next_row.as_slice().is_zero() {
             return false;
         }
         self.matrix.row_reduce();
 
-        if self.matrix[self.first_empty_row].is_zero() {
+        if self.matrix.row(self.first_empty_row).is_zero() {
             false
         } else {
             self.first_empty_row += 1;
@@ -85,7 +85,7 @@ impl Differential {
     pub fn reduce_target(&mut self, zeros: &Subspace) {
         assert_eq!(zeros.ambient_dimension(), self.target_dim);
 
-        for row in self.matrix.iter_mut() {
+        for mut row in self.matrix.iter_mut() {
             zeros.reduce(row.slice_mut(self.source_dim, self.source_dim + self.target_dim));
         }
 
@@ -114,7 +114,9 @@ impl Differential {
             let row = row as usize;
 
             target.add(
-                self.matrix[row].slice(self.source_dim, self.source_dim + self.target_dim),
+                self.matrix
+                    .row(row)
+                    .slice(self.source_dim, self.source_dim + self.target_dim),
                 c,
             );
         }
@@ -141,7 +143,7 @@ impl Differential {
             self.source_dim + self.target_dim,
         );
         // Transpose the source and target columns
-        for (target, source) in matrix.iter_mut().zip(self.matrix.iter()) {
+        for (mut target, source) in matrix.iter_mut().zip(self.matrix.iter()) {
             target
                 .slice_mut(0, self.target_dim)
                 .assign(source.slice(self.source_dim, self.source_dim + self.target_dim));

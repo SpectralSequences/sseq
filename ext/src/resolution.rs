@@ -562,7 +562,7 @@ where
             matrix.extend_column_dimension(columns + num_new_gens);
 
             for i in source_dimension..new_rows {
-                matrix.inner[i].set_entry(matrix.start[2] + i, 1);
+                matrix.inner.row_mut(i).set_entry(matrix.start[2] + i, 1);
             }
 
             // We are now supposed to row reduce the matrix. However, running the full row
@@ -605,7 +605,7 @@ where
 
             for old_col in 0..matrix.columns() {
                 if old_col == next_new_col {
-                    matrix[next_old_row..=source_dimension + next_new_row].rotate_right(1);
+                    matrix.rotate_down(next_old_row..source_dimension + next_new_row + 1, 1);
                     matrix.pivots_mut()[old_col] = next_old_row as isize;
                     match new_gens.next() {
                         Some((x, y)) => {

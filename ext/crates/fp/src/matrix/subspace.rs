@@ -171,7 +171,7 @@ impl Subspace {
 
     /// Whether the subspace is empty. This assumes the subspace is row reduced.
     pub fn is_empty(&self) -> bool {
-        self.matrix.rows() == 0 || self.matrix[0].is_zero()
+        self.matrix.rows() == 0 || self.matrix.row(0).is_zero()
     }
 
     pub fn ambient_dimension(&self) -> usize {
@@ -179,8 +179,8 @@ impl Subspace {
     }
 
     /// Returns a basis of the subspace.
-    pub fn basis(&self) -> &[FpVector] {
-        &self.matrix[..self.dimension()]
+    pub fn basis(&self) -> impl Iterator<Item = FpSlice<'_>> {
+        self.matrix.iter().take(self.dimension())
     }
 
     /// Sets the subspace to be the zero subspace.
@@ -201,10 +201,7 @@ impl Subspace {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = FpSlice<'_>> {
-        self.matrix
-            .iter()
-            .map(FpVector::as_slice)
-            .take(self.dimension())
+        self.matrix.iter().take(self.dimension())
     }
 
     /// Iterate over all vectors in the subspace.
@@ -233,7 +230,7 @@ impl Subspace {
         crate::prime::iter::combinations(self.prime(), self.dimension()).map(|combination| {
             let mut vector = FpVector::new(self.prime(), self.ambient_dimension());
             for (&c, v) in combination.iter().zip(self.matrix.iter()) {
-                vector.add(v, c);
+                vector.as_slice_mut().add(v, c);
             }
             vector
         })
@@ -243,15 +240,13 @@ impl Subspace {
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.ambient_dimension(), other.ambient_dimension());
 
-        let self_rows = self.matrix.clone().into_iter();
-        let other_rows = other.matrix.clone().into_iter();
-        let new_rows = self_rows.chain(other_rows).collect();
+        let mut sum = self.matrix.clone();
+        for other_row in other.iter() {
+            let mut new_row = sum.add_row();
+            new_row.assign(other_row);
+        }
 
-        let mut ret = Self::from_matrix(Matrix::from_rows(
-            self.prime(),
-            new_rows,
-            self.ambient_dimension(),
-        ));
+        let mut ret = Self::from_matrix(sum);
         ret.matrix.trim(0, self.matrix.columns() + 1, 0);
         ret
     }

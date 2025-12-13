@@ -250,7 +250,7 @@ where
                 .number_of_gens_in_degree(cofiber.t()),
             1,
         );
-        new_output[cofiber.idx()].set_entry(0, 1);
+        new_output.row_mut(cofiber.idx()).set_entry(0, 1);
 
         map.add_generators_from_matrix_rows(cofiber.t(), new_output.as_slice_mut());
         map.extend_by_zero((max_degree + cofiber.degree()).t());

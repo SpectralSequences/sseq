@@ -48,44 +48,14 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn update_from_bytes(&mut self, data: &mut impl io::Read) -> io::Result<()> {
-        let limbs = self.limbs_mut();
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = std::mem::size_of_val(limbs);
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in limbs {
-                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-                data.read_exact(&mut bytes)?;
-                *entry = Limb::from_le_bytes(bytes);
-            }
-        };
-        Ok(())
+        crate::limb::from_bytes(self.limbs_mut(), data)
     }
 
     pub fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         // self.limbs is allowed to have more limbs than necessary, but we only save the
         // necessary ones.
         let num_limbs = self.fq.number(self.len());
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
-
-            let buf: &[u8] = unsafe {
-                std::slice::from_raw_parts(self.limbs().as_ptr() as *const u8, num_bytes)
-            };
-            buffer.write_all(buf)?;
-        } else {
-            for limb in &self.limbs()[0..num_limbs] {
-                let bytes = limb.to_le_bytes();
-                buffer.write_all(&bytes)?;
-            }
-        }
-        Ok(())
+        crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
     }
 
     pub fn fq(&self) -> F {
@@ -263,17 +233,6 @@ impl<F: Field> FqVector<F> {
                 .chunks(self.fq.entries_per_limb())
                 .map(|x| self.fq.pack(x.iter().cloned())),
         );
-    }
-
-    /// Permanently remove the first `n` elements in the vector. `n` must be a multiple of
-    /// the number of entries per limb
-    pub(crate) fn trim_start(&mut self, n: usize) {
-        assert!(n <= self.len);
-        let entries_per = self.fq.entries_per_limb();
-        assert_eq!(n % entries_per, 0);
-        let num_limbs = n / entries_per;
-        self.limbs.drain(0..num_limbs);
-        self.len -= n;
     }
 
     pub fn sign_rule(&self, other: &Self) -> bool {

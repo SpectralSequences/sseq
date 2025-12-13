@@ -158,12 +158,11 @@ impl MilnorSubalgebra {
         let mut scratch = FpVector::new(p, target.dimension(target_degree));
         let mut result = Matrix::new(p, source_mask.len(), target_mask.len());
 
-        for (row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
+        for (mut row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
             scratch.set_to_zero();
             hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
 
-            row.as_slice_mut()
-                .add_masked(scratch.as_slice(), 1, &target_mask);
+            row.add_masked(scratch.as_slice(), 1, &target_mask);
         }
         result
     }
@@ -645,11 +644,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
         let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
 
-        for ((x, x_masked), dx) in xs.iter_mut().zip_eq(&n[next_row..]).zip_eq(&mut dxs) {
-            x.as_slice_mut()
-                .add_unmasked(x_masked.as_slice(), 1, &target_mask);
+        for ((x, x_masked), dx) in xs
+            .iter_mut()
+            .zip_eq(n.iter().skip(next_row))
+            .zip_eq(&mut dxs)
+        {
+            x.as_slice_mut().add_unmasked(x_masked, 1, &target_mask);
             for (i, _) in x_masked.iter_nonzero() {
-                dx.add(&full_matrix[i], 1);
+                dx.as_slice_mut().add(full_matrix.row(i), 1);
             }
         }
 
@@ -687,13 +689,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                         continue;
                     }
                     if dx.entry(v) != 0 {
-                        scratch.add(&preimage[row], 1);
+                        scratch.as_slice_mut().add(preimage.row(row), 1);
                     }
                     row += 1;
                 }
                 for (i, _) in scratch.iter_nonzero() {
                     x.add_basis_element(target_mask[i], 1);
-                    dx.add(&full_matrix[i], 1);
+                    dx.as_slice_mut().add(full_matrix.row(i), 1);
                 }
             }
             Self::write_qi(
@@ -1120,7 +1122,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 
                 // Now reduce by these elements
                 for i in 0..dx_matrix.rows() {
-                    let masked_col = dx_matrix[i].first_nonzero().unwrap().0;
+                    let masked_col = dx_matrix.row(i).first_nonzero().unwrap().0;
                     assert_eq!(dx_matrix.pivots()[masked_col], i as isize);
                     let col = target_zero_mask[masked_col];
 

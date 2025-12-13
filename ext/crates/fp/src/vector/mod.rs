@@ -289,6 +289,34 @@ pub(super) mod tests {
         }
 
         #[test]
+        fn test_add_offset((fq, mut v_arr, w_arr, (slice_start, slice_end), offset) in
+            arb_field_dim::<$field>().prop_flat_map(|(fq, dim)| {
+                (Just(fq), arb_element_vec(fq, dim), arb_element_vec(fq, dim), arb_slice(dim), any::<prop::sample::Index>())
+            })
+        ) {
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
+
+            let mut v_slice = v.slice_mut(slice_start, slice_end);
+            let w_slice = w.slice(slice_start, slice_end);
+
+            let slice_len = w_slice.len();
+            let real_offset = if slice_len > 0 { offset.index(slice_len) } else { 0 };
+
+            v_slice.add_offset(w_slice, fq.one(), real_offset);
+
+            for (v_element, w_element) in v_arr.iter_mut()
+                .zip(w_arr.iter())
+                .skip(slice_start)
+                .take(slice_len)
+                .skip(real_offset)
+            {
+                *v_element += *w_element;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
+        #[test]
         fn test_scale((fq, mut v_arr, c) in arb_field_dim::<$field>().prop_flat_map(|(fq, dim)| {
             (Just(fq), arb_element_vec(fq, dim), fq.arb_element())
         })) {

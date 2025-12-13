@@ -364,7 +364,7 @@ where
 
         let mut matrix = Matrix::new(result.source.prime(), num_gens, 1);
         for (k, &v) in class.iter().enumerate() {
-            matrix[k].set_entry(0, v);
+            matrix.row_mut(k).set_entry(0, v);
         }
 
         result.extend_step(shift, Some(&matrix));
@@ -397,7 +397,7 @@ where
                     assert!(chain_map.apply_quasi_inverse(
                         output_vec.as_slice_mut(),
                         output.t(),
-                        input.as_slice(),
+                        input,
                     ));
                 }
                 outputs
