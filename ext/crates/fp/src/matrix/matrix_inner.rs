@@ -1360,7 +1360,7 @@ impl<'a> MatrixSliceMut<'a> {
         Self {
             fp: self.fp,
             data: &mut self.data[limb_range],
-            rows: self.rows,
+            rows: row_end - row_start,
             col_start: self.col_start,
             col_end: self.col_end,
             stride: self.stride,
