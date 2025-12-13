@@ -1,5 +1,6 @@
 use std::{fmt, io, ops::Range};
 
+use either::Either;
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
 
@@ -340,18 +341,15 @@ impl Matrix {
         let p = self.prime();
         let columns = self.columns;
 
-        // This is written weird because we need to handle the case where stride is 0 as a special
-        // case. This is because `chunks_mut` panics if the argument is 0.
-        match self.stride {
-            0 => None,
-            s => Some(
-                self.data
-                    .chunks_mut(s)
-                    .map(move |row| FpSliceMut::new(p, row, 0, columns)),
-            ),
+        if self.stride == 0 {
+            Either::Left(std::iter::empty())
+        } else {
+            let rows = self
+                .data
+                .chunks_mut(self.stride)
+                .map(move |row| FpSliceMut::new(p, row, 0, columns));
+            Either::Right(rows)
         }
-        .into_iter()
-        .flatten()
     }
 
     pub fn maybe_par_iter_mut(
@@ -359,9 +357,16 @@ impl Matrix {
     ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut<'_>> {
         let p = self.prime();
         let columns = self.columns;
-        self.data
-            .maybe_par_chunks_mut(self.stride)
-            .map(move |row| FpSliceMut::new(p, row, 0, columns))
+
+        if self.stride == 0 {
+            Either::Left(std::iter::empty())
+        } else {
+            let rows = self
+                .data
+                .maybe_par_chunks_mut(self.stride)
+                .map(move |row| FpSliceMut::new(p, row, 0, columns));
+            Either::Right(rows)
+        }
     }
 }
 
@@ -1376,18 +1381,15 @@ impl<'a> MatrixSliceMut<'a> {
         let start = self.col_start;
         let end = self.col_end;
 
-        // This is written weird because we need to handle the case where stride is 0 as a special
-        // case. This is because `chunks_mut` panics if the argument is 0.
-        match self.stride {
-            0 => None,
-            s => Some(
-                self.data
-                    .chunks_mut(s)
-                    .map(move |row| FpSliceMut::new(p, row, start, end)),
-            ),
+        if self.stride == 0 {
+            Either::Left(std::iter::empty())
+        } else {
+            let rows = self
+                .data
+                .chunks_mut(self.stride)
+                .map(move |row| FpSliceMut::new(p, row, start, end));
+            Either::Right(rows)
         }
-        .into_iter()
-        .flatten()
     }
 
     pub fn maybe_par_iter_mut(
@@ -1396,9 +1398,16 @@ impl<'a> MatrixSliceMut<'a> {
         let p = self.prime();
         let start = self.col_start;
         let end = self.col_end;
-        self.data
-            .maybe_par_chunks_mut(self.stride)
-            .map(move |row| FpSliceMut::new(p, row, start, end))
+
+        if self.stride == 0 {
+            Either::Left(std::iter::empty())
+        } else {
+            let rows = self
+                .data
+                .maybe_par_chunks_mut(self.stride)
+                .map(move |row| FpSliceMut::new(p, row, start, end));
+            Either::Right(rows)
+        }
     }
 
     pub fn row(&mut self, row: usize) -> FpSlice<'_> {
