@@ -82,16 +82,16 @@ impl M4riTable {
     /// Generates the table from the known data
     /// `num` is the number of the vector being added.
     pub fn generate(&mut self, matrix: &Matrix) {
-        let num_limbs = matrix[0].limbs().len();
+        let num_limbs = matrix.row(0).limbs().len();
         self.min_limb = usize::MAX;
         for (n, (c, &r)) in self.columns.iter().zip_eq(&self.rows).enumerate() {
             let old_len = self.data.len();
-            self.data.extend_from_slice(matrix[r].limbs());
+            self.data.extend_from_slice(matrix.row(r).limbs());
             self.data.extend_from_within(..old_len);
             for i in 1 << n..2 * (1 << n) - 1 {
                 simd::add_simd(
                     &mut self.data[i * num_limbs..(i + 1) * num_limbs],
-                    matrix[r].limbs(),
+                    matrix.row(r).limbs(),
                     c.limb,
                 );
             }
@@ -103,9 +103,9 @@ impl M4riTable {
         for (&row, col) in self.rows.iter().zip_eq(&self.columns) {
             assert!(target != row);
             unsafe {
-                let coef = (matrix[target].limbs()[col.limb] >> col.bit_index) & 1;
+                let coef = (matrix.row(target).limbs()[col.limb] >> col.bit_index) & 1;
                 if coef != 0 {
-                    let (target, source) = matrix.split_borrow(target, row);
+                    let (mut target, source) = matrix.split_borrow(target, row);
                     simd::add_simd(target.limbs_mut(), source.limbs(), col.limb)
                 }
             }

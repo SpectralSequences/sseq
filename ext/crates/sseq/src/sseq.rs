@@ -181,7 +181,7 @@ impl<P: SseqProfile> Sseq<P> {
                 Differential::new(self.p, source_dim, self.classes.dimension(target));
 
             for class in self.permanent_classes[b.x()][b.y()].basis() {
-                differential.add(class.as_slice(), None);
+                differential.add(class, None);
             }
             self.differentials[b.x()][b.y()].push(differential);
         }
@@ -291,7 +291,7 @@ impl<P: SseqProfile> Sseq<P> {
                     source_dim + target_dim,
                 );
 
-                for (row, g) in std::iter::zip(
+                for (mut row, g) in std::iter::zip(
                     matrix.iter_mut(),
                     self.page_data[b.x()][b.y()][r - 1].gens(),
                 ) {
@@ -312,7 +312,7 @@ impl<P: SseqProfile> Sseq<P> {
 
                 let first_kernel_row = matrix.find_first_row_in_block(target_dim);
 
-                for row in &matrix[first_kernel_row..] {
+                for row in matrix.iter().skip(first_kernel_row) {
                     if row.is_zero() {
                         break;
                     }

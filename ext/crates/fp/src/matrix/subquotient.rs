@@ -105,7 +105,7 @@ impl Subquotient {
 
         self.gens.update_then_row_reduce(|gens_matrix| {
             for elt in gens_matrix.iter_mut().take(self.dimension) {
-                self.quotient.reduce(elt.as_slice_mut());
+                self.quotient.reduce(elt);
             }
         });
 
@@ -166,7 +166,7 @@ impl Subquotient {
 
         sub.update_then_row_reduce(|sub_matrix| {
             for row in sub_matrix.iter_mut().take(dim) {
-                quotient.reduce(row.as_slice_mut());
+                quotient.reduce(row);
             }
         });
 

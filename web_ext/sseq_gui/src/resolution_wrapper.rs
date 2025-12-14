@@ -116,7 +116,7 @@ impl Resolution<ext::CCC> {
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
                 let mut map_data = Matrix::new(result.prime(), rows, cols);
-                for (map_data_row, json_map_data_row) in
+                for (mut map_data_row, json_map_data_row) in
                     map_data.iter_mut().zip(json_map_data.iter())
                 {
                     for (c, entry) in json_map_data_row.iter().enumerate() {
@@ -356,9 +356,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                     Arc::clone(&self.unit_resolution().inner),
                     b,
                 );
-                unit_vector[j].set_entry(0, 1);
+                unit_vector.row_mut(j).set_entry(0, 1);
                 f.extend_step(b, Some(&unit_vector));
-                unit_vector[j].set_to_zero();
+                unit_vector.row_mut(j).set_to_zero();
                 maps.push(f);
             }
         }

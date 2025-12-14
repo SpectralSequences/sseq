@@ -3,16 +3,10 @@ pub mod prelude {
 
     pub trait MaybeIndexedParallelIterator: Iterator {}
 
-    pub trait IntoMaybeParallelIterator: IntoIterator {
-        type Iter;
-
-        fn into_maybe_par_iter(self) -> Self::Iter;
-    }
-
-    pub trait MaybeIntoParallelRefMutIterator<'data> {
-        type Iter;
-
-        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter;
+    pub trait IntoMaybeParallelIterator: IntoIterator + Sized {
+        fn into_maybe_par_iter(self) -> Self::IntoIter {
+            self.into_iter()
+        }
     }
 
     pub struct MaybeIterBridge<Iter>(Iter);
@@ -23,30 +17,22 @@ pub mod prelude {
         }
     }
 
+    pub trait MaybeParallelSliceMut<T: Send> {
+        fn maybe_par_chunks_mut<'data>(
+            &'data mut self,
+            chunk_size: usize,
+        ) -> impl MaybeIndexedParallelIterator<Item = &'data mut [T]>
+        where
+            T: 'data;
+    }
+
     // Implementations
 
     impl<I: Iterator> MaybeParallelIterator for I {}
 
     impl<I: Iterator> MaybeIndexedParallelIterator for I {}
 
-    impl<I: IntoIterator> IntoMaybeParallelIterator for I {
-        type Iter = Self::IntoIter;
-
-        fn into_maybe_par_iter(self) -> Self::Iter {
-            self.into_iter()
-        }
-    }
-
-    impl<'data, I: 'data + ?Sized> MaybeIntoParallelRefMutIterator<'data> for I
-    where
-        &'data mut I: IntoIterator,
-    {
-        type Iter = <&'data mut I as IntoIterator>::IntoIter;
-
-        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter {
-            self.into_iter()
-        }
-    }
+    impl<I: IntoIterator> IntoMaybeParallelIterator for I {}
 
     impl<Iter: Iterator> Iterator for MaybeIterBridge<Iter> {
         type Item = Iter::Item;
@@ -57,6 +43,18 @@ pub mod prelude {
     }
 
     impl<T: Iterator> MaybeParallelBridge for T {}
+
+    impl<T: Send> MaybeParallelSliceMut<T> for [T] {
+        fn maybe_par_chunks_mut<'data>(
+            &'data mut self,
+            chunk_size: usize,
+        ) -> impl MaybeIndexedParallelIterator<Item = &'data mut [T]>
+        where
+            T: 'data,
+        {
+            self.chunks_mut(chunk_size)
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -94,4 +92,18 @@ where
     OP: FnOnce(&Scope<'scope>) -> R,
 {
     op(&Scope(&()))
+}
+
+pub struct Empty<T>(std::marker::PhantomData<T>);
+
+impl<T: Send> Iterator for Empty<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+pub fn empty<T: Send>() -> Empty<T> {
+    Empty(std::marker::PhantomData)
 }

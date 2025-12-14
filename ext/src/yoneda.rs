@@ -249,10 +249,10 @@ where
                     let mut differentials =
                         Matrix::new(p, prev.dimension(t), curr.module.dimension(t));
 
-                    for (i, row) in differentials.iter_mut().enumerate() {
+                    for (i, mut row) in differentials.iter_mut().enumerate() {
                         let j = prev.basis_list[t][i];
-                        d.apply_to_basis_element(row.as_slice_mut(), 1, t, j);
-                        curr.reduce(t, row.as_slice_mut());
+                        d.apply_to_basis_element(row.copy(), 1, t, j);
+                        curr.reduce(t, row);
                     }
 
                     let mut result = Subspace::from_matrix(differentials);
@@ -342,8 +342,8 @@ where
                     source.quotient_basis_elements(t, start..end);
 
                     let needs_to_revert = diff_im.update_then_row_reduce(|diff_im_matrix| {
-                        for row in diff_im_matrix.iter_mut() {
-                            source.reduce(t, row.as_slice_mut());
+                        for mut row in diff_im_matrix.iter_mut() {
+                            source.reduce(t, row.copy());
                             if row.as_slice().is_zero() {
                                 return true;
                             }
@@ -456,16 +456,18 @@ where
                 images.find_pivots_permutation(pivot_columns.iter().map(|(_, i)| *i)),
             );
 
-            let mut source_iter =
-                std::iter::zip(&matrix, orig_pivot_columns.iter()).filter_map(|(row, col)| {
+            let get_source_iter = || {
+                std::iter::zip(matrix.iter(), orig_pivot_columns.iter()).filter_map(|(row, col)| {
                     if chosen_cols.contains(col) {
                         None
                     } else {
-                        Some(row.as_slice())
+                        Some(row)
                     }
-                });
+                })
+            };
+            let mut source_iter = get_source_iter();
+            let mut source_iter2 = get_source_iter();
 
-            let mut source_iter2 = source_iter.clone();
             source.quotient_vectors(t, |mut row| {
                 row.add(source_iter.next()?, 1);
                 Some(())
@@ -608,7 +610,7 @@ where
     let matrix = matrix.into_tail_segment(first_kernel_row, source_dimension, 1);
 
     let mut image_matrix = Matrix::new(p, image_rows, source_orig_dimension);
-    for (target, source) in std::iter::zip(
+    for (mut target, source) in std::iter::zip(
         image_matrix.iter_mut(),
         matrix.iter().skip(first_image_row - first_kernel_row),
     ) {

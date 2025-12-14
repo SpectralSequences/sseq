@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     }
     let v: Vec<u32> = query::vector("Input ext class", matrix.rows());
     for (i, &x) in v.iter().enumerate() {
-        matrix[i].set_entry(0, x);
+        matrix.row_mut(i).set_entry(0, x);
     }
 
     if !is_unit {
