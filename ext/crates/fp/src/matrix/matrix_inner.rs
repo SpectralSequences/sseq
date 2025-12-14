@@ -88,7 +88,7 @@ impl Matrix {
             crate::limb::from_bytes(&mut data[limb_range], buffer)?;
         }
         Ok(Self {
-            fp: Fp::new(p),
+            fp,
             rows,
             columns,
             data,
