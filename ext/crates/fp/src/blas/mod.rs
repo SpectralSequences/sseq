@@ -24,7 +24,7 @@
 //! - The optimal loop order and tile size depend on matrix dimensions (see benchmarks)
 //! - Default configuration uses RIC ordering with 1 x 16 tiles for best average performance
 
-use tile::{orders::*, LoopOrder};
+use tile::{LoopOrder, orders::*};
 
 use crate::matrix::Matrix;
 
