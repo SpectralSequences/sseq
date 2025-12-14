@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["sign_rule"],"struct":["LimbBitIndexPair"]};
+window.SIDEBAR_ITEMS = {"fn":["from_bytes","sign_rule","to_bytes"],"struct":["LimbBitIndexPair"]};

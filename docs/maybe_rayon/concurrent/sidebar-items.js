@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["in_place_scope","join","scope"],"mod":["prelude"],"type":["Scope"]};
+window.SIDEBAR_ITEMS = {"fn":["empty","in_place_scope","join","scope"],"mod":["prelude"],"type":["Scope"]};

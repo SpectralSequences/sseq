@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/secondary_massey.rs`."><title>secondary_massey.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="secondary_massey" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/secondary_massey.rs`."><title>secondary_massey.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="secondary_massey" data-themes="" data-resource-suffix="" data-rustdoc-version="1.92.0 (ded5c06cf 2025-12-08)" data-channel="1.92.0" data-search-js="search-d69d8955.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-ce535bd0.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -104,7 +104,7 @@
 <a href=#79 id=79 data-nosnippet>79</a>        } <span class="kw">else </span>{
 <a href=#80 id=80 data-nosnippet>80</a>            <span class="kw">let </span>v: Vec&lt;u32&gt; = query::vector(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Input Ext class {ext_name}"</span>), num_gens);
 <a href=#81 id=81 data-nosnippet>81</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v.iter().enumerate() {
-<a href=#82 id=82 data-nosnippet>82</a>                matrix[i].set_entry(<span class="number">0</span>, x);
+<a href=#82 id=82 data-nosnippet>82</a>                matrix.row_mut(i).set_entry(<span class="number">0</span>, x);
 <a href=#83 id=83 data-nosnippet>83</a>                class.set_entry(i, x);
 <a href=#84 id=84 data-nosnippet>84</a>            }
 <a href=#85 id=85 data-nosnippet>85</a>        }
@@ -324,14 +324,14 @@
 <a href=#299 id=299 data-nosnippet>299</a>                        .get_map(c.s() + b.underlying().shift.s())
 <a href=#300 id=300 data-nosnippet>300</a>                        .hom_k(c.t()),
 <a href=#301 id=301 data-nosnippet>301</a>                );
-<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">for </span>(g, out) <span class="kw">in </span>target_page_data
+<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">for </span>(g, <span class="kw-2">mut </span>out) <span class="kw">in </span>target_page_data
 <a href=#303 id=303 data-nosnippet>303</a>                    .subspace_gens()
 <a href=#304 id=304 data-nosnippet>304</a>                    .zip_eq(product_matrix.iter_mut())
 <a href=#305 id=305 data-nosnippet>305</a>                {
 <a href=#306 id=306 data-nosnippet>306</a>                    out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens)
 <a href=#307 id=307 data-nosnippet>307</a>                        .add(g, <span class="number">1</span>);
 <a href=#308 id=308 data-nosnippet>308</a>                    <span class="kw">for </span>(i, v) <span class="kw">in </span>g.iter_nonzero() {
-<a href=#309 id=309 data-nosnippet>309</a>                        out.slice_mut(<span class="number">0</span>, prod_num_gens).add(m0[i].as_slice(), v);
+<a href=#309 id=309 data-nosnippet>309</a>                        out.slice_mut(<span class="number">0</span>, prod_num_gens).add(m0.row(i), v);
 <a href=#310 id=310 data-nosnippet>310</a>                    }
 <a href=#311 id=311 data-nosnippet>311</a>                }
 <a href=#312 id=312 data-nosnippet>312</a>                product_matrix.row_reduce();
@@ -352,14 +352,14 @@
 <a href=#327 id=327 data-nosnippet>327</a>                    b_lambda.as_deref(),
 <a href=#328 id=328 data-nosnippet>328</a>                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>unit_sseq),
 <a href=#329 id=329 data-nosnippet>329</a>                    c,
-<a href=#330 id=330 data-nosnippet>330</a>                    e2_kernel.basis().iter().map(FpVector::as_slice),
-<a href=#331 id=331 data-nosnippet>331</a>                    product_matrix[<span class="number">0</span>..e2_ker_dim]
-<a href=#332 id=332 data-nosnippet>332</a>                        .iter_mut()
-<a href=#333 id=333 data-nosnippet>333</a>                        .map(|x| x.slice_mut(<span class="number">0</span>, prod_all_gens)),
+<a href=#330 id=330 data-nosnippet>330</a>                    e2_kernel.basis(),
+<a href=#331 id=331 data-nosnippet>331</a>                    product_matrix
+<a href=#332 id=332 data-nosnippet>332</a>                        .slice_mut(<span class="number">0</span>, e2_ker_dim, <span class="number">0</span>, prod_all_gens)
+<a href=#333 id=333 data-nosnippet>333</a>                        .iter_mut(),
 <a href=#334 id=334 data-nosnippet>334</a>                );
-<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">for </span>(v, t) <span class="kw">in </span>e2_kernel.basis().iter().zip(product_matrix.iter_mut()) {
+<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">for </span>(v, <span class="kw-2">mut </span>t) <span class="kw">in </span>e2_kernel.basis().zip(product_matrix.iter_mut()) {
 <a href=#336 id=336 data-nosnippet>336</a>                    t.slice_mut(prod_all_gens, prod_all_gens + target_num_gens)
-<a href=#337 id=337 data-nosnippet>337</a>                        .assign(v.as_slice());
+<a href=#337 id=337 data-nosnippet>337</a>                        .assign(v);
 <a href=#338 id=338 data-nosnippet>338</a>                }
 <a href=#339 id=339 data-nosnippet>339</a>
 <a href=#340 id=340 data-nosnippet>340</a>                <span class="comment">// Now add the lambda multiples
@@ -375,146 +375,145 @@
 <a href=#350 id=350 data-nosnippet>350</a>                    <span class="kw">if </span>v &gt;= <span class="number">0 </span>{
 <a href=#351 id=351 data-nosnippet>351</a>                        <span class="kw">continue</span>;
 <a href=#352 id=352 data-nosnippet>352</a>                    }
-<a href=#353 id=353 data-nosnippet>353</a>                    <span class="kw">let </span>row = <span class="kw-2">&amp;mut </span>product_matrix[e2_ker_dim + count <span class="kw">as </span>usize];
+<a href=#353 id=353 data-nosnippet>353</a>                    <span class="kw">let </span><span class="kw-2">mut </span>row = product_matrix.row_mut(e2_ker_dim + count <span class="kw">as </span>usize);
 <a href=#354 id=354 data-nosnippet>354</a>                    row.add_basis_element(prod_all_gens + target_num_gens + i, <span class="number">1</span>);
-<a href=#355 id=355 data-nosnippet>355</a>                    row.slice_mut(prod_num_gens, prod_all_gens)
-<a href=#356 id=356 data-nosnippet>356</a>                        .add(m[i].as_slice(), <span class="number">1</span>);
-<a href=#357 id=357 data-nosnippet>357</a>                    product_lambda_page_data
-<a href=#358 id=358 data-nosnippet>358</a>                        .reduce_by_quotient(row.slice_mut(prod_num_gens, prod_all_gens));
-<a href=#359 id=359 data-nosnippet>359</a>                    count += <span class="number">1</span>;
-<a href=#360 id=360 data-nosnippet>360</a>                }
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>                product_matrix.row_reduce();
-<a href=#363 id=363 data-nosnippet>363</a>                product_matrix.compute_kernel(prod_all_gens)
-<a href=#364 id=364 data-nosnippet>364</a>            }
-<a href=#365 id=365 data-nosnippet>365</a>        };
-<a href=#366 id=366 data-nosnippet>366</a>
-<a href=#367 id=367 data-nosnippet>367</a>        <span class="kw">if </span>e3_kernel.dimension() == <span class="number">0 </span>{
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">continue</span>;
-<a href=#369 id=369 data-nosnippet>369</a>        }
-<a href=#370 id=370 data-nosnippet>370</a>
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">let </span>m0 = chain_homotopy.homotopy(source.s()).hom_k(c.t());
-<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>mt = Matrix::from_vec(p, <span class="kw-2">&amp;</span>chain_homotopy.homotopy(source.s() + <span class="number">1</span>).hom_k(c.t() + <span class="number">1</span>));
-<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span>m1 = Matrix::from_vec(
-<a href=#374 id=374 data-nosnippet>374</a>            p,
-<a href=#375 id=375 data-nosnippet>375</a>            <span class="kw-2">&amp;</span>ch_lift.homotopies()[source.s() + <span class="number">1</span>].homotopies.hom_k(c.t()),
-<a href=#376 id=376 data-nosnippet>376</a>        );
-<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">let </span>mp = Matrix::from_vec(
-<a href=#378 id=378 data-nosnippet>378</a>            p,
-<a href=#379 id=379 data-nosnippet>379</a>            <span class="kw-2">&amp;</span>resolution
-<a href=#380 id=380 data-nosnippet>380</a>                .filtration_one_product(<span class="number">1</span>, h_0, Bidegree::s_t(source.s(), c.t() + shift.t()))
-<a href=#381 id=381 data-nosnippet>381</a>                .unwrap(),
-<a href=#382 id=382 data-nosnippet>382</a>        );
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">let </span>ma = a
-<a href=#384 id=384 data-nosnippet>384</a>            .underlying()
-<a href=#385 id=385 data-nosnippet>385</a>            .get_map(source.s())
-<a href=#386 id=386 data-nosnippet>386</a>            .hom_k(c.t() + b_shift.t());
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
-<a href=#388 id=388 data-nosnippet>388</a>
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">for </span>g <span class="kw">in </span>e3_kernel.iter() {
-<a href=#390 id=390 data-nosnippet>390</a>            <span class="comment">// Print name
-<a href=#391 id=391 data-nosnippet>391</a>            </span>{
-<a href=#392 id=392 data-nosnippet>392</a>                <span class="macro">print!</span>(<span class="string">"&lt;{a_name}, {b_name}, "</span>);
-<a href=#393 id=393 data-nosnippet>393</a>                <span class="kw">let </span>has_ext = {
-<a href=#394 id=394 data-nosnippet>394</a>                    <span class="kw">let </span>ext_part = g.slice(<span class="number">0</span>, target_num_gens);
-<a href=#395 id=395 data-nosnippet>395</a>                    <span class="kw">if </span>ext_part.iter_nonzero().count() &gt; <span class="number">0 </span>{
-<a href=#396 id=396 data-nosnippet>396</a>                        <span class="macro">print!</span>(
-<a href=#397 id=397 data-nosnippet>397</a>                            <span class="string">"[{basis_string}]"</span>,
-<a href=#398 id=398 data-nosnippet>398</a>                            basis_string =
-<a href=#399 id=399 data-nosnippet>399</a>                                BidegreeElement::new(c, ext_part.to_owned()).to_basis_string()
-<a href=#400 id=400 data-nosnippet>400</a>                        );
-<a href=#401 id=401 data-nosnippet>401</a>                        <span class="bool-val">true
-<a href=#402 id=402 data-nosnippet>402</a>                    </span>} <span class="kw">else </span>{
-<a href=#403 id=403 data-nosnippet>403</a>                        <span class="bool-val">false
-<a href=#404 id=404 data-nosnippet>404</a>                    </span>}
-<a href=#405 id=405 data-nosnippet>405</a>                };
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">let </span>lambda_part = g.slice(target_num_gens, target_all_gens);
-<a href=#408 id=408 data-nosnippet>408</a>                <span class="kw">let </span>num_entries = lambda_part.iter_nonzero().count();
-<a href=#409 id=409 data-nosnippet>409</a>                <span class="kw">if </span>num_entries &gt; <span class="number">0 </span>{
-<a href=#410 id=410 data-nosnippet>410</a>                    <span class="kw">if </span>has_ext {
-<a href=#411 id=411 data-nosnippet>411</a>                        <span class="macro">print!</span>(<span class="string">" + "</span>);
-<a href=#412 id=412 data-nosnippet>412</a>                    }
-<a href=#413 id=413 data-nosnippet>413</a>                    <span class="macro">print!</span>(<span class="string">"λ"</span>);
-<a href=#414 id=414 data-nosnippet>414</a>
-<a href=#415 id=415 data-nosnippet>415</a>                    <span class="kw">let </span>basis_string = BidegreeElement::new(
-<a href=#416 id=416 data-nosnippet>416</a>                        c + LAMBDA_BIDEGREE,
-<a href=#417 id=417 data-nosnippet>417</a>                        g.slice(target_num_gens, target_all_gens).to_owned(),
-<a href=#418 id=418 data-nosnippet>418</a>                    )
-<a href=#419 id=419 data-nosnippet>419</a>                    .to_basis_string();
-<a href=#420 id=420 data-nosnippet>420</a>                    <span class="kw">if </span>num_entries == <span class="number">1 </span>{
-<a href=#421 id=421 data-nosnippet>421</a>                        <span class="macro">print!</span>(<span class="string">"{basis_string}"</span>,);
-<a href=#422 id=422 data-nosnippet>422</a>                    } <span class="kw">else </span>{
-<a href=#423 id=423 data-nosnippet>423</a>                        <span class="macro">print!</span>(<span class="string">"({basis_string})"</span>,);
-<a href=#424 id=424 data-nosnippet>424</a>                    }
-<a href=#425 id=425 data-nosnippet>425</a>                }
-<a href=#426 id=426 data-nosnippet>426</a>                <span class="macro">print!</span>(<span class="string">"&gt; = ±"</span>);
-<a href=#427 id=427 data-nosnippet>427</a>            }
-<a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a>            scratch0.clear();
-<a href=#430 id=430 data-nosnippet>430</a>            scratch0.resize(source_num_gens, <span class="number">0</span>);
-<a href=#431 id=431 data-nosnippet>431</a>            scratch1.set_scratch_vector_size(source_lambda_num_gens);
-<a href=#432 id=432 data-nosnippet>432</a>
-<a href=#433 id=433 data-nosnippet>433</a>            <span class="comment">// First deal with the null-homotopy of ab
-<a href=#434 id=434 data-nosnippet>434</a>            </span><span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
-<a href=#435 id=435 data-nosnippet>435</a>                scratch0
-<a href=#436 id=436 data-nosnippet>436</a>                    .iter_mut()
-<a href=#437 id=437 data-nosnippet>437</a>                    .zip_eq(<span class="kw-2">&amp;</span>m0[i])
-<a href=#438 id=438 data-nosnippet>438</a>                    .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
-<a href=#439 id=439 data-nosnippet>439</a>                scratch1.add(<span class="kw-2">&amp;</span>m1[i], v);
-<a href=#440 id=440 data-nosnippet>440</a>            }
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(target_num_gens, target_all_gens).iter_nonzero() {
-<a href=#442 id=442 data-nosnippet>442</a>                scratch1.add(<span class="kw-2">&amp;</span>mt[i], v);
-<a href=#443 id=443 data-nosnippet>443</a>            }
-<a href=#444 id=444 data-nosnippet>444</a>            <span class="comment">// Now do the -1 part of the null-homotopy of bc.
-<a href=#445 id=445 data-nosnippet>445</a>            </span>{
-<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">let </span>sign = p * p - <span class="number">1</span>;
-<a href=#447 id=447 data-nosnippet>447</a>                <span class="kw">let </span>out = b.product_nullhomotopy(b_lambda.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, g);
-<a href=#448 id=448 data-nosnippet>448</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>out.iter_nonzero() {
-<a href=#449 id=449 data-nosnippet>449</a>                    scratch0
-<a href=#450 id=450 data-nosnippet>450</a>                        .iter_mut()
-<a href=#451 id=451 data-nosnippet>451</a>                        .zip_eq(<span class="kw-2">&amp;</span>ma[i])
-<a href=#452 id=452 data-nosnippet>452</a>                        .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
-<a href=#453 id=453 data-nosnippet>453</a>                }
-<a href=#454 id=454 data-nosnippet>454</a>            }
-<a href=#455 id=455 data-nosnippet>455</a>
-<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-<a href=#457 id=457 data-nosnippet>457</a>                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
-<a href=#458 id=458 data-nosnippet>458</a>                scratch1.add(<span class="kw-2">&amp;</span>mp[i], extra % p);
-<a href=#459 id=459 data-nosnippet>459</a>            }
-<a href=#460 id=460 data-nosnippet>460</a>
-<a href=#461 id=461 data-nosnippet>461</a>            <span class="macro">print!</span>(<span class="string">"[{}]"</span>, scratch0.iter().map(|x| <span class="kw-2">*</span>x % p).format(<span class="string">", "</span>));
-<a href=#462 id=462 data-nosnippet>462</a>
-<a href=#463 id=463 data-nosnippet>463</a>            <span class="comment">// Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy of
-<a href=#464 id=464 data-nosnippet>464</a>            // 2.
-<a href=#465 id=465 data-nosnippet>465</a>            </span>scratch0.clear();
-<a href=#466 id=466 data-nosnippet>466</a>            scratch0.resize(prod_num_gens, <span class="number">0</span>);
-<a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
-<a href=#469 id=469 data-nosnippet>469</a>                scratch0
-<a href=#470 id=470 data-nosnippet>470</a>                    .iter_mut()
-<a href=#471 id=471 data-nosnippet>471</a>                    .zip_eq(<span class="kw-2">&amp;</span>mb[i])
-<a href=#472 id=472 data-nosnippet>472</a>                    .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
-<a href=#473 id=473 data-nosnippet>473</a>            }
-<a href=#474 id=474 data-nosnippet>474</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-<a href=#475 id=475 data-nosnippet>475</a>                <span class="kw">let </span>extra = (<span class="kw-2">*</span>v / p) % p;
-<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw">if </span>extra == <span class="number">0 </span>{
-<a href=#477 id=477 data-nosnippet>477</a>                    <span class="kw">continue</span>;
-<a href=#478 id=478 data-nosnippet>478</a>                }
-<a href=#479 id=479 data-nosnippet>479</a>                <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..source_lambda_num_gens {
-<a href=#480 id=480 data-nosnippet>480</a>                    <span class="kw">let </span>m = a.underlying().get_map((source + LAMBDA_BIDEGREE).s());
-<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">let </span>dx = m.output((source + LAMBDA_BIDEGREE).t(), gen_idx);
-<a href=#482 id=482 data-nosnippet>482</a>                    <span class="kw">let </span>idx = unit.module((c + shift).s()).operation_generator_to_index(
-<a href=#483 id=483 data-nosnippet>483</a>                        <span class="number">1</span>,
-<a href=#484 id=484 data-nosnippet>484</a>                        h_0,
-<a href=#485 id=485 data-nosnippet>485</a>                        (c + shift).t(),
-<a href=#486 id=486 data-nosnippet>486</a>                        i,
-<a href=#487 id=487 data-nosnippet>487</a>                    );
-<a href=#488 id=488 data-nosnippet>488</a>                    scratch1.add_basis_element(gen_idx, dx.entry(idx));
-<a href=#489 id=489 data-nosnippet>489</a>                }
-<a href=#490 id=490 data-nosnippet>490</a>            }
-<a href=#491 id=491 data-nosnippet>491</a>            <span class="macro">println!</span>(<span class="string">" + λ{scratch1}"</span>);
-<a href=#492 id=492 data-nosnippet>492</a>        }
-<a href=#493 id=493 data-nosnippet>493</a>    }
-<a href=#494 id=494 data-nosnippet>494</a>    <span class="prelude-val">Ok</span>(())
-<a href=#495 id=495 data-nosnippet>495</a>}</code></pre></div></section></main></body></html>
+<a href=#355 id=355 data-nosnippet>355</a>                    row.slice_mut(prod_num_gens, prod_all_gens).add(m.row(i), <span class="number">1</span>);
+<a href=#356 id=356 data-nosnippet>356</a>                    product_lambda_page_data
+<a href=#357 id=357 data-nosnippet>357</a>                        .reduce_by_quotient(row.slice_mut(prod_num_gens, prod_all_gens));
+<a href=#358 id=358 data-nosnippet>358</a>                    count += <span class="number">1</span>;
+<a href=#359 id=359 data-nosnippet>359</a>                }
+<a href=#360 id=360 data-nosnippet>360</a>
+<a href=#361 id=361 data-nosnippet>361</a>                product_matrix.row_reduce();
+<a href=#362 id=362 data-nosnippet>362</a>                product_matrix.compute_kernel(prod_all_gens)
+<a href=#363 id=363 data-nosnippet>363</a>            }
+<a href=#364 id=364 data-nosnippet>364</a>        };
+<a href=#365 id=365 data-nosnippet>365</a>
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">if </span>e3_kernel.dimension() == <span class="number">0 </span>{
+<a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">continue</span>;
+<a href=#368 id=368 data-nosnippet>368</a>        }
+<a href=#369 id=369 data-nosnippet>369</a>
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">let </span>m0 = chain_homotopy.homotopy(source.s()).hom_k(c.t());
+<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">let </span>mt = Matrix::from_vec(p, <span class="kw-2">&amp;</span>chain_homotopy.homotopy(source.s() + <span class="number">1</span>).hom_k(c.t() + <span class="number">1</span>));
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>m1 = Matrix::from_vec(
+<a href=#373 id=373 data-nosnippet>373</a>            p,
+<a href=#374 id=374 data-nosnippet>374</a>            <span class="kw-2">&amp;</span>ch_lift.homotopies()[source.s() + <span class="number">1</span>].homotopies.hom_k(c.t()),
+<a href=#375 id=375 data-nosnippet>375</a>        );
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="kw">let </span>mp = Matrix::from_vec(
+<a href=#377 id=377 data-nosnippet>377</a>            p,
+<a href=#378 id=378 data-nosnippet>378</a>            <span class="kw-2">&amp;</span>resolution
+<a href=#379 id=379 data-nosnippet>379</a>                .filtration_one_product(<span class="number">1</span>, h_0, Bidegree::s_t(source.s(), c.t() + shift.t()))
+<a href=#380 id=380 data-nosnippet>380</a>                .unwrap(),
+<a href=#381 id=381 data-nosnippet>381</a>        );
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>ma = a
+<a href=#383 id=383 data-nosnippet>383</a>            .underlying()
+<a href=#384 id=384 data-nosnippet>384</a>            .get_map(source.s())
+<a href=#385 id=385 data-nosnippet>385</a>            .hom_k(c.t() + b_shift.t());
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">for </span>g <span class="kw">in </span>e3_kernel.iter() {
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="comment">// Print name
+<a href=#390 id=390 data-nosnippet>390</a>            </span>{
+<a href=#391 id=391 data-nosnippet>391</a>                <span class="macro">print!</span>(<span class="string">"&lt;{a_name}, {b_name}, "</span>);
+<a href=#392 id=392 data-nosnippet>392</a>                <span class="kw">let </span>has_ext = {
+<a href=#393 id=393 data-nosnippet>393</a>                    <span class="kw">let </span>ext_part = g.slice(<span class="number">0</span>, target_num_gens);
+<a href=#394 id=394 data-nosnippet>394</a>                    <span class="kw">if </span>ext_part.iter_nonzero().count() &gt; <span class="number">0 </span>{
+<a href=#395 id=395 data-nosnippet>395</a>                        <span class="macro">print!</span>(
+<a href=#396 id=396 data-nosnippet>396</a>                            <span class="string">"[{basis_string}]"</span>,
+<a href=#397 id=397 data-nosnippet>397</a>                            basis_string =
+<a href=#398 id=398 data-nosnippet>398</a>                                BidegreeElement::new(c, ext_part.to_owned()).to_basis_string()
+<a href=#399 id=399 data-nosnippet>399</a>                        );
+<a href=#400 id=400 data-nosnippet>400</a>                        <span class="bool-val">true
+<a href=#401 id=401 data-nosnippet>401</a>                    </span>} <span class="kw">else </span>{
+<a href=#402 id=402 data-nosnippet>402</a>                        <span class="bool-val">false
+<a href=#403 id=403 data-nosnippet>403</a>                    </span>}
+<a href=#404 id=404 data-nosnippet>404</a>                };
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a>                <span class="kw">let </span>lambda_part = g.slice(target_num_gens, target_all_gens);
+<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">let </span>num_entries = lambda_part.iter_nonzero().count();
+<a href=#408 id=408 data-nosnippet>408</a>                <span class="kw">if </span>num_entries &gt; <span class="number">0 </span>{
+<a href=#409 id=409 data-nosnippet>409</a>                    <span class="kw">if </span>has_ext {
+<a href=#410 id=410 data-nosnippet>410</a>                        <span class="macro">print!</span>(<span class="string">" + "</span>);
+<a href=#411 id=411 data-nosnippet>411</a>                    }
+<a href=#412 id=412 data-nosnippet>412</a>                    <span class="macro">print!</span>(<span class="string">"λ"</span>);
+<a href=#413 id=413 data-nosnippet>413</a>
+<a href=#414 id=414 data-nosnippet>414</a>                    <span class="kw">let </span>basis_string = BidegreeElement::new(
+<a href=#415 id=415 data-nosnippet>415</a>                        c + LAMBDA_BIDEGREE,
+<a href=#416 id=416 data-nosnippet>416</a>                        g.slice(target_num_gens, target_all_gens).to_owned(),
+<a href=#417 id=417 data-nosnippet>417</a>                    )
+<a href=#418 id=418 data-nosnippet>418</a>                    .to_basis_string();
+<a href=#419 id=419 data-nosnippet>419</a>                    <span class="kw">if </span>num_entries == <span class="number">1 </span>{
+<a href=#420 id=420 data-nosnippet>420</a>                        <span class="macro">print!</span>(<span class="string">"{basis_string}"</span>,);
+<a href=#421 id=421 data-nosnippet>421</a>                    } <span class="kw">else </span>{
+<a href=#422 id=422 data-nosnippet>422</a>                        <span class="macro">print!</span>(<span class="string">"({basis_string})"</span>,);
+<a href=#423 id=423 data-nosnippet>423</a>                    }
+<a href=#424 id=424 data-nosnippet>424</a>                }
+<a href=#425 id=425 data-nosnippet>425</a>                <span class="macro">print!</span>(<span class="string">"&gt; = ±"</span>);
+<a href=#426 id=426 data-nosnippet>426</a>            }
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>            scratch0.clear();
+<a href=#429 id=429 data-nosnippet>429</a>            scratch0.resize(source_num_gens, <span class="number">0</span>);
+<a href=#430 id=430 data-nosnippet>430</a>            scratch1.set_scratch_vector_size(source_lambda_num_gens);
+<a href=#431 id=431 data-nosnippet>431</a>
+<a href=#432 id=432 data-nosnippet>432</a>            <span class="comment">// First deal with the null-homotopy of ab
+<a href=#433 id=433 data-nosnippet>433</a>            </span><span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
+<a href=#434 id=434 data-nosnippet>434</a>                scratch0
+<a href=#435 id=435 data-nosnippet>435</a>                    .iter_mut()
+<a href=#436 id=436 data-nosnippet>436</a>                    .zip_eq(<span class="kw-2">&amp;</span>m0[i])
+<a href=#437 id=437 data-nosnippet>437</a>                    .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
+<a href=#438 id=438 data-nosnippet>438</a>                scratch1.as_slice_mut().add(m1.row(i), v);
+<a href=#439 id=439 data-nosnippet>439</a>            }
+<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(target_num_gens, target_all_gens).iter_nonzero() {
+<a href=#441 id=441 data-nosnippet>441</a>                scratch1.as_slice_mut().add(mt.row(i), v);
+<a href=#442 id=442 data-nosnippet>442</a>            }
+<a href=#443 id=443 data-nosnippet>443</a>            <span class="comment">// Now do the -1 part of the null-homotopy of bc.
+<a href=#444 id=444 data-nosnippet>444</a>            </span>{
+<a href=#445 id=445 data-nosnippet>445</a>                <span class="kw">let </span>sign = p * p - <span class="number">1</span>;
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">let </span>out = b.product_nullhomotopy(b_lambda.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, g);
+<a href=#447 id=447 data-nosnippet>447</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>out.iter_nonzero() {
+<a href=#448 id=448 data-nosnippet>448</a>                    scratch0
+<a href=#449 id=449 data-nosnippet>449</a>                        .iter_mut()
+<a href=#450 id=450 data-nosnippet>450</a>                        .zip_eq(<span class="kw-2">&amp;</span>ma[i])
+<a href=#451 id=451 data-nosnippet>451</a>                        .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
+<a href=#452 id=452 data-nosnippet>452</a>                }
+<a href=#453 id=453 data-nosnippet>453</a>            }
+<a href=#454 id=454 data-nosnippet>454</a>
+<a href=#455 id=455 data-nosnippet>455</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
+<a href=#456 id=456 data-nosnippet>456</a>                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
+<a href=#457 id=457 data-nosnippet>457</a>                scratch1.as_slice_mut().add(mp.row(i), extra % p);
+<a href=#458 id=458 data-nosnippet>458</a>            }
+<a href=#459 id=459 data-nosnippet>459</a>
+<a href=#460 id=460 data-nosnippet>460</a>            <span class="macro">print!</span>(<span class="string">"[{}]"</span>, scratch0.iter().map(|x| <span class="kw-2">*</span>x % p).format(<span class="string">", "</span>));
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a>            <span class="comment">// Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy of
+<a href=#463 id=463 data-nosnippet>463</a>            // 2.
+<a href=#464 id=464 data-nosnippet>464</a>            </span>scratch0.clear();
+<a href=#465 id=465 data-nosnippet>465</a>            scratch0.resize(prod_num_gens, <span class="number">0</span>);
+<a href=#466 id=466 data-nosnippet>466</a>
+<a href=#467 id=467 data-nosnippet>467</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>g.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
+<a href=#468 id=468 data-nosnippet>468</a>                scratch0
+<a href=#469 id=469 data-nosnippet>469</a>                    .iter_mut()
+<a href=#470 id=470 data-nosnippet>470</a>                    .zip_eq(<span class="kw-2">&amp;</span>mb[i])
+<a href=#471 id=471 data-nosnippet>471</a>                    .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
+<a href=#472 id=472 data-nosnippet>472</a>            }
+<a href=#473 id=473 data-nosnippet>473</a>            <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
+<a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>extra = (<span class="kw-2">*</span>v / p) % p;
+<a href=#475 id=475 data-nosnippet>475</a>                <span class="kw">if </span>extra == <span class="number">0 </span>{
+<a href=#476 id=476 data-nosnippet>476</a>                    <span class="kw">continue</span>;
+<a href=#477 id=477 data-nosnippet>477</a>                }
+<a href=#478 id=478 data-nosnippet>478</a>                <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..source_lambda_num_gens {
+<a href=#479 id=479 data-nosnippet>479</a>                    <span class="kw">let </span>m = a.underlying().get_map((source + LAMBDA_BIDEGREE).s());
+<a href=#480 id=480 data-nosnippet>480</a>                    <span class="kw">let </span>dx = m.output((source + LAMBDA_BIDEGREE).t(), gen_idx);
+<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">let </span>idx = unit.module((c + shift).s()).operation_generator_to_index(
+<a href=#482 id=482 data-nosnippet>482</a>                        <span class="number">1</span>,
+<a href=#483 id=483 data-nosnippet>483</a>                        h_0,
+<a href=#484 id=484 data-nosnippet>484</a>                        (c + shift).t(),
+<a href=#485 id=485 data-nosnippet>485</a>                        i,
+<a href=#486 id=486 data-nosnippet>486</a>                    );
+<a href=#487 id=487 data-nosnippet>487</a>                    scratch1.add_basis_element(gen_idx, dx.entry(idx));
+<a href=#488 id=488 data-nosnippet>488</a>                }
+<a href=#489 id=489 data-nosnippet>489</a>            }
+<a href=#490 id=490 data-nosnippet>490</a>            <span class="macro">println!</span>(<span class="string">" + λ{scratch1}"</span>);
+<a href=#491 id=491 data-nosnippet>491</a>        }
+<a href=#492 id=492 data-nosnippet>492</a>    }
+<a href=#493 id=493 data-nosnippet>493</a>    <span class="prelude-val">Ok</span>(())
+<a href=#494 id=494 data-nosnippet>494</a>}</code></pre></div></section></main></body></html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Create a fresh instance of the inhabited ZST type `T`."><title>conjure_zst in once::std_or_loom::mem - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.92.0 (ded5c06cf 2025-12-08)" data-channel="1.92.0" data-search-js="search-d69d8955.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-ce535bd0.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!-- The loading of KaTeX is deferred to speed up page rendering -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
+<!-- To automatically render math in text elements, include the auto-render extension: -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "\\(", right: "\\)", display: false},
+                {left: "$", right: "$", display: false},
+                {left: "\\[", right: "\\]", display: true}
+            ],
+            macros: {
+                "\\Ext": "\\operatorname{Ext}",
+                "\\Mod": "\\operatorname{Mod}",
+                "\\Hom": "\\operatorname{Hom}",
+                "\\Sq": "\\operatorname{Sq}",
+                "\\F": "\\mathbb{F}",
+            }
+        });
+    });
+</script>
+
+</head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">conjure_zst</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">conjure_<wbr>zst</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#panics" title="Panics">Panics</a></li><li><a href="#safety" title="Safety">Safety</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>mem</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">mem</a></div><h1>Function <span class="fn">conjure_<wbr>zst</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="https://doc.rust-lang.org/1.92.0/src/core/mem/mod.rs.html#1457">Source</a> </span></div><pre class="rust item-decl"><code>pub const unsafe fn conjure_zst&lt;T&gt;() -&gt; T</code></pre><span class="item-info"><div class="stab unstable"><span class="emoji">🔬</span><span>This is a nightly-only experimental API. (<code>mem_conjure_zst</code>)</span></div></span><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Create a fresh instance of the inhabited ZST type <code>T</code>.</p>
+<p>Prefer this to <a href="fn.zeroed.html" title="fn once::std_or_loom::mem::zeroed"><code>zeroed</code></a> or <a href="fn.uninitialized.html" title="fn once::std_or_loom::mem::uninitialized"><code>uninitialized</code></a> or <a href="fn.transmute_copy.html" title="fn once::std_or_loom::mem::transmute_copy"><code>transmute_copy</code></a>
+in places where you know that <code>T</code> is zero-sized, but don’t have a bound
+(such as <a href="../default/trait.Default.html" title="trait once::std_or_loom::default::Default"><code>Default</code></a>) that would allow you to instantiate it using safe code.</p>
+<p>If you’re not sure whether <code>T</code> is an inhabited ZST, then you should be
+using <a href="union.MaybeUninit.html" title="union once::std_or_loom::mem::MaybeUninit"><code>MaybeUninit</code></a>, not this function.</p>
+<h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
+<p>If <code>size_of::&lt;T&gt;() != 0</code>.</p>
+<h2 id="safety"><a class="doc-anchor" href="#safety">§</a>Safety</h2>
+<ul>
+<li><code>T</code> must be <em><a href="https://doc.rust-lang.org/reference/glossary.html#inhabited">inhabited</a></em>, i.e. possible to construct. This means that types
+like zero-variant enums and <a href="https://doc.rust-lang.org/1.92.0/std/primitive.never.html" title="primitive never"><code>!</code></a> are unsound to conjure.</li>
+<li>You must use the value only in ways which do not violate any <em>safety</em>
+invariants of the type.</li>
+</ul>
+<p>While it’s easy to create a <em>valid</em> instance of an inhabited ZST, since having
+no bits in its representation means there’s only one possible value, that
+doesn’t mean that it’s always <em>sound</em> to do so.</p>
+<p>For example, a library could design zero-sized tokens that are <code>!Default + !Clone</code>, limiting
+their creation to functions that initialize some state or establish a scope. Conjuring such a
+token could break invariants and lead to unsoundness.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#![feature(mem_conjure_zst)]
+</span><span class="kw">use </span>std::mem::conjure_zst;
+
+<span class="macro">assert_eq!</span>(<span class="kw">unsafe </span>{ conjure_zst::&lt;()&gt;() }, ());
+<span class="macro">assert_eq!</span>(<span class="kw">unsafe </span>{ conjure_zst::&lt;[i32; <span class="number">0</span>]&gt;() }, []);</code></pre></div></div></details></section></div></main></body></html>
