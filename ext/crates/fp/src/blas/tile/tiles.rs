@@ -81,15 +81,14 @@ impl<'a> MatrixTileSlice<'a> {
         let start_limb = 64 * block_row * self.stride + block_col;
         let stride = self.stride;
 
-        MatrixBlockSlice {
-            limbs: unsafe {
+        MatrixBlockSlice::new(
+            unsafe {
                 // SAFETY: block coordinates are in bounds (checked above in debug mode), and the
                 // parent tile guarantees sufficient memory is allocated
                 self.limbs.add(start_limb)
             },
             stride,
-            _marker: std::marker::PhantomData,
-        }
+        )
     }
 
     pub fn split_rows_at(&self, block_rows: usize) -> (MatrixTileSlice<'_>, MatrixTileSlice<'_>) {
@@ -165,15 +164,14 @@ impl<'a> MatrixTileSliceMut<'a> {
         let start_limb = 64 * block_row * self.stride + block_col;
         let stride = self.stride;
 
-        MatrixBlockSliceMut {
-            limbs: unsafe {
+        MatrixBlockSliceMut::new(
+            unsafe {
                 // SAFETY: block coordinates are in bounds (checked above in debug mode), and the
                 // parent tile guarantees sufficient memory is allocated
                 self.limbs.add(start_limb)
             },
             stride,
-            _marker: std::marker::PhantomData,
-        }
+        )
     }
 
     pub fn split_rows_at_mut(

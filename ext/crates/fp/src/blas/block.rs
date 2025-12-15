@@ -52,10 +52,10 @@ impl MatrixBlock {
 /// The `limbs` pointer must remain valid for the lifetime `'a`, and must point to at least 64 valid
 /// rows spaced `stride` limbs apart.
 pub struct MatrixBlockSlice<'a> {
-    pub limbs: *const Limb,
+    limbs: *const Limb,
     /// Number of limbs between consecutive rows
-    pub stride: usize,
-    pub _marker: std::marker::PhantomData<&'a ()>,
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 /// A mutable non-contiguous view of a 64 x 64 block within a larger matrix.
@@ -65,13 +65,29 @@ pub struct MatrixBlockSlice<'a> {
 /// The `limbs` pointer must remain valid and exclusively accessible for the lifetime `'a`, and must
 /// point to at least 64 valid rows spaced `stride` limbs apart.
 pub struct MatrixBlockSliceMut<'a> {
-    pub limbs: *mut Limb,
+    limbs: *mut Limb,
     /// Number of limbs between consecutive rows
-    pub stride: usize,
-    pub _marker: std::marker::PhantomData<&'a mut ()>,
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a mut ()>,
 }
 
 impl<'a> MatrixBlockSlice<'a> {
+    pub(super) fn new(limbs: *const Limb, stride: usize) -> Self {
+        Self {
+            limbs,
+            stride,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub(crate) fn limbs(&self) -> *const Limb {
+        self.limbs
+    }
+
+    pub(crate) fn stride(&self) -> usize {
+        self.stride
+    }
+
     /// Returns an iterator over the 64 rows of this block.
     ///
     /// # Safety
@@ -97,6 +113,14 @@ impl<'a> MatrixBlockSlice<'a> {
 }
 
 impl<'a> MatrixBlockSliceMut<'a> {
+    pub(super) fn new(limbs: *mut Limb, stride: usize) -> Self {
+        Self {
+            limbs,
+            stride,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     /// Returns a mutable reference to the limb at the given row.
     ///
     /// # Safety
