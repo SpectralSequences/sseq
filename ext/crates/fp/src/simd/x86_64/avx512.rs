@@ -368,11 +368,11 @@ impl SimdBlock {
 pub unsafe fn gather_simd(slice: MatrixBlockSlice) -> MatrixBlock {
     let mut result = SimdBlock::zero();
     let offsets = unsafe { x86_64::_mm512_loadu_epi64(&UNIT_OFFSETS as *const i64) };
-    let stride = x86_64::_mm512_set1_epi64(slice.stride() as i64);
+    let stride = x86_64::_mm512_set1_epi64(slice.stride().get() as i64);
     let offsets = unsafe { x86_64::_mm512_mullo_epi64(offsets, stride) };
 
     for i in 0..8 {
-        let ptr = unsafe { slice.limbs().add(8 * i * slice.stride()) as *const i64 };
+        let ptr = unsafe { slice.limbs().add(8 * i * slice.stride().get()) as *const i64 };
         result.0[i] = unsafe { x86_64::_mm512_i64gather_epi64::<8>(offsets, ptr) };
     }
     result.as_matrix_block()

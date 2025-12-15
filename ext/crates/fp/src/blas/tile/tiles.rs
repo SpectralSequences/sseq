@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use super::block::{MatrixBlockSlice, MatrixBlockSliceMut};
 use crate::{limb::Limb, matrix::Matrix};
 
@@ -17,7 +19,7 @@ pub struct MatrixTileSlice<'a> {
     /// Dimensions of the tile in units of 64 x 64 blocks: [block_rows, block_cols]
     dimensions: [usize; 2],
     /// Number of limbs between consecutive rows in the parent matrix
-    stride: usize,
+    stride: NonZeroUsize,
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
@@ -34,16 +36,17 @@ pub struct MatrixTileSliceMut<'a> {
     /// Dimensions of the tile in units of 64 x 64 blocks: [block_rows, block_cols]
     dimensions: [usize; 2],
     /// Number of limbs between consecutive rows in the parent matrix
-    stride: usize,
+    stride: NonZeroUsize,
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> MatrixTileSlice<'a> {
     pub fn from_matrix(m: &'a Matrix) -> Self {
+        let stride = m.stride().try_into().expect("Can't tile empty matrix");
         Self {
             limbs: m.data().as_ptr(),
             dimensions: [m.physical_rows() / 64, m.columns().div_ceil(64)],
-            stride: m.stride(),
+            stride,
             _marker: std::marker::PhantomData,
         }
     }
@@ -78,7 +81,7 @@ impl<'a> MatrixTileSlice<'a> {
             self.dimensions[1]
         );
 
-        let start_limb = 64 * block_row * self.stride + block_col;
+        let start_limb = 64 * block_row * self.stride.get() + block_col;
         let stride = self.stride;
 
         MatrixBlockSlice::new(
@@ -101,7 +104,7 @@ impl<'a> MatrixTileSlice<'a> {
             _marker: std::marker::PhantomData,
         };
         let second = MatrixTileSlice {
-            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
+            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride.get()) },
             dimensions: [second_rows, self.dimensions[1]],
             stride: self.stride,
             _marker: std::marker::PhantomData,
@@ -133,10 +136,11 @@ impl<'a> MatrixTileSlice<'a> {
 
 impl<'a> MatrixTileSliceMut<'a> {
     pub fn from_matrix(m: &'a mut Matrix) -> Self {
+        let stride = m.stride().try_into().expect("Can't tile empty matrix");
         Self {
             limbs: m.data_mut().as_mut_ptr(),
             dimensions: [m.physical_rows() / 64, m.columns().div_ceil(64)],
-            stride: m.stride(),
+            stride,
             _marker: std::marker::PhantomData,
         }
     }
@@ -161,7 +165,7 @@ impl<'a> MatrixTileSliceMut<'a> {
             self.dimensions[1]
         );
 
-        let start_limb = 64 * block_row * self.stride + block_col;
+        let start_limb = 64 * block_row * self.stride.get() + block_col;
         let stride = self.stride;
 
         MatrixBlockSliceMut::new(
@@ -187,7 +191,7 @@ impl<'a> MatrixTileSliceMut<'a> {
             _marker: std::marker::PhantomData,
         };
         let second = MatrixTileSliceMut {
-            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
+            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride.get()) },
             dimensions: [second_rows, self.dimensions[1]],
             stride: self.stride,
             _marker: std::marker::PhantomData,

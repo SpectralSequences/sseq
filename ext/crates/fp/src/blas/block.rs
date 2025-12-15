@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use crate::limb::Limb;
 
 /// A contiguous 64 x 64 block of bits stored in row-major order.
@@ -54,7 +56,7 @@ impl MatrixBlock {
 pub struct MatrixBlockSlice<'a> {
     limbs: *const Limb,
     /// Number of limbs between consecutive rows
-    stride: usize,
+    stride: NonZeroUsize,
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
@@ -67,12 +69,12 @@ pub struct MatrixBlockSlice<'a> {
 pub struct MatrixBlockSliceMut<'a> {
     limbs: *mut Limb,
     /// Number of limbs between consecutive rows
-    stride: usize,
+    stride: NonZeroUsize,
     _marker: std::marker::PhantomData<&'a mut ()>,
 }
 
 impl<'a> MatrixBlockSlice<'a> {
-    pub(super) fn new(limbs: *const Limb, stride: usize) -> Self {
+    pub(super) fn new(limbs: *const Limb, stride: NonZeroUsize) -> Self {
         Self {
             limbs,
             stride,
@@ -84,7 +86,7 @@ impl<'a> MatrixBlockSlice<'a> {
         self.limbs
     }
 
-    pub(crate) fn stride(&self) -> usize {
+    pub(crate) fn stride(&self) -> NonZeroUsize {
         self.stride
     }
 
@@ -97,7 +99,7 @@ impl<'a> MatrixBlockSlice<'a> {
     pub fn iter(self) -> impl Iterator<Item = &'a Limb> {
         (0..64).map(move |i| unsafe {
             // SAFETY: Constructor guarantees 64 rows at stride intervals
-            &*self.limbs.add(i * self.stride)
+            &*self.limbs.add(i * self.stride.get())
         })
     }
 
@@ -113,7 +115,7 @@ impl<'a> MatrixBlockSlice<'a> {
 }
 
 impl<'a> MatrixBlockSliceMut<'a> {
-    pub(super) fn new(limbs: *mut Limb, stride: usize) -> Self {
+    pub(super) fn new(limbs: *mut Limb, stride: NonZeroUsize) -> Self {
         Self {
             limbs,
             stride,
@@ -133,7 +135,7 @@ impl<'a> MatrixBlockSliceMut<'a> {
         debug_assert!(row < 64, "row index {row} out of bounds for 64 x 64 block");
         unsafe {
             // SAFETY: Constructor guarantees 64 rows at stride intervals
-            &mut *self.limbs.add(row * self.stride)
+            &mut *self.limbs.add(row * self.stride.get())
         }
     }
 
@@ -142,7 +144,7 @@ impl<'a> MatrixBlockSliceMut<'a> {
     pub fn iter_mut<'b>(&'b mut self) -> impl Iterator<Item = &'b mut Limb> + use<'a, 'b> {
         (0..64).map(move |i| unsafe {
             // SAFETY: Constructor guarantees 64 rows at stride intervals
-            &mut *self.limbs.add(i * self.stride)
+            &mut *self.limbs.add(i * self.stride.get())
         })
     }
 
