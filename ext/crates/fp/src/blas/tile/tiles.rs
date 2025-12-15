@@ -1,5 +1,5 @@
 use super::block::{MatrixBlockSlice, MatrixBlockSliceMut};
-use crate::limb::Limb;
+use crate::{limb::Limb, matrix::Matrix};
 
 /// An immutable view of a tile within a matrix.
 ///
@@ -13,12 +13,12 @@ use crate::limb::Limb;
 /// enough for `dimensions[0] * 64` rows and `dimensions[1]` blocks with the given stride.
 #[derive(Debug, Clone, Copy)]
 pub struct MatrixTileSlice<'a> {
-    pub limbs: *const Limb,
+    limbs: *const Limb,
     /// Dimensions of the tile in units of 64 x 64 blocks: [block_rows, block_cols]
-    pub dimensions: [usize; 2],
+    dimensions: [usize; 2],
     /// Number of limbs between consecutive rows in the parent matrix
-    pub stride: usize,
-    pub _marker: std::marker::PhantomData<&'a ()>,
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 /// A mutable view of a tile within a matrix.
@@ -30,15 +30,24 @@ pub struct MatrixTileSlice<'a> {
 /// given stride.
 #[derive(Debug, Clone, Copy)]
 pub struct MatrixTileSliceMut<'a> {
-    pub limbs: *mut Limb,
+    limbs: *mut Limb,
     /// Dimensions of the tile in units of 64 x 64 blocks: [block_rows, block_cols]
-    pub dimensions: [usize; 2],
+    dimensions: [usize; 2],
     /// Number of limbs between consecutive rows in the parent matrix
-    pub stride: usize,
-    pub _marker: std::marker::PhantomData<&'a ()>,
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> MatrixTileSlice<'a> {
+    pub fn from_matrix(m: &'a Matrix) -> Self {
+        Self {
+            limbs: m.data().as_ptr(),
+            dimensions: [m.physical_rows() / 64, m.columns().div_ceil(64)],
+            stride: m.stride(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     /// Returns the number of 64 x 64 block rows in this tile.
     #[inline]
     pub fn block_rows(&self) -> usize {
@@ -124,6 +133,15 @@ impl<'a> MatrixTileSlice<'a> {
 }
 
 impl<'a> MatrixTileSliceMut<'a> {
+    pub fn from_matrix(m: &'a mut Matrix) -> Self {
+        Self {
+            limbs: m.data_mut().as_mut_ptr(),
+            dimensions: [m.physical_rows() / 64, m.columns().div_ceil(64)],
+            stride: m.stride(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn block_rows(&self) -> usize {
         self.dimensions[0]
     }

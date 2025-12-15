@@ -7,21 +7,11 @@ pub mod tiles;
 
 impl Matrix {
     pub fn as_tile(&self) -> MatrixTileSlice<'_> {
-        MatrixTileSlice {
-            limbs: self.data().as_ptr(),
-            dimensions: [self.physical_rows() / 64, self.columns().div_ceil(64)],
-            stride: self.stride(),
-            _marker: std::marker::PhantomData,
-        }
+        MatrixTileSlice::from_matrix(self)
     }
 
     pub fn as_tile_mut(&mut self) -> MatrixTileSliceMut<'_> {
-        MatrixTileSliceMut {
-            limbs: self.data_mut().as_mut_ptr(),
-            dimensions: [self.physical_rows() / 64, self.columns().div_ceil(64)],
-            stride: self.stride(),
-            _marker: std::marker::PhantomData,
-        }
+        MatrixTileSliceMut::from_matrix(self)
     }
 }
 
