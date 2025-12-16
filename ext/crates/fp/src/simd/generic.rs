@@ -36,21 +36,7 @@ pub(super) fn gather_block_simd(slice: MatrixBlockSlice) -> MatrixBlock {
 /// in the algorithm are independent, so we can instead iterate over outputs and *then* move down
 /// the columns of A. This way, we only need to consider one limb of A at a time, and we don't need
 /// to do bit extractions (except for iterating over the bits of a limb).
-pub fn gemm_block_simd(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlock,
-) {
-    if !beta {
-        *c = MatrixBlock::zero();
-    }
-
-    if !alpha {
-        return;
-    }
-
+pub fn gemm_block_simd(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBlock) {
     // For each row of A
     for (result_limb, a_limb) in c.iter_mut().zip(a.iter()) {
         let a_limb_iter = BitIterator::new(*a_limb);

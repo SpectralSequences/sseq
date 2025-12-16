@@ -219,6 +219,14 @@ impl<'a> MatrixTileSliceMut<'a> {
         };
         (first, second)
     }
+
+    pub fn zero_out(&mut self) {
+        for block_row in 0..self.block_rows() {
+            for block_col in 0..self.block_columns() {
+                self.block_mut_at(block_row, block_col).zero_out();
+            }
+        }
+    }
 }
 
 unsafe impl Send for MatrixTileSlice<'_> {}

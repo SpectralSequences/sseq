@@ -49,9 +49,17 @@ pub fn gemm<L: LoopOrder>(
     a: MatrixTileSlice,
     b: MatrixTileSlice,
     beta: bool,
-    c: MatrixTileSliceMut,
+    mut c: MatrixTileSliceMut,
 ) {
-    L::gemm(alpha, a, b, beta, c);
+    if !beta {
+        c.zero_out();
+    }
+
+    if !alpha {
+        return;
+    }
+
+    L::gemm(a, b, c);
 }
 
 /// Performs tile-level GEMM with recursive parallelization.
@@ -103,24 +111,18 @@ pub fn gemm_concurrent<const M: usize, const N: usize, L: LoopOrder>(
 /// C=column, I=inner).
 pub trait LoopOrder {
     /// Performs GEMM with this loop ordering strategy.
-    fn gemm(alpha: bool, a: MatrixTileSlice, b: MatrixTileSlice, beta: bool, c: MatrixTileSliceMut);
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, c: MatrixTileSliceMut);
 }
 
 impl LoopOrder for RCI {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for i in 0..a.block_rows() {
             for j in 0..b.block_columns() {
                 let mut c_block = c.block_mut_at(i, j).as_slice().gather();
                 for k in 0..b.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let b_block = b.block_at(k, j).gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                 }
                 c.block_mut_at(i, j).assign(c_block);
             }
@@ -129,20 +131,14 @@ impl LoopOrder for RCI {
 }
 
 impl LoopOrder for CRI {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for j in 0..b.block_columns() {
             for i in 0..a.block_rows() {
                 let mut c_block = c.block_mut_at(i, j).as_slice().gather();
                 for k in 0..b.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let b_block = b.block_at(k, j).gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                 }
                 c.block_mut_at(i, j).assign(c_block);
             }
@@ -151,20 +147,14 @@ impl LoopOrder for CRI {
 }
 
 impl LoopOrder for ICR {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for k in 0..b.block_rows() {
             for j in 0..b.block_columns() {
                 let b_block = b.block_at(k, j).gather();
                 for i in 0..a.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let mut c_block = c.block_mut_at(i, j).as_slice().gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                     c.block_mut_at(i, j).assign(c_block);
                 }
             }
@@ -173,20 +163,14 @@ impl LoopOrder for ICR {
 }
 
 impl LoopOrder for RIC {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for i in 0..a.block_rows() {
             for k in 0..a.block_columns() {
                 let a_block = a.block_at(i, k).gather();
                 for j in 0..b.block_columns() {
                     let b_block = b.block_at(k, j).gather();
                     let mut c_block = c.block_mut_at(i, j).as_slice().gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                     c.block_mut_at(i, j).assign(c_block);
                 }
             }
@@ -195,20 +179,14 @@ impl LoopOrder for RIC {
 }
 
 impl LoopOrder for IRC {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for k in 0..b.block_rows() {
             for i in 0..a.block_rows() {
                 let a_block = a.block_at(i, k).gather();
                 for j in 0..b.block_columns() {
                     let b_block = b.block_at(k, j).gather();
                     let mut c_block = c.block_mut_at(i, j).as_slice().gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                     c.block_mut_at(i, j).assign(c_block);
                 }
             }
@@ -217,20 +195,14 @@ impl LoopOrder for IRC {
 }
 
 impl LoopOrder for CIR {
-    fn gemm(
-        alpha: bool,
-        a: MatrixTileSlice,
-        b: MatrixTileSlice,
-        beta: bool,
-        mut c: MatrixTileSliceMut,
-    ) {
+    fn gemm(a: MatrixTileSlice, b: MatrixTileSlice, mut c: MatrixTileSliceMut) {
         for j in 0..b.block_columns() {
             for k in 0..b.block_rows() {
                 let b_block = b.block_at(k, j).gather();
                 for i in 0..a.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let mut c_block = c.block_mut_at(i, j).as_slice().gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, &mut c_block);
+                    block::gemm_block(a_block, b_block, &mut c_block);
                     c.block_mut_at(i, j).assign(c_block);
                 }
             }

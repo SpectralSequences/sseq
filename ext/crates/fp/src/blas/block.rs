@@ -181,6 +181,12 @@ impl<'a> MatrixBlockSliceMut<'a> {
             .zip(block.iter())
             .for_each(|(dst, &src)| *dst = src);
     }
+
+    pub fn zero_out(&mut self) {
+        for limb in self.iter_mut() {
+            *limb = 0;
+        }
+    }
 }
 
 unsafe impl<'a> Send for MatrixBlockSlice<'a> {}
@@ -188,14 +194,12 @@ unsafe impl<'a> Send for MatrixBlockSliceMut<'a> {}
 
 unsafe impl<'a> Sync for MatrixBlockSlice<'a> {}
 
-/// Performs block-level GEMM: `C = alpha * A * B + beta * C` for 64 x 64 bit blocks.
+/// Performs block-level GEMM: `C = A * B + C` for 64 x 64 bit blocks.
 ///
 /// # Arguments
 ///
-/// * `alpha` - If `false`, the `A * B` term is skipped (for F_2, this is the only scaling)
 /// * `a` - Left input block (64 x 64 bits)
 /// * `b` - Right input block (64 x 64 bits)
-/// * `beta` - If `false`, C is zeroed before accumulation
 /// * `c` - Accumulator block (64 x 64 bits)
 ///
 /// For efficiency reasons, we mutate `C` in-place.
@@ -205,9 +209,9 @@ unsafe impl<'a> Sync for MatrixBlockSlice<'a> {}
 /// - **x86_64 with AVX-512**: Uses optimized assembly kernel
 /// - **Other platforms**: Falls back to scalar implementation
 #[inline]
-pub fn gemm_block(alpha: bool, a: MatrixBlock, b: MatrixBlock, beta: bool, c: &mut MatrixBlock) {
+pub fn gemm_block(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBlock) {
     // Delegate to SIMD specializations
-    crate::simd::gemm_block_simd(alpha, a, b, beta, c)
+    crate::simd::gemm_block_simd(a, b, c)
 }
 
 #[cfg(feature = "proptest")]

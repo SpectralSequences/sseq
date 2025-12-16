@@ -26,23 +26,9 @@ super::add_simd_arch!("avx512f");
 
 const UNIT_OFFSETS: [i64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
 
-/// Performs C = alpha * A * B + beta * C where A, B, C are 64x64 matrices
+/// Performs C = A * B + C where A, B, C are 64x64 matrices
 #[target_feature(enable = "avx512f")]
-pub fn gemm_block_simd(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlock,
-) {
-    if !beta {
-        *c = SimdBlock::zero().as_matrix_block();
-    }
-
-    if !alpha {
-        return;
-    }
-
+pub fn gemm_block_simd(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBlock) {
     unsafe {
         std::arch::asm!(
             "mov {zmm_idx}, 0",

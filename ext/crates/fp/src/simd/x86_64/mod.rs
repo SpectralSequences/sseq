@@ -61,17 +61,11 @@ pub(super) fn gather_block_simd(slice: MatrixBlockSlice) -> MatrixBlock {
     }
 }
 
-pub(super) fn gemm_block_simd(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlock,
-) {
+pub(super) fn gemm_block_simd(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBlock) {
     if is_x86_feature_detected!("avx512f") {
-        unsafe { avx512::gemm_block_simd(alpha, a, b, beta, c) }
+        unsafe { avx512::gemm_block_simd(a, b, c) }
     } else {
-        super::generic::gemm_block_simd(alpha, a, b, beta, c)
+        super::generic::gemm_block_simd(a, b, c)
     }
 }
 
@@ -87,15 +81,13 @@ mod tests {
         #[test]
         #[cfg(target_feature = "avx512f")]
         fn test_gemm_block_avx512(
-            alpha: bool,
             a: MatrixBlock,
             b: MatrixBlock,
-            beta: bool,
             mut c: MatrixBlock,
         ) {
             let mut c2 = c;
-            crate::simd::generic::gemm_block_simd(alpha, a, b, beta, &mut c);
-            unsafe { super::avx512::gemm_block_simd(alpha, a, b, beta, &mut c2) };
+            crate::simd::generic::gemm_block_simd(a, b, &mut c);
+            unsafe { super::avx512::gemm_block_simd(a, b, &mut c2) };
             prop_assert_eq!(c, c2);
         }
 

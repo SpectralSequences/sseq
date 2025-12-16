@@ -29,18 +29,12 @@ pub(crate) fn gather_block_simd(slice: MatrixBlockSlice) -> MatrixBlock {
 }
 
 #[inline]
-pub(crate) fn gemm_block_simd(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlock,
-) {
+pub(crate) fn gemm_block_simd(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBlock) {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "x86_64")] {
-            x86_64::gemm_block_simd(alpha, a, b, beta, c)
+            x86_64::gemm_block_simd(a, b, c)
         } else {
-            generic::gemm_block_simd(alpha, a, b, beta, c)
+            generic::gemm_block_simd(a, b, c)
         }
     }
 }
