@@ -67,15 +67,15 @@ impl<'a> MatrixTileSlice<'a> {
     ///
     /// # Panics
     ///
-    /// Panics in debug mode if the block coordinates are out of bounds.
+    /// Panics if the block coordinates are out of bounds.
     #[inline]
     pub fn block_at(&self, block_row: usize, block_col: usize) -> MatrixBlockSlice<'_> {
-        debug_assert!(
+        assert!(
             block_row < self.dimensions[0],
             "block_row {block_row} out of bounds (max {})",
             self.dimensions[0]
         );
-        debug_assert!(
+        assert!(
             block_col < self.dimensions[1],
             "block_col {block_col} out of bounds (max {})",
             self.dimensions[1]
@@ -95,6 +95,11 @@ impl<'a> MatrixTileSlice<'a> {
     }
 
     pub fn split_rows_at(&self, block_rows: usize) -> (MatrixTileSlice<'_>, MatrixTileSlice<'_>) {
+        assert!(
+            block_rows <= self.block_rows(),
+            "split point {block_rows} exceeds block_rows {}",
+            self.block_rows()
+        );
         let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
 
         let first = MatrixTileSlice {
@@ -116,6 +121,11 @@ impl<'a> MatrixTileSlice<'a> {
         &self,
         block_columns: usize,
     ) -> (MatrixTileSlice<'_>, MatrixTileSlice<'_>) {
+        assert!(
+            block_columns <= self.block_columns(),
+            "split point {block_columns} exceeds block_columns {}",
+            self.block_columns()
+        );
         let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
 
         let first = MatrixTileSlice {
@@ -154,12 +164,12 @@ impl<'a> MatrixTileSliceMut<'a> {
     }
 
     pub fn block_mut_at(&mut self, block_row: usize, block_col: usize) -> MatrixBlockSliceMut<'_> {
-        debug_assert!(
+        assert!(
             block_row < self.dimensions[0],
             "block_row {block_row} out of bounds (max {})",
             self.dimensions[0]
         );
-        debug_assert!(
+        assert!(
             block_col < self.dimensions[1],
             "block_col {block_col} out of bounds (max {})",
             self.dimensions[1]
@@ -182,6 +192,11 @@ impl<'a> MatrixTileSliceMut<'a> {
         &mut self,
         block_rows: usize,
     ) -> (MatrixTileSliceMut<'_>, MatrixTileSliceMut<'_>) {
+        assert!(
+            block_rows <= self.block_rows(),
+            "split point {block_rows} exceeds block_rows {}",
+            self.block_rows()
+        );
         let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
 
         let first = MatrixTileSliceMut {
@@ -203,6 +218,11 @@ impl<'a> MatrixTileSliceMut<'a> {
         &mut self,
         block_columns: usize,
     ) -> (MatrixTileSliceMut<'_>, MatrixTileSliceMut<'_>) {
+        assert!(
+            block_columns <= self.block_columns(),
+            "split point {block_columns} exceeds block_columns {}",
+            self.block_columns()
+        );
         let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
 
         let first = MatrixTileSliceMut {
