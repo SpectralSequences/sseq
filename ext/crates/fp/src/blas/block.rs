@@ -82,10 +82,12 @@ impl<'a> MatrixBlockSlice<'a> {
         }
     }
 
+    #[cfg_attr(not(target_arch = "x86_64"), allow(dead_code))]
     pub(crate) fn limbs(&self) -> *const Limb {
         self.limbs
     }
 
+    #[cfg_attr(not(target_arch = "x86_64"), allow(dead_code))]
     pub(crate) fn stride(&self) -> NonZeroUsize {
         self.stride
     }
