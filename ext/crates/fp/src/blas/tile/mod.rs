@@ -59,6 +59,8 @@ pub fn gemm<L: LoopOrder>(
         return;
     }
 
+    assert_eq!(a.block_columns(), b.block_rows());
+
     L::gemm(a, b, c);
 }
 
