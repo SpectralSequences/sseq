@@ -73,18 +73,18 @@ pub(super) fn gemm_block_simd(a: MatrixBlock, b: MatrixBlock, c: &mut MatrixBloc
 mod tests {
     use proptest::prelude::*;
 
-    // There are no tests if we don't support avx512
-    #[allow(unused_imports)]
     use super::*;
 
     proptest! {
         #[test]
-        #[cfg(target_feature = "avx512f")]
         fn test_gemm_block_avx512(
             a: MatrixBlock,
             b: MatrixBlock,
             mut c: MatrixBlock,
         ) {
+            if !is_x86_feature_detected!("avx512f") {
+                return Ok(());
+            }
             let mut c2 = c;
             crate::simd::generic::gemm_block_simd(a, b, &mut c);
             unsafe { super::avx512::gemm_block_simd(a, b, &mut c2) };
