@@ -121,7 +121,7 @@ impl Matrix {
             true,
             self.as_tile(),
             other.as_tile(),
-            true,
+            false,
             result.as_tile_mut(),
         );
 
