@@ -73,8 +73,8 @@ impl Matrix {
     }
 
     pub fn fast_mul_sequential(&self, other: &Self) -> Self {
-        // Benchmarking shows that `RIC` is the best loop order in general
-        self.fast_mul_sequential_order::<RIC>(other)
+        // Benchmarking shows that `RCI` is the best loop order in general
+        self.fast_mul_sequential_order::<RCI>(other)
     }
 
     pub fn fast_mul_sequential_order<L: LoopOrder>(&self, other: &Self) -> Self {
@@ -104,8 +104,8 @@ impl Matrix {
         &self,
         other: &Self,
     ) -> Self {
-        // Benchmarking shows that `RIC` is the best loop order in general
-        self.fast_mul_concurrent_blocksize_order::<M, N, RIC>(other)
+        // Benchmarking shows that `RCI` is the best loop order in general
+        self.fast_mul_concurrent_blocksize_order::<M, N, RCI>(other)
     }
 
     pub fn fast_mul_concurrent_blocksize_order<const M: usize, const N: usize, L: LoopOrder>(
