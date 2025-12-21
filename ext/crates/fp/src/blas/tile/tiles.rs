@@ -86,8 +86,8 @@ impl<'a> MatrixTileSlice<'a> {
 
         MatrixBlockSlice::new(
             unsafe {
-                // SAFETY: block coordinates are in bounds (checked above in debug mode), and the
-                // parent tile guarantees sufficient memory is allocated
+                // SAFETY: block coordinates are in bounds, and the parent tile guarantees
+                // sufficient memory is allocated
                 self.limbs.add(start_limb)
             },
             stride,
@@ -180,8 +180,8 @@ impl<'a> MatrixTileSliceMut<'a> {
 
         MatrixBlockSliceMut::new(
             unsafe {
-                // SAFETY: block coordinates are in bounds (checked above in debug mode), and the
-                // parent tile guarantees sufficient memory is allocated
+                // SAFETY: block coordinates are in bounds, and the parent tile guarantees
+                // sufficient memory is allocated
                 self.limbs.add(start_limb)
             },
             stride,
