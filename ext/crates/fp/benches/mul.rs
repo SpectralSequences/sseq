@@ -127,7 +127,7 @@ fn random_matrix_pair(rows: usize, inner: usize, cols: usize) -> (Matrix, Matrix
 fn random_matrix(rows: usize, cols: usize) -> Matrix {
     let mut rng = rand::rng();
     let mut data = Vec::new();
-    let data_len = rows * cols.next_multiple_of(64);
+    let data_len = rows * cols.div_ceil(64);
     for _ in 0..data_len {
         data.push(rng.random());
     }
