@@ -10,6 +10,8 @@ pub mod matrix;
 pub mod prime;
 pub mod vector;
 
+pub mod blas;
+
 pub(crate) mod simd;
 
 // This is useful for traits that want to implement `Arbitrary`. This lets us specify that they

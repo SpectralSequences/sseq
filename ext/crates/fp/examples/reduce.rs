@@ -24,7 +24,7 @@ fn main() {
     if print_matrices {
         println!("{}", matrix);
     } else {
-        println!("Matrix too large to display ({} × {})", m, n);
+        println!("Matrix too large to display ({} x {})", m, n);
     }
 
     // Row reduce
@@ -38,7 +38,7 @@ fn main() {
     if print_matrices {
         println!("{}", matrix);
     } else {
-        println!("Matrix too large to display ({} × {})", m, n);
+        println!("Matrix too large to display ({} x {})", m, n);
     }
 }
 

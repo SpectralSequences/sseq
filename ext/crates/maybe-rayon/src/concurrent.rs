@@ -12,6 +12,12 @@ pub mod prelude {
         }
     }
 
+    pub trait IntoMaybeParallelRefMutIterator<'data>: IntoParallelRefMutIterator<'data> {
+        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter {
+            self.par_iter_mut()
+        }
+    }
+
     pub type MaybeIterBridge<I> = rayon::iter::IterBridge<I>;
 
     pub trait MaybeParallelBridge: ParallelBridge {
@@ -39,6 +45,11 @@ pub mod prelude {
     impl<I: IndexedParallelIterator> MaybeIndexedParallelIterator for I {}
 
     impl<I: IntoParallelIterator> IntoMaybeParallelIterator for I {}
+
+    impl<'data, I: 'data + ?Sized> IntoMaybeParallelRefMutIterator<'data> for I where
+        &'data mut I: IntoMaybeParallelIterator
+    {
+    }
 
     impl<I: ParallelBridge> MaybeParallelBridge for I {}
 
