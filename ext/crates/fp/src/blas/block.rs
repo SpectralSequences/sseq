@@ -191,10 +191,12 @@ impl<'a> MatrixBlockSliceMut<'a> {
     }
 }
 
-unsafe impl<'a> Send for MatrixBlockSlice<'a> {}
-unsafe impl<'a> Send for MatrixBlockSliceMut<'a> {}
+// SAFETY: The slices have &Limb / &mut Limb semantics, so inherit the same Send / Sync behavior.
 
-unsafe impl<'a> Sync for MatrixBlockSlice<'a> {}
+unsafe impl Send for MatrixBlockSlice<'_> {}
+unsafe impl Send for MatrixBlockSliceMut<'_> {}
+
+unsafe impl Sync for MatrixBlockSlice<'_> {}
 
 /// Performs block-level GEMM: `C = A * B + C` for 64 x 64 bit blocks.
 ///

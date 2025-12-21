@@ -249,6 +249,8 @@ impl<'a> MatrixTileSliceMut<'a> {
     }
 }
 
+// SAFETY: The tiles have &Limb / &mut Limb semantics, so inherit the same Send / Sync behavior.
+
 unsafe impl Send for MatrixTileSlice<'_> {}
 unsafe impl Sync for MatrixTileSlice<'_> {}
 
