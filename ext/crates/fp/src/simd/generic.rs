@@ -19,8 +19,8 @@ pub(super) fn gather_block_simd(slice: MatrixBlockSlice) -> MatrixBlock {
 
 /// Scalar (non-SIMD) implementation of 64 x 64 block GEMM over F_2.
 ///
-/// Computes `C = alpha * A * B + beta * C` where all arithmetic is in F_2 (XOR for addition, AND
-/// for multiplication).
+/// Computes `C = A * B + C` where all arithmetic is in F_2 (XOR for addition, AND for
+/// multiplication).
 ///
 /// # Algorithm
 ///
