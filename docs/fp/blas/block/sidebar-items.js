@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["gemm_block"],"mod":["arbitrary"],"struct":["MatrixBlock","MatrixBlockSlice","MatrixBlockSliceMut"]};

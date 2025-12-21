@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["row_range_to_limb_range","row_to_limb_range"],"mod":["arbitrary"],"struct":["AugmentedMatrix","Matrix","MatrixSliceMut"]};
+window.SIDEBAR_ITEMS = {"fn":["get_physical_rows","row_range_to_limb_range","row_to_limb_range"],"mod":["arbitrary"],"struct":["AugmentedMatrix","Matrix","MatrixSliceMut"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["LIMBS_PER_SIMD"],"fn":["add_simd","load","store","xor"],"type":["SimdLimb"]};
+window.SIDEBAR_ITEMS = {"constant":["LIMBS_PER_SIMD","UNIT_OFFSETS"],"fn":["add_simd","gather_simd","gemm_block_simd","load","store","xor"],"struct":["SimdBlock"],"type":["SimdLimb"]};

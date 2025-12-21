@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["add_simd"]};
+window.SIDEBAR_ITEMS = {"fn":["add_simd","gather_block_simd","gemm_block_simd"],"struct":["BitIterator"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["add_simd"],"macro":["add_simd_arch"],"mod":["avx","avx2","avx512","sse2"]};
+window.SIDEBAR_ITEMS = {"fn":["add_simd","gather_block_simd","gemm_block_simd"],"macro":["add_simd_arch"],"mod":["avx","avx2","avx512","sse2"]};
