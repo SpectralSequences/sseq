@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
-use once::{multiindexed::kdtrie::KdTrie, MultiIndexed, OnceBiVec, TwoEndedGrove};
+use once::{MultiIndexed, OnceBiVec, TwoEndedGrove, multiindexed::kdtrie::KdTrie};
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{rng, seq::SliceRandom};
 
