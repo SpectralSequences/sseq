@@ -49,7 +49,7 @@ trait Coordinates {
 /// `KdTrie`s with vector coordinates and `MultiIndexed`s with fixed-size arrays. It's important to
 /// allow fixed-size arrays to be used as coordinates, as they are `Copy` and can avoid the
 /// expensive `clone`s. Empirically, this gives a 3x speedup.
-pub(super) struct KdIterator<'a, V, C> {
+struct KdIterator<'a, V, C> {
     dimensions: usize,
     stack: Vec<IterFrame<'a, V>>,
     coordinates: C,
