@@ -206,6 +206,7 @@ impl<V: Eq> Eq for KdTrie<V> {}
 
 impl<V: std::hash::Hash> std::hash::Hash for KdTrie<V> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.dimensions.hash(state); // This distinguishes empty tries from eachother
         for (coords, value) in self.iter() {
             coords.hash(state);
             value.hash(state);
