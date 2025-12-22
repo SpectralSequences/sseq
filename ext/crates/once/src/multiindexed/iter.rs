@@ -33,7 +33,7 @@ impl<'a, V> IterFrame<'a, V> {
 }
 
 /// Trait for managing coordinates during iteration
-pub(super) trait Coordinates {
+trait Coordinates {
     fn set_coord(&mut self, depth: usize, value: i32);
     fn truncate_to(&mut self, depth: usize);
     fn get(&self) -> Self;
@@ -51,7 +51,7 @@ pub(super) struct KdIterator<'a, V, C> {
     coordinates: C,
 }
 
-impl<'a, V, C: Coordinates> KdIterator<'a, V, C> {
+impl<'a, V, C> KdIterator<'a, V, C> {
     pub(super) fn new(dimensions: usize, root: &'a Node<V>, coordinates: C) -> Self {
         Self {
             dimensions,
