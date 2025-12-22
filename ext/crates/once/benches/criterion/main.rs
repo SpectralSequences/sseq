@@ -114,8 +114,14 @@ impl<const K: usize, T> Benchable<K, T> for KdTrie<T> {
     where
         T: 'a,
     {
-        self.iter()
-            .map(|(coords, value)| (coords.try_into().unwrap(), value))
+        self.iter().map(|(coords, value)| {
+            (
+                coords
+                    .try_into()
+                    .expect("coordinates are the right length by construction"),
+                value,
+            )
+        })
     }
 }
 
