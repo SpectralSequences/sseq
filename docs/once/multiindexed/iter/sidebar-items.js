@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["IterFrame","KdIterator"],"trait":["Coordinates"]};

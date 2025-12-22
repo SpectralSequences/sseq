@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["kdtrie","node"],"struct":["KdTrie","MultiIndexed"]};
+window.SIDEBAR_ITEMS = {"mod":["iter","kdtrie","node"],"struct":["MultiIndexed"]};
