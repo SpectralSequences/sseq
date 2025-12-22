@@ -156,10 +156,52 @@ impl<V> KdTrie<V> {
 
         unsafe { node.try_set_value(coords[self.dimensions - 1], value) }
     }
+
+    pub fn dimensions(&self) -> usize {
+        self.dimensions
+    }
+
+    pub(super) fn root(&self) -> &Node<V> {
+        &self.root
+    }
 }
 
 impl<V> Drop for KdTrie<V> {
     fn drop(&mut self) {
         self.root.drop_level(self.dimensions, 0);
+    }
+}
+
+impl<V: std::fmt::Debug> std::fmt::Debug for KdTrie<V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<V: Clone> Clone for KdTrie<V> {
+    fn clone(&self) -> Self {
+        let new_trie = Self::new(self.dimensions);
+        for (coords, value) in self.iter() {
+            new_trie.insert(&coords, value.clone());
+        }
+        new_trie
+    }
+}
+
+impl<V: PartialEq> PartialEq for KdTrie<V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.dimensions == other.dimensions && self.iter().eq(other.iter())
+    }
+}
+
+impl<V: Eq> Eq for KdTrie<V> {}
+
+impl<V: std::hash::Hash> std::hash::Hash for KdTrie<V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.dimensions.hash(state); // This distinguishes empty tries from eachother
+        for (coords, value) in self.iter() {
+            coords.hash(state);
+            value.hash(state);
+        }
     }
 }

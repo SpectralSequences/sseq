@@ -1,5 +1,7 @@
 pub use self::kdtrie::KdTrie;
-mod kdtrie;
+
+mod iter;
+pub mod kdtrie;
 mod node;
 
 /// A multi-dimensional array that allows efficient storage and retrieval of values using
@@ -209,6 +211,45 @@ impl<const K: usize, V> Default for MultiIndexed<K, V> {
     }
 }
 
+impl<const K: usize, V: std::fmt::Debug> std::fmt::Debug for MultiIndexed<K, V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<const K: usize, V> Clone for MultiIndexed<K, V>
+where
+    V: Clone,
+{
+    fn clone(&self) -> Self {
+        let new_mi = Self::new();
+        for (coords, value) in self.iter() {
+            new_mi.insert(coords, value.clone());
+        }
+        new_mi
+    }
+}
+
+impl<const K: usize, V> PartialEq for MultiIndexed<K, V>
+where
+    V: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<const K: usize, V> Eq for MultiIndexed<K, V> where V: Eq {}
+
+impl<const K: usize, V: std::hash::Hash> std::hash::Hash for MultiIndexed<K, V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (coords, value) in self.iter() {
+            coords.hash(state);
+            value.hash(state);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![cfg_attr(miri, allow(dead_code))]
@@ -294,6 +335,26 @@ mod tests {
     }
 
     #[test]
+    fn test_iter_empty() {
+        let arr = MultiIndexed::<2, i32>::new();
+        let items: Vec<_> = arr.iter().collect();
+        assert_eq!(items, vec![]);
+    }
+
+    #[test]
+    fn test_iter_multiple_calls() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        // Multiple calls to iter should return the same items
+        let items1: Vec<_> = arr.iter().collect();
+        let items2: Vec<_> = arr.iter().collect();
+
+        assert_eq!(items1, items2);
+    }
+
+    #[test]
     fn test_requires_drop() {
         use std::{
             sync::{
@@ -347,6 +408,50 @@ mod tests {
         assert_eq!(ACTIVE_ALLOCS.load(Ordering::Relaxed), 0);
     }
 
+    #[test]
+    fn test_debug() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+        arr.insert([3, -4], 30);
+        arr.insert([-5, 6], 40);
+
+        expect_test::expect![[r#"
+            {
+                [
+                    -5,
+                    6,
+                ]: 40,
+                [
+                    1,
+                    2,
+                ]: 10,
+                [
+                    3,
+                    -4,
+                ]: 30,
+                [
+                    3,
+                    4,
+                ]: 20,
+            }
+        "#]]
+        .assert_debug_eq(&arr);
+    }
+
+    #[test]
+    fn test_clone() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        let cloned_arr = arr.clone();
+
+        assert_eq!(cloned_arr.get([1, 2]), Some(&10));
+        assert_eq!(cloned_arr.get([3, 4]), Some(&20));
+        assert_eq!(cloned_arr.get([5, 6]), None);
+    }
+
     #[cfg(not(miri))]
     mod proptests {
         use std::collections::HashMap;
@@ -354,6 +459,12 @@ mod tests {
         use proptest::prelude::*;
 
         use super::*;
+
+        // Return `max` such that the max length is twice the number of elements in the hypercube
+        // (-max..=max)^K
+        fn max_from_max_len<const K: usize>(max_len: usize) -> u32 {
+            ((max_len as f32 / 2.0).powf(1.0 / K as f32) / 2.0).ceil() as u32
+        }
 
         /// Generate a strategy for a single i32 coordinate.
         fn coord_strategy(max: u32) -> impl Strategy<Value = i32> {
@@ -372,32 +483,38 @@ mod tests {
             Get([i32; K]),
         }
 
+        fn insert_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
+            coords_strategy::<K>(max).prop_flat_map(move |coords| {
+                any::<i32>().prop_map(move |value| Operation::Insert(coords, value))
+            })
+        }
+
+        fn get_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
+            coords_strategy::<K>(max).prop_map(Operation::Get)
+        }
+
         // Generate a strategy for a single operation (insert or get)
         fn operation_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
-            proptest::bool::ANY.prop_flat_map(move |is_insert| {
-                coords_strategy::<K>(max).prop_flat_map(move |coords| {
-                    if is_insert {
-                        proptest::num::i32::ANY
-                            .prop_map(move |value| Operation::Insert(coords, value))
-                            .boxed()
-                    } else {
-                        proptest::strategy::Just(Operation::Get(coords)).boxed()
-                    }
-                })
-            })
+            prop_oneof![insert_strategy(max), get_strategy(max)]
+        }
+
+        // Generate a strategy for vectors of i32 coordinates
+        fn coords_vec_strategy<const K: usize>(
+            max_len: usize,
+        ) -> impl Strategy<Value = Vec<[i32; K]>> {
+            let size = max_from_max_len::<K>(max_len);
+            proptest::collection::vec(coords_strategy::<K>(size), 1..=max_len)
         }
 
         // Generate a strategy for a list of operations (insert or get)
         fn operations_strategy<const K: usize>(
             max_ops: usize,
         ) -> impl Strategy<Value = Vec<Operation<K>>> {
-            // This is chosen so that the max number of operations is twice the number of elements in
-            // the hypercube (-max..=max)^K
-            let max = ((max_ops as f32 / 2.0).powf(1.0 / K as f32) / 2.0).ceil() as u32;
-            proptest::collection::vec(operation_strategy::<K>(max), 1..max_ops)
+            let max = max_from_max_len::<K>(max_ops);
+            proptest::collection::vec(operation_strategy::<K>(max), 1..=max_ops)
         }
 
-        fn proptest_multiindexed_kd<const K: usize>(ops: Vec<Operation<K>>) {
+        fn proptest_multiindexed_ops_kd<const K: usize>(ops: Vec<Operation<K>>) {
             let arr = MultiIndexed::<K, i32>::new();
             let mut reference = HashMap::new();
 
@@ -425,15 +542,44 @@ mod tests {
             }
         }
 
+        fn proptest_multiindexed_iter_kd<const K: usize>(coords: Vec<[i32; K]>) {
+            let arr = MultiIndexed::<K, usize>::new();
+            let mut tagged_coords = vec![];
+            for (i, coord) in coords.iter().enumerate() {
+                if arr.try_insert(*coord, i).is_ok() {
+                    // Only insert if the coordinate was not already present
+                    tagged_coords.push((*coord, i));
+                };
+            }
+
+            let items: Vec<_> = arr.iter().map(|(coord, value)| (coord, *value)).collect();
+            assert_eq!(items.len(), tagged_coords.len());
+
+            tagged_coords.sort();
+            assert_eq!(tagged_coords, items);
+        }
+
+        const MAX_LEN: usize = 10_000;
+
         proptest! {
             #[test]
-            fn proptest_multiindexed_2d(ops in operations_strategy::<2>(10000)) {
-                proptest_multiindexed_kd::<2>(ops);
+            fn proptest_multiindexed_ops_2d(ops in operations_strategy::<2>(MAX_LEN)) {
+                proptest_multiindexed_ops_kd::<2>(ops);
             }
 
             #[test]
-            fn proptest_multiindexed_3d(ops in operations_strategy::<3>(10000)) {
-                proptest_multiindexed_kd::<3>(ops);
+            fn proptest_multiindexed_ops_3d(ops in operations_strategy::<3>(MAX_LEN)) {
+                proptest_multiindexed_ops_kd::<3>(ops);
+            }
+
+            #[test]
+            fn proptest_multiindexed_iter_2d(coords in coords_vec_strategy::<2>(MAX_LEN)) {
+                proptest_multiindexed_iter_kd::<2>(coords);
+            }
+
+            #[test]
+            fn proptest_multiindexed_iter_3d(coords in coords_vec_strategy::<3>(MAX_LEN)) {
+                proptest_multiindexed_iter_kd::<3>(coords);
             }
         }
     }

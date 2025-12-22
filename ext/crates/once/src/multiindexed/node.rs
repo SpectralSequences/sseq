@@ -160,6 +160,24 @@ impl<V> Node<V> {
         unsafe { self.leaf.try_insert(idx, value) }
     }
 
+    /// Returns a reference to the inner grove.
+    ///
+    /// # Safety
+    ///
+    /// Can only be called on an inner node.
+    pub(super) unsafe fn inner(&self) -> &TwoEndedGrove<Self> {
+        unsafe { &self.inner }
+    }
+
+    /// Returns a reference to the leaf grove.
+    ///
+    /// # Safety
+    ///
+    /// Can only be called on a leaf node.
+    pub(super) unsafe fn leaf(&self) -> &TwoEndedGrove<V> {
+        unsafe { &self.leaf }
+    }
+
     /// Recursively drops the node and all its children.
     ///
     /// This method is called by the `Drop` implementation of `KdTrie` to ensure
