@@ -198,10 +198,7 @@ impl<V: Clone> Clone for KdTrie<V> {
 
 impl<V: PartialEq> PartialEq for KdTrie<V> {
     fn eq(&self, other: &Self) -> bool {
-        if self.dimensions != other.dimensions {
-            return false;
-        }
-        self.iter().eq(other.iter())
+        self.dimensions == other.dimensions && self.iter().eq(other.iter())
     }
 }
 
