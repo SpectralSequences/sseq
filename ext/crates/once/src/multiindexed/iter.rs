@@ -1,6 +1,7 @@
 use std::ops::Range;
 
-use super::node::Node;
+use super::{KdTrie, node::Node};
+use crate::MultiIndexed;
 
 /// A single frame in the iteration stack, representing the current state of traversal.
 struct IterFrame<'a, V> {
@@ -18,6 +19,9 @@ struct IterFrame<'a, V> {
 impl<'a, V> IterFrame<'a, V> {
     /// Creates the initial iteration frame.
     fn new(dimensions: usize, root: &'a Node<V>) -> Self {
+        // Safety: This function is only called by KdIterator::new, which is only called by the iter
+        // methods of KdTrie and MultiIndexed. Therefore, by definition, the number of dimensions
+        // can be trusted. There can not be any other caller because of the pub(self) visibility.
         let root_range = if dimensions == 1 {
             unsafe { root.leaf() }.range()
         } else {
@@ -52,12 +56,43 @@ pub(super) struct KdIterator<'a, V, C> {
 }
 
 impl<'a, V, C> KdIterator<'a, V, C> {
-    pub(super) fn new(dimensions: usize, root: &'a Node<V>, coordinates: C) -> Self {
+    fn new(dimensions: usize, root: &'a Node<V>, coordinates: C) -> Self {
         Self {
             dimensions,
             stack: vec![IterFrame::new(dimensions, root)],
             coordinates,
         }
+    }
+}
+
+impl<V> KdTrie<V> {
+    pub fn iter(&self) -> impl Iterator<Item = (Vec<i32>, &V)> + '_ {
+        let dimensions = self.dimensions();
+        KdIterator::new(dimensions, self.root(), Vec::with_capacity(dimensions))
+    }
+}
+
+impl<const K: usize, V> MultiIndexed<K, V> {
+    /// Returns an iterator over all coordinate-value pairs in the array.
+    ///
+    /// The iterator yields tuples of `([i32; K], &V)` where the first element is the coordinate
+    /// array and the second is a reference to the value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::MultiIndexed;
+    ///
+    /// let array = MultiIndexed::<2, i32>::new();
+    /// array.insert([3, 4], 10);
+    /// array.insert([1, 2], 20);
+    ///
+    /// let mut items: Vec<_> = array.iter().collect();
+    ///
+    /// assert_eq!(items, vec![([1, 2], &20), ([3, 4], &10)]);
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = ([i32; K], &V)> {
+        KdIterator::new(K, self.0.root(), [0; K])
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{iter::KdIterator, node::Node};
+use super::node::Node;
 
 /// A K-dimensional trie data structure that efficiently stores values indexed by multi-dimensional
 /// coordinates.
@@ -159,14 +159,6 @@ impl<V> KdTrie<V> {
 
     pub fn dimensions(&self) -> usize {
         self.dimensions
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (Vec<i32>, &V)> + '_ {
-        KdIterator::new(
-            self.dimensions,
-            &self.root,
-            Vec::with_capacity(self.dimensions),
-        )
     }
 
     pub(super) fn root(&self) -> &Node<V> {

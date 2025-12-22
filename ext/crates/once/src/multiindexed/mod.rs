@@ -1,4 +1,3 @@
-use self::iter::KdIterator;
 pub use self::kdtrie::KdTrie;
 
 mod iter;
@@ -203,28 +202,6 @@ impl<const K: usize, V> MultiIndexed<K, V> {
 
     pub fn try_insert(&self, coords: [i32; K], value: V) -> Result<(), V> {
         self.0.try_insert(&coords, value)
-    }
-
-    /// Returns an iterator over all coordinate-value pairs in the array.
-    ///
-    /// The iterator yields tuples of `([i32; K], &V)` where the first element is the coordinate
-    /// array and the second is a reference to the value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use once::MultiIndexed;
-    ///
-    /// let array = MultiIndexed::<2, i32>::new();
-    /// array.insert([3, 4], 10);
-    /// array.insert([1, 2], 20);
-    ///
-    /// let mut items: Vec<_> = array.iter().collect();
-    ///
-    /// assert_eq!(items, vec![([1, 2], &20), ([3, 4], &10)]);
-    /// ```
-    pub fn iter(&self) -> impl Iterator<Item = ([i32; K], &V)> {
-        KdIterator::new(K, self.0.root(), [0; K])
     }
 }
 
