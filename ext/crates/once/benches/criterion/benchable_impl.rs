@@ -23,7 +23,7 @@ impl<T> Benchable<1, T> for OnceBiVec<T> {
     where
         T: 'a,
     {
-        self.iter_enum().map(|(i, v)| ([i as i32], v))
+        self.iter_enum().map(|(i, v)| ([i], v))
     }
 }
 
