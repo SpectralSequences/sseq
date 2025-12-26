@@ -25,8 +25,8 @@ impl<T: DerefMut<Target = [Limb]>> ReprMut for T {}
 
 /// A vector over a finite field.
 ///
-/// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
-/// not leave the `fp` library.
+/// Internally, it packs entries of the vectors into limbs. However, this is an abstraction that
+/// must not leave the `fp` library.
 ///
 /// We are generic over a number of types to provide maximal flexibility:
 /// - `A` determines whether the vector type is aligned, i.e. if it always starts on a limb
@@ -47,39 +47,6 @@ pub type FqVector<F> = FqVectorBase<true, Vec<Limb>, F>;
 pub type FqSlice<'a, F> = FqVectorBase<false, &'a [Limb], F>;
 pub type FqSliceMut<'a, F> = FqVectorBase<false, &'a mut [Limb], F>;
 pub type FqCow<'a, F> = FqVectorBase<false, Cow<'a, [Limb]>, F>;
-
-// #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-// pub struct FqVector<F: Field> {
-//     fq: F,
-//     len: usize,
-//     limbs: Vec<Limb>,
-// }
-
-// /// A slice of an `FqVector`.
-// ///
-// /// This immutably borrows the vector and implements `Copy`.
-// #[derive(Debug, Copy, Clone)]
-// pub struct FqSlice<'a, F: Field> {
-//     fq: F,
-//     limbs: &'a [Limb],
-//     start: usize,
-//     end: usize,
-// }
-
-// /// A mutable slice of an `FqVector`.
-// ///
-// /// This mutably borrows the vector. Since it is a mutable borrow, it cannot implement `Copy`.
-// /// However, it has a [`FqSliceMut::copy`] function that imitates the reborrowing, that mutably
-// /// borrows `FqSliceMut` and returns a `FqSliceMut` with a shorter lifetime.
-// #[derive(Debug)]
-// pub struct FqSliceMut<'a, F: Field> {
-//     fq: F,
-//     limbs: &'a mut [Limb],
-//     start: usize,
-//     end: usize,
-// }
-
-// See impl_* for implementations
 
 // Accessors
 
