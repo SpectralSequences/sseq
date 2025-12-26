@@ -739,7 +739,7 @@ impl Matrix {
         for i in 0..first_kernel_row {
             preimage
                 .row_mut(i)
-                .assign(self.row(i).slice(first_source_col, columns));
+                .assign(self.row(i).restrict(first_source_col, columns));
         }
         QuasiInverse::new(Some(self.pivots()[..last_target_col].to_vec()), preimage)
     }
@@ -779,7 +779,7 @@ impl Matrix {
         for i in 0..first_kernel_row {
             image_matrix
                 .row_mut(i)
-                .assign(self.row(i).slice(0, last_target_col));
+                .assign(self.row(i).restrict(0, last_target_col));
         }
         image_matrix.pivots = self.pivots()[..last_target_col].to_vec();
         Subspace::from_matrix(image_matrix)
@@ -848,7 +848,7 @@ impl Matrix {
         for (i, mut row) in kernel.iter_mut().enumerate() {
             row.assign(
                 self.row(first_kernel_row + i)
-                    .slice(first_source_column, first_source_column + source_dimension),
+                    .restrict(first_source_column, first_source_column + source_dimension),
             );
         }
         Subspace::from_matrix(kernel)
@@ -1017,7 +1017,7 @@ impl Matrix {
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
         let mut new = Self::new(self.prime(), row_end - row_start, self.columns - col_start);
         for (i, mut row) in new.iter_mut().enumerate() {
-            row.assign(self.row(row_start + i).slice(col_start, self.columns));
+            row.assign(self.row(row_start + i).restrict(col_start, self.columns));
         }
         std::mem::swap(self, &mut new);
     }
@@ -1269,7 +1269,7 @@ impl<const N: usize> AugmentedMatrix<N> {
     pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice<'_> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
-        self.row(i).slice(start_idx, end_idx)
+        self.row(i).restrict(start_idx, end_idx)
     }
 
     pub fn into_matrix(self) -> Matrix {
@@ -1358,7 +1358,7 @@ impl AugmentedMatrix<3> {
             for i in 0..self.end[0] {
                 cc_preimage
                     .row_mut(i)
-                    .assign(self.row(i).slice(self.start[2], self.end[2]));
+                    .assign(self.row(i).restrict(self.start[2], self.end[2]));
             }
             let cm_qi = QuasiInverse::new(None, cc_preimage);
 

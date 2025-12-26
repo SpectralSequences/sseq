@@ -134,7 +134,7 @@ impl<'a> FpSlice<'a> {
         pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator<'a>);
         pub fn @first_nonzero(&self) -> (Option<(usize, u32)>);
         pub fn is_zero(&self) -> bool;
-        pub fn slice(self, start: usize, end: usize) -> (dispatch FpSlice<'a>);
+        pub fn restrict(self, start: usize, end: usize) -> (dispatch FpSlice<'a>);
         pub fn to_owned(self) -> (dispatch FpVector);
 
         pub(crate) fn limbs(&self) -> (&[Limb]);

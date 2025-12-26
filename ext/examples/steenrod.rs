@@ -841,7 +841,9 @@ mod tensor_product_chain_complex {
 
                                     let mut entry = FpVector::new(p, dim);
                                     entry.as_slice_mut().assign(
-                                        matrix.row_segment(row, 1, 1).slice(offset, offset + dim),
+                                        matrix
+                                            .row_segment(row, 1, 1)
+                                            .restrict(offset, offset + dim),
                                     );
 
                                     if !entry.is_zero() {

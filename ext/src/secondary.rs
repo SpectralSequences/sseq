@@ -1114,7 +1114,7 @@ where
             lambda_part,
             None,
             b,
-            [class.slice(0, target_num_gens)].into_iter(),
+            [class.restrict(0, target_num_gens)].into_iter(),
             [prod_value.as_slice_mut()].into_iter(),
         );
         assert!(prod_value.slice(0, lower_num_gens).is_zero());
@@ -1129,7 +1129,7 @@ where
         matrix.apply(
             prod_value.slice_mut(lower_num_gens, lower_num_gens + lambda_num_gens),
             1,
-            class.slice(target_num_gens, target_num_gens + target_lambda_num_gens),
+            class.restrict(target_num_gens, target_num_gens + target_lambda_num_gens),
         );
 
         let diff_source = b + shift - Bidegree::n_s(-1, 1);

@@ -317,7 +317,7 @@ impl<P: SseqProfile> Sseq<P> {
                         break;
                     }
                     self.page_data[b.x()][b.y()][r]
-                        .add_gen(row.slice(target_dim, target_dim + source_dim));
+                        .add_gen(row.restrict(target_dim, target_dim + source_dim));
                 }
             }
         }

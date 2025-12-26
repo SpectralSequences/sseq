@@ -126,7 +126,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
     pub fn add_offset(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>, offset: usize) {
         self.slice_mut(offset, self.as_slice().len())
-            .add(other.slice(offset, other.len()), c)
+            .add(other.restrict(offset, other.len()), c)
     }
 
     /// Adds v otimes w to self.
