@@ -14,25 +14,16 @@ use crate::{
 // Public methods
 
 impl<'a, F: Field> FqSlice<'a, F> {
-    pub(crate) fn new(fq: F, limbs: &'a [Limb], start: usize, end: usize) -> Self {
-        FqSlice {
-            fq,
-            limbs,
-            start,
-            end,
-        }
-    }
-
     pub fn prime(&self) -> ValidPrime {
-        self.fq.characteristic().to_dyn()
+        self.fq().characteristic().to_dyn()
     }
 
     pub fn len(&self) -> usize {
-        self.end - self.start
+        self.end() - self.start()
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.start == self.end
+        self.start() == self.end()
     }
 
     pub fn entry(&self, index: usize) -> FieldElement<F> {
@@ -42,12 +33,12 @@ impl<'a, F: Field> FqSlice<'a, F> {
             index,
             self.len()
         );
-        let bit_mask = self.fq.bitmask();
-        let limb_index = self.fq.limb_bit_index_pair(index + self.start);
-        let mut result = self.limbs[limb_index.limb];
+        let bit_mask = self.fq().bitmask();
+        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
+        let mut result = self.limbs()[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
-        self.fq.decode(result)
+        self.fq().decode(result)
     }
 
     /// TODO: implement prime 2 version
@@ -69,15 +60,15 @@ impl<'a, F: Field> FqSlice<'a, F> {
             return true;
         }
         let (min_mask, max_mask) = self.limb_masks();
-        if self.limbs[limb_range.start] & min_mask != 0 {
+        if self.limbs()[limb_range.start] & min_mask != 0 {
             return false;
         }
 
         let inner_range = self.limb_range_inner();
-        if !inner_range.is_empty() && self.limbs[inner_range].iter().any(|&x| x != 0) {
+        if !inner_range.is_empty() && self.limbs()[inner_range].iter().any(|&x| x != 0) {
             return false;
         }
-        if self.limbs[limb_range.end - 1] & max_mask != 0 {
+        if self.limbs()[limb_range.end - 1] & max_mask != 0 {
             return false;
         }
         true
@@ -87,24 +78,24 @@ impl<'a, F: Field> FqSlice<'a, F> {
     pub fn slice(self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
 
-        FqSlice {
-            fq: self.fq,
-            limbs: self.limbs,
-            start: self.start + start,
-            end: self.start + end,
-        }
+        FqSlice::new(
+            self.fq(),
+            self.into_limbs(),
+            self.start() + start,
+            self.start() + end,
+        )
     }
 
     /// Converts a slice to an owned FqVector. This is vastly more efficient if the start of the vector is aligned.
     #[must_use]
     pub fn to_owned(self) -> FqVector<F> {
-        let mut new = FqVector::new(self.fq, self.len());
-        if self.start.is_multiple_of(self.fq.entries_per_limb()) {
+        let mut new = FqVector::new(self.fq(), self.len());
+        if self.start().is_multiple_of(self.fq().entries_per_limb()) {
             let limb_range = self.limb_range();
-            new.limbs[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
-            if !new.limbs.is_empty() {
-                let len = new.limbs.len();
-                new.limbs[len - 1] &= self.limb_masks().1;
+            new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs()[limb_range]);
+            if !new.limbs().is_empty() {
+                let len = new.limbs().len();
+                new.limbs_mut()[len - 1] &= self.limb_masks().1;
             }
         } else {
             new.as_slice_mut().assign(self);
@@ -115,23 +106,19 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
 // Limb methods
 impl<F: Field> FqSlice<'_, F> {
-    pub(crate) fn limbs(&self) -> &[Limb] {
-        self.limbs
-    }
-
     #[inline]
     pub(super) fn offset(&self) -> usize {
-        let bit_length = self.fq.bit_length();
-        let entries_per_limb = self.fq.entries_per_limb();
-        (self.start % entries_per_limb) * bit_length
+        let bit_length = self.fq().bit_length();
+        let entries_per_limb = self.fq().entries_per_limb();
+        (self.start() % entries_per_limb) * bit_length
     }
 
     #[inline]
     pub(super) fn limb_range(&self) -> std::ops::Range<usize> {
-        self.fq.range(self.start, self.end)
+        self.fq().range(self.start(), self.end())
     }
 
-    /// This function underflows if `self.end == 0`, which happens if and only if we are taking a
+    /// This function underflows if `self.end() == 0`, which happens if and only if we are taking a
     /// slice of width 0 at the start of an `FpVector`. This should be a very rare edge case.
     /// Dealing with the underflow properly would probably require using `saturating_sub` or
     /// something of that nature, and that has a nontrivial (10%) performance hit.
@@ -148,8 +135,8 @@ impl<F: Field> FqSlice<'_, F> {
 
     #[inline(always)]
     pub(super) fn max_limb_mask(&self) -> Limb {
-        let num_entries = 1 + (self.end - 1) % self.fq.entries_per_limb();
-        let bit_max = num_entries * self.fq.bit_length();
+        let num_entries = 1 + (self.end() - 1) % self.fq().entries_per_limb();
+        let bit_max = num_entries * self.fq().bit_length();
 
         (!0) >> (constants::BITS_PER_LIMB - bit_max)
     }
@@ -169,7 +156,7 @@ impl<F: Field> FqSlice<'_, F> {
 
 impl<'a, F: Field> From<&'a FqVector<F>> for FqSlice<'a, F> {
     fn from(v: &'a FqVector<F>) -> Self {
-        v.slice(0, v.len)
+        v.slice(0, v.len())
     }
 }
 
