@@ -354,7 +354,7 @@ impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
     }
 
     pub(super) fn limbs_mut(&mut self) -> &mut [Limb] {
-        &mut *self.limbs
+        &mut self.limbs
     }
 
     pub(super) fn reduce_limbs(&mut self) {
