@@ -199,7 +199,7 @@ where
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
             new_output
                 .as_slice_mut()
-                .assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
+                .assign(outputs_vectors.restrict(target_dimension * i, target_dimension * (i + 1)));
         }
         self.outputs.push_checked(new_outputs, degree);
     }

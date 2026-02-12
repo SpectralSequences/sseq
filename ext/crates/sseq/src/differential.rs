@@ -74,8 +74,8 @@ impl Differential {
             .filter(|d| !d.is_zero())
             .map(move |d| {
                 (
-                    d.slice(0, source_dim).to_owned(),
-                    d.slice(source_dim, source_dim + target_dim).to_owned(),
+                    d.restrict(0, source_dim).to_owned(),
+                    d.restrict(source_dim, source_dim + target_dim).to_owned(),
                 )
             })
             .collect()
@@ -116,7 +116,7 @@ impl Differential {
             target.add(
                 self.matrix
                     .row(row)
-                    .slice(self.source_dim, self.source_dim + self.target_dim),
+                    .restrict(self.source_dim, self.source_dim + self.target_dim),
                 c,
             );
         }
@@ -146,10 +146,10 @@ impl Differential {
         for (mut target, source) in matrix.iter_mut().zip(self.matrix.iter()) {
             target
                 .slice_mut(0, self.target_dim)
-                .assign(source.slice(self.source_dim, self.source_dim + self.target_dim));
+                .assign(source.restrict(self.source_dim, self.source_dim + self.target_dim));
             target
                 .slice_mut(self.target_dim, self.target_dim + self.source_dim)
-                .assign(source.slice(0, self.source_dim));
+                .assign(source.restrict(0, self.source_dim));
         }
         matrix.row_reduce();
         let qi = matrix.compute_quasi_inverse(self.target_dim, self.target_dim);

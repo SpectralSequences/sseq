@@ -195,7 +195,7 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
             if input_start >= input.len() {
                 break;
             }
-            let input_slice = input.slice(input_start, input_end);
+            let input_slice = input.restrict(input_start, input_end);
             self.algebra.multiply_basis_element_by_element_unstable(
                 result.slice_mut(output_start, output_end),
                 coeff,
@@ -364,7 +364,7 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         let len = self
             .algebra()
             .dimension_unstable(degree - gen_degree, gen_degree);
-        v.slice(
+        v.restrict(
             std::cmp::min(v.len(), start),
             std::cmp::min(v.len(), start + len),
         )

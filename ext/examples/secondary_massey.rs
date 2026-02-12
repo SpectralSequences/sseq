@@ -390,7 +390,7 @@ fn main() -> anyhow::Result<()> {
             {
                 print!("<{a_name}, {b_name}, ");
                 let has_ext = {
-                    let ext_part = g.slice(0, target_num_gens);
+                    let ext_part = g.restrict(0, target_num_gens);
                     if ext_part.iter_nonzero().count() > 0 {
                         print!(
                             "[{basis_string}]",
@@ -403,7 +403,7 @@ fn main() -> anyhow::Result<()> {
                     }
                 };
 
-                let lambda_part = g.slice(target_num_gens, target_all_gens);
+                let lambda_part = g.restrict(target_num_gens, target_all_gens);
                 let num_entries = lambda_part.iter_nonzero().count();
                 if num_entries > 0 {
                     if has_ext {
@@ -413,7 +413,7 @@ fn main() -> anyhow::Result<()> {
 
                     let basis_string = BidegreeElement::new(
                         c + LAMBDA_BIDEGREE,
-                        g.slice(target_num_gens, target_all_gens).to_owned(),
+                        g.restrict(target_num_gens, target_all_gens).to_owned(),
                     )
                     .to_basis_string();
                     if num_entries == 1 {
@@ -430,14 +430,14 @@ fn main() -> anyhow::Result<()> {
             scratch1.set_scratch_vector_size(source_lambda_num_gens);
 
             // First deal with the null-homotopy of ab
-            for (i, v) in g.slice(0, target_num_gens).iter_nonzero() {
+            for (i, v) in g.restrict(0, target_num_gens).iter_nonzero() {
                 scratch0
                     .iter_mut()
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b);
                 scratch1.as_slice_mut().add(m1.row(i), v);
             }
-            for (i, v) in g.slice(target_num_gens, target_all_gens).iter_nonzero() {
+            for (i, v) in g.restrict(target_num_gens, target_all_gens).iter_nonzero() {
                 scratch1.as_slice_mut().add(mt.row(i), v);
             }
             // Now do the -1 part of the null-homotopy of bc.
@@ -464,7 +464,7 @@ fn main() -> anyhow::Result<()> {
             scratch0.clear();
             scratch0.resize(prod_num_gens, 0);
 
-            for (i, v) in g.slice(0, target_num_gens).iter_nonzero() {
+            for (i, v) in g.restrict(0, target_num_gens).iter_nonzero() {
                 scratch0
                     .iter_mut()
                     .zip_eq(&mb[i])

@@ -75,7 +75,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
     }
 
     #[must_use]
-    pub fn slice(self, start: usize, end: usize) -> Self {
+    pub fn restrict(self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
 
         FqSlice::new(
