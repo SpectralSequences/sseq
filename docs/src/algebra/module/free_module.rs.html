@@ -220,7 +220,7 @@
 <a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">if </span>input_start &gt;= input.len() {
 <a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">break</span>;
 <a href=#197 id=197 data-nosnippet>197</a>            }
-<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">let </span>input_slice = input.slice(input_start, input_end);
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">let </span>input_slice = input.restrict(input_start, input_end);
 <a href=#199 id=199 data-nosnippet>199</a>            <span class="self">self</span>.algebra.multiply_basis_element_by_element_unstable(
 <a href=#200 id=200 data-nosnippet>200</a>                result.slice_mut(output_start, output_end),
 <a href=#201 id=201 data-nosnippet>201</a>                coeff,
@@ -389,7 +389,7 @@
 <a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>len = <span class="self">self
 <a href=#365 id=365 data-nosnippet>365</a>            </span>.algebra()
 <a href=#366 id=366 data-nosnippet>366</a>            .dimension_unstable(degree - gen_degree, gen_degree);
-<a href=#367 id=367 data-nosnippet>367</a>        v.slice(
+<a href=#367 id=367 data-nosnippet>367</a>        v.restrict(
 <a href=#368 id=368 data-nosnippet>368</a>            std::cmp::min(v.len(), start),
 <a href=#369 id=369 data-nosnippet>369</a>            std::cmp::min(v.len(), start + len),
 <a href=#370 id=370 data-nosnippet>370</a>        )

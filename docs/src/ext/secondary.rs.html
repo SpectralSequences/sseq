@@ -1139,7 +1139,7 @@
 <a href=#1114 id=1114 data-nosnippet>1114</a>            lambda_part,
 <a href=#1115 id=1115 data-nosnippet>1115</a>            <span class="prelude-val">None</span>,
 <a href=#1116 id=1116 data-nosnippet>1116</a>            b,
-<a href=#1117 id=1117 data-nosnippet>1117</a>            [class.slice(<span class="number">0</span>, target_num_gens)].into_iter(),
+<a href=#1117 id=1117 data-nosnippet>1117</a>            [class.restrict(<span class="number">0</span>, target_num_gens)].into_iter(),
 <a href=#1118 id=1118 data-nosnippet>1118</a>            [prod_value.as_slice_mut()].into_iter(),
 <a href=#1119 id=1119 data-nosnippet>1119</a>        );
 <a href=#1120 id=1120 data-nosnippet>1120</a>        <span class="macro">assert!</span>(prod_value.slice(<span class="number">0</span>, lower_num_gens).is_zero());
@@ -1154,7 +1154,7 @@
 <a href=#1129 id=1129 data-nosnippet>1129</a>        matrix.apply(
 <a href=#1130 id=1130 data-nosnippet>1130</a>            prod_value.slice_mut(lower_num_gens, lower_num_gens + lambda_num_gens),
 <a href=#1131 id=1131 data-nosnippet>1131</a>            <span class="number">1</span>,
-<a href=#1132 id=1132 data-nosnippet>1132</a>            class.slice(target_num_gens, target_num_gens + target_lambda_num_gens),
+<a href=#1132 id=1132 data-nosnippet>1132</a>            class.restrict(target_num_gens, target_num_gens + target_lambda_num_gens),
 <a href=#1133 id=1133 data-nosnippet>1133</a>        );
 <a href=#1134 id=1134 data-nosnippet>1134</a>
 <a href=#1135 id=1135 data-nosnippet>1135</a>        <span class="kw">let </span>diff_source = b + shift - Bidegree::n_s(-<span class="number">1</span>, <span class="number">1</span>);

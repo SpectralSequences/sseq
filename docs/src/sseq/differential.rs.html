@@ -99,8 +99,8 @@
 <a href=#74 id=74 data-nosnippet>74</a>            .filter(|d| !d.is_zero())
 <a href=#75 id=75 data-nosnippet>75</a>            .map(<span class="kw">move </span>|d| {
 <a href=#76 id=76 data-nosnippet>76</a>                (
-<a href=#77 id=77 data-nosnippet>77</a>                    d.slice(<span class="number">0</span>, source_dim).to_owned(),
-<a href=#78 id=78 data-nosnippet>78</a>                    d.slice(source_dim, source_dim + target_dim).to_owned(),
+<a href=#77 id=77 data-nosnippet>77</a>                    d.restrict(<span class="number">0</span>, source_dim).to_owned(),
+<a href=#78 id=78 data-nosnippet>78</a>                    d.restrict(source_dim, source_dim + target_dim).to_owned(),
 <a href=#79 id=79 data-nosnippet>79</a>                )
 <a href=#80 id=80 data-nosnippet>80</a>            })
 <a href=#81 id=81 data-nosnippet>81</a>            .collect()
@@ -141,7 +141,7 @@
 <a href=#116 id=116 data-nosnippet>116</a>            target.add(
 <a href=#117 id=117 data-nosnippet>117</a>                <span class="self">self</span>.matrix
 <a href=#118 id=118 data-nosnippet>118</a>                    .row(row)
-<a href=#119 id=119 data-nosnippet>119</a>                    .slice(<span class="self">self</span>.source_dim, <span class="self">self</span>.source_dim + <span class="self">self</span>.target_dim),
+<a href=#119 id=119 data-nosnippet>119</a>                    .restrict(<span class="self">self</span>.source_dim, <span class="self">self</span>.source_dim + <span class="self">self</span>.target_dim),
 <a href=#120 id=120 data-nosnippet>120</a>                c,
 <a href=#121 id=121 data-nosnippet>121</a>            );
 <a href=#122 id=122 data-nosnippet>122</a>        }
@@ -171,10 +171,10 @@
 <a href=#146 id=146 data-nosnippet>146</a>        </span><span class="kw">for </span>(<span class="kw-2">mut </span>target, source) <span class="kw">in </span>matrix.iter_mut().zip(<span class="self">self</span>.matrix.iter()) {
 <a href=#147 id=147 data-nosnippet>147</a>            target
 <a href=#148 id=148 data-nosnippet>148</a>                .slice_mut(<span class="number">0</span>, <span class="self">self</span>.target_dim)
-<a href=#149 id=149 data-nosnippet>149</a>                .assign(source.slice(<span class="self">self</span>.source_dim, <span class="self">self</span>.source_dim + <span class="self">self</span>.target_dim));
+<a href=#149 id=149 data-nosnippet>149</a>                .assign(source.restrict(<span class="self">self</span>.source_dim, <span class="self">self</span>.source_dim + <span class="self">self</span>.target_dim));
 <a href=#150 id=150 data-nosnippet>150</a>            target
 <a href=#151 id=151 data-nosnippet>151</a>                .slice_mut(<span class="self">self</span>.target_dim, <span class="self">self</span>.target_dim + <span class="self">self</span>.source_dim)
-<a href=#152 id=152 data-nosnippet>152</a>                .assign(source.slice(<span class="number">0</span>, <span class="self">self</span>.source_dim));
+<a href=#152 id=152 data-nosnippet>152</a>                .assign(source.restrict(<span class="number">0</span>, <span class="self">self</span>.source_dim));
 <a href=#153 id=153 data-nosnippet>153</a>        }
 <a href=#154 id=154 data-nosnippet>154</a>        matrix.row_reduce();
 <a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">let </span>qi = matrix.compute_quasi_inverse(<span class="self">self</span>.target_dim, <span class="self">self</span>.target_dim);

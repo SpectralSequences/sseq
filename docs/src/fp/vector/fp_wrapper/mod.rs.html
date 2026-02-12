@@ -159,7 +159,7 @@
 <a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt;);
 <a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">pub fn </span>@first_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="prelude-ty">Option</span>&lt;(usize, u32)&gt;);
 <a href=#136 id=136 data-nosnippet>136</a>        <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-<a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSlice&lt;<span class="lifetime">'a</span>&gt;);
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">pub fn </span>restrict(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSlice&lt;<span class="lifetime">'a</span>&gt;);
 <a href=#138 id=138 data-nosnippet>138</a>        <span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; (dispatch FpVector);
 <a href=#139 id=139 data-nosnippet>139</a>
 <a href=#140 id=140 data-nosnippet>140</a>        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;</span>[Limb]);

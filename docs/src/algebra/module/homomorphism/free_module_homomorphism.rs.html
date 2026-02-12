@@ -224,7 +224,7 @@
 <a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">for </span>(i, new_output) <span class="kw">in </span>new_outputs.iter_mut().enumerate() {
 <a href=#200 id=200 data-nosnippet>200</a>            new_output
 <a href=#201 id=201 data-nosnippet>201</a>                .as_slice_mut()
-<a href=#202 id=202 data-nosnippet>202</a>                .assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + <span class="number">1</span>)));
+<a href=#202 id=202 data-nosnippet>202</a>                .assign(outputs_vectors.restrict(target_dimension * i, target_dimension * (i + <span class="number">1</span>)));
 <a href=#203 id=203 data-nosnippet>203</a>        }
 <a href=#204 id=204 data-nosnippet>204</a>        <span class="self">self</span>.outputs.push_checked(new_outputs, degree);
 <a href=#205 id=205 data-nosnippet>205</a>    }

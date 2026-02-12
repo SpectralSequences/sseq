@@ -866,83 +866,85 @@
 <a href=#841 id=841 data-nosnippet>841</a>
 <a href=#842 id=842 data-nosnippet>842</a>                                    <span class="kw">let </span><span class="kw-2">mut </span>entry = FpVector::new(p, dim);
 <a href=#843 id=843 data-nosnippet>843</a>                                    entry.as_slice_mut().assign(
-<a href=#844 id=844 data-nosnippet>844</a>                                        matrix.row_segment(row, <span class="number">1</span>, <span class="number">1</span>).slice(offset, offset + dim),
-<a href=#845 id=845 data-nosnippet>845</a>                                    );
-<a href=#846 id=846 data-nosnippet>846</a>
-<a href=#847 id=847 data-nosnippet>847</a>                                    <span class="kw">if </span>!entry.is_zero() {
-<a href=#848 id=848 data-nosnippet>848</a>                                        <span class="kw">let </span>true_slice_start = <span class="self">self</span>.source.offset(degree, s_)
-<a href=#849 id=849 data-nosnippet>849</a>                                            + <span class="self">self</span>.source.modules[s_].offset(degree, left_t);
-<a href=#850 id=850 data-nosnippet>850</a>                                        <span class="kw">let </span>true_slice_end = true_slice_start + dim;
-<a href=#851 id=851 data-nosnippet>851</a>                                        entries.push((true_slice_start, true_slice_end, entry));
-<a href=#852 id=852 data-nosnippet>852</a>                                    }
-<a href=#853 id=853 data-nosnippet>853</a>
-<a href=#854 id=854 data-nosnippet>854</a>                                    offset += dim;
-<a href=#855 id=855 data-nosnippet>855</a>                                }
-<a href=#856 id=856 data-nosnippet>856</a>                                <span class="macro">assert!</span>(quasi_inverse_list[true_index].is_none());
-<a href=#857 id=857 data-nosnippet>857</a>                                <span class="macro">assert!</span>(!entries.is_empty());
-<a href=#858 id=858 data-nosnippet>858</a>                                quasi_inverse_list[true_index] = <span class="prelude-val">Some</span>(entries);
-<a href=#859 id=859 data-nosnippet>859</a>                                row += <span class="number">1</span>;
-<a href=#860 id=860 data-nosnippet>860</a>                            }
-<a href=#861 id=861 data-nosnippet>861</a>                            index += <span class="number">1</span>;
-<a href=#862 id=862 data-nosnippet>862</a>                        }
-<a href=#863 id=863 data-nosnippet>863</a>                    }
-<a href=#864 id=864 data-nosnippet>864</a>                }
-<a href=#865 id=865 data-nosnippet>865</a>            }
-<a href=#866 id=866 data-nosnippet>866</a>            quasi_inverse_list
-<a href=#867 id=867 data-nosnippet>867</a>        }
-<a href=#868 id=868 data-nosnippet>868</a>    }
-<a href=#869 id=869 data-nosnippet>869</a>
-<a href=#870 id=870 data-nosnippet>870</a>    <span class="attr">#[cfg(test)]
-<a href=#871 id=871 data-nosnippet>871</a>    </span><span class="kw">mod </span>tests {
-<a href=#872 id=872 data-nosnippet>872</a>        <span class="kw">use </span>ext::{
-<a href=#873 id=873 data-nosnippet>873</a>            resolution_homomorphism::ResolutionHomomorphism, utils::construct,
-<a href=#874 id=874 data-nosnippet>874</a>            yoneda::yoneda_representative_element,
-<a href=#875 id=875 data-nosnippet>875</a>        };
-<a href=#876 id=876 data-nosnippet>876</a>        <span class="kw">use </span>rstest::rstest;
-<a href=#877 id=877 data-nosnippet>877</a>
-<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#844 id=844 data-nosnippet>844</a>                                        matrix
+<a href=#845 id=845 data-nosnippet>845</a>                                            .row_segment(row, <span class="number">1</span>, <span class="number">1</span>)
+<a href=#846 id=846 data-nosnippet>846</a>                                            .restrict(offset, offset + dim),
+<a href=#847 id=847 data-nosnippet>847</a>                                    );
+<a href=#848 id=848 data-nosnippet>848</a>
+<a href=#849 id=849 data-nosnippet>849</a>                                    <span class="kw">if </span>!entry.is_zero() {
+<a href=#850 id=850 data-nosnippet>850</a>                                        <span class="kw">let </span>true_slice_start = <span class="self">self</span>.source.offset(degree, s_)
+<a href=#851 id=851 data-nosnippet>851</a>                                            + <span class="self">self</span>.source.modules[s_].offset(degree, left_t);
+<a href=#852 id=852 data-nosnippet>852</a>                                        <span class="kw">let </span>true_slice_end = true_slice_start + dim;
+<a href=#853 id=853 data-nosnippet>853</a>                                        entries.push((true_slice_start, true_slice_end, entry));
+<a href=#854 id=854 data-nosnippet>854</a>                                    }
+<a href=#855 id=855 data-nosnippet>855</a>
+<a href=#856 id=856 data-nosnippet>856</a>                                    offset += dim;
+<a href=#857 id=857 data-nosnippet>857</a>                                }
+<a href=#858 id=858 data-nosnippet>858</a>                                <span class="macro">assert!</span>(quasi_inverse_list[true_index].is_none());
+<a href=#859 id=859 data-nosnippet>859</a>                                <span class="macro">assert!</span>(!entries.is_empty());
+<a href=#860 id=860 data-nosnippet>860</a>                                quasi_inverse_list[true_index] = <span class="prelude-val">Some</span>(entries);
+<a href=#861 id=861 data-nosnippet>861</a>                                row += <span class="number">1</span>;
+<a href=#862 id=862 data-nosnippet>862</a>                            }
+<a href=#863 id=863 data-nosnippet>863</a>                            index += <span class="number">1</span>;
+<a href=#864 id=864 data-nosnippet>864</a>                        }
+<a href=#865 id=865 data-nosnippet>865</a>                    }
+<a href=#866 id=866 data-nosnippet>866</a>                }
+<a href=#867 id=867 data-nosnippet>867</a>            }
+<a href=#868 id=868 data-nosnippet>868</a>            quasi_inverse_list
+<a href=#869 id=869 data-nosnippet>869</a>        }
+<a href=#870 id=870 data-nosnippet>870</a>    }
+<a href=#871 id=871 data-nosnippet>871</a>
+<a href=#872 id=872 data-nosnippet>872</a>    <span class="attr">#[cfg(test)]
+<a href=#873 id=873 data-nosnippet>873</a>    </span><span class="kw">mod </span>tests {
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">use </span>ext::{
+<a href=#875 id=875 data-nosnippet>875</a>            resolution_homomorphism::ResolutionHomomorphism, utils::construct,
+<a href=#876 id=876 data-nosnippet>876</a>            yoneda::yoneda_representative_element,
+<a href=#877 id=877 data-nosnippet>877</a>        };
+<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">use </span>rstest::rstest;
 <a href=#879 id=879 data-nosnippet>879</a>
-<a href=#880 id=880 data-nosnippet>880</a>        <span class="attr">#[rstest]
-<a href=#881 id=881 data-nosnippet>881</a>        #[trace]
-<a href=#882 id=882 data-nosnippet>882</a>        #[case(Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
-<a href=#883 id=883 data-nosnippet>883</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">0</span>, <span class="number">2</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
-<a href=#884 id=884 data-nosnippet>884</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">1</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
-<a href=#885 id=885 data-nosnippet>885</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">3</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
-<a href=#886 id=886 data-nosnippet>886</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">14</span>, <span class="number">4</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
-<a href=#887 id=887 data-nosnippet>887</a>        <span class="kw">fn </span>test_square_cc(<span class="attr">#[case] </span>b: Bidegree, <span class="attr">#[case] </span>class: <span class="kw-2">&amp;</span>[u32], <span class="attr">#[case] </span>output: <span class="kw-2">&amp;</span>[u32]) {
-<a href=#888 id=888 data-nosnippet>888</a>            <span class="kw">let </span>doubled_b = b + b;
-<a href=#889 id=889 data-nosnippet>889</a>            <span class="kw">let </span>resolution = Arc::new(construct(<span class="string">"S_2"</span>, <span class="prelude-val">None</span>).unwrap());
-<a href=#890 id=890 data-nosnippet>890</a>            <span class="kw">let </span>p = resolution.prime();
-<a href=#891 id=891 data-nosnippet>891</a>            resolution.compute_through_bidegree(doubled_b);
-<a href=#892 id=892 data-nosnippet>892</a>
-<a href=#893 id=893 data-nosnippet>893</a>            <span class="kw">let </span>yoneda = Arc::new(yoneda_representative_element(
-<a href=#894 id=894 data-nosnippet>894</a>                Arc::clone(<span class="kw-2">&amp;</span>resolution),
-<a href=#895 id=895 data-nosnippet>895</a>                b,
-<a href=#896 id=896 data-nosnippet>896</a>                class,
-<a href=#897 id=897 data-nosnippet>897</a>            ));
-<a href=#898 id=898 data-nosnippet>898</a>
-<a href=#899 id=899 data-nosnippet>899</a>            <span class="kw">let </span>square = Arc::new(TensorChainComplex::new(
-<a href=#900 id=900 data-nosnippet>900</a>                Arc::clone(<span class="kw-2">&amp;</span>yoneda),
-<a href=#901 id=901 data-nosnippet>901</a>                Arc::clone(<span class="kw-2">&amp;</span>yoneda),
-<a href=#902 id=902 data-nosnippet>902</a>            ));
-<a href=#903 id=903 data-nosnippet>903</a>            square.compute_through_bidegree(doubled_b);
-<a href=#904 id=904 data-nosnippet>904</a>
-<a href=#905 id=905 data-nosnippet>905</a>            <span class="kw">let </span>f = ResolutionHomomorphism::new(
-<a href=#906 id=906 data-nosnippet>906</a>                <span class="string">""</span>.to_string(),
-<a href=#907 id=907 data-nosnippet>907</a>                Arc::clone(<span class="kw-2">&amp;</span>resolution),
-<a href=#908 id=908 data-nosnippet>908</a>                square,
-<a href=#909 id=909 data-nosnippet>909</a>                Bidegree::zero(),
-<a href=#910 id=910 data-nosnippet>910</a>            );
-<a href=#911 id=911 data-nosnippet>911</a>            f.extend_step_raw(Bidegree::zero(), <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]));
-<a href=#912 id=912 data-nosnippet>912</a>
-<a href=#913 id=913 data-nosnippet>913</a>            f.extend(doubled_b);
-<a href=#914 id=914 data-nosnippet>914</a>            <span class="kw">let </span>final_map = f.get_map(doubled_b.s());
-<a href=#915 id=915 data-nosnippet>915</a>
-<a href=#916 id=916 data-nosnippet>916</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>output.iter().enumerate() {
-<a href=#917 id=917 data-nosnippet>917</a>                <span class="macro">assert_eq!</span>(final_map.output(doubled_b.t(), i).len(), <span class="number">1</span>);
-<a href=#918 id=918 data-nosnippet>918</a>                <span class="macro">assert_eq!</span>(final_map.output(doubled_b.t(), i).entry(<span class="number">0</span>), v);
-<a href=#919 id=919 data-nosnippet>919</a>            }
-<a href=#920 id=920 data-nosnippet>920</a>        }
-<a href=#921 id=921 data-nosnippet>921</a>    }
-<a href=#922 id=922 data-nosnippet>922</a>}
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#881 id=881 data-nosnippet>881</a>
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="attr">#[rstest]
+<a href=#883 id=883 data-nosnippet>883</a>        #[trace]
+<a href=#884 id=884 data-nosnippet>884</a>        #[case(Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
+<a href=#885 id=885 data-nosnippet>885</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">0</span>, <span class="number">2</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
+<a href=#886 id=886 data-nosnippet>886</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">1</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
+<a href=#887 id=887 data-nosnippet>887</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">3</span>, <span class="number">1</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
+<a href=#888 id=888 data-nosnippet>888</a>        <span class="attr">#[case(Bidegree::n_s(<span class="number">14</span>, <span class="number">4</span>), <span class="kw-2">&amp;</span>[<span class="number">1</span>]</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]
+<a href=#889 id=889 data-nosnippet>889</a>        <span class="kw">fn </span>test_square_cc(<span class="attr">#[case] </span>b: Bidegree, <span class="attr">#[case] </span>class: <span class="kw-2">&amp;</span>[u32], <span class="attr">#[case] </span>output: <span class="kw-2">&amp;</span>[u32]) {
+<a href=#890 id=890 data-nosnippet>890</a>            <span class="kw">let </span>doubled_b = b + b;
+<a href=#891 id=891 data-nosnippet>891</a>            <span class="kw">let </span>resolution = Arc::new(construct(<span class="string">"S_2"</span>, <span class="prelude-val">None</span>).unwrap());
+<a href=#892 id=892 data-nosnippet>892</a>            <span class="kw">let </span>p = resolution.prime();
+<a href=#893 id=893 data-nosnippet>893</a>            resolution.compute_through_bidegree(doubled_b);
+<a href=#894 id=894 data-nosnippet>894</a>
+<a href=#895 id=895 data-nosnippet>895</a>            <span class="kw">let </span>yoneda = Arc::new(yoneda_representative_element(
+<a href=#896 id=896 data-nosnippet>896</a>                Arc::clone(<span class="kw-2">&amp;</span>resolution),
+<a href=#897 id=897 data-nosnippet>897</a>                b,
+<a href=#898 id=898 data-nosnippet>898</a>                class,
+<a href=#899 id=899 data-nosnippet>899</a>            ));
+<a href=#900 id=900 data-nosnippet>900</a>
+<a href=#901 id=901 data-nosnippet>901</a>            <span class="kw">let </span>square = Arc::new(TensorChainComplex::new(
+<a href=#902 id=902 data-nosnippet>902</a>                Arc::clone(<span class="kw-2">&amp;</span>yoneda),
+<a href=#903 id=903 data-nosnippet>903</a>                Arc::clone(<span class="kw-2">&amp;</span>yoneda),
+<a href=#904 id=904 data-nosnippet>904</a>            ));
+<a href=#905 id=905 data-nosnippet>905</a>            square.compute_through_bidegree(doubled_b);
+<a href=#906 id=906 data-nosnippet>906</a>
+<a href=#907 id=907 data-nosnippet>907</a>            <span class="kw">let </span>f = ResolutionHomomorphism::new(
+<a href=#908 id=908 data-nosnippet>908</a>                <span class="string">""</span>.to_string(),
+<a href=#909 id=909 data-nosnippet>909</a>                Arc::clone(<span class="kw-2">&amp;</span>resolution),
+<a href=#910 id=910 data-nosnippet>910</a>                square,
+<a href=#911 id=911 data-nosnippet>911</a>                Bidegree::zero(),
+<a href=#912 id=912 data-nosnippet>912</a>            );
+<a href=#913 id=913 data-nosnippet>913</a>            f.extend_step_raw(Bidegree::zero(), <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]));
+<a href=#914 id=914 data-nosnippet>914</a>
+<a href=#915 id=915 data-nosnippet>915</a>            f.extend(doubled_b);
+<a href=#916 id=916 data-nosnippet>916</a>            <span class="kw">let </span>final_map = f.get_map(doubled_b.s());
+<a href=#917 id=917 data-nosnippet>917</a>
+<a href=#918 id=918 data-nosnippet>918</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>output.iter().enumerate() {
+<a href=#919 id=919 data-nosnippet>919</a>                <span class="macro">assert_eq!</span>(final_map.output(doubled_b.t(), i).len(), <span class="number">1</span>);
+<a href=#920 id=920 data-nosnippet>920</a>                <span class="macro">assert_eq!</span>(final_map.output(doubled_b.t(), i).entry(<span class="number">0</span>), v);
+<a href=#921 id=921 data-nosnippet>921</a>            }
+<a href=#922 id=922 data-nosnippet>922</a>        }
+<a href=#923 id=923 data-nosnippet>923</a>    }
+<a href=#924 id=924 data-nosnippet>924</a>}
 </code></pre></div></section></main></body></html>

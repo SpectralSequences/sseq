@@ -764,7 +764,7 @@
 <a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..first_kernel_row {
 <a href=#740 id=740 data-nosnippet>740</a>            preimage
 <a href=#741 id=741 data-nosnippet>741</a>                .row_mut(i)
-<a href=#742 id=742 data-nosnippet>742</a>                .assign(<span class="self">self</span>.row(i).slice(first_source_col, columns));
+<a href=#742 id=742 data-nosnippet>742</a>                .assign(<span class="self">self</span>.row(i).restrict(first_source_col, columns));
 <a href=#743 id=743 data-nosnippet>743</a>        }
 <a href=#744 id=744 data-nosnippet>744</a>        QuasiInverse::new(<span class="prelude-val">Some</span>(<span class="self">self</span>.pivots()[..last_target_col].to_vec()), preimage)
 <a href=#745 id=745 data-nosnippet>745</a>    }
@@ -804,7 +804,7 @@
 <a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..first_kernel_row {
 <a href=#780 id=780 data-nosnippet>780</a>            image_matrix
 <a href=#781 id=781 data-nosnippet>781</a>                .row_mut(i)
-<a href=#782 id=782 data-nosnippet>782</a>                .assign(<span class="self">self</span>.row(i).slice(<span class="number">0</span>, last_target_col));
+<a href=#782 id=782 data-nosnippet>782</a>                .assign(<span class="self">self</span>.row(i).restrict(<span class="number">0</span>, last_target_col));
 <a href=#783 id=783 data-nosnippet>783</a>        }
 <a href=#784 id=784 data-nosnippet>784</a>        image_matrix.pivots = <span class="self">self</span>.pivots()[..last_target_col].to_vec();
 <a href=#785 id=785 data-nosnippet>785</a>        Subspace::from_matrix(image_matrix)
@@ -873,7 +873,7 @@
 <a href=#848 id=848 data-nosnippet>848</a>        </span><span class="kw">for </span>(i, <span class="kw-2">mut </span>row) <span class="kw">in </span>kernel.iter_mut().enumerate() {
 <a href=#849 id=849 data-nosnippet>849</a>            row.assign(
 <a href=#850 id=850 data-nosnippet>850</a>                <span class="self">self</span>.row(first_kernel_row + i)
-<a href=#851 id=851 data-nosnippet>851</a>                    .slice(first_source_column, first_source_column + source_dimension),
+<a href=#851 id=851 data-nosnippet>851</a>                    .restrict(first_source_column, first_source_column + source_dimension),
 <a href=#852 id=852 data-nosnippet>852</a>            );
 <a href=#853 id=853 data-nosnippet>853</a>        }
 <a href=#854 id=854 data-nosnippet>854</a>        Subspace::from_matrix(kernel)
@@ -1042,7 +1042,7 @@
 <a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="kw">pub fn </span>trim(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row_start: usize, row_end: usize, col_start: usize) {
 <a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw">let </span><span class="kw-2">mut </span>new = <span class="self">Self</span>::new(<span class="self">self</span>.prime(), row_end - row_start, <span class="self">self</span>.columns - col_start);
 <a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">for </span>(i, <span class="kw-2">mut </span>row) <span class="kw">in </span>new.iter_mut().enumerate() {
-<a href=#1020 id=1020 data-nosnippet>1020</a>            row.assign(<span class="self">self</span>.row(row_start + i).slice(col_start, <span class="self">self</span>.columns));
+<a href=#1020 id=1020 data-nosnippet>1020</a>            row.assign(<span class="self">self</span>.row(row_start + i).restrict(col_start, <span class="self">self</span>.columns));
 <a href=#1021 id=1021 data-nosnippet>1021</a>        }
 <a href=#1022 id=1022 data-nosnippet>1022</a>        std::mem::swap(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>new);
 <a href=#1023 id=1023 data-nosnippet>1023</a>    }
@@ -1294,7 +1294,7 @@
 <a href=#1269 id=1269 data-nosnippet>1269</a>    <span class="kw">pub fn </span>row_segment(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize, start: usize, end: usize) -&gt; FpSlice&lt;<span class="lifetime">'_</span>&gt; {
 <a href=#1270 id=1270 data-nosnippet>1270</a>        <span class="kw">let </span>start_idx = <span class="self">self</span>.start[start];
 <a href=#1271 id=1271 data-nosnippet>1271</a>        <span class="kw">let </span>end_idx = <span class="self">self</span>.end[end];
-<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="self">self</span>.row(i).slice(start_idx, end_idx)
+<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="self">self</span>.row(i).restrict(start_idx, end_idx)
 <a href=#1273 id=1273 data-nosnippet>1273</a>    }
 <a href=#1274 id=1274 data-nosnippet>1274</a>
 <a href=#1275 id=1275 data-nosnippet>1275</a>    <span class="kw">pub fn </span>into_matrix(<span class="self">self</span>) -&gt; Matrix {
@@ -1383,7 +1383,7 @@
 <a href=#1358 id=1358 data-nosnippet>1358</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.end[<span class="number">0</span>] {
 <a href=#1359 id=1359 data-nosnippet>1359</a>                cc_preimage
 <a href=#1360 id=1360 data-nosnippet>1360</a>                    .row_mut(i)
-<a href=#1361 id=1361 data-nosnippet>1361</a>                    .assign(<span class="self">self</span>.row(i).slice(<span class="self">self</span>.start[<span class="number">2</span>], <span class="self">self</span>.end[<span class="number">2</span>]));
+<a href=#1361 id=1361 data-nosnippet>1361</a>                    .assign(<span class="self">self</span>.row(i).restrict(<span class="self">self</span>.start[<span class="number">2</span>], <span class="self">self</span>.end[<span class="number">2</span>]));
 <a href=#1362 id=1362 data-nosnippet>1362</a>            }
 <a href=#1363 id=1363 data-nosnippet>1363</a>            <span class="kw">let </span>cm_qi = QuasiInverse::new(<span class="prelude-val">None</span>, cc_preimage);
 <a href=#1364 id=1364 data-nosnippet>1364</a>
