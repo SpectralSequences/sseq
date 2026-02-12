@@ -157,6 +157,53 @@ impl<V> KdTrie<V> {
         unsafe { node.try_set_value(coords[self.dimensions - 1], value) }
     }
 
+    /// Retrieves a mutable reference to the value at the specified coordinates, if it exists.
+    ///
+    /// This method can only be called if we have an exclusive reference to self. When you have
+    /// exclusive access, there's no possibility of concurrent access, so the atomic synchronization
+    /// used by `get` is unnecessary.
+    ///
+    /// # Parameters
+    ///
+    /// * `coords`: A slice of coordinates with length equal to `self.dimensions`
+    ///
+    /// # Returns
+    ///
+    /// * `Some(&mut V)` if a value exists at the specified coordinates
+    /// * `None` if no value exists at the specified coordinates
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `coords` does not match the number of dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::multiindexed::KdTrie;
+    ///
+    /// let mut trie = KdTrie::<i32>::new(2);
+    /// trie.insert(&[1, 2], 42);
+    ///
+    /// // Modify the value through a mutable reference
+    /// if let Some(value) = trie.get_mut(&[1, 2]) {
+    ///     *value = 100;
+    /// }
+    ///
+    /// assert_eq!(trie.get(&[1, 2]), Some(&100));
+    /// assert_eq!(trie.get_mut(&[0, 0]), None);
+    /// ```
+    pub fn get_mut(&mut self, coords: &[i32]) -> Option<&mut V> {
+        assert!(coords.len() == self.dimensions);
+
+        let mut node = &mut self.root;
+
+        for &coord in coords.iter().take(self.dimensions - 1) {
+            node = unsafe { node.get_child_mut(coord)? };
+        }
+
+        unsafe { node.get_value_mut(coords[self.dimensions - 1]) }
+    }
+
     pub fn dimensions(&self) -> usize {
         self.dimensions
     }

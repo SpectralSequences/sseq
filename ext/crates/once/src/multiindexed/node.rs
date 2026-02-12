@@ -108,6 +108,24 @@ impl<V> Node<V> {
         unsafe { self.inner.get(idx) }
     }
 
+    /// Retrieves a mutable reference to the child node at the specified index, if it exists.
+    ///
+    /// # Parameters
+    ///
+    /// * `idx`: The index of the child node to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Some(&mut Self)` if a child node exists at the specified index
+    /// * `None` if no child node exists at the specified index
+    ///
+    /// # Safety
+    ///
+    /// Can only be called on an inner node.
+    pub(super) unsafe fn get_child_mut(&mut self, idx: i32) -> Option<&mut Self> {
+        unsafe { self.inner.get_mut(idx) }
+    }
+
     /// Retrieves a reference to the value at the specified index, if it exists.
     ///
     /// # Parameters
@@ -124,6 +142,24 @@ impl<V> Node<V> {
     /// Can only be called on a leaf node.
     pub(super) unsafe fn get_value(&self, idx: i32) -> Option<&V> {
         unsafe { self.leaf.get(idx) }
+    }
+
+    /// Retrieves a mutable reference to the value at the specified index, if it exists.
+    ///
+    /// # Parameters
+    ///
+    /// * `idx`: The index of the value to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Some(&mut V)` if a value exists at the specified index
+    /// * `None` if no value exists at the specified index
+    ///
+    /// # Safety
+    ///
+    /// Can only be called on a leaf node.
+    pub(super) unsafe fn get_value_mut(&mut self, idx: i32) -> Option<&mut V> {
+        unsafe { self.leaf.get_mut(idx) }
     }
 
     /// Sets the value at the specified index.
