@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Bound"],"mod":["legacy"],"struct":["IterRange","IterRangeFrom","IterRangeInclusive","Range","RangeFrom","RangeFull","RangeInclusive","RangeTo","RangeToInclusive"],"trait":["IntoBounds","OneSidedRange","RangeBounds","Step"]};
+window.SIDEBAR_ITEMS = {"enum":["Bound"],"mod":["legacy"],"struct":["Range","RangeFrom","RangeFromIter","RangeFull","RangeInclusive","RangeInclusiveIter","RangeIter","RangeTo","RangeToInclusive"],"trait":["IntoBounds","OneSidedRange","RangeBounds","Step"]};

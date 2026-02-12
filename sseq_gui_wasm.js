@@ -1,11 +1,129 @@
-let wasm_bindgen;
-(function() {
-    const __exports = {};
+let wasm_bindgen = (function(exports) {
     let script_src;
     if (typeof document !== 'undefined' && document.currentScript !== null) {
         script_src = new URL(document.currentScript.src, location.href).toString();
     }
-    let wasm = undefined;
+
+    class Resolution {
+        static __wrap(ptr) {
+            ptr = ptr >>> 0;
+            const obj = Object.create(Resolution.prototype);
+            obj.__wbg_ptr = ptr;
+            ResolutionFinalization.register(obj, obj.__wbg_ptr, obj);
+            return obj;
+        }
+        __destroy_into_raw() {
+            const ptr = this.__wbg_ptr;
+            this.__wbg_ptr = 0;
+            ResolutionFinalization.unregister(this);
+            return ptr;
+        }
+        free() {
+            const ptr = this.__destroy_into_raw();
+            wasm.__wbg_resolution_free(ptr, 0);
+        }
+        /**
+         * @param {Function} f
+         * @returns {Resolution}
+         */
+        static new(f) {
+            const ret = wasm.resolution_new(f);
+            return Resolution.__wrap(ret);
+        }
+        /**
+         * @param {string} m
+         */
+        run(m) {
+            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.resolution_run(this.__wbg_ptr, ptr0, len0);
+        }
+    }
+    if (Symbol.dispose) Resolution.prototype[Symbol.dispose] = Resolution.prototype.free;
+    exports.Resolution = Resolution;
+
+    class Sseq {
+        static __wrap(ptr) {
+            ptr = ptr >>> 0;
+            const obj = Object.create(Sseq.prototype);
+            obj.__wbg_ptr = ptr;
+            SseqFinalization.register(obj, obj.__wbg_ptr, obj);
+            return obj;
+        }
+        __destroy_into_raw() {
+            const ptr = this.__wbg_ptr;
+            this.__wbg_ptr = 0;
+            SseqFinalization.unregister(this);
+            return ptr;
+        }
+        free() {
+            const ptr = this.__destroy_into_raw();
+            wasm.__wbg_sseq_free(ptr, 0);
+        }
+        /**
+         * @param {Function} f
+         * @returns {Sseq}
+         */
+        static new(f) {
+            const ret = wasm.sseq_new(f);
+            return Sseq.__wrap(ret);
+        }
+        /**
+         * @param {string} m
+         */
+        run(m) {
+            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.sseq_run(this.__wbg_ptr, ptr0, len0);
+        }
+    }
+    if (Symbol.dispose) Sseq.prototype[Symbol.dispose] = Sseq.prototype.free;
+    exports.Sseq = Sseq;
+
+    function __wbg_get_imports() {
+        const import0 = {
+            __proto__: null,
+            __wbg___wbindgen_debug_string_0bc8482c6e3508ae: function(arg0, arg1) {
+                const ret = debugString(arg1);
+                const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+                const len1 = WASM_VECTOR_LEN;
+                getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+                getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+            },
+            __wbg___wbindgen_throw_be289d5034ed271b: function(arg0, arg1) {
+                throw new Error(getStringFromWasm0(arg0, arg1));
+            },
+            __wbg_call_4708e0c13bdc8e95: function() { return handleError(function (arg0, arg1, arg2) {
+                const ret = arg0.call(arg1, arg2);
+                return ret;
+            }, arguments); },
+            __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+                // Cast intrinsic for `Ref(String) -> Externref`.
+                const ret = getStringFromWasm0(arg0, arg1);
+                return ret;
+            },
+            __wbindgen_init_externref_table: function() {
+                const table = wasm.__wbindgen_externrefs;
+                const offset = table.grow(4);
+                table.set(0, undefined);
+                table.set(offset + 0, undefined);
+                table.set(offset + 1, null);
+                table.set(offset + 2, true);
+                table.set(offset + 3, false);
+            },
+        };
+        return {
+            __proto__: null,
+            "./sseq_gui_wasm_bg.js": import0,
+        };
+    }
+
+    const ResolutionFinalization = (typeof FinalizationRegistry === 'undefined')
+        ? { register: () => {}, unregister: () => {} }
+        : new FinalizationRegistry(ptr => wasm.__wbg_resolution_free(ptr >>> 0, 1));
+    const SseqFinalization = (typeof FinalizationRegistry === 'undefined')
+        ? { register: () => {}, unregister: () => {} }
+        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr >>> 0, 1));
 
     function addToExternrefTable0(obj) {
         const idx = wasm.__externref_table_alloc();
@@ -161,96 +279,20 @@ let wasm_bindgen;
                 read: arg.length,
                 written: buf.length
             };
-        }
+        };
     }
 
     let WASM_VECTOR_LEN = 0;
 
-    const ResolutionFinalization = (typeof FinalizationRegistry === 'undefined')
-        ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_resolution_free(ptr >>> 0, 1));
-
-    const SseqFinalization = (typeof FinalizationRegistry === 'undefined')
-        ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr >>> 0, 1));
-
-    class Resolution {
-        static __wrap(ptr) {
-            ptr = ptr >>> 0;
-            const obj = Object.create(Resolution.prototype);
-            obj.__wbg_ptr = ptr;
-            ResolutionFinalization.register(obj, obj.__wbg_ptr, obj);
-            return obj;
-        }
-        __destroy_into_raw() {
-            const ptr = this.__wbg_ptr;
-            this.__wbg_ptr = 0;
-            ResolutionFinalization.unregister(this);
-            return ptr;
-        }
-        free() {
-            const ptr = this.__destroy_into_raw();
-            wasm.__wbg_resolution_free(ptr, 0);
-        }
-        /**
-         * @param {Function} f
-         * @returns {Resolution}
-         */
-        static new(f) {
-            const ret = wasm.resolution_new(f);
-            return Resolution.__wrap(ret);
-        }
-        /**
-         * @param {string} m
-         */
-        run(m) {
-            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.resolution_run(this.__wbg_ptr, ptr0, len0);
-        }
+    let wasmModule, wasm;
+    function __wbg_finalize_init(instance, module) {
+        wasm = instance.exports;
+        wasmModule = module;
+        cachedDataViewMemory0 = null;
+        cachedUint8ArrayMemory0 = null;
+        wasm.__wbindgen_start();
+        return wasm;
     }
-    if (Symbol.dispose) Resolution.prototype[Symbol.dispose] = Resolution.prototype.free;
-    __exports.Resolution = Resolution;
-
-    class Sseq {
-        static __wrap(ptr) {
-            ptr = ptr >>> 0;
-            const obj = Object.create(Sseq.prototype);
-            obj.__wbg_ptr = ptr;
-            SseqFinalization.register(obj, obj.__wbg_ptr, obj);
-            return obj;
-        }
-        __destroy_into_raw() {
-            const ptr = this.__wbg_ptr;
-            this.__wbg_ptr = 0;
-            SseqFinalization.unregister(this);
-            return ptr;
-        }
-        free() {
-            const ptr = this.__destroy_into_raw();
-            wasm.__wbg_sseq_free(ptr, 0);
-        }
-        /**
-         * @param {Function} f
-         * @returns {Sseq}
-         */
-        static new(f) {
-            const ret = wasm.sseq_new(f);
-            return Sseq.__wrap(ret);
-        }
-        /**
-         * @param {string} m
-         */
-        run(m) {
-            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.sseq_run(this.__wbg_ptr, ptr0, len0);
-        }
-    }
-    if (Symbol.dispose) Sseq.prototype[Symbol.dispose] = Sseq.prototype.free;
-    __exports.Sseq = Sseq;
-
-    const EXPECTED_RESPONSE_TYPES = new Set(['basic', 'cors', 'default']);
 
     async function __wbg_load(module, imports) {
         if (typeof Response === 'function' && module instanceof Response) {
@@ -258,14 +300,12 @@ let wasm_bindgen;
                 try {
                     return await WebAssembly.instantiateStreaming(module, imports);
                 } catch (e) {
-                    const validResponse = module.ok && EXPECTED_RESPONSE_TYPES.has(module.type);
+                    const validResponse = module.ok && expectedResponseType(module.type);
 
                     if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
                         console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
 
-                    } else {
-                        throw e;
-                    }
+                    } else { throw e; }
                 }
             }
 
@@ -280,59 +320,20 @@ let wasm_bindgen;
                 return instance;
             }
         }
-    }
 
-    function __wbg_get_imports() {
-        const imports = {};
-        imports.wbg = {};
-        imports.wbg.__wbg___wbindgen_debug_string_adfb662ae34724b6 = function(arg0, arg1) {
-            const ret = debugString(arg1);
-            const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-        };
-        imports.wbg.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
-            throw new Error(getStringFromWasm0(arg0, arg1));
-        };
-        imports.wbg.__wbg_call_3020136f7a2d6e44 = function() { return handleError(function (arg0, arg1, arg2) {
-            const ret = arg0.call(arg1, arg2);
-            return ret;
-        }, arguments) };
-        imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
-            // Cast intrinsic for `Ref(String) -> Externref`.
-            const ret = getStringFromWasm0(arg0, arg1);
-            return ret;
-        };
-        imports.wbg.__wbindgen_init_externref_table = function() {
-            const table = wasm.__wbindgen_externrefs;
-            const offset = table.grow(4);
-            table.set(0, undefined);
-            table.set(offset + 0, undefined);
-            table.set(offset + 1, null);
-            table.set(offset + 2, true);
-            table.set(offset + 3, false);
-        };
-
-        return imports;
-    }
-
-    function __wbg_finalize_init(instance, module) {
-        wasm = instance.exports;
-        __wbg_init.__wbindgen_wasm_module = module;
-        cachedDataViewMemory0 = null;
-        cachedUint8ArrayMemory0 = null;
-
-
-        wasm.__wbindgen_start();
-        return wasm;
+        function expectedResponseType(type) {
+            switch (type) {
+                case 'basic': case 'cors': case 'default': return true;
+            }
+            return false;
+        }
     }
 
     function initSync(module) {
         if (wasm !== undefined) return wasm;
 
 
-        if (typeof module !== 'undefined') {
+        if (module !== undefined) {
             if (Object.getPrototypeOf(module) === Object.prototype) {
                 ({module} = module)
             } else {
@@ -352,7 +353,7 @@ let wasm_bindgen;
         if (wasm !== undefined) return wasm;
 
 
-        if (typeof module_or_path !== 'undefined') {
+        if (module_or_path !== undefined) {
             if (Object.getPrototypeOf(module_or_path) === Object.prototype) {
                 ({module_or_path} = module_or_path)
             } else {
@@ -360,8 +361,8 @@ let wasm_bindgen;
             }
         }
 
-        if (typeof module_or_path === 'undefined' && typeof script_src !== 'undefined') {
-            module_or_path = script_src.replace(/\.js$/, '_bg.wasm');
+        if (module_or_path === undefined && script_src !== undefined) {
+            module_or_path = script_src.replace(/\.js$/, "_bg.wasm");
         }
         const imports = __wbg_get_imports();
 
@@ -374,5 +375,5 @@ let wasm_bindgen;
         return __wbg_finalize_init(instance, module);
     }
 
-    wasm_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
-})();
+    return Object.assign(__wbg_init, { initSync }, exports);
+})({ __proto__: null });
