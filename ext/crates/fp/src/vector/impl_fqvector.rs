@@ -2,14 +2,10 @@ use std::io;
 
 use itertools::Itertools;
 
-use super::{
-    inner::{FqSlice, FqSliceMut, FqVector},
-    iter::{FqVectorIterator, FqVectorNonZeroIterator},
-};
+use super::inner::FqVector;
 use crate::{
     field::{Field, element::FieldElement},
     limb::Limb,
-    prime::{Prime, ValidPrime},
 };
 
 impl<F: Field> FqVector<F> {
@@ -49,81 +45,6 @@ impl<F: Field> FqVector<F> {
         // necessary ones.
         let num_limbs = self.fq().number(self.len());
         crate::limb::to_bytes(&self.limbs()[..num_limbs], buffer)
-    }
-
-    pub const fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn prime(&self) -> ValidPrime {
-        self.fq().characteristic().to_dyn()
-    }
-
-    #[must_use]
-    pub fn slice(&self, start: usize, end: usize) -> FqSlice<'_, F> {
-        assert!(start <= end && end <= self.len());
-        FqSlice::new(self.fq(), self.limbs(), start, end)
-    }
-
-    #[must_use]
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
-        assert!(start <= end && end <= self.len());
-        FqSliceMut::new(self.fq(), self.limbs_mut(), start, end)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_slice(&self) -> FqSlice<'_, F> {
-        self.into()
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_slice_mut(&mut self) -> FqSliceMut<'_, F> {
-        self.into()
-    }
-
-    pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        self.as_slice_mut().add_basis_element(index, value);
-    }
-
-    pub fn entry(&self, index: usize) -> FieldElement<F> {
-        self.as_slice().entry(index)
-    }
-
-    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        self.as_slice_mut().set_entry(index, value);
-    }
-
-    pub fn iter(&self) -> FqVectorIterator<'_, F> {
-        self.as_slice().iter()
-    }
-
-    pub fn iter_nonzero(&self) -> FqVectorNonZeroIterator<'_, F> {
-        self.as_slice().iter_nonzero()
-    }
-
-    pub fn set_to_zero(&mut self) {
-        // This is sound because `fq.encode(fq.zero())` is always zero.
-        for limb in self.limbs_mut() {
-            *limb = 0;
-        }
-    }
-
-    pub fn scale(&mut self, c: FieldElement<F>) {
-        assert_eq!(self.fq(), c.field());
-        let fq = self.fq();
-
-        if c == fq.zero() {
-            self.set_to_zero();
-        }
-        if fq.q() != 2 {
-            for limb in self.limbs_mut() {
-                *limb = fq.reduce(fq.fma_limb(0, *limb, c.clone()));
-            }
-        }
     }
 
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
@@ -174,10 +95,6 @@ impl<F: Field> FqVector<F> {
         for limb in self.limbs_mut()[other.limbs().len()..].iter_mut() {
             *limb = 0;
         }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.limbs().iter().all(|&x| x == 0)
     }
 
     /// This function ensures the length of the vector is at least `len`. See also
@@ -340,12 +257,6 @@ impl<T: AsRef<[FieldElement<F>]>, F: Field> From<(F, T)> for FqVector<F> {
 impl<F: Field> From<&FqVector<F>> for Vec<FieldElement<F>> {
     fn from(vec: &FqVector<F>) -> Self {
         vec.iter().collect()
-    }
-}
-
-impl<F: Field> std::fmt::Display for FqVector<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_slice().fmt(f)
     }
 }
 

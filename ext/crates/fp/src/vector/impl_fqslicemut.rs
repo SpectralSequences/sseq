@@ -2,121 +2,32 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
-use super::inner::{FqSlice, FqSliceMut, FqVector};
 use crate::{
     constants,
     field::{Field, element::FieldElement},
     limb::Limb,
-    prime::{Prime, ValidPrime},
+    vector::{FqSlice, FqSliceMut, FqVectorBase, ReprMut},
 };
 
-impl<'a, F: Field> FqSliceMut<'a, F> {
-    pub fn prime(&self) -> ValidPrime {
-        self.fq().characteristic().to_dyn()
-    }
-
-    pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        if self.fq().q() == 2 {
-            let pair = self.fq().limb_bit_index_pair(index + self.start());
-            self.limbs_mut()[pair.limb] ^= self.fq().encode(value) << pair.bit_index;
-        } else {
-            let mut x = self.as_slice().entry(index);
-            x += value;
-            self.set_entry(index, x);
-        }
-    }
-
-    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
-        assert_eq!(self.fq(), value.field());
-        assert!(index < self.as_slice().len());
-        let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
-        let mut result = self.limbs()[limb_index.limb];
-        result &= !(bit_mask << limb_index.bit_index);
-        result |= self.fq().encode(value) << limb_index.bit_index;
-        self.limbs_mut()[limb_index.limb] = result;
-    }
-
-    fn reduce_limbs(&mut self) {
-        let fq = self.fq();
-        if fq.q() != 2 {
-            let limb_range = self.as_slice().limb_range();
-
-            for limb in self.limbs_mut()[limb_range].iter_mut() {
-                *limb = fq.reduce(*limb);
-            }
-        }
-    }
-
-    pub fn scale(&mut self, c: FieldElement<F>) {
-        assert_eq!(self.fq(), c.field());
-        let fq = self.fq();
-
-        if fq.q() == 2 {
-            if c == fq.zero() {
-                self.set_to_zero();
-            }
-            return;
-        }
-
-        let limb_range = self.as_slice().limb_range();
-        if limb_range.is_empty() {
-            return;
-        }
-        let (min_mask, max_mask) = self.as_slice().limb_masks();
-
-        let limb = self.limbs()[limb_range.start];
-        let masked_limb = limb & min_mask;
-        let rest_limb = limb & !min_mask;
-        self.limbs_mut()[limb_range.start] = fq.fma_limb(0, masked_limb, c.clone()) | rest_limb;
-
-        let inner_range = self.as_slice().limb_range_inner();
-        for limb in self.limbs_mut()[inner_range].iter_mut() {
-            *limb = fq.fma_limb(0, *limb, c.clone());
-        }
-        if limb_range.len() > 1 {
-            let full_limb = self.limbs()[limb_range.end - 1];
-            let masked_limb = full_limb & max_mask;
-            let rest_limb = full_limb & !max_mask;
-            self.limbs_mut()[limb_range.end - 1] = fq.fma_limb(0, masked_limb, c) | rest_limb;
-        }
-        self.reduce_limbs();
-    }
-
-    pub fn set_to_zero(&mut self) {
-        let limb_range = self.as_slice().limb_range();
-        if limb_range.is_empty() {
-            return;
-        }
-        let (min_mask, max_mask) = self.as_slice().limb_masks();
-        self.limbs_mut()[limb_range.start] &= !min_mask;
-
-        let inner_range = self.as_slice().limb_range_inner();
-        for limb in self.limbs_mut()[inner_range].iter_mut() {
-            *limb = 0;
-        }
-        self.limbs_mut()[limb_range.end - 1] &= !max_mask;
-    }
-
+impl<F: Field> FqSliceMut<'_, F> {
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
 
-        if self.as_slice().is_empty() {
+        if self.is_empty() {
             return;
         }
 
         if self.fq().q() == 2 {
             if c != self.fq().zero() {
-                match self.as_slice().offset().cmp(&other.offset()) {
+                match self.offset().cmp(&other.offset()) {
                     Ordering::Equal => self.add_shift_none(other, self.fq().one()),
                     Ordering::Less => self.add_shift_left(other, self.fq().one()),
                     Ordering::Greater => self.add_shift_right(other, self.fq().one()),
                 };
             }
         } else {
-            match self.as_slice().offset().cmp(&other.offset()) {
+            match self.offset().cmp(&other.offset()) {
                 Ordering::Equal => self.add_shift_none(other, c),
                 Ordering::Less => self.add_shift_left(other, c),
                 Ordering::Greater => self.add_shift_right(other, c),
@@ -153,12 +64,12 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: FqSlice<'_, F>) {
         assert_eq!(self.fq(), other.fq());
-        if self.as_slice().offset() != other.offset() {
+        if self.offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq().one());
             return;
         }
-        let target_range = self.as_slice().limb_range();
+        let target_range = self.limb_range();
         let source_range = other.limb_range();
 
         if target_range.is_empty() {
@@ -171,7 +82,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         self.limbs_mut()[target_range.start] &= !min_mask;
         self.limbs_mut()[target_range.start] |= result;
 
-        let target_inner_range = self.as_slice().limb_range_inner();
+        let target_inner_range = self.limb_range_inner();
         let source_inner_range = other.limb_range_inner();
         if !target_inner_range.is_empty() && !source_inner_range.is_empty() {
             self.limbs_mut()[target_inner_range]
@@ -206,7 +117,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         assert_eq!(self.fq(), other.fq());
         let fq = self.fq();
 
-        let target_range = self.as_slice().limb_range();
+        let target_range = self.limb_range();
         let source_range = other.limb_range();
 
         let (min_mask, max_mask) = other.limb_masks();
@@ -218,7 +129,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         );
         self.limbs_mut()[target_range.start] = fq.reduce(self.limbs()[target_range.start]);
 
-        let target_inner_range = self.as_slice().limb_range_inner();
+        let target_inner_range = self.limb_range_inner();
         let source_inner_range = other.limb_range_inner();
         if !source_inner_range.is_empty() {
             for (left, right) in self.limbs_mut()[target_inner_range]
@@ -498,7 +409,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
-        assert_eq!(self.as_slice().len(), mask.len());
+        assert_eq!(self.len(), mask.len());
         for (i, &x) in mask.iter().enumerate() {
             let entry = other.entry(x);
             if entry != self.fq().zero() {
@@ -517,24 +428,6 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         }
     }
 
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
-        assert!(start <= end && end <= self.as_slice().len());
-        let orig_start = self.start();
-
-        FqSliceMut::new(
-            self.fq(),
-            self.limbs_mut(),
-            orig_start + start,
-            orig_start + end,
-        )
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_slice(&self) -> FqSlice<'_, F> {
-        FqSlice::new(self.fq(), self.limbs(), self.start(), self.end())
-    }
-
     /// Generates a version of itself with a shorter lifetime
     #[inline]
     #[must_use]
@@ -542,12 +435,14 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         let start = self.start();
         let end = self.end();
 
-        FqSliceMut::new(self.fq(), self.limbs_mut(), start, end)
+        FqSliceMut::_new(self.fq(), self.limbs_mut(), start, end)
     }
 }
 
-impl<'a, F: Field> From<&'a mut FqVector<F>> for FqSliceMut<'a, F> {
-    fn from(v: &'a mut FqVector<F>) -> Self {
-        v.slice_mut(0, v.len())
+impl<'a, const A: bool, R: ReprMut, F: Field> From<&'a mut FqVectorBase<A, R, F>>
+    for FqSliceMut<'a, F>
+{
+    fn from(v: &'a mut FqVectorBase<A, R, F>) -> Self {
+        v.as_slice_mut()
     }
 }
