@@ -24,7 +24,7 @@
         pkgs.cargo-criterion
         pkgs.cargo-flamegraph
         pkgs.cargo-nextest
-        pkgs.linuxKernel.packages.linux_zen.perf
+        pkgs.perf
       ];
     in {
       devShells.default = pkgs.mkShell {
