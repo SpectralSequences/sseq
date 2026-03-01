@@ -245,6 +245,7 @@ impl<const A: bool, R: ReprMut, F: Field> FqVectorBase<A, R, F> {
 
         if c == fq.zero() {
             self.set_to_zero();
+            return;
         }
 
         if fq.q() == 2 {
