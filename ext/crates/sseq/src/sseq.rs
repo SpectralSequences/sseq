@@ -6,6 +6,7 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpVector},
 };
+use once::MultiIndexed;
 
 use crate::{
     bigraded::DenseBigradedModule,
@@ -46,35 +47,39 @@ pub struct Product {
     pub matrices: BiVec<BiVec<Option<Matrix>>>,
 }
 
-pub struct Sseq<P: SseqProfile = Adams> {
-    p: ValidPrime,
-
-    /// The first page of the spectral sequence
-    classes: Arc<DenseBigradedModule>,
-
-    /// x -> y -> r -> differential
+struct BidegreeData {
+    /// r -> differential
     ///
-    /// If the bidegree is valid (see [`Sseq::invalid`]), then the differential is reduced.
-    differentials: BiVec<BiVec<BiVec<Differential>>>,
+    /// If the bidegree is valid (see [`BidegreeData::invalid`]), then the differential is reduced.
+    differentials: BiVec<Differential>,
 
-    /// x -> y -> permanent_classes
-    permanent_classes: BiVec<BiVec<Subspace>>,
-
-    /// x -> y -> r -> E_r^{x, y} as a subquotient of the original bidegree.
+    /// r -> E_r^{x, y} as a subquotient of the original bidegree.
     ///
     /// The "quotient" part of the subquotient is always accurate, but the "sub" part may not be.
     /// The `invalid` field tracks which bidegrees are valid.
     ///
     /// This is always the full ambient space when `r = P::MIN_R`, but we set `min_degree` to
     /// `P::MIN_R` to make code a bit more streamlined.
+    page_data: BiVec<Subquotient>,
+
+    permanent_classes: Subspace,
+
+    /// Whether the page_data is no longer accurate.
+    invalid: bool,
+}
+
+pub struct Sseq<P: SseqProfile = Adams> {
+    p: ValidPrime,
+
+    /// The first page of the spectral sequence
+    classes: Arc<DenseBigradedModule>,
+
+    /// Per-bidegree data: differentials, page data, permanent classes, and validity.
     ///
     /// # Invariants:
-    ///  - if `differential[x][y][r]` is defined, then `page_data[x][y][r + 1]` and
-    ///    `page_data[tx][ty][r + 1]` are always defined,
-    page_data: BiVec<BiVec<BiVec<Subquotient>>>,
-
-    /// x -> y -> validity. A bidegree is invalid if the page_data is no longer accurate.
-    invalid: BiVec<BiVec<bool>>,
+    /// - if `data[b].differentials[r]` is defined, then `data[b].page_data[r + 1]` and
+    ///   `data[target].page_data[r + 1]` are always defined,
+    data: MultiIndexed<2, BidegreeData>,
 
     // `P` is itself a marker, so it's safe to claim that we own one. As opposed to
     // `PhantomData<*const P>`, this lets us implement `Send` and `Sync`.
@@ -82,14 +87,19 @@ pub struct Sseq<P: SseqProfile = Adams> {
 }
 
 impl<P: SseqProfile> Sseq<P> {
+    fn bd(&self, b: Bidegree) -> &BidegreeData {
+        self.data.get([b.x(), b.y()]).unwrap()
+    }
+
+    fn bd_mut(&mut self, b: Bidegree) -> &mut BidegreeData {
+        self.data.get_mut([b.x(), b.y()]).unwrap()
+    }
+
     pub fn new(p: ValidPrime, min: Bidegree) -> Self {
         Self {
             p,
             classes: Arc::new(DenseBigradedModule::new(min)),
-            differentials: BiVec::new(min.x()),
-            permanent_classes: BiVec::new(min.x()),
-            page_data: BiVec::new(min.x()),
-            invalid: BiVec::new(min.x()),
+            data: MultiIndexed::new(),
             profile: PhantomData,
         }
     }
@@ -117,37 +127,28 @@ impl<P: SseqProfile> Sseq<P> {
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
         // This already ensures it is valid to set b
         self.classes.set_dimension(b, dim);
-        if self.differentials.len() == b.x() {
-            let min_y = self.classes.min().y();
-            self.differentials.push(BiVec::new(min_y));
-            self.permanent_classes.push(BiVec::new(min_y));
-            self.page_data.push(BiVec::new(min_y));
-            self.invalid.push(BiVec::new(min_y));
-        }
-
-        self.differentials[b.x()].push(BiVec::new(P::MIN_R));
-        self.page_data[b.x()].push(BiVec::new(P::MIN_R));
-        self.page_data[b.x()][b.y()].push(Subquotient::new_full(self.p, dim));
-        self.permanent_classes[b.x()].push(Subspace::new(self.p, dim));
-        self.invalid[b.x()].push(false);
+        let mut page_data = BiVec::new(P::MIN_R);
+        page_data.push(Subquotient::new_full(self.p, dim));
+        self.data.insert(
+            [b.x(), b.y()],
+            BidegreeData {
+                differentials: BiVec::new(P::MIN_R),
+                page_data,
+                permanent_classes: Subspace::new(self.p, dim),
+                invalid: false,
+            },
+        );
     }
 
     pub fn clear(&mut self) {
-        self.permanent_classes
-            .iter_mut()
-            .flatten()
-            .for_each(Subspace::set_to_zero);
-        self.differentials
-            .iter_mut()
-            .flatten()
-            .flatten()
-            .for_each(Differential::set_to_zero);
-        self.page_data
-            .iter_mut()
-            .flatten()
-            .flatten()
-            .for_each(Subquotient::set_to_full);
-        self.invalid.iter_mut().flatten().for_each(|x| *x = true);
+        for (_, bd) in self.data.iter_mut() {
+            bd.permanent_classes.set_to_zero();
+            bd.differentials
+                .iter_mut()
+                .for_each(Differential::set_to_zero);
+            bd.page_data.iter_mut().for_each(Subquotient::set_to_full);
+            bd.invalid = true;
+        }
     }
 
     pub fn dimension(&self, b: Bidegree) -> usize {
@@ -158,40 +159,41 @@ impl<P: SseqProfile> Sseq<P> {
     ///
     /// Whether a new permanent class was added
     pub fn add_permanent_class(&mut self, elem: &BidegreeElement) -> bool {
-        let old_dim = self.permanent_classes[elem.x()][elem.y()].dimension();
-        let new_dim = self.permanent_classes[elem.x()][elem.y()].add_vector(elem.vec());
+        let bd = self.bd_mut(elem.degree());
+        let old_dim = bd.permanent_classes.dimension();
+        let new_dim = bd.permanent_classes.add_vector(elem.vec());
         if old_dim != new_dim {
             // This was a new permanent class
-            for d in self.differentials[elem.x()][elem.y()].iter_mut() {
+            for d in bd.differentials.iter_mut() {
                 d.add(elem.vec(), None);
             }
-            self.invalid[elem.x()][elem.y()] = true;
+            bd.invalid = true;
         }
         old_dim != new_dim
     }
 
-    /// Ensure `self.differentials[b.x()][b.y()][r]` is defined. Must call `extend_page_data` on the source
+    /// Ensure `self.bd(b).differentials[r]` is defined. Must call `extend_page_data` on the source
     /// and target after this.
     fn extend_differential(&mut self, r: i32, b: Bidegree) {
         let source_dim = self.classes.dimension(b);
-        while self.differentials[b.x()][b.y()].len() <= r {
-            let r = self.differentials[b.x()][b.y()].len();
+        while self.bd(b).differentials.len() <= r {
+            let r = self.bd(b).differentials.len();
             let target = P::profile(r, b);
             let mut differential =
                 Differential::new(self.p, source_dim, self.classes.dimension(target));
 
-            for class in self.permanent_classes[b.x()][b.y()].basis() {
+            for class in self.bd(b).permanent_classes.basis() {
                 differential.add(class, None);
             }
-            self.differentials[b.x()][b.y()].push(differential);
+            self.bd_mut(b).differentials.push(differential);
         }
     }
 
-    /// Ensure `self.page_data[b.x()][b.y()][r]` is defined
+    /// Ensure `self.bd(b).page_data[r]` is defined
     fn extend_page_data(&mut self, r: i32, b: Bidegree) {
-        let page_data = &mut self.page_data[b.x()][b.y()];
-        while page_data.len() <= r {
-            page_data.push(page_data.last().unwrap().clone())
+        let bd = self.bd_mut(b);
+        while bd.page_data.len() <= r {
+            bd.page_data.push(bd.page_data.last().unwrap().clone())
         }
     }
 
@@ -209,21 +211,22 @@ impl<P: SseqProfile> Sseq<P> {
         self.extend_page_data(r + 1, target_b);
 
         for r in P::MIN_R..r {
-            self.differentials[source.x()][source.y()][r].add(source.vec(), None);
+            self.bd_mut(source.degree()).differentials[r].add(source.vec(), None);
             self.extend_page_data(r + 1, P::profile(r, source.degree()));
         }
-        let is_new = self.differentials[source.x()][source.y()][r].add(source.vec(), Some(target));
+        let is_new = self.bd_mut(source.degree()).differentials[r].add(source.vec(), Some(target));
         if is_new {
-            self.invalid[source.x()][source.y()] = true;
+            self.bd_mut(source.degree()).invalid = true;
             if !target.is_zero() {
-                self.invalid[target_b.x()][target_b.y()] = true;
+                self.bd_mut(target_b).invalid = true;
                 self.add_permanent_class(&BidegreeElement::new(target_b, target.to_owned()));
-                for r in r + 1..self.page_data[target_b.x()][target_b.y()].len() {
-                    self.page_data[target_b.x()][target_b.y()][r].quotient(target);
+                let target_page_len = self.bd(target_b).page_data.len();
+                for r in r + 1..target_page_len {
+                    self.bd_mut(target_b).page_data[r].quotient(target);
 
                     let p = P::profile_inverse(r, target_b);
                     if self.defined(p) {
-                        self.invalid[p.x()][p.y()] = true;
+                        self.bd_mut(p).invalid = true;
                     }
                 }
             }
@@ -232,78 +235,77 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn invalid(&self, b: Bidegree) -> bool {
-        self.invalid[b.x()][b.y()]
+        self.bd(b).invalid
     }
 
     pub fn update(&mut self) {
-        for x in self.invalid.range() {
-            for y in self.invalid[x].range() {
-                if self.invalid[x][y] {
-                    self.update_bidegree(Bidegree::x_y(x, y));
-                }
-            }
+        let invalid_bidegrees: Vec<_> = self
+            .data
+            .iter()
+            .filter(|(_, bd)| bd.invalid)
+            .map(|(c, _)| Bidegree::x_y(c[0], c[1]))
+            .collect();
+        for b in invalid_bidegrees {
+            self.update_bidegree(b);
         }
     }
 
     /// This returns the vec of differentials to draw on each page.
     pub fn update_bidegree(&mut self, b: Bidegree) -> BiVec<Vec<Vec<u32>>> {
-        self.invalid[b.x()][b.y()] = false;
-        for (r, d) in self.differentials[b.x()][b.y()].iter_mut_enum() {
+        self.bd_mut(b).invalid = false;
+
+        // Collect target zeros first to avoid simultaneous cross-bidegree borrows.
+        let diff_range = self.bd(b).differentials.range();
+        for r in diff_range {
             let target_b = P::profile(r, b);
-            d.reduce_target(self.page_data[target_b.x()][target_b.y()][r].zeros());
+            let zeros = self.bd(target_b).page_data[r].zeros().clone();
+            self.bd_mut(b).differentials[r].reduce_target(&zeros);
         }
 
         // For each page, the array of differentials to draw
         let mut differentials: BiVec<Vec<Vec<u32>>> =
-            BiVec::with_capacity(P::MIN_R, self.differentials[b.x()][b.y()].len());
+            BiVec::with_capacity(P::MIN_R, self.bd(b).differentials.len());
 
-        for r in self.page_data[b.x()][b.y()].range().skip(1) {
+        let page_range = self.bd(b).page_data.range();
+        for r in page_range.skip(1) {
             let target_b = P::profile(r - 1, b);
 
-            self.page_data[b.x()][b.y()][r].clear_gens();
+            self.bd_mut(b).page_data[r].clear_gens();
 
-            if r > self.differentials[b.x()][b.y()].len()
-                || self.page_data[target_b.x()][target_b.y()][r - 1].is_empty()
-            {
-                let (prev, cur) = self.page_data[b.x()][b.y()].split_borrow_mut(r - 1, r);
+            if r > self.bd(b).differentials.len() || self.bd(target_b).page_data[r - 1].is_empty() {
+                let (prev, cur) = self.bd_mut(b).page_data.split_borrow_mut(r - 1, r);
                 for g in prev.gens() {
                     cur.add_gen(g);
                 }
-                if r - 1 < self.differentials[b.x()][b.y()].len() {
-                    differentials.push(vec![
-                        Vec::new();
-                        self.page_data[b.x()][b.y()][r].dimension()
-                    ]);
+                if r - 1 < self.bd(b).differentials.len() {
+                    differentials.push(vec![Vec::new(); self.bd(b).page_data[r].dimension()]);
                 }
             } else {
-                let d = &self.differentials[b.x()][b.y()][r - 1];
+                let d = &self.bd(b).differentials[r - 1];
 
                 let source_dim = self.dimension(b);
                 let target_dim = self.dimension(target_b);
 
                 let mut drawn_differentials: Vec<Vec<u32>> =
-                    Vec::with_capacity(self.page_data[b.x()][b.y()][r - 1].dimension());
+                    Vec::with_capacity(self.bd(b).page_data[r - 1].dimension());
 
                 let mut dvec = FpVector::new(self.p, target_dim);
                 let mut matrix = Matrix::new(
                     self.p,
-                    self.page_data[b.x()][b.y()][r - 1].dimension(),
+                    self.bd(b).page_data[r - 1].dimension(),
                     source_dim + target_dim,
                 );
 
-                for (mut row, g) in std::iter::zip(
-                    matrix.iter_mut(),
-                    self.page_data[b.x()][b.y()][r - 1].gens(),
-                ) {
+                for (mut row, g) in
+                    std::iter::zip(matrix.iter_mut(), self.bd(b).page_data[r - 1].gens())
+                {
                     row.slice_mut(target_dim, target_dim + source_dim).assign(g);
 
                     d.evaluate(g, dvec.as_slice_mut());
                     row.slice_mut(0, target_dim).assign(dvec.as_slice());
 
-                    drawn_differentials.push(
-                        self.page_data[target_b.x()][target_b.y()][r - 1]
-                            .reduce(dvec.as_slice_mut()),
-                    );
+                    drawn_differentials
+                        .push(self.bd(target_b).page_data[r - 1].reduce(dvec.as_slice_mut()));
                     dvec.set_to_zero();
                 }
                 differentials.push(drawn_differentials);
@@ -316,7 +318,7 @@ impl<P: SseqProfile> Sseq<P> {
                     if row.is_zero() {
                         break;
                     }
-                    self.page_data[b.x()][b.y()][r]
+                    self.bd_mut(b).page_data[r]
                         .add_gen(row.restrict(target_dim, target_dim + source_dim));
                 }
             }
@@ -327,11 +329,12 @@ impl<P: SseqProfile> Sseq<P> {
     /// Whether the calcuations at bidegree (x, y) are complete. This means all classes on the
     /// final page are known to be permanent.
     pub fn complete(&self, b: Bidegree) -> bool {
-        self.page_data[b.x()][b.y()]
+        let bd = self.bd(b);
+        bd.page_data
             .last()
             .unwrap()
             .gens()
-            .all(|v| self.permanent_classes[b.x()][b.y()].contains(v))
+            .all(|v| bd.permanent_classes.contains(v))
     }
 
     /// Whether there is an inconsistent differential involving bidegree (x, y).
@@ -341,32 +344,32 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn differentials(&self, b: Bidegree) -> &BiVec<Differential> {
-        &self.differentials[b.x()][b.y()]
+        &self.bd(b).differentials
     }
 
     pub fn differentials_hitting(
         &self,
         b: Bidegree,
     ) -> impl Iterator<Item = (i32, &'_ Differential)> + '_ {
-        let max_r = self.page_data[b.x()][b.y()].len() - 1;
+        let max_r = self.bd(b).page_data.len() - 1;
         (P::MIN_R..max_r).filter_map(move |r| {
             let source_b = P::profile_inverse(r, b);
             Some((
                 r,
-                self.differentials
-                    .get(source_b.x())?
-                    .get(source_b.y())?
+                self.data
+                    .get([source_b.x(), source_b.y()])?
+                    .differentials
                     .get(r)?,
             ))
         })
     }
 
     pub fn permanent_classes(&self, b: Bidegree) -> &Subspace {
-        &self.permanent_classes[b.x()][b.y()]
+        &self.bd(b).permanent_classes
     }
 
     pub fn page_data(&self, b: Bidegree) -> &BiVec<Subquotient> {
-        &self.page_data[b.x()][b.y()]
+        &self.bd(b).page_data
     }
 
     /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
@@ -424,7 +427,7 @@ impl<P: SseqProfile> Sseq<P> {
         let mut result = FpVector::new(self.p, self.classes.get_dimension(result_b)?);
 
         if r == result_r {
-            let diffs = &self.differentials[elem.x()][elem.y()][r];
+            let diffs = &self.bd(elem.degree()).differentials[r];
             let d_b = P::profile(r, elem.degree());
             let mut dx = FpVector::new(self.p, self.classes.dimension(d_b));
             diffs.evaluate(elem.vec(), dx.as_slice_mut());
@@ -478,12 +481,12 @@ impl<P: SseqProfile> Sseq<P> {
                 let b = Bidegree::x_y(x, y);
                 let shifted_b = b - min;
 
-                let data = self.page_data(b).get_max(r);
-                if data.is_empty() {
+                let bd = self.page_data(b).get_max(r);
+                if bd.is_empty() {
                     continue;
                 }
 
-                g.node(shifted_b, data.dimension())?;
+                g.node(shifted_b, bd.dimension())?;
 
                 // Now add the products hitting this bidegree
                 for (name, prod) in products.clone() {
@@ -501,7 +504,7 @@ impl<P: SseqProfile> Sseq<P> {
 
                     // For unstable charts this is None in low degrees.
                     if let Some(matrix) = &prod.matrices[source_b.x()][source_b.y()] {
-                        let matrix = Subquotient::reduce_matrix(matrix, source_data, data);
+                        let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
                         g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
                     }
                 }
@@ -526,7 +529,7 @@ impl<P: SseqProfile> Sseq<P> {
                         .into_iter()
                         .map(|(mut s, mut t)| {
                             (
-                                data.reduce(s.as_slice_mut()),
+                                bd.reduce(s.as_slice_mut()),
                                 target_data.reduce(t.as_slice_mut()),
                             )
                         });
@@ -855,7 +858,7 @@ mod tests {
         sseq.update();
 
         let check = |b: Bidegree, r, e: Expect| {
-            e.assert_eq(&sseq.page_data[b.x()][b.y()][r].to_string());
+            e.assert_eq(&sseq.page_data(b)[r].to_string());
         };
 
         check(
