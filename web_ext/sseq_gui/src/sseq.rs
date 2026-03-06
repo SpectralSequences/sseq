@@ -102,51 +102,53 @@ impl<P: SseqProfile> SseqWrapper<P> {
             return;
         }
 
-        for x in self.inner.min().x()..=self.inner.max().x() {
-            for y in self.inner.range(x) {
-                let b = Bidegree::x_y(x, y);
-                if !self.inner.invalid(b) {
-                    continue;
+        // Collect invalid bidegrees first: update_bidegree needs &mut self.inner, so we can't hold
+        // an iterator across those calls.
+        let invalid: Vec<_> = self
+            .inner
+            .iter_bidegrees()
+            .filter(|&b| self.inner.invalid(b))
+            .collect();
+        for b in invalid {
+            self.stale[b.x()][b.y()] |= CLASS_FLAG | EDGE_FLAG;
+            for product in self.products.values() {
+                let prod_origin_b = b - product.inner.b;
+                if self.inner.defined(prod_origin_b) {
+                    self.stale[prod_origin_b.x()][prod_origin_b.y()] |= EDGE_FLAG;
                 }
-                self.stale[b.x()][b.y()] |= CLASS_FLAG | EDGE_FLAG;
-                for product in self.products.values() {
-                    let prod_origin_b = b - product.inner.b;
-                    if self.inner.defined(prod_origin_b) {
-                        self.stale[prod_origin_b.x()][prod_origin_b.y()] |= EDGE_FLAG;
-                    }
-                }
-                let differentials = self.inner.update_bidegree(b);
-                if !differentials.is_empty() {
-                    // `true_differentials` is a list of differentials of the form d(source) = target we know
-                    // to be true. `differentials` is our best guess at what the matrix of differentials is.
-                    let true_differentials = self
-                        .inner
-                        .differentials(b)
-                        .iter_enum()
-                        .map(|(r, d)| {
-                            let target_b = P::profile(r, b);
-                            d.get_source_target_pairs()
-                                .into_iter()
-                                .map(|(mut s, mut t)| {
-                                    (
-                                        self.inner.page_data(b)[r].reduce(s.as_slice_mut()),
-                                        self.inner.page_data(target_b)[r].reduce(t.as_slice_mut()),
-                                    )
-                                })
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>();
+            }
+            let differentials = self.inner.update_bidegree(b);
+            if !differentials.is_empty() {
+                // `true_differentials` is a list of differentials of the form d(source) = target we
+                // know to be true. `differentials` is our best guess at what the matrix of
+                // differentials is.
+                let true_differentials = self
+                    .inner
+                    .differentials(b)
+                    .iter_enum()
+                    .map(|(r, d)| {
+                        let target_b = P::profile(r, b);
+                        d.get_source_target_pairs()
+                            .into_iter()
+                            .map(|(mut s, mut t)| {
+                                (
+                                    self.inner.page_data(b)[r].reduce(s.as_slice_mut()),
+                                    self.inner.page_data(target_b)[r].reduce(t.as_slice_mut()),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
 
-                    self.send(Message {
-                        recipients: vec![],
-                        sseq: self.name,
-                        action: Action::from(SetDifferential {
-                            b,
-                            true_differentials,
-                            differentials,
-                        }),
-                    });
-                }
+                self.send(Message {
+                    recipients: vec![],
+                    sseq: self.name,
+                    action: Action::from(SetDifferential {
+                        b,
+                        true_differentials,
+                        differentials,
+                    }),
+                });
             }
         }
 

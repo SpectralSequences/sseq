@@ -109,18 +109,6 @@ impl<P: SseqProfile> Sseq<P> {
         Bidegree::x_y(min[0], min[1])
     }
 
-    /// The y-range of defined bidegrees for a given x.
-    ///
-    /// This is lossy: it returns the global y-range across all x values. Callers should check
-    /// [`Sseq::defined`] for each bidegree in the range.
-    pub fn range(&self, _x: i32) -> std::ops::Range<i32> {
-        let Some(min) = self.data.min_coords() else {
-            return 0..0;
-        };
-        let max = self.data.max_coords().unwrap();
-        min[1]..max[1] + 1
-    }
-
     pub fn max(&self) -> Bidegree {
         let Some(max) = self.data.max_coords() else {
             return Bidegree::zero();
@@ -130,6 +118,11 @@ impl<P: SseqProfile> Sseq<P> {
 
     pub fn defined(&self, b: Bidegree) -> bool {
         self.data.get([b.x(), b.y()]).is_some()
+    }
+
+    /// Iterate over all defined bidegrees (in sorted order).
+    pub fn iter_bidegrees(&self) -> impl Iterator<Item = Bidegree> + '_ {
+        self.data.iter().map(|(c, _)| Bidegree::x_y(c[0], c[1]))
     }
 
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
@@ -487,82 +480,76 @@ impl<P: SseqProfile> Sseq<P> {
         g.init(max - min)?;
         header(&mut g)?;
 
-        for x in min.x()..=max.x() {
-            for y in self.range(x) {
-                let b = Bidegree::x_y(x, y);
-                if !self.defined(b) {
+        for b in self.iter_bidegrees() {
+            let shifted_b = b - min;
+
+            let bd = self.page_data(b).get_max(r);
+            if bd.is_empty() {
+                continue;
+            }
+
+            g.node(shifted_b, bd.dimension())?;
+
+            // Now add the products hitting this bidegree
+            for (name, prod) in products.clone() {
+                let source_b = b - prod.b;
+                let shifted_source = source_b - min;
+
+                if !self.defined(source_b) {
                     continue;
                 }
-                let shifted_b = b - min;
 
-                let bd = self.page_data(b).get_max(r);
-                if bd.is_empty() {
+                let source_data = self.page_data(source_b).get_max(r);
+                if source_data.is_empty() {
                     continue;
                 }
 
-                g.node(shifted_b, bd.dimension())?;
-
-                // Now add the products hitting this bidegree
-                for (name, prod) in products.clone() {
-                    let source_b = b - prod.b;
-                    let shifted_source = source_b - min;
-
-                    if !self.defined(source_b) {
-                        continue;
-                    }
-
-                    let source_data = self.page_data(source_b).get_max(r);
-                    if source_data.is_empty() {
-                        continue;
-                    }
-
-                    // For unstable charts this is None in low degrees.
-                    if let Some(matrix) = &prod.matrices[source_b.x()][source_b.y()] {
-                        let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
-                        g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
-                    }
+                // For unstable charts this is None in low degrees.
+                if let Some(matrix) = &prod.matrices[source_b.x()][source_b.y()] {
+                    let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
+                    g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
                 }
+            }
 
-                // Finally add the differentials
-                if differentials {
-                    let target_b = P::profile(r, b);
-                    let shifted_target = target_b - min;
+            // Finally add the differentials
+            if differentials {
+                let target_b = P::profile(r, b);
+                let shifted_target = target_b - min;
 
-                    if target_b.x() < 0 {
-                        continue;
-                    }
-                    let d = self.differentials(b);
-                    if d.len() <= r {
-                        continue;
-                    }
-                    let d = &d[r];
-                    let target_data = self.page_data(target_b).get_max(r);
+                if target_b.x() < 0 {
+                    continue;
+                }
+                let d = self.differentials(b);
+                if d.len() <= r {
+                    continue;
+                }
+                let d = &d[r];
+                let target_data = self.page_data(target_b).get_max(r);
 
-                    let pairs = d
-                        .get_source_target_pairs()
-                        .into_iter()
-                        .map(|(mut s, mut t)| {
-                            (
-                                bd.reduce(s.as_slice_mut()),
-                                target_data.reduce(t.as_slice_mut()),
-                            )
-                        });
+                let pairs = d
+                    .get_source_target_pairs()
+                    .into_iter()
+                    .map(|(mut s, mut t)| {
+                        (
+                            bd.reduce(s.as_slice_mut()),
+                            target_data.reduce(t.as_slice_mut()),
+                        )
+                    });
 
-                    for (source, target) in pairs {
-                        for (i, v) in source.into_iter().enumerate() {
+                for (source, target) in pairs {
+                    for (i, v) in source.into_iter().enumerate() {
+                        if v == 0 {
+                            continue;
+                        }
+                        for (j, &v) in target.iter().enumerate() {
                             if v == 0 {
                                 continue;
                             }
-                            for (j, &v) in target.iter().enumerate() {
-                                if v == 0 {
-                                    continue;
-                                }
-                                g.structline(
-                                    BidegreeGenerator::new(shifted_b, i),
-                                    BidegreeGenerator::new(shifted_target, j),
-                                    Some(&format!("d{r}")),
-                                )?;
-                            }
+                            g.structline(
+                                BidegreeGenerator::new(shifted_b, i),
+                                BidegreeGenerator::new(shifted_target, j),
+                                Some(&format!("d{r}")),
+                            )?;
                         }
                     }
                 }
