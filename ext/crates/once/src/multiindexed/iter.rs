@@ -323,3 +323,36 @@ impl<const K: usize, V> MultiIndexed<K, V> {
         KdIterator::new(K, root, [0; K])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_iter_mut_no_aliasing() {
+        let mut arr = MultiIndexed::<3, i32>::new();
+        arr.insert([0, 0, 0], 10);
+        arr.insert([0, 0, 1], 20);
+        arr.insert([0, 1, 0], 30);
+        arr.insert([1, 0, 0], 40);
+
+        let mut it = arr.iter_mut();
+        let (_, a) = it.next().unwrap();
+        let (_, b) = it.next().unwrap();
+        let (_, c) = it.next().unwrap();
+        let (_, d) = it.next().unwrap();
+
+        // Miri detects borrow-model violations if any of the references alias, even before the
+        // writes below.
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        assert_eq!(arr.get([0, 0, 0]), Some(&11));
+        assert_eq!(arr.get([0, 0, 1]), Some(&22));
+        assert_eq!(arr.get([0, 1, 0]), Some(&33));
+        assert_eq!(arr.get([1, 0, 0]), Some(&44));
+    }
+}
