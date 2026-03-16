@@ -1,82 +1,285 @@
-use std::ops::Range;
+use std::{marker::PhantomData, ops::Range};
 
 use super::{KdTrie, node::Node};
 use crate::MultiIndexed;
 
-/// A single frame in the iteration stack, representing the current state of traversal.
-struct IterFrame<'a, V> {
-    /// The current depth in the multi-indexed structure
-    /// (0 for the root, 1 for the first level, etc.)
+// --- Iterator ---
+
+/// A stack frame in the depth-first traversal of a [`KdTrie`].
+///
+/// Each frame records the current node, its depth in the trie (i.e. which coordinate dimension it
+/// indexes), and the remaining range of indices to visit at this node.
+struct IterFrame<R> {
     depth: usize,
-
-    /// The current node being processed
-    current_node: &'a Node<V>,
-
-    /// The range of indices left to iterate over in the current node
+    current_node: R,
     range: Range<i32>,
 }
 
-impl<'a, V> IterFrame<'a, V> {
-    /// Creates the initial iteration frame.
-    fn new(dimensions: usize, root: &'a Node<V>) -> Self {
-        // Safety: This function is only called by KdIterator::new, which is only called by the iter
-        // methods of KdTrie and MultiIndexed. Therefore, by definition, the number of dimensions
-        // can be trusted. There can not be any other caller because of the pub(self) visibility.
-        let root_range = if dimensions == 1 {
-            unsafe { root.leaf() }.range()
-        } else {
-            unsafe { root.inner() }.range()
-        };
-
-        Self {
-            depth: 0,
-            current_node: root,
-            range: root_range,
-        }
-    }
-}
-
-/// Trait for managing coordinates during iteration
-trait Coordinates {
-    fn set_coord(&mut self, depth: usize, value: i32);
-    fn truncate_to(&mut self, depth: usize);
-    fn get(&self) -> Self;
-}
-
-/// Iterator implementation for multi-dimensional structures
+/// A depth-first iterator over a [`KdTrie`], generic over:
 ///
-/// This abstracts over both dynamic and fixed-size coordinates, which allows us to iterate over
-/// `KdTrie`s with vector coordinates and `MultiIndexed`s with fixed-size arrays. It's important to
-/// allow fixed-size arrays to be used as coordinates, as they are `Copy` and can avoid the
-/// expensive `clone`s. Empirically, this gives a 3x speedup.
-struct KdIterator<'a, V, C> {
+/// - `R: NodeRef` — the node handle type, either shared (`&Node<V>`) or exclusive
+///   (`NodePtrMut<'_, V>`), determining whether values are yielded as `&V` or `&mut V`.
+/// - `C: Coordinates` — the coordinate accumulator, either `[i32; K]` (fixed-size, for
+///   [`MultiIndexed`]) or `Vec<i32>` (dynamic, for [`KdTrie`]).
+///
+/// The iterator walks the trie in lexicographic order of coordinates, yielding `(C, R::Value)` for
+/// each stored entry.
+struct KdIterator<R, C> {
     dimensions: usize,
-    stack: Vec<IterFrame<'a, V>>,
+    stack: Vec<IterFrame<R>>,
     coordinates: C,
 }
 
-impl<'a, V, C> KdIterator<'a, V, C> {
-    fn new(dimensions: usize, root: &'a Node<V>, coordinates: C) -> Self {
+impl<R: NodeRef, C> KdIterator<R, C> {
+    fn new(dimensions: usize, root: R, coordinates: C) -> Self {
+        let root_range = unsafe { root.range(dimensions == 1) };
         Self {
             dimensions,
-            stack: vec![IterFrame::new(dimensions, root)],
+            stack: vec![IterFrame {
+                depth: 0,
+                current_node: root,
+                range: root_range,
+            }],
             coordinates,
         }
     }
 }
+
+impl<R: NodeRef, C: Coordinates> Iterator for KdIterator<R, C> {
+    type Item = (C, R::Value);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(IterFrame {
+            depth,
+            current_node,
+            mut range,
+        }) = self.stack.pop()
+        {
+            self.coordinates.truncate_to(depth);
+
+            // Find the next index in the current range that has a value
+            while let Some(idx) = range.next() {
+                if depth == self.dimensions - 1 {
+                    // This is a leaf node, check if there's a value at this index
+                    if let Some(value) = unsafe { current_node.value(idx) } {
+                        // Push back the remaining range for this node
+                        if !range.is_empty() {
+                            self.stack.push(IterFrame {
+                                depth,
+                                current_node,
+                                range,
+                            });
+                        }
+
+                        self.coordinates.set_coord(depth, idx);
+                        return Some((self.coordinates.get(), value));
+                    }
+                } else if let Some(child_node) = unsafe { current_node.child(idx) } {
+                    // This is an inner node, check if there's a child at this index
+
+                    // Push back the remaining range for this node
+                    if !range.is_empty() {
+                        self.stack.push(IterFrame {
+                            depth,
+                            current_node,
+                            range,
+                        });
+                    }
+
+                    // Add the current index to coordinates and push the child
+                    self.coordinates.set_coord(depth, idx);
+                    let child_range = unsafe { child_node.range(depth + 1 == self.dimensions - 1) };
+                    self.stack.push(IterFrame {
+                        depth: depth + 1,
+                        current_node: child_node,
+                        range: child_range,
+                    });
+
+                    // Go to the next iteration of the outer loop, which will process the child
+                    break;
+                }
+            }
+        }
+
+        None
+    }
+}
+
+// --- NodeRef ---
+
+/// Abstraction over shared (`&Node<V>`) and exclusive (`*mut Node<V>`) node access.
+///
+/// This trait allows [`KdIterator`] to be generic over the borrowing mode, so a single iterator
+/// implementation drives both `iter` (shared) and `iter_mut` (exclusive).
+///
+/// # Safety
+///
+/// Implementations must ensure that:
+/// - `range`, `child`, and `value` uphold the safety preconditions of the underlying [`Node`]
+///   methods (i.e. leaf methods are only called on leaf nodes, and inner methods on inner nodes).
+/// - For mutable implementations, the returned value references do not alias.
+unsafe trait NodeRef: Copy {
+    type Value;
+
+    /// Returns the range of indices for this node.
+    ///
+    /// # Safety
+    ///
+    /// `is_leaf` must correctly indicate whether this is a leaf node.
+    unsafe fn range(self, is_leaf: bool) -> Range<i32>;
+
+    /// Returns a handle to the child node at `idx`, or `None` if no child exists.
+    ///
+    /// # Safety
+    ///
+    /// Must only be called on inner nodes.
+    unsafe fn child(self, idx: i32) -> Option<Self>;
+
+    /// Returns a reference to the value at `idx`, or `None` if the slot is empty.
+    ///
+    /// # Safety
+    ///
+    /// Must only be called on leaf nodes.
+    unsafe fn value(self, idx: i32) -> Option<Self::Value>;
+}
+
+/// Shared node reference. Yields `&V` values.
+unsafe impl<'a, V> NodeRef for &'a Node<V> {
+    type Value = &'a V;
+
+    unsafe fn range(self, is_leaf: bool) -> Range<i32> {
+        if is_leaf {
+            unsafe { self.leaf() }.range()
+        } else {
+            unsafe { self.inner() }.range()
+        }
+    }
+
+    unsafe fn child(self, idx: i32) -> Option<Self> {
+        unsafe { self.inner().get(idx) }
+    }
+
+    unsafe fn value(self, idx: i32) -> Option<Self::Value> {
+        unsafe { self.leaf().get(idx) }
+    }
+}
+
+/// A `Copy` wrapper around `*mut Node<V>` that serves as the exclusive counterpart to
+/// `&Node<V>` in the [`NodeRef`] trait.
+///
+/// The phantom lifetime `'a` ties the yielded `&'a mut V` references back to the original
+/// `&'a mut MultiIndexed` (or `&'a mut KdTrie`), ensuring soundness.
+///
+/// This is safe to use because:
+/// - It is only constructed from `&mut MultiIndexed` / `&mut KdTrie`, guaranteeing exclusive access
+///   to the entire tree.
+/// - The tree structure ensures that nodes at different positions are disjoint in memory.
+/// - The iterator yields each value at most once.
+struct NodePtrMut<'a, V>(*mut Node<V>, PhantomData<&'a mut V>);
+
+impl<V> Copy for NodePtrMut<'_, V> {}
+
+impl<V> Clone for NodePtrMut<'_, V> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// Exclusive node reference. Yields `&mut V` values.
+unsafe impl<'a, V> NodeRef for NodePtrMut<'a, V> {
+    type Value = &'a mut V;
+
+    unsafe fn range(self, is_leaf: bool) -> Range<i32> {
+        if is_leaf {
+            unsafe { (*self.0).leaf() }.range()
+        } else {
+            unsafe { (*self.0).inner() }.range()
+        }
+    }
+
+    unsafe fn child(self, idx: i32) -> Option<Self> {
+        let child = unsafe { (*self.0).get_child_mut(idx) }?;
+        Some(Self(child as *mut Node<V>, PhantomData))
+    }
+
+    unsafe fn value(self, idx: i32) -> Option<Self::Value> {
+        unsafe { (*self.0).get_value_mut(idx) }
+    }
+}
+
+// --- Coordinates ---
+
+/// Trait for managing coordinates during iteration.
+///
+/// The iterator accumulates coordinates dimension-by-dimension as it descends. When it backtracks,
+/// it calls [`truncate_to`](Coordinates::truncate_to) to discard coordinates from deeper
+/// dimensions. When it yields an entry, it calls [`get`](Coordinates::get) to snapshot the current
+/// coordinates.
+trait Coordinates {
+    /// Sets the coordinate at the given `depth` (dimension index) to `value`.
+    fn set_coord(&mut self, depth: usize, value: i32);
+
+    /// Discards any coordinate data beyond `depth`, preparing for backtracking.
+    fn truncate_to(&mut self, depth: usize);
+
+    /// Returns a snapshot of the current coordinates.
+    fn get(&self) -> Self;
+}
+
+/// Fixed-size coordinate accumulator for [`MultiIndexed`].
+///
+/// `truncate_to` is a no-op since all dimensions are always present in the array; stale values at
+/// deeper indices are simply overwritten by `set_coord` before they are ever read.
+impl<const K: usize> Coordinates for [i32; K] {
+    fn set_coord(&mut self, depth: usize, value: i32) {
+        self[depth] = value;
+    }
+
+    fn truncate_to(&mut self, _depth: usize) {}
+
+    fn get(&self) -> Self {
+        *self
+    }
+}
+
+/// Dynamic coordinate accumulator for [`KdTrie`].
+///
+/// `set_coord` pushes a new coordinate (asserting that `depth == len`, i.e. coordinates are always
+/// built in order), and `truncate_to` pops coordinates back to the given depth.
+impl Coordinates for Vec<i32> {
+    fn set_coord(&mut self, depth: usize, value: i32) {
+        assert_eq!(self.len(), depth);
+        self.push(value);
+    }
+
+    fn truncate_to(&mut self, depth: usize) {
+        self.truncate(depth);
+    }
+
+    fn get(&self) -> Self {
+        self.clone()
+    }
+}
+
+// --- Public API ---
 
 impl<V> KdTrie<V> {
     pub fn iter(&self) -> impl Iterator<Item = (Vec<i32>, &V)> + '_ {
         let dimensions = self.dimensions();
         KdIterator::new(dimensions, self.root(), Vec::with_capacity(dimensions))
     }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Vec<i32>, &mut V)> + '_ {
+        let dimensions = self.dimensions();
+        let root = NodePtrMut(self.root_mut() as *mut Node<V>, PhantomData);
+        KdIterator::new(dimensions, root, Vec::with_capacity(dimensions))
+    }
 }
 
 impl<const K: usize, V> MultiIndexed<K, V> {
     /// Returns an iterator over all coordinate-value pairs in the array.
     ///
-    /// The iterator yields tuples of `([i32; K], &V)` where the first element is the coordinate
-    /// array and the second is a reference to the value.
+    /// The iterator yields `([i32; K], &V)` tuples in lexicographic order of coordinates.
     ///
     /// # Examples
     ///
@@ -94,100 +297,62 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     pub fn iter(&self) -> impl Iterator<Item = ([i32; K], &V)> {
         KdIterator::new(K, self.0.root(), [0; K])
     }
-}
 
-impl<'a, V, C: Coordinates> Iterator for KdIterator<'a, V, C> {
-    type Item = (C, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(IterFrame {
-            depth,
-            current_node,
-            mut range,
-        }) = self.stack.pop()
-        {
-            self.coordinates.truncate_to(depth);
-
-            // Find the next index in the current range that has a value
-            while let Some(idx) = range.next() {
-                if depth == self.dimensions - 1 {
-                    // This is a leaf node, check if there's a value at this index
-                    let current_leaf = unsafe { current_node.leaf() };
-                    if let Some(value) = current_leaf.get(idx) {
-                        // Push back the remaining range for this node
-                        if !range.is_empty() {
-                            self.stack.push(IterFrame {
-                                depth,
-                                current_node,
-                                range,
-                            });
-                        }
-
-                        self.coordinates.set_coord(depth, idx);
-                        return Some((self.coordinates.get(), value));
-                    }
-                } else {
-                    // This is an inner node, check if there's a child at this index
-                    let current_inner = unsafe { current_node.inner() };
-                    if let Some(child_node) = current_inner.get(idx) {
-                        // Push back the remaining range for this node
-                        if !range.is_empty() {
-                            self.stack.push(IterFrame {
-                                depth,
-                                current_node,
-                                range,
-                            });
-                        }
-
-                        // Add the current index to coordinates and push the child
-                        self.coordinates.set_coord(depth, idx);
-                        let child_range = if depth + 1 == self.dimensions - 1 {
-                            unsafe { child_node.leaf() }.range()
-                        } else {
-                            unsafe { child_node.inner() }.range()
-                        };
-                        self.stack.push(IterFrame {
-                            depth: depth + 1,
-                            current_node: child_node,
-                            range: child_range,
-                        });
-
-                        // Go to the next iteration of the outer loop, which will process the child
-                        break;
-                    }
-                }
-            }
-        }
-
-        None
+    /// Returns a mutable iterator over all coordinate-value pairs in the array.
+    ///
+    /// The iterator yields `([i32; K], &mut V)` tuples in lexicographic order of coordinates.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::MultiIndexed;
+    ///
+    /// let mut array = MultiIndexed::<2, i32>::new();
+    /// array.insert([1, 2], 10);
+    /// array.insert([3, 4], 20);
+    ///
+    /// for (_, v) in array.iter_mut() {
+    ///     *v *= 2;
+    /// }
+    ///
+    /// assert_eq!(array.get([1, 2]), Some(&20));
+    /// assert_eq!(array.get([3, 4]), Some(&40));
+    /// ```
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = ([i32; K], &mut V)> {
+        let root = NodePtrMut(self.0.root_mut() as *mut Node<V>, PhantomData);
+        KdIterator::new(K, root, [0; K])
     }
 }
 
-impl<const K: usize> Coordinates for [i32; K] {
-    fn set_coord(&mut self, depth: usize, value: i32) {
-        self[depth] = value;
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    fn truncate_to(&mut self, _depth: usize) {
-        // Array doesn't need truncation
-    }
+    #[test]
+    fn test_iter_mut_no_aliasing() {
+        let mut arr = MultiIndexed::<3, i32>::new();
+        arr.insert([0, 0, 0], 10);
+        arr.insert([0, 0, 1], 20);
+        arr.insert([0, 1, 0], 30);
+        arr.insert([1, 0, 0], 40);
 
-    fn get(&self) -> Self {
-        *self
-    }
-}
+        let mut it = arr.iter_mut();
+        let (_, a) = it.next().unwrap();
+        let (_, b) = it.next().unwrap();
+        let (_, c) = it.next().unwrap();
+        let (_, d) = it.next().unwrap();
 
-impl Coordinates for Vec<i32> {
-    fn set_coord(&mut self, depth: usize, value: i32) {
-        assert_eq!(self.len(), depth);
-        self.push(value);
-    }
+        // Miri detects borrow-model violations if any of the references alias, even before the
+        // writes below.
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
 
-    fn truncate_to(&mut self, depth: usize) {
-        self.truncate(depth);
-    }
-
-    fn get(&self) -> Self {
-        self.clone()
+        assert_eq!(arr.get([0, 0, 0]), Some(&11));
+        assert_eq!(arr.get([0, 0, 1]), Some(&22));
+        assert_eq!(arr.get([0, 1, 0]), Some(&33));
+        assert_eq!(arr.get([1, 0, 0]), Some(&44));
     }
 }

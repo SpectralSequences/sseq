@@ -419,6 +419,44 @@ mod tests {
     }
 
     #[test]
+    fn test_iter_mut_empty() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        let items: Vec<_> = arr.iter_mut().collect();
+        assert_eq!(items, vec![]);
+    }
+
+    #[test]
+    fn test_iter_mut_basic() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+        arr.insert([-5, 6], 30);
+
+        // Mutate all values
+        for (_, v) in arr.iter_mut() {
+            *v *= 3;
+        }
+
+        assert_eq!(arr.get([1, 2]), Some(&30));
+        assert_eq!(arr.get([3, 4]), Some(&60));
+        assert_eq!(arr.get([-5, 6]), Some(&90));
+    }
+
+    #[test]
+    fn test_iter_and_iter_mut_agree() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, -4], 20);
+        arr.insert([-5, 6], 30);
+        arr.insert([0, 0], 40);
+
+        let immutable: Vec<_> = arr.iter().map(|(c, &v)| (c, v)).collect();
+        let mutable: Vec<_> = arr.iter_mut().map(|(c, &mut v)| (c, v)).collect();
+
+        assert_eq!(immutable, mutable);
+    }
+
+    #[test]
     fn test_requires_drop() {
         use std::{
             sync::{
@@ -649,6 +687,33 @@ mod tests {
             assert_eq!(tagged_coords, items);
         }
 
+        fn proptest_multiindexed_iter_mut_kd<const K: usize>(coords: Vec<[i32; K]>) {
+            let mut arr = MultiIndexed::<K, usize>::new();
+            let mut reference = HashMap::new();
+            for (i, coord) in coords.iter().enumerate() {
+                if arr.try_insert(*coord, i).is_ok() {
+                    reference.insert(*coord, i);
+                }
+            }
+
+            // Mutate via iter_mut: double every value
+            for (_, v) in arr.iter_mut() {
+                *v *= 2;
+            }
+
+            // Verify against reference
+            for (coord, expected) in &reference {
+                assert_eq!(arr.get(*coord), Some(&(expected * 2)));
+            }
+
+            // Verify iter_mut yields same coordinates as iter (after mutation)
+            let mut iter_items: Vec<_> = arr.iter().map(|(c, &v)| (c, v)).collect();
+            iter_items.sort();
+            let mut reference_items: Vec<_> = reference.iter().map(|(c, v)| (*c, v * 2)).collect();
+            reference_items.sort();
+            assert_eq!(iter_items, reference_items);
+        }
+
         const MAX_LEN: usize = 10_000;
 
         proptest! {
@@ -670,6 +735,16 @@ mod tests {
             #[test]
             fn proptest_multiindexed_iter_3d(coords in coords_vec_strategy::<3>(MAX_LEN)) {
                 proptest_multiindexed_iter_kd::<3>(coords);
+            }
+
+            #[test]
+            fn proptest_multiindexed_iter_mut_2d(coords in coords_vec_strategy::<2>(MAX_LEN)) {
+                proptest_multiindexed_iter_mut_kd::<2>(coords);
+            }
+
+            #[test]
+            fn proptest_multiindexed_iter_mut_3d(coords in coords_vec_strategy::<3>(MAX_LEN)) {
+                proptest_multiindexed_iter_mut_kd::<3>(coords);
             }
         }
     }

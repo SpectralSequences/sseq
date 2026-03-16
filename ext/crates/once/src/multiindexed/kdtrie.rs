@@ -211,6 +211,10 @@ impl<V> KdTrie<V> {
     pub(super) fn root(&self) -> &Node<V> {
         &self.root
     }
+
+    pub(super) fn root_mut(&mut self) -> &mut Node<V> {
+        &mut self.root
+    }
 }
 
 impl<V> Drop for KdTrie<V> {

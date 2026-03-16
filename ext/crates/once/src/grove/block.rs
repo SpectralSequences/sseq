@@ -145,13 +145,15 @@ impl<T> Block<T> {
     /// This method is safe to call even if the block is uninitialized.
     pub(super) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         let len = self.len.get_by_mut();
-        if len == 0 {
+        if index >= len {
             return None;
         }
         let data_ptr = self.data.get_by_mut();
-        // Safety: we just observed the length to be nonzero, so the pointer is not null
-        let data = unsafe { std::slice::from_raw_parts_mut(data_ptr, len) };
-        data.get_mut(index).and_then(|w| w.get_mut())
+        // Safety: index < len, so the pointer is in bounds. We reference a single element
+        // rather than creating a slice over the entire block, so that the resulting `&mut`
+        // does not alias other elements in the same allocation.
+        let elem = unsafe { &mut *data_ptr.add(index) };
+        elem.get_mut()
     }
 
     /// Return the value at the given index.
