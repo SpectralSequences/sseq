@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["assert_unchecked","black_box","cold_path","likely","must_use","select_unpredictable","spin_loop","unlikely","unreachable_unchecked"]};
+window.SIDEBAR_ITEMS = {"enum":["Locality"],"fn":["assert_unchecked","black_box","cold_path","likely","must_use","prefetch_read","prefetch_read_instruction","prefetch_read_non_temporal","prefetch_write","prefetch_write_non_temporal","select_unpredictable","spin_loop","unlikely","unreachable_unchecked"]};

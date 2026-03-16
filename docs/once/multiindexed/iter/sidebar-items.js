@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["IterFrame","KdIterator"],"trait":["Coordinates"]};
+window.SIDEBAR_ITEMS = {"struct":["IterFrame","KdIterator","NodePtrMut"],"trait":["Coordinates","NodeRef"]};

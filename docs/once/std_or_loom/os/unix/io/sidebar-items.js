@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BorrowedFd","OwnedFd"],"trait":["AsFd","AsRawFd","FromRawFd","IntoRawFd"],"type":["RawFd"]};
+window.SIDEBAR_ITEMS = {"struct":["BorrowedFd","OwnedFd"],"trait":["AsFd","AsRawFd","FromRawFd","IntoRawFd","StdioExt"],"type":["RawFd"]};

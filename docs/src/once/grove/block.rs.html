@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/once/src/grove/block.rs`."><title>block.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.1 (01f6ddf75 2026-02-11)" data-channel="1.93.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/once/src/grove/block.rs`."><title>block.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0 (4a4ef493e 2026-03-02)" data-channel="1.94.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -25,7 +25,7 @@
 
 </head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">once/grove/</div>block.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{mem::ManuallyDrop, num::NonZero, sync::atomic::Ordering};
 <a href=#2 id=2 data-nosnippet>2</a>
-<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use crate</span>::{
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>crate::{
 <a href=#4 id=4 data-nosnippet>4</a>    std_or_loom::{
 <a href=#5 id=5 data-nosnippet>5</a>        GetMut,
 <a href=#6 id=6 data-nosnippet>6</a>        sync::atomic::{AtomicPtr, AtomicUsize},
@@ -170,40 +170,42 @@
 <a href=#145 id=145 data-nosnippet>145</a>    /// This method is safe to call even if the block is uninitialized.
 <a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;mut </span>T&gt; {
 <a href=#147 id=147 data-nosnippet>147</a>        <span class="kw">let </span>len = <span class="self">self</span>.len.get_by_mut();
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">if </span>len == <span class="number">0 </span>{
+<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">if </span>index &gt;= len {
 <a href=#149 id=149 data-nosnippet>149</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#150 id=150 data-nosnippet>150</a>        }
 <a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>data_ptr = <span class="self">self</span>.data.get_by_mut();
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="comment">// Safety: we just observed the length to be nonzero, so the pointer is not null
-<a href=#153 id=153 data-nosnippet>153</a>        </span><span class="kw">let </span>data = <span class="kw">unsafe </span>{ std::slice::from_raw_parts_mut(data_ptr, len) };
-<a href=#154 id=154 data-nosnippet>154</a>        data.get_mut(index).and_then(|w| w.get_mut())
-<a href=#155 id=155 data-nosnippet>155</a>    }
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// Return the value at the given index.
-<a href=#158 id=158 data-nosnippet>158</a>    ///
-<a href=#159 id=159 data-nosnippet>159</a>    /// # Safety
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="comment">// Safety: index &lt; len, so the pointer is in bounds. We reference a single element
+<a href=#153 id=153 data-nosnippet>153</a>        // rather than creating a slice over the entire block, so that the resulting `&amp;mut`
+<a href=#154 id=154 data-nosnippet>154</a>        // does not alias other elements in the same allocation.
+<a href=#155 id=155 data-nosnippet>155</a>        </span><span class="kw">let </span>elem = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>data_ptr.add(index) };
+<a href=#156 id=156 data-nosnippet>156</a>        elem.get_mut()
+<a href=#157 id=157 data-nosnippet>157</a>    }
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// Return the value at the given index.
 <a href=#160 id=160 data-nosnippet>160</a>    ///
-<a href=#161 id=161 data-nosnippet>161</a>    /// The block must be initialized.
-<a href=#162 id=162 data-nosnippet>162</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>is_set(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; bool {
-<a href=#163 id=163 data-nosnippet>163</a>        <span class="comment">// We can use Relaxed operations here because the initialization of the block has a
-<a href=#164 id=164 data-nosnippet>164</a>        // happens-before relationship with this operation, by assumption.
-<a href=#165 id=165 data-nosnippet>165</a>        </span><span class="kw">let </span>data_ptr = <span class="self">self</span>.data.load(Ordering::Acquire);
-<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>len = <span class="self">self</span>.len.load(Ordering::Relaxed);
-<a href=#167 id=167 data-nosnippet>167</a>        <span class="comment">// Safety: the block has been initialized
-<a href=#168 id=168 data-nosnippet>168</a>        </span><span class="kw">let </span>data = <span class="kw">unsafe </span>{ std::slice::from_raw_parts(data_ptr, len) };
-<a href=#169 id=169 data-nosnippet>169</a>        data.get(index).is_some_and(|w| w.is_set())
-<a href=#170 id=170 data-nosnippet>170</a>    }
-<a href=#171 id=171 data-nosnippet>171</a>}
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a><span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>Block&lt;T&gt; {
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">let </span>len = <span class="self">self</span>.len.get_by_mut();
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>data_ptr = <span class="self">self</span>.data.get_by_mut();
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">if </span>!data_ptr.is_null() {
-<a href=#178 id=178 data-nosnippet>178</a>            <span class="comment">// Safety: initialization stores a pointer that came from exactly such a vector
-<a href=#179 id=179 data-nosnippet>179</a>            </span><span class="kw">unsafe </span>{ Vec::from_raw_parts(data_ptr, len, len) };
-<a href=#180 id=180 data-nosnippet>180</a>            <span class="comment">// vector is dropped here
-<a href=#181 id=181 data-nosnippet>181</a>        </span>}
-<a href=#182 id=182 data-nosnippet>182</a>    }
-<a href=#183 id=183 data-nosnippet>183</a>}
+<a href=#161 id=161 data-nosnippet>161</a>    /// # Safety
+<a href=#162 id=162 data-nosnippet>162</a>    ///
+<a href=#163 id=163 data-nosnippet>163</a>    /// The block must be initialized.
+<a href=#164 id=164 data-nosnippet>164</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>is_set(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; bool {
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="comment">// We can use Relaxed operations here because the initialization of the block has a
+<a href=#166 id=166 data-nosnippet>166</a>        // happens-before relationship with this operation, by assumption.
+<a href=#167 id=167 data-nosnippet>167</a>        </span><span class="kw">let </span>data_ptr = <span class="self">self</span>.data.load(Ordering::Acquire);
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>len = <span class="self">self</span>.len.load(Ordering::Relaxed);
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="comment">// Safety: the block has been initialized
+<a href=#170 id=170 data-nosnippet>170</a>        </span><span class="kw">let </span>data = <span class="kw">unsafe </span>{ std::slice::from_raw_parts(data_ptr, len) };
+<a href=#171 id=171 data-nosnippet>171</a>        data.get(index).is_some_and(|w| w.is_set())
+<a href=#172 id=172 data-nosnippet>172</a>    }
+<a href=#173 id=173 data-nosnippet>173</a>}
+<a href=#174 id=174 data-nosnippet>174</a>
+<a href=#175 id=175 data-nosnippet>175</a><span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>Block&lt;T&gt; {
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>len = <span class="self">self</span>.len.get_by_mut();
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>data_ptr = <span class="self">self</span>.data.get_by_mut();
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">if </span>!data_ptr.is_null() {
+<a href=#180 id=180 data-nosnippet>180</a>            <span class="comment">// Safety: initialization stores a pointer that came from exactly such a vector
+<a href=#181 id=181 data-nosnippet>181</a>            </span><span class="kw">unsafe </span>{ Vec::from_raw_parts(data_ptr, len, len) };
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="comment">// vector is dropped here
+<a href=#183 id=183 data-nosnippet>183</a>        </span>}
+<a href=#184 id=184 data-nosnippet>184</a>    }
+<a href=#185 id=185 data-nosnippet>185</a>}
 </code></pre></div></section></main></body></html>
