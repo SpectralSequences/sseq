@@ -259,13 +259,19 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// array.insert([1, 2], 43); // Panics
     /// ```
     pub fn insert(&self, coords: [i32; K], value: V) {
-        self.trie.insert(&coords, value);
+        // We update the bounds before inserting. The invariant we preserve is the property that
+        // every value lives within bounds, but we're ok if the bounds are not as tight as they
+        // could be.
         self.update_bounds(&coords);
+        self.trie.insert(&coords, value);
     }
 
     pub fn try_insert(&self, coords: [i32; K], value: V) -> Result<(), V> {
-        self.trie.try_insert(&coords, value)?;
+        // We update the bounds before inserting. The invariant we preserve is the property that
+        // every value lives within bounds, but we're ok if the bounds are not as tight as they
+        // could be.
         self.update_bounds(&coords);
+        self.trie.try_insert(&coords, value)?;
         Ok(())
     }
 
@@ -278,7 +284,11 @@ impl<const K: usize, V> MultiIndexed<K, V> {
 
     /// Returns `true` if no values have been inserted.
     pub fn is_empty(&self) -> bool {
-        self.min_coords[0].load(Ordering::Acquire) > self.max_coords[0].load(Ordering::Acquire)
+        // We check the last coordinate because it is the one that is written to last when we
+        // insert. Observing a consistent last coordinate means that all coordinates are consistent,
+        // and calling `min_coords` or `max_coords` will not return nonsense.
+        self.min_coords[K - 1].load(Ordering::Acquire)
+            > self.max_coords[K - 1].load(Ordering::Acquire)
     }
 
     /// Returns the per-dimension minimum coordinates, or `None` if empty.
