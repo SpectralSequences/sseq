@@ -930,5 +930,102 @@ mod tests {
                 assert_eq!(arr.get([0, 0, 0]), None);
             });
         }
+
+        /// Asserts that the bounding box invariants hold:
+        /// 1. If `!is_empty()`, bounds are consistent (min <= max per dimension).
+        /// 2. Every retrievable entry fits within the bounding box.
+        ///
+        /// The trie must be read *before* the bounds, because the happens-before chain is:
+        /// `update_bounds(Release) → trie.insert(Release) → trie.get(Acquire) → read bounds`.
+        /// Reading bounds after an Acquire on the trie ensures we see the bounds update that
+        /// preceded the insert.
+        fn assert_bounds_invariants(arr: &MultiIndexed<2, i32>, coords: &[[i32; 2]]) {
+            // Snapshot which entries are currently retrievable. The Acquire loads inside
+            // `get` establish happens-before with the corresponding inserts, which in turn
+            // happen-after their bounds updates.
+            let present: Vec<[i32; 2]> = coords
+                .iter()
+                .copied()
+                .filter(|c| arr.get(*c).is_some())
+                .collect();
+
+            if arr.is_empty() {
+                return;
+            }
+            let min = arr.min_coords().unwrap();
+            let max = arr.max_coords().unwrap();
+            for i in 0..2 {
+                assert!(
+                    min[i] <= max[i],
+                    "min[{i}] = {} > max[{i}] = {}",
+                    min[i],
+                    max[i]
+                );
+            }
+            for c in &present {
+                for i in 0..2 {
+                    assert!(
+                        min[i] <= c[i] && c[i] <= max[i],
+                        "entry {c:?} outside bounding box [{min:?}, {max:?}]",
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn loom_bounds_concurrent_inserts() {
+            loom::model(|| {
+                let arr = Arc::new(MultiIndexed::<2, i32>::new());
+                let coords = [[3, -1], [-2, 4]];
+
+                let arr1 = Arc::clone(&arr);
+                let t1 = thread::spawn(move || {
+                    arr1.insert(coords[0], 10);
+                });
+
+                let arr2 = Arc::clone(&arr);
+                let t2 = thread::spawn(move || {
+                    arr2.insert(coords[1], 20);
+                });
+
+                let arr3 = Arc::clone(&arr);
+                let t3 = thread::spawn(move || {
+                    assert_bounds_invariants(&arr3, &coords);
+                });
+
+                t1.join().unwrap();
+                t2.join().unwrap();
+                t3.join().unwrap();
+
+                assert_bounds_invariants(&arr, &coords);
+                assert_eq!(arr.min_coords(), Some([-2, -1]));
+                assert_eq!(arr.max_coords(), Some([3, 4]));
+            });
+        }
+
+        #[test]
+        fn loom_bounds_single_element() {
+            loom::model(|| {
+                let arr = Arc::new(MultiIndexed::<2, i32>::new());
+                let coords = [[5, -3]];
+
+                let arr1 = Arc::clone(&arr);
+                let t1 = thread::spawn(move || {
+                    arr1.insert(coords[0], 10);
+                });
+
+                let arr2 = Arc::clone(&arr);
+                let t2 = thread::spawn(move || {
+                    assert_bounds_invariants(&arr2, &coords);
+                });
+
+                t1.join().unwrap();
+                t2.join().unwrap();
+
+                assert_bounds_invariants(&arr, &coords);
+                assert_eq!(arr.min_coords(), Some([5, -3]));
+                assert_eq!(arr.max_coords(), Some([5, -3]));
+            });
+        }
     }
 }
