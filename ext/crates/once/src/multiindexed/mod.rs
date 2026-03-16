@@ -1,12 +1,10 @@
-use std::{
-    ops::{Index, IndexMut},
-    sync::atomic::{AtomicI32, Ordering},
-};
+use std::ops::{Index, IndexMut};
 
 pub use self::{
     iter::{Iter, IterMut},
     kdtrie::KdTrie,
 };
+use crate::std_or_loom::sync::atomic::{AtomicI32, Ordering};
 
 mod iter;
 pub mod kdtrie;
