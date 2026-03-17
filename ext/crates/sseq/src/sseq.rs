@@ -6,9 +6,9 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpVector},
 };
-use once::MultiIndexed;
 
 use crate::{
+    Bigraded,
     coordinates::{Bidegree, BidegreeElement, BidegreeGenerator},
     differential::Differential,
 };
@@ -43,7 +43,7 @@ pub struct Product {
     pub b: Bidegree,
     /// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
     pub left: bool,
-    pub matrices: MultiIndexed<2, Matrix>,
+    pub matrices: Bigraded<Matrix>,
 }
 
 struct BidegreeData {
@@ -78,7 +78,7 @@ pub struct Sseq<P: SseqProfile = Adams> {
     /// # Invariants:
     /// - if `data[b].differentials[r]` is defined, then `data[b].page_data[r + 1]` and
     ///   `data[target].page_data[r + 1]` are always defined,
-    data: MultiIndexed<2, BidegreeData>,
+    data: Bigraded<BidegreeData>,
 
     // `P` is itself a marker, so it's safe to claim that we own one. As opposed to
     // `PhantomData<*const P>`, this lets us implement `Send` and `Sync`.
@@ -86,50 +86,36 @@ pub struct Sseq<P: SseqProfile = Adams> {
 }
 
 impl<P: SseqProfile> Sseq<P> {
-    fn bd(&self, b: Bidegree) -> &BidegreeData {
-        self.data.get([b.x(), b.y()]).unwrap()
-    }
-
-    fn bd_mut(&mut self, b: Bidegree) -> &mut BidegreeData {
-        self.data.get_mut([b.x(), b.y()]).unwrap()
-    }
-
     pub fn new(p: ValidPrime, _min: Bidegree) -> Self {
         Self {
             p,
-            data: MultiIndexed::new(),
+            data: Bigraded::new(),
             profile: PhantomData,
         }
     }
 
     pub fn min(&self) -> Bidegree {
-        let Some(min) = self.data.min_coords() else {
-            return Bidegree::zero();
-        };
-        Bidegree::x_y(min[0], min[1])
+        self.data.min().unwrap_or(Bidegree::zero())
     }
 
     pub fn max(&self) -> Bidegree {
-        let Some(max) = self.data.max_coords() else {
-            return Bidegree::zero();
-        };
-        Bidegree::x_y(max[0], max[1])
+        self.data.max().unwrap_or(Bidegree::zero())
     }
 
     pub fn defined(&self, b: Bidegree) -> bool {
-        self.data.get([b.x(), b.y()]).is_some()
+        self.data.get(b).is_some()
     }
 
     /// Iterate over all defined bidegrees (in sorted order).
     pub fn iter_bidegrees(&self) -> impl Iterator<Item = Bidegree> + '_ {
-        self.data.iter().map(|(c, _)| Bidegree::x_y(c[0], c[1]))
+        self.data.iter().map(|(b, _)| b)
     }
 
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
         let mut page_data = BiVec::new(P::MIN_R);
         page_data.push(Subquotient::new_full(self.p, dim));
         self.data.insert(
-            [b.x(), b.y()],
+            b,
             BidegreeData {
                 dimension: dim,
                 differentials: BiVec::new(P::MIN_R),
@@ -152,19 +138,19 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn dimension(&self, b: Bidegree) -> usize {
-        self.bd(b).dimension
+        self.data[b].dimension
     }
 
     /// The dimension in a bidegree, `None` if not yet defined.
     pub fn get_dimension(&self, b: Bidegree) -> Option<usize> {
-        Some(self.data.get([b.x(), b.y()])?.dimension)
+        Some(self.data.get(b)?.dimension)
     }
 
     /// # Returns
     ///
     /// Whether a new permanent class was added
     pub fn add_permanent_class(&mut self, elem: &BidegreeElement) -> bool {
-        let bd = self.bd_mut(elem.degree());
+        let bd = &mut self.data[elem.degree()];
         let old_dim = bd.permanent_classes.dimension();
         let new_dim = bd.permanent_classes.add_vector(elem.vec());
         if old_dim != new_dim {
@@ -177,25 +163,25 @@ impl<P: SseqProfile> Sseq<P> {
         old_dim != new_dim
     }
 
-    /// Ensure `self.bd(b).differentials[r]` is defined. Must call `extend_page_data` on the source
+    /// Ensure `self.data[b].differentials[r]` is defined. Must call `extend_page_data` on the source
     /// and target after this.
     fn extend_differential(&mut self, r: i32, b: Bidegree) {
         let source_dim = self.dimension(b);
-        while self.bd(b).differentials.len() <= r {
-            let r = self.bd(b).differentials.len();
+        while self.data[b].differentials.len() <= r {
+            let r = self.data[b].differentials.len();
             let target = P::profile(r, b);
             let mut differential = Differential::new(self.p, source_dim, self.dimension(target));
 
-            for class in self.bd(b).permanent_classes.basis() {
+            for class in self.data[b].permanent_classes.basis() {
                 differential.add(class, None);
             }
-            self.bd_mut(b).differentials.push(differential);
+            self.data[b].differentials.push(differential);
         }
     }
 
-    /// Ensure `self.bd(b).page_data[r]` is defined
+    /// Ensure `self.data[b].page_data[r]` is defined
     fn extend_page_data(&mut self, r: i32, b: Bidegree) {
-        let bd = self.bd_mut(b);
+        let bd = &mut self.data[b];
         while bd.page_data.len() <= r {
             bd.page_data.push(bd.page_data.last().unwrap().clone())
         }
@@ -215,22 +201,22 @@ impl<P: SseqProfile> Sseq<P> {
         self.extend_page_data(r + 1, target_b);
 
         for r in P::MIN_R..r {
-            self.bd_mut(source.degree()).differentials[r].add(source.vec(), None);
+            self.data[source.degree()].differentials[r].add(source.vec(), None);
             self.extend_page_data(r + 1, P::profile(r, source.degree()));
         }
-        let is_new = self.bd_mut(source.degree()).differentials[r].add(source.vec(), Some(target));
+        let is_new = self.data[source.degree()].differentials[r].add(source.vec(), Some(target));
         if is_new {
-            self.bd_mut(source.degree()).invalid = true;
+            self.data[source.degree()].invalid = true;
             if !target.is_zero() {
-                self.bd_mut(target_b).invalid = true;
+                self.data[target_b].invalid = true;
                 self.add_permanent_class(&BidegreeElement::new(target_b, target.to_owned()));
-                let target_page_len = self.bd(target_b).page_data.len();
+                let target_page_len = self.data[target_b].page_data.len();
                 for r in r + 1..target_page_len {
-                    self.bd_mut(target_b).page_data[r].quotient(target);
+                    self.data[target_b].page_data[r].quotient(target);
 
                     let p = P::profile_inverse(r, target_b);
                     if self.defined(p) {
-                        self.bd_mut(p).invalid = true;
+                        self.data[p].invalid = true;
                     }
                 }
             }
@@ -239,7 +225,7 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn invalid(&self, b: Bidegree) -> bool {
-        self.bd(b).invalid
+        self.data[b].invalid
     }
 
     pub fn update(&mut self) {
@@ -247,7 +233,7 @@ impl<P: SseqProfile> Sseq<P> {
             .data
             .iter()
             .filter(|(_, bd)| bd.invalid)
-            .map(|(c, _)| Bidegree::x_y(c[0], c[1]))
+            .map(|(b, _)| b)
             .collect();
         for b in invalid_bidegrees {
             self.update_bidegree(b);
@@ -256,52 +242,54 @@ impl<P: SseqProfile> Sseq<P> {
 
     /// This returns the vec of differentials to draw on each page.
     pub fn update_bidegree(&mut self, b: Bidegree) -> BiVec<Vec<Vec<u32>>> {
-        self.bd_mut(b).invalid = false;
+        self.data[b].invalid = false;
 
         // Collect target zeros first to avoid simultaneous cross-bidegree borrows.
-        let diff_range = self.bd(b).differentials.range();
+        let diff_range = self.data[b].differentials.range();
         for r in diff_range {
             let target_b = P::profile(r, b);
-            let zeros = self.bd(target_b).page_data[r].zeros().clone();
-            self.bd_mut(b).differentials[r].reduce_target(&zeros);
+            let zeros = self.data[target_b].page_data[r].zeros().clone();
+            self.data[b].differentials[r].reduce_target(&zeros);
         }
 
         // For each page, the array of differentials to draw
         let mut differentials: BiVec<Vec<Vec<u32>>> =
-            BiVec::with_capacity(P::MIN_R, self.bd(b).differentials.len());
+            BiVec::with_capacity(P::MIN_R, self.data[b].differentials.len());
 
-        let page_range = self.bd(b).page_data.range();
+        let page_range = self.data[b].page_data.range();
         for r in page_range.skip(1) {
             let target_b = P::profile(r - 1, b);
 
-            self.bd_mut(b).page_data[r].clear_gens();
+            self.data[b].page_data[r].clear_gens();
 
-            if r > self.bd(b).differentials.len() || self.bd(target_b).page_data[r - 1].is_empty() {
-                let (prev, cur) = self.bd_mut(b).page_data.split_borrow_mut(r - 1, r);
+            if r > self.data[b].differentials.len()
+                || self.data[target_b].page_data[r - 1].is_empty()
+            {
+                let (prev, cur) = self.data[b].page_data.split_borrow_mut(r - 1, r);
                 for g in prev.gens() {
                     cur.add_gen(g);
                 }
-                if r - 1 < self.bd(b).differentials.len() {
-                    differentials.push(vec![Vec::new(); self.bd(b).page_data[r].dimension()]);
+                if r - 1 < self.data[b].differentials.len() {
+                    differentials.push(vec![Vec::new(); self.data[b].page_data[r].dimension()]);
                 }
             } else {
-                let d = &self.bd(b).differentials[r - 1];
+                let d = &self.data[b].differentials[r - 1];
 
                 let source_dim = self.dimension(b);
                 let target_dim = self.dimension(target_b);
 
                 let mut drawn_differentials: Vec<Vec<u32>> =
-                    Vec::with_capacity(self.bd(b).page_data[r - 1].dimension());
+                    Vec::with_capacity(self.data[b].page_data[r - 1].dimension());
 
                 let mut dvec = FpVector::new(self.p, target_dim);
                 let mut matrix = Matrix::new(
                     self.p,
-                    self.bd(b).page_data[r - 1].dimension(),
+                    self.data[b].page_data[r - 1].dimension(),
                     source_dim + target_dim,
                 );
 
                 for (mut row, g) in
-                    std::iter::zip(matrix.iter_mut(), self.bd(b).page_data[r - 1].gens())
+                    std::iter::zip(matrix.iter_mut(), self.data[b].page_data[r - 1].gens())
                 {
                     row.slice_mut(target_dim, target_dim + source_dim).assign(g);
 
@@ -309,7 +297,7 @@ impl<P: SseqProfile> Sseq<P> {
                     row.slice_mut(0, target_dim).assign(dvec.as_slice());
 
                     drawn_differentials
-                        .push(self.bd(target_b).page_data[r - 1].reduce(dvec.as_slice_mut()));
+                        .push(self.data[target_b].page_data[r - 1].reduce(dvec.as_slice_mut()));
                     dvec.set_to_zero();
                 }
                 differentials.push(drawn_differentials);
@@ -322,7 +310,7 @@ impl<P: SseqProfile> Sseq<P> {
                     if row.is_zero() {
                         break;
                     }
-                    self.bd_mut(b).page_data[r]
+                    self.data[b].page_data[r]
                         .add_gen(row.restrict(target_dim, target_dim + source_dim));
                 }
             }
@@ -333,7 +321,7 @@ impl<P: SseqProfile> Sseq<P> {
     /// Whether the calcuations at bidegree (x, y) are complete. This means all classes on the
     /// final page are known to be permanent.
     pub fn complete(&self, b: Bidegree) -> bool {
-        let bd = self.bd(b);
+        let bd = &self.data[b];
         bd.page_data
             .last()
             .unwrap()
@@ -348,32 +336,26 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn differentials(&self, b: Bidegree) -> &BiVec<Differential> {
-        &self.bd(b).differentials
+        &self.data[b].differentials
     }
 
     pub fn differentials_hitting(
         &self,
         b: Bidegree,
     ) -> impl Iterator<Item = (i32, &'_ Differential)> + '_ {
-        let max_r = self.bd(b).page_data.len() - 1;
+        let max_r = self.data[b].page_data.len() - 1;
         (P::MIN_R..max_r).filter_map(move |r| {
             let source_b = P::profile_inverse(r, b);
-            Some((
-                r,
-                self.data
-                    .get([source_b.x(), source_b.y()])?
-                    .differentials
-                    .get(r)?,
-            ))
+            Some((r, self.data.get(source_b)?.differentials.get(r)?))
         })
     }
 
     pub fn permanent_classes(&self, b: Bidegree) -> &Subspace {
-        &self.bd(b).permanent_classes
+        &self.data[b].permanent_classes
     }
 
     pub fn page_data(&self, b: Bidegree) -> &BiVec<Subquotient> {
-        &self.bd(b).page_data
+        &self.data[b].page_data
     }
 
     /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
@@ -381,7 +363,7 @@ impl<P: SseqProfile> Sseq<P> {
     pub fn multiply(&self, elem: &BidegreeElement, prod: &Product) -> Option<BidegreeElement> {
         let target_b = elem.degree() + prod.b;
         let mut result = FpVector::new(self.p, self.get_dimension(target_b)?);
-        if let Some(matrix) = prod.matrices.get([elem.x(), elem.y()]) {
+        if let Some(matrix) = prod.matrices.get(elem.degree()) {
             matrix.apply(result.as_slice_mut(), 1, elem.vec());
         }
         Some(BidegreeElement::new(target_b, result))
@@ -432,7 +414,7 @@ impl<P: SseqProfile> Sseq<P> {
         let mut result = FpVector::new(self.p, self.get_dimension(result_b)?);
 
         if r == result_r {
-            let diffs = &self.bd(elem.degree()).differentials[r];
+            let diffs = &self.data[elem.degree()].differentials[r];
             let d_b = P::profile(r, elem.degree());
             let mut dx = FpVector::new(self.p, self.dimension(d_b));
             diffs.evaluate(elem.vec(), dx.as_slice_mut());
@@ -506,7 +488,7 @@ impl<P: SseqProfile> Sseq<P> {
                 }
 
                 // For unstable charts this is None in low degrees.
-                if let Some(matrix) = prod.matrices.get([source_b.x(), source_b.y()]) {
+                if let Some(matrix) = prod.matrices.get(source_b) {
                     let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
                     g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
                 }

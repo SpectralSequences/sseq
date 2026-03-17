@@ -6,10 +6,9 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpVector},
 };
-use once::MultiIndexed;
 use serde::{Deserialize, Serialize};
 use sseq::{
-    Adams, Sseq, SseqProfile,
+    Adams, Bigraded, Sseq, SseqProfile,
     coordinates::{Bidegree, BidegreeElement},
 };
 
@@ -58,7 +57,7 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
 
     /// Whether a bidegree is stale, i.e.\ new products have to be reported to the sender. Note
     /// that products "belong" to the source of the product.
-    stale: MultiIndexed<2, u8>,
+    stale: Bigraded<u8>,
 
     /// If this is a positive number, then the spectral sequence will not re-compute classes and
     /// edges. See [`Actions::BlockRefresh`] for details.
@@ -66,7 +65,7 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
     sender: Option<Sender>,
     products: BTreeMap<String, Product>,
     /// bidegree -> idx -> name
-    class_names: MultiIndexed<2, Vec<String>>,
+    class_names: Bigraded<Vec<String>>,
 }
 
 impl<P: SseqProfile> SseqWrapper<P> {
@@ -79,8 +78,8 @@ impl<P: SseqProfile> SseqWrapper<P> {
             inner: Sseq::new(p, min),
 
             products: BTreeMap::default(),
-            class_names: MultiIndexed::new(),
-            stale: MultiIndexed::new(),
+            class_names: Bigraded::new(),
+            stale: Bigraded::new(),
         }
     }
 
@@ -111,10 +110,10 @@ impl<P: SseqProfile> SseqWrapper<P> {
             .filter(|&b| self.inner.invalid(b))
             .collect();
         for b in invalid {
-            *self.stale.get_mut([b.x(), b.y()]).unwrap() |= CLASS_FLAG | EDGE_FLAG;
+            *self.stale.get_mut(b).unwrap() |= CLASS_FLAG | EDGE_FLAG;
             for product in self.products.values() {
                 let prod_origin_b = b - product.inner.b;
-                if let Some(flags) = self.stale.get_mut([prod_origin_b.x(), prod_origin_b.y()]) {
+                if let Some(flags) = self.stale.get_mut(prod_origin_b) {
                     *flags |= EDGE_FLAG;
                 }
             }
@@ -157,17 +156,17 @@ impl<P: SseqProfile> SseqWrapper<P> {
             .stale
             .iter()
             .filter(|(_, flags)| **flags != 0)
-            .map(|(c, _)| Bidegree::x_y(c[0], c[1]))
+            .map(|(b, _)| b)
             .collect();
         for b in stale_bidegrees {
-            let flags = self.stale.get([b.x(), b.y()]).copied().unwrap_or(0);
+            let flags = self.stale.get(b).copied().unwrap_or(0);
             if flags & CLASS_FLAG > 0 {
                 self.send_class_data(b);
             }
             if flags & EDGE_FLAG > 0 {
                 self.send_products(b);
             }
-            *self.stale.get_mut([b.x(), b.y()]).unwrap() = 0;
+            *self.stale.get_mut(b).unwrap() = 0;
         }
     }
 
@@ -185,7 +184,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
             let prod_b = mult.inner.b;
             let prod_output_b = b + prod_b;
 
-            let Some(matrix) = mult.inner.matrices.get([b.x(), b.y()]) else {
+            let Some(matrix) = mult.inner.matrices.get(b) else {
                 continue;
             };
 
@@ -249,21 +248,14 @@ impl<P: SseqProfile> SseqWrapper<P> {
             let prod_b = prod.inner.b;
             let prod_origin_b = b - prod_b;
 
-            if let Some(matrix) = prod
-                .inner
-                .matrices
-                .get([prod_origin_b.x(), prod_origin_b.y()])
-            {
+            if let Some(matrix) = prod.inner.matrices.get(prod_origin_b) {
                 for i in 0..matrix.rows() {
                     if matrix.row(i).is_zero() {
                         continue;
                     }
                     decompositions.push((
                         matrix.row(i).to_owned(),
-                        format!(
-                            "{name} {}",
-                            self.class_names.get([prod_origin_b.x(), prod_origin_b.y()]).unwrap()[i]
-                        ),
+                        format!("{name} {}", self.class_names.get(prod_origin_b).unwrap()[i]),
                         prod_b,
                     ));
                 }
@@ -282,7 +274,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .basis()
                     .map(FpSlice::to_owned)
                     .collect(),
-                class_names: self.class_names.get([b.x(), b.y()]).unwrap().clone(),
+                class_names: self.class_names.get(b).unwrap().clone(),
                 decompositions,
                 classes: self
                     .inner
@@ -315,12 +307,12 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 (0..dim).map(|i| format!("x_{{{x}, {y}}}^{{({i})}}", x = b.x(), y = b.y())),
             );
         }
-        self.class_names.insert([b.x(), b.y()], names);
-        self.stale.insert([b.x(), b.y()], CLASS_FLAG);
+        self.class_names.insert(b, names);
+        self.stale.insert(b, CLASS_FLAG);
     }
 
     pub fn set_class_name(&mut self, b: Bidegree, idx: usize, name: String) {
-        self.class_names.get_mut([b.x(), b.y()]).unwrap()[idx] = name;
+        self.class_names.get_mut(b).unwrap()[idx] = name;
         self.send_class_data(b);
         for prod in self.products.values() {
             let prod_output_b = b + prod.inner.b;
@@ -393,7 +385,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: MultiIndexed::new(),
+                    matrices: Bigraded::new(),
                 },
                 user: true,
                 permanent,
@@ -419,7 +411,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
             .inner
             .matrices
             .iter()
-            .map(|(c, _)| Bidegree::x_y(c[0], c[1]))
+            .map(|(b, _)| b)
             .collect();
         for b in bidegrees {
             self.propagate_product(b, name);
@@ -479,7 +471,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: MultiIndexed::new(),
+                    matrices: Bigraded::new(),
                 },
                 user: false,
                 permanent: true,
@@ -492,13 +484,13 @@ impl<P: SseqProfile> SseqWrapper<P> {
         let matrix = Matrix::from_vec(self.p, matrix);
 
         if self.inner.dimension(b) != 0 && self.inner.dimension(prod_output_b) != 0 {
-            *self.stale.get_mut([b.x(), b.y()]).unwrap() |= EDGE_FLAG;
+            *self.stale.get_mut(b).unwrap() |= EDGE_FLAG;
             if !matrix.is_zero() {
-                *self.stale.get_mut([prod_output_b.x(), prod_output_b.y()]).unwrap() |= CLASS_FLAG;
+                *self.stale.get_mut(prod_output_b).unwrap() |= CLASS_FLAG;
             }
         }
 
-        product.inner.matrices.insert([b.x(), b.y()], matrix);
+        product.inner.matrices.insert(b, matrix);
 
         let product = &*product;
 

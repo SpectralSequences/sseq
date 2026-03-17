@@ -69,12 +69,12 @@ where
 
     fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product {
         let p = self.prime();
-        let matrices = once::MultiIndexed::new();
+        let matrices = sseq::Bigraded::new();
         for x in self.min_degree()..self.module(0).max_computed_degree() - op_deg + 2 {
             let mut b = Bidegree::n_s(x, 0);
             while self.has_computed_bidegree(b + Bidegree::s_t(1, op_deg)) {
                 if let Some(m) = self.filtration_one_product(op_deg, op_idx, b) {
-                    matrices.insert([b.x(), b.y()], Matrix::from_vec(p, &m));
+                    matrices.insert(b, Matrix::from_vec(p, &m));
                 }
                 b = b + Bidegree::n_s(0, 1);
             }
