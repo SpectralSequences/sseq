@@ -362,10 +362,9 @@ impl<P: SseqProfile> Sseq<P> {
     /// the product is not yet computed.
     pub fn multiply(&self, elem: &BidegreeElement, prod: &Product) -> Option<BidegreeElement> {
         let target_b = elem.degree() + prod.b;
+        let matrix = prod.matrices.get(elem.degree())?;
         let mut result = FpVector::new(self.p, self.get_dimension(target_b)?);
-        if let Some(matrix) = prod.matrices.get(elem.degree()) {
-            matrix.apply(result.as_slice_mut(), 1, elem.vec());
-        }
+        matrix.apply(result.as_slice_mut(), 1, elem.vec());
         Some(BidegreeElement::new(target_b, result))
     }
 
