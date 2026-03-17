@@ -43,7 +43,7 @@ pub struct Product {
     pub b: Bidegree,
     /// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
     pub left: bool,
-    pub matrices: BiVec<BiVec<Option<Matrix>>>,
+    pub matrices: MultiIndexed<2, Matrix>,
 }
 
 struct BidegreeData {
@@ -379,11 +379,12 @@ impl<P: SseqProfile> Sseq<P> {
     /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
     /// the product is not yet computed.
     pub fn multiply(&self, elem: &BidegreeElement, prod: &Product) -> Option<BidegreeElement> {
-        let mut result = FpVector::new(self.p, self.get_dimension(elem.degree() + prod.b)?);
-        if let Some(matrix) = &prod.matrices.get(elem.x())?.get(elem.y())? {
+        let target_b = elem.degree() + prod.b;
+        let mut result = FpVector::new(self.p, self.get_dimension(target_b)?);
+        if let Some(matrix) = prod.matrices.get([elem.x(), elem.y()]) {
             matrix.apply(result.as_slice_mut(), 1, elem.vec());
         }
-        Some(BidegreeElement::new(elem.degree() + prod.b, result))
+        Some(BidegreeElement::new(target_b, result))
     }
 
     /// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
@@ -505,7 +506,7 @@ impl<P: SseqProfile> Sseq<P> {
                 }
 
                 // For unstable charts this is None in low degrees.
-                if let Some(matrix) = &prod.matrices[source_b.x()][source_b.y()] {
+                if let Some(matrix) = prod.matrices.get([source_b.x(), source_b.y()]) {
                     let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
                     g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
                 }
