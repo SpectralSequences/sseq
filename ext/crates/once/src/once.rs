@@ -382,7 +382,7 @@ impl<T> OnceVec<T> {
         let len = self.len();
         // We use `take` because `data.iter()` also iterates through the out-of-order elements, but
         // we don't want that.
-        self.data.iter().take(len)
+        self.data.values().take(len)
     }
 }
 

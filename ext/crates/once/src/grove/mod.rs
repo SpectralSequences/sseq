@@ -342,6 +342,40 @@ impl<T> Grove<T> {
         grove
     }
 
+    /// Returns an iterator over the index-value pairs in the `Grove`.
+    ///
+    /// The iterator yields pairs in order of their indices, from 0 to `len() - 1`.
+    /// Indices that don't have a value are skipped.
+    ///
+    /// # Returns
+    ///
+    /// An iterator over `(usize, &T)` pairs in the `Grove`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::Grove;
+    ///
+    /// let grove = Grove::<i32>::new();
+    /// grove.insert(0, 10);
+    /// grove.insert(2, 30);
+    ///
+    /// let entries: Vec<_> = grove.iter().collect();
+    /// assert_eq!(entries, vec![(0, &10), (2, &30)]);
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = (usize, &T)> {
+        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
+        let ptr = self as *mut Self;
+        (0..self.len()).filter_map(move |i| {
+            // SAFETY: Each index maps to a unique (block, offset) pair, so the returned `&mut T`
+            // references are non-aliasing. We have `&mut self` so no other references exist.
+            unsafe { (*ptr).get_mut(i).map(|value| (i, value)) }
+        })
+    }
+
     /// Returns an iterator over the values in the `Grove`.
     ///
     /// The iterator yields values in order of their indices, from 0 to `len() - 1`.
@@ -360,15 +394,11 @@ impl<T> Grove<T> {
     /// grove.insert(0, 10);
     /// grove.insert(2, 30);
     ///
-    /// let values: Vec<_> = grove.iter().collect();
+    /// let values: Vec<_> = grove.values().collect();
     /// assert_eq!(values, vec![&10, &30]);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.enumerate().map(move |(_, value)| value)
-    }
-
-    pub fn enumerate(&self) -> impl Iterator<Item = (usize, &T)> {
-        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.iter().map(move |(_, value)| value)
     }
 }
 
@@ -381,7 +411,7 @@ impl<T> Default for Grove<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut debug_map = f.debug_map();
-        for (i, val) in self.enumerate() {
+        for (i, val) in self.iter() {
             debug_map.entry(&i, val);
         }
         debug_map.finish()
@@ -391,7 +421,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
 impl<T: Clone> Clone for Grove<T> {
     fn clone(&self) -> Self {
         let new_grove = Self::new();
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
         new_grove
@@ -400,7 +430,7 @@ impl<T: Clone> Clone for Grove<T> {
 
 impl<T: PartialEq> PartialEq for Grove<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.enumerate().eq(other.enumerate())
+        self.iter().eq(other.iter())
     }
 }
 
@@ -408,7 +438,7 @@ impl<T: Eq> Eq for Grove<T> {}
 
 impl<T: std::hash::Hash> std::hash::Hash for Grove<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             i.hash(state);
             value.hash(state);
         }
@@ -652,20 +682,36 @@ impl<T> TwoEndedGrove<T> {
         self.min.load(Ordering::Acquire)..self.max.load(Ordering::Relaxed)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.enumerate().map(move |(_, value)| value)
-    }
-
-    pub fn enumerate(&self) -> impl Iterator<Item = (i32, &T)> {
+    pub fn iter(&self) -> impl Iterator<Item = (i32, &T)> {
         let non_negs = self
             .non_neg
-            .enumerate()
+            .iter()
             .map(move |(idx, value)| (idx as i32, value));
         let negs = self
             .neg
-            .enumerate()
+            .iter()
             .map(move |(idx, value)| (-(idx as i32), value));
         non_negs.chain(negs)
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (i32, &mut T)> {
+        let non_negs = self
+            .non_neg
+            .iter_mut()
+            .map(move |(idx, value)| (idx as i32, value));
+        let negs = self
+            .neg
+            .iter_mut()
+            .map(move |(idx, value)| (-(idx as i32), value));
+        non_negs.chain(negs)
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.iter().map(move |(_, value)| value)
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.iter_mut().map(move |(_, value)| value)
     }
 
     /// Checks if a value exists at the specified index.
@@ -752,7 +798,7 @@ impl<T> Default for TwoEndedGrove<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut debug_map = f.debug_map();
-        for (i, val) in self.enumerate() {
+        for (i, val) in self.iter() {
             debug_map.entry(&i, val);
         }
         debug_map.finish()
@@ -762,7 +808,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
 impl<T: Clone> Clone for TwoEndedGrove<T> {
     fn clone(&self) -> Self {
         let new_grove = Self::new();
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
         new_grove
@@ -771,7 +817,7 @@ impl<T: Clone> Clone for TwoEndedGrove<T> {
 
 impl<T: PartialEq> PartialEq for TwoEndedGrove<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.enumerate().eq(other.enumerate())
+        self.iter().eq(other.iter())
     }
 }
 
@@ -779,7 +825,7 @@ impl<T: Eq> Eq for TwoEndedGrove<T> {}
 
 impl<T: std::hash::Hash> std::hash::Hash for TwoEndedGrove<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             i.hash(state);
             value.hash(state);
         }

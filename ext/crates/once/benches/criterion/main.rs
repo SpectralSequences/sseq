@@ -89,7 +89,7 @@ impl<T> Benchable<1, T> for TwoEndedGrove<T> {
     where
         T: 'a,
     {
-        self.enumerate().map(|(k, v)| ([k], v))
+        self.iter().map(|(k, v)| ([k], v))
     }
 }
 
