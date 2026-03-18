@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 pub use self::kdtrie::KdTrie;
 
 mod iter;
@@ -286,6 +288,22 @@ impl<const K: usize, V: std::hash::Hash> std::hash::Hash for MultiIndexed<K, V> 
     }
 }
 
+impl<const K: usize, V> Index<[i32; K]> for MultiIndexed<K, V> {
+    type Output = V;
+
+    fn index(&self, index: [i32; K]) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<const K: usize, V> IndexMut<[i32; K]> for MultiIndexed<K, V> {
+    fn index_mut(&mut self, index: [i32; K]) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![cfg_attr(miri, allow(dead_code))]
@@ -454,6 +472,29 @@ mod tests {
         let mutable: Vec<_> = arr.iter_mut().map(|(c, &mut v)| (c, v)).collect();
 
         assert_eq!(immutable, mutable);
+    }
+
+    #[test]
+    fn test_index() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        assert_eq!(arr[[1, 2]], 10);
+        assert_eq!(arr[[3, 4]], 20);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        arr[[1, 2]] += 1;
+        arr[[3, 4]] += 2;
+
+        assert_eq!(arr[[1, 2]], 11);
+        assert_eq!(arr[[3, 4]], 22);
     }
 
     #[test]

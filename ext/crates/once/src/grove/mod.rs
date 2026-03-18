@@ -1,6 +1,9 @@
 mod block;
 
-use std::num::NonZero;
+use std::{
+    num::NonZero,
+    ops::{Index, IndexMut},
+};
 
 use block::Block;
 
@@ -412,6 +415,22 @@ impl<T: std::hash::Hash> std::hash::Hash for Grove<T> {
     }
 }
 
+impl<T> Index<usize> for Grove<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<T> IndexMut<usize> for Grove<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
 /// A bidirectional sparse vector that supports both positive and negative indices.
 ///
 /// `TwoEndedGrove` extends the functionality of [`Grove`] by allowing elements to be indexed using
@@ -764,6 +783,22 @@ impl<T: std::hash::Hash> std::hash::Hash for TwoEndedGrove<T> {
             i.hash(state);
             value.hash(state);
         }
+    }
+}
+
+impl<T> Index<i32> for TwoEndedGrove<T> {
+    type Output = T;
+
+    fn index(&self, index: i32) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<T> IndexMut<i32> for TwoEndedGrove<T> {
+    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
     }
 }
 
