@@ -1,6 +1,9 @@
 use std::ops::{Index, IndexMut};
 
-pub use self::kdtrie::KdTrie;
+pub use self::{
+    iter::{Iter, IterMut},
+    kdtrie::KdTrie,
+};
 
 mod iter;
 pub mod kdtrie;

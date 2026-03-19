@@ -263,16 +263,64 @@ impl Coordinates for Vec<i32> {
 
 // --- Public API ---
 
+/// An iterator over the entries of a [`KdTrie`] or [`MultiIndexed`].
+pub struct Iter<'a, V, C>(KdIterator<&'a Node<V>, C>);
+
+impl<'a, V, C: Coordinates> Iterator for Iter<'a, V, C> {
+    type Item = (C, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+/// A mutable iterator over the entries of a [`KdTrie`] or [`MultiIndexed`].
+pub struct IterMut<'a, V, C>(KdIterator<NodePtrMut<'a, V>, C>);
+
+impl<'a, V, C: Coordinates> Iterator for IterMut<'a, V, C> {
+    type Item = (C, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
 impl<V> KdTrie<V> {
-    pub fn iter(&self) -> impl Iterator<Item = (Vec<i32>, &V)> + '_ {
+    pub fn iter(&self) -> Iter<'_, V, Vec<i32>> {
         let dimensions = self.dimensions();
-        KdIterator::new(dimensions, self.root(), Vec::with_capacity(dimensions))
+        Iter(KdIterator::new(
+            dimensions,
+            self.root(),
+            Vec::with_capacity(dimensions),
+        ))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Vec<i32>, &mut V)> + '_ {
+    pub fn iter_mut(&mut self) -> IterMut<'_, V, Vec<i32>> {
         let dimensions = self.dimensions();
         let root = NodePtrMut(self.root_mut() as *mut Node<V>, PhantomData);
-        KdIterator::new(dimensions, root, Vec::with_capacity(dimensions))
+        IterMut(KdIterator::new(
+            dimensions,
+            root,
+            Vec::with_capacity(dimensions),
+        ))
+    }
+}
+
+impl<'a, V> IntoIterator for &'a KdTrie<V> {
+    type IntoIter = Iter<'a, V, Vec<i32>>;
+    type Item = (Vec<i32>, &'a V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, V> IntoIterator for &'a mut KdTrie<V> {
+    type IntoIter = IterMut<'a, V, Vec<i32>>;
+    type Item = (Vec<i32>, &'a mut V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -294,8 +342,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     ///
     /// assert_eq!(items, vec![([1, 2], &20), ([3, 4], &10)]);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = ([i32; K], &V)> {
-        KdIterator::new(K, self.0.root(), [0; K])
+    pub fn iter(&self) -> Iter<'_, V, [i32; K]> {
+        Iter(KdIterator::new(K, self.0.root(), [0; K]))
     }
 
     /// Returns a mutable iterator over all coordinate-value pairs in the array.
@@ -318,9 +366,27 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array.get([1, 2]), Some(&20));
     /// assert_eq!(array.get([3, 4]), Some(&40));
     /// ```
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = ([i32; K], &mut V)> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, V, [i32; K]> {
         let root = NodePtrMut(self.0.root_mut() as *mut Node<V>, PhantomData);
-        KdIterator::new(K, root, [0; K])
+        IterMut(KdIterator::new(K, root, [0; K]))
+    }
+}
+
+impl<'a, const K: usize, V> IntoIterator for &'a MultiIndexed<K, V> {
+    type IntoIter = Iter<'a, V, [i32; K]>;
+    type Item = ([i32; K], &'a V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, const K: usize, V> IntoIterator for &'a mut MultiIndexed<K, V> {
+    type IntoIter = IterMut<'a, V, [i32; K]>;
+    type Item = ([i32; K], &'a mut V);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
