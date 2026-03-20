@@ -39,13 +39,14 @@ mod node;
 /// - **Retrieval**: O(K) time complexity,
 /// - **Memory Usage**: amortized O(N) space complexity, where N is the number of inserted elements
 ///
-/// # Warning
+/// # Note
 ///
-/// This data structure is designed for write-once semantics, meaning that once a value is inserted
-/// at a specific coordinate, it cannot be changed directly. If you need to update values, you can
-/// wrap them in a struct that allows for interior mutability (e.g., `RefCell`, `Mutex`, etc.).
+/// Inserting a value at a coordinate that is already occupied will panic. Values can be mutated
+/// in place through exclusive (`&mut`) references via [`get_mut`](MultiIndexed::get_mut) or
+/// [`IndexMut`]. However, while insertion only requires a shared reference, concurrent mutation is
+/// not supported.
 ///
-/// Note that, for performance reasons, we do not allow `K = 0`.
+/// For performance reasons, we do not allow `K = 0`.
 ///
 /// # Examples
 ///

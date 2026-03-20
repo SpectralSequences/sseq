@@ -11,7 +11,7 @@ use crate::std_or_loom::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 
 const MAX_NUM_BLOCKS: usize = 32;
 
-/// An insert-only sparse vector with pinned elements and geometrically growing capacity.
+/// A sparse vector with pinned elements and geometrically growing capacity.
 ///
 /// `Grove` (a pun on "grow vec") is a specialized data structure that provides efficient storage
 /// for data with the following key features:
