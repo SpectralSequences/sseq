@@ -9,8 +9,6 @@ pub mod module;
 pub mod steenrod_evaluator;
 pub(crate) mod steenrod_parser;
 
-//pub mod dense_bigraded_algebra;
-
 mod algebra;
 
 pub use crate::algebra::*;
