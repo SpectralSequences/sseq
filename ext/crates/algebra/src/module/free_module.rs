@@ -296,7 +296,7 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
     /// Iterate the degrees and indices of each generator up to degree `degree`.
     pub fn iter_gens(&self, degree: i32) -> impl Iterator<Item = (i32, usize)> + '_ {
         self.num_gens
-            .iter_enum()
+            .iter()
             .take((degree - self.min_degree + 1) as usize)
             .flat_map(|(t, &n)| (0..n).map(move |k| (t, k)))
     }

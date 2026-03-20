@@ -95,11 +95,11 @@ mod hom_cochain_complex {
                     self.source.differential(s + 1),
                 ))
             });
-            for (s, module) in self.modules.iter().enumerate() {
-                module.compute_basis(max.n() + s as i32 + 1);
+            for (s, module) in self.modules.iter() {
+                module.compute_basis(max.n() + s + 1);
             }
-            for (s, d) in self.differentials.iter().enumerate() {
-                d.compute_auxiliary_data_through_degree(max.n() + s as i32 + 1);
+            for (s, d) in self.differentials.iter() {
+                d.compute_auxiliary_data_through_degree(max.n() + s + 1);
             }
         }
 

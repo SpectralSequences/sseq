@@ -550,7 +550,7 @@ mod tensor_product_chain_complex {
                 ))
             });
 
-            for module in self.modules.iter() {
+            for module in self.modules.values() {
                 module.compute_basis(b.t());
             }
 

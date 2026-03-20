@@ -714,7 +714,7 @@ impl<T> OnceBiVec<T> {
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
     /// v.extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
-    /// for (i, &n) in v.iter_enum() {
+    /// for (i, &n) in v.iter() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
@@ -737,11 +737,11 @@ impl<T> OnceBiVec<T> {
         self.data.lock()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn values(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
 
-    pub fn iter_enum(&self) -> OnceBiVecIter<'_, T> {
+    pub fn iter(&self) -> OnceBiVecIter<'_, T> {
         OnceBiVecIter {
             inner: self.data.iter(),
             pos: self.min_degree,
@@ -751,7 +751,7 @@ impl<T> OnceBiVec<T> {
 
 /// An iterator over the index-value pairs in a [`OnceBiVec`].
 ///
-/// Created by [`OnceBiVec::iter_enum`].
+/// Created by [`OnceBiVec::iter`].
 pub struct OnceBiVecIter<'a, T> {
     inner: OnceVecIter<'a, T>,
     pos: i32,
@@ -777,7 +777,7 @@ impl<'a, T> IntoIterator for &'a OnceBiVec<T> {
     type Item = (i32, &'a T);
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter_enum()
+        self.iter()
     }
 }
 
@@ -793,7 +793,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
     /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
-    /// for (i, &n) in v.iter_enum() {
+    /// for (i, &n) in v.iter() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
@@ -807,7 +807,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
             });
     }
 
-    pub fn maybe_par_iter_enum(
+    pub fn maybe_par_iter(
         &self,
     ) -> impl MaybeParallelIterator<Item = (i32, &T)> + MaybeIndexedParallelIterator {
         self.range().into_maybe_par_iter().map(|i| (i, &self[i]))
@@ -1179,7 +1179,7 @@ mod tests {
     }
 
     #[test]
-    fn test_oncebivec_iter_enum() {
+    fn test_oncebivec_iter() {
         let v = OnceBiVec::<i32>::new(-3);
 
         // Add some values
@@ -1187,17 +1187,17 @@ mod tests {
         v.push(20);
         v.push(30);
 
-        // Check iterator
-        let mut iter = v.iter();
+        // Check values iterator
+        let mut iter = v.values();
         assert_eq!(iter.next(), Some(&10));
         assert_eq!(iter.next(), Some(&20));
         assert_eq!(iter.next(), Some(&30));
         assert_eq!(iter.next(), None);
 
-        // Check enumerated iterator
+        // Check iter (yields (i32, &T))
         let expected_indices = [-3, -2, -1];
         let expected_values = [10, 20, 30];
-        let actual_pairs: Vec<_> = v.iter_enum().collect();
+        let actual_pairs: Vec<_> = v.iter().collect();
 
         for (i, (idx, val)) in actual_pairs.iter().enumerate() {
             assert_eq!(*idx, expected_indices[i]);
@@ -1294,7 +1294,7 @@ mod tests {
         }
 
         #[test]
-        fn loom_oncebivec_iter_enum() {
+        fn loom_oncebivec_iter() {
             loom::model(|| {
                 let vec = Arc::new(OnceBiVec::<i32>::new(-3));
 
@@ -1311,7 +1311,7 @@ mod tests {
                     let len = vec2.len();
                     if len > -2 {
                         // At least one element
-                        let pairs: Vec<_> = vec2.iter_enum().collect();
+                        let pairs: Vec<_> = vec2.iter().collect();
                         for (idx, _) in pairs {
                             assert!(idx >= -3 && idx < len);
                         }
@@ -1322,7 +1322,7 @@ mod tests {
                 t2.join().unwrap();
 
                 // Verify final state
-                let pairs: Vec<_> = vec.iter_enum().collect();
+                let pairs: Vec<_> = vec.iter().collect();
                 assert_eq!(pairs.len(), 2);
                 assert_eq!(pairs[0].0, -3);
                 assert_eq!(*pairs[0].1, 10);
