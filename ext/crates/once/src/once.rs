@@ -399,9 +399,19 @@ impl<'a, T> Iterator for OnceVecIter<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+        // OnceVec is dense, so all slots in the Take range are populated.
+        let remaining = self.0.size_hint().1.unwrap();
+        (remaining, Some(remaining))
+    }
+
+    fn count(self) -> usize {
+        self.len()
     }
 }
+
+impl<T> std::iter::FusedIterator for OnceVecIter<'_, T> {}
+
+impl<T> ExactSizeIterator for OnceVecIter<'_, T> {}
 
 impl<'a, T> IntoIterator for &'a OnceVec<T> {
     type IntoIter = OnceVecIter<'a, T>;
@@ -770,7 +780,15 @@ impl<'a, T> Iterator for OnceBiVecIter<'a, T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
+
+    fn count(self) -> usize {
+        self.len()
+    }
 }
+
+impl<T> std::iter::FusedIterator for OnceBiVecIter<'_, T> {}
+
+impl<T> ExactSizeIterator for OnceBiVecIter<'_, T> {}
 
 impl<'a, T> IntoIterator for &'a OnceBiVec<T> {
     type IntoIter = OnceBiVecIter<'a, T>;

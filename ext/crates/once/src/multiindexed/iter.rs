@@ -105,6 +105,8 @@ impl<R: NodeRef, C: Coordinates> Iterator for KdIterator<R, C> {
     }
 }
 
+impl<R: NodeRef, C: Coordinates> std::iter::FusedIterator for KdIterator<R, C> {}
+
 // --- NodeRef ---
 
 /// Abstraction over shared (`&Node<V>`) and exclusive (`*mut Node<V>`) node access.
@@ -274,6 +276,8 @@ impl<'a, V, C: Coordinates> Iterator for Iter<'a, V, C> {
     }
 }
 
+impl<V, C: Coordinates> std::iter::FusedIterator for Iter<'_, V, C> {}
+
 /// A mutable iterator over the entries of a [`KdTrie`] or [`MultiIndexed`].
 pub struct IterMut<'a, V, C>(KdIterator<NodePtrMut<'a, V>, C>);
 
@@ -284,6 +288,8 @@ impl<'a, V, C: Coordinates> Iterator for IterMut<'a, V, C> {
         self.0.next()
     }
 }
+
+impl<V, C: Coordinates> std::iter::FusedIterator for IterMut<'_, V, C> {}
 
 impl<V> KdTrie<V> {
     pub fn iter(&self) -> Iter<'_, V, Vec<i32>> {

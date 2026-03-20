@@ -428,6 +428,11 @@ impl<'a, T> Iterator for Iter<'a, T> {
         }
         None
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // Grove is sparse, so we can't know the exact count without scanning.
+        (0, Some(self.len - self.pos))
+    }
 }
 
 /// An iterator over the values in a [`Grove`].
@@ -441,7 +446,15 @@ impl<'a, T> Iterator for Values<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|(_, v)| v)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<T> std::iter::FusedIterator for Iter<'_, T> {}
+
+impl<T> std::iter::FusedIterator for Values<'_, T> {}
 
 impl<'a, T> IntoIterator for &'a Grove<T> {
     type IntoIter = Iter<'a, T>;
