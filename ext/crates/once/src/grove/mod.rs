@@ -1145,6 +1145,61 @@ mod tests {
     }
 
     #[test]
+    fn test_grove_iter_mut_no_aliasing() {
+        let mut grove = Grove::<i32>::new();
+        grove.insert(0, 10);
+        grove.insert(1, 20);
+        grove.insert(3, 30);
+        grove.insert(7, 40);
+
+        let mut it = grove.iter_mut();
+        let (_, a) = it.next().unwrap();
+        let (_, b) = it.next().unwrap();
+        let (_, c) = it.next().unwrap();
+        let (_, d) = it.next().unwrap();
+
+        // Miri detects borrow-model violations if any of the references alias.
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        assert_eq!(grove.get(0), Some(&11));
+        assert_eq!(grove.get(1), Some(&22));
+        assert_eq!(grove.get(3), Some(&33));
+        assert_eq!(grove.get(7), Some(&44));
+    }
+
+    #[test]
+    fn test_two_ended_grove_iter_mut_no_aliasing() {
+        let mut grove = TwoEndedGrove::<i32>::new();
+        grove.insert(-3, 10);
+        grove.insert(-1, 20);
+        grove.insert(0, 30);
+        grove.insert(5, 40);
+
+        // Hold all four &mut references simultaneously.
+        let mut it = grove.iter_mut();
+        let (i0, a) = it.next().unwrap();
+        let (i1, b) = it.next().unwrap();
+        let (i2, c) = it.next().unwrap();
+        let (i3, d) = it.next().unwrap();
+
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        // Verify using the indices returned by the iterator (order is non-neg then neg).
+        assert_eq!(grove.get(i0), Some(&31));
+        assert_eq!(grove.get(i1), Some(&42));
+        assert_eq!(grove.get(i2), Some(&23));
+        assert_eq!(grove.get(i3), Some(&14));
+    }
+
+    #[test]
     fn test_two_ended_grove_negative_max() {
         let grove = TwoEndedGrove::<i32>::new();
 
