@@ -394,8 +394,64 @@ impl<'a, const K: usize, V> IntoIterator for &'a mut MultiIndexed<K, V> {
 mod tests {
     use super::*;
 
+    // --- MultiIndexed iteration tests ---
+
     #[test]
-    fn test_iter_mut_no_aliasing() {
+    fn test_multiindexed_iter_empty() {
+        let arr = MultiIndexed::<2, i32>::new();
+        let items: Vec<_> = arr.iter().collect();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn test_multiindexed_iter_multiple_calls() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        let items1: Vec<_> = arr.iter().collect();
+        let items2: Vec<_> = arr.iter().collect();
+        assert_eq!(items1, items2);
+    }
+
+    #[test]
+    fn test_multiindexed_iter_mut_empty() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        let items: Vec<_> = arr.iter_mut().collect();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn test_multiindexed_iter_mut_basic() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+        arr.insert([-5, 6], 30);
+
+        for (_, v) in arr.iter_mut() {
+            *v *= 3;
+        }
+
+        assert_eq!(arr.get([1, 2]), Some(&30));
+        assert_eq!(arr.get([3, 4]), Some(&60));
+        assert_eq!(arr.get([-5, 6]), Some(&90));
+    }
+
+    #[test]
+    fn test_multiindexed_iter_and_iter_mut_agree() {
+        let mut arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, -4], 20);
+        arr.insert([-5, 6], 30);
+        arr.insert([0, 0], 40);
+
+        let immutable: Vec<_> = arr.iter().map(|(c, &v)| (c, v)).collect();
+        let mutable: Vec<_> = arr.iter_mut().map(|(c, &mut v)| (c, v)).collect();
+        assert_eq!(immutable, mutable);
+    }
+
+    #[test]
+    fn test_multiindexed_iter_mut_no_aliasing() {
         let mut arr = MultiIndexed::<3, i32>::new();
         arr.insert([0, 0, 0], 10);
         arr.insert([0, 0, 1], 20);
@@ -420,5 +476,119 @@ mod tests {
         assert_eq!(arr.get([0, 0, 1]), Some(&22));
         assert_eq!(arr.get([0, 1, 0]), Some(&33));
         assert_eq!(arr.get([1, 0, 0]), Some(&44));
+    }
+
+    #[test]
+    fn test_multiindexed_into_iterator() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        let items: Vec<_> = (&arr).into_iter().collect();
+        assert_eq!(items.len(), 2);
+
+        let mut arr = arr;
+        let items: Vec<_> = (&mut arr).into_iter().map(|(c, &mut v)| (c, v)).collect();
+        assert_eq!(items.len(), 2);
+    }
+
+    // --- KdTrie iteration tests ---
+
+    #[test]
+    fn test_kdtrie_iter_empty() {
+        let trie = KdTrie::<i32>::new(2);
+        let items: Vec<_> = trie.iter().collect();
+        assert_eq!(items, vec![]);
+    }
+
+    #[test]
+    fn test_kdtrie_iter_multiple_calls() {
+        let trie = KdTrie::<i32>::new(2);
+        trie.insert(&[1, 2], 10);
+        trie.insert(&[3, 4], 20);
+
+        let items1: Vec<_> = trie.iter().collect();
+        let items2: Vec<_> = trie.iter().collect();
+
+        assert_eq!(items1, items2);
+    }
+
+    #[test]
+    fn test_kdtrie_iter_mut_empty() {
+        let mut trie = KdTrie::<i32>::new(2);
+        let items: Vec<_> = trie.iter_mut().collect();
+        assert_eq!(items, vec![]);
+    }
+
+    #[test]
+    fn test_kdtrie_iter_mut_basic() {
+        let mut trie = KdTrie::<i32>::new(2);
+        trie.insert(&[1, 2], 10);
+        trie.insert(&[3, 4], 20);
+        trie.insert(&[-5, 6], 30);
+
+        for (_, v) in trie.iter_mut() {
+            *v *= 3;
+        }
+
+        assert_eq!(trie.get(&[1, 2]), Some(&30));
+        assert_eq!(trie.get(&[3, 4]), Some(&60));
+        assert_eq!(trie.get(&[-5, 6]), Some(&90));
+    }
+
+    #[test]
+    fn test_kdtrie_iter_and_iter_mut_agree() {
+        let mut trie = KdTrie::<i32>::new(2);
+        trie.insert(&[1, 2], 10);
+        trie.insert(&[3, -4], 20);
+        trie.insert(&[-5, 6], 30);
+        trie.insert(&[0, 0], 40);
+
+        let immutable: Vec<_> = trie.iter().map(|(c, &v)| (c, v)).collect();
+        let mutable: Vec<_> = trie.iter_mut().map(|(c, &mut v)| (c, v)).collect();
+
+        assert_eq!(immutable, mutable);
+    }
+
+    #[test]
+    fn test_kdtrie_iter_mut_no_aliasing() {
+        let mut trie = KdTrie::<i32>::new(3);
+        trie.insert(&[0, 0, 0], 10);
+        trie.insert(&[0, 0, 1], 20);
+        trie.insert(&[0, 1, 0], 30);
+        trie.insert(&[1, 0, 0], 40);
+
+        let mut it = trie.iter_mut();
+        let (_, a) = it.next().unwrap();
+        let (_, b) = it.next().unwrap();
+        let (_, c) = it.next().unwrap();
+        let (_, d) = it.next().unwrap();
+
+        // Miri detects borrow-model violations if any of the references alias, even before the
+        // writes below.
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        assert_eq!(trie.get(&[0, 0, 0]), Some(&11));
+        assert_eq!(trie.get(&[0, 0, 1]), Some(&22));
+        assert_eq!(trie.get(&[0, 1, 0]), Some(&33));
+        assert_eq!(trie.get(&[1, 0, 0]), Some(&44));
+    }
+
+    #[test]
+    fn test_kdtrie_into_iterator() {
+        let trie = KdTrie::<i32>::new(2);
+        trie.insert(&[1, 2], 10);
+        trie.insert(&[3, 4], 20);
+
+        let items: Vec<_> = (&trie).into_iter().collect();
+        assert_eq!(items.len(), 2);
+
+        let mut trie = trie;
+        let items: Vec<_> = (&mut trie).into_iter().map(|(c, &mut v)| (c, v)).collect();
+        assert_eq!(items.len(), 2);
     }
 }

@@ -421,64 +421,6 @@ mod tests {
     }
 
     #[test]
-    fn test_iter_empty() {
-        let arr = MultiIndexed::<2, i32>::new();
-        let items: Vec<_> = arr.iter().collect();
-        assert_eq!(items, vec![]);
-    }
-
-    #[test]
-    fn test_iter_multiple_calls() {
-        let arr = MultiIndexed::<2, i32>::new();
-        arr.insert([1, 2], 10);
-        arr.insert([3, 4], 20);
-
-        // Multiple calls to iter should return the same items
-        let items1: Vec<_> = arr.iter().collect();
-        let items2: Vec<_> = arr.iter().collect();
-
-        assert_eq!(items1, items2);
-    }
-
-    #[test]
-    fn test_iter_mut_empty() {
-        let mut arr = MultiIndexed::<2, i32>::new();
-        let items: Vec<_> = arr.iter_mut().collect();
-        assert_eq!(items, vec![]);
-    }
-
-    #[test]
-    fn test_iter_mut_basic() {
-        let mut arr = MultiIndexed::<2, i32>::new();
-        arr.insert([1, 2], 10);
-        arr.insert([3, 4], 20);
-        arr.insert([-5, 6], 30);
-
-        // Mutate all values
-        for (_, v) in arr.iter_mut() {
-            *v *= 3;
-        }
-
-        assert_eq!(arr.get([1, 2]), Some(&30));
-        assert_eq!(arr.get([3, 4]), Some(&60));
-        assert_eq!(arr.get([-5, 6]), Some(&90));
-    }
-
-    #[test]
-    fn test_iter_and_iter_mut_agree() {
-        let mut arr = MultiIndexed::<2, i32>::new();
-        arr.insert([1, 2], 10);
-        arr.insert([3, -4], 20);
-        arr.insert([-5, 6], 30);
-        arr.insert([0, 0], 40);
-
-        let immutable: Vec<_> = arr.iter().map(|(c, &v)| (c, v)).collect();
-        let mutable: Vec<_> = arr.iter_mut().map(|(c, &mut v)| (c, v)).collect();
-
-        assert_eq!(immutable, mutable);
-    }
-
-    #[test]
     fn test_index() {
         let arr = MultiIndexed::<2, i32>::new();
         arr.insert([1, 2], 10);
