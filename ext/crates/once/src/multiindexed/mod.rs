@@ -74,9 +74,17 @@ mod node;
 /// array.insert([1, 2], 42);
 /// array.insert([1, 2], 43); // Panics because the value at [1, 2] is already set
 /// ```
+///
+/// ```compile_fail
+/// use once::MultiIndexed;
+///
+/// let incorrect = MultiIndexed::<0, ()>::new();
+/// ```
 pub struct MultiIndexed<const K: usize, V>(KdTrie<V>);
 
 impl<const K: usize, V> MultiIndexed<K, V> {
+    const POSITIVE_DIMS: () = assert!(K > 0);
+
     /// Creates a new empty `MultiIndexed` array with K dimensions.
     ///
     /// # Examples
@@ -98,6 +106,9 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// let array4d = MultiIndexed::<4, Point>::new();
     /// ```
     pub fn new() -> Self {
+        // Compile-time check
+        let () = Self::POSITIVE_DIMS;
+
         Self(KdTrie::new(K))
     }
 
