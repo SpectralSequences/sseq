@@ -41,7 +41,7 @@ mod std_or_loom;
 
 pub use grove::{Grove, TwoEndedGrove};
 pub use multiindexed::MultiIndexed;
-pub use once::{OnceBiVec, OnceVec};
+pub use once::{OnceBiVec, OnceBiVecIter, OnceVec, OnceVecIter};
 
 #[cfg(test)]
 mod test_utils {

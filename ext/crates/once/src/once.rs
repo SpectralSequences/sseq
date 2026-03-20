@@ -378,11 +378,37 @@ impl<T> OnceVec<T> {
     /// v.push(2);
     /// assert_eq!(v.iter().count(), 3);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn iter(&self) -> OnceVecIter<'_, T> {
         let len = self.len();
         // We use `take` because `data.iter()` also iterates through the out-of-order elements, but
         // we don't want that.
-        self.data.values().take(len)
+        OnceVecIter(self.data.values().take(len))
+    }
+}
+
+/// An iterator over the values in a [`OnceVec`].
+///
+/// Created by [`OnceVec::iter`].
+pub struct OnceVecIter<'a, T>(std::iter::Take<crate::grove::Values<'a, T>>);
+
+impl<'a, T> Iterator for OnceVecIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a OnceVec<T> {
+    type IntoIter = OnceVecIter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -715,12 +741,43 @@ impl<T> OnceBiVec<T> {
         self.data.iter()
     }
 
-    pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {
-        let min_degree = self.min_degree;
-        self.data
-            .iter()
-            .enumerate()
-            .map(move |(i, t)| (i as i32 + min_degree, t))
+    pub fn iter_enum(&self) -> OnceBiVecIter<'_, T> {
+        OnceBiVecIter {
+            inner: self.data.iter(),
+            pos: self.min_degree,
+        }
+    }
+}
+
+/// An iterator over the index-value pairs in a [`OnceBiVec`].
+///
+/// Created by [`OnceBiVec::iter_enum`].
+pub struct OnceBiVecIter<'a, T> {
+    inner: OnceVecIter<'a, T>,
+    pos: i32,
+}
+
+impl<'a, T> Iterator for OnceBiVecIter<'a, T> {
+    type Item = (i32, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let value = self.inner.next()?;
+        let idx = self.pos;
+        self.pos += 1;
+        Some((idx, value))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a OnceBiVec<T> {
+    type IntoIter = OnceBiVecIter<'a, T>;
+    type Item = (i32, &'a T);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_enum()
     }
 }
 

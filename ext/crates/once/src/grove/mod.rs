@@ -363,8 +363,12 @@ impl<T> Grove<T> {
     /// let entries: Vec<_> = grove.iter().collect();
     /// assert_eq!(entries, vec![(0, &10), (2, &30)]);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = (usize, &T)> {
-        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            grove: self,
+            pos: 0,
+            len: self.len(),
+        }
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
@@ -397,8 +401,54 @@ impl<T> Grove<T> {
     /// let values: Vec<_> = grove.values().collect();
     /// assert_eq!(values, vec![&10, &30]);
     /// ```
-    pub fn values(&self) -> impl Iterator<Item = &T> {
-        self.iter().map(move |(_, value)| value)
+    pub fn values(&self) -> Values<'_, T> {
+        Values(self.iter())
+    }
+}
+
+/// An iterator over the index-value pairs in a [`Grove`].
+///
+/// Created by [`Grove::iter`].
+pub struct Iter<'a, T> {
+    grove: &'a Grove<T>,
+    pos: usize,
+    len: usize,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (usize, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pos < self.len {
+            let i = self.pos;
+            self.pos += 1;
+            if let Some(value) = self.grove.get(i) {
+                return Some((i, value));
+            }
+        }
+        None
+    }
+}
+
+/// An iterator over the values in a [`Grove`].
+///
+/// Created by [`Grove::values`].
+pub struct Values<'a, T>(Iter<'a, T>);
+
+impl<'a, T> Iterator for Values<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(_, v)| v)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Grove<T> {
+    type IntoIter = Iter<'a, T>;
+    type Item = (usize, &'a T);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
