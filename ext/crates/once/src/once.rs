@@ -379,33 +379,44 @@ impl<T> OnceVec<T> {
     /// assert_eq!(v.iter().count(), 3);
     /// ```
     pub fn iter(&self) -> OnceVecIter<'_, T> {
-        let len = self.len();
-        // We use `take` because `data.iter()` also iterates through the out-of-order elements, but
-        // we don't want that.
-        OnceVecIter(self.data.values().take(len))
+        OnceVecIter {
+            grove: &self.data,
+            range: 0..self.len(),
+        }
     }
 }
 
 /// An iterator over the values in a [`OnceVec`].
 ///
 /// Created by [`OnceVec::iter`].
-pub struct OnceVecIter<'a, T>(std::iter::Take<crate::grove::Values<'a, T>>);
+pub struct OnceVecIter<'a, T> {
+    grove: &'a Grove<T>,
+    range: std::ops::Range<usize>,
+}
 
 impl<'a, T> Iterator for OnceVecIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let i = self.range.next()?;
+        // SAFETY: OnceVec is dense — every slot in 0..len is populated.
+        Some(unsafe { self.grove.get_unchecked(i) })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // OnceVec is dense, so all slots in the Take range are populated.
-        let remaining = self.0.size_hint().1.unwrap();
-        (remaining, Some(remaining))
+        self.range.size_hint()
     }
 
     fn count(self) -> usize {
         self.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for OnceVecIter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let i = self.range.next_back()?;
+        // SAFETY: OnceVec is dense — every slot in 0..len is populated.
+        Some(unsafe { self.grove.get_unchecked(i) })
     }
 }
 
@@ -783,6 +794,15 @@ impl<'a, T> Iterator for OnceBiVecIter<'a, T> {
 
     fn count(self) -> usize {
         self.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for OnceBiVecIter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let value = self.inner.next_back()?;
+        // After inner.next_back() shrinks the range, inner.len() is the offset of the back element.
+        let idx = self.pos + self.inner.len() as i32;
+        Some((idx, value))
     }
 }
 
@@ -1221,6 +1241,99 @@ mod tests {
             assert_eq!(*idx, expected_indices[i]);
             assert_eq!(**val, expected_values[i]);
         }
+    }
+
+    #[test]
+    fn test_oncevec_iter_rev() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter().rev();
+        assert_eq!(iter.next(), Some(&30));
+        assert_eq!(iter.next(), Some(&20));
+        assert_eq!(iter.next(), Some(&10));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_oncevec_iter_double_ended() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+        v.push(40);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.next(), Some(&10));
+        assert_eq!(iter.next_back(), Some(&40));
+        assert_eq!(iter.next_back(), Some(&30));
+        assert_eq!(iter.next(), Some(&20));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+
+    #[test]
+    fn test_oncevec_iter_exact_size() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.len(), 3);
+        iter.next();
+        assert_eq!(iter.len(), 2);
+        iter.next_back();
+        assert_eq!(iter.len(), 1);
+        iter.next();
+        assert_eq!(iter.len(), 0);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_rev() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let items: Vec<_> = v.iter().rev().collect();
+        assert_eq!(items, vec![(0, &30), (-1, &20), (-2, &10)]);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_double_ended() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+        v.push(40);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.next(), Some((-2, &10)));
+        assert_eq!(iter.next_back(), Some((1, &40)));
+        assert_eq!(iter.next_back(), Some((0, &30)));
+        assert_eq!(iter.next(), Some((-1, &20)));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_exact_size() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.len(), 3);
+        iter.next();
+        assert_eq!(iter.len(), 2);
+        iter.next_back();
+        assert_eq!(iter.len(), 1);
+        iter.next();
+        assert_eq!(iter.len(), 0);
     }
 
     #[cfg(loom)]
