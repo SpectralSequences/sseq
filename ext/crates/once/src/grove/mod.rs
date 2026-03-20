@@ -792,51 +792,6 @@ impl<T> TwoEndedGrove<T> {
             self.neg.is_set((-idx) as usize)
         }
     }
-
-    /// Applies a function to each value in the `TwoEndedGrove`.
-    ///
-    /// This method iterates over all values in the `TwoEndedGrove` and applies the provided
-    /// function to each one.
-    ///
-    /// This requires a mutable reference to the `TwoEndedGrove`, which may not be very common in
-    /// practice. It is mainly used for the `Drop` implementation of `MultiIndexed`, which requires
-    /// iterating over mutable references to all values. Simply returning an iterator over the
-    /// entries that contain values would not be sufficient, as it would hold a reference to `self`
-    /// and not allow mutable access to the internal values.
-    ///
-    /// # Parameters
-    ///
-    /// * `f`: The function to apply to each value
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use once::TwoEndedGrove;
-    ///
-    /// let mut grove = TwoEndedGrove::<i32>::new();
-    /// grove.insert(-5, 10);
-    /// grove.insert(0, 20);
-    /// grove.insert(5, 30);
-    ///
-    /// // Double each value
-    /// grove.for_each_mut(|value| *value *= 2);
-    ///
-    /// assert_eq!(grove.get(-5), Some(&20));
-    /// assert_eq!(grove.get(0), Some(&40));
-    /// assert_eq!(grove.get(5), Some(&60));
-    /// ```
-    pub fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut T),
-    {
-        // I would have liked to use `.filter_map(...).for_each(f)` but that gives me issues with
-        // returning lifetimes from closures.
-        for idx in self.range() {
-            if let Some(value) = self.get_mut(idx) {
-                f(value);
-            }
-        }
-    }
 }
 
 impl<T> Default for TwoEndedGrove<T> {
@@ -1121,28 +1076,6 @@ mod tests {
         assert!(!grove.is_set(-10));
         assert!(!grove.is_set(0));
         assert!(!grove.is_set(10));
-    }
-
-    #[test]
-    fn test_two_ended_grove_for_each_mut() {
-        let mut grove = TwoEndedGrove::<i32>::new();
-
-        // Insert values
-        grove.insert(-5, 10);
-        grove.insert(-2, 20);
-        grove.insert(0, 30);
-        grove.insert(3, 40);
-        grove.insert(5, 50);
-
-        // Double each value
-        grove.for_each_mut(|value| *value *= 2);
-
-        // Check values
-        assert_eq!(grove.get(-5), Some(&20));
-        assert_eq!(grove.get(-2), Some(&40));
-        assert_eq!(grove.get(0), Some(&60));
-        assert_eq!(grove.get(3), Some(&80));
-        assert_eq!(grove.get(5), Some(&100));
     }
 
     #[test]
