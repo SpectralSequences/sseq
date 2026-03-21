@@ -54,13 +54,15 @@ impl<V> Index<Bidegree> for Bigraded<V> {
     type Output = V;
 
     fn index(&self, b: Bidegree) -> &V {
-        self.get(b).unwrap()
+        self.get(b)
+            .unwrap_or_else(|| panic!("no value at bidegree {b}"))
     }
 }
 
 impl<V> IndexMut<Bidegree> for Bigraded<V> {
     fn index_mut(&mut self, b: Bidegree) -> &mut V {
-        self.get_mut(b).unwrap()
+        self.get_mut(b)
+            .unwrap_or_else(|| panic!("no value at bidegree {b}"))
     }
 }
 
