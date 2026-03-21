@@ -115,7 +115,7 @@
 <a href=#90 id=90 data-nosnippet>90</a>            <span class="self">self</span>.generator_to_index.push_checked(OnceVec::new(), degree);
 <a href=#91 id=91 data-nosnippet>91</a>
 <a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">0</span>;
-<a href=#93 id=93 data-nosnippet>93</a>            <span class="kw">for </span>(gen_deg, <span class="kw-2">&amp;</span>num_gens) <span class="kw">in </span><span class="self">self</span>.num_gens.iter_enum() {
+<a href=#93 id=93 data-nosnippet>93</a>            <span class="kw">for </span>(gen_deg, <span class="kw-2">&amp;</span>num_gens) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.num_gens {
 <a href=#94 id=94 data-nosnippet>94</a>                <span class="kw">let </span>op_deg = degree - gen_deg;
 <a href=#95 id=95 data-nosnippet>95</a>                <span class="kw">let </span>num_ops = algebra.dimension_unstable(op_deg, gen_deg);
 <a href=#96 id=96 data-nosnippet>96</a>                <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..num_gens {
@@ -321,7 +321,7 @@
 <a href=#296 id=296 data-nosnippet>296</a>    <span class="doccomment">/// Iterate the degrees and indices of each generator up to degree `degree`.
 <a href=#297 id=297 data-nosnippet>297</a>    </span><span class="kw">pub fn </span>iter_gens(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (i32, usize)&gt; + <span class="lifetime">'_ </span>{
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="self">self</span>.num_gens
-<a href=#299 id=299 data-nosnippet>299</a>            .iter_enum()
+<a href=#299 id=299 data-nosnippet>299</a>            .iter()
 <a href=#300 id=300 data-nosnippet>300</a>            .take((degree - <span class="self">self</span>.min_degree + <span class="number">1</span>) <span class="kw">as </span>usize)
 <a href=#301 id=301 data-nosnippet>301</a>            .flat_map(|(t, <span class="kw-2">&amp;</span>n)| (<span class="number">0</span>..n).map(<span class="kw">move </span>|k| (t, k)))
 <a href=#302 id=302 data-nosnippet>302</a>    }

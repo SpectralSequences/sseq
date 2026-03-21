@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_NUM_BLOCKS"],"mod":["block"],"struct":["Grove","TwoEndedGrove"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_NUM_BLOCKS"],"mod":["block"],"struct":["Grove","Iter","TwoEndedGrove","Values"]};

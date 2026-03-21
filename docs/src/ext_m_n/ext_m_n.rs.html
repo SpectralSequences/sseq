@@ -120,11 +120,11 @@
 <a href=#95 id=95 data-nosnippet>95</a>                    <span class="self">self</span>.source.differential(s + <span class="number">1</span>),
 <a href=#96 id=96 data-nosnippet>96</a>                ))
 <a href=#97 id=97 data-nosnippet>97</a>            });
-<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">for </span>(s, module) <span class="kw">in </span><span class="self">self</span>.modules.iter().enumerate() {
-<a href=#99 id=99 data-nosnippet>99</a>                module.compute_basis(max.n() + s <span class="kw">as </span>i32 + <span class="number">1</span>);
+<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">for </span>(s, module) <span class="kw">in </span><span class="self">self</span>.modules.iter() {
+<a href=#99 id=99 data-nosnippet>99</a>                module.compute_basis(max.n() + s + <span class="number">1</span>);
 <a href=#100 id=100 data-nosnippet>100</a>            }
-<a href=#101 id=101 data-nosnippet>101</a>            <span class="kw">for </span>(s, d) <span class="kw">in </span><span class="self">self</span>.differentials.iter().enumerate() {
-<a href=#102 id=102 data-nosnippet>102</a>                d.compute_auxiliary_data_through_degree(max.n() + s <span class="kw">as </span>i32 + <span class="number">1</span>);
+<a href=#101 id=101 data-nosnippet>101</a>            <span class="kw">for </span>(s, d) <span class="kw">in </span><span class="self">self</span>.differentials.iter() {
+<a href=#102 id=102 data-nosnippet>102</a>                d.compute_auxiliary_data_through_degree(max.n() + s + <span class="number">1</span>);
 <a href=#103 id=103 data-nosnippet>103</a>            }
 <a href=#104 id=104 data-nosnippet>104</a>        }
 <a href=#105 id=105 data-nosnippet>105</a>
