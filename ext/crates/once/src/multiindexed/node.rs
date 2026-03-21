@@ -234,9 +234,9 @@ impl<V> Node<V> {
         } else {
             // This is an inner node
             unsafe {
-                self.inner.for_each_mut(|node| {
+                for node in self.inner.values_mut() {
                     node.drop_level(dimensions, level + 1);
-                });
+                }
                 ManuallyDrop::drop(&mut self.inner);
             }
         }

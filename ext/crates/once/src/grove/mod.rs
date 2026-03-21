@@ -1,6 +1,9 @@
 mod block;
 
-use std::num::NonZero;
+use std::{
+    num::NonZero,
+    ops::{Index, IndexMut},
+};
 
 use block::Block;
 
@@ -8,7 +11,7 @@ use crate::std_or_loom::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 
 const MAX_NUM_BLOCKS: usize = 32;
 
-/// An insert-only sparse vector with pinned elements and geometrically growing capacity.
+/// A sparse vector with pinned elements and geometrically growing capacity.
 ///
 /// `Grove` (a pun on "grow vec") is a specialized data structure that provides efficient storage
 /// for data with the following key features:
@@ -339,6 +342,44 @@ impl<T> Grove<T> {
         grove
     }
 
+    /// Returns an iterator over the index-value pairs in the `Grove`.
+    ///
+    /// The iterator yields pairs in order of their indices, from 0 to `len() - 1`.
+    /// Indices that don't have a value are skipped.
+    ///
+    /// # Returns
+    ///
+    /// An iterator over `(usize, &T)` pairs in the `Grove`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::Grove;
+    ///
+    /// let grove = Grove::<i32>::new();
+    /// grove.insert(0, 10);
+    /// grove.insert(2, 30);
+    ///
+    /// let entries: Vec<_> = grove.iter().collect();
+    /// assert_eq!(entries, vec![(0, &10), (2, &30)]);
+    /// ```
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            grove: self,
+            pos: 0,
+            len: self.len(),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
+        let ptr = self as *mut Self;
+        (0..self.len()).filter_map(move |i| {
+            // SAFETY: Each index maps to a unique (block, offset) pair, so the returned `&mut T`
+            // references are non-aliasing. We have `&mut self` so no other references exist.
+            unsafe { (*ptr).get_mut(i).map(|value| (i, value)) }
+        })
+    }
+
     /// Returns an iterator over the values in the `Grove`.
     ///
     /// The iterator yields values in order of their indices, from 0 to `len() - 1`.
@@ -357,15 +398,70 @@ impl<T> Grove<T> {
     /// grove.insert(0, 10);
     /// grove.insert(2, 30);
     ///
-    /// let values: Vec<_> = grove.iter().collect();
+    /// let values: Vec<_> = grove.values().collect();
     /// assert_eq!(values, vec![&10, &30]);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.enumerate().map(move |(_, value)| value)
+    pub fn values(&self) -> Values<'_, T> {
+        Values(self.iter())
+    }
+}
+
+/// An iterator over the index-value pairs in a [`Grove`].
+///
+/// Created by [`Grove::iter`].
+pub struct Iter<'a, T> {
+    grove: &'a Grove<T>,
+    pos: usize,
+    len: usize,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (usize, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pos < self.len {
+            let i = self.pos;
+            self.pos += 1;
+            if let Some(value) = self.grove.get(i) {
+                return Some((i, value));
+            }
+        }
+        None
     }
 
-    pub fn enumerate(&self) -> impl Iterator<Item = (usize, &T)> {
-        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // Grove is sparse, so we can't know the exact count without scanning.
+        (0, Some(self.len - self.pos))
+    }
+}
+
+/// An iterator over the values in a [`Grove`].
+///
+/// Created by [`Grove::values`].
+pub struct Values<'a, T>(Iter<'a, T>);
+
+impl<'a, T> Iterator for Values<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(_, v)| v)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<T> std::iter::FusedIterator for Iter<'_, T> {}
+
+impl<T> std::iter::FusedIterator for Values<'_, T> {}
+
+impl<'a, T> IntoIterator for &'a Grove<T> {
+    type IntoIter = Iter<'a, T>;
+    type Item = (usize, &'a T);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -378,7 +474,7 @@ impl<T> Default for Grove<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut debug_map = f.debug_map();
-        for (i, val) in self.enumerate() {
+        for (i, val) in self.iter() {
             debug_map.entry(&i, val);
         }
         debug_map.finish()
@@ -388,7 +484,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
 impl<T: Clone> Clone for Grove<T> {
     fn clone(&self) -> Self {
         let new_grove = Self::new();
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
         new_grove
@@ -397,7 +493,7 @@ impl<T: Clone> Clone for Grove<T> {
 
 impl<T: PartialEq> PartialEq for Grove<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.enumerate().eq(other.enumerate())
+        self.iter().eq(other.iter())
     }
 }
 
@@ -405,10 +501,26 @@ impl<T: Eq> Eq for Grove<T> {}
 
 impl<T: std::hash::Hash> std::hash::Hash for Grove<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             i.hash(state);
             value.hash(state);
         }
+    }
+}
+
+impl<T> Index<usize> for Grove<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<T> IndexMut<usize> for Grove<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
     }
 }
 
@@ -633,20 +745,36 @@ impl<T> TwoEndedGrove<T> {
         self.min.load(Ordering::Acquire)..self.max.load(Ordering::Relaxed)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.enumerate().map(move |(_, value)| value)
-    }
-
-    pub fn enumerate(&self) -> impl Iterator<Item = (i32, &T)> {
+    pub fn iter(&self) -> impl Iterator<Item = (i32, &T)> {
         let non_negs = self
             .non_neg
-            .enumerate()
+            .iter()
             .map(move |(idx, value)| (idx as i32, value));
         let negs = self
             .neg
-            .enumerate()
+            .iter()
             .map(move |(idx, value)| (-(idx as i32), value));
         non_negs.chain(negs)
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (i32, &mut T)> {
+        let non_negs = self
+            .non_neg
+            .iter_mut()
+            .map(move |(idx, value)| (idx as i32, value));
+        let negs = self
+            .neg
+            .iter_mut()
+            .map(move |(idx, value)| (-(idx as i32), value));
+        non_negs.chain(negs)
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.iter().map(move |(_, value)| value)
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.iter_mut().map(move |(_, value)| value)
     }
 
     /// Checks if a value exists at the specified index.
@@ -677,51 +805,6 @@ impl<T> TwoEndedGrove<T> {
             self.neg.is_set((-idx) as usize)
         }
     }
-
-    /// Applies a function to each value in the `TwoEndedGrove`.
-    ///
-    /// This method iterates over all values in the `TwoEndedGrove` and applies the provided
-    /// function to each one.
-    ///
-    /// This requires a mutable reference to the `TwoEndedGrove`, which may not be very common in
-    /// practice. It is mainly used for the `Drop` implementation of `MultiIndexed`, which requires
-    /// iterating over mutable references to all values. Simply returning an iterator over the
-    /// entries that contain values would not be sufficient, as it would hold a reference to `self`
-    /// and not allow mutable access to the internal values.
-    ///
-    /// # Parameters
-    ///
-    /// * `f`: The function to apply to each value
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use once::TwoEndedGrove;
-    ///
-    /// let mut grove = TwoEndedGrove::<i32>::new();
-    /// grove.insert(-5, 10);
-    /// grove.insert(0, 20);
-    /// grove.insert(5, 30);
-    ///
-    /// // Double each value
-    /// grove.for_each_mut(|value| *value *= 2);
-    ///
-    /// assert_eq!(grove.get(-5), Some(&20));
-    /// assert_eq!(grove.get(0), Some(&40));
-    /// assert_eq!(grove.get(5), Some(&60));
-    /// ```
-    pub fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut T),
-    {
-        // I would have liked to use `.filter_map(...).for_each(f)` but that gives me issues with
-        // returning lifetimes from closures.
-        for idx in self.range() {
-            if let Some(value) = self.get_mut(idx) {
-                f(value);
-            }
-        }
-    }
 }
 
 impl<T> Default for TwoEndedGrove<T> {
@@ -733,7 +816,7 @@ impl<T> Default for TwoEndedGrove<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut debug_map = f.debug_map();
-        for (i, val) in self.enumerate() {
+        for (i, val) in self.iter() {
             debug_map.entry(&i, val);
         }
         debug_map.finish()
@@ -743,7 +826,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
 impl<T: Clone> Clone for TwoEndedGrove<T> {
     fn clone(&self) -> Self {
         let new_grove = Self::new();
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
         new_grove
@@ -752,7 +835,7 @@ impl<T: Clone> Clone for TwoEndedGrove<T> {
 
 impl<T: PartialEq> PartialEq for TwoEndedGrove<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.enumerate().eq(other.enumerate())
+        self.iter().eq(other.iter())
     }
 }
 
@@ -760,10 +843,26 @@ impl<T: Eq> Eq for TwoEndedGrove<T> {}
 
 impl<T: std::hash::Hash> std::hash::Hash for TwoEndedGrove<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for (i, value) in self.enumerate() {
+        for (i, value) in self.iter() {
             i.hash(state);
             value.hash(state);
         }
+    }
+}
+
+impl<T> Index<i32> for TwoEndedGrove<T> {
+    type Output = T;
+
+    fn index(&self, index: i32) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<T> IndexMut<i32> for TwoEndedGrove<T> {
+    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
     }
 }
 
@@ -993,28 +1092,6 @@ mod tests {
     }
 
     #[test]
-    fn test_two_ended_grove_for_each_mut() {
-        let mut grove = TwoEndedGrove::<i32>::new();
-
-        // Insert values
-        grove.insert(-5, 10);
-        grove.insert(-2, 20);
-        grove.insert(0, 30);
-        grove.insert(3, 40);
-        grove.insert(5, 50);
-
-        // Double each value
-        grove.for_each_mut(|value| *value *= 2);
-
-        // Check values
-        assert_eq!(grove.get(-5), Some(&20));
-        assert_eq!(grove.get(-2), Some(&40));
-        assert_eq!(grove.get(0), Some(&60));
-        assert_eq!(grove.get(3), Some(&80));
-        assert_eq!(grove.get(5), Some(&100));
-    }
-
-    #[test]
     fn test_two_ended_grove_get_mut() {
         let mut grove = TwoEndedGrove::<i32>::new();
 
@@ -1078,6 +1155,61 @@ mod tests {
 
         // Check min
         assert_eq!(grove.range(), 3..6);
+    }
+
+    #[test]
+    fn test_grove_iter_mut_no_aliasing() {
+        let mut grove = Grove::<i32>::new();
+        grove.insert(0, 10);
+        grove.insert(1, 20);
+        grove.insert(3, 30);
+        grove.insert(7, 40);
+
+        let mut it = grove.iter_mut();
+        let (_, a) = it.next().unwrap();
+        let (_, b) = it.next().unwrap();
+        let (_, c) = it.next().unwrap();
+        let (_, d) = it.next().unwrap();
+
+        // Miri detects borrow-model violations if any of the references alias.
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        assert_eq!(grove.get(0), Some(&11));
+        assert_eq!(grove.get(1), Some(&22));
+        assert_eq!(grove.get(3), Some(&33));
+        assert_eq!(grove.get(7), Some(&44));
+    }
+
+    #[test]
+    fn test_two_ended_grove_iter_mut_no_aliasing() {
+        let mut grove = TwoEndedGrove::<i32>::new();
+        grove.insert(-3, 10);
+        grove.insert(-1, 20);
+        grove.insert(0, 30);
+        grove.insert(5, 40);
+
+        // Hold all four &mut references simultaneously.
+        let mut it = grove.iter_mut();
+        let (i0, a) = it.next().unwrap();
+        let (i1, b) = it.next().unwrap();
+        let (i2, c) = it.next().unwrap();
+        let (i3, d) = it.next().unwrap();
+
+        *a += 1;
+        *b += 2;
+        *c += 3;
+        *d += 4;
+        drop(it);
+
+        // Verify using the indices returned by the iterator (order is non-neg then neg).
+        assert_eq!(grove.get(i0), Some(&31));
+        assert_eq!(grove.get(i1), Some(&42));
+        assert_eq!(grove.get(i2), Some(&23));
+        assert_eq!(grove.get(i3), Some(&14));
     }
 
     #[test]

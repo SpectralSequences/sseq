@@ -501,7 +501,7 @@ pub trait SecondaryLift: Sync + Sized {
         };
 
         self.homotopies()
-            .maybe_par_iter_enum()
+            .maybe_par_iter()
             .skip(1)
             .for_each(|(s, homotopy)| {
                 homotopy

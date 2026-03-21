@@ -1,8 +1,9 @@
 //! # Once Crate
 //!
-//! The `once` crate provides thread-safe data structures that are designed for write-once semantics,
-//! making them particularly useful for concurrent programming scenarios where data is computed once
-//! and then read many times.
+//! The `once` crate provides thread-safe data structures that are designed for insert-once
+//! semantics, making them particularly useful for concurrent programming scenarios where data is
+//! computed once and then read many times. Values can be mutated through exclusive (`&mut`)
+//! references, but new entries can only be inserted, never removed.
 //!
 //! ## Key Components
 //!
@@ -41,7 +42,7 @@ mod std_or_loom;
 
 pub use grove::{Grove, TwoEndedGrove};
 pub use multiindexed::MultiIndexed;
-pub use once::{OnceBiVec, OnceVec};
+pub use once::{OnceBiVec, OnceBiVecIter, OnceVec, OnceVecIter};
 
 #[cfg(test)]
 mod test_utils {

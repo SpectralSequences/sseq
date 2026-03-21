@@ -23,7 +23,7 @@ impl<T> Benchable<1, T> for OnceBiVec<T> {
     where
         T: 'a,
     {
-        self.iter_enum().map(|(i, v)| ([i], v))
+        self.iter().map(|(i, v)| ([i], v))
     }
 }
 
@@ -57,7 +57,7 @@ impl<T> Benchable<2, T> for OnceBiVec<OnceBiVec<T>> {
         T: 'a,
     {
         Benchable::<1, _>::iter(self)
-            .flat_map(|(start, v)| v.iter_enum().map(move |(end, val)| ([start[0], end], val)))
+            .flat_map(|(start, v)| v.iter().map(move |(end, val)| ([start[0], end], val)))
     }
 }
 
@@ -96,7 +96,7 @@ impl<T> Benchable<3, T> for OnceBiVec<OnceBiVec<OnceBiVec<T>>> {
         T: 'a,
     {
         Benchable::<2, _>::iter(self).flat_map(|(start, v)| {
-            v.iter_enum()
+            v.iter()
                 .map(move |(end, val)| ([start[0], start[1], end], val))
         })
     }
@@ -142,7 +142,7 @@ impl<T> Benchable<4, T> for OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<T>>>> {
         T: 'a,
     {
         Benchable::<3, _>::iter(self).flat_map(|(start, v)| {
-            v.iter_enum()
+            v.iter()
                 .map(move |(end, val)| ([start[0], start[1], start[2], end], val))
         })
     }
@@ -193,7 +193,7 @@ impl<T> Benchable<5, T> for OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<T>
         T: 'a,
     {
         Benchable::<4, _>::iter(self).flat_map(|(start, v)| {
-            v.iter_enum()
+            v.iter()
                 .map(move |(end, val)| ([start[0], start[1], start[2], start[3], end], val))
         })
     }

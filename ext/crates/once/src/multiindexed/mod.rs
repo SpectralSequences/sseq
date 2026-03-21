@@ -1,4 +1,9 @@
-pub use self::kdtrie::KdTrie;
+use std::ops::{Index, IndexMut};
+
+pub use self::{
+    iter::{Iter, IterMut},
+    kdtrie::KdTrie,
+};
 
 mod iter;
 pub mod kdtrie;
@@ -34,13 +39,14 @@ mod node;
 /// - **Retrieval**: O(K) time complexity,
 /// - **Memory Usage**: amortized O(N) space complexity, where N is the number of inserted elements
 ///
-/// # Warning
+/// # Note
 ///
-/// This data structure is designed for write-once semantics, meaning that once a value is inserted
-/// at a specific coordinate, it cannot be changed directly. If you need to update values, you can
-/// wrap them in a struct that allows for interior mutability (e.g., `RefCell`, `Mutex`, etc.).
+/// Inserting a value at a coordinate that is already occupied will panic. Values can be mutated
+/// in place through exclusive (`&mut`) references via [`get_mut`](MultiIndexed::get_mut) or
+/// [`IndexMut`]. However, while insertion only requires a shared reference, concurrent mutation is
+/// not supported.
 ///
-/// Note that, for performance reasons, we do not allow `K = 0`.
+/// For performance reasons, we do not allow `K = 0`.
 ///
 /// # Examples
 ///
@@ -297,6 +303,22 @@ impl<const K: usize, V: std::hash::Hash> std::hash::Hash for MultiIndexed<K, V> 
     }
 }
 
+impl<const K: usize, V> Index<[i32; K]> for MultiIndexed<K, V> {
+    type Output = V;
+
+    fn index(&self, index: [i32; K]) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<const K: usize, V> IndexMut<[i32; K]> for MultiIndexed<K, V> {
+    fn index_mut(&mut self, index: [i32; K]) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![cfg_attr(miri, allow(dead_code))]
@@ -410,61 +432,26 @@ mod tests {
     }
 
     #[test]
-    fn test_iter_empty() {
-        let arr = MultiIndexed::<2, i32>::new();
-        let items: Vec<_> = arr.iter().collect();
-        assert_eq!(items, vec![]);
-    }
-
-    #[test]
-    fn test_iter_multiple_calls() {
+    fn test_index() {
         let arr = MultiIndexed::<2, i32>::new();
         arr.insert([1, 2], 10);
         arr.insert([3, 4], 20);
 
-        // Multiple calls to iter should return the same items
-        let items1: Vec<_> = arr.iter().collect();
-        let items2: Vec<_> = arr.iter().collect();
-
-        assert_eq!(items1, items2);
+        assert_eq!(arr[[1, 2]], 10);
+        assert_eq!(arr[[3, 4]], 20);
     }
 
     #[test]
-    fn test_iter_mut_empty() {
-        let mut arr = MultiIndexed::<2, i32>::new();
-        let items: Vec<_> = arr.iter_mut().collect();
-        assert_eq!(items, vec![]);
-    }
-
-    #[test]
-    fn test_iter_mut_basic() {
+    fn test_index_mut() {
         let mut arr = MultiIndexed::<2, i32>::new();
         arr.insert([1, 2], 10);
         arr.insert([3, 4], 20);
-        arr.insert([-5, 6], 30);
 
-        // Mutate all values
-        for (_, v) in arr.iter_mut() {
-            *v *= 3;
-        }
+        arr[[1, 2]] += 1;
+        arr[[3, 4]] += 2;
 
-        assert_eq!(arr.get([1, 2]), Some(&30));
-        assert_eq!(arr.get([3, 4]), Some(&60));
-        assert_eq!(arr.get([-5, 6]), Some(&90));
-    }
-
-    #[test]
-    fn test_iter_and_iter_mut_agree() {
-        let mut arr = MultiIndexed::<2, i32>::new();
-        arr.insert([1, 2], 10);
-        arr.insert([3, -4], 20);
-        arr.insert([-5, 6], 30);
-        arr.insert([0, 0], 40);
-
-        let immutable: Vec<_> = arr.iter().map(|(c, &v)| (c, v)).collect();
-        let mutable: Vec<_> = arr.iter_mut().map(|(c, &mut v)| (c, v)).collect();
-
-        assert_eq!(immutable, mutable);
+        assert_eq!(arr[[1, 2]], 11);
+        assert_eq!(arr[[3, 4]], 22);
     }
 
     #[test]

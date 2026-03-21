@@ -378,11 +378,58 @@ impl<T> OnceVec<T> {
     /// v.push(2);
     /// assert_eq!(v.iter().count(), 3);
     /// ```
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        let len = self.len();
-        // We use `take` because `data.iter()` also iterates through the out-of-order elements, but
-        // we don't want that.
-        self.data.iter().take(len)
+    pub fn iter(&self) -> OnceVecIter<'_, T> {
+        OnceVecIter {
+            grove: &self.data,
+            range: 0..self.len(),
+        }
+    }
+}
+
+/// An iterator over the values in a [`OnceVec`].
+///
+/// Created by [`OnceVec::iter`].
+pub struct OnceVecIter<'a, T> {
+    grove: &'a Grove<T>,
+    range: std::ops::Range<usize>,
+}
+
+impl<'a, T> Iterator for OnceVecIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.range.next()?;
+        // SAFETY: OnceVec is dense — every slot in 0..len is populated.
+        Some(unsafe { self.grove.get_unchecked(i) })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+
+    fn count(self) -> usize {
+        self.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for OnceVecIter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let i = self.range.next_back()?;
+        // SAFETY: OnceVec is dense — every slot in 0..len is populated.
+        Some(unsafe { self.grove.get_unchecked(i) })
+    }
+}
+
+impl<T> std::iter::FusedIterator for OnceVecIter<'_, T> {}
+
+impl<T> ExactSizeIterator for OnceVecIter<'_, T> {}
+
+impl<'a, T> IntoIterator for &'a OnceVec<T> {
+    type IntoIter = OnceVecIter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -688,7 +735,7 @@ impl<T> OnceBiVec<T> {
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
     /// v.extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
-    /// for (i, &n) in v.iter_enum() {
+    /// for (i, &n) in v.iter() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
@@ -711,16 +758,64 @@ impl<T> OnceBiVec<T> {
         self.data.lock()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn values(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
 
-    pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {
-        let min_degree = self.min_degree;
-        self.data
-            .iter()
-            .enumerate()
-            .map(move |(i, t)| (i as i32 + min_degree, t))
+    pub fn iter(&self) -> OnceBiVecIter<'_, T> {
+        OnceBiVecIter {
+            inner: self.data.iter(),
+            pos: self.min_degree,
+        }
+    }
+}
+
+/// An iterator over the index-value pairs in a [`OnceBiVec`].
+///
+/// Created by [`OnceBiVec::iter`].
+pub struct OnceBiVecIter<'a, T> {
+    inner: OnceVecIter<'a, T>,
+    pos: i32,
+}
+
+impl<'a, T> Iterator for OnceBiVecIter<'a, T> {
+    type Item = (i32, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let value = self.inner.next()?;
+        let idx = self.pos;
+        self.pos += 1;
+        Some((idx, value))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
+    fn count(self) -> usize {
+        self.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for OnceBiVecIter<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let value = self.inner.next_back()?;
+        // After inner.next_back() shrinks the range, inner.len() is the offset of the back element.
+        let idx = self.pos + self.inner.len() as i32;
+        Some((idx, value))
+    }
+}
+
+impl<T> std::iter::FusedIterator for OnceBiVecIter<'_, T> {}
+
+impl<T> ExactSizeIterator for OnceBiVecIter<'_, T> {}
+
+impl<'a, T> IntoIterator for &'a OnceBiVec<T> {
+    type IntoIter = OnceBiVecIter<'a, T>;
+    type Item = (i32, &'a T);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -736,7 +831,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
     /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
-    /// for (i, &n) in v.iter_enum() {
+    /// for (i, &n) in v.iter() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
@@ -750,7 +845,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
             });
     }
 
-    pub fn maybe_par_iter_enum(
+    pub fn maybe_par_iter(
         &self,
     ) -> impl MaybeParallelIterator<Item = (i32, &T)> + MaybeIndexedParallelIterator {
         self.range().into_maybe_par_iter().map(|i| (i, &self[i]))
@@ -1122,7 +1217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_oncebivec_iter_enum() {
+    fn test_oncebivec_iter() {
         let v = OnceBiVec::<i32>::new(-3);
 
         // Add some values
@@ -1130,22 +1225,115 @@ mod tests {
         v.push(20);
         v.push(30);
 
-        // Check iterator
-        let mut iter = v.iter();
+        // Check values iterator
+        let mut iter = v.values();
         assert_eq!(iter.next(), Some(&10));
         assert_eq!(iter.next(), Some(&20));
         assert_eq!(iter.next(), Some(&30));
         assert_eq!(iter.next(), None);
 
-        // Check enumerated iterator
+        // Check iter (yields (i32, &T))
         let expected_indices = [-3, -2, -1];
         let expected_values = [10, 20, 30];
-        let actual_pairs: Vec<_> = v.iter_enum().collect();
+        let actual_pairs: Vec<_> = v.iter().collect();
 
         for (i, (idx, val)) in actual_pairs.iter().enumerate() {
             assert_eq!(*idx, expected_indices[i]);
             assert_eq!(**val, expected_values[i]);
         }
+    }
+
+    #[test]
+    fn test_oncevec_iter_rev() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter().rev();
+        assert_eq!(iter.next(), Some(&30));
+        assert_eq!(iter.next(), Some(&20));
+        assert_eq!(iter.next(), Some(&10));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_oncevec_iter_double_ended() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+        v.push(40);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.next(), Some(&10));
+        assert_eq!(iter.next_back(), Some(&40));
+        assert_eq!(iter.next_back(), Some(&30));
+        assert_eq!(iter.next(), Some(&20));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+
+    #[test]
+    fn test_oncevec_iter_exact_size() {
+        let v = OnceVec::new();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.len(), 3);
+        iter.next();
+        assert_eq!(iter.len(), 2);
+        iter.next_back();
+        assert_eq!(iter.len(), 1);
+        iter.next();
+        assert_eq!(iter.len(), 0);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_rev() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let items: Vec<_> = v.iter().rev().collect();
+        assert_eq!(items, vec![(0, &30), (-1, &20), (-2, &10)]);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_double_ended() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+        v.push(40);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.next(), Some((-2, &10)));
+        assert_eq!(iter.next_back(), Some((1, &40)));
+        assert_eq!(iter.next_back(), Some((0, &30)));
+        assert_eq!(iter.next(), Some((-1, &20)));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+
+    #[test]
+    fn test_oncebivec_iter_exact_size() {
+        let v = OnceBiVec::<i32>::new(-2);
+        v.push(10);
+        v.push(20);
+        v.push(30);
+
+        let mut iter = v.iter();
+        assert_eq!(iter.len(), 3);
+        iter.next();
+        assert_eq!(iter.len(), 2);
+        iter.next_back();
+        assert_eq!(iter.len(), 1);
+        iter.next();
+        assert_eq!(iter.len(), 0);
     }
 
     #[cfg(loom)]
@@ -1237,7 +1425,7 @@ mod tests {
         }
 
         #[test]
-        fn loom_oncebivec_iter_enum() {
+        fn loom_oncebivec_iter() {
             loom::model(|| {
                 let vec = Arc::new(OnceBiVec::<i32>::new(-3));
 
@@ -1254,7 +1442,7 @@ mod tests {
                     let len = vec2.len();
                     if len > -2 {
                         // At least one element
-                        let pairs: Vec<_> = vec2.iter_enum().collect();
+                        let pairs: Vec<_> = vec2.iter().collect();
                         for (idx, _) in pairs {
                             assert!(idx >= -3 && idx < len);
                         }
@@ -1265,7 +1453,7 @@ mod tests {
                 t2.join().unwrap();
 
                 // Verify final state
-                let pairs: Vec<_> = vec.iter_enum().collect();
+                let pairs: Vec<_> = vec.iter().collect();
                 assert_eq!(pairs.len(), 2);
                 assert_eq!(pairs[0].0, -3);
                 assert_eq!(*pairs[0].1, 10);

@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use super::node::Node;
 
 /// A K-dimensional trie data structure that efficiently stores values indexed by multi-dimensional
@@ -254,5 +256,21 @@ impl<V: std::hash::Hash> std::hash::Hash for KdTrie<V> {
             coords.hash(state);
             value.hash(state);
         }
+    }
+}
+
+impl<V> Index<&[i32]> for KdTrie<V> {
+    type Output = V;
+
+    fn index(&self, index: &[i32]) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    }
+}
+
+impl<V> IndexMut<&[i32]> for KdTrie<V> {
+    fn index_mut(&mut self, index: &[i32]) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| panic!("no value at index {index:?}"))
     }
 }

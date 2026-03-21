@@ -27,7 +27,7 @@ impl DenseBigradedModule {
         Bidegree::x_y(
             self.dimensions.max_degree(),
             self.dimensions
-                .iter()
+                .values()
                 .map(OnceBiVec::max_degree)
                 .max()
                 .unwrap_or(self.min_y),
