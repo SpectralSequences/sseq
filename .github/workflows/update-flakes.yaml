@@ -1,0 +1,35 @@
+name: Update flake.lock
+
+on:
+  schedule:
+    - cron: "0 6 2 * *" # 2nd of each month at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update-flakes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update flake locks
+        run: |
+          nix flake update
+          nix flake update --flake ext
+          nix flake update --flake web_ext/sseq_gui
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update flake.lock"
+          branch: auto/update-flakes
+          title: "Update flake.lock"
+          body: |
+            Automated monthly flake lock update.
+
+            This runs on the 2nd of each month, after the fenix/monthly branch updates on the 1st.
