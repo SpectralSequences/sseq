@@ -28,6 +28,7 @@ jobs:
         with:
           commit-message: "Update flake.lock"
           branch: auto/update-flakes
+          delete-branch: true
           title: "Update flake.lock"
           body: |
             Automated monthly flake lock update.
