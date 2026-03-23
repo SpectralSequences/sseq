@@ -86,7 +86,7 @@ pub struct Sseq<P: SseqProfile = Adams> {
 }
 
 impl<P: SseqProfile> Sseq<P> {
-    pub fn new(p: ValidPrime, _min: Bidegree) -> Self {
+    pub fn new(p: ValidPrime) -> Self {
         Self {
             p,
             data: Bigraded::new(),
@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn test_sseq_differential() {
         let p = ValidPrime::new(3);
-        let mut sseq = Sseq::<Adams>::new(p, Bidegree::zero());
+        let mut sseq = Sseq::<Adams>::new(p);
         sseq.set_dimension(Bidegree::x_y(0, 0), 1);
         sseq.set_dimension(Bidegree::x_y(1, 0), 2);
         sseq.set_dimension(Bidegree::x_y(1, 1), 2);
@@ -821,7 +821,7 @@ mod tests {
     #[test]
     fn test_sseq_differential_2() {
         let p = ValidPrime::new(2);
-        let mut sseq = Sseq::<Adams>::new(p, Bidegree::zero());
+        let mut sseq = Sseq::<Adams>::new(p);
 
         sseq.set_dimension(Bidegree::x_y(0, 0), 0);
         sseq.set_dimension(Bidegree::x_y(1, 0), 2);

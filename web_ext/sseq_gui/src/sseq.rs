@@ -69,13 +69,13 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
 }
 
 impl<P: SseqProfile> SseqWrapper<P> {
-    pub fn new(p: ValidPrime, name: SseqChoice, min: Bidegree, sender: Option<Sender>) -> Self {
+    pub fn new(p: ValidPrime, name: SseqChoice, sender: Option<Sender>) -> Self {
         Self {
             p,
             name,
             sender,
             block_refresh: 0,
-            inner: Sseq::new(p, min),
+            inner: Sseq::new(p),
 
             products: BTreeMap::default(),
             class_names: Bigraded::new(),
