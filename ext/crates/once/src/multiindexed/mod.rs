@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    ops::{Index, IndexMut},
+    sync::atomic::{AtomicI32, Ordering},
+};
 
 pub use self::{
     iter::{Iter, IterMut},
@@ -86,7 +89,11 @@ mod node;
 ///
 /// let incorrect = MultiIndexed::<0, ()>::new();
 /// ```
-pub struct MultiIndexed<const K: usize, V>(KdTrie<V>);
+pub struct MultiIndexed<const K: usize, V> {
+    trie: KdTrie<V>,
+    min_coords: [AtomicI32; K],
+    max_coords: [AtomicI32; K],
+}
 
 impl<const K: usize, V> MultiIndexed<K, V> {
     const POSITIVE_DIMS: () = assert!(K > 0);
@@ -115,7 +122,11 @@ impl<const K: usize, V> MultiIndexed<K, V> {
         // Compile-time check
         let () = Self::POSITIVE_DIMS;
 
-        Self(KdTrie::new(K))
+        Self {
+            trie: KdTrie::new(K),
+            min_coords: std::array::from_fn(|_| AtomicI32::new(i32::MAX)),
+            max_coords: std::array::from_fn(|_| AtomicI32::new(i32::MIN)),
+        }
     }
 
     /// Retrieves a reference to the value at the specified coordinates, if it exists.
@@ -164,7 +175,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array1d.get([5]), None);
     /// ```
     pub fn get(&self, coords: [i32; K]) -> Option<&V> {
-        self.0.get(&coords)
+        self.trie.get(&coords)
     }
 
     /// Retrieves a mutable reference to the value at the specified coordinates, if it exists.
@@ -200,7 +211,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array.get([1, 2, 3]), Some(&vec![1, 2, 3, 4, 5]));
     /// ```
     pub fn get_mut(&mut self, coords: [i32; K]) -> Option<&mut V> {
-        self.0.get_mut(&coords)
+        self.trie.get_mut(&coords)
     }
 
     /// Inserts a value at the specified coordinates.
@@ -250,11 +261,46 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// array.insert([1, 2], 43); // Panics
     /// ```
     pub fn insert(&self, coords: [i32; K], value: V) {
-        self.0.insert(&coords, value);
+        self.trie.insert(&coords, value);
+        self.update_bounds(&coords);
     }
 
     pub fn try_insert(&self, coords: [i32; K], value: V) -> Result<(), V> {
-        self.0.try_insert(&coords, value)
+        self.trie.try_insert(&coords, value)?;
+        self.update_bounds(&coords);
+        Ok(())
+    }
+
+    fn update_bounds(&self, coords: &[i32; K]) {
+        for (i, coord) in coords.iter().enumerate() {
+            self.min_coords[i].fetch_min(*coord, Ordering::Release);
+            self.max_coords[i].fetch_max(*coord, Ordering::Release);
+        }
+    }
+
+    /// Returns `true` if no values have been inserted.
+    pub fn is_empty(&self) -> bool {
+        self.min_coords[0].load(Ordering::Acquire) > self.max_coords[0].load(Ordering::Acquire)
+    }
+
+    /// Returns the per-dimension minimum coordinates, or `None` if empty.
+    pub fn min_coords(&self) -> Option<[i32; K]> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(std::array::from_fn(|i| {
+            self.min_coords[i].load(Ordering::Acquire)
+        }))
+    }
+
+    /// Returns the per-dimension maximum coordinates, or `None` if empty.
+    pub fn max_coords(&self) -> Option<[i32; K]> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(std::array::from_fn(|i| {
+            self.max_coords[i].load(Ordering::Acquire)
+        }))
     }
 }
 
@@ -550,6 +596,41 @@ mod tests {
         assert_eq!(cloned_arr.get([1, 2]), Some(&10));
         assert_eq!(cloned_arr.get([3, 4]), Some(&20));
         assert_eq!(cloned_arr.get([5, 6]), None);
+    }
+
+    #[test]
+    fn test_bounds_empty() {
+        let arr = MultiIndexed::<2, i32>::new();
+        assert!(arr.is_empty());
+        assert_eq!(arr.min_coords(), None);
+        assert_eq!(arr.max_coords(), None);
+    }
+
+    #[test]
+    fn test_bounds_tracking() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        assert_eq!(arr.min_coords(), Some([1, 2]));
+        assert_eq!(arr.max_coords(), Some([1, 2]));
+
+        arr.insert([3, -4], 20);
+        assert_eq!(arr.min_coords(), Some([1, -4]));
+        assert_eq!(arr.max_coords(), Some([3, 2]));
+
+        arr.insert([-5, 6], 30);
+        assert_eq!(arr.min_coords(), Some([-5, -4]));
+        assert_eq!(arr.max_coords(), Some([3, 6]));
+    }
+
+    #[test]
+    fn test_bounds_clone() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([-3, 4], 20);
+
+        let cloned = arr.clone();
+        assert_eq!(cloned.min_coords(), Some([-3, 2]));
+        assert_eq!(cloned.max_coords(), Some([1, 4]));
     }
 
     #[cfg(not(miri))]

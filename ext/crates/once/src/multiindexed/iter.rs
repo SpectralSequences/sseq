@@ -349,7 +349,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(items, vec![([1, 2], &20), ([3, 4], &10)]);
     /// ```
     pub fn iter(&self) -> Iter<'_, V, [i32; K]> {
-        Iter(KdIterator::new(K, self.0.root(), [0; K]))
+        Iter(KdIterator::new(K, self.trie.root(), [0; K]))
     }
 
     /// Returns a mutable iterator over all coordinate-value pairs in the array.
@@ -373,7 +373,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array.get([3, 4]), Some(&40));
     /// ```
     pub fn iter_mut(&mut self) -> IterMut<'_, V, [i32; K]> {
-        let root = NodePtrMut(self.0.root_mut() as *mut Node<V>, PhantomData);
+        let root = NodePtrMut(self.trie.root_mut() as *mut Node<V>, PhantomData);
         IterMut(KdIterator::new(K, root, [0; K]))
     }
 }
