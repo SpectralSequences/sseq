@@ -4,7 +4,7 @@ pub use self::{
     iter::{Iter, IterMut},
     kdtrie::KdTrie,
 };
-use crate::std_or_loom::sync::atomic::{AtomicI32, Ordering};
+use crate::std_or_loom::sync::atomic::{AtomicI32, Ordering, fence};
 
 mod iter;
 pub mod kdtrie;
@@ -283,31 +283,43 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     }
 
     /// Returns `true` if no values have been inserted.
+    ///
+    /// The bounds are loaded with `Relaxed` ordering, then a single `Acquire` fence synchronizes
+    /// with the `Release` stores in [`update_bounds`](Self::update_bounds). This is cheaper than
+    /// per-load `Acquire` and is sufficient: once the fence executes, all prior `Release` stores
+    /// (across every dimension) are visible.
     pub fn is_empty(&self) -> bool {
-        // We check the last coordinate because it is the one that is written to last when we
-        // insert. Observing a consistent last coordinate means that all coordinates are consistent,
-        // and calling `min_coords` or `max_coords` will not return nonsense.
-        self.min_coords[K - 1].load(Ordering::Acquire)
-            > self.max_coords[K - 1].load(Ordering::Acquire)
+        let min_last = self.min_coords[K - 1].load(Ordering::Relaxed);
+        let max_last = self.max_coords[K - 1].load(Ordering::Relaxed);
+        fence(Ordering::Acquire);
+        min_last > max_last
     }
 
     /// Returns the per-dimension minimum coordinates, or `None` if empty.
+    ///
+    /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
+    /// in [`update_bounds`](Self::update_bounds), so subsequent `Relaxed` loads on the remaining
+    /// dimensions see consistent values.
     pub fn min_coords(&self) -> Option<[i32; K]> {
         if self.is_empty() {
             return None;
         }
         Some(std::array::from_fn(|i| {
-            self.min_coords[i].load(Ordering::Acquire)
+            self.min_coords[i].load(Ordering::Relaxed)
         }))
     }
 
     /// Returns the per-dimension maximum coordinates, or `None` if empty.
+    ///
+    /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
+    /// in [`update_bounds`](Self::update_bounds), so subsequent `Relaxed` loads on the remaining
+    /// dimensions see consistent values.
     pub fn max_coords(&self) -> Option<[i32; K]> {
         if self.is_empty() {
             return None;
         }
         Some(std::array::from_fn(|i| {
-            self.max_coords[i].load(Ordering::Acquire)
+            self.max_coords[i].load(Ordering::Relaxed)
         }))
     }
 }
