@@ -110,7 +110,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
             .filter(|&b| self.inner.invalid(b))
             .collect();
         for b in invalid {
-            *self.stale.get_mut(b).unwrap() |= CLASS_FLAG | EDGE_FLAG;
+            self.stale[b] |= CLASS_FLAG | EDGE_FLAG;
             for product in self.products.values() {
                 let prod_origin_b = b - product.inner.b;
                 if let Some(flags) = self.stale.get_mut(prod_origin_b) {
@@ -166,7 +166,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
             if flags & EDGE_FLAG > 0 {
                 self.send_products(b);
             }
-            *self.stale.get_mut(b).unwrap() = 0;
+            self.stale[b] = 0;
         }
     }
 
@@ -255,7 +255,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     }
                     decompositions.push((
                         matrix.row(i).to_owned(),
-                        format!("{name} {}", self.class_names.get(prod_origin_b).unwrap()[i]),
+                        format!("{name} {}", self.class_names[prod_origin_b][i]),
                         prod_b,
                     ));
                 }
@@ -274,7 +274,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .basis()
                     .map(FpSlice::to_owned)
                     .collect(),
-                class_names: self.class_names.get(b).unwrap().clone(),
+                class_names: self.class_names[b].clone(),
                 decompositions,
                 classes: self
                     .inner
@@ -312,7 +312,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
     }
 
     pub fn set_class_name(&mut self, b: Bidegree, idx: usize, name: String) {
-        self.class_names.get_mut(b).unwrap()[idx] = name;
+        self.class_names[b][idx] = name;
         self.send_class_data(b);
         for prod in self.products.values() {
             let prod_output_b = b + prod.inner.b;
@@ -484,9 +484,9 @@ impl<P: SseqProfile> SseqWrapper<P> {
         let matrix = Matrix::from_vec(self.p, matrix);
 
         if self.inner.dimension(b) != 0 && self.inner.dimension(prod_output_b) != 0 {
-            *self.stale.get_mut(b).unwrap() |= EDGE_FLAG;
+            self.stale[b] |= EDGE_FLAG;
             if !matrix.is_zero() {
-                *self.stale.get_mut(prod_output_b).unwrap() |= CLASS_FLAG;
+                self.stale[prod_output_b] |= CLASS_FLAG;
             }
         }
 
