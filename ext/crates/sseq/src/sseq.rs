@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use bivec::BiVec;
 use fp::{
@@ -9,7 +9,6 @@ use fp::{
 use once::MultiIndexed;
 
 use crate::{
-    bigraded::DenseBigradedModule,
     coordinates::{Bidegree, BidegreeElement, BidegreeGenerator},
     differential::Differential,
 };
@@ -48,6 +47,9 @@ pub struct Product {
 }
 
 struct BidegreeData {
+    /// The dimension of the module at this bidegree (i.e. the number of generators).
+    dimension: usize,
+
     /// r -> differential
     ///
     /// If the bidegree is valid (see [`BidegreeData::invalid`]), then the differential is reduced.
@@ -71,9 +73,6 @@ struct BidegreeData {
 pub struct Sseq<P: SseqProfile = Adams> {
     p: ValidPrime,
 
-    /// The first page of the spectral sequence
-    classes: Arc<DenseBigradedModule>,
-
     /// Per-bidegree data: differentials, page data, permanent classes, and validity.
     ///
     /// # Invariants:
@@ -95,43 +94,51 @@ impl<P: SseqProfile> Sseq<P> {
         self.data.get_mut([b.x(), b.y()]).unwrap()
     }
 
-    pub fn new(p: ValidPrime, min: Bidegree) -> Self {
+    pub fn new(p: ValidPrime, _min: Bidegree) -> Self {
         Self {
             p,
-            classes: Arc::new(DenseBigradedModule::new(min)),
             data: MultiIndexed::new(),
             profile: PhantomData,
         }
     }
 
     pub fn min(&self) -> Bidegree {
-        self.classes.min()
+        let Some(min) = self.data.min_coords() else {
+            return Bidegree::zero();
+        };
+        Bidegree::x_y(min[0], min[1])
     }
 
-    pub fn classes(&self) -> Arc<DenseBigradedModule> {
-        Arc::clone(&self.classes)
-    }
-
-    pub fn range(&self, x: i32) -> std::ops::Range<i32> {
-        self.classes.range(x)
+    /// The y-range of defined bidegrees for a given x.
+    ///
+    /// This is lossy: it returns the global y-range across all x values. Callers should check
+    /// [`Sseq::defined`] for each bidegree in the range.
+    pub fn range(&self, _x: i32) -> std::ops::Range<i32> {
+        let Some(min) = self.data.min_coords() else {
+            return 0..0;
+        };
+        let max = self.data.max_coords().unwrap();
+        min[1]..max[1] + 1
     }
 
     pub fn max(&self) -> Bidegree {
-        self.classes.max()
+        let Some(max) = self.data.max_coords() else {
+            return Bidegree::zero();
+        };
+        Bidegree::x_y(max[0], max[1])
     }
 
     pub fn defined(&self, b: Bidegree) -> bool {
-        self.classes.defined(b)
+        self.data.get([b.x(), b.y()]).is_some()
     }
 
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
-        // This already ensures it is valid to set b
-        self.classes.set_dimension(b, dim);
         let mut page_data = BiVec::new(P::MIN_R);
         page_data.push(Subquotient::new_full(self.p, dim));
         self.data.insert(
             [b.x(), b.y()],
             BidegreeData {
+                dimension: dim,
                 differentials: BiVec::new(P::MIN_R),
                 page_data,
                 permanent_classes: Subspace::new(self.p, dim),
@@ -152,7 +159,12 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn dimension(&self, b: Bidegree) -> usize {
-        self.classes.dimension(b)
+        self.bd(b).dimension
+    }
+
+    /// The dimension in a bidegree, `None` if not yet defined.
+    pub fn get_dimension(&self, b: Bidegree) -> Option<usize> {
+        Some(self.data.get([b.x(), b.y()])?.dimension)
     }
 
     /// # Returns
@@ -175,12 +187,11 @@ impl<P: SseqProfile> Sseq<P> {
     /// Ensure `self.bd(b).differentials[r]` is defined. Must call `extend_page_data` on the source
     /// and target after this.
     fn extend_differential(&mut self, r: i32, b: Bidegree) {
-        let source_dim = self.classes.dimension(b);
+        let source_dim = self.dimension(b);
         while self.bd(b).differentials.len() <= r {
             let r = self.bd(b).differentials.len();
             let target = P::profile(r, b);
-            let mut differential =
-                Differential::new(self.p, source_dim, self.classes.dimension(target));
+            let mut differential = Differential::new(self.p, source_dim, self.dimension(target));
 
             for class in self.bd(b).permanent_classes.basis() {
                 differential.add(class, None);
@@ -375,7 +386,7 @@ impl<P: SseqProfile> Sseq<P> {
     /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
     /// the product is not yet computed.
     pub fn multiply(&self, elem: &BidegreeElement, prod: &Product) -> Option<BidegreeElement> {
-        let mut result = FpVector::new(self.p, self.classes.get_dimension(elem.degree() + prod.b)?);
+        let mut result = FpVector::new(self.p, self.get_dimension(elem.degree() + prod.b)?);
         if let Some(matrix) = &prod.matrices.get(elem.x())?.get(elem.y())? {
             matrix.apply(result.as_slice_mut(), 1, elem.vec());
         }
@@ -424,12 +435,12 @@ impl<P: SseqProfile> Sseq<P> {
         let result_r = std::cmp::min(r, target_r);
 
         let result_b = P::profile(result_r, source.degree());
-        let mut result = FpVector::new(self.p, self.classes.get_dimension(result_b)?);
+        let mut result = FpVector::new(self.p, self.get_dimension(result_b)?);
 
         if r == result_r {
             let diffs = &self.bd(elem.degree()).differentials[r];
             let d_b = P::profile(r, elem.degree());
-            let mut dx = FpVector::new(self.p, self.classes.dimension(d_b));
+            let mut dx = FpVector::new(self.p, self.dimension(d_b));
             diffs.evaluate(elem.vec(), dx.as_slice_mut());
             let d = BidegreeElement::new(d_b, dx);
             let target = self.multiply(&d, source_product)?;
@@ -479,6 +490,9 @@ impl<P: SseqProfile> Sseq<P> {
         for x in min.x()..=max.x() {
             for y in self.range(x) {
                 let b = Bidegree::x_y(x, y);
+                if !self.defined(b) {
+                    continue;
+                }
                 let shifted_b = b - min;
 
                 let bd = self.page_data(b).get_max(r);
