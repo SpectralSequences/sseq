@@ -20,8 +20,8 @@ jobs:
       - name: Update flake locks
         run: |
           nix flake update
-          nix flake update --flake ext
-          nix flake update --flake web_ext/sseq_gui
+          nix flake update --flake ./ext
+          nix flake update --flake ./web_ext/sseq_gui
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v7
