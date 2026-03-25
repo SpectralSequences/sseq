@@ -285,9 +285,9 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// Returns `true` if no values have been inserted.
     ///
     /// The bounds are loaded with `Relaxed` ordering, then a single `Acquire` fence synchronizes
-    /// with the `Release` stores in [`update_bounds`](Self::update_bounds). This is cheaper than
-    /// per-load `Acquire` and is sufficient: once the fence executes, all prior `Release` stores
-    /// (across every dimension) are visible.
+    /// with the `Release` stores in `update_bounds`. This is cheaper than per-load `Acquire` and is
+    /// sufficient: once the fence executes, all prior `Release` stores (across every dimension) are
+    /// visible.
     pub fn is_empty(&self) -> bool {
         let min_last = self.min_coords[K - 1].load(Ordering::Relaxed);
         let max_last = self.max_coords[K - 1].load(Ordering::Relaxed);
@@ -298,8 +298,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// Returns the per-dimension minimum coordinates, or `None` if empty.
     ///
     /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
-    /// in [`update_bounds`](Self::update_bounds), so subsequent `Relaxed` loads on the remaining
-    /// dimensions see consistent values.
+    /// in `update_bounds`, so subsequent `Relaxed` loads on the remaining dimensions see consistent
+    /// values.
     pub fn min_coords(&self) -> Option<[i32; K]> {
         if self.is_empty() {
             return None;
@@ -312,8 +312,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// Returns the per-dimension maximum coordinates, or `None` if empty.
     ///
     /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
-    /// in [`update_bounds`](Self::update_bounds), so subsequent `Relaxed` loads on the remaining
-    /// dimensions see consistent values.
+    /// in `update_bounds`, so subsequent `Relaxed` loads on the remaining dimensions see consistent
+    /// values.
     pub fn max_coords(&self) -> Option<[i32; K]> {
         if self.is_empty() {
             return None;
