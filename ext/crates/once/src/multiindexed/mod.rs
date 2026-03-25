@@ -4,6 +4,7 @@ pub use self::{
     iter::{Iter, IterMut},
     kdtrie::KdTrie,
 };
+use crate::std_or_loom::sync::atomic::{AtomicI32, Ordering, fence};
 
 mod iter;
 pub mod kdtrie;
@@ -86,7 +87,11 @@ mod node;
 ///
 /// let incorrect = MultiIndexed::<0, ()>::new();
 /// ```
-pub struct MultiIndexed<const K: usize, V>(KdTrie<V>);
+pub struct MultiIndexed<const K: usize, V> {
+    trie: KdTrie<V>,
+    min_coords: [AtomicI32; K],
+    max_coords: [AtomicI32; K],
+}
 
 impl<const K: usize, V> MultiIndexed<K, V> {
     const POSITIVE_DIMS: () = assert!(K > 0);
@@ -115,7 +120,11 @@ impl<const K: usize, V> MultiIndexed<K, V> {
         // Compile-time check
         let () = Self::POSITIVE_DIMS;
 
-        Self(KdTrie::new(K))
+        Self {
+            trie: KdTrie::new(K),
+            min_coords: std::array::from_fn(|_| AtomicI32::new(i32::MAX)),
+            max_coords: std::array::from_fn(|_| AtomicI32::new(i32::MIN)),
+        }
     }
 
     /// Retrieves a reference to the value at the specified coordinates, if it exists.
@@ -164,7 +173,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array1d.get([5]), None);
     /// ```
     pub fn get(&self, coords: [i32; K]) -> Option<&V> {
-        self.0.get(&coords)
+        self.trie.get(&coords)
     }
 
     /// Retrieves a mutable reference to the value at the specified coordinates, if it exists.
@@ -200,7 +209,7 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array.get([1, 2, 3]), Some(&vec![1, 2, 3, 4, 5]));
     /// ```
     pub fn get_mut(&mut self, coords: [i32; K]) -> Option<&mut V> {
-        self.0.get_mut(&coords)
+        self.trie.get_mut(&coords)
     }
 
     /// Inserts a value at the specified coordinates.
@@ -250,11 +259,68 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// array.insert([1, 2], 43); // Panics
     /// ```
     pub fn insert(&self, coords: [i32; K], value: V) {
-        self.0.insert(&coords, value);
+        // We update the bounds before inserting. The invariant we preserve is the property that
+        // every value lives within bounds, but we're ok if the bounds are not as tight as they
+        // could be.
+        self.update_bounds(&coords);
+        self.trie.insert(&coords, value);
     }
 
     pub fn try_insert(&self, coords: [i32; K], value: V) -> Result<(), V> {
-        self.0.try_insert(&coords, value)
+        // We update the bounds before inserting. The invariant we preserve is the property that
+        // every value lives within bounds, but we're ok if the bounds are not as tight as they
+        // could be.
+        self.update_bounds(&coords);
+        self.trie.try_insert(&coords, value)?;
+        Ok(())
+    }
+
+    fn update_bounds(&self, coords: &[i32; K]) {
+        for (i, coord) in coords.iter().enumerate() {
+            self.min_coords[i].fetch_min(*coord, Ordering::Release);
+            self.max_coords[i].fetch_max(*coord, Ordering::Release);
+        }
+    }
+
+    /// Returns `true` if no values have been inserted.
+    ///
+    /// The bounds are loaded with `Relaxed` ordering, then a single `Acquire` fence synchronizes
+    /// with the `Release` stores in `update_bounds`. This is cheaper than per-load `Acquire` and is
+    /// sufficient: once the fence executes, all prior `Release` stores (across every dimension) are
+    /// visible.
+    pub fn is_empty(&self) -> bool {
+        let min_last = self.min_coords[K - 1].load(Ordering::Relaxed);
+        let max_last = self.max_coords[K - 1].load(Ordering::Relaxed);
+        fence(Ordering::Acquire);
+        min_last > max_last
+    }
+
+    /// Returns the per-dimension minimum coordinates, or `None` if empty.
+    ///
+    /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
+    /// in `update_bounds`, so subsequent `Relaxed` loads on the remaining dimensions see consistent
+    /// values.
+    pub fn min_coords(&self) -> Option<[i32; K]> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(std::array::from_fn(|i| {
+            self.min_coords[i].load(Ordering::Relaxed)
+        }))
+    }
+
+    /// Returns the per-dimension maximum coordinates, or `None` if empty.
+    ///
+    /// The `Acquire` fence in [`is_empty`](Self::is_empty) synchronizes with the `Release` stores
+    /// in `update_bounds`, so subsequent `Relaxed` loads on the remaining dimensions see consistent
+    /// values.
+    pub fn max_coords(&self) -> Option<[i32; K]> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(std::array::from_fn(|i| {
+            self.max_coords[i].load(Ordering::Relaxed)
+        }))
     }
 }
 
@@ -275,11 +341,25 @@ where
     V: Clone,
 {
     fn clone(&self) -> Self {
-        let new_mi = Self::new();
+        let mut min = [i32::MAX; K];
+        let mut max = [i32::MIN; K];
+        let trie = KdTrie::new(K);
         for (coords, value) in self.iter() {
-            new_mi.insert(coords, value.clone());
+            for i in 0..K {
+                if coords[i] < min[i] {
+                    min[i] = coords[i];
+                }
+                if coords[i] > max[i] {
+                    max[i] = coords[i];
+                }
+            }
+            trie.insert(&coords, value.clone());
         }
-        new_mi
+        Self {
+            trie,
+            min_coords: min.map(AtomicI32::new),
+            max_coords: max.map(AtomicI32::new),
+        }
     }
 }
 
@@ -550,6 +630,41 @@ mod tests {
         assert_eq!(cloned_arr.get([1, 2]), Some(&10));
         assert_eq!(cloned_arr.get([3, 4]), Some(&20));
         assert_eq!(cloned_arr.get([5, 6]), None);
+    }
+
+    #[test]
+    fn test_bounds_empty() {
+        let arr = MultiIndexed::<2, i32>::new();
+        assert!(arr.is_empty());
+        assert_eq!(arr.min_coords(), None);
+        assert_eq!(arr.max_coords(), None);
+    }
+
+    #[test]
+    fn test_bounds_tracking() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        assert_eq!(arr.min_coords(), Some([1, 2]));
+        assert_eq!(arr.max_coords(), Some([1, 2]));
+
+        arr.insert([3, -4], 20);
+        assert_eq!(arr.min_coords(), Some([1, -4]));
+        assert_eq!(arr.max_coords(), Some([3, 2]));
+
+        arr.insert([-5, 6], 30);
+        assert_eq!(arr.min_coords(), Some([-5, -4]));
+        assert_eq!(arr.max_coords(), Some([3, 6]));
+    }
+
+    #[test]
+    fn test_bounds_clone() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([-3, 4], 20);
+
+        let cloned = arr.clone();
+        assert_eq!(cloned.min_coords(), Some([-3, 2]));
+        assert_eq!(cloned.max_coords(), Some([1, 4]));
     }
 
     #[cfg(not(miri))]
@@ -839,6 +954,103 @@ mod tests {
                 assert_eq!(arr.get([2, -3, 0]), Some(&50));
                 assert_eq!(arr.get([-5, 2, -1]), Some(&60));
                 assert_eq!(arr.get([0, 0, 0]), None);
+            });
+        }
+
+        /// Asserts that the bounding box invariants hold:
+        /// 1. If `!is_empty()`, bounds are consistent (min <= max per dimension).
+        /// 2. Every retrievable entry fits within the bounding box.
+        ///
+        /// The trie must be read *before* the bounds, because the happens-before chain is:
+        /// `update_bounds(Release) → trie.insert(Release) → trie.get(Acquire) → read bounds`.
+        /// Reading bounds after an Acquire on the trie ensures we see the bounds update that
+        /// preceded the insert.
+        fn assert_bounds_invariants(arr: &MultiIndexed<2, i32>, coords: &[[i32; 2]]) {
+            // Snapshot which entries are currently retrievable. The Acquire loads inside
+            // `get` establish happens-before with the corresponding inserts, which in turn
+            // happen-after their bounds updates.
+            let present: Vec<[i32; 2]> = coords
+                .iter()
+                .copied()
+                .filter(|c| arr.get(*c).is_some())
+                .collect();
+
+            if arr.is_empty() {
+                return;
+            }
+            let min = arr.min_coords().unwrap();
+            let max = arr.max_coords().unwrap();
+            for i in 0..2 {
+                assert!(
+                    min[i] <= max[i],
+                    "min[{i}] = {} > max[{i}] = {}",
+                    min[i],
+                    max[i]
+                );
+            }
+            for c in &present {
+                for i in 0..2 {
+                    assert!(
+                        min[i] <= c[i] && c[i] <= max[i],
+                        "entry {c:?} outside bounding box [{min:?}, {max:?}]",
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn loom_bounds_concurrent_inserts() {
+            loom::model(|| {
+                let arr = Arc::new(MultiIndexed::<2, i32>::new());
+                let coords = [[3, -1], [-2, 4]];
+
+                let arr1 = Arc::clone(&arr);
+                let t1 = thread::spawn(move || {
+                    arr1.insert(coords[0], 10);
+                });
+
+                let arr2 = Arc::clone(&arr);
+                let t2 = thread::spawn(move || {
+                    arr2.insert(coords[1], 20);
+                });
+
+                let arr3 = Arc::clone(&arr);
+                let t3 = thread::spawn(move || {
+                    assert_bounds_invariants(&arr3, &coords);
+                });
+
+                t1.join().unwrap();
+                t2.join().unwrap();
+                t3.join().unwrap();
+
+                assert_bounds_invariants(&arr, &coords);
+                assert_eq!(arr.min_coords(), Some([-2, -1]));
+                assert_eq!(arr.max_coords(), Some([3, 4]));
+            });
+        }
+
+        #[test]
+        fn loom_bounds_single_element() {
+            loom::model(|| {
+                let arr = Arc::new(MultiIndexed::<2, i32>::new());
+                let coords = [[5, -3]];
+
+                let arr1 = Arc::clone(&arr);
+                let t1 = thread::spawn(move || {
+                    arr1.insert(coords[0], 10);
+                });
+
+                let arr2 = Arc::clone(&arr);
+                let t2 = thread::spawn(move || {
+                    assert_bounds_invariants(&arr2, &coords);
+                });
+
+                t1.join().unwrap();
+                t2.join().unwrap();
+
+                assert_bounds_invariants(&arr, &coords);
+                assert_eq!(arr.min_coords(), Some([5, -3]));
+                assert_eq!(arr.max_coords(), Some([5, -3]));
             });
         }
     }
