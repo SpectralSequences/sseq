@@ -341,11 +341,25 @@ where
     V: Clone,
 {
     fn clone(&self) -> Self {
-        let new_mi = Self::new();
+        let mut min = [i32::MAX; K];
+        let mut max = [i32::MIN; K];
+        let trie = KdTrie::new(K);
         for (coords, value) in self.iter() {
-            new_mi.insert(coords, value.clone());
+            for i in 0..K {
+                if coords[i] < min[i] {
+                    min[i] = coords[i];
+                }
+                if coords[i] > max[i] {
+                    max[i] = coords[i];
+                }
+            }
+            trie.insert(&coords, value.clone());
         }
-        new_mi
+        Self {
+            trie,
+            min_coords: min.map(AtomicI32::new),
+            max_coords: max.map(AtomicI32::new),
+        }
     }
 }
 
