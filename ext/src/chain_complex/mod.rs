@@ -10,7 +10,6 @@ use algebra::{
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
 };
-use bivec::BiVec;
 // pub use hom_complex::HomComplex;
 pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
@@ -61,7 +60,7 @@ where
 
     fn to_sseq(&self) -> sseq::Sseq<sseq::Adams> {
         let p = self.prime();
-        let mut sseq = sseq::Sseq::new(p, Bidegree::n_s(self.min_degree(), 0));
+        let mut sseq = sseq::Sseq::new(p);
         for b in self.iter_stem() {
             sseq.set_dimension(b, self.number_of_gens_in_bidegree(b));
         }
@@ -70,20 +69,16 @@ where
 
     fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product {
         let p = self.prime();
-        let mut matrices = BiVec::new(self.min_degree());
-        let max_y = self.next_homological_degree() - 1;
-        matrices.extend_with(self.module(0).max_computed_degree() - op_deg + 2, |x| {
-            let mut entries = BiVec::with_capacity(0, max_y);
+        let matrices = sseq::Bigraded::new();
+        for x in self.min_degree()..self.module(0).max_computed_degree() - op_deg + 2 {
             let mut b = Bidegree::n_s(x, 0);
             while self.has_computed_bidegree(b + Bidegree::s_t(1, op_deg)) {
-                entries.push(
-                    self.filtration_one_product(op_deg, op_idx, b)
-                        .map(|m| Matrix::from_vec(p, &m)),
-                );
+                if let Some(m) = self.filtration_one_product(op_deg, op_idx, b) {
+                    matrices.insert(b, Matrix::from_vec(p, &m));
+                }
                 b = b + Bidegree::n_s(0, 1);
             }
-            entries
-        });
+        }
 
         sseq::Product {
             b: Bidegree::x_y(op_deg - 1, 1),

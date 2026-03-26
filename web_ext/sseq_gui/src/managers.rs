@@ -291,12 +291,7 @@ impl SseqManager {
                 SseqChoice::Unit => &mut self.unit_sseq,
             };
             if target.is_none() {
-                *target = Some(SseqWrapper::new(
-                    m.p,
-                    msg.sseq,
-                    Bidegree::x_y(m.min_degree, 0),
-                    Some(self.sender.clone()),
-                ));
+                *target = Some(SseqWrapper::new(m.p, msg.sseq, Some(self.sender.clone())));
             }
         }
         self.relay(msg)

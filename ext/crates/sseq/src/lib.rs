@@ -6,7 +6,7 @@ pub mod coordinates;
 mod differential;
 mod sseq;
 
-pub use bigraded::*;
+pub use bigraded::Bigraded;
 pub use differential::*;
 
 pub use crate::sseq::*;

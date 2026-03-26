@@ -8,7 +8,7 @@ use fp::{
 };
 use serde::{Deserialize, Serialize};
 use sseq::{
-    Adams, Sseq, SseqProfile,
+    Adams, Bigraded, Sseq, SseqProfile,
     coordinates::{Bidegree, BidegreeElement},
 };
 
@@ -57,29 +57,29 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
 
     /// Whether a bidegree is stale, i.e.\ new products have to be reported to the sender. Note
     /// that products "belong" to the source of the product.
-    stale: BiVec<BiVec<u8>>,
+    stale: Bigraded<u8>,
 
     /// If this is a positive number, then the spectral sequence will not re-compute classes and
     /// edges. See [`Actions::BlockRefresh`] for details.
     pub block_refresh: u32,
     sender: Option<Sender>,
     products: BTreeMap<String, Product>,
-    /// x -> y -> idx -> name
-    class_names: BiVec<BiVec<Vec<String>>>,
+    /// bidegree -> idx -> name
+    class_names: Bigraded<Vec<String>>,
 }
 
 impl<P: SseqProfile> SseqWrapper<P> {
-    pub fn new(p: ValidPrime, name: SseqChoice, min: Bidegree, sender: Option<Sender>) -> Self {
+    pub fn new(p: ValidPrime, name: SseqChoice, sender: Option<Sender>) -> Self {
         Self {
             p,
             name,
             sender,
             block_refresh: 0,
-            inner: Sseq::new(p, min),
+            inner: Sseq::new(p),
 
             products: BTreeMap::default(),
-            class_names: BiVec::new(min.x()),
-            stale: BiVec::new(min.x()),
+            class_names: Bigraded::new(),
+            stale: Bigraded::new(),
         }
     }
 
@@ -102,65 +102,71 @@ impl<P: SseqProfile> SseqWrapper<P> {
             return;
         }
 
-        for x in self.inner.min().x()..=self.inner.max().x() {
-            for y in self.inner.range(x) {
-                let b = Bidegree::x_y(x, y);
-                if !self.inner.invalid(b) {
-                    continue;
+        // Collect invalid bidegrees first: update_bidegree needs &mut self.inner, so we can't hold
+        // an iterator across those calls.
+        let invalid: Vec<_> = self
+            .inner
+            .iter_bidegrees()
+            .filter(|&b| self.inner.invalid(b))
+            .collect();
+        for b in invalid {
+            self.stale[b] |= CLASS_FLAG | EDGE_FLAG;
+            for product in self.products.values() {
+                let prod_origin_b = b - product.inner.b;
+                if let Some(flags) = self.stale.get_mut(prod_origin_b) {
+                    *flags |= EDGE_FLAG;
                 }
-                self.stale[b.x()][b.y()] |= CLASS_FLAG | EDGE_FLAG;
-                for product in self.products.values() {
-                    let prod_origin_b = b - product.inner.b;
-                    if self.inner.defined(prod_origin_b) {
-                        self.stale[prod_origin_b.x()][prod_origin_b.y()] |= EDGE_FLAG;
-                    }
-                }
-                let differentials = self.inner.update_bidegree(b);
-                if !differentials.is_empty() {
-                    // `true_differentials` is a list of differentials of the form d(source) = target we know
-                    // to be true. `differentials` is our best guess at what the matrix of differentials is.
-                    let true_differentials = self
-                        .inner
-                        .differentials(b)
-                        .iter_enum()
-                        .map(|(r, d)| {
-                            let target_b = P::profile(r, b);
-                            d.get_source_target_pairs()
-                                .into_iter()
-                                .map(|(mut s, mut t)| {
-                                    (
-                                        self.inner.page_data(b)[r].reduce(s.as_slice_mut()),
-                                        self.inner.page_data(target_b)[r].reduce(t.as_slice_mut()),
-                                    )
-                                })
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>();
+            }
+            let differentials = self.inner.update_bidegree(b);
+            if !differentials.is_empty() {
+                // `true_differentials` is a list of differentials of the form d(source) = target we
+                // know to be true. `differentials` is our best guess at what the matrix of
+                // differentials is.
+                let true_differentials = self
+                    .inner
+                    .differentials(b)
+                    .iter_enum()
+                    .map(|(r, d)| {
+                        let target_b = P::profile(r, b);
+                        d.get_source_target_pairs()
+                            .into_iter()
+                            .map(|(mut s, mut t)| {
+                                (
+                                    self.inner.page_data(b)[r].reduce(s.as_slice_mut()),
+                                    self.inner.page_data(target_b)[r].reduce(t.as_slice_mut()),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
 
-                    self.send(Message {
-                        recipients: vec![],
-                        sseq: self.name,
-                        action: Action::from(SetDifferential {
-                            b,
-                            true_differentials,
-                            differentials,
-                        }),
-                    });
-                }
+                self.send(Message {
+                    recipients: vec![],
+                    sseq: self.name,
+                    action: Action::from(SetDifferential {
+                        b,
+                        true_differentials,
+                        differentials,
+                    }),
+                });
             }
         }
 
-        for x in self.stale.range() {
-            for y in self.stale[x].range() {
-                let b = Bidegree::x_y(x, y);
-                if self.stale[b.x()][b.y()] & CLASS_FLAG > 0 {
-                    self.send_class_data(b);
-                }
-                if self.stale[b.x()][b.y()] & EDGE_FLAG > 0 {
-                    self.send_products(b);
-                }
-                self.stale[b.x()][b.y()] = 0;
+        let stale_bidegrees: Vec<_> = self
+            .stale
+            .iter()
+            .filter(|(_, flags)| **flags != 0)
+            .map(|(b, _)| b)
+            .collect();
+        for b in stale_bidegrees {
+            let flags = self.stale.get(b).copied().unwrap_or(0);
+            if flags & CLASS_FLAG > 0 {
+                self.send_class_data(b);
             }
+            if flags & EDGE_FLAG > 0 {
+                self.send_products(b);
+            }
+            self.stale[b] = 0;
         }
     }
 
@@ -175,48 +181,46 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
         let mut structlines: Vec<ProductItem> = Vec::with_capacity(self.products.len());
         for (name, mult) in &self.products {
-            if !(mult.inner.matrices.len() > b.x() && mult.inner.matrices[b.x()].len() > b.y()) {
-                continue;
-            }
-
             let prod_b = mult.inner.b;
             let prod_output_b = b + prod_b;
+
+            let Some(matrix) = mult.inner.matrices.get(b) else {
+                continue;
+            };
 
             let target_dim = self.inner.dimension(prod_output_b);
             if target_dim == 0 {
                 continue;
             }
 
-            if let Some(matrix) = &mult.inner.matrices[b.x()][b.y()] {
-                let max_page = max(
-                    self.inner.page_data(b).len(),
-                    self.inner.page_data(prod_output_b).len(),
-                );
-                let mut matrices: BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(P::MIN_R, max_page);
+            let max_page = max(
+                self.inner.page_data(b).len(),
+                self.inner.page_data(prod_output_b).len(),
+            );
+            let mut matrices: BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(P::MIN_R, max_page);
 
-                // E_2 page
-                matrices.push(matrix.to_vec());
+            // E_2 page
+            matrices.push(matrix.to_vec());
 
-                // Compute the ones where something changes.
-                for r in P::MIN_R + 1..max_page {
-                    let source_data = self.inner.page_data(b).get_max(r);
-                    let target_data = self.inner.page_data(prod_output_b).get_max(r);
+            // Compute the ones where something changes.
+            for r in P::MIN_R + 1..max_page {
+                let source_data = self.inner.page_data(b).get_max(r);
+                let target_data = self.inner.page_data(prod_output_b).get_max(r);
 
-                    matrices.push(Subquotient::reduce_matrix(matrix, source_data, target_data));
+                matrices.push(Subquotient::reduce_matrix(matrix, source_data, target_data));
 
-                    // In the case where the source is empty, we still want one empty array to
-                    // indicate that no structlines should be drawn from this page on.
-                    if source_data.is_empty() {
-                        break;
-                    }
+                // In the case where the source is empty, we still want one empty array to
+                // indicate that no structlines should be drawn from this page on.
+                if source_data.is_empty() {
+                    break;
                 }
-
-                structlines.push(ProductItem {
-                    name: name.clone(),
-                    mult_b: prod_b,
-                    matrices,
-                });
             }
+
+            structlines.push(ProductItem {
+                name: name.clone(),
+                mult_b: prod_b,
+                matrices,
+            });
         }
 
         self.send(Message {
@@ -244,22 +248,14 @@ impl<P: SseqProfile> SseqWrapper<P> {
             let prod_b = prod.inner.b;
             let prod_origin_b = b - prod_b;
 
-            if let Some(Some(Some(matrix))) = &prod
-                .inner
-                .matrices
-                .get(prod_origin_b.x())
-                .map(|m| m.get(prod_origin_b.y()))
-            {
+            if let Some(matrix) = prod.inner.matrices.get(prod_origin_b) {
                 for i in 0..matrix.rows() {
                     if matrix.row(i).is_zero() {
                         continue;
                     }
                     decompositions.push((
                         matrix.row(i).to_owned(),
-                        format!(
-                            "{name} {}",
-                            self.class_names[prod_origin_b.x()][prod_origin_b.y()][i]
-                        ),
+                        format!("{name} {}", self.class_names[prod_origin_b][i]),
                         prod_b,
                     ));
                 }
@@ -278,7 +274,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .basis()
                     .map(FpSlice::to_owned)
                     .collect(),
-                class_names: self.class_names[b.x()][b.y()].clone(),
+                class_names: self.class_names[b].clone(),
                 decompositions,
                 classes: self
                     .inner
@@ -303,10 +299,6 @@ impl<P: SseqProfile> SseqWrapper<P> {
     /// has been defined.
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
         self.inner.set_dimension(b, dim);
-        if b.x() == self.class_names.len() {
-            self.class_names.push(BiVec::new(self.inner.min().y()));
-            self.stale.push(BiVec::new(self.inner.min().y()));
-        }
         let mut names = Vec::with_capacity(dim);
         if dim == 1 {
             names.push(format!("x_{{{x},{y}}}", x = b.x(), y = b.y()));
@@ -315,12 +307,12 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 (0..dim).map(|i| format!("x_{{{x}, {y}}}^{{({i})}}", x = b.x(), y = b.y())),
             );
         }
-        self.class_names[b.x()].push(names);
-        self.stale[b.x()].push(CLASS_FLAG);
+        self.class_names.insert(b, names);
+        self.stale.insert(b, CLASS_FLAG);
     }
 
     pub fn set_class_name(&mut self, b: Bidegree, idx: usize, name: String) {
-        self.class_names[b.x()][b.y()][idx] = name;
+        self.class_names[b][idx] = name;
         self.send_class_data(b);
         for prod in self.products.values() {
             let prod_output_b = b + prod.inner.b;
@@ -393,7 +385,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: BiVec::new(self.inner.min().x()),
+                    matrices: Bigraded::new(),
                 },
                 user: true,
                 permanent,
@@ -415,11 +407,14 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
     /// Propagate products by the product indexed by `idx`.
     fn propagate_product_all(&mut self, name: &str) {
-        // We only use this to figure out the range
-        for x in self.products[name].inner.matrices.range() {
-            for y in self.products[name].inner.matrices[x].range() {
-                self.propagate_product(Bidegree::x_y(x, y), name);
-            }
+        let bidegrees: Vec<_> = self.products[name]
+            .inner
+            .matrices
+            .iter()
+            .map(|(b, _)| b)
+            .collect();
+        for b in bidegrees {
+            self.propagate_product(b, name);
         }
     }
 
@@ -476,7 +471,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: BiVec::new(self.inner.min().x()),
+                    matrices: Bigraded::new(),
                 },
                 user: false,
                 permanent: true,
@@ -486,23 +481,16 @@ impl<P: SseqProfile> SseqWrapper<P> {
         };
 
         let product = self.products.get_mut(name).unwrap();
-        product
-            .inner
-            .matrices
-            .extend_with(b.x(), |_| BiVec::new(self.inner.min().y()));
-        product.inner.matrices[b.x()].extend_with(b.y() - 1, |_| None);
-
         let matrix = Matrix::from_vec(self.p, matrix);
 
         if self.inner.dimension(b) != 0 && self.inner.dimension(prod_output_b) != 0 {
-            self.stale[b.x()][b.y()] |= EDGE_FLAG;
+            self.stale[b] |= EDGE_FLAG;
             if !matrix.is_zero() {
-                self.stale[prod_output_b.x()][prod_output_b.y()] |= CLASS_FLAG;
+                self.stale[prod_output_b] |= CLASS_FLAG;
             }
         }
 
-        assert_eq!(b.y(), product.inner.matrices[b.x()].len());
-        product.inner.matrices[b.x()].push(Some(matrix));
+        product.inner.matrices.insert(b, matrix);
 
         let product = &*product;
 
