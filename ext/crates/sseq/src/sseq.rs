@@ -95,11 +95,11 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     pub fn min(&self) -> Bidegree {
-        self.data.min().unwrap_or(Bidegree::zero())
+        self.data.min().unwrap_or_default()
     }
 
     pub fn max(&self) -> Bidegree {
-        self.data.max().unwrap_or(Bidegree::zero())
+        self.data.max().unwrap_or_default()
     }
 
     pub fn defined(&self, b: Bidegree) -> bool {
