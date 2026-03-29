@@ -6,9 +6,10 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpVector},
 };
+use once::MultiIndexed;
 use serde::{Deserialize, Serialize};
 use sseq::{
-    Adams, Bigraded, Sseq, SseqProfile,
+    Adams, Sseq, SseqProfile,
     coordinates::{Bidegree, BidegreeElement},
 };
 
@@ -25,7 +26,7 @@ pub enum ClassState {
 ///  * `matrices[x][y]` : This encodes the matrix of the product. If it is None, it means the
 ///    target of the product has dimension 0.
 pub struct Product {
-    inner: sseq::Product,
+    inner: sseq::Product<2>,
     /// whether the product was specified by the user or the module. Products specified by the module are assumed to be permanent
     user: bool,
     /// whether the product class is a permanent class
@@ -50,14 +51,14 @@ const EDGE_FLAG: u8 = 2;
 ///    not been set, the class is assumed to be zero.
 ///  * The same is true for products, where the grading of a product is that of its source.
 ///  * Whenever a product v . x is set, the target is already set.
-pub struct SseqWrapper<P: SseqProfile = Adams> {
+pub struct SseqWrapper<P: SseqProfile<2> = Adams> {
     pub p: ValidPrime,
     name: SseqChoice,
-    pub inner: Sseq<P>,
+    pub inner: Sseq<2, P>,
 
     /// Whether a bidegree is stale, i.e.\ new products have to be reported to the sender. Note
     /// that products "belong" to the source of the product.
-    stale: Bigraded<u8>,
+    stale: MultiIndexed<2, u8>,
 
     /// If this is a positive number, then the spectral sequence will not re-compute classes and
     /// edges. See [`Actions::BlockRefresh`] for details.
@@ -65,10 +66,10 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
     sender: Option<Sender>,
     products: BTreeMap<String, Product>,
     /// bidegree -> idx -> name
-    class_names: Bigraded<Vec<String>>,
+    class_names: MultiIndexed<2, Vec<String>>,
 }
 
-impl<P: SseqProfile> SseqWrapper<P> {
+impl<P: SseqProfile<2>> SseqWrapper<P> {
     pub fn new(p: ValidPrime, name: SseqChoice, sender: Option<Sender>) -> Self {
         Self {
             p,
@@ -78,8 +79,8 @@ impl<P: SseqProfile> SseqWrapper<P> {
             inner: Sseq::new(p),
 
             products: BTreeMap::default(),
-            class_names: Bigraded::new(),
-            stale: Bigraded::new(),
+            class_names: MultiIndexed::new(),
+            stale: MultiIndexed::new(),
         }
     }
 
@@ -106,7 +107,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
         // an iterator across those calls.
         let invalid: Vec<_> = self
             .inner
-            .iter_bidegrees()
+            .iter_degrees()
             .filter(|&b| self.inner.invalid(b))
             .collect();
         for b in invalid {
@@ -117,7 +118,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     *flags |= EDGE_FLAG;
                 }
             }
-            let differentials = self.inner.update_bidegree(b);
+            let differentials = self.inner.update_degree(b);
             if !differentials.is_empty() {
                 // `true_differentials` is a list of differentials of the form d(source) = target we
                 // know to be true. `differentials` is our best guess at what the matrix of
@@ -152,11 +153,11 @@ impl<P: SseqProfile> SseqWrapper<P> {
             }
         }
 
-        let stale_bidegrees: Vec<_> = self
+        let stale_bidegrees: Vec<Bidegree> = self
             .stale
             .iter()
             .filter(|(_, flags)| **flags != 0)
-            .map(|(b, _)| b)
+            .map(|(b, _)| b.into())
             .collect();
         for b in stale_bidegrees {
             let flags = self.stale.get(b).copied().unwrap_or(0);
@@ -294,7 +295,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
 }
 
 // Functions called by SseqManager
-impl<P: SseqProfile> SseqWrapper<P> {
+impl<P: SseqProfile<2>> SseqWrapper<P> {
     /// This function should only be called when everything to the left and bottom of (x, y)
     /// has been defined.
     pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
@@ -385,7 +386,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: Bigraded::new(),
+                    matrices: MultiIndexed::new(),
                 },
                 user: true,
                 permanent,
@@ -407,11 +408,11 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
     /// Propagate products by the product indexed by `idx`.
     fn propagate_product_all(&mut self, name: &str) {
-        let bidegrees: Vec<_> = self.products[name]
+        let bidegrees: Vec<Bidegree> = self.products[name]
             .inner
             .matrices
             .iter()
-            .map(|(b, _)| b)
+            .map(|(b, _)| b.into())
             .collect();
         for b in bidegrees {
             self.propagate_product(b, name);
@@ -471,7 +472,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 inner: sseq::Product {
                     b: mult_b,
                     left,
-                    matrices: Bigraded::new(),
+                    matrices: MultiIndexed::new(),
                 },
                 user: false,
                 permanent: true,

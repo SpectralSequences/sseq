@@ -60,6 +60,18 @@ impl<const N: usize> MultiDegree<N> {
     }
 }
 
+impl<const N: usize> From<[i32; N]> for MultiDegree<N> {
+    fn from(coords: [i32; N]) -> Self {
+        Self { coords }
+    }
+}
+
+impl<const N: usize> From<MultiDegree<N>> for [i32; N] {
+    fn from(d: MultiDegree<N>) -> [i32; N] {
+        d.coords
+    }
+}
+
 impl<const N: usize> Default for MultiDegree<N> {
     fn default() -> Self {
         Self::zero()

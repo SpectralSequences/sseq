@@ -755,7 +755,7 @@ where
         &self.homotopies[s]
     }
 
-    pub fn e3_page(&self) -> sseq::Sseq<sseq::Adams> {
+    pub fn e3_page(&self) -> sseq::Sseq<2, sseq::Adams> {
         let p = self.prime();
 
         let mut sseq = self.underlying.to_sseq();
@@ -792,7 +792,7 @@ where
 
         for b in self.underlying.iter_stem() {
             if sseq.invalid(b) {
-                sseq.update_bidegree(b);
+                sseq.update_degree(b);
             }
         }
         sseq
@@ -985,7 +985,7 @@ where
     pub fn hom_k_with<'a>(
         &self,
         lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
-        sseq: Option<&sseq::Sseq>,
+        sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
         b: Bidegree,
         inputs: impl Iterator<Item = FpSlice<'a>>,
         outputs: impl Iterator<Item = FpSliceMut<'a>>,
@@ -1066,7 +1066,7 @@ where
     ///   of the map by the image of $d_2$.
     pub fn hom_k<'a>(
         &self,
-        sseq: Option<&sseq::Sseq>,
+        sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
         b: Bidegree,
         inputs: impl Iterator<Item = FpSlice<'a>>,
         outputs: impl Iterator<Item = FpSliceMut<'a>>,
@@ -1082,7 +1082,7 @@ where
     pub fn product_nullhomotopy(
         &self,
         lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
-        sseq: &sseq::Sseq,
+        sseq: &sseq::Sseq<2, sseq::Adams>,
         b: Bidegree,
         class: FpSlice,
     ) -> FpVector {

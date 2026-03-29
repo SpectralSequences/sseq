@@ -6,24 +6,24 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpVector},
 };
+use once::MultiIndexed;
 
 use crate::{
-    Bigraded,
-    coordinates::{Bidegree, BidegreeElement, BidegreeGenerator},
+    coordinates::{Bidegree, BidegreeGenerator, degree::MultiDegree, element::MultiDegreeElement},
     differential::Differential,
 };
 
 /// The direction of the differentials
-pub trait SseqProfile {
+pub trait SseqProfile<const N: usize> {
     const MIN_R: i32;
-    fn profile(r: i32, b: Bidegree) -> Bidegree;
-    fn profile_inverse(r: i32, b: Bidegree) -> Bidegree;
-    fn differential_length(offset: Bidegree) -> i32;
+    fn profile(r: i32, b: MultiDegree<N>) -> MultiDegree<N>;
+    fn profile_inverse(r: i32, b: MultiDegree<N>) -> MultiDegree<N>;
+    fn differential_length(offset: MultiDegree<N>) -> i32;
 }
 
 pub struct Adams;
 
-impl SseqProfile for Adams {
+impl SseqProfile<2> for Adams {
     const MIN_R: i32 = 2;
 
     fn profile(r: i32, b: Bidegree) -> Bidegree {
@@ -39,26 +39,26 @@ impl SseqProfile for Adams {
     }
 }
 
-pub struct Product {
-    pub b: Bidegree,
+pub struct Product<const N: usize> {
+    pub b: MultiDegree<N>,
     /// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
     pub left: bool,
-    pub matrices: Bigraded<Matrix>,
+    pub matrices: MultiIndexed<N, Matrix>,
 }
 
-struct BidegreeData {
-    /// The dimension of the module at this bidegree (i.e. the number of generators).
+struct DegreeData {
+    /// The dimension of the module at this degree (i.e. the number of generators).
     dimension: usize,
 
     /// r -> differential
     ///
-    /// If the bidegree is valid (see [`BidegreeData::invalid`]), then the differential is reduced.
+    /// If the degree is valid (see [`DegreeData::invalid`]), then the differential is reduced.
     differentials: BiVec<Differential>,
 
-    /// r -> E_r^{x, y} as a subquotient of the original bidegree.
+    /// r -> E_r as a subquotient of the original degree.
     ///
     /// The "quotient" part of the subquotient is always accurate, but the "sub" part may not be.
-    /// The `invalid` field tracks which bidegrees are valid.
+    /// The `invalid` field tracks which degrees are valid.
     ///
     /// This is always the full ambient space when `r = P::MIN_R`, but we set `min_degree` to
     /// `P::MIN_R` to make code a bit more streamlined.
@@ -70,53 +70,59 @@ struct BidegreeData {
     invalid: bool,
 }
 
-pub struct Sseq<P: SseqProfile = Adams> {
+pub struct Sseq<const N: usize, P: SseqProfile<N>> {
     p: ValidPrime,
 
-    /// Per-bidegree data: differentials, page data, permanent classes, and validity.
+    /// Per-degree data: differentials, page data, permanent classes, and validity.
     ///
     /// # Invariants:
     /// - if `data[b].differentials[r]` is defined, then `data[b].page_data[r + 1]` and
     ///   `data[target].page_data[r + 1]` are always defined,
-    data: Bigraded<BidegreeData>,
+    data: MultiIndexed<N, DegreeData>,
 
     // `P` is itself a marker, so it's safe to claim that we own one. As opposed to
     // `PhantomData<*const P>`, this lets us implement `Send` and `Sync`.
     profile: PhantomData<P>,
 }
 
-impl<P: SseqProfile> Sseq<P> {
+impl<const N: usize, P: SseqProfile<N>> Sseq<N, P> {
     pub fn new(p: ValidPrime) -> Self {
         Self {
             p,
-            data: Bigraded::new(),
+            data: MultiIndexed::new(),
             profile: PhantomData,
         }
     }
 
-    pub fn min(&self) -> Bidegree {
-        self.data.min().unwrap_or_default()
+    pub fn min(&self) -> MultiDegree<N> {
+        self.data
+            .min_coords()
+            .map(MultiDegree::from)
+            .unwrap_or_default()
     }
 
-    pub fn max(&self) -> Bidegree {
-        self.data.max().unwrap_or_default()
+    pub fn max(&self) -> MultiDegree<N> {
+        self.data
+            .max_coords()
+            .map(MultiDegree::from)
+            .unwrap_or_default()
     }
 
-    pub fn defined(&self, b: Bidegree) -> bool {
+    pub fn defined(&self, b: MultiDegree<N>) -> bool {
         self.data.get(b).is_some()
     }
 
-    /// Iterate over all defined bidegrees (in sorted order).
-    pub fn iter_bidegrees(&self) -> impl Iterator<Item = Bidegree> + '_ {
-        self.data.iter().map(|(b, _)| b)
+    /// Iterate over all defined degrees (in sorted order).
+    pub fn iter_degrees(&self) -> impl Iterator<Item = MultiDegree<N>> + '_ {
+        self.data.iter().map(|(b, _)| MultiDegree::from(b))
     }
 
-    pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
+    pub fn set_dimension(&mut self, b: MultiDegree<N>, dim: usize) {
         let mut page_data = BiVec::new(P::MIN_R);
         page_data.push(Subquotient::new_full(self.p, dim));
         self.data.insert(
             b,
-            BidegreeData {
+            DegreeData {
                 dimension: dim,
                 differentials: BiVec::new(P::MIN_R),
                 page_data,
@@ -137,19 +143,19 @@ impl<P: SseqProfile> Sseq<P> {
         }
     }
 
-    pub fn dimension(&self, b: Bidegree) -> usize {
+    pub fn dimension(&self, b: MultiDegree<N>) -> usize {
         self.data[b].dimension
     }
 
-    /// The dimension in a bidegree, `None` if not yet defined.
-    pub fn get_dimension(&self, b: Bidegree) -> Option<usize> {
+    /// The dimension at a degree, `None` if not yet defined.
+    pub fn get_dimension(&self, b: MultiDegree<N>) -> Option<usize> {
         Some(self.data.get(b)?.dimension)
     }
 
     /// # Returns
     ///
     /// Whether a new permanent class was added
-    pub fn add_permanent_class(&mut self, elem: &BidegreeElement) -> bool {
+    pub fn add_permanent_class(&mut self, elem: &MultiDegreeElement<N>) -> bool {
         let bd = &mut self.data[elem.degree()];
         let old_dim = bd.permanent_classes.dimension();
         let new_dim = bd.permanent_classes.add_vector(elem.vec());
@@ -165,7 +171,7 @@ impl<P: SseqProfile> Sseq<P> {
 
     /// Ensure `self.data[b].differentials[r]` is defined. Must call `extend_page_data` on the source
     /// and target after this.
-    fn extend_differential(&mut self, r: i32, b: Bidegree) {
+    fn extend_differential(&mut self, r: i32, b: MultiDegree<N>) {
         let source_dim = self.dimension(b);
         while self.data[b].differentials.len() <= r {
             let r = self.data[b].differentials.len();
@@ -180,20 +186,24 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     /// Ensure `self.data[b].page_data[r]` is defined
-    fn extend_page_data(&mut self, r: i32, b: Bidegree) {
+    fn extend_page_data(&mut self, r: i32, b: MultiDegree<N>) {
         let bd = &mut self.data[b];
         while bd.page_data.len() <= r {
             bd.page_data.push(bd.page_data.last().unwrap().clone())
         }
     }
 
-    /// Add a $d_r$ differential from bidegree $(x, y)$, with the given `source` and `target`
-    /// classes.
+    /// Add a $d_r$ differential with the given `source` and `target` classes.
     ///
     /// # Return
     ///
     /// Whether the differential is new
-    pub fn add_differential(&mut self, r: i32, source: &BidegreeElement, target: FpSlice) -> bool {
+    pub fn add_differential(
+        &mut self,
+        r: i32,
+        source: &MultiDegreeElement<N>,
+        target: FpSlice,
+    ) -> bool {
         let target_b = P::profile(r, source.degree());
 
         self.extend_differential(r, source.degree());
@@ -209,7 +219,7 @@ impl<P: SseqProfile> Sseq<P> {
             self.data[source.degree()].invalid = true;
             if !target.is_zero() {
                 self.data[target_b].invalid = true;
-                self.add_permanent_class(&BidegreeElement::new(target_b, target.to_owned()));
+                self.add_permanent_class(&MultiDegreeElement::new(target_b, target.to_owned()));
                 let target_page_len = self.data[target_b].page_data.len();
                 for r in r + 1..target_page_len {
                     self.data[target_b].page_data[r].quotient(target);
@@ -224,27 +234,27 @@ impl<P: SseqProfile> Sseq<P> {
         is_new
     }
 
-    pub fn invalid(&self, b: Bidegree) -> bool {
+    pub fn invalid(&self, b: MultiDegree<N>) -> bool {
         self.data[b].invalid
     }
 
     pub fn update(&mut self) {
-        let invalid_bidegrees: Vec<_> = self
+        let invalid_degrees: Vec<MultiDegree<N>> = self
             .data
             .iter()
             .filter(|(_, bd)| bd.invalid)
-            .map(|(b, _)| b)
+            .map(|(b, _)| b.into())
             .collect();
-        for b in invalid_bidegrees {
-            self.update_bidegree(b);
+        for b in invalid_degrees {
+            self.update_degree(b);
         }
     }
 
     /// This returns the vec of differentials to draw on each page.
-    pub fn update_bidegree(&mut self, b: Bidegree) -> BiVec<Vec<Vec<u32>>> {
+    pub fn update_degree(&mut self, b: MultiDegree<N>) -> BiVec<Vec<Vec<u32>>> {
         self.data[b].invalid = false;
 
-        // Collect target zeros first to avoid simultaneous cross-bidegree borrows.
+        // Collect target zeros first to avoid simultaneous cross-degree borrows.
         let diff_range = self.data[b].differentials.range();
         for r in diff_range {
             let target_b = P::profile(r, b);
@@ -318,9 +328,9 @@ impl<P: SseqProfile> Sseq<P> {
         differentials
     }
 
-    /// Whether the calcuations at bidegree (x, y) are complete. This means all classes on the
+    /// Whether the calculations at a degree are complete. This means all classes on the
     /// final page are known to be permanent.
-    pub fn complete(&self, b: Bidegree) -> bool {
+    pub fn complete(&self, b: MultiDegree<N>) -> bool {
         let bd = &self.data[b];
         bd.page_data
             .last()
@@ -329,19 +339,19 @@ impl<P: SseqProfile> Sseq<P> {
             .all(|v| bd.permanent_classes.contains(v))
     }
 
-    /// Whether there is an inconsistent differential involving bidegree (x, y).
-    pub fn inconsistent(&self, b: Bidegree) -> bool {
+    /// Whether there is an inconsistent differential involving this degree.
+    pub fn inconsistent(&self, b: MultiDegree<N>) -> bool {
         self.differentials(b).iter().any(Differential::inconsistent)
             || self.differentials_hitting(b).any(|(_, d)| d.inconsistent())
     }
 
-    pub fn differentials(&self, b: Bidegree) -> &BiVec<Differential> {
+    pub fn differentials(&self, b: MultiDegree<N>) -> &BiVec<Differential> {
         &self.data[b].differentials
     }
 
     pub fn differentials_hitting(
         &self,
-        b: Bidegree,
+        b: MultiDegree<N>,
     ) -> impl Iterator<Item = (i32, &'_ Differential)> + '_ {
         let max_r = self.data[b].page_data.len() - 1;
         (P::MIN_R..max_r).filter_map(move |r| {
@@ -350,26 +360,30 @@ impl<P: SseqProfile> Sseq<P> {
         })
     }
 
-    pub fn permanent_classes(&self, b: Bidegree) -> &Subspace {
+    pub fn permanent_classes(&self, b: MultiDegree<N>) -> &Subspace {
         &self.data[b].permanent_classes
     }
 
-    pub fn page_data(&self, b: Bidegree) -> &BiVec<Subquotient> {
+    pub fn page_data(&self, b: MultiDegree<N>) -> &BiVec<Subquotient> {
         &self.data[b].page_data
     }
 
-    /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
+    /// Compute the product between `product` and the class `class`. Returns `None` if
     /// the product is not yet computed.
-    pub fn multiply(&self, elem: &BidegreeElement, prod: &Product) -> Option<BidegreeElement> {
+    pub fn multiply(
+        &self,
+        elem: &MultiDegreeElement<N>,
+        prod: &Product<N>,
+    ) -> Option<MultiDegreeElement<N>> {
         let target_b = elem.degree() + prod.b;
         let matrix = prod.matrices.get(elem.degree())?;
         let mut result = FpVector::new(self.p, self.get_dimension(target_b)?);
         matrix.apply(result.as_slice_mut(), 1, elem.vec());
-        Some(BidegreeElement::new(target_b, result))
+        Some(MultiDegreeElement::new(target_b, result))
     }
 
     /// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
-    /// differential from (x, y) with source `s` and target `t`. If the source is permanent, then r
+    /// differential with source `s` and target `t`. If the source is permanent, then r
     /// should be set to [`i32::MAX`].
     ///
     /// # Arguments
@@ -379,17 +393,17 @@ impl<P: SseqProfile> Sseq<P> {
     ///
     /// # Return
     ///
-    /// We return a tuple `(r, x, y, class)` recording the (source of) the new differential.
+    /// We return a tuple `(r, class)` recording the (source of) the new differential.
     /// If the function returns None, this means no differential was added. This can either be
     /// because the differential was trivial, or the data needed to compute the product is not yet
     /// available.
     pub fn leibniz(
         &mut self,
         r: i32,
-        elem: &BidegreeElement,
-        source_product: &Product,
-        target_product: Option<&Product>,
-    ) -> Option<(i32, BidegreeElement)> {
+        elem: &MultiDegreeElement<N>,
+        source_product: &Product<N>,
+        target_product: Option<&Product<N>>,
+    ) -> Option<(i32, MultiDegreeElement<N>)> {
         let source = self.multiply(elem, source_product)?;
 
         // The class and the product are both permanent.
@@ -417,7 +431,7 @@ impl<P: SseqProfile> Sseq<P> {
             let d_b = P::profile(r, elem.degree());
             let mut dx = FpVector::new(self.p, self.dimension(d_b));
             diffs.evaluate(elem.vec(), dx.as_slice_mut());
-            let d = BidegreeElement::new(d_b, dx);
+            let d = MultiDegreeElement::new(d_b, dx);
             let target = self.multiply(&d, source_product)?;
 
             if source_product.left && source_product.b.x() % 2 != 0 {
@@ -444,14 +458,17 @@ impl<P: SseqProfile> Sseq<P> {
             None
         }
     }
+}
 
+/// Bigraded-specific methods (charting support).
+impl<P: SseqProfile<2>> Sseq<2, P> {
     /// This shifts the sseq horizontally so that the minimum x is 0.
     pub fn write_to_graph<'a, T: crate::charting::Backend>(
         &self,
         mut g: T,
         r: i32,
         differentials: bool,
-        products: impl Iterator<Item = &'a (String, Product)> + Clone,
+        products: impl Iterator<Item = &'a (String, Product<2>)> + Clone,
         header: impl FnOnce(&mut T) -> Result<(), T::Error>,
     ) -> Result<(), T::Error> {
         let min = self.min();
@@ -462,7 +479,7 @@ impl<P: SseqProfile> Sseq<P> {
         g.init(max - min)?;
         header(&mut g)?;
 
-        for b in self.iter_bidegrees() {
+        for b in self.iter_degrees() {
             let shifted_b = b - min;
 
             let bd = self.page_data(b).get_max(r);
@@ -547,11 +564,12 @@ mod tests {
     use expect_test::{Expect, expect};
 
     use super::*;
+    use crate::coordinates::BidegreeElement;
 
     #[test]
     fn test_sseq_differential() {
         let p = ValidPrime::new(3);
-        let mut sseq = Sseq::<Adams>::new(p);
+        let mut sseq = Sseq::<2, Adams>::new(p);
         sseq.set_dimension(Bidegree::x_y(0, 0), 1);
         sseq.set_dimension(Bidegree::x_y(1, 0), 2);
         sseq.set_dimension(Bidegree::x_y(1, 1), 2);
@@ -821,7 +839,7 @@ mod tests {
     #[test]
     fn test_sseq_differential_2() {
         let p = ValidPrime::new(2);
-        let mut sseq = Sseq::<Adams>::new(p);
+        let mut sseq = Sseq::<2, Adams>::new(p);
 
         sseq.set_dimension(Bidegree::x_y(0, 0), 0);
         sseq.set_dimension(Bidegree::x_y(1, 0), 2);
