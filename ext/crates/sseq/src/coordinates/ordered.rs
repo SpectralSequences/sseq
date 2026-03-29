@@ -184,9 +184,9 @@ mod tests {
         MultiDegree::new([1, 0, 1]),
     ];
 
-    fn get_ordered<const N: usize, O: MultiDegreeOrdering<3>>(
-        order: [usize; N],
-    ) -> [OrderedMultiDegree<3, O>; N] {
+    fn get_ordered<const L: usize, O: MultiDegreeOrdering<3>>(
+        order: [usize; L],
+    ) -> [OrderedMultiDegree<3, O>; L] {
         order.map(|idx| TEST_DEGREES[idx].into())
     }
 
