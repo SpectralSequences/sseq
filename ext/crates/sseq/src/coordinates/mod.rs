@@ -1,6 +1,6 @@
-use degree::MultiDegree;
-use element::MultiDegreeElement;
-use generator::MultiDegreeGenerator;
+pub use degree::MultiDegree;
+pub use element::MultiDegreeElement;
+pub use generator::MultiDegreeGenerator;
 use maybe_rayon::prelude::*;
 use ordered::OrderedMultiDegree;
 pub use range::BidegreeRange;
