@@ -40,6 +40,9 @@
         program = toString (pkgs.writeShellScript "run-tests" ''
           set -euo pipefail
 
+          export RUSTFLAGS="-D warnings"
+          export RUSTDOCFLAGS="-D warnings"
+
           make lint
           make test
           make benchmarks
