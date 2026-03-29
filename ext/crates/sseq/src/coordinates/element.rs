@@ -1,6 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 use fp::vector::{FpSlice, FpVector};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::{MultiDegree, MultiDegreeGenerator};
@@ -74,12 +75,35 @@ impl<const N: usize> MultiDegreeElement<N> {
     }
 }
 
-impl Display for BidegreeElement {
+impl<const N: usize> Display for MultiDegreeElement<N> {
+    /// ```
+    /// # use sseq::coordinates::{MultiDegreeElement, MultiDegree};
+    /// # use fp::vector::FpVector;
+    /// # use fp::prime::P2;
+    ///
+    /// let el = MultiDegreeElement::new(
+    ///     MultiDegree::new([1, 2, 3]),
+    ///     FpVector::from_slice(P2, &[1, 0, 1]),
+    /// );
+    ///
+    /// let default = format!("{el}");
+    /// let alt = format!("{el:#}");
+    ///
+    /// assert_eq!(default, String::from("(1, 2, 3, [1, 0, 1])"));
+    /// assert_eq!(alt, String::from("(1,2,3)[101]"));
+    /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "({},{}){}", self.n(), self.s(), self.vec())
+        let sep = if f.alternate() {
+            // Compact representation
+            ","
         } else {
-            write!(f, "({}, {}, {})", self.n(), self.s(), self.vec())
+            ", "
+        };
+        let coord_str = self.degree.coords().iter().map(i32::to_string).join(sep);
+        if f.alternate() {
+            write!(f, "({coord_str})[{:#}]", self.vec())
+        } else {
+            write!(f, "({coord_str}, {})", self.vec())
         }
     }
 }
