@@ -155,32 +155,30 @@ mod tests {
         order.map(|idx| TEST_BIDEGREES[idx].into())
     }
 
-    macro_rules! test_ordering {
-        ($o:ident, $v:expr) => {
-            let mut ordered_bidegrees: [OrderedBidegree<$o>; NUM_TEST_BIDEGREES] =
-                get_ordered([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-            ordered_bidegrees.sort();
-            assert_eq!(ordered_bidegrees, get_ordered($v));
-        };
+    fn test_ordering<O: BidegreeOrdering>(v: [usize; NUM_TEST_BIDEGREES]) {
+        let mut ordered_bidegrees: [OrderedBidegree<O>; _] =
+            get_ordered([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        ordered_bidegrees.sort();
+        assert_eq!(ordered_bidegrees, get_ordered(v));
     }
 
     #[test]
     fn test_stem_ordered() {
-        test_ordering!(ByStem, [6, 3, 0, 7, 4, 1, 8, 5, 2]);
+        test_ordering::<ByStem>([6, 3, 0, 7, 4, 1, 8, 5, 2])
     }
 
     #[test]
     fn test_internal_ordered() {
-        test_ordering!(ByInternalDegree, [6, 7, 3, 8, 4, 0, 5, 1, 2]);
+        test_ordering::<ByInternalDegree>([6, 7, 3, 8, 4, 0, 5, 1, 2])
     }
 
     #[test]
     fn test_homological_ordered() {
-        test_ordering!(ByHomologicalDegree, [6, 7, 8, 3, 4, 5, 0, 1, 2]);
+        test_ordering::<ByHomologicalDegree>([6, 7, 8, 3, 4, 5, 0, 1, 2])
     }
 
     #[test]
     fn test_reverse_homological_ordered() {
-        test_ordering!(ByReverseHomologicalDegree, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        test_ordering::<ByReverseHomologicalDegree>([0, 1, 2, 3, 4, 5, 6, 7, 8])
     }
 }
