@@ -16,8 +16,6 @@ pub struct MultiDegreeGenerator<const N: usize> {
     idx: usize,
 }
 
-pub type BidegreeGenerator = MultiDegreeGenerator<2>;
-
 impl<const N: usize> MultiDegreeGenerator<N> {
     pub fn new<T: Into<MultiDegree<N>>>(degree: T, idx: usize) -> Self {
         Self {

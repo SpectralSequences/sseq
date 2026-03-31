@@ -16,8 +16,6 @@ pub struct MultiDegreeElement<const N: usize> {
     vec: FpVector,
 }
 
-pub type BidegreeElement = MultiDegreeElement<2>;
-
 impl<const N: usize> MultiDegreeElement<N> {
     pub fn new(degree: MultiDegree<N>, vec: FpVector) -> Self {
         Self { degree, vec }
