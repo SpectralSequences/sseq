@@ -1,34 +1,29 @@
 use std::fmt::{self, Display, Formatter};
 
 use fp::{prime::ValidPrime, vector::FpVector};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{Bidegree, BidegreeElement};
+use super::{degree::MultiDegree, element::MultiDegreeElement};
 
-/// A *basis* element of a bigraded vector space. Most commonly used to index elements of spectral
-/// sequences.
+/// A *basis* element of a multigraded vector space. Most commonly used to index elements of
+/// spectral sequences.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BidegreeGenerator {
-    /// Bidegree of the element
-    degree: Bidegree,
-    /// Position in the canonical basis for this bidegree
+pub struct MultiDegreeGenerator<const N: usize> {
+    /// Degree of the element.
+    degree: MultiDegree<N>,
+    /// Position in the canonical basis for this multigraded vector space.
     idx: usize,
 }
 
-impl BidegreeGenerator {
-    pub fn new<T: Into<Bidegree>>(degree: T, idx: usize) -> Self {
+pub type BidegreeGenerator = MultiDegreeGenerator<2>;
+
+impl<const N: usize> MultiDegreeGenerator<N> {
+    pub fn new<T: Into<MultiDegree<N>>>(degree: T, idx: usize) -> Self {
         Self {
             degree: degree.into(),
             idx,
         }
-    }
-
-    pub fn s_t(s: i32, t: i32, idx: usize) -> Self {
-        Self::new(Bidegree::s_t(s, t), idx)
-    }
-
-    pub fn n_s(n: i32, s: i32, idx: usize) -> Self {
-        Self::new(Bidegree::n_s(n, s), idx)
     }
 
     pub fn s(&self) -> i32 {
@@ -39,7 +34,7 @@ impl BidegreeGenerator {
         self.degree.t()
     }
 
-    pub fn degree(&self) -> Bidegree {
+    pub fn degree(&self) -> MultiDegree<N> {
         self.degree
     }
 
@@ -59,34 +54,42 @@ impl BidegreeGenerator {
         self.idx
     }
 
-    pub fn into_element(self, p: ValidPrime, ambient: usize) -> BidegreeElement {
+    pub fn into_element(self, p: ValidPrime, ambient: usize) -> MultiDegreeElement<N> {
         let mut vec = FpVector::new(p, ambient);
         vec.set_entry(self.idx, 1);
-        BidegreeElement::new(self.degree, vec)
+        MultiDegreeElement::new(self.degree, vec)
     }
 }
 
-impl Display for BidegreeGenerator {
+impl<const N: usize> Display for MultiDegreeGenerator<N> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if f.alternate() {
+        let sep = if f.alternate() {
             // Compact representation
-            write!(f, "({},{},{})", self.n(), self.s(), self.idx())
+            ","
         } else {
-            write!(f, "({}, {}, {})", self.n(), self.s(), self.idx())
-        }
+            ", "
+        };
+        let inner = self
+            .degree
+            .coords()
+            .iter()
+            .map(i32::to_string)
+            .chain(std::iter::once(self.idx.to_string()))
+            .join(sep);
+        write!(f, "({inner})")
     }
 }
 
-impl From<(Bidegree, usize)> for BidegreeGenerator {
-    fn from(tuple: (Bidegree, usize)) -> Self {
+impl<const N: usize> From<(MultiDegree<N>, usize)> for MultiDegreeGenerator<N> {
+    fn from(tuple: (MultiDegree<N>, usize)) -> Self {
         Self::new(tuple.0, tuple.1)
     }
 }
 
-impl TryFrom<BidegreeElement> for BidegreeGenerator {
+impl<const N: usize> TryFrom<MultiDegreeElement<N>> for MultiDegreeGenerator<N> {
     type Error = ();
 
-    fn try_from(value: BidegreeElement) -> Result<Self, Self::Error> {
+    fn try_from(value: MultiDegreeElement<N>) -> Result<Self, Self::Error> {
         if value.vec().iter().sum::<u32>() == 1 {
             let (idx, _) = value.vec().iter_nonzero().next().unwrap();
             Ok((value.degree(), idx).into())
