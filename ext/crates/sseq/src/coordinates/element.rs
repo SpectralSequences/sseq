@@ -78,19 +78,19 @@ impl<const N: usize> MultiDegreeElement<N> {
 impl<const N: usize> Display for MultiDegreeElement<N> {
     /// ```
     /// # use sseq::coordinates::{MultiDegreeElement, MultiDegree};
-    /// # use fp::vector::FpVector;
-    /// # use fp::prime::P2;
+    /// # use fp::{prime::P2, vector::FpVector};
     ///
-    /// let el = MultiDegreeElement::new(
-    ///     MultiDegree::new([1, 2, 3]),
-    ///     FpVector::from_slice(P2, &[1, 0, 1]),
-    /// );
+    /// let vec = FpVector::from_slice(P2, &[1, 0, 1]);
     ///
-    /// let default = format!("{el}");
-    /// let alt = format!("{el:#}");
+    /// let el3 = MultiDegreeElement::new(MultiDegree::new([1, 2, 3]), vec.clone());
     ///
-    /// assert_eq!(default, String::from("(1, 2, 3, [1, 0, 1])"));
-    /// assert_eq!(alt, String::from("(1,2,3)[101]"));
+    /// assert_eq!(format!("{el3}"), String::from("(1, 2, 3, [1, 0, 1])"));
+    /// assert_eq!(format!("{el3:#}"), String::from("(1,2,3)[101]"));
+    ///
+    /// let el0 = MultiDegreeElement::new(MultiDegree::new([]), vec);
+    ///
+    /// assert_eq!(format!("{el0}"), String::from("([1, 0, 1])"));
+    /// assert_eq!(format!("{el0:#}"), String::from("()[101]"));
     /// ```
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let sep = if f.alternate() {
