@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["iter_s_t"],"mod":["bidegree","element","generator","ordered","range"]};
+window.SIDEBAR_ITEMS = {"fn":["iter_s_t"],"mod":["degree","element","generator","ordered","range"],"type":["Bidegree","BidegreeElement","BidegreeGenerator","OrderedBidegree"]};

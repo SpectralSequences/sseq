@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BidegreeGenerator"]};
+window.SIDEBAR_ITEMS = {"struct":["MultiDegreeGenerator"],"type":["BidegreeGenerator"]};
