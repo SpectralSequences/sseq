@@ -172,8 +172,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// assert_eq!(array1d.get([-10]), Some(&-2.71));
     /// assert_eq!(array1d.get([5]), None);
     /// ```
-    pub fn get(&self, coords: [i32; K]) -> Option<&V> {
-        self.trie.get(&coords)
+    pub fn get(&self, coords: impl Into<[i32; K]>) -> Option<&V> {
+        self.trie.get(&coords.into())
     }
 
     /// Retrieves a mutable reference to the value at the specified coordinates, if it exists.
@@ -208,8 +208,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     ///
     /// assert_eq!(array.get([1, 2, 3]), Some(&vec![1, 2, 3, 4, 5]));
     /// ```
-    pub fn get_mut(&mut self, coords: [i32; K]) -> Option<&mut V> {
-        self.trie.get_mut(&coords)
+    pub fn get_mut(&mut self, coords: impl Into<[i32; K]>) -> Option<&mut V> {
+        self.trie.get_mut(&coords.into())
     }
 
     /// Inserts a value at the specified coordinates.
@@ -258,7 +258,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     /// array.insert([1, 2], 42);
     /// array.insert([1, 2], 43); // Panics
     /// ```
-    pub fn insert(&self, coords: [i32; K], value: V) {
+    pub fn insert(&self, coords: impl Into<[i32; K]>, value: V) {
+        let coords = coords.into();
         // We update the bounds before inserting. The invariant we preserve is the property that
         // every value lives within bounds, but we're ok if the bounds are not as tight as they
         // could be.
@@ -266,7 +267,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
         self.trie.insert(&coords, value);
     }
 
-    pub fn try_insert(&self, coords: [i32; K], value: V) -> Result<(), V> {
+    pub fn try_insert(&self, coords: impl Into<[i32; K]>, value: V) -> Result<(), V> {
+        let coords = coords.into();
         // We update the bounds before inserting. The invariant we preserve is the property that
         // every value lives within bounds, but we're ok if the bounds are not as tight as they
         // could be.
@@ -383,19 +385,21 @@ impl<const K: usize, V: std::hash::Hash> std::hash::Hash for MultiIndexed<K, V> 
     }
 }
 
-impl<const K: usize, V> Index<[i32; K]> for MultiIndexed<K, V> {
+impl<const K: usize, V, I: Into<[i32; K]>> Index<I> for MultiIndexed<K, V> {
     type Output = V;
 
-    fn index(&self, index: [i32; K]) -> &Self::Output {
-        self.get(index)
-            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+    fn index(&self, index: I) -> &Self::Output {
+        let coords = index.into();
+        self.get(coords)
+            .unwrap_or_else(|| panic!("no value at index {coords:?}"))
     }
 }
 
-impl<const K: usize, V> IndexMut<[i32; K]> for MultiIndexed<K, V> {
-    fn index_mut(&mut self, index: [i32; K]) -> &mut Self::Output {
-        self.get_mut(index)
-            .unwrap_or_else(|| panic!("no value at index {index:?}"))
+impl<const K: usize, V, I: Into<[i32; K]>> IndexMut<I> for MultiIndexed<K, V> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        let coords = index.into();
+        self.get_mut(coords)
+            .unwrap_or_else(|| panic!("no value at index {coords:?}"))
     }
 }
 
