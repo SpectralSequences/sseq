@@ -102,6 +102,8 @@ impl<const N: usize> Display for MultiDegreeElement<N> {
         let coord_str = self.degree.coords().iter().map(i32::to_string).join(sep);
         if f.alternate() {
             write!(f, "({coord_str})[{:#}]", self.vec())
+        } else if N == 0 {
+            write!(f, "({})", self.vec())
         } else {
             write!(f, "({coord_str}, {})", self.vec())
         }
