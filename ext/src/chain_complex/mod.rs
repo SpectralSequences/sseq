@@ -58,7 +58,7 @@ where
         result
     }
 
-    fn to_sseq(&self) -> sseq::Sseq<sseq::Adams> {
+    fn to_sseq(&self) -> sseq::Sseq<2, sseq::Adams> {
         let p = self.prime();
         let mut sseq = sseq::Sseq::new(p);
         for b in self.iter_stem() {
@@ -67,9 +67,9 @@ where
         sseq
     }
 
-    fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product {
+    fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product<2> {
         let p = self.prime();
-        let matrices = sseq::Bigraded::new();
+        let matrices = once::MultiIndexed::new();
         for x in self.min_degree()..self.module(0).max_computed_degree() - op_deg + 2 {
             let mut b = Bidegree::n_s(x, 0);
             while self.has_computed_bidegree(b + Bidegree::s_t(1, op_deg)) {
