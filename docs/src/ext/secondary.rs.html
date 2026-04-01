@@ -780,7 +780,7 @@
 <a href=#755 id=755 data-nosnippet>755</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s]
 <a href=#756 id=756 data-nosnippet>756</a>    }
 <a href=#757 id=757 data-nosnippet>757</a>
-<a href=#758 id=758 data-nosnippet>758</a>    <span class="kw">pub fn </span>e3_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; sseq::Sseq&lt;sseq::Adams&gt; {
+<a href=#758 id=758 data-nosnippet>758</a>    <span class="kw">pub fn </span>e3_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt; {
 <a href=#759 id=759 data-nosnippet>759</a>        <span class="kw">let </span>p = <span class="self">self</span>.prime();
 <a href=#760 id=760 data-nosnippet>760</a>
 <a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">let </span><span class="kw-2">mut </span>sseq = <span class="self">self</span>.underlying.to_sseq();
@@ -817,7 +817,7 @@
 <a href=#792 id=792 data-nosnippet>792</a>
 <a href=#793 id=793 data-nosnippet>793</a>        <span class="kw">for </span>b <span class="kw">in </span><span class="self">self</span>.underlying.iter_stem() {
 <a href=#794 id=794 data-nosnippet>794</a>            <span class="kw">if </span>sseq.invalid(b) {
-<a href=#795 id=795 data-nosnippet>795</a>                sseq.update_bidegree(b);
+<a href=#795 id=795 data-nosnippet>795</a>                sseq.update_degree(b);
 <a href=#796 id=796 data-nosnippet>796</a>            }
 <a href=#797 id=797 data-nosnippet>797</a>        }
 <a href=#798 id=798 data-nosnippet>798</a>        sseq
@@ -1010,7 +1010,7 @@
 <a href=#985 id=985 data-nosnippet>985</a>    </span><span class="kw">pub fn </span>hom_k_with&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#986 id=986 data-nosnippet>986</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#987 id=987 data-nosnippet>987</a>        lambda_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
-<a href=#988 id=988 data-nosnippet>988</a>        sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&gt;,
+<a href=#988 id=988 data-nosnippet>988</a>        sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt;&gt;,
 <a href=#989 id=989 data-nosnippet>989</a>        b: Bidegree,
 <a href=#990 id=990 data-nosnippet>990</a>        inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
 <a href=#991 id=991 data-nosnippet>991</a>        outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
@@ -1091,7 +1091,7 @@
 <a href=#1066 id=1066 data-nosnippet>1066</a>    ///   of the map by the image of $d_2$.
 <a href=#1067 id=1067 data-nosnippet>1067</a>    </span><span class="kw">pub fn </span>hom_k&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1069 id=1069 data-nosnippet>1069</a>        sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&gt;,
+<a href=#1069 id=1069 data-nosnippet>1069</a>        sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt;&gt;,
 <a href=#1070 id=1070 data-nosnippet>1070</a>        b: Bidegree,
 <a href=#1071 id=1071 data-nosnippet>1071</a>        inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
 <a href=#1072 id=1072 data-nosnippet>1072</a>        outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
@@ -1107,7 +1107,7 @@
 <a href=#1082 id=1082 data-nosnippet>1082</a>    </span><span class="kw">pub fn </span>product_nullhomotopy(
 <a href=#1083 id=1083 data-nosnippet>1083</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#1084 id=1084 data-nosnippet>1084</a>        lambda_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
-<a href=#1085 id=1085 data-nosnippet>1085</a>        sseq: <span class="kw-2">&amp;</span>sseq::Sseq,
+<a href=#1085 id=1085 data-nosnippet>1085</a>        sseq: <span class="kw-2">&amp;</span>sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt;,
 <a href=#1086 id=1086 data-nosnippet>1086</a>        b: Bidegree,
 <a href=#1087 id=1087 data-nosnippet>1087</a>        class: FpSlice,
 <a href=#1088 id=1088 data-nosnippet>1088</a>    ) -&gt; FpVector {

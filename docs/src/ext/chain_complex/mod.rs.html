@@ -83,7 +83,7 @@
 <a href=#58 id=58 data-nosnippet>58</a>        result
 <a href=#59 id=59 data-nosnippet>59</a>    }
 <a href=#60 id=60 data-nosnippet>60</a>
-<a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">fn </span>to_sseq(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; sseq::Sseq&lt;sseq::Adams&gt; {
+<a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">fn </span>to_sseq(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt; {
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span>p = <span class="self">self</span>.prime();
 <a href=#63 id=63 data-nosnippet>63</a>        <span class="kw">let </span><span class="kw-2">mut </span>sseq = sseq::Sseq::new(p);
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="kw">for </span>b <span class="kw">in </span><span class="self">self</span>.iter_stem() {
@@ -92,9 +92,9 @@
 <a href=#67 id=67 data-nosnippet>67</a>        sseq
 <a href=#68 id=68 data-nosnippet>68</a>    }
 <a href=#69 id=69 data-nosnippet>69</a>
-<a href=#70 id=70 data-nosnippet>70</a>    <span class="kw">fn </span>filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; sseq::Product {
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="kw">fn </span>filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; sseq::Product&lt;<span class="number">2</span>&gt; {
 <a href=#71 id=71 data-nosnippet>71</a>        <span class="kw">let </span>p = <span class="self">self</span>.prime();
-<a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">let </span>matrices = sseq::Bigraded::new();
+<a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">let </span>matrices = once::MultiIndexed::new();
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">for </span>x <span class="kw">in </span><span class="self">self</span>.min_degree()..<span class="self">self</span>.module(<span class="number">0</span>).max_computed_degree() - op_deg + <span class="number">2 </span>{
 <a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span><span class="kw-2">mut </span>b = Bidegree::n_s(x, <span class="number">0</span>);
 <a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">while </span><span class="self">self</span>.has_computed_bidegree(b + Bidegree::s_t(<span class="number">1</span>, op_deg)) {
