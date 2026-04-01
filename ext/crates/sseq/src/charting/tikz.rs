@@ -26,7 +26,11 @@ impl<T: io::Write> TikzBackend<T> {
         }
     }
 
-    /// Returns r, x, y
+    /// Returns (radius, x, y) for the given generator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `node()` was not previously called for `g.degree()`.
     fn get_coords(&self, g: BidegreeGenerator) -> (f32, f32, f32) {
         let n = *self.num_nodes.get(&g.degree()).unwrap();
 
