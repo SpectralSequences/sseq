@@ -127,6 +127,6 @@ impl<T: io::Write> Backend for TikzBackend<T> {
 
 impl<T: io::Write> Drop for TikzBackend<T> {
     fn drop(&mut self) {
-        writeln!(self.out, r#"\end{{tikzpicture}}"#).unwrap();
+        let _ = writeln!(self.out, r#"\end{{tikzpicture}}"#);
     }
 }

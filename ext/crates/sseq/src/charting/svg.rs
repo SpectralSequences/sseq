@@ -195,6 +195,6 @@ impl<T: io::Write> Backend for SvgBackend<T> {
 
 impl<T: io::Write> Drop for SvgBackend<T> {
     fn drop(&mut self) {
-        writeln!(self.out, "</svg>").unwrap();
+        let _ = writeln!(self.out, "</svg>");
     }
 }
