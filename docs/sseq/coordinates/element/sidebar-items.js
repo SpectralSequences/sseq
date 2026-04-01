@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MultiDegreeElement"],"type":["BidegreeElement"]};
+window.SIDEBAR_ITEMS = {"struct":["MultiDegreeElement"]};
