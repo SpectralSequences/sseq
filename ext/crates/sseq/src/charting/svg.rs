@@ -133,6 +133,8 @@ impl<T: io::Write> Backend for SvgBackend<T> {
         )
     }
 
+    // SvgBackend only supports printing text to the left of or below a certain bidegree. This is
+    // used for printing axis labels.
     fn text(
         &mut self,
         b: Bidegree,
