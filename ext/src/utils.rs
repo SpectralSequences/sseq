@@ -2,7 +2,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
-    AlgebraType, MilnorAlgebra, SteenrodAlgebra,
+    AlgebraType, SteenrodAlgebra,
     module::{FDModule, Module, SteenrodModule, steenrod_module},
 };
 use anyhow::{Context, anyhow};
@@ -16,16 +16,8 @@ use crate::{
     save::SaveDirectory,
 };
 
-// We build docs with --all-features so the docs are at the feature = "nassau" version
-#[cfg(not(feature = "nassau"))]
+/// The resolution type returned by [`query_module`] and [`construct`].
 pub type QueryModuleResolution = Resolution<CCC>;
-
-/// The type returned by [`query_module`]. The value of this type depends on whether
-/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
-/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`] and supports the `compute_through_stem`
-/// function.
-#[cfg(feature = "nassau")]
-pub type QueryModuleResolution = crate::nassau::Resolution<FDModule<MilnorAlgebra>>;
 
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
 
@@ -133,8 +125,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
 ///    returned.
 ///
-/// This dispatches to either [`construct_nassau`] or [`construct_standard`] depending on whether
-/// the `nassau` feature is enabled.
+/// See [`construct_standard`] for what this accepts.
 pub fn construct<T, E>(
     module_spec: T,
     save_dir: impl Into<SaveDirectory>,
@@ -143,55 +134,7 @@ where
     anyhow::Error: From<E>,
     T: TryInto<Config, Error = E>,
 {
-    #[cfg(feature = "nassau")]
-    {
-        construct_nassau(module_spec, save_dir)
-    }
-
-    #[cfg(not(feature = "nassau"))]
-    {
-        construct_standard(module_spec, save_dir)
-    }
-}
-
-/// See [`construct`]
-pub fn construct_nassau<T, E>(
-    module_spec: T,
-    save_dir: impl Into<SaveDirectory>,
-) -> anyhow::Result<crate::nassau::Resolution<FDModule<MilnorAlgebra>>>
-where
-    anyhow::Error: From<E>,
-    T: TryInto<Config, Error = E>,
-{
-    let Config {
-        module: json,
-        algebra,
-    } = module_spec.try_into()?;
-
-    if algebra == AlgebraType::Adem {
-        return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
-    }
-    if !json["profile"].is_null() {
-        return Err(anyhow!(
-            "Nassau's algorithm does not support non-trivial profile"
-        ));
-    }
-    if json["p"].as_i64() != Some(2) {
-        return Err(anyhow!("Nassau's algorithm does not support odd primes"));
-    }
-    if json["type"].as_str() != Some("finite dimensional module") {
-        return Err(anyhow!(
-            "Nassau's algorithm only supports finite dimensional modules"
-        ));
-    }
-
-    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
-    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
-
-    if !json["cofiber"].is_null() {
-        return Err(anyhow!("Nassau's algorithm does not support cofiber"));
-    }
-    crate::nassau::Resolution::new_with_save(module, save_dir)
+    construct_standard(module_spec, save_dir)
 }
 
 /// See [`construct`]
@@ -353,18 +296,7 @@ pub fn query_module_only(
         construct(module, save_dir).context("Failed to load module from save file")?;
 
     let load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
-
-    #[cfg(not(feature = "nassau"))]
-    {
-        resolution.load_quasi_inverse = load_quasi_inverse;
-    }
-
-    #[cfg(feature = "nassau")]
-    assert!(
-        !load_quasi_inverse,
-        "Quasi inverse loading not support with Nassau. Please use a save directory instead"
-    );
-
+    resolution.load_quasi_inverse = load_quasi_inverse;
     resolution.set_name(name);
 
     Ok(resolution)
@@ -447,19 +379,8 @@ pub fn get_unit(
             bivec::BiVec::from_vec(0, vec![1]),
         );
 
-        #[cfg(feature = "nassau")]
-        {
-            Arc::new(crate::nassau::Resolution::new_with_save(
-                Arc::new(module),
-                save_dir,
-            )?)
-        }
-
-        #[cfg(not(feature = "nassau"))]
-        {
-            let cc = FiniteChainComplex::ccdz(Arc::new(steenrod_module::erase(module)));
-            Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)?)
-        }
+        let cc = FiniteChainComplex::ccdz(Arc::new(steenrod_module::erase(module)));
+        Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)?)
     };
 
     Ok((is_unit, unit))

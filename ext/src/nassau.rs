@@ -1,77 +1,35 @@
 //! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 //!
-//! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
-//! using Nassau's algorithm. It aims to provide an API similar to
-//! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-//! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
-//! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-//!
-//! To make use of this resolution in the example scripts, enable the `nassau` feature. This will
-//! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this
-//! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;
-//! the feature changes the return type of the function. While this is an incorrect use of features,
-//! we find that this the easiest way to make all scripts support both types of resolutions.
+//! Nassau's algorithm is a specialized algorithm for computing minimal resolutions at the prime 2
+//! using the Milnor basis. It is implemented as methods on
+//! [`Resolution<CCC>`](crate::resolution::Resolution) that are dispatched to at runtime when
+//! the conditions are met (prime 2, Milnor algebra, bounded module, save directory present).
 
-use std::{
-    fmt::Display,
-    io,
-    sync::{Arc, Mutex, mpsc},
-};
+use std::{fmt::Display, io};
 
 use algebra::{
-    Algebra, combinatorics,
+    combinatorics,
     milnor_algebra::{MilnorAlgebra, PPartEntry},
     module::{
-        FreeModule, GeneratorData, Module, ZeroModule,
-        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, GeneratorData, Module,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
 };
-use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
-    prime::{TWO, ValidPrime},
+    prime::TWO,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
-use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
-    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
-    save::{SaveDirectory, SaveKind},
+    chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
+    resolution::Resolution,
+    save::SaveKind,
     utils::{LogWriter, parallel::ParallelGuard},
 };
-
-/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
-struct SenderData {
-    b: Bidegree,
-    retry: bool,
-    sender: mpsc::Sender<Self>,
-}
-
-impl SenderData {
-    pub(crate) fn send(b: Bidegree, sender: mpsc::Sender<Self>) {
-        sender
-            .send(Self {
-                b,
-                retry: false,
-                sender: sender.clone(),
-            })
-            .unwrap()
-    }
-
-    pub(crate) fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
-        tracing::info!(%b, "retrying");
-        sender
-            .send(Self {
-                b,
-                retry: true,
-                sender: sender.clone(),
-            })
-            .unwrap()
-    }
-}
 
 const MAX_NEW_GENS: usize = 10;
 
@@ -117,11 +75,13 @@ impl MilnorSubalgebra {
 
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
     ///
-    /// This requires passing the algebra for borrow checker reasons.
-    fn signature_mask<'a>(
+    /// The `milnor` parameter provides access to the P-part table. The `module` can be over any
+    /// algebra type as long as it provides generator offset data (the offsets are identical when
+    /// the algebra is actually Milnor).
+    fn signature_mask<'a, A: algebra::Algebra>(
         &'a self,
-        algebra: &'a MilnorAlgebra,
-        module: &'a FreeModule<MilnorAlgebra>,
+        milnor: &'a MilnorAlgebra,
+        module: &'a FreeModule<A>,
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
@@ -131,7 +91,7 @@ impl MilnorSubalgebra {
                       start: [offset],
                       end: _,
                   }| {
-                algebra
+                milnor
                     .ppart_table(degree - gen_deg)
                     .iter()
                     .enumerate()
@@ -148,24 +108,26 @@ impl MilnorSubalgebra {
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
     /// the signature.
-    fn signature_matrix(
+    ///
+    /// The `milnor` parameter provides access to the P-part table.
+    fn signature_matrix<A: algebra::Algebra>(
         &self,
-        hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+        milnor: &MilnorAlgebra,
+        hom: &FreeModuleHomomorphism<FreeModule<A>>,
         degree: i32,
         signature: &[PPartEntry],
     ) -> Matrix {
         let p = hom.prime();
         let source = hom.source();
         let target = hom.target();
-        let algebra = target.algebra();
         let target_degree = degree - hom.degree_shift();
 
         let target_mask: Vec<usize> = self
-            .signature_mask(&algebra, &target, degree - hom.degree_shift(), signature)
+            .signature_mask(milnor, &target, degree - hom.degree_shift(), signature)
             .collect();
 
         let source_mask: Vec<usize> = self
-            .signature_mask(&algebra, &source, degree, signature)
+            .signature_mask(milnor, &source, degree, signature)
             .collect();
 
         let mut scratch = FpVector::new(p, target.dimension(target_degree));
@@ -388,67 +350,47 @@ enum Magic {
     Fix = -3,
 }
 
-/// A resolution of `S_2` using Nassau's algorithm.
+/// Context for Nassau's algorithm, extracted once per step.
 ///
-/// This aims to have an API similar to that of
-/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
-/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
-    lock: Mutex<()>,
-    name: String,
-    max_degree: i32,
-    modules: OnceBiVec<Arc<FreeModule<MilnorAlgebra>>>,
-    zero_module: Arc<FreeModule<MilnorAlgebra>>,
-    differentials: OnceBiVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
-    target: Arc<FiniteChainComplex<M>>,
-    chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
-    save_dir: SaveDirectory,
+/// Holds onto the `Arc<SteenrodAlgebra>` so that the `&MilnorAlgebra` reference remains valid.
+pub(crate) struct NassauContext {
+    algebra: std::sync::Arc<algebra::SteenrodAlgebra>,
 }
 
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-
-    pub fn new(module: Arc<M>) -> Self {
-        Self::new_with_save(module, None).unwrap()
-    }
-
-    pub fn new_with_save(
-        module: Arc<M>,
-        save_dir: impl Into<SaveDirectory>,
-    ) -> anyhow::Result<Self> {
-        let save_dir = save_dir.into();
-        let max_degree = module
-            .max_degree()
-            .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
-        let target = Arc::new(FiniteChainComplex::ccdz(module));
-
-        if let Some(p) = save_dir.write() {
-            for subdir in SaveKind::nassau_data() {
-                subdir.create_dir(p)?;
-            }
+impl NassauContext {
+    /// Get the inner [`MilnorAlgebra`].
+    pub fn milnor(&self) -> &MilnorAlgebra {
+        match &*self.algebra {
+            algebra::SteenrodAlgebra::MilnorAlgebra(m) => m,
+            _ => unreachable!("NassauContext is only created when algebra is MilnorAlgebra"),
         }
+    }
+}
 
-        Ok(Self {
-            lock: Mutex::new(()),
-            zero_module: Arc::new(FreeModule::new(target.algebra(), "F_{-1}".to_string(), 0)),
-            name: String::new(),
-            modules: OnceBiVec::new(0),
-            differentials: OnceBiVec::new(0),
-            chain_maps: OnceBiVec::new(0),
-            target,
-            max_degree,
-            save_dir,
-        })
+impl Resolution<crate::CCC> {
+    /// Check all Nassau preconditions. Returns context if eligible.
+    ///
+    /// Nassau's algorithm requires:
+    /// - Prime 2
+    /// - Milnor basis (the algebra is `SteenrodAlgebra::MilnorAlgebra`)
+    /// - Bounded target module (finite-dimensional)
+    /// - A save directory (Nassau stores qi data on disk)
+    pub(crate) fn nassau_context(&self) -> Option<NassauContext> {
+        if self.prime() != TWO {
+            return None;
+        }
+        let algebra = self.algebra();
+        if !matches!(&*algebra, algebra::SteenrodAlgebra::MilnorAlgebra(_)) {
+            return None;
+        }
+        self.target().module(0).max_degree()?;
+        if self.save_dir.is_none() {
+            return None;
+        }
+        Some(NassauContext { algebra })
     }
 
-    fn add_generators(&self, b: Bidegree, num_new_gens: usize) {
+    fn nassau_add_generators(&self, b: Bidegree, num_new_gens: usize) {
         let gen_names = (0..num_new_gens)
             .map(|idx| format!("x_{:#}", BidegreeGenerator::new(b, idx)))
             .collect();
@@ -456,47 +398,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             .add_generators(b.t(), num_new_gens, Some(gen_names));
     }
 
-    /// This function prepares the Resolution object to perform computations up to the
-    /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
-    /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, max_s: i32) {
-        let min_degree = self.min_degree();
-
-        self.modules.extend(max_s, |i| {
-            Arc::new(FreeModule::new(
-                Arc::clone(&self.algebra()),
-                format!("F{i}"),
-                min_degree,
-            ))
-        });
-
-        self.differentials.extend(0, |_| {
-            Arc::new(FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[0]),
-                Arc::clone(&self.zero_module),
-                0,
-            ))
-        });
-
-        self.differentials.extend(max_s, |i| {
-            Arc::new(FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[i]),
-                Arc::clone(&self.modules[i - 1]),
-                0,
-            ))
-        });
-
-        self.chain_maps.extend(max_s, |i| {
-            Arc::new(FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[i]),
-                self.target.module(i),
-                0,
-            ))
-        });
-    }
-
-    #[tracing::instrument(skip_all, fields(throughput))]
-    fn write_qi(
+    #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
+    fn nassau_write_qi(
         f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
@@ -548,13 +451,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    fn write_differential(
+    fn nassau_write_differential(
         &self,
         b: Bidegree,
         num_new_gens: usize,
         target_dim: usize,
     ) -> anyhow::Result<()> {
-        if let Some(dir) = self.save_dir.write() {
+        if self.should_save
+            && let Some(dir) = self.save_dir.write()
+        {
             let mut f = self
                 .save_file(SaveKind::NassauDifferential, b)
                 .create_file(dir.clone(), false);
@@ -568,37 +473,39 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self), fields(%b, %subalgebra, num_new_gens, density))]
-    fn step_resolution_with_subalgebra(
+    #[tracing::instrument(skip(self, milnor), fields(%b, %subalgebra, num_new_gens, density))]
+    fn nassau_step_with_subalgebra(
         &self,
         b: Bidegree,
         subalgebra: MilnorSubalgebra,
+        milnor: &MilnorAlgebra,
     ) -> anyhow::Result<()> {
         let end = || {
             tracing::Span::current().record("num_new_gens", self.number_of_gens_in_bidegree(b));
             tracing::Span::current().record(
                 "density",
-                self.differentials[b.s()].differential_density(b.t()) * 100.0,
+                self.differential(b.s()).differential_density(b.t()) * 100.0,
             );
         };
 
         let p = self.prime();
         let mut scratch = FpVector::new(p, 0);
 
-        let target = &*self.modules[b.s() - 1];
-        let algebra = target.algebra();
+        let target = self.module(b.s() - 1);
 
         let zero_sig = subalgebra.zero_signature();
         let target_dim = target.dimension(b.t());
         let target_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, target, b.t(), &zero_sig)
+            .signature_mask(milnor, &target, b.t(), &zero_sig)
             .collect();
         let target_masked_dim = target_mask.len();
 
-        let next = &self.modules[b.s() - 2];
+        let next = self.module(b.s() - 2);
         next.compute_basis(b.t());
 
-        let mut f = if let Some(dir) = self.save_dir().write() {
+        let mut f = if self.should_save
+            && let Some(dir) = self.save_dir().write()
+        {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
@@ -612,13 +519,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let guard = tracing::info_span!("step", signature = ?zero_sig).entered();
         let next_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, &self.modules[b.s() - 2], b.t(), &zero_sig)
+            .signature_mask(milnor, &next, b.t(), &zero_sig)
             .collect();
         let next_masked_dim = next_mask.len();
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+            self.differential(b.s() - 1)
+                .get_partial_matrix(b.t(), &target_mask)
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -630,7 +538,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         masked_matrix.row_reduce();
         let kernel = masked_matrix.compute_kernel();
 
-        Self::write_qi(
+        Self::nassau_write_qi(
             &mut f,
             &mut scratch,
             &zero_sig,
@@ -646,7 +554,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         }
 
         // Compute image
-        let mut n = subalgebra.signature_matrix(&self.differentials[b.s()], b.t(), &zero_sig);
+        let d_s = self.differential(b.s());
+        let mut n = subalgebra.signature_matrix(milnor, &d_s, b.t(), &zero_sig);
         n.row_reduce();
         let next_row = n.rows();
 
@@ -656,7 +565,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             assert_eq!(num_new_gens, 0, "Adding generators at {b}");
         }
 
-        self.add_generators(b, num_new_gens);
+        self.nassau_add_generators(b, num_new_gens);
 
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
         let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
@@ -682,8 +591,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
-            target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
-            next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
+            target_mask.extend(subalgebra.signature_mask(milnor, &target, b.t(), &signature));
+            next_mask.extend(subalgebra.signature_mask(milnor, &next, b.t(), &signature));
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
@@ -720,7 +629,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                     dx.as_slice_mut().add(full_matrix.row(i), 1);
                 }
             }
-            Self::write_qi(
+            Self::nassau_write_qi(
                 &mut f,
                 &mut scratch,
                 &signature,
@@ -740,20 +649,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             f.write_u64::<LittleEndian>(Magic::End as u64)?;
         }
 
-        self.write_differential(b, num_new_gens, target_dim)?;
+        self.nassau_write_differential(b, num_new_gens, target_dim)?;
         Ok(())
     }
 
     /// Step resolution for s = 0
     #[tracing::instrument(skip(self))]
-    fn step0(&self, t: i32) {
+    fn nassau_step0(&self, t: i32) {
         self.zero_module.extend_by_zero(t);
 
-        let source_module = &self.modules[0];
-        let target_module = self.target.module(0);
+        let source_module = self.module(0);
+        let target_module = self.target().module(0);
 
-        let chain_map = &self.chain_maps[0];
-        let d = &self.differentials[0];
+        let chain_map = self.chain_map(0);
+        let d = self.differential(0);
 
         let source_dim = source_module.dimension(t);
         let target_dim = target_module.dimension(t);
@@ -782,7 +691,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
             let num_new_gens = matrix.extend_to_surjection(0, target_dim, 0).len();
 
-            self.add_generators(Bidegree::s_t(0, t), num_new_gens);
+            self.nassau_add_generators(Bidegree::s_t(0, t), num_new_gens);
 
             chain_map.add_generators_from_matrix_rows(
                 t,
@@ -801,12 +710,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     /// Step resolution for s = 1
     #[tracing::instrument(skip(self))]
-    fn step1(&self, t: i32) -> anyhow::Result<()> {
+    fn nassau_step1(&self, t: i32) -> anyhow::Result<()> {
         let p = self.prime();
 
-        let source_module = &self.modules[1];
-        let target_module = &self.modules[0];
-        let cc_module = self.target.module(0);
+        let source_module = self.module(1);
+        let target_module = self.module(0);
+        let cc_module = self.target().module(0);
 
         let source_dim = source_module.dimension(t);
         let target_dim = target_module.dimension(t);
@@ -815,11 +724,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             AugmentedMatrix::<2>::new(p, target_dim, [cc_module.dimension(t), target_dim]);
         {
             let _guard = ParallelGuard::new();
-            self.chain_maps[0].get_matrix(matrix.segment(0, 0), t);
+            self.chain_map(0).get_matrix(matrix.segment(0, 0), t);
         }
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
         let desired_image = matrix.compute_kernel();
+
+        let d1 = self.differential(1);
 
         let mut matrix = AugmentedMatrix::<2>::new_with_capacity(
             p,
@@ -830,31 +741,30 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         );
         {
             let _guard = ParallelGuard::new();
-            self.differentials[1].get_matrix(matrix.segment(0, 0), t);
+            d1.get_matrix(matrix.segment(0, 0), t);
         }
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
 
         let num_new_gens = matrix.extend_image(0, target_dim, &desired_image, 0).len();
 
-        self.add_generators(Bidegree::s_t(1, t), num_new_gens);
+        self.nassau_add_generators(Bidegree::s_t(1, t), num_new_gens);
 
-        self.differentials[1].add_generators_from_matrix_rows(
+        d1.add_generators_from_matrix_rows(
             t,
             matrix
                 .segment(0, 0)
                 .row_slice(source_dim, source_dim + num_new_gens),
         );
 
-        self.write_differential(Bidegree::s_t(1, t), num_new_gens, target_dim)?;
+        self.nassau_write_differential(Bidegree::s_t(1, t), num_new_gens, target_dim)?;
         Ok(())
     }
 
-    fn step_resolution_with_result(&self, b: Bidegree) -> anyhow::Result<()> {
-        let p = self.prime();
+    fn nassau_step_with_result(&self, b: Bidegree, milnor: &MilnorAlgebra) -> anyhow::Result<()> {
         let set_data = || {
-            let d = &self.differentials[b.s()];
-            let c = &self.chain_maps[b.s()];
+            let d = self.differential(b.s());
+            let c = self.chain_map(b.s());
 
             d.set_kernel(b.t(), None);
             d.set_image(b.t(), None);
@@ -864,13 +774,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             c.set_image(b.t(), None);
             c.set_quasi_inverse(b.t(), None);
         };
-        self.modules[b.s()].compute_basis(b.t());
+
+        self.module(b.s()).compute_basis(b.t());
         if b.s() > 0 {
-            self.modules[b.s() - 1].compute_basis(b.t());
+            self.module(b.s() - 1).compute_basis(b.t());
         }
 
         if b.s() == 0 {
-            self.step0(b.t());
+            self.nassau_step0(b.t());
             return Ok(());
         }
 
@@ -888,15 +799,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             // want to resolve further, it will be bigger.
             let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
-            self.add_generators(b, num_new_gens);
+            self.nassau_add_generators(b, num_new_gens);
 
             let mut d_targets = Vec::with_capacity(num_new_gens);
 
             for _ in 0..num_new_gens {
-                d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
+                d_targets.push(FpVector::from_bytes(
+                    self.prime(),
+                    saved_target_res_dimension,
+                    &mut f,
+                )?);
             }
 
-            self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
+            self.differential(b.s())
+                .add_generators_from_rows(b.t(), d_targets);
 
             set_data();
 
@@ -904,167 +820,71 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         }
 
         if b.s() == 1 {
-            self.step1(b.t())?;
+            self.nassau_step1(b.t())?;
             set_data();
             return Ok(());
         }
 
-        self.step_resolution_with_subalgebra(
+        self.nassau_step_with_subalgebra(
             b,
-            MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree)),
+            MilnorSubalgebra::optimal_for(
+                b - Bidegree::s_t(
+                    0,
+                    self.target()
+                        .module(0)
+                        .max_degree()
+                        .expect("checked before resolving"),
+                ),
+            ),
+            milnor,
         )?;
-        self.chain_maps[b.s()].extend_by_zero(b.t());
+        self.chain_map(b.s()).extend_by_zero(b.t());
 
         set_data();
         Ok(())
     }
 
-    fn step_resolution(&self, b: Bidegree) {
-        self.step_resolution_with_result(b)
-            .unwrap_or_else(|e| panic!("Error computing bidegree {b}: {e}"));
-    }
+    /// Try to compute a Nassau step at the given bidegree. Returns `Ok(())` if Nassau was used,
+    /// `Err(())` if the conditions weren't met and classical should be used instead.
+    pub(crate) fn try_nassau_step(&self, b: Bidegree) -> Result<(), ()> {
+        let ctx = self.nassau_context().ok_or(())?;
 
-    /// This function resolves up till a fixed stem instead of a fixed t.
-    #[tracing::instrument(skip(self), fields(self = self.name, %max))]
-    pub fn compute_through_stem(&self, max: Bidegree) {
-        let _lock = self.lock.lock();
-
-        self.extend_through_degree(max.s());
-        self.algebra().compute_basis(max.t());
-
-        let tracing_span = tracing::Span::current();
-        maybe_rayon::in_place_scope(|scope| {
-            let _tracing_guard = tracing_span.enter();
-
-            // This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
-            // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
-            // but having the dimensions of the modules change halfway through the computation is
-            // annoying to do correctly. It seems more prudent to improve parallelism elsewhere.
-
-            // Things that we have finished computing.
-            let mut progress: Vec<i32> = vec![-1; max.s() as usize + 1];
-            // We will kickstart the process by pretending we have computed (0, - 1). So
-            // we must pretend we have only computed up to (0, - 2);
-            progress[0] = -2;
-
-            let (sender, receiver) = mpsc::channel();
-            SenderData::send(Bidegree::s_t(0, -1), sender);
-
-            let f = |b, sender| {
-                if self.has_computed_bidegree(b) {
-                    SenderData::send(b, sender);
-                } else {
-                    let tracing_span = tracing_span.clone();
-                    scope.spawn(move |_| {
-                        let _tracing_guard = tracing_span.enter();
-                        if crate::utils::parallel::is_in_parallel() {
-                            SenderData::send_retry(b, sender);
-                            return;
-                        }
-                        self.step_resolution(b);
-                        SenderData::send(b, sender);
-                    });
-                }
-            };
-
-            while let Ok(SenderData { b, retry, sender }) = receiver.recv() {
-                if retry {
-                    f(b, sender);
-                    continue;
-                }
-                assert!(progress[b.s() as usize] == b.t() - 1);
-                progress[b.s() as usize] = b.t();
-
-                // How far we are from the last one for this s.
-                let distance = max.n() - b.n() + 1;
-
-                if b.s() < max.s() && progress[b.s() as usize + 1] == b.t() - 1 {
-                    f(b + Bidegree::s_t(1, 0), sender.clone());
-                }
-
-                if distance > 1 && (b.s() == 0 || progress[b.s() as usize - 1] > b.t()) {
-                    // We are computing a normal step
-                    f(b + Bidegree::s_t(0, 1), sender);
-                } else if distance == 1 && b.s() < max.s() {
-                    SenderData::send(b + Bidegree::s_t(0, 1), sender);
-                }
-            }
-        });
-    }
-}
-
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
-    type Algebra = MilnorAlgebra;
-    type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
-    type Module = FreeModule<Self::Algebra>;
-
-    fn prime(&self) -> ValidPrime {
-        TWO
-    }
-
-    fn algebra(&self) -> Arc<Self::Algebra> {
-        self.zero_module.algebra()
-    }
-
-    fn module(&self, s: i32) -> Arc<Self::Module> {
-        Arc::clone(&self.modules[s])
-    }
-
-    fn zero_module(&self) -> Arc<Self::Module> {
-        Arc::clone(&self.zero_module)
-    }
-
-    fn min_degree(&self) -> i32 {
-        0
-    }
-
-    fn has_computed_bidegree(&self, b: Bidegree) -> bool {
-        self.differentials.len() > b.s() && self.differential(b.s()).next_degree() > b.t()
-    }
-
-    fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
-        Arc::clone(&self.differentials[s])
-    }
-
-    #[tracing::instrument(skip(self), fields(self = self.name, %max))]
-    fn compute_through_bidegree(&self, max: Bidegree) {
-        let _lock = self.lock.lock();
-
-        self.extend_through_degree(max.s());
-        self.algebra().compute_basis(max.t());
-
-        for t in 0..=max.t() {
-            for s in 0..=max.s() {
-                let b = Bidegree::s_t(s, t);
-                if self.has_computed_bidegree(b) {
-                    continue;
-                }
-                self.step_resolution(b);
+        // Ensure nassau save dirs exist
+        if self.should_save
+            && let Some(p) = self.save_dir.write()
+        {
+            for subdir in SaveKind::nassau_data() {
+                subdir.create_dir(p).unwrap();
             }
         }
+
+        self.nassau_step_with_result(b, ctx.milnor())
+            .unwrap_or_else(|e| panic!("Error computing bidegree {b} with Nassau: {e}"));
+        Ok(())
     }
 
-    fn next_homological_degree(&self) -> i32 {
-        self.modules.len()
-    }
-
-    fn save_dir(&self) -> &SaveDirectory {
-        &self.save_dir
-    }
-
-    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
+    /// Try to apply quasi-inverse using Nassau's saved data.
+    pub(crate) fn nassau_apply_quasi_inverse<T, S>(
+        &self,
+        results: &mut [T],
+        b: Bidegree,
+        inputs: &[S],
+    ) -> Option<bool>
     where
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
         for<'a> &'a S: Into<FpSlice<'a>>,
     {
-        let mut f = if let Some(dir) = self.save_dir.read() {
-            if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
-                f
-            } else {
-                return false;
-            }
+        let ctx = self.nassau_context()?;
+        let milnor = ctx.milnor();
+
+        let mut f = if let Some(dir) = self.save_dir.read()
+            && let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone())
+        {
+            f
         } else {
-            return false;
+            // No NassauQi file at this bidegree (e.g. at the boundary of the computed range).
+            // Return None to fall through to the classical qi path.
+            return None;
         };
 
         let p = self.prime();
@@ -1072,15 +892,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         let target_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
         let zero_mask_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
         let subalgebra = MilnorSubalgebra::from_bytes(&mut f).unwrap();
-        let source = &self.modules[b.s()];
-        let target = &self.modules[b.s() - 1];
-        let algebra = target.algebra();
+        let source = self.module(b.s());
+        let target = self.module(b.s() - 1);
+        let diff = self.differential(b.s());
 
         let mut inputs: Vec<FpVector> = inputs.iter().map(|x| x.into().to_owned()).collect();
         let mut mask: Vec<usize> = Vec::with_capacity(zero_mask_dim + 8);
         mask.extend(subalgebra.signature_mask(
-            &algebra,
-            source,
+            milnor,
+            &source,
             b.t(),
             &subalgebra.zero_signature(),
         ));
@@ -1111,7 +931,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature())
+                .signature_mask(milnor, &target, b.t(), &subalgebra.zero_signature())
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -1120,7 +940,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             );
 
             for i in 0..num_new_gens {
-                let dx = self.differentials[b.s()].output(b.t(), i);
+                let dx = diff.output(b.t(), i);
                 matrix
                     .row_segment_mut(i, 1, 1)
                     .slice_mut(0, dx.len())
@@ -1143,7 +963,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
+                mask.extend(subalgebra.signature_mask(milnor, &source, b.t(), &signature));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem
@@ -1220,48 +1040,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 target.element_to_string(b.t(), dx.as_slice())
             );
         }
-        true
-    }
-}
-
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolution<M> {
-    type ChainMap = FreeModuleHomomorphism<M>;
-    type TargetComplex = FiniteChainComplex<M, FullModuleHomomorphism<M, M>>;
-
-    fn target(&self) -> Arc<Self::TargetComplex> {
-        Arc::clone(&self.target)
-    }
-
-    fn chain_map(&self, s: i32) -> Arc<Self::ChainMap> {
-        Arc::clone(&self.chain_maps[s])
+        Some(true)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use expect_test::expect;
-
     use super::*;
-
-    #[test]
-    fn test_restart_stem() {
-        let res = crate::utils::construct_nassau("S_2", None).unwrap();
-        res.compute_through_stem(Bidegree::n_s(14, 8));
-        res.compute_through_bidegree(Bidegree::s_t(5, 19));
-
-        expect![[r#"
-            ·                             
-            ·                     ·       
-            ·                   · ·     · 
-            ·                 ·   ·     · 
-            ·             ·   ·         · · 
-            ·     ·       · · ·         · ·   
-            ·   · ·     · · ·           · · ·   
-            · ·   ·       ·               ·       
-            ·                                       
-        "#]]
-        .assert_eq(&res.graded_dimension_string());
-    }
 
     #[test]
     fn test_signature_iterator() {

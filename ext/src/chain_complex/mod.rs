@@ -160,7 +160,7 @@ where
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
-pub trait ChainComplex: Send + Sync {
+pub trait ChainComplex: Send + Sync + 'static {
     type Algebra: Algebra;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;

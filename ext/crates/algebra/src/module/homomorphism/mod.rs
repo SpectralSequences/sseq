@@ -39,7 +39,7 @@ pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource
 ///
 /// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after
 /// `compute_auxiliary_data_through_degree` is invoked.
-pub trait ModuleHomomorphism: Send + Sync {
+pub trait ModuleHomomorphism: Send + Sync + 'static {
     type Source: Module;
     type Target: Module<Algebra = <Self::Source as Module>::Algebra>;
 

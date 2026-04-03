@@ -1,6 +1,9 @@
 //! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-use std::sync::{Arc, Mutex, mpsc};
+use std::{
+    any::Any,
+    sync::{Arc, Mutex, mpsc},
+};
 
 use algebra::{
     Algebra, MuAlgebra,
@@ -81,19 +84,20 @@ pub struct MuResolution<const U: bool, CC: ChainComplex>
 where
     CC::Algebra: MuAlgebra<U>,
 {
-    name: String,
-    lock: Mutex<()>,
-    complex: Arc<CC>,
-    modules: OnceBiVec<Arc<MuFreeModule<U, CC::Algebra>>>,
-    zero_module: Arc<MuFreeModule<U, CC::Algebra>>,
-    chain_maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC::Module>>>,
-    differentials: OnceVec<Arc<MuFreeModuleHomomorphism<U, MuFreeModule<U, CC::Algebra>>>>,
+    pub(crate) name: String,
+    pub(crate) lock: Mutex<()>,
+    pub(crate) complex: Arc<CC>,
+    pub(crate) modules: OnceBiVec<Arc<MuFreeModule<U, CC::Algebra>>>,
+    pub(crate) zero_module: Arc<MuFreeModule<U, CC::Algebra>>,
+    pub(crate) chain_maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC::Module>>>,
+    pub(crate) differentials:
+        OnceVec<Arc<MuFreeModuleHomomorphism<U, MuFreeModule<U, CC::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  compute_through_degree again.
-    kernels: DashMap<Bidegree, Subspace>,
-    save_dir: SaveDirectory,
+    pub(crate) kernels: DashMap<Bidegree, Subspace>,
+    pub(crate) save_dir: SaveDirectory,
 
     /// Whether we should save newly computed data to the disk. This has no effect if there is no
     /// save file. Defaults to `self.save_dir.is_some()`.
@@ -346,8 +350,19 @@ where
     /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
     /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
     /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
-    #[tracing::instrument(skip(self), fields(%b, num_new_gens, density))]
     fn step_resolution(&self, b: Bidegree) {
+        use crate::CCC;
+        if let Some(res) = (self as &dyn Any).downcast_ref::<Resolution<CCC>>()
+            && res.try_nassau_step(b).is_ok()
+        {
+            return;
+        }
+
+        self.step_resolution_classical(b);
+    }
+
+    #[tracing::instrument(skip(self), fields(%b, num_new_gens, density))]
+    fn step_resolution_classical(&self, b: Bidegree) {
         if b.s() == 0 {
             self.zero_module.extend_by_zero(b.t());
         }
@@ -813,6 +828,12 @@ where
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t() - min_degree);
 
+        // Check once whether Nassau is active. If so, skip kernel precomputation at the stem
+        // boundary, since Nassau doesn't use kernels.
+        let is_nassau = (self as &dyn Any)
+            .downcast_ref::<Resolution<crate::CCC>>()
+            .is_some_and(|r| r.nassau_context().is_some());
+
         let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
             let _tracing_guard = tracing_span.enter();
@@ -868,20 +889,25 @@ where
                     // We are computing a normal step
                     f(b + Bidegree::s_t(0, 1), sender);
                 } else if distance == 1 && b.s() < max.s() {
-                    // We compute the kernel at the edge if necessary
-                    let next_b = b + Bidegree::s_t(0, 1);
-                    if !self.has_computed_bidegree(b + Bidegree::s_t(1, 1))
-                        && (self.save_dir.is_none()
-                            || !self
-                                .save_file(SaveKind::Differential, b + Bidegree::s_t(1, 1))
-                                .exists(self.save_dir.read().cloned().unwrap()))
-                    {
-                        scope.spawn(move |_| {
-                            self.kernels.insert(next_b, self.get_kernel(next_b));
-                            SenderData::send(next_b, false, sender);
-                        });
+                    if is_nassau {
+                        // Nassau doesn't use kernels; just mark this bidegree as done.
+                        SenderData::send(b + Bidegree::s_t(0, 1), false, sender);
                     } else {
-                        SenderData::send(next_b, false, sender);
+                        // We compute the kernel at the edge if necessary
+                        let next_b = b + Bidegree::s_t(0, 1);
+                        if !self.has_computed_bidegree(b + Bidegree::s_t(1, 1))
+                            && (self.save_dir.is_none()
+                                || !self
+                                    .save_file(SaveKind::Differential, b + Bidegree::s_t(1, 1))
+                                    .exists(self.save_dir.read().cloned().unwrap()))
+                        {
+                            scope.spawn(move |_| {
+                                self.kernels.insert(next_b, self.get_kernel(next_b));
+                                SenderData::send(next_b, false, sender);
+                            });
+                        } else {
+                            SenderData::send(next_b, false, sender);
+                        }
                     }
                 }
                 if new {
@@ -939,6 +965,13 @@ where
         for<'a> &'a S: Into<FpSlice<'a>>,
     {
         assert_eq!(results.len(), inputs.len());
+
+        // Try Nassau's quasi-inverse first
+        if let Some(res) = (self as &dyn Any).downcast_ref::<Resolution<crate::CCC>>()
+            && let Some(result) = res.nassau_apply_quasi_inverse(results, b, inputs)
+        {
+            return result;
+        }
 
         if let Some(qi) = self.differential(b.s()).quasi_inverse(b.t()) {
             for (input, result) in inputs.iter().zip_eq(results) {
@@ -1014,9 +1047,11 @@ mod tests {
         res.load_quasi_inverse = false;
 
         let b = Bidegree::s_t(8, 8);
-        res.compute_through_bidegree(b);
+        // Compute one extra homological degree: when Nassau is active, qi data for (s, t)
+        // is written during the computation at (s+1, t).
+        res.compute_through_bidegree(Bidegree::s_t(b.s() + 1, b.t()));
 
-        assert!(res.differential(8).quasi_inverse(8).is_none());
+        assert!(res.differential(b.s()).quasi_inverse(b.t()).is_none());
 
         let v = FpVector::new(res.prime(), res.module(7).dimension(8));
         let mut w = FpVector::new(res.prime(), res.module(8).dimension(8));

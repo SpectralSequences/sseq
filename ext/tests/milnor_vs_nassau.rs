@@ -1,10 +1,14 @@
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    utils::{construct_nassau, construct_standard},
+    utils::construct_standard,
 };
 use rstest::rstest;
 use sseq::coordinates::Bidegree;
 
+/// Compare a resolution with Nassau (via save directory) against one without.
+///
+/// When a save directory is provided and the module is eligible, Nassau's algorithm
+/// is used automatically at runtime.
 #[rstest]
 #[trace]
 #[case("S_2", 30)]
@@ -13,11 +17,20 @@ use sseq::coordinates::Bidegree;
 #[case("Csigma", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
     let max = Bidegree::s_t(max_degree, max_degree);
-    let a = construct_standard::<false, _, _>(module_name, None).unwrap();
-    let b = construct_nassau(module_name, None).unwrap();
 
-    a.compute_through_bidegree(max);
-    b.compute_through_bidegree(max);
+    // Without save dir: classical algorithm
+    let classical = construct_standard::<false, _, _>(module_name, None).unwrap();
 
-    assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
+    // With save dir: Nassau's algorithm will be used if eligible
+    let save_dir = tempfile::tempdir().unwrap();
+    let nassau =
+        construct_standard::<false, _, _>(module_name, Some(save_dir.path().to_owned())).unwrap();
+
+    classical.compute_through_bidegree(max);
+    nassau.compute_through_bidegree(max);
+
+    assert_eq!(
+        classical.graded_dimension_string(),
+        nassau.graded_dimension_string()
+    );
 }

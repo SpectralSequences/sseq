@@ -20,9 +20,11 @@ fn set_readonly(p: &Path, readonly: bool) {
 
 fn lock_tempdir(dir: &Path) {
     let mut dir: PathBuf = dir.into();
-    for kind in SaveKind::resolution_data() {
+    for kind in SaveKind::resolution_data().chain(SaveKind::nassau_data()) {
         dir.push(format!("{}s", kind.name()));
-        set_readonly(&dir, true);
+        if dir.exists() {
+            set_readonly(&dir, true);
+        }
         dir.pop();
     }
     set_readonly(&dir, true);
@@ -33,9 +35,11 @@ fn unlock_tempdir(dir: &Path) {
     set_readonly(dir, false);
 
     let mut dir: PathBuf = dir.into();
-    for kind in SaveKind::resolution_data() {
+    for kind in SaveKind::resolution_data().chain(SaveKind::nassau_data()) {
         dir.push(format!("{}s", kind.name()));
-        set_readonly(&dir, false);
+        if dir.exists() {
+            set_readonly(&dir, false);
+        }
         dir.pop();
     }
 }
@@ -100,15 +104,17 @@ fn test_save_load() {
 }
 
 #[test]
-#[should_panic(expected = "Invalid header: algebra was 0x20000 but expected 0x28000")]
+#[should_panic(expected = "Invalid header: algebra was 0x30000 but expected 0x38000")]
 fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
+
+    // We use p = 3 to disable Nassau's algorithm
     let resolution1 =
-        construct_standard::<false, _, _>("S_2@adem", Some(tempdir.path().into())).unwrap();
+        construct_standard::<false, _, _>("S_3@adem", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_bidegree(Bidegree::s_t(2, 2));
 
     let resolution2 =
-        construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
+        construct_standard::<false, _, _>("S_3@milnor", Some(tempdir.path().into())).unwrap();
     resolution2.compute_through_bidegree(Bidegree::s_t(2, 2));
 }
 
@@ -289,7 +295,7 @@ fn test_checksum() {
         .compute_through_bidegree(Bidegree::s_t(2, 2));
 
     let mut path = tempdir.path().to_owned();
-    path.push("differentials/2_2_differential");
+    path.push("nassau_differentials/2_2_nassau_differential");
 
     let mut file = OpenOptions::new()
         .read(true)

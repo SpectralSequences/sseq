@@ -58,7 +58,6 @@ concurrent = [
 ]
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
-nassau = []
 
 [workspace]
 members = [
