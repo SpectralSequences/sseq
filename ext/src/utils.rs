@@ -2,7 +2,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
-    AlgebraType, SteenrodAlgebra,
+    AlgebraType, MilnorAlgebra, SteenrodAlgebra,
     module::{FDModule, Module, SteenrodModule, steenrod_module},
 };
 use anyhow::{Context, anyhow};
@@ -126,19 +126,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///    returned.
 ///
 /// See [`construct_standard`] for what this accepts.
-pub fn construct<T, E>(
-    module_spec: T,
-    save_dir: impl Into<SaveDirectory>,
-) -> anyhow::Result<QueryModuleResolution>
-where
-    anyhow::Error: From<E>,
-    T: TryInto<Config, Error = E>,
-{
-    construct_standard(module_spec, save_dir)
-}
-
-/// See [`construct`]
-pub fn construct_standard<const U: bool, T, E>(
+pub fn construct<const U: bool, T, E>(
     module_spec: T,
     save_dir: impl Into<SaveDirectory>,
 ) -> anyhow::Result<crate::resolution::MuResolution<U, CCC>>
@@ -211,6 +199,63 @@ where
 
     crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)
 }
+// pub fn construct<T, E>(
+//     module_spec: T,
+//     save_dir: impl Into<SaveDirectory>,
+// ) -> anyhow::Result<QueryModuleResolution>
+// where
+//     anyhow::Error: From<E>,
+//     T: TryInto<Config, Error = E>,
+// {
+//     #[cfg(feature = "nassau")]
+//     {
+//         construct_nassau(module_spec, save_dir)
+//     }
+
+//     #[cfg(not(feature = "nassau"))]
+//     {
+//         construct_standard(module_spec, save_dir)
+//     }
+// }
+
+// pub fn construct_nassau<T, E>(
+//     module_spec: T,
+//     save_dir: impl Into<SaveDirectory>,
+// ) -> anyhow::Result<crate::nassau::Resolution<FDModule<MilnorAlgebra>>>
+// where
+//     anyhow::Error: From<E>,
+//     T: TryInto<Config, Error = E>,
+// {
+//     let Config {
+//         module: json,
+//         algebra,
+//     } = module_spec.try_into()?;
+
+//     if algebra == AlgebraType::Adem {
+//         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
+//     }
+//     if !json["profile"].is_null() {
+//         return Err(anyhow!(
+//             "Nassau's algorithm does not support non-trivial profile"
+//         ));
+//     }
+//     if json["p"].as_i64() != Some(2) {
+//         return Err(anyhow!("Nassau's algorithm does not support odd primes"));
+//     }
+//     if json["type"].as_str() != Some("finite dimensional module") {
+//         return Err(anyhow!(
+//             "Nassau's algorithm only supports finite dimensional modules"
+//         ));
+//     }
+
+//     let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+//     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
+
+//     if !json["cofiber"].is_null() {
+//         return Err(anyhow!("Nassau's algorithm does not support cofiber"));
+//     }
+//     crate::nassau::Resolution::new_with_save(module, save_dir)
+// }
 
 /// Load a module specification from a JSON file.
 ///
@@ -296,7 +341,9 @@ pub fn query_module_only(
         construct(module, save_dir).context("Failed to load module from save file")?;
 
     let load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
-    resolution.load_quasi_inverse = load_quasi_inverse;
+
+    resolution.set_load_quasi_inverse(load_quasi_inverse);
+
     resolution.set_name(name);
 
     Ok(resolution)
@@ -351,7 +398,7 @@ pub fn query_unstable_module(load_quasi_inverse: bool) -> anyhow::Result<Unstabl
     });
 
     let mut resolution = UnstableResolution::new_with_save(cc, save_dir)?;
-    resolution.load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
+    resolution.set_load_quasi_inverse(load_quasi_inverse && resolution.save_dir().is_none());
 
     Ok(resolution)
 }
@@ -366,7 +413,7 @@ pub fn get_unit(
     let is_unit = resolution.target().max_s() == 1 && resolution.target().module(0).is_unit();
 
     let unit = if is_unit {
-        Arc::clone(&resolution)
+        resolution
     } else {
         let save_dir = query::optional("Unit save directory", |x| {
             core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))

@@ -1,6 +1,6 @@
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    utils::{construct, construct_standard},
+    utils::construct,
 };
 use rstest::rstest;
 use sseq::coordinates::Bidegree;
@@ -21,8 +21,8 @@ use sseq::coordinates::Bidegree;
 #[case("ksp", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
     let max = Bidegree::s_t(max_degree, max_degree);
-    let a = construct((module_name, "adem"), None).unwrap();
-    let b = construct((module_name, "milnor"), None).unwrap();
+    let a = construct::<false, _, _>((module_name, "adem"), None).unwrap();
+    let b = construct::<false, _, _>((module_name, "milnor"), None).unwrap();
 
     a.compute_through_bidegree(max);
     b.compute_through_bidegree(max);
@@ -41,8 +41,8 @@ fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
 #[case("Calpha[15]", 50)]
 fn compare_unstable(#[case] module_name: &str, #[case] max_degree: i32) {
     let max = Bidegree::s_t(max_degree, max_degree);
-    let a = construct_standard::<true, _, _>((module_name, "adem"), None).unwrap();
-    let b = construct_standard::<true, _, _>((module_name, "milnor"), None).unwrap();
+    let a = construct::<true, _, _>((module_name, "adem"), None).unwrap();
+    let b = construct::<true, _, _>((module_name, "milnor"), None).unwrap();
 
     a.compute_through_bidegree(max);
     b.compute_through_bidegree(max);
