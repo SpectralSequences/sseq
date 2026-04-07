@@ -4,7 +4,7 @@ use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient},
     prime::ValidPrime,
-    vector::{FpSlice, FpVector},
+    vector::FpSlice,
 };
 use once::MultiIndexed;
 use serde::{Deserialize, Serialize};

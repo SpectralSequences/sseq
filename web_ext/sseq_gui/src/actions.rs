@@ -323,7 +323,7 @@ impl ActionT for SetDifferential {}
 
 /// The `FpVector` fields are serialized as bare `Vec<u32>` (entries in the basis of the ambient F_p
 /// vector space) rather than going through `FpVector`'s `Serialize` impl.
-/// 
+///
 /// The sseq_gui web frontend reads these as flat JS arrays (see `interface/panels.js`:
 /// `d[0].reduce(...)`, `d[0].indexOf(1)`, `permanentClasses.map(rowToKaTeX)`), and that frontend is
 /// the only consumer, so we do the `FpVector → Vec<u32>` conversion at the `SetClass` boundary and
