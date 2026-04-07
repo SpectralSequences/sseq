@@ -2,6 +2,7 @@ use std::{io, ops::Deref};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use super::Matrix;
 use crate::{
@@ -18,7 +19,7 @@ use crate::{
 /// # Fields
 ///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
 ///    ambient space and each row is a basis vector of the subspace.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct Subspace {
     matrix: Matrix,

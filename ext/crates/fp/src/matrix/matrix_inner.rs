@@ -4,6 +4,7 @@ use aligned_vec::AVec;
 use either::Either;
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use super::{QuasiInverse, Subspace};
 use crate::{
@@ -19,7 +20,7 @@ use crate::{
 /// The way we store matrices means it is easier to perform row operations than column operations,
 /// and the way we use matrices means we want our matrices to act on the right. Hence we think of
 /// vectors as row vectors.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Matrix {
     fp: Fp<ValidPrime>,
     rows: usize,

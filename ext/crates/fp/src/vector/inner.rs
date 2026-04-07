@@ -1,13 +1,15 @@
 // This generates better llvm optimization
 #![allow(clippy::int_plus_one)]
 
+use serde::{Deserialize, Serialize};
+
 use crate::{field::Field, limb::Limb};
 
 /// A vector over a finite field.
 ///
 /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
 /// not leave the `fp` library.
-#[derive(Debug, Hash, Eq, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct FqVector<F: Field> {
     fq: F,
     len: usize,

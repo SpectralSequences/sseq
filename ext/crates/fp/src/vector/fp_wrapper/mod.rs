@@ -239,22 +239,39 @@ impl<'a> IntoIterator for &'a FpVector {
 impl_from!();
 impl_try_into!();
 
+// `FpVector`'s serde format routes through `FqVector<Fp<ValidPrime>>`, giving a uniform
+// representation across all primes: the prime is encoded in the data, so round-tripping works
+// without out-of-band context. This is what the zarr save system relies on.
+//
+// Callers whose wire format must stay a flat `Vec<u32>` (e.g. the sseq_gui web frontend, which
+// reads vectors as plain JS arrays) should declare their fields as `Vec<u32>` and convert at the
+// boundary rather than relying on `FpVector`'s own serde impl.
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        Vec::<u32>::from(self).serialize(serializer)
+        use crate::field::Fp;
+        let p = self.prime();
+        let fq = Fp::new(p);
+        let v = FqVector::from_raw_parts(fq, self.len(), self.limbs().to_vec());
+        v.serialize(serializer)
     }
 }
 
 impl<'de> Deserialize<'de> for FpVector {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        panic!("Deserializing FpVector not supported");
-        // This is needed for ext-websocket/actions to be happy
+        use crate::field::{Field, Fp};
+        let v: FqVector<Fp<ValidPrime>> = FqVector::deserialize(deserializer)?;
+        let p = v.fq().characteristic();
+        // Reconstruct an `FpVector` by round-tripping through the binary limb format. The
+        // intermediate byte buffer is small and only allocated on deserialize.
+        let mut bytes = Vec::new();
+        v.to_bytes(&mut bytes).map_err(serde::de::Error::custom)?;
+        Self::from_bytes(p, v.len(), &mut &bytes[..]).map_err(serde::de::Error::custom)
     }
 }
 
