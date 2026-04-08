@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::{
     Field,
     element::{FieldElement, FieldElementContainer},
@@ -8,7 +10,7 @@ pub use crate::prime::fp::*;
 use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 
 /// A prime field. This is just a wrapper around a prime.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Fp<P> {
     p: P,
 }

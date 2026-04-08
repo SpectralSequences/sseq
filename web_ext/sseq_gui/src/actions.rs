@@ -321,13 +321,20 @@ pub struct SetDifferential {
 }
 impl ActionT for SetDifferential {}
 
+/// The `FpVector` fields are serialized as bare `Vec<u32>` (entries in the basis of the ambient F_p
+/// vector space) rather than going through `FpVector`'s `Serialize` impl.
+///
+/// The sseq_gui web frontend reads these as flat JS arrays (see `interface/panels.js`:
+/// `d[0].reduce(...)`, `d[0].indexOf(1)`, `permanentClasses.map(rowToKaTeX)`), and that frontend is
+/// the only consumer, so we do the `FpVector → Vec<u32>` conversion at the `SetClass` boundary and
+/// keep `FpVector`'s own serde format free to carry prime metadata for the zarr save system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetClass {
     pub b: Bidegree,
     pub state: ClassState,
-    pub permanents: Vec<FpVector>,
-    pub classes: Vec<Vec<FpVector>>,
-    pub decompositions: Vec<(FpVector, String, Bidegree)>,
+    pub permanents: Vec<Vec<u32>>,
+    pub classes: Vec<Vec<Vec<u32>>>,
+    pub decompositions: Vec<(Vec<u32>, String, Bidegree)>,
     pub class_names: Vec<String>,
 }
 impl ActionT for SetClass {}

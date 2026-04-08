@@ -4,6 +4,7 @@ use aligned_vec::AVec;
 use either::Either;
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::{QuasiInverse, Subspace};
 use crate::{
@@ -19,7 +20,7 @@ use crate::{
 /// The way we store matrices means it is easier to perform row operations than column operations,
 /// and the way we use matrices means we want our matrices to act on the right. Hence we think of
 /// vectors as row vectors.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Matrix {
     fp: Fp<ValidPrime>,
     rows: usize,
@@ -31,6 +32,71 @@ pub struct Matrix {
     /// column, and a negative number otherwise. Said negative number is often -1 but this is not
     /// guaranteed.
     pub(crate) pivots: Vec<isize>,
+}
+
+// `Deserialize` is implemented manually rather than derived so that we can validate `Matrix`'s
+// internal invariants. Without these checks, malformed input could build a `Matrix` whose
+// accessors (`row`, `to_bytes`, ...) later panic on bounds-checked slice indexing into `data`,
+// escaping the `Deserialize` boundary instead of surfacing as a normal serde error.
+impl<'de> Deserialize<'de> for Matrix {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        #[derive(Deserialize)]
+        struct Raw {
+            fp: Fp<ValidPrime>,
+            rows: usize,
+            physical_rows: usize,
+            columns: usize,
+            data: AVec<Limb>,
+            stride: usize,
+            pivots: Vec<isize>,
+        }
+
+        let raw = Raw::deserialize(deserializer)?;
+        let expected_stride = raw.fp.number(raw.columns);
+        if raw.stride != expected_stride {
+            return Err(D::Error::custom(format!(
+                "Matrix stride {} does not match expected {} for columns={}",
+                raw.stride, expected_stride, raw.columns,
+            )));
+        }
+        if raw.physical_rows < raw.rows {
+            return Err(D::Error::custom(format!(
+                "Matrix physical_rows {} less than rows {}",
+                raw.physical_rows, raw.rows,
+            )));
+        }
+        if raw.data.len() != raw.physical_rows * raw.stride {
+            return Err(D::Error::custom(format!(
+                "Matrix data length {} does not match physical_rows*stride = {}*{} = {}",
+                raw.data.len(),
+                raw.physical_rows,
+                raw.stride,
+                raw.physical_rows * raw.stride,
+            )));
+        }
+        // `pivots` is either empty (matrix not yet row-reduced) or has one entry per column.
+        if !raw.pivots.is_empty() && raw.pivots.len() != raw.columns {
+            return Err(D::Error::custom(format!(
+                "Matrix pivots length {} must be 0 or columns = {}",
+                raw.pivots.len(),
+                raw.columns,
+            )));
+        }
+        Ok(Self {
+            fp: raw.fp,
+            rows: raw.rows,
+            physical_rows: raw.physical_rows,
+            columns: raw.columns,
+            data: raw.data,
+            stride: raw.stride,
+            pivots: raw.pivots,
+        })
+    }
 }
 
 impl PartialEq for Matrix {

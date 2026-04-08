@@ -4,7 +4,7 @@ use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient},
     prime::ValidPrime,
-    vector::{FpSlice, FpVector},
+    vector::FpSlice,
 };
 use once::MultiIndexed;
 use serde::{Deserialize, Serialize};
@@ -244,7 +244,10 @@ impl<P: SseqProfile<2>> SseqWrapper<P> {
             ClassState::InProgress
         };
 
-        let mut decompositions: Vec<(FpVector, String, Bidegree)> = Vec::new();
+        // `SetClass` carries vectors as `Vec<u32>` so the JS frontend can read them as plain arrays
+        // (see the comment on `SetClass`). Convert here rather than relying on `FpVector`'s
+        // `Serialize` impl.
+        let mut decompositions: Vec<(Vec<u32>, String, Bidegree)> = Vec::new();
         for (name, prod) in &self.products {
             let prod_b = prod.inner.b;
             let prod_origin_b = b - prod_b;
@@ -255,7 +258,7 @@ impl<P: SseqProfile<2>> SseqWrapper<P> {
                         continue;
                     }
                     decompositions.push((
-                        matrix.row(i).to_owned(),
+                        matrix.row(i).iter().collect(),
                         format!("{name} {}", self.class_names[prod_origin_b][i]),
                         prod_b,
                     ));
@@ -273,7 +276,7 @@ impl<P: SseqProfile<2>> SseqWrapper<P> {
                     .inner
                     .permanent_classes(b)
                     .basis()
-                    .map(FpSlice::to_owned)
+                    .map(|row| row.iter().collect())
                     .collect(),
                 class_names: self.class_names[b].clone(),
                 decompositions,
@@ -281,8 +284,8 @@ impl<P: SseqProfile<2>> SseqWrapper<P> {
                     .inner
                     .page_data(b)
                     .iter()
-                    .map(|x| x.gens().map(FpSlice::to_owned).collect())
-                    .collect::<Vec<Vec<FpVector>>>(),
+                    .map(|x| x.gens().map(|row| row.iter().collect()).collect())
+                    .collect(),
             }),
         });
     }

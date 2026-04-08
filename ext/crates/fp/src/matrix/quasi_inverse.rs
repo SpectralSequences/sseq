@@ -2,6 +2,7 @@ use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use super::Matrix;
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
 ///    everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
 ///    `image`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuasiInverse {
     image: Option<Vec<isize>>,
     preimage: Matrix,

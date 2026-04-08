@@ -1,17 +1,57 @@
 // This generates better llvm optimization
 #![allow(clippy::int_plus_one)]
 
+use serde::{Deserialize, Deserializer, Serialize};
+
 use crate::{field::Field, limb::Limb};
 
 /// A vector over a finite field.
 ///
 /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
 /// not leave the `fp` library.
-#[derive(Debug, Hash, Eq, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize)]
 pub struct FqVector<F: Field> {
     fq: F,
     len: usize,
     limbs: Vec<Limb>,
+}
+
+// `Deserialize` is implemented manually rather than derived so that we can validate the
+// invariant `limbs.len() == fq.number(len)`. Without this check, malformed input that supplies
+// too few limbs would build an `FqVector` whose internal accessors (`entry`, `to_bytes`, etc.)
+// later panic on bounds-checked slice indexing. With it, malformed input surfaces as a normal
+// serde error from the `Deserialize` impl, which is the contract callers expect.
+impl<'de, F: Field + Deserialize<'de>> Deserialize<'de> for FqVector<F> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        #[derive(Deserialize)]
+        #[serde(bound(deserialize = "F: Deserialize<'de>"))]
+        struct Raw<F> {
+            fq: F,
+            len: usize,
+            limbs: Vec<Limb>,
+        }
+
+        let raw = Raw::<F>::deserialize(deserializer)?;
+        let expected = raw.fq.number(raw.len);
+        if raw.limbs.len() != expected {
+            return Err(D::Error::custom(format!(
+                "FqVector limbs length {} does not match expected {} for len={}",
+                raw.limbs.len(),
+                expected,
+                raw.len,
+            )));
+        }
+        Ok(Self {
+            fq: raw.fq,
+            len: raw.len,
+            limbs: raw.limbs,
+        })
+    }
 }
 
 /// A slice of an `FqVector`.
