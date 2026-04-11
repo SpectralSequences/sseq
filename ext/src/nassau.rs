@@ -482,7 +482,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
     }
 
-    #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
+    #[tracing::instrument(skip_all, fields(throughput))]
     fn write_qi(
         f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
@@ -597,6 +597,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             None
         };
 
+        let guard = tracing::info_span!("step", signature = ?zero_sig).entered();
         let next_mask: Vec<usize> = subalgebra
             .signature_mask(&algebra, &self.modules[b.s() - 2], b.t(), &zero_sig)
             .collect();
@@ -659,7 +660,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let mut target_mask: Vec<usize> = Vec::new();
         let mut next_mask: Vec<usize> = Vec::new();
 
+        drop(guard);
+
         for signature in subalgebra.iter_signatures(b.t()) {
+            let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
             target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
