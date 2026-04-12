@@ -14,8 +14,9 @@
 //! ·
 //! ```
 
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::chain_complex::{ChainComplex};
 use sseq::coordinates::Bidegree;
+use algebra::module::Module;
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
@@ -28,6 +29,16 @@ fn main() -> anyhow::Result<()> {
     let max = Bidegree::s_t(s, t);
     res.compute_through_bidegree(max);
 
-    println!("{}", res.graded_dimension_string());
+    println!("E2 page:");
+    for s in 0..=max.s() {
+        for t in s..=max.t() {
+            let dim = res.module(s).dimension(t);
+            if dim > 0 {
+                println!("({},{}): Z/2Z^{}", s, t, dim);
+            }
+        }
+    }
+
+    // println!("{}", res.graded_dimension_string());
     Ok(())
 }
