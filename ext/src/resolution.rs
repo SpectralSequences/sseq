@@ -23,6 +23,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
     save::{SaveDirectory, SaveKind},
+    utils::parallel::ParallelGuard,
 };
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
@@ -32,6 +33,8 @@ struct SenderData {
     b: Bidegree,
     /// Whether this bidegree was newly calculated or have already been calculated.
     new: bool,
+    /// Whether this job should be retried due to priority inversion avoidance.
+    retry: bool,
     /// The sender object used to send the `SenderData`. We put this in the struct and pass it
     /// around the mpsc, so that when all senders are dropped, we know the computation has
     /// completed. Compared to keeping track of calculations manually, this has the advantage of
@@ -45,6 +48,18 @@ impl SenderData {
             .send(Self {
                 b,
                 new,
+                retry: false,
+                sender: sender.clone(),
+            })
+            .unwrap()
+    }
+
+    fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
+        sender
+            .send(Self {
+                b,
+                new: false,
+                retry: true,
                 sender: sender.clone(),
             })
             .unwrap()
@@ -238,8 +253,11 @@ where
             [target_cc_dimension, target_res_dimension, source_dimension],
         );
 
-        current_chain_map.get_matrix(matrix.segment(0, 0), b.t());
-        current_differential.get_matrix(matrix.segment(1, 1), b.t());
+        {
+            let _guard = ParallelGuard::new();
+            current_chain_map.get_matrix(matrix.segment(0, 0), b.t());
+            current_differential.get_matrix(matrix.segment(1, 1), b.t());
+        }
         matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
@@ -469,8 +487,11 @@ where
         );
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        current_chain_map.get_matrix(matrix.segment(0, 0), b.t());
-        current_differential.get_matrix(matrix.segment(1, 1), b.t());
+        {
+            let _guard = ParallelGuard::new();
+            current_chain_map.get_matrix(matrix.segment(0, 0), b.t());
+            current_differential.get_matrix(matrix.segment(1, 1), b.t());
+        }
         matrix.segment(2, 2).add_identity();
 
         matrix.row_reduce();
@@ -740,13 +761,27 @@ where
                     let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
                         let _tracing_guard = tracing_span.enter();
+                        if crate::utils::parallel::is_in_parallel() {
+                            SenderData::send_retry(b, sender);
+                            return;
+                        }
                         self.step_resolution(b);
                         SenderData::send(b, true, sender);
                     });
                 }
             };
 
-            while let Ok(SenderData { b, new, sender }) = receiver.recv() {
+            while let Ok(SenderData {
+                b,
+                new,
+                retry,
+                sender,
+            }) = receiver.recv()
+            {
+                if retry {
+                    f(b, sender);
+                    continue;
+                }
                 assert!(progress[b.s() as usize] == b.t() - 1);
                 progress[b.s() as usize] = b.t();
 
@@ -798,13 +833,27 @@ where
                     let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
                         let _tracing_guard = tracing_span.enter();
+                        if crate::utils::parallel::is_in_parallel() {
+                            SenderData::send_retry(b, sender);
+                            return;
+                        }
                         self.step_resolution(b);
                         SenderData::send(b, true, sender);
                     });
                 }
             };
 
-            while let Ok(SenderData { b, new, sender }) = receiver.recv() {
+            while let Ok(SenderData {
+                b,
+                new,
+                retry,
+                sender,
+            }) = receiver.recv()
+            {
+                if retry {
+                    f(b, sender);
+                    continue;
+                }
                 assert!(progress[b.s() as usize] == b.t() - 1);
                 progress[b.s() as usize] = b.t();
 
