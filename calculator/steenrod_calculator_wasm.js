@@ -81,11 +81,10 @@ let wasm_bindgen = (function(exports) {
     }
     if (Symbol.dispose) SteenrodCalculator.prototype[Symbol.dispose] = SteenrodCalculator.prototype.free;
     exports.SteenrodCalculator = SteenrodCalculator;
-
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_throw_81fc77679af83bc6: function(arg0, arg1) {
+            __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
                 throw new Error(getStringFromWasm0(arg0, arg1));
             },
             __wbindgen_cast_0000000000000001: function(arg0, arg1) {
