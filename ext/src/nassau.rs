@@ -40,12 +40,13 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::{SaveDirectory, SaveKind},
-    utils::LogWriter,
+    utils::{LogWriter, parallel::ParallelGuard},
 };
 
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
     b: Bidegree,
+    retry: bool,
     sender: mpsc::Sender<Self>,
 }
 
@@ -54,6 +55,17 @@ impl SenderData {
         sender
             .send(Self {
                 b,
+                retry: false,
+                sender: sender.clone(),
+            })
+            .unwrap()
+    }
+
+    pub(crate) fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
+        sender
+            .send(Self {
+                b,
+                retry: true,
                 sender: sender.clone(),
             })
             .unwrap()
@@ -603,7 +615,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             .collect();
         let next_masked_dim = next_mask.len();
 
-        let full_matrix = self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask);
+        let full_matrix = {
+            let _guard = ParallelGuard::new();
+            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+        };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
 
@@ -669,9 +684,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
             next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
 
-            let full_matrix = self
-                .differential(b.s() - 1)
-                .get_partial_matrix(b.t(), &target_mask);
+            let full_matrix = {
+                let _guard = ParallelGuard::new();
+                self.differential(b.s() - 1)
+                    .get_partial_matrix(b.t(), &target_mask)
+            };
 
             let mut masked_matrix =
                 AugmentedMatrix::new(p, target_mask.len(), [next_mask.len(), target_mask.len()]);
@@ -754,7 +771,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 source_dim + target_dim,
                 0,
             );
-            chain_map.get_matrix(matrix.segment(0, 0), t);
+            {
+                let _guard = ParallelGuard::new();
+                chain_map.get_matrix(matrix.segment(0, 0), t);
+            }
             matrix.segment(1, 1).add_identity();
 
             matrix.row_reduce();
@@ -792,7 +812,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let mut matrix =
             AugmentedMatrix::<2>::new(p, target_dim, [cc_module.dimension(t), target_dim]);
-        self.chain_maps[0].get_matrix(matrix.segment(0, 0), t);
+        {
+            let _guard = ParallelGuard::new();
+            self.chain_maps[0].get_matrix(matrix.segment(0, 0), t);
+        }
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
         let desired_image = matrix.compute_kernel();
@@ -804,7 +827,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             source_dim + MAX_NEW_GENS,
             0,
         );
-        self.differentials[1].get_matrix(matrix.segment(0, 0), t);
+        {
+            let _guard = ParallelGuard::new();
+            self.differentials[1].get_matrix(matrix.segment(0, 0), t);
+        }
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
 
@@ -930,13 +956,21 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                     let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
                         let _tracing_guard = tracing_span.enter();
+                        if crate::utils::parallel::is_in_parallel() {
+                            SenderData::send_retry(b, sender);
+                            return;
+                        }
                         self.step_resolution(b);
                         SenderData::send(b, sender);
                     });
                 }
             };
 
-            while let Ok(SenderData { b, sender }) = receiver.recv() {
+            while let Ok(SenderData { b, retry, sender }) = receiver.recv() {
+                if retry {
+                    f(b, sender);
+                    continue;
+                }
                 assert!(progress[b.s() as usize] == b.t() - 1);
                 progress[b.s() as usize] = b.t();
 
