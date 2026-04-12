@@ -573,20 +573,49 @@
 <a href=#548 id=548 data-nosnippet>548</a>
 <a href=#549 id=549 data-nosnippet>549</a><span class="kw">pub use </span>logging::{LogWriter, ext_tracing_subscriber, init_logging};
 <a href=#550 id=550 data-nosnippet>550</a>
-<a href=#551 id=551 data-nosnippet>551</a><span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
-<a href=#552 id=552 data-nosnippet>552</a>///
-<a href=#553 id=553 data-nosnippet>553</a>/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
-<a href=#554 id=554 data-nosnippet>554</a>/// be computed. The minimum value of `s` is the `shift_s` of the
-<a href=#555 id=555 data-nosnippet>555</a>/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
-<a href=#556 id=556 data-nosnippet>556</a>/// maximum `s` of the resolution.
-<a href=#557 id=557 data-nosnippet>557</a></span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
-<a href=#558 id=558 data-nosnippet>558</a>    <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
-<a href=#559 id=559 data-nosnippet>559</a>    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;i32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
-<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">if </span>parsed.is_none() {
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="macro">eprintln!</span>(
-<a href=#562 id=562 data-nosnippet>562</a>            <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
-<a href=#563 id=563 data-nosnippet>563</a>        </span>);
-<a href=#564 id=564 data-nosnippet>564</a>    }
-<a href=#565 id=565 data-nosnippet>565</a>    parsed
-<a href=#566 id=566 data-nosnippet>566</a>}
+<a href=#551 id=551 data-nosnippet>551</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>parallel {
+<a href=#552 id=552 data-nosnippet>552</a>
+<a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">use </span>std::sync::atomic::{AtomicUsize, Ordering};
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">static </span>PARALLEL_DEPTH: AtomicUsize = AtomicUsize::new(<span class="number">0</span>);
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a>    <span class="doccomment">/// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
+<a href=#558 id=558 data-nosnippet>558</a>    /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
+<a href=#559 id=559 data-nosnippet>559</a>    /// inversion and retry.
+<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParallelGuard;
+<a href=#561 id=561 data-nosnippet>561</a>
+<a href=#562 id=562 data-nosnippet>562</a>    <span class="kw">impl </span>ParallelGuard {
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#564 id=564 data-nosnippet>564</a>            PARALLEL_DEPTH.fetch_add(<span class="number">1</span>, Ordering::Release);
+<a href=#565 id=565 data-nosnippet>565</a>            <span class="self">Self
+<a href=#566 id=566 data-nosnippet>566</a>        </span>}
+<a href=#567 id=567 data-nosnippet>567</a>    }
+<a href=#568 id=568 data-nosnippet>568</a>
+<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>ParallelGuard {
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#571 id=571 data-nosnippet>571</a>            PARALLEL_DEPTH.fetch_sub(<span class="number">1</span>, Ordering::Release);
+<a href=#572 id=572 data-nosnippet>572</a>        }
+<a href=#573 id=573 data-nosnippet>573</a>    }
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_in_parallel() -&gt; bool {
+<a href=#576 id=576 data-nosnippet>576</a>        PARALLEL_DEPTH.load(Ordering::Acquire) &gt; <span class="number">0
+<a href=#577 id=577 data-nosnippet>577</a>    </span>}
+<a href=#578 id=578 data-nosnippet>578</a>}
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a><span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
+<a href=#581 id=581 data-nosnippet>581</a>///
+<a href=#582 id=582 data-nosnippet>582</a>/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
+<a href=#583 id=583 data-nosnippet>583</a>/// be computed. The minimum value of `s` is the `shift_s` of the
+<a href=#584 id=584 data-nosnippet>584</a>/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
+<a href=#585 id=585 data-nosnippet>585</a>/// maximum `s` of the resolution.
+<a href=#586 id=586 data-nosnippet>586</a></span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;i32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
+<a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">if </span>parsed.is_none() {
+<a href=#590 id=590 data-nosnippet>590</a>        <span class="macro">eprintln!</span>(
+<a href=#591 id=591 data-nosnippet>591</a>            <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
+<a href=#592 id=592 data-nosnippet>592</a>        </span>);
+<a href=#593 id=593 data-nosnippet>593</a>    }
+<a href=#594 id=594 data-nosnippet>594</a>    parsed
+<a href=#595 id=595 data-nosnippet>595</a>}
 </code></pre></div></section></main></body></html>

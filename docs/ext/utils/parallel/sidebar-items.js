@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["is_in_parallel"],"static":["PARALLEL_DEPTH"],"struct":["ParallelGuard"]};
