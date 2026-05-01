@@ -1,5 +1,5 @@
-//! Bindings for `ext::resolution::Resolution<CCC>` and entry points
-//! `ext::utils::{construct, get_unit}`.
+//! Bindings for `ext::resolution::Resolution<CCC>` and the `construct`
+//! entry point.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -51,6 +51,41 @@ impl Resolution {
 
     fn has_computed_bidegree(&self, b: &Bidegree) -> bool {
         self.inner.has_computed_bidegree(b.inner)
+    }
+
+    /// Whether this resolution is itself a resolution of the unit (i.e. the
+    /// target chain complex is concentrated in homological degree 0 with the
+    /// rank-one trivial module).
+    #[getter]
+    fn is_unit(&self) -> bool {
+        use ext::chain_complex::{AugmentedChainComplex, BoundedChainComplex};
+        self.inner.target().max_s() == 1 && self.inner.target().module(0).is_unit()
+    }
+
+    /// Return a resolution of the unit. If `self` is already a unit resolution,
+    /// returns `self`; otherwise builds a fresh `k -> k` resolution, optionally
+    /// backed by `save_dir`.
+    #[pyo3(signature = (save_dir=None))]
+    fn unit(&self, save_dir: Option<PathBuf>) -> anyhow::Result<Resolution> {
+        if self.is_unit() {
+            return Ok(Resolution {
+                inner: Arc::clone(&self.inner),
+            });
+        }
+
+        let algebra = self.inner.algebra();
+        let module = algebra::module::FDModule::new(
+            algebra,
+            "unit".to_owned(),
+            bivec::BiVec::from_vec(0, vec![1]),
+        );
+        let cc = ext::chain_complex::FiniteChainComplex::ccdz(Arc::new(
+            Box::new(module) as algebra::module::SteenrodModule
+        ));
+        let unit = ext::resolution::Resolution::new_with_save(Arc::new(cc), save_dir)?;
+        Ok(Resolution {
+            inner: Arc::new(unit),
+        })
     }
 
     /// Resolve up to `(s, t)` such that all bidegrees with `s' <= s` and
@@ -211,46 +246,4 @@ pub fn construct(
     })
 }
 
-/// Given a resolution, return `(is_unit, unit_resolution)`.
-///
-/// * `unit_save_dir` - optional save directory if a fresh unit resolution
-///   needs to be created.
-#[pyfunction]
-#[pyo3(signature = (resolution, unit_save_dir=None))]
-pub fn get_unit(
-    resolution: &Resolution,
-    unit_save_dir: Option<PathBuf>,
-) -> anyhow::Result<(bool, Resolution)> {
-    let resolution_arc = resolution.arc();
-    let is_unit = {
-        use ext::chain_complex::{AugmentedChainComplex, BoundedChainComplex};
-        resolution_arc.target().max_s() == 1 && resolution_arc.target().module(0).is_unit()
-    };
 
-    if is_unit {
-        return Ok((
-            true,
-            Resolution {
-                inner: resolution_arc,
-            },
-        ));
-    }
-
-    // Build a fresh unit resolution (k -> k).
-    let algebra = resolution_arc.algebra();
-    let module = algebra::module::FDModule::new(
-        algebra,
-        "unit".to_owned(),
-        bivec::BiVec::from_vec(0, vec![1]),
-    );
-    let cc = ext::chain_complex::FiniteChainComplex::ccdz(Arc::new(
-        Box::new(module) as algebra::module::SteenrodModule
-    ));
-    let unit = ext::resolution::Resolution::new_with_save(Arc::new(cc), unit_save_dir)?;
-    Ok((
-        false,
-        Resolution {
-            inner: Arc::new(unit),
-        },
-    ))
-}

@@ -32,7 +32,6 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_logging, m)?)?;
     m.add_function(wrap_pyfunction!(secondary_job, m)?)?;
     m.add_function(wrap_pyfunction!(resolution::construct, m)?)?;
-    m.add_function(wrap_pyfunction!(resolution::get_unit, m)?)?;
     m.add_function(wrap_pyfunction!(chart::write_sseq_svg, m)?)?;
 
     m.add_class::<algebra::MilnorAlgebra>()?;

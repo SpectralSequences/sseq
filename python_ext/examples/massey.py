@@ -59,7 +59,8 @@ def main() -> int:
     res.compute_through_stem(ext.Bidegree.n_s(args.max_n, args.max_s))
     p = res.prime
 
-    is_unit, unit = ext.get_unit(res, unit_save_dir=args.unit_save_dir)
+    unit = res.unit(save_dir=args.unit_save_dir)
+    is_unit = res.is_unit
 
     print("\nComputing Massey products <a, b, ->", file=sys.stderr)
     print("\nEnter a:", file=sys.stderr)
