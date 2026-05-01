@@ -767,6 +767,26 @@ impl AugmentedInner {
             AugmentedInner::N3(m) => &mut m.inner as *mut M,
         }
     }
+
+    fn num_segments(&self) -> usize {
+        match self {
+            AugmentedInner::N2(_) => 2,
+            AugmentedInner::N3(_) => 3,
+        }
+    }
+
+    /// Borrow the (square or rectangular) sub-block defined by segments
+    /// `[start_seg, end_seg]` (inclusive) as a `MatrixSliceMut`.
+    fn segment_slice_mut(
+        &mut self,
+        start_seg: usize,
+        end_seg: usize,
+    ) -> m::MatrixSliceMut<'_> {
+        match self {
+            AugmentedInner::N2(m) => m.segment(start_seg, end_seg),
+            AugmentedInner::N3(m) => m.segment(start_seg, end_seg),
+        }
+    }
 }
 
 #[pymethods]
@@ -798,18 +818,6 @@ impl AugmentedMatrix {
 
     fn columns(&self) -> usize {
         self.inner.columns()
-    }
-
-    /// Add the identity matrix to the segment `(seg, seg)`.
-    fn segment_add_identity(&mut self, seg: usize) {
-        match &mut self.inner {
-            AugmentedInner::N2(m) => {
-                m.segment(seg, seg).add_identity();
-            }
-            AugmentedInner::N3(m) => {
-                m.segment(seg, seg).add_identity();
-            }
-        }
     }
 
     /// `am[row, col]` returns the entry at `(row, col)` (in flat-matrix
@@ -889,6 +897,27 @@ impl AugmentedMatrix {
     #[getter(r#mut)]
     fn r_mut(slf: Py<Self>) -> AugmentedMatrixViewMut {
         AugmentedMatrixViewMut { matrix: slf }
+    }
+
+    /// Read-only segment accessor. Use as:
+    ///
+    /// - `am.segment_const[seg]` — view of one segment.
+    /// - `am.segment_const[start_seg, end_seg]` — view spanning a contiguous
+    ///   range of segments (inclusive on both ends).
+    ///
+    /// The returned object behaves like a `MatrixView` restricted to the
+    /// segment's columns: index it with `[row]` to get an `FpVector` view of
+    /// that row of the segment.
+    #[getter]
+    fn segment_const(slf: Py<Self>) -> AugmentedMatrixSegmentAccessor {
+        AugmentedMatrixSegmentAccessor { matrix: slf }
+    }
+
+    /// Mutable segment accessor. Same indexing as `.segment_const`. The
+    /// returned object also exposes `.add_identity()`.
+    #[getter]
+    fn segment_mut(slf: Py<Self>) -> AugmentedMatrixSegmentAccessorMut {
+        AugmentedMatrixSegmentAccessorMut { matrix: slf }
     }
 }
 
@@ -1196,5 +1225,217 @@ impl AugmentedMatrixViewMut {
 
     fn __repr__(&self) -> String {
         "AugmentedMatrixViewMut(<mutable>)".to_owned()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Segment accessors for AugmentedMatrix.
+//
+// `am.segment_const[seg]`         -> AugmentedMatrixSegmentView
+// `am.segment_const[start, end]`  -> AugmentedMatrixSegmentView
+// `am.segment_mut[...]`           -> AugmentedMatrixSegmentViewMut
+//
+// The segment view objects behave like a `MatrixView` / `MatrixViewMut`
+// restricted to the columns of the chosen segment range. Indexing them with
+// `[row]` returns an `FpVector` view of that row of the segment, in
+// segment-local column coordinates. The mutable version additionally
+// exposes `add_identity()`, which writes the identity matrix into the
+// (necessarily square) sub-block via the underlying `MatrixSliceMut`.
+// ---------------------------------------------------------------------------
+
+/// Validate a `(start_seg, end_seg)` segment range against the number of
+/// segments in `inner`.
+fn check_segment_range(
+    inner: &AugmentedInner,
+    start_seg: usize,
+    end_seg: usize,
+) -> PyResult<()> {
+    let n = inner.num_segments();
+    if start_seg >= n || end_seg >= n {
+        return Err(PyIndexError::new_err(format!(
+            "segment index out of range (have {n} segments)"
+        )));
+    }
+    if start_seg > end_seg {
+        return Err(PyIndexError::new_err(
+            "segment range start must be <= end",
+        ));
+    }
+    Ok(())
+}
+
+/// Resolve a segment key (`seg` or `(start, end)`) and validate it against
+/// the parent `AugmentedMatrix`.
+fn resolve_segment_accessor_key(
+    matrix: &Py<AugmentedMatrix>,
+    py: Python<'_>,
+    key: &Bound<'_, PyAny>,
+) -> PyResult<(usize, usize)> {
+    let (start_seg, end_seg) = resolve_seg_key(key)?;
+    let bound = matrix.bind(py);
+    let r = bound.borrow();
+    check_segment_range(&r.inner, start_seg, end_seg)?;
+    Ok((start_seg, end_seg))
+}
+
+/// Read-only segment accessor. Created by `AugmentedMatrix.segment_const`.
+#[pyclass(name = "AugmentedMatrixSegmentAccessor", module = "sseq_ext", weakref)]
+pub struct AugmentedMatrixSegmentAccessor {
+    matrix: Py<AugmentedMatrix>,
+}
+
+#[pymethods]
+impl AugmentedMatrixSegmentAccessor {
+    fn __getitem__<'py>(
+        &self,
+        py: Python<'py>,
+        key: Bound<'py, PyAny>,
+    ) -> PyResult<AugmentedMatrixSegmentView> {
+        let (start_seg, end_seg) = resolve_segment_accessor_key(&self.matrix, py, &key)?;
+        Ok(AugmentedMatrixSegmentView {
+            matrix: self.matrix.clone_ref(py),
+            start_seg,
+            end_seg,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        "AugmentedMatrixSegmentAccessor(<read-only>)".to_owned()
+    }
+}
+
+/// Mutable segment accessor. Created by `AugmentedMatrix.segment_mut`.
+#[pyclass(name = "AugmentedMatrixSegmentAccessorMut", module = "sseq_ext", weakref)]
+pub struct AugmentedMatrixSegmentAccessorMut {
+    matrix: Py<AugmentedMatrix>,
+}
+
+#[pymethods]
+impl AugmentedMatrixSegmentAccessorMut {
+    fn __getitem__<'py>(
+        &self,
+        py: Python<'py>,
+        key: Bound<'py, PyAny>,
+    ) -> PyResult<AugmentedMatrixSegmentViewMut> {
+        let (start_seg, end_seg) = resolve_segment_accessor_key(&self.matrix, py, &key)?;
+        Ok(AugmentedMatrixSegmentViewMut {
+            matrix: self.matrix.clone_ref(py),
+            start_seg,
+            end_seg,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        "AugmentedMatrixSegmentAccessorMut(<mutable>)".to_owned()
+    }
+}
+
+/// Read-only view of a (possibly multi-segment) sub-block of an
+/// `AugmentedMatrix`, behaving like a `MatrixView`. Created by
+/// `AugmentedMatrix.segment_const[...]`.
+#[pyclass(name = "AugmentedMatrixSegmentView", module = "sseq_ext", weakref)]
+pub struct AugmentedMatrixSegmentView {
+    matrix: Py<AugmentedMatrix>,
+    start_seg: usize,
+    end_seg: usize,
+}
+
+#[pymethods]
+impl AugmentedMatrixSegmentView {
+    fn rows(&self, py: Python<'_>) -> usize {
+        self.matrix.bind(py).borrow().inner.rows()
+    }
+
+    fn columns(&self, py: Python<'_>) -> usize {
+        let r = self.matrix.bind(py).borrow();
+        let (s, e) = r.inner.segment_range(self.start_seg, self.end_seg);
+        e - s
+    }
+
+    fn __len__(&self, py: Python<'_>) -> usize {
+        self.rows(py)
+    }
+
+    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+        make_augmented_row_view(
+            py,
+            &self.matrix,
+            row,
+            Some((self.start_seg, self.end_seg)),
+            false,
+        )
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "AugmentedMatrixSegmentView(<read-only>, segs={}..={})",
+            self.start_seg, self.end_seg
+        )
+    }
+}
+
+/// Mutable view of a (possibly multi-segment) sub-block of an
+/// `AugmentedMatrix`. Created by `AugmentedMatrix.segment_mut[...]`.
+#[pyclass(name = "AugmentedMatrixSegmentViewMut", module = "sseq_ext", weakref)]
+pub struct AugmentedMatrixSegmentViewMut {
+    matrix: Py<AugmentedMatrix>,
+    start_seg: usize,
+    end_seg: usize,
+}
+
+#[pymethods]
+impl AugmentedMatrixSegmentViewMut {
+    fn rows(&self, py: Python<'_>) -> usize {
+        self.matrix.bind(py).borrow().inner.rows()
+    }
+
+    fn columns(&self, py: Python<'_>) -> usize {
+        let r = self.matrix.bind(py).borrow();
+        let (s, e) = r.inner.segment_range(self.start_seg, self.end_seg);
+        e - s
+    }
+
+    fn __len__(&self, py: Python<'_>) -> usize {
+        self.rows(py)
+    }
+
+    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+        make_augmented_row_view(
+            py,
+            &self.matrix,
+            row,
+            Some((self.start_seg, self.end_seg)),
+            true,
+        )
+    }
+
+    /// Add the identity matrix to this sub-block. The block must be
+    /// square (i.e. its row count equals its column count); for the
+    /// usual `am.segment_mut[k]` case, this means the `k`-th segment
+    /// must have as many columns as the matrix has rows.
+    fn add_identity(&self, py: Python<'_>) -> PyResult<()> {
+        let bound = self.matrix.bind(py);
+        let mut r = bound.try_borrow_mut().map_err(|e| {
+            PyBufferError::new_err(format!(
+                "Parent AugmentedMatrix is borrowed: {e}"
+            ))
+        })?;
+        let mut slice = r.inner.segment_slice_mut(self.start_seg, self.end_seg);
+        if slice.rows() != slice.columns() {
+            return Err(PyValueError::new_err(format!(
+                "add_identity requires a square block, got {}x{}",
+                slice.rows(),
+                slice.columns()
+            )));
+        }
+        slice.add_identity();
+        Ok(())
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "AugmentedMatrixSegmentViewMut(<mutable>, segs={}..={})",
+            self.start_seg, self.end_seg
+        )
     }
 }

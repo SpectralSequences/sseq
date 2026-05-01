@@ -53,7 +53,7 @@ def test_matrix_row_view():
 def test_augmented_matrix_segment_view():
     p = 2
     am = ext.AugmentedMatrix(p, 2, [3, 2])
-    am.segment_add_identity(1)  # right block becomes identity
+    am.segment_mut[1].add_identity()  # right block becomes identity
     seg1 = am.const[0, 1]  # row 0, segment 1
     assert seg1.to_list() == [1, 0]
     seg1_mut = am.mut[1, 0]  # row 1, segment 0

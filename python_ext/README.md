@@ -112,6 +112,9 @@ indexing:
 | `m.const[row]`, `m.mut[row]`        | row view of a `Matrix`                      |
 | `am.const[row, seg]`                | segment view of an `AugmentedMatrix`        |
 | `am.mut[row, (start_seg, end_seg)]` | range of segments                           |
+| `am.segment_const[seg]`             | matrix-like read-only view of one segment   |
+| `am.segment_mut[seg]`               | matrix-like mutable view of one segment     |
+| `am.segment_mut[seg].add_identity()`| write identity into a (square) segment      |
 
 Slicing on a bare *owned* `FpVector` raises with a hint to use
 `.const` / `.mut`. This avoids the ambiguity of whether `v[a:b]` should

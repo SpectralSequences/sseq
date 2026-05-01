@@ -102,7 +102,7 @@ def main() -> int:
 
         answers: list[list[int]] = [[0] * target_num_gens for _ in range(num_gens)]
         product = ext.AugmentedMatrix(p, num_gens, [product_num_gens, num_gens])
-        product.segment_add_identity(1)
+        product.segment_mut[1].add_identity()
 
         # One-hot matrix used to seed `extend_step`.
         seed = ext.Matrix(p, num_gens, 1)
