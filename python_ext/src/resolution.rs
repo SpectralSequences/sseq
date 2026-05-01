@@ -7,6 +7,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::QueryModuleResolution;
+use fp::prime::Prime;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 
@@ -35,10 +36,9 @@ impl Resolution {
         self.inner.name().to_owned()
     }
 
-    fn prime(&self) -> crate::fp_types::ValidPrime {
-        crate::fp_types::ValidPrime {
-            inner: self.inner.prime(),
-        }
+    #[getter]
+    fn prime(&self) -> u32 {
+        self.inner.prime().as_u32()
     }
 
     fn min_degree(&self) -> i32 {

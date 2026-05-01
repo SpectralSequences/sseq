@@ -1,4 +1,4 @@
-//! Bindings for `fp::prime::ValidPrime`, `fp::vector::FpVector`,
+//! Bindings for `fp::vector::FpVector` and
 //! `fp::matrix::{Matrix, AugmentedMatrix, Subspace}`.
 //!
 //! ## `FpVector` slicing
@@ -32,6 +32,11 @@ use pyo3::exceptions::{PyBufferError, PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PySlice, PyType};
 
+/// Convert a plain `u32` (from Python) to a validated `VP`.
+fn vp_from_u32(p: u32) -> PyResult<VP> {
+    VP::try_from(p).map_err(|e| PyValueError::new_err(format!("Invalid prime: {e}")))
+}
+
 /// Resolve a Python `slice` to `(start, end)` indices into a sequence of
 /// length `len`. Step must be 1 (or unset).
 fn resolve_slice(slice: &Bound<'_, PySlice>, len: usize) -> PyResult<(usize, usize)> {
@@ -46,42 +51,6 @@ fn resolve_slice(slice: &Bound<'_, PySlice>, len: usize) -> PyResult<(usize, usi
     let stop = stop.min(len);
     let start = start.min(stop);
     Ok((start, stop))
-}
-
-/// A prime number, validated at construction time.
-#[pyclass(name = "ValidPrime", module = "sseq_ext", frozen, eq, hash, skip_from_py_object)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ValidPrime {
-    pub inner: VP,
-}
-
-impl From<VP> for ValidPrime {
-    fn from(inner: VP) -> Self {
-        Self { inner }
-    }
-}
-
-#[pymethods]
-impl ValidPrime {
-    #[new]
-    fn new(p: u32) -> PyResult<Self> {
-        VP::try_from(p)
-            .map(|inner| Self { inner })
-            .map_err(|e| PyValueError::new_err(format!("Invalid prime: {e}")))
-    }
-
-    #[getter]
-    fn value(&self) -> u32 {
-        self.inner.as_u32()
-    }
-
-    fn __int__(&self) -> u32 {
-        self.inner.as_u32()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("ValidPrime({})", self.inner.as_u32())
-    }
 }
 
 /// Where a non-Owned `FpVector` reads/writes its data from.
@@ -466,19 +435,21 @@ impl FpVector {
 impl FpVector {
     /// Construct a new owned zero vector of length `len`.
     #[new]
-    fn new(p: &ValidPrime, len: usize) -> Self {
-        Self::new_owned(FV::new(p.inner, len))
+    fn new(p: u32, len: usize) -> PyResult<Self> {
+        let p = vp_from_u32(p)?;
+        Ok(Self::new_owned(FV::new(p, len)))
     }
 
     /// Build an owned `FpVector` of length `len(slice)` from a sequence of
     /// non-negative integers.
     #[classmethod]
-    fn from_slice(_cls: &Bound<'_, PyType>, p: &ValidPrime, slice: Vec<u32>) -> Self {
-        Self::new_owned(FV::from_slice(p.inner, &slice))
+    fn from_slice(_cls: &Bound<'_, PyType>, p: u32, slice: Vec<u32>) -> PyResult<Self> {
+        let p = vp_from_u32(p)?;
+        Ok(Self::new_owned(FV::from_slice(p, &slice)))
     }
 
-    fn prime(&self) -> ValidPrime {
-        ValidPrime { inner: self.prime }
+    fn prime(&self) -> u32 {
+        self.prime.as_u32()
     }
 
     fn __len__(&self) -> usize {
@@ -620,35 +591,36 @@ impl Matrix {
 #[pymethods]
 impl Matrix {
     #[new]
-    fn new(p: &ValidPrime, rows: usize, columns: usize) -> Self {
-        Self {
-            inner: M::new(p.inner, rows, columns),
-        }
+    fn new(p: u32, rows: usize, columns: usize) -> PyResult<Self> {
+        let p = vp_from_u32(p)?;
+        Ok(Self {
+            inner: M::new(p, rows, columns),
+        })
     }
 
     /// Build a matrix from a list of rows, each a list of non-negative integers.
     #[classmethod]
-    fn from_vec(_cls: &Bound<'_, PyType>, p: &ValidPrime, rows: Vec<Vec<u32>>) -> Self {
-        Self {
-            inner: M::from_vec(p.inner, &rows),
-        }
+    fn from_vec(_cls: &Bound<'_, PyType>, p: u32, rows: Vec<Vec<u32>>) -> PyResult<Self> {
+        let p = vp_from_u32(p)?;
+        Ok(Self {
+            inner: M::from_vec(p, &rows),
+        })
     }
 
     /// `(pivot_count, matrix)` where the second is `[m | I]`.
     #[classmethod]
     fn augmented_from_vec(
         _cls: &Bound<'_, PyType>,
-        p: &ValidPrime,
+        p: u32,
         rows: Vec<Vec<u32>>,
-    ) -> (usize, Self) {
-        let (cols, mat) = M::augmented_from_vec(p.inner, &rows);
-        (cols, Self { inner: mat })
+    ) -> PyResult<(usize, Self)> {
+        let p = vp_from_u32(p)?;
+        let (cols, mat) = M::augmented_from_vec(p, &rows);
+        Ok((cols, Self { inner: mat }))
     }
 
-    fn prime(&self) -> ValidPrime {
-        ValidPrime {
-            inner: self.inner.prime(),
-        }
+    fn prime(&self) -> u32 {
+        self.inner.prime().as_u32()
     }
 
     fn rows(&self) -> usize {
@@ -800,11 +772,12 @@ impl AugmentedMatrix {
     /// Construct a new augmented matrix with the given column dimensions.
     /// `columns` must have length 2 or 3.
     #[new]
-    fn new(p: &ValidPrime, rows: usize, columns: Vec<usize>) -> PyResult<Self> {
+    fn new(p: u32, rows: usize, columns: Vec<usize>) -> PyResult<Self> {
+        let p = vp_from_u32(p)?;
         let inner = match columns.len() {
-            2 => AugmentedInner::N2(AM::<2>::new(p.inner, rows, [columns[0], columns[1]])),
+            2 => AugmentedInner::N2(AM::<2>::new(p, rows, [columns[0], columns[1]])),
             3 => AugmentedInner::N3(AM::<3>::new(
-                p.inner,
+                p,
                 rows,
                 [columns[0], columns[1], columns[2]],
             )),

@@ -57,8 +57,7 @@ def main() -> int:
     ext.init_logging()
     res = ext.construct(args.module, save_dir=args.save_dir)
     res.compute_through_stem(ext.Bidegree.n_s(args.max_n, args.max_s))
-    p = res.prime()
-    p_int = int(p)
+    p = res.prime
 
     is_unit, unit = ext.get_unit(res, unit_save_dir=args.unit_save_dir)
 
@@ -145,7 +144,7 @@ def main() -> int:
                 entry = 0
                 for j, v in enumerate(row.to_list()):
                     entry += v * answers[j][i]
-                entries.append(entry % p_int)
+                entries.append(entry % p)
             print(f"<a, b, {c_element.to_basis_string()}> = {entries}")
 
     return 0

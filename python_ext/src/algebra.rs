@@ -7,10 +7,9 @@
 use std::sync::Arc;
 
 use algebra::{Algebra, MilnorAlgebra as InnerMA};
-use fp::prime::Prime;
+use fp::prime::{Prime, ValidPrime};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-
-use crate::fp_types::ValidPrime;
 
 /// The Milnor basis of the (mod-`p`) Steenrod algebra.
 #[pyclass(name = "MilnorAlgebra", module = "sseq_ext")]
@@ -25,16 +24,16 @@ impl MilnorAlgebra {
     /// `False` for stable computations.
     #[new]
     #[pyo3(signature = (p, unstable=false))]
-    fn new(p: &ValidPrime, unstable: bool) -> Self {
-        Self {
-            inner: Arc::new(InnerMA::new(p.inner, unstable)),
-        }
+    fn new(p: u32, unstable: bool) -> PyResult<Self> {
+        let p = ValidPrime::try_from(p)
+            .map_err(|e| PyValueError::new_err(format!("Invalid prime: {e}")))?;
+        Ok(Self {
+            inner: Arc::new(InnerMA::new(p, unstable)),
+        })
     }
 
-    fn prime(&self) -> ValidPrime {
-        ValidPrime {
-            inner: self.inner.prime(),
-        }
+    fn prime(&self) -> u32 {
+        self.inner.prime().as_u32()
     }
 
     /// Compute the basis of the algebra up to and including internal

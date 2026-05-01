@@ -25,7 +25,7 @@ def main() -> int:
 
     ext.init_logging()
     res = ext.construct(args.module, save_dir=args.save_dir)
-    if int(res.prime()) != 2:
+    if res.prime != 2:
         raise SystemExit("filtration_one currently only works at p = 2")
     res.compute_through_stem(ext.Bidegree.n_s(args.max_n, args.max_s))
 

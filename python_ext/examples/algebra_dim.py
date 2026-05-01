@@ -18,7 +18,7 @@ def main() -> int:
     args = parser.parse_args()
 
     ext.init_logging()
-    a = ext.MilnorAlgebra(ext.ValidPrime(args.p))
+    a = ext.MilnorAlgebra(args.p)
     a.compute_basis(args.max_n)
     for n in range(args.max_n + 1):
         print(f"dim A_{n} = {a.dimension(n)}")

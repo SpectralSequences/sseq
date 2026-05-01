@@ -39,7 +39,6 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<coordinates::Bidegree>()?;
     m.add_class::<coordinates::BidegreeGenerator>()?;
     m.add_class::<coordinates::BidegreeElement>()?;
-    m.add_class::<fp_types::ValidPrime>()?;
     m.add_class::<fp_types::FpVector>()?;
     m.add_class::<fp_types::Matrix>()?;
     m.add_class::<fp_types::MatrixView>()?;

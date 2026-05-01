@@ -30,8 +30,8 @@ import pytest
 
 import sseq_ext as ext
 
-P2 = ext.ValidPrime(2)
-P3 = ext.ValidPrime(3)
+P2 = 2
+P3 = 3
 
 
 # ---------------------------------------------------------------------------
