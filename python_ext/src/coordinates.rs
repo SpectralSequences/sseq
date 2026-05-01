@@ -180,11 +180,14 @@ impl From<c::BidegreeElement> for BidegreeElement {
 
 #[pymethods]
 impl BidegreeElement {
+    /// Construct from a degree and a vector. The vector is *copied* (so
+    /// it's safe to pass a view).
     #[new]
-    fn new(degree: &Bidegree, vec: &FpVector) -> Self {
-        Self {
-            inner: c::BidegreeElement::new(degree.inner, vec.inner.clone()),
-        }
+    fn new(py: Python<'_>, degree: &Bidegree, vec: &FpVector) -> PyResult<Self> {
+        let owned: fp::vector::FpVector = vec.with_slice_pub(py, |s| s.to_owned())?;
+        Ok(Self {
+            inner: c::BidegreeElement::new(degree.inner, owned),
+        })
     }
 
     #[getter]
@@ -209,10 +212,9 @@ impl BidegreeElement {
         }
     }
 
+    /// Return an owned copy of the underlying vector.
     fn vec(&self) -> FpVector {
-        FpVector {
-            inner: self.inner.vec().to_owned(),
-        }
+        FpVector::new_owned(self.inner.vec().to_owned())
     }
 
     fn to_basis_string(&self) -> String {

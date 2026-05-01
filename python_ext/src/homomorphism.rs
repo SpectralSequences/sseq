@@ -15,6 +15,9 @@ use crate::coordinates::Bidegree;
 use crate::fp_types::{FpVector, Matrix};
 use crate::resolution::Resolution;
 
+// (FreeModuleHomomorphism::output now constructs an owned FpVector via
+// `FpVector::owned`; see fp_types.rs.)
+
 /// `FreeModuleHomomorphism<MuFreeModule<false, SteenrodAlgebra>>` —
 /// the differential of a resolution.
 #[pyclass(name = "FreeModuleHomomorphism", module = "sseq_ext")]
@@ -25,11 +28,9 @@ pub struct FreeModuleHomomorphism {
 #[pymethods]
 impl FreeModuleHomomorphism {
     /// `output(t, idx)` returns the image vector of the `idx`-th generator in
-    /// degree `t`.
+    /// degree `t`. Returns an *owned* `FpVector` (not a view).
     fn output(&self, generator_degree: i32, generator_index: usize) -> FpVector {
-        FpVector {
-            inner: self.inner.output(generator_degree, generator_index).clone(),
-        }
+        FpVector::new_owned(self.inner.output(generator_degree, generator_index).clone())
     }
 
     /// Compute `Hom(_, k)` of this map at internal degree `t`.
@@ -140,30 +141,17 @@ impl ResolutionHomomorphism {
     }
 
     /// `act(result, coeff, generator)`: write `coeff * f^*(g)` into `result`.
-    /// `result` must be an `FpVector` of the appropriate length.
-    /// Adds to existing values; doesn't reset.
+    /// `result` is any `FpVector` that supports mutation (owned or
+    /// `view_mut`); this lets you pass a row view of a `Matrix` /
+    /// `AugmentedMatrix` directly. Adds to existing values; doesn't reset.
     fn act(
         &self,
+        py: Python<'_>,
         result: &mut FpVector,
         coeff: u32,
         g: &crate::coordinates::BidegreeGenerator,
-    ) {
-        self.inner.act(result.inner.as_slice_mut(), coeff, g.inner);
-    }
-
-    /// Act on a segment of an `AugmentedMatrix` row (additive). Equivalent
-    /// to the Rust call
-    /// ``hom.act(matrix.row_mut(row).slice_mut(start, end), coeff, g)`` but
-    /// without exposing slices to Python.
-    fn act_on_augmented_row(
-        &self,
-        matrix: &mut crate::fp_types::AugmentedMatrix,
-        row: usize,
-        seg: usize,
-        coeff: u32,
-        g: &crate::coordinates::BidegreeGenerator,
-    ) -> pyo3::PyResult<()> {
-        matrix.act_with_homomorphism(row, seg, coeff, g, self)
+    ) -> PyResult<()> {
+        result.with_slice_mut_pub(py, |s| self.inner.act(s, coeff, g.inner))
     }
 }
 
