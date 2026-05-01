@@ -16,8 +16,8 @@ example binaries; see `examples/` for the corresponding Python translations:
 
 Other examples (`steenrod.rs`, `sq0.rs`, `mahowald_invariant.rs`,
 `bruner.rs`, `define_module.rs`, `secondary_massey.rs`, …) define their own
-chain complexes inline or use APIs not yet bound. They will require
-additional bindings.
+chain complexes inline or use APIs not yet bound. Adding them is a
+straightforward extension of the existing scaffolding.
 
 ## Install
 
@@ -26,8 +26,7 @@ This crate is built with [maturin](https://www.maturin.rs/). Using
 
 ```sh
 cd python_ext
-uv sync                        # creates a .venv with maturin and pytest
-uv run maturin develop --release   # build & install the extension
+uv sync                # creates a .venv with maturin and pytest, builds the extension
 ```
 
 After that you can run the example translations:
@@ -35,20 +34,74 @@ After that you can run the example translations:
 ```sh
 uv run python examples/resolve.py S_2 30 15
 uv run python examples/num_gens.py S_2 30 7
-uv run python examples/chart.py S_2 30 7 > chart.svg
+uv run python examples/chart.py S_2 30 7 --out chart.svg
 uv run python examples/secondary.py S_2 30 7
-uv run python examples/massey.py
+uv run python examples/massey.py S_2 20 10  # interactive
+```
+
+To rebuild after editing the Rust sources:
+
+```sh
+uv run maturin develop --release
+```
+
+To run the tests:
+
+```sh
+uv run pytest
 ```
 
 ## Design notes
+
+### Scope
 
 - The interactive `query` crate is **not** bound. Examples use Python idioms
   (`sys.argv`, `argparse`, `input()`) instead.
 - Built with the default `odd-primes` feature plus `concurrent`. The `nassau`
   feature is **not** enabled, so `QueryModuleResolution` is `Resolution<CCC>`.
-- We only bind the concrete instantiation needed by `ext::utils::construct`,
+- We only bind the concrete instantiations needed by `ext::utils::construct`,
   i.e. `Resolution<CCC>` (for stable resolutions) and the matching
   `ResolutionHomomorphism`, `ChainHomotopy`, `SecondaryResolution`. Generic
   instantiations over other chain complexes are not exposed.
 - All long-lived Rust objects (resolutions, modules, homomorphisms) are
-  wrapped in `Arc<…>` and exposed as opaque Python handles.
+  wrapped in `Arc<…>` and exposed as opaque Python handles. Mutable
+  resources (matrices, vectors) are wrapped in plain `pyclass` objects with
+  pyo3's borrow tracking.
+
+### `FpVector` views
+
+`FpVector` is a tagged union of three internal modes:
+
+1. `Owned` — wraps an actual `fp::vector::FpVector`.
+2. `View` — a read-only borrow into another object's storage.
+3. `ViewMut` — a mutable borrow.
+
+You can obtain a view from:
+
+- `FpVector.slice(start, end)` / `FpVector.slice_mut(start, end)` —
+  sub-range of an existing vector (or another view).
+- `Matrix.row_view(row)` / `Matrix.row_view_mut(row)` — full row.
+- `AugmentedMatrix.row_segment_view(row, start_seg, end_seg=None)` /
+  `AugmentedMatrix.row_segment_view_mut(...)` — restricted to one or
+  several adjacent segments.
+
+Views hold a reference-counted handle (`Py<…>`) to the parent so the parent
+remains alive. Each operation on the view re-derives the underlying slice
+transiently from the parent under a runtime borrow check (pyo3's
+`try_borrow` / `try_borrow_mut`). If the parent is currently borrowed
+elsewhere — e.g. you're in the middle of a method that takes `&mut self`
+on the parent — the view operation raises `BufferError`.
+
+This lets you write code like:
+
+```python
+hom.act(matrix.row_segment_view_mut(idx, 0), v, gen)
+```
+
+which directly mirrors the Rust idiom
+
+```rust
+hom.act(matrix.row_mut(idx).slice_mut(start, end), v, gen)
+```
+
+without exposing raw `FpSliceMut<'_>` lifetimes to Python.
