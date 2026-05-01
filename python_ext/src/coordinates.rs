@@ -163,6 +163,12 @@ impl BidegreeGenerator {
     fn __str__(&self) -> String {
         format!("{}", self.inner)
     }
+
+    /// Compact form, e.g. ``(n,s,i)`` (no spaces). Equivalent to Rust's
+    /// alternate `Display` form (``{:#}``).
+    fn to_string_compact(&self) -> String {
+        format!("{:#}", self.inner)
+    }
 }
 
 /// An element of a bidegree, represented as a vector in the canonical basis.

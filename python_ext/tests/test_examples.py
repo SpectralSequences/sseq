@@ -79,6 +79,16 @@ def test_algebra_dim_runs():
         assert lines[n] == f"dim A_{n} = {want}"
 
 
+def test_differentials_runs():
+    out = run_example("differentials", "S_2", "8", "4")
+    # Every line should be of the form `d x_(...) = ...`
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    assert all(ln.startswith("d x_(") for ln in lines)
+    # The first generator d x_(0,0,0) is in degree 0 and is killed by the
+    # augmentation, so its boundary is 0.
+    assert "d x_(0,0,0) = 0" in lines
+
+
 def test_resolution_size_runs():
     out = run_example("resolution_size", "S_2", "8", "4")
     # Output is one line per homological degree, comma-separated dims.
