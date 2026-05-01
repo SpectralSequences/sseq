@@ -26,7 +26,7 @@ def main() -> int:
     for b in res.iter_stem():
         for i in range(res.number_of_gens_in_bidegree(b)):
             g = ext.BidegreeGenerator(b, i)
-            print(f"d x_{g.to_string_compact()} = {res.boundary_string(g)}")
+            print(f"d x_{g:compact} = {res.boundary_string(g)}")
     return 0
 
 

@@ -1,7 +1,8 @@
 //! Bindings for `sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeElement}`.
 
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyType;
+use pyo3::types::{PyTuple, PyType};
 use sseq::coordinates as c;
 
 use crate::fp_types::FpVector;
@@ -160,14 +161,43 @@ impl BidegreeGenerator {
         )
     }
 
+    /// Human-readable form, e.g. ``(n, s, idx)``.
     fn __str__(&self) -> String {
         format!("{}", self.inner)
     }
 
-    /// Compact form, e.g. ``(n,s,i)`` (no spaces). Equivalent to Rust's
-    /// alternate `Display` form (``{:#}``).
-    fn to_string_compact(&self) -> String {
-        format!("{:#}", self.inner)
+    /// Format-spec mini-language. Supported specs:
+    ///
+    /// - ``""`` or ``"full"`` — same as ``str(g)``: ``"(n, s, idx)"``.
+    /// - ``"compact"`` — ``"(n,s,idx)"`` (no spaces).
+    fn __format__(&self, spec: &str) -> PyResult<String> {
+        match spec {
+            "" | "full" => Ok(format!("{}", self.inner)),
+            "compact" => Ok(format!("{:#}", self.inner)),
+            other => Err(PyValueError::new_err(format!(
+                "Unknown format spec for BidegreeGenerator: {:?} \
+                 (expected '', 'full', or 'compact')",
+                other
+            ))),
+        }
+    }
+
+    /// Iterate over ``(degree, idx)`` so the generator can be unpacked:
+    /// ``b, i = g``.
+    fn __iter__(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let degree = Bidegree {
+            inner: slf.inner.degree(),
+        }
+        .into_pyobject(py)?
+        .into_any()
+        .unbind();
+        let idx = slf.inner.idx().into_pyobject(py)?.into_any().unbind();
+        let tuple = PyTuple::new(py, [degree, idx])?;
+        Ok(tuple.try_iter()?.unbind().into())
+    }
+
+    fn __len__(&self) -> usize {
+        2
     }
 }
 
