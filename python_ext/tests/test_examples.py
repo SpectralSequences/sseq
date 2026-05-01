@@ -79,6 +79,12 @@ def test_algebra_dim_runs():
         assert lines[n] == f"dim A_{n} = {want}"
 
 
+def test_resolve_through_stem_runs():
+    out = run_example("resolve_through_stem", "S_2", "8", "4")
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    assert any("·" in ln for ln in lines)
+
+
 def test_filtration_one_runs():
     out = run_example("filtration_one", "S_2", "8", "4")
     lines = [ln for ln in out.splitlines() if ln.strip()]

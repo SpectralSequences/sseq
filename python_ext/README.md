@@ -10,6 +10,7 @@ example binaries; see `examples/` for the corresponding Python translations:
 | ---------------------------------- | ------------------------------- |
 | `ext/examples/algebra_dim.rs`      | `examples/algebra_dim.py`       |
 | `ext/examples/resolve.rs`          | `examples/resolve.py`           |
+| `ext/examples/resolve_through_stem.rs` | `examples/resolve_through_stem.py` |
 | `ext/examples/num_gens.rs`         | `examples/num_gens.py`          |
 | `ext/examples/resolution_size.rs`  | `examples/resolution_size.py`   |
 | `ext/examples/differentials.rs`    | `examples/differentials.py`     |
