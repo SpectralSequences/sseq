@@ -30,7 +30,6 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize the global tracing subscriber. This may be called more than
     // once across processes; we ignore the error from the second call.
     m.add_function(wrap_pyfunction!(init_logging, m)?)?;
-    m.add_function(wrap_pyfunction!(secondary_job, m)?)?;
     m.add_function(wrap_pyfunction!(resolution::construct, m)?)?;
     m.add_function(wrap_pyfunction!(chart::write_sseq_svg, m)?)?;
 
@@ -65,7 +64,3 @@ fn init_logging() -> PyResult<()> {
     Ok(())
 }
 
-#[pyfunction]
-fn secondary_job() -> Option<i32> {
-    ext::utils::secondary_job()
-}

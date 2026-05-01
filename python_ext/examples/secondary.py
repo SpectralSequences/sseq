@@ -9,9 +9,32 @@ since the secondary Steenrod algebra computation requires it.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 import sseq_ext as ext
+
+
+def secondary_job() -> int | None:
+    """Return the value of the ``SECONDARY_JOB`` environment variable, if set.
+
+    This is used for sharded execution of the secondary computation: if set,
+    only data with ``s = SECONDARY_JOB`` will be computed. If the variable is
+    unset, ``None`` is returned. If it is set to a non-integer value, a warning
+    is printed to stderr and ``None`` is returned.
+    """
+    val = os.environ.get("SECONDARY_JOB")
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except ValueError:
+        print(
+            f"Invalid argument for `SECONDARY_JOB`. Expected non-negative "
+            f"integer but found {val}",
+            file=sys.stderr,
+        )
+        return None
 
 
 def main() -> int:
@@ -30,7 +53,7 @@ def main() -> int:
     lift = ext.SecondaryResolution(res)
 
     # Sharded execution: SECONDARY_JOB=s computes only data for that s.
-    job = ext.secondary_job()
+    job = secondary_job()
     if job is not None:
         lift.compute_partial(job)
         return 0
