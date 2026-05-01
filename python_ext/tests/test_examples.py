@@ -79,6 +79,15 @@ def test_algebra_dim_runs():
         assert lines[n] == f"dim A_{n} = {want}"
 
 
+def test_filtration_one_runs():
+    out = run_example("filtration_one", "S_2", "8", "4")
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    # Every line is of the form `h_i x_(...) = [...]`.
+    assert all(ln.startswith("h_") for ln in lines)
+    # h_0 x_(0,0,0) = [1] is the canonical first entry.
+    assert "h_0 x_(0, 0, 0) = [1]" in lines
+
+
 def test_differentials_runs():
     out = run_example("differentials", "S_2", "8", "4")
     # Every line should be of the form `d x_(...) = ...`

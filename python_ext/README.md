@@ -13,6 +13,7 @@ example binaries; see `examples/` for the corresponding Python translations:
 | `ext/examples/num_gens.rs`         | `examples/num_gens.py`          |
 | `ext/examples/resolution_size.rs`  | `examples/resolution_size.py`   |
 | `ext/examples/differentials.rs`    | `examples/differentials.py`     |
+| `ext/examples/filtration_one.rs`   | `examples/filtration_one.py`    |
 | `ext/examples/chart.rs`            | `examples/chart.py`             |
 | `ext/examples/secondary.rs`        | `examples/secondary.py`         |
 | `ext/examples/massey.rs`           | `examples/massey.py`            |
