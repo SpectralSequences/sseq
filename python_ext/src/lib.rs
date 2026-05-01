@@ -15,6 +15,7 @@
 
 use pyo3::prelude::*;
 
+mod algebra;
 mod chart;
 mod coordinates;
 mod fp_types;
@@ -34,6 +35,7 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(resolution::get_unit, m)?)?;
     m.add_function(wrap_pyfunction!(chart::write_sseq_svg, m)?)?;
 
+    m.add_class::<algebra::MilnorAlgebra>()?;
     m.add_class::<coordinates::Bidegree>()?;
     m.add_class::<coordinates::BidegreeGenerator>()?;
     m.add_class::<coordinates::BidegreeElement>()?;

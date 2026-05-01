@@ -6,13 +6,15 @@ for computing Ext over the Steenrod algebra.
 The current scope mirrors a representative handful of the `ext/examples/*.rs`
 example binaries; see `examples/` for the corresponding Python translations:
 
-| Rust example                | Python translation        |
-| --------------------------- | ------------------------- |
-| `ext/examples/resolve.rs`   | `examples/resolve.py`     |
-| `ext/examples/num_gens.rs`  | `examples/num_gens.py`    |
-| `ext/examples/chart.rs`     | `examples/chart.py`       |
-| `ext/examples/secondary.rs` | `examples/secondary.py`   |
-| `ext/examples/massey.rs`    | `examples/massey.py`      |
+| Rust example                       | Python translation              |
+| ---------------------------------- | ------------------------------- |
+| `ext/examples/algebra_dim.rs`      | `examples/algebra_dim.py`       |
+| `ext/examples/resolve.rs`          | `examples/resolve.py`           |
+| `ext/examples/num_gens.rs`         | `examples/num_gens.py`          |
+| `ext/examples/resolution_size.rs`  | `examples/resolution_size.py`   |
+| `ext/examples/chart.rs`            | `examples/chart.py`             |
+| `ext/examples/secondary.rs`        | `examples/secondary.py`         |
+| `ext/examples/massey.rs`           | `examples/massey.py`            |
 
 Other examples (`steenrod.rs`, `sq0.rs`, `mahowald_invariant.rs`,
 `bruner.rs`, `define_module.rs`, `secondary_massey.rs`, …) define their own

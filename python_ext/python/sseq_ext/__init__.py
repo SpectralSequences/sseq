@@ -11,6 +11,7 @@ level so users can write::
 
 from ._sseq_ext import (  # noqa: F401
     init_logging,
+    MilnorAlgebra,
     Bidegree,
     BidegreeGenerator,
     BidegreeElement,
@@ -39,6 +40,7 @@ from ._sseq_ext import (  # noqa: F401
 
 __all__ = [
     "init_logging",
+    "MilnorAlgebra",
     "Bidegree",
     "BidegreeGenerator",
     "BidegreeElement",

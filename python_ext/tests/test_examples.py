@@ -68,6 +68,17 @@ def test_in_process_basic_resolve():
     assert "·" in out
 
 
+def test_algebra_dim_runs():
+    out = run_example("algebra_dim", "2", "10")
+    lines = out.splitlines()
+    # Mod-2 Steenrod algebra dimensions for n = 0..=10:
+    #   1, 1, 1, 2, 2, 2, 3, 4, 4, 5, 6
+    expected = [1, 1, 1, 2, 2, 2, 3, 4, 4, 5, 6]
+    assert len(lines) == 11
+    for n, want in enumerate(expected):
+        assert lines[n] == f"dim A_{n} = {want}"
+
+
 def test_resolution_size_runs():
     out = run_example("resolution_size", "S_2", "8", "4")
     # Output is one line per homological degree, comma-separated dims.
