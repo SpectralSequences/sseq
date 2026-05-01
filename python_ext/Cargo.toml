@@ -1,0 +1,25 @@
+[package]
+name = "sseq_ext"
+version = "0.1.0"
+edition = "2024"
+authors = ["Hood Chatham <hood@mit.edu>"]
+description = "Python bindings for the ext crate (Ext over the Steenrod algebra)"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "sseq_ext"
+# `cdylib` is needed for the python module produced by maturin.
+# `rlib` is convenient for `cargo check`/`cargo test` of integration tests.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ext = { path = "../ext", default-features = false, features = ["odd-primes", "concurrent"] }
+algebra = { path = "../ext/crates/algebra", default-features = false, features = ["odd-primes", "concurrent"] }
+fp = { path = "../ext/crates/fp", default-features = false, features = ["odd-primes", "concurrent"] }
+sseq = { path = "../ext/crates/sseq", default-features = false, features = ["odd-primes"] }
+bivec = { path = "../ext/crates/bivec" }
+
+anyhow = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
+
+pyo3 = { version = "0.28", features = ["extension-module", "anyhow", "abi3-py310"] }

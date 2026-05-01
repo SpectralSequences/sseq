@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "sseq_ext"
+version = "0.1.0"
+description = "Python bindings for the ext crate (Ext over the Steenrod algebra)"
+readme = "README.md"
+license = { text = "MIT OR Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Hood Chatham", email = "hood@mit.edu" }]
+
+[tool.maturin]
+# Build the Rust crate as the native module `sseq_ext._sseq_ext`
+# and ship a small pure-python wrapper package located in `python/sseq_ext`.
+features = ["pyo3/extension-module"]
+module-name = "sseq_ext._sseq_ext"
+python-source = "python"
+
+[dependency-groups]
+dev = ["maturin>=1.7", "pytest>=8"]
