@@ -133,8 +133,7 @@ def main() -> int:
                     # Mutable view onto product[idx, segment 0]; equivalent
                     # to `product.row_mut(idx).slice_mut(0, product_num_gens)`
                     # in Rust.
-                    row_view = product.row_segment_view_mut(idx, 0)
-                    hom.act(row_view, v, g)
+                    hom.act(product.mut[idx, 0], v, g)
 
         product.row_reduce()
         kernel = product.compute_kernel()

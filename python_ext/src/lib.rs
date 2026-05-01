@@ -40,7 +40,11 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<fp_types::ValidPrime>()?;
     m.add_class::<fp_types::FpVector>()?;
     m.add_class::<fp_types::Matrix>()?;
+    m.add_class::<fp_types::MatrixView>()?;
+    m.add_class::<fp_types::MatrixViewMut>()?;
     m.add_class::<fp_types::AugmentedMatrix>()?;
+    m.add_class::<fp_types::AugmentedMatrixView>()?;
+    m.add_class::<fp_types::AugmentedMatrixViewMut>()?;
     m.add_class::<fp_types::Subspace>()?;
     m.add_class::<resolution::Resolution>()?;
     m.add_class::<homomorphism::FreeModuleHomomorphism>()?;

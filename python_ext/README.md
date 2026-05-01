@@ -94,14 +94,23 @@ The test suite covers:
 2. `View` — a read-only borrow into another object's storage.
 3. `ViewMut` — a mutable borrow.
 
-You can obtain a view from:
+The user-facing API uses `.const` / `.mut` accessors and standard Python
+indexing:
 
-- `FpVector.slice(start, end)` / `FpVector.slice_mut(start, end)` —
-  sub-range of an existing vector (or another view).
-- `Matrix.row_view(row)` / `Matrix.row_view_mut(row)` — full row.
-- `AugmentedMatrix.row_segment_view(row, start_seg, end_seg=None)` /
-  `AugmentedMatrix.row_segment_view_mut(...)` — restricted to one or
-  several adjacent segments.
+| What you write                      | What you get                                |
+| ----------------------------------- | ------------------------------------------- |
+| `v.const`                           | read-only view of the whole vector          |
+| `v.mut`                             | mutable view of the whole vector            |
+| `v.const[a:b]`, `v.mut[a:b]`        | read-only / mutable sub-view                |
+| `view[a:b]`                         | sub-view (mutability inherited)             |
+| `view[i]`                           | int entry (read; writes via `view[i] = …`)  |
+| `m.const[row]`, `m.mut[row]`        | row view of a `Matrix`                      |
+| `am.const[row, seg]`                | segment view of an `AugmentedMatrix`        |
+| `am.mut[row, (start_seg, end_seg)]` | range of segments                           |
+
+Slicing on a bare *owned* `FpVector` raises with a hint to use
+`.const` / `.mut`. This avoids the ambiguity of whether `v[a:b]` should
+yield a read-only or mutable view.
 
 Views hold a reference-counted handle (`Py<…>`) to the parent so the parent
 remains alive. Each operation on the view re-derives the underlying slice
@@ -110,10 +119,10 @@ transiently from the parent under a runtime borrow check (pyo3's
 elsewhere — e.g. you're in the middle of a method that takes `&mut self`
 on the parent — the view operation raises `BufferError`.
 
-This lets you write code like:
+This lets you write code like
 
 ```python
-hom.act(matrix.row_segment_view_mut(idx, 0), v, gen)
+hom.act(matrix.mut[idx, 0], v, gen)
 ```
 
 which directly mirrors the Rust idiom
