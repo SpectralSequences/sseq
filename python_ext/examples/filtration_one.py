@@ -29,7 +29,7 @@ def main() -> int:
         raise SystemExit("filtration_one currently only works at p = 2")
     res.compute_through_stem(ext.Bidegree.n_s(args.max_n, args.max_s))
 
-    for b in res.iter_stem():
+    for b in res.stems():
         i = 0
         while res.has_computed_bidegree(b + ext.Bidegree.s_t(1, 1 << i)):
             # h_i = filtration-one product with the operation Sq^{2^i}.

@@ -88,7 +88,7 @@ def main() -> int:
 
     offset_a = unit.module(a.s).generator_offset(a.t, a.t, 0)
 
-    for c in res.iter_nonzero_stem():
+    for c in res.nonzero_stems():
         if not res.has_computed_bidegree(c + shift):
             continue
 

@@ -23,7 +23,7 @@ def main() -> int:
     res = ext.construct(args.module, save_dir=args.save_dir)
     res.compute_through_stem(ext.Bidegree.n_s(args.max_n, args.max_s))
 
-    for b in res.iter_stem():
+    for b in res.stems():
         for i in range(res.number_of_gens_in_bidegree(b)):
             g = ext.BidegreeGenerator(b, i)
             print(f"d x_{g:compact} = {res.boundary_string(g)}")

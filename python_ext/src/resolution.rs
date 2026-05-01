@@ -120,12 +120,12 @@ impl Resolution {
 
     /// Iterate through all defined bidegrees in increasing order of stem.
     /// Returns a Python list of `Bidegree` objects.
-    fn iter_stem(&self) -> Vec<Bidegree> {
+    fn stems(&self) -> Vec<Bidegree> {
         self.inner.iter_stem().map(Bidegree::from).collect()
     }
 
     /// Iterate through all bidegrees that have at least one generator.
-    fn iter_nonzero_stem(&self) -> Vec<Bidegree> {
+    fn nonzero_stems(&self) -> Vec<Bidegree> {
         self.inner.iter_nonzero_stem().map(Bidegree::from).collect()
     }
 

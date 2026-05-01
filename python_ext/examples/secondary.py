@@ -63,7 +63,7 @@ def main() -> int:
     d2_shift = ext.Bidegree.n_s(-1, 2)
 
     # Iterate through targets of the d_2 differential.
-    for b in res.iter_nonzero_stem():
+    for b in res.nonzero_stems():
         if b.s < 3:
             continue
         if b.t - 1 > res.module(b.s - 2).max_computed_degree():
