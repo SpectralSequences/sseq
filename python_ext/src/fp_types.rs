@@ -277,7 +277,7 @@ enum FpVectorKind {
 
 /// A vector over $\mathbb{F}_p$. May be owned, a read-only view, or a
 /// mutable view (see module docs).
-#[pyclass(name = "FpVector", module = "sseq_ext", skip_from_py_object)]
+#[pyclass(name = "FpVector", module = "sseq_ext", skip_from_py_object, weakref)]
 pub struct FpVector {
     kind: FpVectorKind,
     /// Cached prime so `prime()` works without re-deriving the slice.
@@ -539,7 +539,7 @@ impl FpVector {
 }
 
 /// A matrix over $\mathbb{F}_p$.
-#[pyclass(name = "Matrix", module = "sseq_ext", skip_from_py_object)]
+#[pyclass(name = "Matrix", module = "sseq_ext", skip_from_py_object, weakref)]
 #[derive(Debug, Clone)]
 pub struct Matrix {
     pub inner: M,
@@ -688,10 +688,33 @@ impl Matrix {
             self.inner.prime().as_u32()
         )
     }
+
+    /// **Test hook.** Hold a mutable Python borrow on `self` for the
+    /// duration of `vec.set_entry(0, 1)`. If `vec` is a view that lives
+    /// in `self`, this should raise `BufferError` because the parent is
+    /// already borrowed.
+    ///
+    /// This is exposed solely so the safety-test suite can exercise the
+    /// runtime borrow-check path without requiring re-entrant pyclass
+    /// callbacks (which we never produce in normal operation).
+    #[pyo3(name = "_test_op_during_self_borrow_mut")]
+    fn test_op_during_self_borrow_mut(
+        slf: Bound<'_, Self>,
+        py: Python<'_>,
+        vec: &mut FpVector,
+    ) -> PyResult<()> {
+        // Hold the borrow_mut for the whole call.
+        let _guard = slf.try_borrow_mut().map_err(|e| {
+            PyBufferError::new_err(format!("test hook: cannot borrow self: {e}"))
+        })?;
+        // Try a write through the view; should fail if the view's owner is
+        // `self`, because the parent is already borrow_mut'd.
+        vec.with_slice_mut_pub(py, |mut s| s.set_entry(0, 1))
+    }
 }
 
 /// An augmented matrix `[A | B]` (or with more segments).
-#[pyclass(name = "AugmentedMatrix", module = "sseq_ext")]
+#[pyclass(name = "AugmentedMatrix", module = "sseq_ext", weakref)]
 pub struct AugmentedMatrix {
     /// Number of segments. We support 2 and 3 dynamically by storing the
     /// concrete type.

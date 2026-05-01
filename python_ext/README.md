@@ -51,6 +51,24 @@ To run the tests:
 uv run pytest
 ```
 
+The test suite covers:
+
+- `tests/test_examples.py` — end-to-end smoke tests for the five example
+  scripts.
+- `tests/test_views.py` — basic correctness of the `FpVector` view system
+  (slicing, owned/view/view-mut transitions, composition).
+- `tests/test_view_safety.py` — exhaustive safety tests:
+  - Slice arithmetic & out-of-bounds handling.
+  - Read-only enforcement (writes through a `View` raise).
+  - Lifetime / GC (parent kept alive by view; cleaned up when both go).
+  - Mutation visibility between parent and view.
+  - Aliasing semantics for overlapping `ViewMut`s.
+  - Re-entrancy: a Rust-side test hook holds `borrow_mut` on a `Matrix`
+    and tries to write through a view; the runtime borrow check fires
+    with `BufferError`.
+  - Random-op stress tests for owned vectors, matrix row views, and
+    overlapping slices, cross-checked against a Python-side snapshot.
+
 ## Design notes
 
 ### Scope
