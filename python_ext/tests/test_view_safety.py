@@ -135,8 +135,10 @@ def test_view_indexing_int_returns_entry():
 
 def _writes_to_attempt(v):
     """Yield callables that attempt to write through `v`."""
-    yield ("__setitem__", lambda: v.__setitem__(0, 1))
-    yield ("set_entry", lambda: v.set_entry(0, 1))
+    def _setitem():
+        v[0] = 1
+
+    yield ("__setitem__", _setitem)
     yield ("set_to_zero", lambda: v.set_to_zero())
     yield ("add_basis_element", lambda: v.add_basis_element(0, 1))
 
@@ -266,7 +268,7 @@ def test_view_writes_visible_through_parent():
 def test_matrix_row_view_reflects_set_entry():
     m = ext.Matrix.from_vec(P2, [[0, 0], [0, 0]])
     row0 = m.const[0]
-    m.set_entry(0, 1, 1)
+    m[0, 1] = 1
     assert row0.to_list() == [0, 1]
 
 
@@ -274,7 +276,7 @@ def test_matrix_row_view_mut_writes_visible_in_matrix():
     m = ext.Matrix.from_vec(P2, [[0, 0], [0, 0]])
     row0 = m.mut[0]
     row0[0] = 1
-    assert m.entry(0, 0) == 1
+    assert m[0, 0] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +346,7 @@ def test_borrow_check_does_not_fire_on_unrelated_view():
     view2 = m2.mut[0]
     # Should succeed: borrow_mut is on m1, view2 borrows m2.
     m1._test_op_during_self_borrow_mut(view2)
-    assert m2.entry(0, 0) == 1
+    assert m2[0, 0] == 1
 
 
 def test_borrow_check_with_owned_vector():
@@ -409,10 +411,10 @@ def test_stress_matrix_row_views(seed):
         op = rng.randrange(3)
         r = rng.randrange(rows)
         if op == 0:
-            # set_entry directly
+            # set entry directly via __setitem__
             c = rng.randrange(cols)
             v = rng.randrange(3)
-            m.set_entry(r, c, v)
+            m[r, c] = v
             snap[r][c] = v
         elif op == 1:
             # write through a mut[r]

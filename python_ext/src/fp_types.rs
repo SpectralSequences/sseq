@@ -468,20 +468,6 @@ impl FpVector {
         self.is_mutable()
     }
 
-    fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
-        if index >= self.len {
-            return Err(PyIndexError::new_err("FpVector index out of range"));
-        }
-        self.with_slice(py, |s| s.entry(index))
-    }
-
-    fn set_entry(&mut self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
-        if index >= self.len {
-            return Err(PyIndexError::new_err("FpVector index out of range"));
-        }
-        self.with_slice_mut(py, |mut s| s.set_entry(index, value))
-    }
-
     fn set_to_zero(&mut self, py: Python<'_>) -> PyResult<()> {
         self.with_slice_mut(py, |mut s| s.set_to_zero())
     }
@@ -519,7 +505,11 @@ impl FpVector {
     ) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
         if let Ok(i) = key.extract::<usize>() {
-            let val = slf.borrow().entry(py, i)?;
+            let r = slf.borrow();
+            if i >= r.len {
+                return Err(PyIndexError::new_err("FpVector index out of range"));
+            }
+            let val = r.with_slice(py, |s| s.entry(i))?;
             return Ok(val.into_pyobject(py)?.into_any());
         }
         if let Ok(slice) = key.cast::<PySlice>() {
@@ -545,7 +535,10 @@ impl FpVector {
     }
 
     fn __setitem__(&mut self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
-        self.set_entry(py, index, value)
+        if index >= self.len {
+            return Err(PyIndexError::new_err("FpVector index out of range"));
+        }
+        self.with_slice_mut(py, |mut s| s.set_entry(index, value))
     }
 
     /// Read-only view over the whole vector. Slicing this view (`v.const[a:b]`)
@@ -631,20 +624,29 @@ impl Matrix {
         self.inner.columns()
     }
 
-    /// Set entry `(row, col)` to `value`.
-    fn set_entry(&mut self, row: usize, col: usize, value: u32) -> PyResult<()> {
+    /// `m[row, col]` returns the entry at `(row, col)` as an integer.
+    fn __getitem__(&self, key: (usize, usize)) -> PyResult<u32> {
+        let (row, col) = key;
         if row >= self.inner.rows() {
             return Err(PyIndexError::new_err("row index out of range"));
+        }
+        if col >= self.inner.columns() {
+            return Err(PyIndexError::new_err("column index out of range"));
+        }
+        Ok(self.inner.row(row).entry(col))
+    }
+
+    /// `m[row, col] = value` sets the entry at `(row, col)`.
+    fn __setitem__(&mut self, key: (usize, usize), value: u32) -> PyResult<()> {
+        let (row, col) = key;
+        if row >= self.inner.rows() {
+            return Err(PyIndexError::new_err("row index out of range"));
+        }
+        if col >= self.inner.columns() {
+            return Err(PyIndexError::new_err("column index out of range"));
         }
         self.inner.row_mut(row).set_entry(col, value);
         Ok(())
-    }
-
-    fn entry(&self, row: usize, col: usize) -> PyResult<u32> {
-        if row >= self.inner.rows() {
-            return Err(PyIndexError::new_err("row index out of range"));
-        }
-        Ok(self.inner.row(row).entry(col))
     }
 
     /// Return the matrix as a list-of-lists of `u32`.
@@ -810,31 +812,38 @@ impl AugmentedMatrix {
         }
     }
 
-    /// Set entry `(row, col)` (in the underlying flat matrix coordinates).
-    fn set_entry(&mut self, row: usize, col: usize, value: u32) -> PyResult<()> {
+    /// `am[row, col]` returns the entry at `(row, col)` (in flat-matrix
+    /// coordinates) as an integer. For segment-relative access use
+    /// `am.const[row, seg][col]`.
+    fn __getitem__(&self, key: (usize, usize)) -> PyResult<u32> {
+        let (row, col) = key;
+        if row >= self.inner.rows() {
+            return Err(PyIndexError::new_err("row index out of range"));
+        }
+        if col >= self.inner.columns() {
+            return Err(PyIndexError::new_err("column index out of range"));
+        }
+        let val = match &self.inner {
+            AugmentedInner::N2(m) => m.row(row).entry(col),
+            AugmentedInner::N3(m) => m.row(row).entry(col),
+        };
+        Ok(val)
+    }
+
+    /// `am[row, col] = value` sets the entry at `(row, col)` in flat-matrix
+    /// coordinates.
+    fn __setitem__(&mut self, key: (usize, usize), value: u32) -> PyResult<()> {
+        let (row, col) = key;
+        if row >= self.inner.rows() {
+            return Err(PyIndexError::new_err("row index out of range"));
+        }
+        if col >= self.inner.columns() {
+            return Err(PyIndexError::new_err("column index out of range"));
+        }
         match &mut self.inner {
             AugmentedInner::N2(m) => m.row_mut(row).set_entry(col, value),
             AugmentedInner::N3(m) => m.row_mut(row).set_entry(col, value),
         };
-        Ok(())
-    }
-
-    /// Set entry `(row, col)` of `segment[seg, seg]`.
-    fn set_segment_entry(
-        &mut self,
-        row: usize,
-        seg: usize,
-        col: usize,
-        value: u32,
-    ) -> PyResult<()> {
-        match &mut self.inner {
-            AugmentedInner::N2(m) => {
-                m.row_segment_mut(row, seg, seg).set_entry(col, value);
-            }
-            AugmentedInner::N3(m) => {
-                m.row_segment_mut(row, seg, seg).set_entry(col, value);
-            }
-        }
         Ok(())
     }
 

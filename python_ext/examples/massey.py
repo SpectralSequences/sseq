@@ -110,9 +110,9 @@ def main() -> int:
         for idx in range(num_gens):
             hom = ext.ResolutionHomomorphism("", res, unit, c)
 
-            seed.set_entry(idx, 0, 1)
+            seed[idx, 0] = 1
             hom.extend_step(c, extra_images=seed)
-            seed.set_entry(idx, 0, 0)
+            seed[idx, 0] = 0
 
             hom.extend_through_stem(tot)
 
@@ -125,7 +125,7 @@ def main() -> int:
                 output = last.output(tot.t, i)
                 for k, v in enumerate(a_class):
                     if v != 0:
-                        answer_row[i] += v * output.entry(offset_a + k)
+                        answer_row[i] += v * output[offset_a + k]
 
             for k, v in enumerate(b_class):
                 if v != 0:
