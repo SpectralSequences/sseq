@@ -2,10 +2,12 @@
 
 CUDA backend for the F₂ matrix multiplication implemented in `crates/fp/src/blas/`.
 The Hopper memory pipeline is used end-to-end: kernel written in CUDA C++ with
-inline PTX for **TMA bulk tensor loads** (`cp.async.bulk.tensor.2d`),
-**mbarrier**-based completion sync, a warp-level `__ballot_sync` bit-transpose
-for B, and the binary tensor cores
-(`wgmma.mma_async.sync.aligned.m64n64k256.row.col.s32.b1.b1.s32.and.popc`).
+inline PTX for **TMA bulk tensor loads** with **128B swizzle**
+(`cp.async.bulk.tensor.2d`), **mbarrier**-based completion sync, and the binary
+tensor cores
+(`wgmma.mma_async.sync.aligned.m64n64k256.row.col.s32.b1.b1.and.popc`).
+Both operands are pre-arranged into plain row-major K-major tiles on the host;
+the TMA applies the swizzle that the wgmma matrix descriptors expect.
 Rust-side glue uses [NVlabs/cuda-oxide](https://github.com/NVlabs/cuda-oxide)'s
 `cuda-core` crate for the host driver-API surface (untyped module loading +
 raw kernel launch) and its `sys` re-export of `cuda-bindings` for the
@@ -67,38 +69,46 @@ The crate is still a workspace **member**, so `cargo metadata` sees it,
 
 ## Status
 
-Phase 1 is **structurally complete but untested on hardware**. The wgmma
-pipeline (TMA + mbarrier + warp-shuffle transpose + wgmma + bit-pack) is all
-wired up; the host-side `CUtensorMap` build matches the kernel's `boxDim`.
-Calibration points needing on-hardware verification before the bench will
-pass bit-equality:
+The full Phase 3 pipeline (host row-major pre-arrangement → TMA 128B-swizzle
+loads → mbarrier sync → pipelined wgmma.b1 → bit-pack) compiles and is wired
+end-to-end; the host-side `CUtensorMap` build matches the kernel's `boxDim` and
+the swizzle mode. The most recent change (128B swizzle + wgmma pipelining) has
+**not yet been re-validated on hardware** — verify in this order:
 
-1. **wgmma SMEM descriptor `leading_dim` / `stride`** — currently encoded
-   with swizzle=0 and `leading = stride = 32` bytes. PTX manual §9.7.13.2
-   has worked examples for the swizzle-0 case; CUTLASS's
-   `cute::SM90_64x64x256_S32_TN_B1B1` atom is the canonical reference.
-2. **Per-thread accumulator → output bit mapping** — derived from the PTX
-   manual's "Matrix Fragments for WGMMA" for `m64n64.s32`. Verify with a
-   64×64 identity-matrix product before benching larger sizes.
-3. **mbarrier transaction-count semantics** — kernel uses
-   `expect_tx = TMA_BYTES_A + TMA_BYTES_B` (4096 bytes). Confirm both TMA
-   loads finalize a single `cp.async.bulk.tensor.complete_tx::bytes`
-   notification each, not a different multiple.
-4. **`__ballot_sync` B-transpose** — the `atomicOr` write-back in
-   `transpose_b_warp` assumes disjoint `(dst_idx, shift)` regions across
-   warps; this holds for the two-pass layout but is worth tracing once.
+1. **64×256×64 identity product first.** Smallest path that exercises one
+   swizzled tile end-to-end. A failure here points at the swizzled wgmma
+   descriptor constants (`DESC_LBO = 16`, `DESC_SBO = 1024`, per-k256 advance
+   of 32 bytes), or a host-layout / TMA-box mismatch. These derive from
+   CUTLASS `make_gmma_desc<Major::K>` (`LayoutType::B128`) but are not
+   hardware-checked here.
+2. **Full size sweep** via `cargo run -p fp-cuda --example matmul_b1_demo`
+   (bit-exact CPU↔GPU for 64…8192).
+3. **Bench** with `cargo bench -p fp-cuda`; compare binary TOPS against the
+   ~100 TOPS pre-swizzle baseline and confirm outputs stay bit-equal.
 
-## Phase 1.5 / Phase 2 roadmap
+Other points worth a trace once: the dynamic-SMEM base must be 128-byte aligned
+for TMA (declared `extern __shared__ __align__(128)`), and the per-stage
+`expect_tx = (1 + active_ng) * 8192` bytes must match exactly one
+`cp.async.bulk.tensor.complete_tx::bytes` notification per issued TMA.
 
-- Switch TMA + SMEM descriptors to `CU_TENSOR_MAP_SWIZZLE_128B` to
-  eliminate bank conflicts on the wgmma operand reads. Likely requires
-  growing the SMEM tile to keep 128-byte alignment along the innermost
-  dim (e.g. 16 u64s per row for the A tile, expanding the per-CTA output
-  to 16 column-limbs and 16 wgmma instructions per K chunk).
-- Replace single-buffered SMEM tiles with **double-buffered** TMA loads
-  so the next K-chunk transfers overlap with the current wgmma.
+## Phase 3 roadmap
+
+Done (Phase 3): **128B swizzle** on both operands — the TMA loads with
+`CU_TENSOR_MAP_SWIZZLE_128B` and the wgmma matrix descriptors set
+`layout_type = 1` (LBO = 16 B, SBO = 1024 B), so operand reads avoid bank
+conflicts. The SMEM K-tile was grown to 1024 bits (a full 128B K-major swizzle
+atom = 4 k256 sub-chunks) and moved to dynamic shared memory (opt-in via
+`CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES`). The per-stage wgmmas now run
+behind a single `commit_group`/`wait_group` and accumulate in-hardware
+(`scale-D = 1`) into one resident accumulator per column group, instead of
+serializing each wgmma behind its own `commit`/`wait`. The host pre-arrangement
+is now plain row-major tiles (the hand-rolled `cm()` interleave is gone).
+
+Remaining:
+
 - Try larger wgmma shapes (`m64n128k256`, `m64n256k256`) for higher
-  accumulator reuse per instruction.
+  accumulator reuse per instruction (requires re-deriving the fragment →
+  output bit-pack for the wider N).
 - Migrate the output write to TMA bulk store
   (`cp.async.bulk.tensor.2d.global.shared::cta`).
 - Add a `cuda` feature on the `fp` crate that pulls in `fp-cuda` and
