@@ -125,6 +125,16 @@ __device__ __forceinline__ void wgmma_fence()  { asm volatile("wgmma.fence.sync.
 __device__ __forceinline__ void wgmma_commit() { asm volatile("wgmma.commit_group.sync.aligned;\n" ::: "memory"); }
 __device__ __forceinline__ void wgmma_wait()   { asm volatile("wgmma.wait_group.sync.aligned 0;\n" ::: "memory"); }
 
+// Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
+// few registers, so it releases its surplus; the consumer (128-reg accumulator)
+// claims them. Counts must be multiples of 8 in [24,256] and sum, weighted by
+// 128 threads/warpgroup, to ≤ the 64K-register SM budget:
+// 128*(40 + 216) = 32768, leaving room for 2 CTAs/SM.
+#define SET_MAXNREG_DEC(N) asm volatile("setmaxnreg.dec.sync.aligned.u32 %0;\n" :: "n"(N))
+#define SET_MAXNREG_INC(N) asm volatile("setmaxnreg.inc.sync.aligned.u32 %0;\n" :: "n"(N))
+constexpr int PRODUCER_REGS = 40;
+constexpr int CONSUMER_REGS = 216;
+
 constexpr int TM = 64, TK = 1024, KL = TK/64;
 constexpr int TILE = TM*KL;        // A tile: 64 rows × 16 u64 = 1024 u64
 constexpr int NB = 256;            // n256 output width (columns) per CTA
@@ -209,6 +219,7 @@ extern "C" __global__ void matmul_b1_kernel(
 
     if (wg == 0) {
         // ===================== PRODUCER =====================
+        SET_MAXNREG_DEC(PRODUCER_REGS); // give registers back to the consumer
         uint32_t phase_empty[STAGES] = {0, 0};
 
         for (int kk = 0; kk < nchunks; ++kk) {
@@ -234,6 +245,7 @@ extern "C" __global__ void matmul_b1_kernel(
         }
     } else {
         // ===================== CONSUMER =====================
+        SET_MAXNREG_INC(CONSUMER_REGS); // claim the producer's released registers
         uint32_t phase_full[STAGES] = {0, 0};
 
         // One m64n256 accumulator (128 s32 regs/thread) resident across the

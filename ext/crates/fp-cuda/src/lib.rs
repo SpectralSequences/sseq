@@ -3,7 +3,7 @@
 //! Both operands are pre-arranged on the host as plain row-major K-major tiles
 //! and loaded via TMA with 128B swizzle, which lands them in the SMEM layout the
 //! swizzled wgmma matrix descriptors expect. The kernel is a thin wrapper around
-//! wgmma.b1 m64n64k256.
+//! wgmma.b1 m64n256k256.
 
 use std::{ffi::c_void, mem::MaybeUninit, sync::Arc};
 
