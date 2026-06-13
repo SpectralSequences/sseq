@@ -82,6 +82,9 @@ pub fn matmul_b1(
     let m_padded = m.next_multiple_of(TILE_M);
     let m_tiles = m_padded / TILE_M;
     let k_chunks = k_padded / TILE_K;
+    // Each CTA computes a 256-column (NG-limb) group with one m64n256 wgmma, so
+    // B is grouped/padded to whole 256-column tiles.
+    let n_groups = n_lim.div_ceil(NG as usize);
 
     let stream = gpu.ctx.default_stream();
 
@@ -100,19 +103,19 @@ pub fn matmul_b1(
     let bt_dev = DeviceBuffer::from_host(&stream, &bt)?;
     let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_lim)?;
 
-    // TMA tensor maps for A and B. Both views are plain row-major tiles of
-    // 64 rows × 128 bytes (32 UINT32 elements = one 128B swizzle row). The
-    // inner box dim must equal the 128B swizzle width; the TMA applies the
-    // swizzle on load. The only difference between A and B is the source
-    // pointer and the outer-dim length: tiles indexed by (k_chunk, M-tile)
-    // for A, (k_chunk, col-limb) for B.
+    // TMA tensor maps for A and B. Both views are plain row-major tiles whose
+    // inner dim is 128 bytes (32 UINT32 elements = one 128B swizzle row); the
+    // TMA applies the swizzle on load. They differ in tile height: A is a
+    // 64-row tile per (k_chunk, M-tile); B is a 256-column tile per
+    // (k_chunk, 256-col group), fed to one m64n256 wgmma.
     let encode_tile_tma = |dev_ptr: CUdeviceptr,
-                           outer_tiles: u64|
+                           outer_tiles: u64,
+                           box_rows: u32|
      -> Result<CUtensorMap, Box<dyn std::error::Error>> {
         let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
-        let gdim: [u64; 2] = [32, outer_tiles * TILE_M as u64];
+        let gdim: [u64; 2] = [32, outer_tiles * box_rows as u64];
         let gstride: [u64; 1] = [128]; // bytes per row
-        let boxdim: [u32; 2] = [32, TILE_M as u32];
+        let boxdim: [u32; 2] = [32, box_rows];
         let elemstride: [u32; 2] = [1, 1];
         let res: CUresult = unsafe {
             cuTensorMapEncodeTiled(
@@ -136,8 +139,16 @@ pub fn matmul_b1(
         Ok(unsafe { tmap.assume_init() })
     };
 
-    let tma_a = encode_tile_tma(a_dev.cu_deviceptr(), (k_chunks * m_tiles) as u64)?;
-    let tma_b = encode_tile_tma(bt_dev.cu_deviceptr(), (k_chunks * n_lim) as u64)?;
+    let tma_a = encode_tile_tma(
+        a_dev.cu_deviceptr(),
+        (k_chunks * m_tiles) as u64,
+        TILE_M as u32,
+    )?;
+    let tma_b = encode_tile_tma(
+        bt_dev.cu_deviceptr(),
+        (k_chunks * n_groups) as u64,
+        (NG as usize * 64) as u32,
+    )?;
 
     let mut tma_a_storage = tma_a;
     let mut tma_b_storage = tma_b;
@@ -161,9 +172,9 @@ pub fn matmul_b1(
     let grid_y = m_val / TILE_M as u32;
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
-    let tile_u64s = TILE_M * KL;
-    let smem_u64 =
-        STAGES * tile_u64s + STAGES * NG as usize * tile_u64s + NG as usize * TILE_M + 2 * STAGES;
+    let tile_a = TILE_M * KL; // 64-row A tile
+    let tile_b = NG as usize * 64 * KL; // 256-col B tile
+    let smem_u64 = STAGES * tile_a + STAGES * tile_b + NG as usize * TILE_M + 2 * STAGES;
     let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
 
     // Opt in to >48 KB shared memory (Hopper static default cap).
@@ -236,30 +247,41 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
 
 /// Pre-transpose B into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// For each (k_chunk, col-limb) the operand tile is TILE_M rows (= the 64 output
-/// columns of that limb) × KL u64s (= TILE_K K bits). Element `[j][kl] bit` is
-/// bit `j` of `B[k_chunk*TILE_K + kl*64 + bit][col-limb]`. Output is row-major;
-/// the TMA applies the swizzle on load.
+/// Each (k_chunk, 256-col group) tile is NB = NG*64 = 256 rows (= the 256 output
+/// columns of the group) × KL u64s (= TILE_K K bits), fed to one m64n256 wgmma.
+/// Operand row `lg*64 + jj` is output column `cg*256 + lg*64 + jj`; element
+/// `[..][kl] bit` is bit `jj` of `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
+/// Groups whose limb runs past `n_lim` are left zero-padded. Output is
+/// row-major; the TMA applies the swizzle on load.
 fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
     let k_chunks = k / TILE_K;
-    let tile = TILE_M * KL;
-    let mut out = vec![0u64; k_chunks * n_lim * tile];
+    let ng = NG as usize;
+    let n_groups = n_lim.div_ceil(ng);
+    let tile = ng * 64 * KL; // 256 rows × KL u64
+    let mut out = vec![0u64; k_chunks * n_groups * tile];
     let mut buf = [0u64; TILE_K];
 
     for kk in 0..k_chunks {
-        for cl in 0..n_lim {
-            let base = (kk * n_lim + cl) * tile;
-            for i in 0..TILE_K {
-                let br = kk * TILE_K + i;
-                buf[i] = if br < k { b[br * n_lim + cl] } else { 0 };
-            }
-            for j in 0..TILE_M {
-                for kl in 0..KL {
-                    let mut val: u64 = 0;
-                    for bit in 0..64usize {
-                        val |= ((buf[kl * 64 + bit] >> j) & 1) << bit;
+        for cg in 0..n_groups {
+            let base = (kk * n_groups + cg) * tile;
+            for lg in 0..ng {
+                let limb = cg * ng + lg;
+                if limb >= n_lim {
+                    continue; // padded column group → leave zeros
+                }
+                for i in 0..TILE_K {
+                    let br = kk * TILE_K + i;
+                    buf[i] = if br < k { b[br * n_lim + limb] } else { 0 };
+                }
+                for jj in 0..64usize {
+                    let j = lg * 64 + jj; // operand row within the 256-col tile
+                    for kl in 0..KL {
+                        let mut val: u64 = 0;
+                        for bit in 0..64usize {
+                            val |= ((buf[kl * 64 + bit] >> jj) & 1) << bit;
+                        }
+                        out[base + j * KL + kl] = val;
                     }
-                    out[base + j * KL + kl] = val;
                 }
             }
         }
