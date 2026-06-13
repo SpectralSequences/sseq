@@ -1,22 +1,24 @@
 //! CUDA backend for `fp::blas` F_2 matrix multiplication on Hopper.
 //!
-//! A is pre-interleaved on the host and loaded via TMA with 128B swizzle.
-//! B is pre-transposed + CM-blocked on the host and loaded via memcpy.
-//! The kernel is a thin wrapper around wgmma.b1 m64n64k256.
+//! Both operands are pre-arranged on the host as plain row-major K-major tiles
+//! and loaded via TMA with 128B swizzle, which lands them in the SMEM layout the
+//! swizzled wgmma matrix descriptors expect. The kernel is a thin wrapper around
+//! wgmma.b1 m64n64k256.
 
 use std::{ffi::c_void, mem::MaybeUninit, sync::Arc};
 
 use cuda_core::{
     CudaContext, CudaFunction, CudaModule, DeviceBuffer, launch_kernel_on_stream,
     sys::{
-        CUdeviceptr, CUresult, CUtensorMap,
+        CUdeviceptr,
+        CUfunction_attribute_enum_CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES as FUNC_ATTR_MAX_DSMEM,
+        CUresult, CUtensorMap,
         CUtensorMapDataType_enum_CU_TENSOR_MAP_DATA_TYPE_UINT32 as DATA_UINT32,
         CUtensorMapFloatOOBfill_enum_CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE as OOB_NONE,
         CUtensorMapInterleave_enum_CU_TENSOR_MAP_INTERLEAVE_NONE as INTERLEAVE_NONE,
         CUtensorMapL2promotion_enum_CU_TENSOR_MAP_L2_PROMOTION_NONE as L2_NONE,
-        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_128B as SWIZZLE_128B,
-        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_NONE as SWIZZLE_NONE, cuTensorMapEncodeTiled,
-        cudaError_enum_CUDA_SUCCESS as CUDA_SUCCESS,
+        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_128B as SWIZZLE_128B, cuFuncSetAttribute,
+        cuTensorMapEncodeTiled, cudaError_enum_CUDA_SUCCESS as CUDA_SUCCESS,
     },
 };
 use fp::{matrix::Matrix, prime::TWO};
@@ -24,10 +26,11 @@ use fp::{matrix::Matrix, prime::TWO};
 static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
 
 const TILE_M: usize = 64;
-const TILE_K: usize = 256;
-const KL: usize = TILE_K / 64; // 4
+const TILE_K: usize = 1024;
+const KL: usize = TILE_K / 64; // 16
 const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
 const NG: u32 = 4;
+const STAGES: usize = 2; // K-loop pipeline depth; must match the kernel
 
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
@@ -88,26 +91,28 @@ pub fn matmul_b1(
     let a_padded = pad_2d(&a_limbs, m, k.div_ceil(64), m_padded, k_padded / 64);
     let b_padded = pad_2d(&b_limbs, k, n_lim, k_padded, n_lim);
 
-    // Pre-arrange A into interleaved 128-byte blocks for TMA 128B swizzle.
+    // Gather A into row-major K-major tiles; the TMA applies the 128B swizzle.
     let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
-    // Pre-transpose B into CM-blocked tiles.
+    // Pre-transpose B into row-major K-major tiles (swizzled by the TMA).
     let bt = transpose_b(&b_padded, k_padded, n_lim);
 
     let a_dev = DeviceBuffer::from_host(&stream, &a_interleaved)?;
     let bt_dev = DeviceBuffer::from_host(&stream, &bt)?;
     let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_lim)?;
 
-    // TMA tensor maps for A and B. Both views match the CM-blocked tile
-    // layout (2048 bytes = 16 super-rows × 32 UINT32 elements). The only
-    // difference is the source pointer and the outer-dim length: number of
-    // tiles indexed by (k_chunk, M-tile) for A, (k_chunk, col-limb) for B.
+    // TMA tensor maps for A and B. Both views are plain row-major tiles of
+    // 64 rows × 128 bytes (32 UINT32 elements = one 128B swizzle row). The
+    // inner box dim must equal the 128B swizzle width; the TMA applies the
+    // swizzle on load. The only difference between A and B is the source
+    // pointer and the outer-dim length: tiles indexed by (k_chunk, M-tile)
+    // for A, (k_chunk, col-limb) for B.
     let encode_tile_tma = |dev_ptr: CUdeviceptr,
                            outer_tiles: u64|
      -> Result<CUtensorMap, Box<dyn std::error::Error>> {
         let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
-        let gdim: [u64; 2] = [32, outer_tiles * 16];
+        let gdim: [u64; 2] = [32, outer_tiles * TILE_M as u64];
         let gstride: [u64; 1] = [128]; // bytes per row
-        let boxdim: [u32; 2] = [32, 16];
+        let boxdim: [u32; 2] = [32, TILE_M as u32];
         let elemstride: [u32; 2] = [1, 1];
         let res: CUresult = unsafe {
             cuTensorMapEncodeTiled(
@@ -120,7 +125,7 @@ pub fn matmul_b1(
                 boxdim.as_ptr(),
                 elemstride.as_ptr(),
                 INTERLEAVE_NONE,
-                SWIZZLE_NONE,
+                SWIZZLE_128B,
                 L2_NONE,
                 OOB_NONE,
             )
@@ -155,12 +160,30 @@ pub fn matmul_b1(
     let grid_x = (nl + NG - 1) / NG;
     let grid_y = m_val / TILE_M as u32;
 
+    // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
+    let tile_u64s = TILE_M * KL;
+    let smem_u64 =
+        STAGES * tile_u64s + STAGES * NG as usize * tile_u64s + NG as usize * TILE_M + 2 * STAGES;
+    let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
+
+    // Opt in to >48 KB shared memory (Hopper static default cap).
+    let res: CUresult = unsafe {
+        cuFuncSetAttribute(
+            gpu.kernel.cu_function(),
+            FUNC_ATTR_MAX_DSMEM as _,
+            smem_bytes as i32,
+        )
+    };
+    if res != CUDA_SUCCESS {
+        return Err(format!("cuFuncSetAttribute(MAX_DYNAMIC_SHARED) failed: {res:?}").into());
+    }
+
     unsafe {
         launch_kernel_on_stream(
             &gpu.kernel,
             (grid_x, grid_y, 1),
             (THREADS, 1, 1),
-            0,
+            smem_bytes,
             &stream,
             &mut params,
         )?;
@@ -176,25 +199,19 @@ pub fn matmul_b1(
     Ok(Matrix::from_data(TWO, m, n, c_limbs))
 }
 
-/// CM-blocked index within a 64-col × 4-K-limb tile (256 u64s).
-fn cm(row: usize, kl: usize) -> usize {
-    (row / 8) * 32 + (kl / 2) * 16 + (row % 8) * 2 + (kl % 2)
-}
-
-/// Pre-interleave A for TMA 128B swizzle.
+/// Gather A into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Output: contiguous tiles, each 2048 bytes = 16 super-rows of 128 bytes.
-/// Each super-row holds one core matrix: 8 rows × 2 K-limbs = 16 u64s = 128 bytes.
-/// Layout within tile matches cm() ordering:
-///   super_row[rg*2 + kg], where rg=0..7 (row group) and kg=0..1 (K group).
-///   Within super-row: u64 at offset 2*r + kl_sub.
+/// Output: contiguous tiles, each TILE_M rows × KL u64s (64 × 128 bytes). The
+/// TMA applies the 128B swizzle on load, so the host layout is the natural
+/// row-major sub-block: tile row `row` holds K bits `kk*TILE_K .. +TILE_K` of
+/// global row `bi*TILE_M + row`, zero-padded out of bounds.
 ///
 /// Tiles are ordered: for K-chunk kk=0..k_chunks-1, then M-tile bi=0..m_tiles-1.
 fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
     let sa = k / 64;
     let k_chunks = k / TILE_K;
     let m_tiles = m / TILE_M;
-    let tile_u64s = TILE_M * KL; // 256
+    let tile_u64s = TILE_M * KL;
     let mut out = vec![0u64; k_chunks * m_tiles * tile_u64s];
 
     for kk in 0..k_chunks {
@@ -209,7 +226,7 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
                     } else {
                         0
                     };
-                    out[base + cm(row, kl)] = val;
+                    out[base + row * KL + kl] = val;
                 }
             }
         }
@@ -217,27 +234,32 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
     out
 }
 
-/// Pre-transpose B into CM-blocked tiles.
+/// Pre-transpose B into plain row-major K-major tiles for TMA 128B swizzle.
+///
+/// For each (k_chunk, col-limb) the operand tile is TILE_M rows (= the 64 output
+/// columns of that limb) × KL u64s (= TILE_K K bits). Element `[j][kl] bit` is
+/// bit `j` of `B[k_chunk*TILE_K + kl*64 + bit][col-limb]`. Output is row-major;
+/// the TMA applies the swizzle on load.
 fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
     let k_chunks = k / TILE_K;
-    let tile = 64 * KL;
+    let tile = TILE_M * KL;
     let mut out = vec![0u64; k_chunks * n_lim * tile];
-    let mut buf = [0u64; 256];
+    let mut buf = [0u64; TILE_K];
 
     for kk in 0..k_chunks {
         for cl in 0..n_lim {
             let base = (kk * n_lim + cl) * tile;
-            for i in 0..256usize {
-                let br = kk * 256 + i;
+            for i in 0..TILE_K {
+                let br = kk * TILE_K + i;
                 buf[i] = if br < k { b[br * n_lim + cl] } else { 0 };
             }
-            for kl in 0..KL {
-                for j in 0..64usize {
+            for j in 0..TILE_M {
+                for kl in 0..KL {
                     let mut val: u64 = 0;
                     for bit in 0..64usize {
                         val |= ((buf[kl * 64 + bit] >> j) & 1) << bit;
                     }
-                    out[base + cm(j, kl)] = val;
+                    out[base + j * KL + kl] = val;
                 }
             }
         }
