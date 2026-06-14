@@ -125,6 +125,19 @@ __device__ __forceinline__ void wgmma_fence()  { asm volatile("wgmma.fence.sync.
 __device__ __forceinline__ void wgmma_commit() { asm volatile("wgmma.commit_group.sync.aligned;\n" ::: "memory"); }
 __device__ __forceinline__ void wgmma_wait()   { asm volatile("wgmma.wait_group.sync.aligned 0;\n" ::: "memory"); }
 
+// TMA bulk tensor store (SMEM → global) plus its completion group helpers and
+// the async-proxy fence that makes generic-proxy SMEM writes visible to it.
+__device__ __forceinline__ void tma_store_2d(
+    const CUtensorMap* tm, int x, int y, const void* src) {
+    asm volatile(
+        "cp.async.bulk.tensor.2d.global.shared::cta.bulk_group [%0, {%1, %2}], [%3];\n"
+        :: "l"((uint64_t)tm), "r"(x), "r"(y),
+           "r"((uint32_t)__cvta_generic_to_shared(src)) : "memory");
+}
+__device__ __forceinline__ void tma_store_commit() { asm volatile("cp.async.bulk.commit_group;\n" ::: "memory"); }
+__device__ __forceinline__ void tma_store_wait()   { asm volatile("cp.async.bulk.wait_group 0;\n" ::: "memory"); }
+__device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory"); }
+
 // Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
 // few registers, so it releases its surplus; the consumer (128-reg accumulator)
 // claims them. Counts must be multiples of 8 in [24,256] and sum, weighted by
@@ -168,23 +181,27 @@ constexpr uint32_t DESC_SWIZ = 1;
 // Dynamic SMEM per CTA (carved from `smem`, 128B-aligned for TMA):
 //   sA[STAGES][TILE]    = STAGES * 8192 B
 //   sB[STAGES][TILE_B]  = STAGES * 32768 B
-//   sC[NG][TM]          = NG * 64 * 8 B (consumer-only)
+//   sC[TM][NG]          = 64 * NG * 8 B (consumer-only, row-major for TMA store)
 //   mbar_full[STAGES] + mbar_empty[STAGES]
 //
 // Per stage = sA (8 KB) + sB (32 KB) = 40 KB; STAGES=3 ≈ 122 KB total (requires
 // the opt-in CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
 // STAGES is the latency-vs-occupancy knob: 2 → 2 CTAs/SM (82 KB), 3 → 1 CTA/SM.
+//
+// The output tile (64 rows × NG limbs) is packed row-major into sC and written
+// back with a single TMA bulk store (S2G). C is padded to whole NG-limb column
+// groups on the host so every stored tile is complete.
 extern "C" __global__ void matmul_b1_kernel(
     const __grid_constant__ CUtensorMap tma_a,
     const __grid_constant__ CUtensorMap tma_b,
+    const __grid_constant__ CUtensorMap tma_c,
     uint32_t m_tiles,
-    uint32_t M, uint32_t K, uint32_t nlim,
-    uint64_t* __restrict__ C)
+    uint32_t M, uint32_t K)
 {
     extern __shared__ __align__(128) uint64_t smem[];
     uint64_t* sA = smem;                          // [STAGES][TILE]
     uint64_t* sB = sA + STAGES * TILE;            // [STAGES][TILE_B]
-    uint64_t* sC = sB + STAGES * TILE_B;          // [NG][TM]
+    uint64_t* sC = sB + STAGES * TILE_B;          // [TM][NG] row-major
     uint64_t* mbar_full  = sC + NG * TM;          // [STAGES]
     uint64_t* mbar_empty = mbar_full + STAGES;    // [STAGES]
 
@@ -209,7 +226,7 @@ extern "C" __global__ void matmul_b1_kernel(
     }
     if (t_wg < TM && wg == 1) {
         #pragma unroll
-        for (int g = 0; g < NG; ++g) sC[g * TM + t_wg] = 0;
+        for (int g = 0; g < NG; ++g) sC[t_wg * NG + g] = 0;
     }
     __syncthreads();
 
@@ -299,27 +316,27 @@ extern "C" __global__ void matmul_b1_kernel(
             hi[l0] |= (uint64_t)(acc[gi*4+2]&1) << b0p;
             hi[l1] |= (uint64_t)(acc[gi*4+3]&1) << b1p;
         }
+        // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns) get
+        // zero popcounts from the zero-padded B, so they store harmless zeros
+        // into C's padded region (trimmed on the host).
         #pragma unroll
         for (int g = 0; g < NG; ++g) {
-            if (col0 + g >= (int)nlim) continue;
-            uint32_t* c32 = reinterpret_cast<uint32_t*>(&sC[g * TM]);
-            atomicXor(&c32[rb*2],       (uint32_t)lo[g]);
-            atomicXor(&c32[rb*2+1],     (uint32_t)(lo[g]>>32));
-            atomicXor(&c32[(rb+8)*2],   (uint32_t)hi[g]);
-            atomicXor(&c32[(rb+8)*2+1], (uint32_t)(hi[g]>>32));
+            uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rb * NG + g]);
+            uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[(rb + 8) * NG + g]);
+            atomicXor(&clo[0], (uint32_t)lo[g]);
+            atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
+            atomicXor(&chi[0], (uint32_t)hi[g]);
+            atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
         }
     }
 
-    // Both warpgroups meet here before the global write.
-    __syncthreads();
-
-    // Consumer's first TM threads write the output rows back to global.
-    if (wg == 1 && t_wg < TM) {
-        #pragma unroll
-        for (int g = 0; g < NG; ++g) {
-            int col = col0 + g;
-            if (row0 + t_wg < (int)M && col < (int)nlim)
-                C[(row0 + t_wg) * nlim + col] = sC[g * TM + t_wg];
-        }
+    // Write the 64×NG output tile back with a single TMA bulk store.
+    __syncthreads();        // sC fully packed by the consumer
+    fence_async_shared();   // make the atomicXor writes visible to the async proxy
+    if (t == 0) {
+        tma_store_2d(&tma_c, col0 * 2, row0, sC); // x in UINT32 units (2 per limb)
+        tma_store_commit();
+        tma_store_wait();
     }
+    __syncthreads();        // keep sC alive until the store completes
 }
