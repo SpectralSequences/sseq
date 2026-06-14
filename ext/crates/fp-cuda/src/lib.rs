@@ -17,7 +17,8 @@ use cuda_core::{
         CUtensorMapFloatOOBfill_enum_CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE as OOB_NONE,
         CUtensorMapInterleave_enum_CU_TENSOR_MAP_INTERLEAVE_NONE as INTERLEAVE_NONE,
         CUtensorMapL2promotion_enum_CU_TENSOR_MAP_L2_PROMOTION_NONE as L2_NONE,
-        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_128B as SWIZZLE_128B, cuFuncSetAttribute,
+        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_128B as SWIZZLE_128B,
+        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_NONE as SWIZZLE_NONE, cuFuncSetAttribute,
         cuTensorMapEncodeTiled, cudaError_enum_CUDA_SUCCESS as CUDA_SUCCESS,
     },
 };
@@ -83,8 +84,9 @@ pub fn matmul_b1(
     let m_tiles = m_padded / TILE_M;
     let k_chunks = k_padded / TILE_K;
     // Each CTA computes a 256-column (NG-limb) group with one m64n256 wgmma, so
-    // B is grouped/padded to whole 256-column tiles.
+    // B (and the C output) are grouped/padded to whole 256-column tiles.
     let n_groups = n_lim.div_ceil(NG as usize);
+    let n_padded_lim = n_groups * NG as usize;
 
     let stream = gpu.ctx.default_stream();
 
@@ -101,7 +103,7 @@ pub fn matmul_b1(
 
     let a_dev = DeviceBuffer::from_host(&stream, &a_interleaved)?;
     let bt_dev = DeviceBuffer::from_host(&stream, &bt)?;
-    let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_lim)?;
+    let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_padded_lim)?;
 
     // TMA tensor maps for A and B. Both views are plain row-major tiles whose
     // inner dim is 128 bytes (32 UINT32 elements = one 128B swizzle row); the
@@ -150,25 +152,54 @@ pub fn matmul_b1(
         (NG as usize * 64) as u32,
     )?;
 
+    // Output tensor map for the TMA bulk store (S2G). C is m_padded rows ×
+    // n_padded_lim u64 (= 2*n_padded_lim UINT32), stored in 64-row × NG-limb
+    // tiles, no swizzle.
+    let tma_c = {
+        let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
+        let gdim: [u64; 2] = [(n_padded_lim * 2) as u64, m_padded as u64];
+        let gstride: [u64; 1] = [(n_padded_lim * 8) as u64]; // bytes per row
+        let boxdim: [u32; 2] = [(NG as usize * 2) as u32, TILE_M as u32];
+        let elemstride: [u32; 2] = [1, 1];
+        let res: CUresult = unsafe {
+            cuTensorMapEncodeTiled(
+                tmap.as_mut_ptr(),
+                DATA_UINT32,
+                2,
+                c_dev.cu_deviceptr() as *mut c_void,
+                gdim.as_ptr(),
+                gstride.as_ptr(),
+                boxdim.as_ptr(),
+                elemstride.as_ptr(),
+                INTERLEAVE_NONE,
+                SWIZZLE_NONE,
+                L2_NONE,
+                OOB_NONE,
+            )
+        };
+        if res != CUDA_SUCCESS {
+            return Err(format!("cuTensorMapEncodeTiled (C) failed: {res:?}").into());
+        }
+        unsafe { tmap.assume_init() }
+    };
+
     let mut tma_a_storage = tma_a;
     let mut tma_b_storage = tma_b;
+    let mut tma_c_storage = tma_c;
     let mut mt: u32 = m_tiles as u32;
     let mut m_val: u32 = m_padded as u32;
     let mut k_val: u32 = k_padded as u32;
-    let mut nl: u32 = n_lim as u32;
-    let mut c_ptr: CUdeviceptr = c_dev.cu_deviceptr();
 
-    let mut params: [*mut c_void; 7] = [
+    let mut params: [*mut c_void; 6] = [
         &mut tma_a_storage as *mut _ as *mut c_void,
         &mut tma_b_storage as *mut _ as *mut c_void,
+        &mut tma_c_storage as *mut _ as *mut c_void,
         &mut mt as *mut _ as *mut c_void,
         &mut m_val as *mut _ as *mut c_void,
         &mut k_val as *mut _ as *mut c_void,
-        &mut nl as *mut _ as *mut c_void,
-        &mut c_ptr as *mut _ as *mut c_void,
     ];
 
-    let grid_x = (nl + NG - 1) / NG;
+    let grid_x = n_groups as u32;
     let grid_y = m_val / TILE_M as u32;
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
@@ -203,9 +234,9 @@ pub fn matmul_b1(
 
     let c_all = c_dev.to_host_vec(&stream)?;
     let c_limbs: Vec<u64> = c_all
-        .chunks_exact(n_lim)
+        .chunks_exact(n_padded_lim)
         .take(m)
-        .flat_map(|row| row.iter().copied())
+        .flat_map(|row| row[..n_lim].iter().copied())
         .collect();
     Ok(Matrix::from_data(TWO, m, n, c_limbs))
 }

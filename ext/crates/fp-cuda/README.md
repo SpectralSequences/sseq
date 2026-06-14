@@ -88,29 +88,38 @@ the swizzle mode. The most recent change (128B swizzle + wgmma pipelining) has
 
 Other points worth a trace once: the dynamic-SMEM base must be 128-byte aligned
 for TMA (declared `extern __shared__ __align__(128)`), and the per-stage
-`expect_tx = (1 + active_ng) * 8192` bytes must match exactly one
-`cp.async.bulk.tensor.complete_tx::bytes` notification per issued TMA.
+`expect_tx = (TILE + TILE_B) * 8` bytes (one A tile + one B tile) must match
+the `cp.async.bulk.tensor.complete_tx::bytes` notifications from the two issued
+TMA loads.
 
-## Phase 3 roadmap
+## Roadmap
 
-Done (Phase 3): **128B swizzle** on both operands — the TMA loads with
-`CU_TENSOR_MAP_SWIZZLE_128B` and the wgmma matrix descriptors set
-`layout_type = 1` (LBO = 16 B, SBO = 1024 B), so operand reads avoid bank
-conflicts. The SMEM K-tile was grown to 1024 bits (a full 128B K-major swizzle
-atom = 4 k256 sub-chunks) and moved to dynamic shared memory (opt-in via
-`CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES`). The per-stage wgmmas now run
-behind a single `commit_group`/`wait_group` and accumulate in-hardware
-(`scale-D = 1`) into one resident accumulator per column group, instead of
-serializing each wgmma behind its own `commit`/`wait`. The host pre-arrangement
-is now plain row-major tiles (the hand-rolled `cm()` interleave is gone).
+Following the optimization ladder of Pranjal Shankhdhar's "Outperforming cuBLAS
+on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
+
+Done:
+
+- **128B swizzle** (Phase 3) on both operands — TMA loads with
+  `CU_TENSOR_MAP_SWIZZLE_128B`; wgmma descriptors set `layout_type = 1`
+  (LBO = 16 B, SBO = 1024 B), avoiding bank conflicts. The SMEM K-tile is 1024
+  bits (a full 128B K-major swizzle atom = 4 k256 sub-chunks); per-stage wgmmas
+  run behind one `commit_group`/`wait_group` and accumulate in-hardware
+  (`scale-D = 1`). Operands moved to dynamic shared memory. Host pre-arrangement
+  is plain row-major tiles (no `cm()` interleave).
+- **Widest binary MMA** (Phase 4) — one `m64n256k256` per k-step covering all
+  NG = 4 output limbs, replacing four `m64n64k256`. Same registers/SMEM, 1/4 the
+  instructions; B is one 256-column tile per CTA.
+- **Register reallocation** (Phase 5) — `setmaxnreg.dec(40)` in the producer,
+  `setmaxnreg.inc(216)` in the consumer.
+- **Deeper pipeline** (Phase 6) — `STAGES = 3` (latency-vs-occupancy knob).
+- **TMA output store** (Phase 7) — the packed `sC` tile is written back with a
+  single `cp.async.bulk.tensor.2d.global.shared::cta`; C is padded to whole
+  NG-limb column groups so every stored tile is complete.
 
 Remaining:
 
-- Try larger wgmma shapes (`m64n128k256`, `m64n256k256`) for higher
-  accumulator reuse per instruction (requires re-deriving the fragment →
-  output bit-pack for the wider N).
-- Migrate the output write to TMA bulk store
-  (`cp.async.bulk.tensor.2d.global.shared::cta`).
+- Thread-block **clusters + TMA multicast** to share operand loads across CTAs.
+- **Persistent kernel + tile scheduler** (rasterization) for L2 reuse.
 - Add a `cuda` feature on the `fp` crate that pulls in `fp-cuda` and
   inserts a runtime device check at the top of `impl Mul for &Matrix`,
   dispatching to the GPU for matrices above a size threshold and keeping
