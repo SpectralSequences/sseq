@@ -30,7 +30,7 @@ const TILE_K: usize = 1024;
 const KL: usize = TILE_K / 64; // 16
 const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
 const NG: u32 = 4;
-const STAGES: usize = 2; // K-loop pipeline depth; must match the kernel
+const STAGES: usize = 3; // K-loop pipeline depth; must match the kernel
 
 pub struct GpuContext {
     ctx: Arc<CudaContext>,

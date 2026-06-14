@@ -142,7 +142,7 @@ constexpr int TILE_B = NB*KL;      // B tile: 256 cols × 16 u64 = 4096 u64
 constexpr int NG = NB/64;          // 4 output column-limbs per CTA
 constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
 constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
-constexpr int STAGES = 2;          // K-loop pipeline depth (full/empty buffers)
+constexpr int STAGES = 3;          // K-loop pipeline depth (full/empty buffers)
 constexpr int THREADS_PER_WG = 128;
 
 // wgmma 128B K-major descriptor constants (CUTLASS make_gmma_desc<Major::K>,
@@ -171,8 +171,9 @@ constexpr uint32_t DESC_SWIZ = 1;
 //   sC[NG][TM]          = NG * 64 * 8 B (consumer-only)
 //   mbar_full[STAGES] + mbar_empty[STAGES]
 //
-// With STAGES=2:  16 KB + 64 KB + 2 KB + 32 B ≈ 82 KB (requires the opt-in
-// CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
+// Per stage = sA (8 KB) + sB (32 KB) = 40 KB; STAGES=3 ≈ 122 KB total (requires
+// the opt-in CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
+// STAGES is the latency-vs-occupancy knob: 2 → 2 CTAs/SM (82 KB), 3 → 1 CTA/SM.
 extern "C" __global__ void matmul_b1_kernel(
     const __grid_constant__ CUtensorMap tma_a,
     const __grid_constant__ CUtensorMap tma_b,
@@ -220,7 +221,7 @@ extern "C" __global__ void matmul_b1_kernel(
     if (wg == 0) {
         // ===================== PRODUCER =====================
         SET_MAXNREG_DEC(PRODUCER_REGS); // give registers back to the consumer
-        uint32_t phase_empty[STAGES] = {0, 0};
+        uint32_t phase_empty[STAGES] = {0};
 
         for (int kk = 0; kk < nchunks; ++kk) {
             const int s = kk % STAGES;
@@ -246,7 +247,7 @@ extern "C" __global__ void matmul_b1_kernel(
     } else {
         // ===================== CONSUMER =====================
         SET_MAXNREG_INC(CONSUMER_REGS); // claim the producer's released registers
-        uint32_t phase_full[STAGES] = {0, 0};
+        uint32_t phase_full[STAGES] = {0};
 
         // One m64n256 accumulator (128 s32 regs/thread) resident across the
         // whole K loop. Pre-zeroed so every wgmma uses scale-D = 1.
