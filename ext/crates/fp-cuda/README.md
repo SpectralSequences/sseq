@@ -152,11 +152,20 @@ Done:
 - **TMA output store** (Phase 7) — the packed `sC` tile is written back with a
   single `cp.async.bulk.tensor.2d.global.shared::cta`; C is padded to whole
   NG-limb column groups so every stored tile is complete.
+- **Persistent kernel + grouped rasterization** (Phase 8) — a 1-D grid of
+  ~SM-count CTAs sweeps the output tiles in a grouped-along-M order (`GROUP_M`
+  M-tiles per band), shortening each B-panel's reuse distance to keep it
+  L2-resident. Cuts B's HBM re-reads by ~`GROUP_M`. *Code-only; pending H100
+  validation.*
+- **Clusters + TMA multicast** (Phase 9) — `CLUSTER` CTAs along M form a
+  thread-block cluster and share one HBM read of each B-panel via
+  `cp.async.bulk.tensor…multicast::cluster` (each computes a different M-tile,
+  each keeps its own n256 accumulator). Cluster-wide empty barrier; the pipeline
+  barriers init once and flow continuously across tiles. Mirrors the proven
+  `pranjalssh/fast.cu` matmul_9. *Code-only; pending H100 validation.*
 
 Remaining:
 
-- Thread-block **clusters + TMA multicast** to share operand loads across CTAs.
-- **Persistent kernel + tile scheduler** (rasterization) for L2 reuse.
 - Add a `cuda` feature on the `fp` crate that pulls in `fp-cuda` and
   inserts a runtime device check at the top of `impl Mul for &Matrix`,
   dispatching to the GPU for matrices above a size threshold and keeping
