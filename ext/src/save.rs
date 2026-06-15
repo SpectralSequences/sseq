@@ -74,7 +74,7 @@ impl From<Option<PathBuf>> for SaveDirectory {
 /// exit.
 fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
     static OPEN_FILES: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(|| {
-        #[cfg(unix)]
+        #[cfg(all(unix, not(target_arch = "wasm32")))]
         ctrlc::set_handler(move || {
             tracing::warn!("Ctrl-C detected. Deleting open files and exiting.");
             let files = open_files().lock().unwrap();

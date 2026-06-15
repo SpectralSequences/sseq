@@ -1,5 +1,8 @@
 /target
 
+# Local emscripten SDK cloned by build-pyodide.sh
+.emsdk/
+
 # Scratch API-ordering note: must never be staged.
 API_BIND_ORDER.md
 
