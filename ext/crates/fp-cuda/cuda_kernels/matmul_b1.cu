@@ -157,6 +157,7 @@ constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
 constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
 constexpr int STAGES = 3;          // K-loop pipeline depth (full/empty buffers)
 constexpr int THREADS_PER_WG = 128;
+constexpr int GROUP_M = 8;         // M-tiles per rasterization group (L2 reuse knob)
 
 // wgmma 128B K-major descriptor constants (CUTLASS make_gmma_desc<Major::K>,
 // LayoutType::B128): LBO = 1 uint128 = 16 bytes, SBO = 8-row-brick stride =
@@ -196,6 +197,7 @@ extern "C" __global__ void matmul_b1_kernel(
     const __grid_constant__ CUtensorMap tma_b,
     const __grid_constant__ CUtensorMap tma_c,
     uint32_t m_tiles,
+    uint32_t n_groups,
     uint32_t M, uint32_t K)
 {
     extern __shared__ __align__(128) uint64_t smem[];
@@ -205,138 +207,156 @@ extern "C" __global__ void matmul_b1_kernel(
     uint64_t* mbar_full  = sC + NG * TM;          // [STAGES]
     uint64_t* mbar_empty = mbar_full + STAGES;    // [STAGES]
 
-    const int bi = blockIdx.y, bj = blockIdx.x, t = threadIdx.x;
-    const int row0 = bi * TM, col0 = bj * NG;
-    if (row0 >= (int)M) return;
-
-    const int wg = t / THREADS_PER_WG;      // 0 = producer, 1 = consumer
+    const int t = threadIdx.x;
+    const int wg = t / THREADS_PER_WG;        // 0 = producer, 1 = consumer
     const int t_wg = t - wg * THREADS_PER_WG; // 0..127 within warpgroup
-    const int n_groups = gridDim.x;          // 256-col groups (= B tile count/k)
-
-    if (t == 0) {
-        #pragma unroll
-        for (int s = 0; s < STAGES; ++s) {
-            mbar_init(&mbar_full[s], 1);
-            mbar_init(&mbar_empty[s], 1);
-            // Pre-arrive each empty barrier so the producer's first
-            // `mbar_wait(empty, 0)` succeeds immediately — the stage is
-            // logically "free" before iteration 0.
-            mbar_arrive(&mbar_empty[s]);
-        }
-    }
-    if (t_wg < TM && wg == 1) {
-        #pragma unroll
-        for (int g = 0; g < NG; ++g) sC[t_wg * NG + g] = 0;
-    }
-    __syncthreads();
 
     const int nchunks = (K + TK - 1) / TK;
     // One full A tile + one full B tile per stage (B is zero-padded on the
     // host to a multiple of NB columns, so it is always a complete tile).
     const uint32_t expected_tx = (uint32_t)((TILE + TILE_B) * sizeof(uint64_t));
+    const uint32_t total = m_tiles * n_groups;
 
-    if (wg == 0) {
-        // ===================== PRODUCER =====================
-        SET_MAXNREG_DEC(PRODUCER_REGS); // give registers back to the consumer
-        uint32_t phase_empty[STAGES] = {0};
+    // Register reallocation is a one-time per-warpgroup action; do it once,
+    // before the persistent tile loop (not per tile).
+    if (wg == 0) SET_MAXNREG_DEC(PRODUCER_REGS);
+    else         SET_MAXNREG_INC(CONSUMER_REGS);
 
-        for (int kk = 0; kk < nchunks; ++kk) {
-            const int s = kk % STAGES;
+    // ===================== PERSISTENT TILE LOOP =====================
+    // A 1-D grid of ~SM-count CTAs sweeps the output tile grid. The grouped
+    // rasterizer (bi varies fastest within a GROUP_M-row band) keeps each
+    // B-panel's reuse distance short so it stays L2-resident.
+    for (uint32_t tile = blockIdx.x; tile < total; tile += gridDim.x) {
+        const uint32_t gid    = tile / (GROUP_M * n_groups);
+        const uint32_t firstm = gid * GROUP_M;
+        const uint32_t curm   = min((uint32_t)GROUP_M, m_tiles - firstm);
+        const uint32_t local  = tile - gid * GROUP_M * n_groups;
+        const int bi = (int)(firstm + local % curm);
+        const int bj = (int)(local / curm);
+        const int row0 = bi * TM, col0 = bj * NG;
 
-            // Wait for the consumer to release this stage. Pre-arrival in
-            // the init block makes the first STAGES iterations no-wait.
-            if (t_wg == 0) {
-                mbar_wait(&mbar_empty[s], phase_empty[s]);
-            }
-            phase_empty[s] ^= 1;
-
-            // Set expected transaction bytes for this stage's full barrier
-            // and issue the two TMAs (A: 64×128B tile, B: 256×128B tile),
-            // each loaded with 128B swizzle.
-            if (t_wg == 0) {
-                mbar_tx(&mbar_full[s], expected_tx);
-                tma_2d(&sA[s * TILE], &tma_a, 0,
-                       (kk * m_tiles + bi) * TM, &mbar_full[s]);
-                tma_2d(&sB[s * TILE_B], &tma_b, 0,
-                       (kk * n_groups + bj) * NB, &mbar_full[s]);
-            }
-        }
-    } else {
-        // ===================== CONSUMER =====================
-        SET_MAXNREG_INC(CONSUMER_REGS); // claim the producer's released registers
-        uint32_t phase_full[STAGES] = {0};
-
-        // One m64n256 accumulator (128 s32 regs/thread) resident across the
-        // whole K loop. Pre-zeroed so every wgmma uses scale-D = 1.
-        int32_t acc[128];
-        #pragma unroll
-        for (int r = 0; r < 128; ++r) acc[r] = 0;
-
-        for (int kk = 0; kk < nchunks; ++kk) {
-            const int s = kk % STAGES;
-
-            // Wait for the producer's TMAs to finish populating this stage.
-            mbar_wait(&mbar_full[s], phase_full[s]);
-            phase_full[s] ^= 1;
-
-            // Issue every k256 wgmma for this stage behind one commit/wait so
-            // they pipeline. scale-D = 1 accumulates each sub-chunk in-hardware.
-            wgmma_fence();
+        // Re-init this tile's mbarriers and zero its output tile. The barriers
+        // are reused across tiles, so re-initializing (with fresh phase-0
+        // bookkeeping below) sidesteps carrying barrier parity between tiles.
+        if (t == 0) {
             #pragma unroll
-            for (int c = 0; c < KSUB; ++c) {
-                uint64_t da = make_desc(&sA[s * TILE + c * KSUB_U64],
-                                        DESC_LBO, DESC_SBO, DESC_SWIZ);
-                uint64_t db = make_desc(&sB[s * TILE_B + c * KSUB_U64],
-                                        DESC_LBO, DESC_SBO, DESC_SWIZ);
-                wgmma_n256(acc, da, db);
+            for (int s = 0; s < STAGES; ++s) {
+                mbar_init(&mbar_full[s], 1);
+                mbar_init(&mbar_empty[s], 1);
+                // Pre-arrive each empty barrier so the producer's first
+                // `mbar_wait(empty, 0)` succeeds immediately — the stage is
+                // logically "free" before iteration 0.
+                mbar_arrive(&mbar_empty[s]);
             }
-            wgmma_commit();
-            wgmma_wait();
-            wgmma_fence();
+        }
+        if (t_wg < TM && wg == 1) {
+            #pragma unroll
+            for (int g = 0; g < NG; ++g) sC[t_wg * NG + g] = 0;
+        }
+        __syncthreads();
 
-            // Signal that this stage's SMEM can be reused.
-            if (t_wg == 0) mbar_arrive(&mbar_empty[s]);
+        if (wg == 0) {
+            // ===================== PRODUCER =====================
+            uint32_t phase_empty[STAGES] = {0};
+
+            for (int kk = 0; kk < nchunks; ++kk) {
+                const int s = kk % STAGES;
+
+                // Wait for the consumer to release this stage. Pre-arrival in
+                // the init block makes the first STAGES iterations no-wait.
+                if (t_wg == 0) {
+                    mbar_wait(&mbar_empty[s], phase_empty[s]);
+                }
+                phase_empty[s] ^= 1;
+
+                // Set expected transaction bytes for this stage's full barrier
+                // and issue the two TMAs (A: 64×128B tile, B: 256×128B tile),
+                // each loaded with 128B swizzle.
+                if (t_wg == 0) {
+                    mbar_tx(&mbar_full[s], expected_tx);
+                    tma_2d(&sA[s * TILE], &tma_a, 0,
+                           (kk * m_tiles + bi) * TM, &mbar_full[s]);
+                    tma_2d(&sB[s * TILE_B], &tma_b, 0,
+                           (kk * n_groups + bj) * NB, &mbar_full[s]);
+                }
+            }
+        } else {
+            // ===================== CONSUMER =====================
+            uint32_t phase_full[STAGES] = {0};
+
+            // One m64n256 accumulator (128 s32 regs/thread) resident across the
+            // whole K loop. Pre-zeroed so every wgmma uses scale-D = 1.
+            int32_t acc[128];
+            #pragma unroll
+            for (int r = 0; r < 128; ++r) acc[r] = 0;
+
+            for (int kk = 0; kk < nchunks; ++kk) {
+                const int s = kk % STAGES;
+
+                // Wait for the producer's TMAs to finish populating this stage.
+                mbar_wait(&mbar_full[s], phase_full[s]);
+                phase_full[s] ^= 1;
+
+                // Issue every k256 wgmma for this stage behind one commit/wait so
+                // they pipeline. scale-D = 1 accumulates each sub-chunk in-hardware.
+                wgmma_fence();
+                #pragma unroll
+                for (int c = 0; c < KSUB; ++c) {
+                    uint64_t da = make_desc(&sA[s * TILE + c * KSUB_U64],
+                                            DESC_LBO, DESC_SBO, DESC_SWIZ);
+                    uint64_t db = make_desc(&sB[s * TILE_B + c * KSUB_U64],
+                                            DESC_LBO, DESC_SBO, DESC_SWIZ);
+                    wgmma_n256(acc, da, db);
+                }
+                wgmma_commit();
+                wgmma_wait();
+                wgmma_fence();
+
+                // Signal that this stage's SMEM can be reused.
+                if (t_wg == 0) mbar_arrive(&mbar_empty[s]);
+            }
+
+            // Pack the 256-wide accumulator into sC's NG=4 output limbs. The
+            // m64n256 fragment is the m64n64 layout tiled along N: register group
+            // gi (0..31) covers output columns [gi*8, gi*8+8); within it this
+            // thread owns columns cb, cb+1 for rows rb and rb+8. Column c maps to
+            // limb c/64, bit c%64.
+            const int wid = t_wg >> 5, lane = t_wg & 31;
+            const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
+            uint64_t lo[NG] = {0}, hi[NG] = {0};
+            #pragma unroll
+            for (int gi = 0; gi < 32; ++gi) {
+                int c0 = cb + gi*8, c1 = c0 + 1;
+                int l0 = c0 >> 6, b0p = c0 & 63;
+                int l1 = c1 >> 6, b1p = c1 & 63;
+                lo[l0] |= (uint64_t)(acc[gi*4+0]&1) << b0p;
+                lo[l1] |= (uint64_t)(acc[gi*4+1]&1) << b1p;
+                hi[l0] |= (uint64_t)(acc[gi*4+2]&1) << b0p;
+                hi[l1] |= (uint64_t)(acc[gi*4+3]&1) << b1p;
+            }
+            // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns) get
+            // zero popcounts from the zero-padded B, so they store harmless zeros
+            // into C's padded region (trimmed on the host).
+            #pragma unroll
+            for (int g = 0; g < NG; ++g) {
+                uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rb * NG + g]);
+                uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[(rb + 8) * NG + g]);
+                atomicXor(&clo[0], (uint32_t)lo[g]);
+                atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
+                atomicXor(&chi[0], (uint32_t)hi[g]);
+                atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
+            }
         }
 
-        // Pack the 256-wide accumulator into sC's NG=4 output limbs. The
-        // m64n256 fragment is the m64n64 layout tiled along N: register group
-        // gi (0..31) covers output columns [gi*8, gi*8+8); within it this
-        // thread owns columns cb, cb+1 for rows rb and rb+8. Column c maps to
-        // limb c/64, bit c%64.
-        const int wid = t_wg >> 5, lane = t_wg & 31;
-        const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
-        uint64_t lo[NG] = {0}, hi[NG] = {0};
-        #pragma unroll
-        for (int gi = 0; gi < 32; ++gi) {
-            int c0 = cb + gi*8, c1 = c0 + 1;
-            int l0 = c0 >> 6, b0p = c0 & 63;
-            int l1 = c1 >> 6, b1p = c1 & 63;
-            lo[l0] |= (uint64_t)(acc[gi*4+0]&1) << b0p;
-            lo[l1] |= (uint64_t)(acc[gi*4+1]&1) << b1p;
-            hi[l0] |= (uint64_t)(acc[gi*4+2]&1) << b0p;
-            hi[l1] |= (uint64_t)(acc[gi*4+3]&1) << b1p;
+        // Write the 64×NG output tile back with a single TMA bulk store.
+        __syncthreads();        // sC fully packed by the consumer
+        fence_async_shared();   // make the atomicXor writes visible to the async proxy
+        if (t == 0) {
+            tma_store_2d(&tma_c, col0 * 2, row0, sC); // x in UINT32 units (2 per limb)
+            tma_store_commit();
+            tma_store_wait();
         }
-        // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns) get
-        // zero popcounts from the zero-padded B, so they store harmless zeros
-        // into C's padded region (trimmed on the host).
-        #pragma unroll
-        for (int g = 0; g < NG; ++g) {
-            uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rb * NG + g]);
-            uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[(rb + 8) * NG + g]);
-            atomicXor(&clo[0], (uint32_t)lo[g]);
-            atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
-            atomicXor(&chi[0], (uint32_t)hi[g]);
-            atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
-        }
+        __syncthreads();        // keep sC alive until the store completes, and
+                                // fence this tile before the next reuses SMEM
     }
-
-    // Write the 64×NG output tile back with a single TMA bulk store.
-    __syncthreads();        // sC fully packed by the consumer
-    fence_async_shared();   // make the atomicXor writes visible to the async proxy
-    if (t == 0) {
-        tma_store_2d(&tma_c, col0 * 2, row0, sC); // x in UINT32 units (2 per limb)
-        tma_store_commit();
-        tma_store_wait();
-    }
-    __syncthreads();        // keep sC alive until the store completes
 }

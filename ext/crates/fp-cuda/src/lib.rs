@@ -171,8 +171,14 @@ fn matmul_b1_inner(
         sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
     )?;
 
-    let grid_x = n_groups as u32;
-    let grid_y = (m_padded / TILE_M) as u32;
+    // Persistent grid: a 1-D launch of ~SM-count CTAs that sweep all output
+    // tiles in a grouped-rasterized order (kernel-side) for L2 reuse of B.
+    let total_tiles = (m_padded / TILE_M) as u32 * n_groups as u32;
+    let sms = gpu
+        .ctx
+        .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+        as u32;
+    let num_ctas = sms.min(total_tiles).max(1);
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
     let tile_a = TILE_M * KL; // 64-row A tile
@@ -190,12 +196,13 @@ fn matmul_b1_inner(
     let tb = TmaArg(tma_b);
     let tc = TmaArg(tma_c);
     let mt = m_tiles as u32;
+    let ng = n_groups as u32;
     let m_val = m_padded as u32;
     let k_val = k_padded as u32;
 
     let launch = || -> Result<(), cudarc::driver::DriverError> {
         let cfg = LaunchConfig {
-            grid_dim: (grid_x, grid_y, 1),
+            grid_dim: (num_ctas, 1, 1),
             block_dim: (THREADS, 1, 1),
             shared_mem_bytes: smem_bytes,
         };
@@ -204,6 +211,7 @@ fn matmul_b1_inner(
             .arg(&tb)
             .arg(&tc)
             .arg(&mt)
+            .arg(&ng)
             .arg(&m_val)
             .arg(&k_val);
         unsafe { lb.launch(cfg) }?;
