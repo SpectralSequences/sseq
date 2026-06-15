@@ -17,13 +17,24 @@ crate-type = ["cdylib", "rlib"]
 # uses to exercise the runtime borrow-check path. It is enabled by default so
 # that `maturin develop` + `pytest` works out of the box; build release wheels
 # with `--no-default-features --features pyo3/extension-module` to exclude it.
-default = ["test-hooks"]
+#
+# `concurrent` pulls in the rayon-backed threaded code paths of the underlying
+# crates. It is on by default for native builds, but must be dropped when
+# targeting WebAssembly/Pyodide, which has no threads by default. Build the
+# wasm extension with `--no-default-features --features pyo3/extension-module`.
+default = ["concurrent", "test-hooks"]
 test-hooks = []
+concurrent = [
+    "ext/concurrent",
+    "algebra/concurrent",
+    "fp/concurrent",
+    "sseq/concurrent",
+]
 
 [dependencies]
-ext = { path = "../ext", default-features = false, features = ["odd-primes", "concurrent"] }
-algebra = { path = "../ext/crates/algebra", default-features = false, features = ["odd-primes", "concurrent"] }
-fp = { path = "../ext/crates/fp", default-features = false, features = ["odd-primes", "concurrent"] }
+ext = { path = "../ext", default-features = false, features = ["odd-primes"] }
+algebra = { path = "../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
+fp = { path = "../ext/crates/fp", default-features = false, features = ["odd-primes"] }
 sseq = { path = "../ext/crates/sseq", default-features = false, features = ["odd-primes"] }
 bivec = { path = "../ext/crates/bivec" }
 

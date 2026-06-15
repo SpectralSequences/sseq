@@ -57,6 +57,64 @@ To run the tests:
 uv run pytest
 ```
 
+## WebAssembly / Pyodide build
+
+The crate can also be cross-compiled to a WebAssembly wheel that loads in
+[Pyodide](https://pyodide.org/) (CPython in the browser). This produces a
+`wasm32-unknown-emscripten` `abi3` extension module.
+
+Unlike the native build, the wasm build drops the `concurrent` (rayon/threads)
+feature — default Pyodide has no threads — and the dev-only `test-hooks`
+feature.
+
+### Requirements
+
+- The emscripten SDK at the **exact** version the target Pyodide release was
+  built with. Mismatched versions produce a wheel that fails to load.
+- `pyodide-build` (installed into the venv) and the matching Pyodide
+  cross-build environment.
+
+The versions are pinned in `build-pyodide.sh`:
+
+| Pyodide   | CPython | Emscripten |
+| --------- | ------- | ---------- |
+| `314.0.0` | 3.14.2  | `5.0.3`    |
+
+### Build
+
+```sh
+uv pip install pyodide-build        # one-time, into the .venv
+source .venv/bin/activate
+./build-pyodide.sh
+```
+
+The script clones/activates a local emscripten SDK under `.emsdk/`
+(gitignored), installs the Pyodide cross-build environment, and runs
+`pyodide build`. The resulting wheel lands in `dist/`:
+
+```
+dist/sseq_ext-0.1.0-cp310-abi3-emscripten_5_0_3_wasm32.whl
+```
+
+To build manually, the key steps are:
+
+```sh
+source .emsdk/emsdk_env.sh
+pyodide xbuildenv install 314.0.0
+MATURIN_PEP517_ARGS="--no-default-features --features pyo3/extension-module" \
+    pyodide build
+```
+
+### Loading in Pyodide
+
+The wheel can be installed with `micropip` (e.g. serve it over HTTP):
+
+```python
+import micropip
+await micropip.install("https://.../sseq_ext-0.1.0-cp310-abi3-emscripten_5_0_3_wasm32.whl")
+import sseq_ext
+```
+
 The test suite covers:
 
 - `tests/test_examples.py` — end-to-end smoke tests for each of the example
@@ -93,8 +151,11 @@ Release wheels can exclude the test-only hooks by building with
 
 - The interactive `query` crate is **not** bound. Examples use Python idioms
   (`sys.argv`, `argparse`, `input()`) instead.
-- Built with the default `odd-primes` feature plus `concurrent`. The `nassau`
-  feature is **not** enabled, so `QueryModuleResolution` is `Resolution<CCC>`.
+- Built with the default `odd-primes` feature. The native build also enables
+  `concurrent` (rayon threads) by default; it is exposed as a `sseq_ext` cargo
+  feature so it can be dropped for the threadless WebAssembly/Pyodide build
+  (`--no-default-features`). The `nassau` feature is **not** enabled, so
+  `QueryModuleResolution` is `Resolution<CCC>`.
 - We only bind the concrete instantiations needed by `ext::utils::construct`,
   i.e. `Resolution<CCC>` (for stable resolutions) and the matching
   `ResolutionHomomorphism`, `ChainHomotopy`, `SecondaryResolution`. Generic
