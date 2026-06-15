@@ -24,6 +24,7 @@ const KL: usize = TILE_K / 64; // 16
 const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
 const NG: u32 = 4;
 const STAGES: usize = 3; // K-loop pipeline depth; must match the kernel
+const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match the kernel
 
 /// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
 /// through cudarc's typed launch builder. `repr(transparent)` so the pointer
@@ -114,7 +115,10 @@ fn matmul_b1_inner(
     let n_lim = n.div_ceil(64);
 
     let k_padded = k.next_multiple_of(TILE_K);
-    let m_padded = m.next_multiple_of(TILE_M);
+    // Pad M to a whole number of clusters (CLUSTER M-tiles) so every cluster
+    // rank has a valid M-tile; the extra padded rows produce zeros that the
+    // `take(m)` readback trims.
+    let m_padded = m.next_multiple_of(TILE_M * CLUSTER);
     let m_tiles = m_padded / TILE_M;
     let k_chunks = k_padded / TILE_K;
     // Each CTA computes a 256-column (NG-limb) group with one m64n256 wgmma, so
@@ -173,12 +177,14 @@ fn matmul_b1_inner(
 
     // Persistent grid: a 1-D launch of ~SM-count CTAs that sweep all output
     // tiles in a grouped-rasterized order (kernel-side) for L2 reuse of B.
-    let total_tiles = (m_padded / TILE_M) as u32 * n_groups as u32;
+    // Rounded down to a whole number of clusters: __cluster_dims__ requires
+    // gridDim.x to be a multiple of CLUSTER. Surplus clusters (beyond the work)
+    // just run an empty schedule loop.
     let sms = gpu
         .ctx
         .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
         as u32;
-    let num_ctas = sms.min(total_tiles).max(1);
+    let num_ctas = (sms / CLUSTER as u32).max(1) * CLUSTER as u32;
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
     let tile_a = TILE_M * KL; // 64-row A tile
