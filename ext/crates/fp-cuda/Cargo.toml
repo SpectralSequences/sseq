@@ -8,8 +8,10 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 # This crate ships a CUDA C++ kernel (cuda_kernels/matmul_b1.cu) that is
-# compiled to PTX by nvcc at build time. The Rust side links against
-# cuda-oxide's `cuda-core` for an untyped module/launch path.
+# compiled to PTX by nvcc at build time. The Rust side uses `cudarc` (stable
+# Rust, runtime dynamic-loading of the CUDA driver) for the host driver-API
+# surface: module load, device buffers, launch, and the raw `cuTensorMapEncodeTiled`
+# call for the TMA descriptors.
 #
 # Build with:
 #   cargo build -p fp-cuda
@@ -22,7 +24,18 @@ build = "build.rs"
 
 [dependencies]
 fp = { path = "../fp", default-features = false }
-cuda-core = { git = "https://github.com/NVlabs/cuda-oxide" }
+# Driver API only; dynamic-loading means the crate builds with no CUDA present
+# (we still need nvcc at build time to produce the PTX, and a driver at runtime).
+# cuda-12080 only selects which pre-generated driver bindings to compile; with
+# dynamic-loading the actual driver is dlopen'd at runtime, so no CUDA is needed
+# to build and a newer driver (12.8+/13.x) still works.
+cudarc = { version = "0.19", default-features = false, features = [
+    "std",
+    "driver",
+    "nvrtc",
+    "cuda-12080",
+    "dynamic-loading",
+] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
