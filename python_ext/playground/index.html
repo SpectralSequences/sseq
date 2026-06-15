@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sseq_ext playground</title>
+<style>
+  :root {
+    --bg: #11111b;
+    --fg: #f5f6fc;
+    --dim: #cdd3e8;
+    --accent: #99c1ff;
+    --err: #ff8da3;
+    --in: #b9f5b0;
+    --out: #f5f6fc;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+    font-size: 14px;
+  }
+  body { display: flex; flex-direction: column; }
+  header {
+    padding: 8px 14px;
+    border-bottom: 1px solid #313244;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .status { color: var(--dim); font-size: 12px; }
+  header .spacer { flex: 1; }
+  header button {
+    background: #313244;
+    color: var(--fg);
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  header button:hover { background: #45475a; }
+  #console {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+  }
+  .line-in { color: var(--in); }
+  .line-out { color: var(--out); }
+  .line-err { color: var(--err); }
+  .line-sys { color: var(--dim); font-style: italic; }
+  #inputRow {
+    display: flex;
+    align-items: flex-start;
+    border-top: 1px solid #313244;
+    padding: 8px 14px;
+  }
+  #prompt { color: var(--accent); padding-top: 4px; user-select: none; }
+  #input {
+    flex: 1;
+    background: transparent;
+    color: var(--fg);
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 4px 0 4px 8px;
+    overflow: hidden;
+  }
+  #input:disabled { color: var(--dim); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>sseq_ext playground</h1>
+    <span class="status" id="status">booting…</span>
+    <span class="spacer"></span>
+    <button id="clearBtn" title="Clear the console output">clear</button>
+  </header>
+  <div id="console"></div>
+  <div id="inputRow">
+    <span id="prompt">&gt;&gt;&gt;</span>
+    <textarea id="input" rows="1" spellcheck="false" autocapitalize="off"
+              autocomplete="off" disabled placeholder="loading Pyodide…"></textarea>
+  </div>
+
+<!-- Must match the Pyodide release the wheel was built against (see ../build-pyodide.sh: PYODIDE_VERSION=314.0.0). -->
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.0/full/pyodide.js"></script>
+<script>
+const consoleEl = document.getElementById("console");
+const inputEl = document.getElementById("input");
+const promptEl = document.getElementById("prompt");
+const statusEl = document.getElementById("status");
+const clearBtn = document.getElementById("clearBtn");
+
+function append(text, cls) {
+  const span = document.createElement("span");
+  span.className = cls;
+  span.textContent = text.endsWith("\n") ? text : text + "\n";
+  consoleEl.appendChild(span);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function setStatus(s) { statusEl.textContent = s; }
+
+clearBtn.addEventListener("click", () => { consoleEl.textContent = ""; });
+
+// Auto-grow the textarea to fit its content.
+function autosize() {
+  inputEl.style.height = "auto";
+  inputEl.style.height = inputEl.scrollHeight + "px";
+}
+inputEl.addEventListener("input", autosize);
+
+const HISTORY_KEY = "sseq_playground_history";
+const HISTORY_MAX = 500;
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveHistory() {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-HISTORY_MAX)));
+  } catch (_) {}
+}
+
+const history = loadHistory();
+let histIdx = history.length;
+
+let pyodide = null;
+let pyConsole = null;       // PyodideConsole instance
+let awaitFut = null;        // last pending future
+
+async function boot() {
+  setStatus("loading Pyodide…");
+  pyodide = await loadPyodide();
+
+  setStatus("locating wheel…");
+  let wheelUrl;
+  try {
+    const resp = await fetch("./wheel.json");
+    if (!resp.ok) throw new Error(resp.statusText);
+    const info = await resp.json();
+    wheelUrl = info.url;
+  } catch (e) {
+    append("Could not find the sseq_ext wheel. Run via serve.py so /wheel.json is available.\n" + e, "line-err");
+    setStatus("no wheel");
+    return;
+  }
+
+  setStatus("installing sseq_ext…");
+  await pyodide.loadPackage("micropip");
+  const micropip = pyodide.pyimport("micropip");
+  try {
+    await micropip.install(wheelUrl);
+  } catch (e) {
+    append("Failed to install wheel: " + e, "line-err");
+    setStatus("install failed");
+    return;
+  }
+
+  setStatus("loading modules…");
+  // ext.construct("S_2") reads module definitions from `steenrod_modules/`
+  // in the working directory. Pyodide's virtual FS is empty, so populate it.
+  try {
+    const resp = await fetch("./modules.json");
+    if (!resp.ok) throw new Error(resp.statusText);
+    const modules = await resp.json();
+    const cwd = await pyodide.runPythonAsync("import os; os.getcwd()");
+    const dir = cwd + "/steenrod_modules";
+    pyodide.FS.mkdirTree(dir);
+    for (const [name, content] of Object.entries(modules)) {
+      pyodide.FS.writeFile(dir + "/" + name + ".json", content);
+    }
+  } catch (e) {
+    append("Could not load steenrod_modules (ext.construct will fail): " + e, "line-err");
+  }
+
+  setStatus("starting REPL…");
+  // Set up a PyodideConsole that gives real REPL semantics:
+  // last-expression echo, multi-line continuation, tracebacks.
+  pyConsole = await pyodide.runPythonAsync(`
+import sseq_ext as ext
+from pyodide.console import PyodideConsole
+import __main__
+__main__.__dict__["ext"] = ext
+_c = PyodideConsole(__main__.__dict__)
+_c
+`);
+
+  // Route the console's stdout/stderr into our DOM.
+  pyConsole.stdout_callback = (s) => append(s, "line-out");
+  pyConsole.stderr_callback = (s) => append(s, "line-err");
+
+  append("sseq_ext playground — Pyodide " + pyodide.version, "line-sys");
+  append("'ext' is preloaded (import sseq_ext as ext). Try:\n  res = ext.construct('S_2'); res.compute_through_stem(ext.Bidegree.n_s(20, 7)); print(res.graded_dimension_string())", "line-sys");
+
+  inputEl.disabled = false;
+  inputEl.placeholder = "";
+  inputEl.focus();
+  setStatus("ready");
+}
+
+async function runLine() {
+  const source = inputEl.value.replace(/\n$/, "");
+  // Echo the input with the appropriate prompt.
+  const lines = source.split("\n");
+  lines.forEach((l, i) => append((i === 0 ? ">>> " : "... ") + l, "line-in"));
+
+  if (source.trim() !== "" && history[history.length - 1] !== source) {
+    history.push(source);
+    saveHistory();
+  }
+  histIdx = history.length;
+
+  inputEl.value = "";
+  autosize();
+
+  inputEl.disabled = true;
+  setStatus("running…");
+  try {
+    const future = pyConsole.push(source);
+    promptEl.textContent = ">>>";
+    const status = future.syntax_check;
+    if (status === "incomplete") {
+      // Shouldn't happen here since we only push on a complete block,
+      // but guard anyway.
+      promptEl.textContent = "...";
+    }
+    const result = await future;
+    if (result !== undefined && result !== null) {
+      append(reprOf(result), "line-out");
+    }
+    if (future.destroy) future.destroy();
+  } catch (e) {
+    append(String(e), "line-err");
+  } finally {
+    inputEl.disabled = false;
+    inputEl.focus();
+    setStatus("ready");
+  }
+}
+
+function reprOf(obj) {
+  try {
+    if (obj && typeof obj.toString === "function") return obj.toString();
+  } catch (_) {}
+  return String(obj);
+}
+
+// Decide whether the current textarea content forms a complete statement.
+// We let Python tell us via codeop-like behaviour exposed by PyodideConsole.
+async function isComplete(src) {
+  // A blank trailing line after an indented block is the universal "run now"
+  // signal in REPLs. Otherwise ask Python.
+  try {
+    const complete = await pyodide.runPythonAsync(`
+import codeop
+def _check(s):
+    try:
+        return codeop.compile_command(s, "<input>", "single") is not None
+    except (SyntaxError, OverflowError, ValueError):
+        return True  # let the real push surface the error
+_check(${JSON.stringify(src)})
+`);
+    return complete;
+  } catch (_) {
+    return true;
+  }
+}
+
+function commonPrefix(strs) {
+  if (strs.length === 0) return "";
+  let prefix = strs[0];
+  for (const s of strs) {
+    while (!s.startsWith(prefix)) prefix = prefix.slice(0, -1);
+    if (prefix === "") break;
+  }
+  return prefix;
+}
+
+function insertCompletion(start, pos, text) {
+  const before = inputEl.value.slice(0, start);
+  const after = inputEl.value.slice(pos);
+  inputEl.value = before + text + after;
+  const caret = (before + text).length;
+  inputEl.selectionStart = inputEl.selectionEnd = caret;
+  autosize();
+}
+
+// Tab completion via PyodideConsole.complete(), which uses rlcompleter against
+// the live namespace (so `ext.`, locals, builtins, keywords all complete).
+async function complete() {
+  if (!pyConsole) return;
+  const pos = inputEl.selectionStart;
+  const src = inputEl.value.slice(0, pos);
+  let proxy;
+  try {
+    proxy = pyConsole.complete(src);
+  } catch (_) {
+    return;
+  }
+  const [matches, start] = proxy.toJs();
+  if (proxy.destroy) proxy.destroy();
+
+  if (!matches || matches.length === 0) return;
+  const current = src.slice(start);
+
+  if (matches.length === 1) {
+    insertCompletion(start, pos, matches[0]);
+    return;
+  }
+  const prefix = commonPrefix(matches);
+  if (prefix.length > current.length) {
+    insertCompletion(start, pos, prefix);
+  } else {
+    // Ambiguous: show the candidates and keep what was typed.
+    append(matches.join("    "), "line-sys");
+  }
+}
+
+inputEl.addEventListener("keydown", async (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    await complete();
+    return;
+  }
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    const src = inputEl.value;
+    // Multi-line block: an empty final line forces execution.
+    const endsBlank = /\n\s*$/.test(src) || !src.includes("\n");
+    const complete = await isComplete(src.replace(/\n$/, ""));
+    if (complete || endsBlank) {
+      await runLine();
+    } else {
+      // Continue the block.
+      inputEl.value += "\n";
+      autosize();
+    }
+  } else if (e.key === "ArrowUp" && inputEl.selectionStart === 0) {
+    e.preventDefault();
+    if (histIdx > 0) {
+      histIdx--;
+      inputEl.value = history[histIdx];
+      autosize();
+    }
+  } else if (e.key === "ArrowDown" && inputEl.selectionStart === inputEl.value.length) {
+    e.preventDefault();
+    if (histIdx < history.length - 1) {
+      histIdx++;
+      inputEl.value = history[histIdx];
+    } else {
+      histIdx = history.length;
+      inputEl.value = "";
+    }
+    autosize();
+  }
+});
+
+boot().catch((e) => {
+  append("Boot error: " + e, "line-err");
+  setStatus("error");
+});
+</script>
+</body>
+</html>
