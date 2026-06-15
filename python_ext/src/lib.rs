@@ -50,13 +50,13 @@ fn _sseq_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<fp_types::AugmentedMatrixSegmentViewMut>()?;
     m.add_class::<fp_types::Subspace>()?;
     m.add_class::<resolution::Resolution>()?;
+    m.add_class::<resolution::FreeModule>()?;
     m.add_class::<homomorphism::FreeModuleHomomorphism>()?;
     m.add_class::<homomorphism::ResolutionHomomorphism>()?;
     m.add_class::<homomorphism::ChainHomotopy>()?;
     m.add_class::<secondary::SecondaryResolution>()?;
     m.add_class::<secondary::SecondaryHomotopy>()?;
     m.add_class::<sseq_types::Sseq>()?;
-    m.add_class::<sseq_types::Product>()?;
     Ok(())
 }
 

@@ -32,6 +32,7 @@ impl MilnorAlgebra {
         })
     }
 
+    #[getter]
     fn prime(&self) -> u32 {
         self.inner.prime().as_u32()
     }
@@ -43,8 +44,19 @@ impl MilnorAlgebra {
     }
 
     /// `dim A_t`.
-    fn dimension(&self, t: i32) -> usize {
-        self.inner.dimension(t)
+    ///
+    /// Ensures the basis is computed up to degree `t` first (idempotent and
+    /// cheap), so this never panics on an out-of-range degree. Negative
+    /// degrees are empty by convention (and must not be passed to
+    /// `compute_basis`, which would interpret them as a huge `usize`).
+    fn dimension(&self, t: i32, py: Python<'_>) -> usize {
+        if t < 0 {
+            return 0;
+        }
+        py.detach(|| {
+            self.inner.compute_basis(t);
+            self.inner.dimension(t)
+        })
     }
 
     fn __repr__(&self) -> String {

@@ -199,6 +199,24 @@ impl BidegreeGenerator {
     fn __len__(&self) -> usize {
         2
     }
+
+    /// `g[0]` is the degree (a `Bidegree`), `g[1]` is the index. Supports
+    /// negative indices, completing the sequence protocol implied by
+    /// `__len__`/`__iter__`.
+    fn __getitem__(&self, py: Python<'_>, idx: isize) -> PyResult<Py<PyAny>> {
+        match idx {
+            0 | -2 => Ok(Bidegree {
+                inner: self.inner.degree(),
+            }
+            .into_pyobject(py)?
+            .into_any()
+            .unbind()),
+            1 | -1 => Ok(self.inner.idx().into_pyobject(py)?.into_any().unbind()),
+            _ => Err(pyo3::exceptions::PyIndexError::new_err(
+                "BidegreeGenerator index out of range (expected 0 or 1)",
+            )),
+        }
+    }
 }
 
 /// An element of a bidegree, represented as a vector in the canonical basis.
@@ -249,12 +267,27 @@ impl BidegreeElement {
     }
 
     /// Return an owned copy of the underlying vector.
+    #[getter]
     fn vec(&self) -> FpVector {
         FpVector::new_owned(self.inner.vec().to_owned())
     }
 
     fn to_basis_string(&self) -> String {
         self.inner.to_basis_string()
+    }
+
+    /// Value equality: two `BidegreeElement`s are equal iff they have the
+    /// same degree and the same underlying vector.
+    fn __eq__(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        self.inner.hash(&mut hasher);
+        hasher.finish()
     }
 
     fn __repr__(&self) -> String {

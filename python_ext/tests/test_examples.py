@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -48,16 +49,29 @@ def test_chart_runs():
 
 def test_secondary_runs():
     out = run_example("secondary", "S_2", "8", "6")
-    # `secondary` produces lines like `d_2 x_(...) = [...]`
-    assert "d_2 x_" in out
+    # `secondary` produces lines like `d_2 x_(...) = [...]`. Pin the exact
+    # set of d_2 values in this range so a regression that returns garbage
+    # (or stops computing) fails rather than silently passing.
+    d2 = dict(re.findall(r"d_2 (x_\([^)]*\)) = (\[[^\]]*\])", out))
+    assert d2 == {
+        "x_(1, 1, 0)": "[0]",
+        "x_(8, 2, 0)": "[0]",
+    }
 
 
 def test_massey_h0_h0_runs():
     # <h0, h0, ->: h0 in (0, 1), [1]
     stdin = "0\n1\n[1]\n0\n1\n[1]\n"
     out = run_example("massey", "S_2", "10", "5", stdin=stdin)
-    # Massey product output starts with "<a, b, ..."
-    assert "<a, b," in out
+    # Pin the exact Massey products computed in this range.
+    products = dict(re.findall(r"<a, b, (x_\([^)]*\))> = (\[[^\]]*\])", out))
+    assert products == {
+        "x_(1, 1, 0)": "[0]",
+        "x_(2, 2, 0)": "[0]",
+        "x_(6, 2, 0)": "[0]",
+        "x_(8, 2, 0)": "[0]",
+        "x_(8, 3, 0)": "[0]",
+    }
 
 
 def test_in_process_basic_resolve():

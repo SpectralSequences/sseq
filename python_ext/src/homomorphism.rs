@@ -6,17 +6,18 @@ use std::sync::Arc;
 use algebra::SteenrodAlgebra;
 use algebra::module::FreeModule;
 use algebra::module::homomorphism::FreeModuleHomomorphism as InnerFMH;
-use ext::chain_complex::ChainHomotopy as InnerCH;
+use ext::chain_complex::{ChainComplex, ChainHomotopy as InnerCH};
 use ext::resolution_homomorphism::ResolutionHomomorphism as InnerRH;
 use ext::utils::QueryModuleResolution;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use crate::coordinates::Bidegree;
 use crate::fp_types::{FpVector, Matrix};
 use crate::resolution::Resolution;
 
-// (FreeModuleHomomorphism::output now constructs an owned FpVector via
-// `FpVector::owned`; see fp_types.rs.)
+// (FreeModuleHomomorphism::output constructs an owned FpVector via
+// `FpVector::new_owned`; see fp_types.rs.)
 
 /// `FreeModuleHomomorphism<MuFreeModule<false, SteenrodAlgebra>>` —
 /// the differential of a resolution.
@@ -70,7 +71,8 @@ impl ResolutionHomomorphism {
     /// Construct a chain map representing the given Ext class.
     ///
     /// The class is supplied as a list of integers, of length
-    /// ``source.module(shift.s).number_of_gens_in_degree(shift.t)``.
+    /// ``source.module(shift.s).number_of_gens_in_degree(shift.t)``. Raises
+    /// `ValueError` if `class` has the wrong length.
     #[staticmethod]
     fn from_class(
         name: String,
@@ -78,8 +80,21 @@ impl ResolutionHomomorphism {
         target: &Resolution,
         shift: &Bidegree,
         class: Vec<u32>,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        let num_gens = source
+            .arc()
+            .module(shift.inner.s())
+            .number_of_gens_in_degree(shift.inner.t());
+        if num_gens != class.len() {
+            return Err(PyValueError::new_err(format!(
+                "class has length {} but source has {num_gens} generators in \
+                 bidegree (s={}, t={})",
+                class.len(),
+                shift.inner.s(),
+                shift.inner.t(),
+            )));
+        }
+        Ok(Self {
             inner: Arc::new(InnerRH::from_class(
                 name,
                 source.arc(),
@@ -87,9 +102,10 @@ impl ResolutionHomomorphism {
                 shift.inner,
                 &class,
             )),
-        }
+        })
     }
 
+    #[getter]
     fn name(&self) -> String {
         self.inner.name().to_owned()
     }
@@ -166,13 +182,19 @@ pub struct ChainHomotopy {
 #[pymethods]
 impl ChainHomotopy {
     /// `ChainHomotopy::new(left, right)`. The two `ResolutionHomomorphism`s
-    /// must satisfy `left.target == right.source` (this is checked at
-    /// runtime).
+    /// must be composable: `left.target` must be the same resolution as
+    /// `right.source`. Raises `ValueError` otherwise.
     #[new]
-    fn new(left: &ResolutionHomomorphism, right: &ResolutionHomomorphism) -> Self {
-        Self {
-            inner: Arc::new(InnerCH::new(left.arc(), right.arc())),
+    fn new(left: &ResolutionHomomorphism, right: &ResolutionHomomorphism) -> PyResult<Self> {
+        if !Arc::ptr_eq(&left.inner.target, &right.inner.source) {
+            return Err(PyValueError::new_err(
+                "ChainHomotopy(left, right) requires left.target to be the \
+                 same resolution as right.source",
+            ));
         }
+        Ok(Self {
+            inner: Arc::new(InnerCH::new(left.arc(), right.arc())),
+        })
     }
 
     fn shift(&self) -> Bidegree {

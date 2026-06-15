@@ -1,0 +1,5 @@
+[toolchain]
+# This workspace (notably the `fp` crate's edition-2024 code and its AVX-512
+# SIMD intrinsics) tracks current stable Rust, matching the rest of the repo.
+# A recent stable toolchain (>= 1.89) is required.
+channel = "stable"

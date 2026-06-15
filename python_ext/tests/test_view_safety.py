@@ -99,10 +99,59 @@ def test_matrix_row_bounds():
         _ = m.mut[99]
 
 
-def test_augmented_segment_bounds():
+def test_augmented_row_bounds():
     am = ext.AugmentedMatrix(P2, 2, [3, 2])
+    # Out-of-range *row* (the matrix has 2 rows), valid segment.
     with pytest.raises(IndexError):
         _ = am.const[5, 0]
+
+
+def test_augmented_segment_bounds():
+    """Out-of-range or reversed *segment* keys must raise IndexError, not
+    panic. (Regression test: this path previously bypassed validation and
+    panicked / underflowed the view length.)"""
+    am = ext.AugmentedMatrix(P2, 2, [3, 2])  # 2 segments
+    # Segment index too large.
+    with pytest.raises(IndexError):
+        _ = am.const[0, 5]
+    with pytest.raises(IndexError):
+        _ = am.mut[0, 5]
+    # Reversed segment range.
+    with pytest.raises(IndexError):
+        _ = am.const[0, (1, 0)]
+    # Out-of-range end of a range.
+    with pytest.raises(IndexError):
+        _ = am.const[0, (0, 9)]
+    # The segment accessor path must reject the same keys.
+    with pytest.raises(IndexError):
+        _ = am.segment_const[5]
+    with pytest.raises(IndexError):
+        _ = am.segment_const[1, 0]
+
+
+def test_augmented_three_segments():
+    """3-segment AugmentedMatrix: segment views over all three segments and
+    the compute_image rejection path. (Note: segments are limb-padded, so
+    the flat column count is larger than the sum of segment widths.)"""
+    am = ext.AugmentedMatrix(P2, 2, [2, 2, 2])  # 3 segments, each 2 cols
+    # Each individual segment has its logical width.
+    assert am.segment_const[0].columns() == 2
+    assert am.segment_const[1].columns() == 2
+    assert am.segment_const[2].columns() == 2
+    # A multi-segment span includes inter-segment padding.
+    assert am.segment_const[0, 2].columns() >= 6
+    # The last segment is square (2x2): write the identity and read it back
+    # in segment-local coordinates.
+    am.segment_mut[2].add_identity()
+    assert am.const[0, 2].to_list() == [1, 0]
+    assert am.const[1, 2].to_list() == [0, 1]
+    # Mutable single-segment view, segment-local coordinates.
+    s0 = am.mut[0, 0]
+    s0[1] = 1
+    assert am.const[0, 0].to_list() == [0, 1]
+    # compute_image is only defined for 2-segment matrices.
+    with pytest.raises(ValueError):
+        am.compute_image()
 
 
 def test_augmented_segment_bad_key():
@@ -326,9 +375,20 @@ def test_matrix_segment_aliasing():
 
 # ---------------------------------------------------------------------------
 # 6. Re-entrancy via Rust-side test hook
+#
+# The `_test_op_during_self_borrow_mut` hook is gated behind the `test-hooks`
+# cargo feature (on by default for dev builds, off for release wheels). Skip
+# these tests if the extension was built without it.
 # ---------------------------------------------------------------------------
 
+_has_test_hook = hasattr(ext.Matrix, "_test_op_during_self_borrow_mut")
+requires_test_hook = pytest.mark.skipif(
+    not _has_test_hook,
+    reason="extension built without the `test-hooks` feature",
+)
 
+
+@requires_test_hook
 def test_borrow_check_fires_on_self_view():
     """The Rust test hook holds borrow_mut on the matrix, then tries to
     write through a view of itself. The view's borrow_mut should fail."""
@@ -338,6 +398,7 @@ def test_borrow_check_fires_on_self_view():
         m._test_op_during_self_borrow_mut(view)
 
 
+@requires_test_hook
 def test_borrow_check_does_not_fire_on_unrelated_view():
     """If the view points at a different parent, the test hook on `m1`
     only borrows `m1`, leaving `m2`-views fully usable."""
@@ -349,6 +410,7 @@ def test_borrow_check_does_not_fire_on_unrelated_view():
     assert m2[0, 0] == 1
 
 
+@requires_test_hook
 def test_borrow_check_with_owned_vector():
     """Owned vectors have no parent, so the test hook on a matrix should
     succeed regardless."""
@@ -365,7 +427,7 @@ def test_borrow_check_with_owned_vector():
 
 def _random_op(rng: random.Random, v: ext.FpVector, snapshot: list[int]) -> None:
     """Apply a random op to `v` and update `snapshot` to match."""
-    p = int(v.prime())
+    p = int(v.prime)
     n = len(v)
     if n == 0:
         return

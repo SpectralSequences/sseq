@@ -29,13 +29,13 @@ from ._sseq_ext import (  # noqa: F401
     Subspace,
     construct,
     Resolution,
+    FreeModule,
     FreeModuleHomomorphism,
     ResolutionHomomorphism,
     ChainHomotopy,
     SecondaryResolution,
     SecondaryHomotopy,
     Sseq,
-    Product,
     write_sseq_svg,
 )
 
@@ -59,12 +59,12 @@ __all__ = [
     "Subspace",
     "construct",
     "Resolution",
+    "FreeModule",
     "FreeModuleHomomorphism",
     "ResolutionHomomorphism",
     "ChainHomotopy",
     "SecondaryResolution",
     "SecondaryHomotopy",
     "Sseq",
-    "Product",
     "write_sseq_svg",
 ]

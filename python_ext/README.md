@@ -26,8 +26,9 @@ straightforward extension of the existing scaffolding.
 
 ## Install
 
-This crate is built with [maturin](https://www.maturin.rs/). Using
-[`uv`](https://docs.astral.sh/uv/) and Python 3.14:
+This crate is built with [maturin](https://www.maturin.rs/). It produces an
+`abi3` extension compatible with CPython >= 3.10. Using
+[`uv`](https://docs.astral.sh/uv/):
 
 ```sh
 cd python_ext
@@ -58,21 +59,33 @@ uv run pytest
 
 The test suite covers:
 
-- `tests/test_examples.py` — end-to-end smoke tests for the five example
-  scripts.
+- `tests/test_examples.py` — end-to-end smoke tests for each of the example
+  scripts (with exact-output assertions where the computation is small and
+  deterministic).
 - `tests/test_views.py` — basic correctness of the `FpVector` view system
   (slicing, owned/view/view-mut transitions, composition).
+- `tests/test_coordinates.py` — `Bidegree` / `BidegreeGenerator` /
+  `BidegreeElement` behaviour.
+- `tests/test_api_fixes.py` — negative indexing, getter consistency
+  (`prime`/`name`), typed exceptions in place of panics, and coverage of the
+  `Subspace` and coordinate types.
 - `tests/test_view_safety.py` — exhaustive safety tests:
-  - Slice arithmetic & out-of-bounds handling.
+  - Slice arithmetic & out-of-bounds handling (including out-of-range and
+    reversed `AugmentedMatrix` segment keys, and 3-segment matrices).
   - Read-only enforcement (writes through a `View` raise).
   - Lifetime / GC (parent kept alive by view; cleaned up when both go).
   - Mutation visibility between parent and view.
   - Aliasing semantics for overlapping `ViewMut`s.
-  - Re-entrancy: a Rust-side test hook holds `borrow_mut` on a `Matrix`
-    and tries to write through a view; the runtime borrow check fires
-    with `BufferError`.
+  - Re-entrancy: a Rust-side test hook (gated behind the `test-hooks` cargo
+    feature, on by default for dev builds) holds `borrow_mut` on a `Matrix`
+    and tries to write through a view; the runtime borrow check fires with
+    `BufferError`. These tests are skipped if the extension was built
+    without the feature.
   - Random-op stress tests for owned vectors, matrix row views, and
     overlapping slices, cross-checked against a Python-side snapshot.
+
+Release wheels can exclude the test-only hooks by building with
+`--no-default-features --features pyo3/extension-module`.
 
 ## Design notes
 

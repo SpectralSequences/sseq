@@ -17,12 +17,24 @@
 //! `pyclass`. This means a view becomes safe to use as soon as the parent
 //! is no longer being mutated through Python.
 //!
-//! Methods like `slice` / `slice_mut` / `Matrix.row_view_mut` /
-//! `AugmentedMatrix.row_segment_view_mut` return a view. Methods like
-//! `Matrix.extend_column_dimension` (not exposed) would invalidate the
-//! view's indices; we deliberately don't expose any such method.
+//! The `.const` / `.mut` accessors on `FpVector`, `Matrix`, and
+//! `AugmentedMatrix` (e.g. `v.const[a:b]`, `m.mut[row]`, `am.const[row, seg]`)
+//! return views.
+//!
+//! ## Storage-stability invariant
+//!
+//! The view machinery stores a raw pointer to the parent's inline `FV`/`M`
+//! storage, derived once at view-creation time. This is only sound while
+//! that storage neither moves nor is reallocated for the lifetime of the
+//! view. pyo3 heap-pins the parent `pyclass` (and the view holds a `Py`
+//! handle keeping it alive), so the *struct* never moves. The remaining
+//! requirement is that we never expose a method that resizes the underlying
+//! buffer or reassigns the `FpVectorKind::Owned` / `Matrix::inner` field
+//! (e.g. `Matrix::extend_column_dimension`, an `FpVector` push/resize): any
+//! such method would invalidate every live view's pointer/indices. We
+//! deliberately expose no such method; `with_slice`/`with_slice_mut`
+//! additionally `debug_assert!` that the cached length still matches.
 
-use anyhow::anyhow;
 use fp::{
     matrix::{self as m, AugmentedMatrix as AM, Matrix as M, Subspace as S},
     prime::{Prime, ValidPrime as VP},
@@ -35,6 +47,16 @@ use pyo3::types::{PySlice, PyType};
 /// Convert a plain `u32` (from Python) to a validated `VP`.
 fn vp_from_u32(p: u32) -> PyResult<VP> {
     VP::try_from(p).map_err(|e| PyValueError::new_err(format!("Invalid prime: {e}")))
+}
+
+/// Normalize a (possibly negative) Python index into `0..len`, following
+/// Python's end-relative convention. Raises `IndexError` if out of range.
+fn normalize_index(i: isize, len: usize) -> PyResult<usize> {
+    let adjusted = if i < 0 { i + len as isize } else { i };
+    if adjusted < 0 || adjusted as usize >= len {
+        return Err(PyIndexError::new_err("index out of range"));
+    }
+    Ok(adjusted as usize)
 }
 
 /// Resolve a Python `slice` to `(start, end)` indices into a sequence of
@@ -128,6 +150,10 @@ impl ViewSource {
     unsafe fn with_slice<R>(&self, f: impl FnOnce(FpSlice<'_>) -> R) -> R {
         match *self {
             ViewSource::FpVec { ptr, start, end } => {
+                // The parent buffer must not have shrunk since the view was
+                // created (see the storage-stability invariant in the module
+                // docs); we never expose a method that would do so.
+                debug_assert!(end <= unsafe { (*ptr).len() });
                 let s = unsafe { (*ptr).slice(start, end) };
                 f(s)
             }
@@ -137,6 +163,7 @@ impl ViewSource {
                 start,
                 end,
             } => {
+                debug_assert!(end <= unsafe { (*ptr).columns() });
                 let row_slice = unsafe { (*ptr).row(row) };
                 f(row_slice.restrict(start, end))
             }
@@ -148,6 +175,7 @@ impl ViewSource {
     unsafe fn with_slice_mut<R>(&mut self, f: impl FnOnce(FpSliceMut<'_>) -> R) -> R {
         match *self {
             ViewSource::FpVec { ptr, start, end } => {
+                debug_assert!(end <= unsafe { (*ptr).len() });
                 let s = unsafe { (*ptr).slice_mut(start, end) };
                 f(s)
             }
@@ -157,6 +185,7 @@ impl ViewSource {
                 start,
                 end,
             } => {
+                debug_assert!(end <= unsafe { (*ptr).columns() });
                 // We first get a long-lived `&mut Matrix`, then derive the
                 // row slice in a single expression that returns through `f`.
                 let mat: &mut M = unsafe { &mut *ptr };
@@ -448,6 +477,7 @@ impl FpVector {
         Ok(Self::new_owned(FV::from_slice(p, &slice)))
     }
 
+    #[getter]
     fn prime(&self) -> u32 {
         self.prime.as_u32()
     }
@@ -504,11 +534,9 @@ impl FpVector {
         key: Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
-        if let Ok(i) = key.extract::<usize>() {
+        if let Ok(i) = key.extract::<isize>() {
             let r = slf.borrow();
-            if i >= r.len {
-                return Err(PyIndexError::new_err("FpVector index out of range"));
-            }
+            let i = normalize_index(i, r.len)?;
             let val = r.with_slice(py, |s| s.entry(i))?;
             return Ok(val.into_pyobject(py)?.into_any());
         }
@@ -534,10 +562,8 @@ impl FpVector {
         ))
     }
 
-    fn __setitem__(&mut self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
-        if index >= self.len {
-            return Err(PyIndexError::new_err("FpVector index out of range"));
-        }
+    fn __setitem__(&mut self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
+        let index = normalize_index(index, self.len)?;
         self.with_slice_mut(py, |mut s| s.set_entry(index, value))
     }
 
@@ -612,6 +638,7 @@ impl Matrix {
         Ok((cols, Self { inner: mat }))
     }
 
+    #[getter]
     fn prime(&self) -> u32 {
         self.inner.prime().as_u32()
     }
@@ -625,26 +652,20 @@ impl Matrix {
     }
 
     /// `m[row, col]` returns the entry at `(row, col)` as an integer.
-    fn __getitem__(&self, key: (usize, usize)) -> PyResult<u32> {
+    /// Negative indices count from the end.
+    fn __getitem__(&self, key: (isize, isize)) -> PyResult<u32> {
         let (row, col) = key;
-        if row >= self.inner.rows() {
-            return Err(PyIndexError::new_err("row index out of range"));
-        }
-        if col >= self.inner.columns() {
-            return Err(PyIndexError::new_err("column index out of range"));
-        }
+        let row = normalize_index(row, self.inner.rows())?;
+        let col = normalize_index(col, self.inner.columns())?;
         Ok(self.inner.row(row).entry(col))
     }
 
-    /// `m[row, col] = value` sets the entry at `(row, col)`.
-    fn __setitem__(&mut self, key: (usize, usize), value: u32) -> PyResult<()> {
+    /// `m[row, col] = value` sets the entry at `(row, col)`. Negative indices
+    /// count from the end.
+    fn __setitem__(&mut self, key: (isize, isize), value: u32) -> PyResult<()> {
         let (row, col) = key;
-        if row >= self.inner.rows() {
-            return Err(PyIndexError::new_err("row index out of range"));
-        }
-        if col >= self.inner.columns() {
-            return Err(PyIndexError::new_err("column index out of range"));
-        }
+        let row = normalize_index(row, self.inner.rows())?;
+        let col = normalize_index(col, self.inner.columns())?;
         self.inner.row_mut(row).set_entry(col, value);
         Ok(())
     }
@@ -699,7 +720,9 @@ impl Matrix {
     ///
     /// This is exposed solely so the safety-test suite can exercise the
     /// runtime borrow-check path without requiring re-entrant pyclass
-    /// callbacks (which we never produce in normal operation).
+    /// callbacks (which we never produce in normal operation). Gated behind
+    /// the `test-hooks` feature so it can be excluded from release wheels.
+    #[cfg(feature = "test-hooks")]
     #[pyo3(name = "_test_op_during_self_borrow_mut")]
     fn test_op_during_self_borrow_mut(
         slf: Bound<'_, Self>,
@@ -823,14 +846,10 @@ impl AugmentedMatrix {
     /// `am[row, col]` returns the entry at `(row, col)` (in flat-matrix
     /// coordinates) as an integer. For segment-relative access use
     /// `am.const[row, seg][col]`.
-    fn __getitem__(&self, key: (usize, usize)) -> PyResult<u32> {
+    fn __getitem__(&self, key: (isize, isize)) -> PyResult<u32> {
         let (row, col) = key;
-        if row >= self.inner.rows() {
-            return Err(PyIndexError::new_err("row index out of range"));
-        }
-        if col >= self.inner.columns() {
-            return Err(PyIndexError::new_err("column index out of range"));
-        }
+        let row = normalize_index(row, self.inner.rows())?;
+        let col = normalize_index(col, self.inner.columns())?;
         let val = match &self.inner {
             AugmentedInner::N2(m) => m.row(row).entry(col),
             AugmentedInner::N3(m) => m.row(row).entry(col),
@@ -839,15 +858,11 @@ impl AugmentedMatrix {
     }
 
     /// `am[row, col] = value` sets the entry at `(row, col)` in flat-matrix
-    /// coordinates.
-    fn __setitem__(&mut self, key: (usize, usize), value: u32) -> PyResult<()> {
+    /// coordinates. Negative indices count from the end.
+    fn __setitem__(&mut self, key: (isize, isize), value: u32) -> PyResult<()> {
         let (row, col) = key;
-        if row >= self.inner.rows() {
-            return Err(PyIndexError::new_err("row index out of range"));
-        }
-        if col >= self.inner.columns() {
-            return Err(PyIndexError::new_err("column index out of range"));
-        }
+        let row = normalize_index(row, self.inner.rows())?;
+        let col = normalize_index(col, self.inner.columns())?;
         match &mut self.inner {
             AugmentedInner::N2(m) => m.row_mut(row).set_entry(col, value),
             AugmentedInner::N3(m) => m.row_mut(row).set_entry(col, value),
@@ -940,12 +955,11 @@ impl Subspace {
 
     fn contains(&self, py: Python<'_>, vec: &FpVector) -> PyResult<bool> {
         if vec.len != self.inner.ambient_dimension() {
-            return Err(anyhow!(
+            return Err(PyValueError::new_err(format!(
                 "Vector length {} doesn't match ambient dimension {}",
                 vec.len,
                 self.inner.ambient_dimension()
-            )
-            .into());
+            )));
         }
         vec.with_slice(py, |s| self.inner.contains(s))
     }
@@ -1025,7 +1039,7 @@ impl FpVector {
 fn make_matrix_row_view(
     py: Python<'_>,
     matrix: &Py<Matrix>,
-    row: usize,
+    row: isize,
     mutable: bool,
 ) -> PyResult<FpVector> {
     let bound = matrix.bind(py);
@@ -1033,9 +1047,7 @@ fn make_matrix_row_view(
         let r = bound.borrow();
         (r.inner.rows(), r.inner.columns(), r.inner.prime())
     };
-    if row >= rows {
-        return Err(PyIndexError::new_err("row index out of range"));
-    }
+    let row = normalize_index(row, rows)?;
     let ptr = bound.borrow_mut().raw_ptr();
     let owner = ViewOwner::Matrix(matrix.clone_ref(py));
     let source = ViewSource::MatRow {
@@ -1064,7 +1076,7 @@ pub struct MatrixView {
 
 #[pymethods]
 impl MatrixView {
-    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+    fn __getitem__(&self, py: Python<'_>, row: isize) -> PyResult<FpVector> {
         make_matrix_row_view(py, &self.matrix, row, false)
     }
 
@@ -1086,7 +1098,7 @@ pub struct MatrixViewMut {
 
 #[pymethods]
 impl MatrixViewMut {
-    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+    fn __getitem__(&self, py: Python<'_>, row: isize) -> PyResult<FpVector> {
         make_matrix_row_view(py, &self.matrix, row, true)
     }
 
@@ -1117,7 +1129,7 @@ fn resolve_seg_key(seg: &Bound<'_, PyAny>) -> PyResult<(usize, usize)> {
 fn make_augmented_row_view(
     py: Python<'_>,
     matrix: &Py<AugmentedMatrix>,
-    row: usize,
+    row: isize,
     seg_range: Option<(usize, usize)>,
     mutable: bool,
 ) -> PyResult<FpVector> {
@@ -1132,14 +1144,16 @@ fn make_augmented_row_view(
                 r.inner.columns(),
             ),
             Some((start_seg, end_seg)) => {
+                // Validate before calling `segment_range`, which indexes
+                // fixed-size arrays and would otherwise panic on an
+                // out-of-range segment or underflow on a reversed range.
+                check_segment_range(&r.inner, start_seg, end_seg)?;
                 let (s, e) = r.inner.segment_range(start_seg, end_seg);
                 (r.inner.rows(), r.inner.prime(), s, e)
             }
         }
     };
-    if row >= rows {
-        return Err(PyIndexError::new_err("row index out of range"));
-    }
+    let row = normalize_index(row, rows)?;
     let ptr = bound.borrow_mut().inner.matrix_ptr();
     let owner = ViewOwner::AugmentedMatrix(matrix.clone_ref(py));
     let source = ViewSource::MatRow {
@@ -1172,11 +1186,11 @@ impl AugmentedMatrixView {
         py: Python<'py>,
         key: Bound<'py, PyAny>,
     ) -> PyResult<FpVector> {
-        if let Ok(row) = key.extract::<usize>() {
+        if let Ok(row) = key.extract::<isize>() {
             return make_augmented_row_view(py, &self.matrix, row, None, false);
         }
         // (row, seg) — where seg is an int or (start_seg, end_seg).
-        if let Ok((row, seg)) = key.extract::<(usize, Bound<'py, PyAny>)>() {
+        if let Ok((row, seg)) = key.extract::<(isize, Bound<'py, PyAny>)>() {
             let seg_range = resolve_seg_key(&seg)?;
             return make_augmented_row_view(py, &self.matrix, row, Some(seg_range), false);
         }
@@ -1207,10 +1221,10 @@ impl AugmentedMatrixViewMut {
         py: Python<'py>,
         key: Bound<'py, PyAny>,
     ) -> PyResult<FpVector> {
-        if let Ok(row) = key.extract::<usize>() {
+        if let Ok(row) = key.extract::<isize>() {
             return make_augmented_row_view(py, &self.matrix, row, None, true);
         }
-        if let Ok((row, seg)) = key.extract::<(usize, Bound<'py, PyAny>)>() {
+        if let Ok((row, seg)) = key.extract::<(isize, Bound<'py, PyAny>)>() {
             let seg_range = resolve_seg_key(&seg)?;
             return make_augmented_row_view(py, &self.matrix, row, Some(seg_range), true);
         }
@@ -1356,7 +1370,7 @@ impl AugmentedMatrixSegmentView {
         self.rows(py)
     }
 
-    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+    fn __getitem__(&self, py: Python<'_>, row: isize) -> PyResult<FpVector> {
         make_augmented_row_view(
             py,
             &self.matrix,
@@ -1399,7 +1413,7 @@ impl AugmentedMatrixSegmentViewMut {
         self.rows(py)
     }
 
-    fn __getitem__(&self, py: Python<'_>, row: usize) -> PyResult<FpVector> {
+    fn __getitem__(&self, py: Python<'_>, row: isize) -> PyResult<FpVector> {
         make_augmented_row_view(
             py,
             &self.matrix,

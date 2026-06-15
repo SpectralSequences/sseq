@@ -13,7 +13,7 @@ use pyo3::types::PyAny;
 
 use crate::coordinates::{Bidegree, BidegreeGenerator};
 use crate::homomorphism::FreeModuleHomomorphism;
-use crate::sseq_types::{Product, Sseq};
+use crate::sseq_types::Sseq;
 
 /// A handle to `ext::utils::QueryModuleResolution`, which is
 /// `Resolution<FiniteChainComplex<SteenrodModule>>` for the (default,
@@ -153,14 +153,6 @@ impl Resolution {
         self.inner.algebra().default_filtration_one_products()
     }
 
-    /// Return the filtration-one products with operation `(op_deg, op_idx)`,
-    /// suitable for charting.
-    fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> Product {
-        Product {
-            inner: self.inner.filtration_one_products(op_deg, op_idx),
-        }
-    }
-
     /// `(op_deg, op_idx, source)` -> `Some(matrix)` or `None` if not
     /// available. The matrix is a `list[list[u32]]`.
     fn filtration_one_product(
@@ -219,28 +211,33 @@ pub fn construct(
     module: &Bound<'_, PyAny>,
     algebra: Option<&str>,
     save_dir: Option<PathBuf>,
-) -> anyhow::Result<Resolution> {
+) -> PyResult<Resolution> {
     use ext::utils::Config;
+    use pyo3::exceptions::PyValueError;
+
+    // Invalid module specs / JSON are user-input errors, so surface them as
+    // `ValueError` rather than the default `RuntimeError`.
+    let bad_input = |e: anyhow::Error| PyValueError::new_err(e.to_string());
 
     // Resolve the `Config` from the supplied Python object.
     let cfg: Config = if let Ok(s) = module.extract::<String>() {
         match algebra {
-            None => Config::try_from(s.as_str())?,
-            Some(a) => Config::try_from((s.as_str(), a))?,
+            None => Config::try_from(s.as_str()).map_err(bad_input)?,
+            Some(a) => Config::try_from((s.as_str(), a)).map_err(bad_input)?,
         }
     } else {
         // Attempt: treat as a JSON-shaped object via `serde_json::Value`.
-        // We go through a `repr`/`json.dumps` round-trip on the Python side
-        // would be cleaner, but the simplest portable way is to ask Python to
-        // dump it.
+        // The simplest portable way is to ask Python to dump it.
         let py = module.py();
         let json_module = py.import("json")?;
         let s: String = json_module.call_method1("dumps", (module,))?.extract()?;
-        let value: serde_json::Value = serde_json::from_str(&s)?;
-        Config::try_from((value, algebra.unwrap_or("milnor")))?
+        let value: serde_json::Value =
+            serde_json::from_str(&s).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Config::try_from((value, algebra.unwrap_or("milnor"))).map_err(bad_input)?
     };
 
-    let resolution = ext::utils::construct(cfg, save_dir)?;
+    let resolution =
+        ext::utils::construct(cfg, save_dir).map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(Resolution {
         inner: Arc::new(resolution),
     })
