@@ -5,22 +5,14 @@
 //! swizzled wgmma matrix descriptors expect. The kernel is a thin wrapper around
 //! wgmma.b1 m64n256k256.
 
-use std::{ffi::c_void, mem::MaybeUninit, sync::Arc};
+use std::{ffi::c_void, mem::MaybeUninit, sync::Arc, time::Instant};
 
-use cuda_core::{
-    CudaContext, CudaFunction, CudaModule, DeviceBuffer, launch_kernel_on_stream,
-    sys::{
-        CUdeviceptr,
-        CUfunction_attribute_enum_CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES as FUNC_ATTR_MAX_DSMEM,
-        CUresult, CUtensorMap,
-        CUtensorMapDataType_enum_CU_TENSOR_MAP_DATA_TYPE_UINT32 as DATA_UINT32,
-        CUtensorMapFloatOOBfill_enum_CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE as OOB_NONE,
-        CUtensorMapInterleave_enum_CU_TENSOR_MAP_INTERLEAVE_NONE as INTERLEAVE_NONE,
-        CUtensorMapL2promotion_enum_CU_TENSOR_MAP_L2_PROMOTION_NONE as L2_NONE,
-        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_128B as SWIZZLE_128B,
-        CUtensorMapSwizzle_enum_CU_TENSOR_MAP_SWIZZLE_NONE as SWIZZLE_NONE, cuFuncSetAttribute,
-        cuTensorMapEncodeTiled, cudaError_enum_CUDA_SUCCESS as CUDA_SUCCESS,
+use cudarc::{
+    driver::{
+        CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
+        PushKernelArg, sys,
     },
+    nvrtc::Ptx,
 };
 use fp::{matrix::Matrix, prime::TWO};
 
@@ -33,6 +25,13 @@ const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..25
 const NG: u32 = 4;
 const STAGES: usize = 3; // K-loop pipeline depth; must match the kernel
 
+/// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
+/// through cudarc's typed launch builder. `repr(transparent)` so the pointer
+/// cudarc pushes is the address of the 128-byte descriptor itself.
+#[repr(transparent)]
+struct TmaArg(sys::CUtensorMap);
+unsafe impl DeviceRepr for TmaArg {}
+
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
     #[allow(dead_code)]
@@ -43,7 +42,8 @@ pub struct GpuContext {
 impl GpuContext {
     pub fn new(device_id: usize) -> Result<Self, Box<dyn std::error::Error>> {
         let ctx = CudaContext::new(device_id)?;
-        let module = ctx.load_module_from_image(PTX_IMAGE)?;
+        let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
+        let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
         Ok(Self {
             ctx,
@@ -53,10 +53,16 @@ impl GpuContext {
     }
 
     pub fn compute_capability(&self) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-        Ok(self.ctx.compute_capability()?)
+        let major = self.ctx.attribute(
+            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
+        )?;
+        let minor = self.ctx.attribute(
+            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
+        )?;
+        Ok((major, minor))
     }
 
-    pub fn default_stream(&self) -> Arc<cuda_core::CudaStream> {
+    pub fn default_stream(&self) -> Arc<CudaStream> {
         self.ctx.default_stream()
     }
 
@@ -70,6 +76,34 @@ pub fn matmul_b1(
     a: &Matrix,
     b: &Matrix,
 ) -> Result<Matrix, Box<dyn std::error::Error>> {
+    Ok(matmul_b1_inner(gpu, a, b, 1)?.0)
+}
+
+/// Like [`matmul_b1`], but also returns the average **kernel-only** wall time
+/// (seconds) over `time_iters` back-to-back launches, excluding host
+/// (de)serialization, the TMA-layout pre-arrangement, and the H2D/D2H copies.
+///
+/// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor
+/// *store* (overwrite, not accumulate), so repeated launches against the same
+/// device buffers are idempotent and the returned `Matrix` is the correct
+/// product. Use this to compare against the ~100-binary-TOPS pre-swizzle
+/// kernel baseline; the end-to-end `cargo bench` figures are dominated by host
+/// serialization and understate kernel throughput.
+pub fn matmul_b1_timed(
+    gpu: &GpuContext,
+    a: &Matrix,
+    b: &Matrix,
+    time_iters: usize,
+) -> Result<(Matrix, f64), Box<dyn std::error::Error>> {
+    matmul_b1_inner(gpu, a, b, time_iters.max(1))
+}
+
+fn matmul_b1_inner(
+    gpu: &GpuContext,
+    a: &Matrix,
+    b: &Matrix,
+    time_iters: usize,
+) -> Result<(Matrix, f64), Box<dyn std::error::Error>> {
     assert_eq!(a.prime(), TWO);
     assert_eq!(b.prime(), TWO);
     assert_eq!(a.columns(), b.rows());
@@ -101,106 +135,44 @@ pub fn matmul_b1(
     // Pre-transpose B into row-major K-major tiles (swizzled by the TMA).
     let bt = transpose_b(&b_padded, k_padded, n_lim);
 
-    let a_dev = DeviceBuffer::from_host(&stream, &a_interleaved)?;
-    let bt_dev = DeviceBuffer::from_host(&stream, &bt)?;
-    let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_padded_lim)?;
+    let a_dev = stream.clone_htod(&a_interleaved)?;
+    let bt_dev = stream.clone_htod(&bt)?;
+    let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
 
-    // TMA tensor maps for A and B. Both views are plain row-major tiles whose
-    // inner dim is 128 bytes (32 UINT32 elements = one 128B swizzle row); the
-    // TMA applies the swizzle on load. They differ in tile height: A is a
-    // 64-row tile per (k_chunk, M-tile); B is a 256-column tile per
-    // (k_chunk, 256-col group), fed to one m64n256 wgmma.
-    let encode_tile_tma = |dev_ptr: CUdeviceptr,
-                           outer_tiles: u64,
-                           box_rows: u32|
-     -> Result<CUtensorMap, Box<dyn std::error::Error>> {
-        let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
-        let gdim: [u64; 2] = [32, outer_tiles * box_rows as u64];
-        let gstride: [u64; 1] = [128]; // bytes per row
-        let boxdim: [u32; 2] = [32, box_rows];
-        let elemstride: [u32; 2] = [1, 1];
-        let res: CUresult = unsafe {
-            cuTensorMapEncodeTiled(
-                tmap.as_mut_ptr(),
-                DATA_UINT32,
-                2,
-                dev_ptr as *mut c_void,
-                gdim.as_ptr(),
-                gstride.as_ptr(),
-                boxdim.as_ptr(),
-                elemstride.as_ptr(),
-                INTERLEAVE_NONE,
-                SWIZZLE_128B,
-                L2_NONE,
-                OOB_NONE,
-            )
-        };
-        if res != CUDA_SUCCESS {
-            return Err(format!("cuTensorMapEncodeTiled failed: {res:?}").into());
-        }
-        Ok(unsafe { tmap.assume_init() })
-    };
+    // Raw device addresses for the TMA descriptors. The returned guards keep the
+    // reads ordered on the stream; hold them until after the launch.
+    let (a_ptr, _ga) = a_dev.device_ptr(&stream);
+    let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
+    let (c_ptr, _gc) = c_dev.device_ptr(&stream);
 
-    let tma_a = encode_tile_tma(
-        a_dev.cu_deviceptr(),
-        (k_chunks * m_tiles) as u64,
-        TILE_M as u32,
+    // TMA tensor maps. A: 64-row tile per (k_chunk, M-tile). B: 256-column tile
+    // per (k_chunk, 256-col group), fed to one m64n256 wgmma. Both have a
+    // 128-byte inner dim (= the 128B swizzle width). C: 64-row × NG-limb output
+    // tiles, no swizzle, for the bulk store.
+    let tma_a = encode_tma(
+        a_ptr,
+        [32, (k_chunks * m_tiles * TILE_M) as u64],
+        [32, TILE_M as u32],
+        128,
+        sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_128B,
     )?;
-    let tma_b = encode_tile_tma(
-        bt_dev.cu_deviceptr(),
-        (k_chunks * n_groups) as u64,
-        (NG as usize * 64) as u32,
+    let tma_b = encode_tma(
+        b_ptr,
+        [32, (k_chunks * n_groups * NG as usize * 64) as u64],
+        [32, (NG as usize * 64) as u32],
+        128,
+        sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_128B,
     )?;
-
-    // Output tensor map for the TMA bulk store (S2G). C is m_padded rows ×
-    // n_padded_lim u64 (= 2*n_padded_lim UINT32), stored in 64-row × NG-limb
-    // tiles, no swizzle.
-    let tma_c = {
-        let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
-        let gdim: [u64; 2] = [(n_padded_lim * 2) as u64, m_padded as u64];
-        let gstride: [u64; 1] = [(n_padded_lim * 8) as u64]; // bytes per row
-        let boxdim: [u32; 2] = [(NG as usize * 2) as u32, TILE_M as u32];
-        let elemstride: [u32; 2] = [1, 1];
-        let res: CUresult = unsafe {
-            cuTensorMapEncodeTiled(
-                tmap.as_mut_ptr(),
-                DATA_UINT32,
-                2,
-                c_dev.cu_deviceptr() as *mut c_void,
-                gdim.as_ptr(),
-                gstride.as_ptr(),
-                boxdim.as_ptr(),
-                elemstride.as_ptr(),
-                INTERLEAVE_NONE,
-                SWIZZLE_NONE,
-                L2_NONE,
-                OOB_NONE,
-            )
-        };
-        if res != CUDA_SUCCESS {
-            return Err(format!("cuTensorMapEncodeTiled (C) failed: {res:?}").into());
-        }
-        unsafe { tmap.assume_init() }
-    };
-
-    let mut tma_a_storage = tma_a;
-    let mut tma_b_storage = tma_b;
-    let mut tma_c_storage = tma_c;
-    let mut mt: u32 = m_tiles as u32;
-    let mut m_val: u32 = m_padded as u32;
-    let mut k_val: u32 = k_padded as u32;
-
-    let mut params: [*mut c_void; 6] = [
-        &mut tma_a_storage as *mut _ as *mut c_void,
-        &mut tma_b_storage as *mut _ as *mut c_void,
-        &mut tma_c_storage as *mut _ as *mut c_void,
-        &mut mt as *mut _ as *mut c_void,
-        &mut m_val as *mut _ as *mut c_void,
-        &mut k_val as *mut _ as *mut c_void,
-    ];
+    let tma_c = encode_tma(
+        c_ptr,
+        [(n_padded_lim * 2) as u64, m_padded as u64],
+        [(NG as usize * 2) as u32, TILE_M as u32],
+        (n_padded_lim * 8) as u64,
+        sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
+    )?;
 
     let grid_x = n_groups as u32;
-    let grid_y = m_val / TILE_M as u32;
+    let grid_y = (m_padded / TILE_M) as u32;
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
     let tile_a = TILE_M * KL; // 64-row A tile
@@ -209,36 +181,87 @@ pub fn matmul_b1(
     let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
 
     // Opt in to >48 KB shared memory (Hopper static default cap).
-    let res: CUresult = unsafe {
-        cuFuncSetAttribute(
-            gpu.kernel.cu_function(),
-            FUNC_ATTR_MAX_DSMEM as _,
-            smem_bytes as i32,
-        )
+    gpu.kernel.set_attribute(
+        sys::CUfunction_attribute_enum::CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
+        smem_bytes as i32,
+    )?;
+
+    let ta = TmaArg(tma_a);
+    let tb = TmaArg(tma_b);
+    let tc = TmaArg(tma_c);
+    let mt = m_tiles as u32;
+    let m_val = m_padded as u32;
+    let k_val = k_padded as u32;
+
+    let launch = || -> Result<(), cudarc::driver::DriverError> {
+        let cfg = LaunchConfig {
+            grid_dim: (grid_x, grid_y, 1),
+            block_dim: (THREADS, 1, 1),
+            shared_mem_bytes: smem_bytes,
+        };
+        let mut lb = stream.launch_builder(&gpu.kernel);
+        lb.arg(&ta)
+            .arg(&tb)
+            .arg(&tc)
+            .arg(&mt)
+            .arg(&m_val)
+            .arg(&k_val);
+        unsafe { lb.launch(cfg) }?;
+        Ok(())
     };
-    if res != CUDA_SUCCESS {
-        return Err(format!("cuFuncSetAttribute(MAX_DYNAMIC_SHARED) failed: {res:?}").into());
+
+    // Warm up once (untimed) when measuring, so the timed loop excludes any
+    // first-launch JIT/allocation costs.
+    if time_iters > 1 {
+        launch()?;
+        stream.synchronize()?;
     }
 
-    unsafe {
-        launch_kernel_on_stream(
-            &gpu.kernel,
-            (grid_x, grid_y, 1),
-            (THREADS, 1, 1),
-            smem_bytes,
-            &stream,
-            &mut params,
-        )?;
+    let start = Instant::now();
+    for _ in 0..time_iters {
+        launch()?;
     }
     stream.synchronize()?;
+    let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
 
-    let c_all = c_dev.to_host_vec(&stream)?;
+    let c_all = stream.clone_dtoh(&c_dev)?;
     let c_limbs: Vec<u64> = c_all
         .chunks_exact(n_padded_lim)
         .take(m)
         .flat_map(|row| row[..n_lim].iter().copied())
         .collect();
-    Ok(Matrix::from_data(TWO, m, n, c_limbs))
+    Ok((Matrix::from_data(TWO, m, n, c_limbs), kernel_secs))
+}
+
+/// Encode a 2D row-major TMA tensor map of UINT32 elements.
+fn encode_tma(
+    dev_ptr: sys::CUdeviceptr,
+    gdim: [u64; 2],
+    boxdim: [u32; 2],
+    row_stride_bytes: u64,
+    swizzle: sys::CUtensorMapSwizzle_enum,
+) -> Result<sys::CUtensorMap, Box<dyn std::error::Error>> {
+    let gstride = [row_stride_bytes];
+    let elemstride = [1u32, 1u32];
+    let mut tmap = MaybeUninit::<sys::CUtensorMap>::uninit();
+    unsafe {
+        sys::cuTensorMapEncodeTiled(
+            tmap.as_mut_ptr(),
+            sys::CUtensorMapDataType_enum::CU_TENSOR_MAP_DATA_TYPE_UINT32,
+            2,
+            dev_ptr as *mut c_void,
+            gdim.as_ptr(),
+            gstride.as_ptr(),
+            boxdim.as_ptr(),
+            elemstride.as_ptr(),
+            sys::CUtensorMapInterleave_enum::CU_TENSOR_MAP_INTERLEAVE_NONE,
+            swizzle,
+            sys::CUtensorMapL2promotion_enum::CU_TENSOR_MAP_L2_PROMOTION_NONE,
+            sys::CUtensorMapFloatOOBfill_enum::CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE,
+        )
+        .result()?;
+        Ok(tmap.assume_init())
+    }
 }
 
 /// Gather A into plain row-major K-major tiles for TMA 128B swizzle.

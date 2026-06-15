@@ -8,10 +8,11 @@ tensor cores
 (`wgmma.mma_async.sync.aligned.m64n64k256.row.col.s32.b1.b1.and.popc`).
 Both operands are pre-arranged into plain row-major K-major tiles on the host;
 the TMA applies the swizzle that the wgmma matrix descriptors expect.
-Rust-side glue uses [NVlabs/cuda-oxide](https://github.com/NVlabs/cuda-oxide)'s
-`cuda-core` crate for the host driver-API surface (untyped module loading +
-raw kernel launch) and its `sys` re-export of `cuda-bindings` for the
-`cuTensorMapEncodeTiled` call that builds the TMA descriptors.
+Rust-side glue uses [`cudarc`](https://crates.io/crates/cudarc) for the host
+driver-API surface (module load, device buffers, typed launch) and its
+`driver::sys` raw bindings for the `cuTensorMapEncodeTiled` call that builds the
+TMA descriptors. `cudarc` is stable Rust and dynamically loads the CUDA driver
+at runtime, so the Rust side builds with no CUDA present.
 
 This crate is **excluded from the workspace's `default-members`**, so plain
 `cargo build` / `nix run .#test` ignore it. It is opt-in: building requires
@@ -26,8 +27,8 @@ nvcc on `PATH` and (at runtime) a Hopper-class GPU.
    will fail on pre-Hopper devices because the kernel emits `wgmma.*` and
    `cp.async.bulk.tensor.*` instructions that only exist on sm_90+.
 
-No cargo-oxide CLI, no special Rust toolchain, no LLVM 21 — `cuda-core`
-compiles with stable rustc.
+Builds on **stable** Rust — no nightly toolchain required. (`nvcc` is still
+needed at build time to compile the kernel to PTX, and a CUDA driver at runtime.)
 
 ## Building
 
@@ -69,22 +70,58 @@ The crate is still a workspace **member**, so `cargo metadata` sees it,
 
 ## Status
 
-The full Phase 3 pipeline (host row-major pre-arrangement → TMA 128B-swizzle
-loads → mbarrier sync → pipelined wgmma.b1 → bit-pack) compiles and is wired
-end-to-end; the host-side `CUtensorMap` build matches the kernel's `boxDim` and
-the swizzle mode. The most recent change (128B swizzle + wgmma pipelining) has
-**not yet been re-validated on hardware** — verify in this order:
+The full Phase 3–7 pipeline (host row-major pre-arrangement → TMA 128B-swizzle
+loads → mbarrier sync → pipelined `m64n256k256` wgmma.b1 → bit-pack → TMA bulk
+output store) is **validated on an H100 NVL (sm_90, CUDA 13.0 driver / 12.8
+toolkit, 2026-06-15)**. The PTX JITs at module load, the dynamic-SMEM opt-in and
+all three TMA descriptors are accepted, and outputs are **bit-exact** against the
+CPU `fp::blas` path across `matmul_b1_demo` (64…8192) and the kernel-only bench
+(4096…32768, including a full 32768³ CPU cross-check).
 
-1. **64×256×64 identity product first.** Smallest path that exercises one
-   swizzled tile end-to-end. A failure here points at the swizzled wgmma
-   descriptor constants (`DESC_LBO = 16`, `DESC_SBO = 1024`, per-k256 advance
-   of 32 bytes), or a host-layout / TMA-box mismatch. These derive from
-   CUTLASS `make_gmma_desc<Major::K>` (`LayoutType::B128`) but are not
-   hardware-checked here.
+Throughput, **kernel-only** (host setup + H2D/D2H excluded — the comparison the
+~100-TOPS pre-swizzle baseline was measured at):
+
+| size (M=K=N) | binary TOPS | ms/launch |
+|--------------|-------------|-----------|
+| 4096         | ~3,600      | 0.038     |
+| 8192         | ~5,200      | 0.211     |
+| 16384        | ~5,800      | 1.52      |
+| 32768        | ~2,200      | 32.1      |
+
+i.e. roughly a **50–58× kernel speedup** over the ~100-TOPS pre-swizzle state.
+
+The drop past 16384 is **not** a power/compute bound (measured: 136 W of the
+310 W cap, SM 0–12 %, memory clock pinned at max) — the kernel is
+**memory-bandwidth bound on L2 residency of B**. Each B column-panel is reused
+across every M-tile, so the whole B matrix (`K*N/8` bytes) wants to fit in the
+50 MB L2: at 16384² B is 33.6 MB (fits, ~5,800 TOPS), at 32768² it is 134 MB
+(spills → re-streamed from HBM per M-tile → ~2,300 TOPS). `bench_shapes`
+confirms this with equal-FLOPs shapes: M=65536/K=N=16384 (B fits) hits 5,386
+TOPS while M=16384/K=16384/N=65536 (same FLOPs, B spills) gets 2,272 TOPS, and
+M=131072 (8× the FLOPs, B still fits) sustains 5,275 TOPS — so total size is not
+the limiter, L2 residency is. This is exactly what the remaining rungs target:
+**persistent kernel + tile rasterization** (keep the active tile working set in
+L2 at large N) and **clusters + TMA multicast** (one HBM read of a B-panel feeds
+a whole cluster). Run `cargo run --release -p fp-cuda --example bench_shapes` to
+reproduce.
+
+The end-to-end `cargo bench` figures (≤30 TOPS) are dominated by host
+serialization and the TMA-layout pre-arrangement; use `cargo run --release -p
+fp-cuda --example bench_kernel_only` for the kernel number.
+
+Reproduce in this order (each gates the next):
+
+1. **64×256×64 identity / small product first.** Smallest path that exercises one
+   swizzled tile end-to-end (the first `matmul_b1_demo` case). A failure here
+   points at the swizzled wgmma descriptor constants (`DESC_LBO = 16`,
+   `DESC_SBO = 1024`, per-k256 advance of 32 bytes), or a host-layout / TMA-box
+   mismatch. These derive from CUTLASS `make_gmma_desc<Major::K>`
+   (`LayoutType::B128`).
 2. **Full size sweep** via `cargo run -p fp-cuda --example matmul_b1_demo`
    (bit-exact CPU↔GPU for 64…8192).
-3. **Bench** with `cargo bench -p fp-cuda`; compare binary TOPS against the
-   ~100 TOPS pre-swizzle baseline and confirm outputs stay bit-equal.
+3. **Kernel-only throughput + correctness** via
+   `cargo run --release -p fp-cuda --example bench_kernel_only`; compare binary
+   TOPS against the ~100-TOPS pre-swizzle baseline.
 
 Other points worth a trace once: the dynamic-SMEM base must be 128-byte aligned
 for TMA (declared `extern __shared__ __align__(128)`), and the per-stage
