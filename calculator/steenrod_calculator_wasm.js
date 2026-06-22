@@ -6,7 +6,6 @@ let wasm_bindgen = (function(exports) {
 
     class SteenrodCalculator {
         static __wrap(ptr) {
-            ptr = ptr >>> 0;
             const obj = Object.create(SteenrodCalculator.prototype);
             obj.__wbg_ptr = ptr;
             SteenrodCalculatorFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -84,7 +83,7 @@ let wasm_bindgen = (function(exports) {
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
+            __wbg___wbindgen_throw_ea4887a5f8f9a9db: function(arg0, arg1) {
                 throw new Error(getStringFromWasm0(arg0, arg1));
             },
             __wbindgen_cast_0000000000000001: function(arg0, arg1) {
@@ -110,11 +109,10 @@ let wasm_bindgen = (function(exports) {
 
     const SteenrodCalculatorFinalization = (typeof FinalizationRegistry === 'undefined')
         ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_steenrodcalculator_free(ptr >>> 0, 1));
+        : new FinalizationRegistry(ptr => wasm.__wbg_steenrodcalculator_free(ptr, 1));
 
     function getStringFromWasm0(ptr, len) {
-        ptr = ptr >>> 0;
-        return decodeText(ptr, len);
+        return decodeText(ptr >>> 0, len);
     }
 
     let cachedUint8ArrayMemory0 = null;
@@ -189,8 +187,9 @@ let wasm_bindgen = (function(exports) {
 
     let WASM_VECTOR_LEN = 0;
 
-    let wasmModule, wasm;
+    let wasmModule, wasmInstance, wasm;
     function __wbg_finalize_init(instance, module) {
+        wasmInstance = instance;
         wasm = instance.exports;
         wasmModule = module;
         cachedUint8ArrayMemory0 = null;

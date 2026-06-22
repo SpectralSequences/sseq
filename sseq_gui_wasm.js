@@ -6,7 +6,6 @@ let wasm_bindgen = (function(exports) {
 
     class Resolution {
         static __wrap(ptr) {
-            ptr = ptr >>> 0;
             const obj = Object.create(Resolution.prototype);
             obj.__wbg_ptr = ptr;
             ResolutionFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -44,7 +43,6 @@ let wasm_bindgen = (function(exports) {
 
     class Sseq {
         static __wrap(ptr) {
-            ptr = ptr >>> 0;
             const obj = Object.create(Sseq.prototype);
             obj.__wbg_ptr = ptr;
             SseqFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -82,17 +80,17 @@ let wasm_bindgen = (function(exports) {
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_debug_string_ab4b34d23d6778bd: function(arg0, arg1) {
+            __wbg___wbindgen_debug_string_8a447059637473e2: function(arg0, arg1) {
                 const ret = debugString(arg1);
                 const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
                 const len1 = WASM_VECTOR_LEN;
                 getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
                 getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
             },
-            __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
+            __wbg___wbindgen_throw_ea4887a5f8f9a9db: function(arg0, arg1) {
                 throw new Error(getStringFromWasm0(arg0, arg1));
             },
-            __wbg_call_a24592a6f349a97e: function() { return handleError(function (arg0, arg1, arg2) {
+            __wbg_call_5575218572ead796: function() { return handleError(function (arg0, arg1, arg2) {
                 const ret = arg0.call(arg1, arg2);
                 return ret;
             }, arguments); },
@@ -119,10 +117,10 @@ let wasm_bindgen = (function(exports) {
 
     const ResolutionFinalization = (typeof FinalizationRegistry === 'undefined')
         ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_resolution_free(ptr >>> 0, 1));
+        : new FinalizationRegistry(ptr => wasm.__wbg_resolution_free(ptr, 1));
     const SseqFinalization = (typeof FinalizationRegistry === 'undefined')
         ? { register: () => {}, unregister: () => {} }
-        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr >>> 0, 1));
+        : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr, 1));
 
     function addToExternrefTable0(obj) {
         const idx = wasm.__externref_table_alloc();
@@ -204,8 +202,7 @@ let wasm_bindgen = (function(exports) {
     }
 
     function getStringFromWasm0(ptr, len) {
-        ptr = ptr >>> 0;
-        return decodeText(ptr, len);
+        return decodeText(ptr >>> 0, len);
     }
 
     let cachedUint8ArrayMemory0 = null;
@@ -283,8 +280,9 @@ let wasm_bindgen = (function(exports) {
 
     let WASM_VECTOR_LEN = 0;
 
-    let wasmModule, wasm;
+    let wasmModule, wasmInstance, wasm;
     function __wbg_finalize_init(instance, module) {
+        wasmInstance = instance;
         wasm = instance.exports;
         wasmModule = module;
         cachedDataViewMemory0 = null;

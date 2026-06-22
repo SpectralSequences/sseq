@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":["CarryingMulAdd","DisjointBitOr","FunnelShift"]};
+window.SIDEBAR_ITEMS = {"trait":["CarryingMulAdd","CarrylessMul","DisjointBitOr","FunnelShift"]};
