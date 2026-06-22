@@ -46,8 +46,8 @@
 use std::{fmt, iter, num::NonZeroI32, path::PathBuf, sync::Arc};
 
 use algebra::{
-    AlgebraType, SteenrodAlgebra,
-    module::{Module, homomorphism::ModuleHomomorphism},
+    AlgebraType,
+    module::{SteenrodModule, homomorphism::ModuleHomomorphism},
 };
 use anyhow::Result;
 use ext::{
@@ -89,8 +89,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-type Resolution =
-    MuResolution<false, FiniteChainComplex<Box<dyn Module<Algebra = SteenrodAlgebra>>>>;
+type Resolution = MuResolution<false, FiniteChainComplex<SteenrodModule>>;
 
 type Homomorphism = MuResolutionHomomorphism<false, Resolution, Resolution>;
 

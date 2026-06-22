@@ -3,7 +3,10 @@ use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
     AlgebraType, MilnorAlgebra, SteenrodAlgebra,
-    module::{FDModule, Module, SteenrodModule, steenrod_module},
+    module::{
+        FDModule, Module, SteenrodModule,
+        steenrod_module::{self, erase},
+    },
 };
 use anyhow::{Context, anyhow};
 use serde_json::Value;
@@ -263,7 +266,7 @@ where
         let mut yoneda = FiniteChainComplex::from(yoneda);
         yoneda.pop();
 
-        chain_complex = Arc::new(yoneda.map(|m| Box::new(m.clone()) as SteenrodModule));
+        chain_complex = Arc::new(yoneda.map(|m| erase(m.clone())));
     }
 
     crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)
@@ -457,7 +460,7 @@ pub fn get_unit(
 
         #[cfg(not(feature = "nassau"))]
         {
-            let cc = FiniteChainComplex::ccdz(Arc::new(Box::new(module) as SteenrodModule));
+            let cc = FiniteChainComplex::ccdz(Arc::new(erase(module)));
             Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)?)
         }
     };
