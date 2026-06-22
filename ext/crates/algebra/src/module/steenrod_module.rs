@@ -1,6 +1,12 @@
+use std::sync::Arc;
+
 use crate::algebra::SteenrodAlgebra;
 
-pub type SteenrodModule = Box<dyn Module<Algebra = SteenrodAlgebra>>;
+pub type SteenrodModule = Arc<dyn Module<Algebra = SteenrodAlgebra>>;
+
+pub fn erase(module: impl Module<Algebra = SteenrodAlgebra>) -> SteenrodModule {
+    Arc::new(module)
+}
 
 mod json {
     use std::sync::Arc;
@@ -19,9 +25,9 @@ mod json {
             json: &serde_json::Value,
         ) -> SteenrodModule {
             if let Some(shift) = json["shift"].as_i64() {
-                Box::new(SuspensionModule::new(Arc::new(m), shift as i32))
+                Arc::new(SuspensionModule::new(Arc::new(m), shift as i32))
             } else {
-                Box::new(m)
+                Arc::new(m)
             }
         }
 

@@ -25,7 +25,7 @@ use crate::algebra::Algebra;
 /// specified the generators up to some degree `t`. Then `t` is the max computed degree, while
 /// `compute_basis` computes data such as the offset of existing generators in potentially higher
 /// degrees.
-#[auto_impl(Box)]
+#[auto_impl(Arc, Box)]
 pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     type Algebra: Algebra;
 

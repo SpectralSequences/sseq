@@ -11,6 +11,6 @@ pub trait ZeroModule: Module {
 
 impl ZeroModule for SteenrodModule {
     fn zero_module(algebra: Arc<SteenrodAlgebra>, min_degree: i32) -> Self {
-        Box::new(FDModule::zero_module(algebra, min_degree))
+        Arc::new(FDModule::zero_module(algebra, min_degree))
     }
 }
