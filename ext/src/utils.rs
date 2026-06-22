@@ -557,18 +557,31 @@ pub(crate) mod parallel {
     /// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
     /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
     /// inversion and retry.
-    pub(crate) struct ParallelGuard;
+    pub(crate) struct ParallelGuard {
+        #[allow(dead_code)]
+        span: tracing::span::EnteredSpan,
+    }
 
     impl ParallelGuard {
         pub(crate) fn new() -> Self {
-            PARALLEL_DEPTH.fetch_add(1, Ordering::Release);
-            Self
+            // We use Release to synchronize with `is_in_parallel`
+            let counter_start = PARALLEL_DEPTH.fetch_add(1, Ordering::Release);
+            Self {
+                span: tracing::info_span!(
+                    "parallel_guard",
+                    counter_start,
+                    counter_end = tracing::field::Empty
+                )
+                .entered(),
+            }
         }
     }
 
     impl Drop for ParallelGuard {
         fn drop(&mut self) {
-            PARALLEL_DEPTH.fetch_sub(1, Ordering::Release);
+            // We use Release to synchronize with `is_in_parallel`
+            let counter_end = PARALLEL_DEPTH.fetch_sub(1, Ordering::Release);
+            self.span.record("counter_end", counter_end - 1);
         }
     }
 

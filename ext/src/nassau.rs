@@ -62,6 +62,7 @@ impl SenderData {
     }
 
     pub(crate) fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
+        tracing::info!(%b, "retrying");
         sender
             .send(Self {
                 b,
