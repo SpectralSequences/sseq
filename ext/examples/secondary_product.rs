@@ -151,7 +151,7 @@ fn main() -> anyhow::Result<()> {
             let hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
             for i in page_data.complement_pivots() {
                 let g = BidegreeGenerator::new(b, i);
-                println!("{name} λ x_{g} = λ {:?}", &hom_k[i]);
+                println!("{name} λ x_{g} = λ {:?}", hom_k[i]);
             }
         }
 

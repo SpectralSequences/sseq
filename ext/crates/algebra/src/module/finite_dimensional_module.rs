@@ -575,9 +575,9 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                         let _ = write!(
                             relation_string,
                             "{} * {} * {}  +  ",
-                            *coef,
-                            &algebra.basis_element_to_string(*deg_1, *idx_1),
-                            &algebra.basis_element_to_string(*deg_2, *idx_2)
+                            coef,
+                            algebra.basis_element_to_string(*deg_1, *idx_1),
+                            algebra.basis_element_to_string(*deg_2, *idx_2)
                         );
                     }
                     for _ in 0..5 {

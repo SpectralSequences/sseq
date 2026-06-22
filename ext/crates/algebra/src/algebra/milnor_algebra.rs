@@ -1904,9 +1904,9 @@ mod tests {
                         let _ = write!(
                             relation_string,
                             "{} * {} * {}  +  ",
-                            *coeff,
-                            &algebra.basis_element_to_string(*deg_1, *idx_1),
-                            &algebra.basis_element_to_string(*deg_2, *idx_2)
+                            coeff,
+                            algebra.basis_element_to_string(*deg_1, *idx_1),
+                            algebra.basis_element_to_string(*deg_2, *idx_2)
                         );
                     }
                     relation_string.pop();

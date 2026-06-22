@@ -204,7 +204,7 @@ impl std::fmt::Display for ModuleFailedRelationError {
         write!(
             f,
             "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n",
-            &self.relation, &self.value
+            self.relation, self.value
         )
     }
 }

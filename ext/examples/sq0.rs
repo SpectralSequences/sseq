@@ -158,7 +158,7 @@ mod double {
 
         impl<M: Module> std::fmt::Display for DoubleModule<M> {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "Double({}", &*self.inner)
+                write!(f, "Double({}", *self.inner)
             }
         }
 
