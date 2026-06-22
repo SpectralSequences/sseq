@@ -415,13 +415,9 @@ where
                 None
             };
             let preserve_map = if s >= s_shift && t >= t_shift {
-                map.chain_maps.get((s - s_shift) as usize).and_then(|m| {
-                    if m.target().dimension(t - t_shift) > 0 {
-                        Some(m)
-                    } else {
-                        None
-                    }
-                })
+                map.chain_maps
+                    .get((s - s_shift) as usize)
+                    .filter(|m| m.target().dimension(t - t_shift) > 0)
             } else {
                 None
             };
