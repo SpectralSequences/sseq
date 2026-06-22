@@ -50,7 +50,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>/// specified the generators up to some degree `t`. Then `t` is the max computed degree, while
 <a href=#26 id=26 data-nosnippet>26</a>/// `compute_basis` computes data such as the offset of existing generators in potentially higher
 <a href=#27 id=27 data-nosnippet>27</a>/// degrees.
-<a href=#28 id=28 data-nosnippet>28</a></span><span class="attr">#[auto_impl(Box)]
+<a href=#28 id=28 data-nosnippet>28</a></span><span class="attr">#[auto_impl(Arc, Box)]
 <a href=#29 id=29 data-nosnippet>29</a></span><span class="kw">pub trait </span>Module: std::fmt::Display + std::any::Any + Send + Sync {
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">type </span>Algebra: Algebra;
 <a href=#31 id=31 data-nosnippet>31</a>
