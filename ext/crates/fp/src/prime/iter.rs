@@ -83,6 +83,8 @@ impl Iterator for BinomialIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         let v = self.value;
+        // Only available in nightly for now
+        #[allow(clippy::manual_isolate_lowest_one)]
         let c = v & v.wrapping_neg();
         let r = v + c;
         let n = (r ^ v).wrapping_shr(2 + v.trailing_zeros());
