@@ -14,18 +14,19 @@
         ps.pytest
       ]);
 
-      commonPackages = [
-        super.defaultPackages.rustToolchain.${system}
-        super.defaultPackages.devTools.${system}
+      commonPackages =
+        [
+          super.defaultPackages.rustToolchain.${system}
 
-        pythonEnv
+          pythonEnv
 
-        pkgs.cargo-cache
-        pkgs.cargo-criterion
-        pkgs.cargo-flamegraph
-        pkgs.cargo-nextest
-        pkgs.perf
-      ];
+          pkgs.cargo-cache
+          pkgs.cargo-criterion
+          pkgs.cargo-flamegraph
+          pkgs.cargo-nextest
+          pkgs.perf
+        ]
+        ++ super.defaultPackages.devTools.${system};
     in {
       devShells.default = pkgs.mkShell {
         packages = commonPackages;

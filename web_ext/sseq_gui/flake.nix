@@ -23,13 +23,14 @@
         ps.webdriver-manager
       ]);
 
-      commonPackages = [
-        rustToolchain
-        super.defaultPackages.devTools.${system}
+      commonPackages =
+        [
+          rustToolchain
 
-        pythonEnv
-        pkgs.openssl
-      ];
+          pythonEnv
+          pkgs.openssl
+        ]
+        ++ super.defaultPackages.devTools.${system};
 
       runTestScript = pkgs.writeShellScript "run-tests" ''
         set -euo pipefail
