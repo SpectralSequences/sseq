@@ -8,17 +8,29 @@ pub mod fp_py {
 
     use super::*;
 
+    const MAX_VALID_PRIME: u32 = 1 << 31;
+
     fn valid_prime(p: u32) -> PyResult<prime::ValidPrime> {
-        if prime::is_prime(p) {
-            Ok(prime::ValidPrime::new(p))
+        if p < 2 || p >= MAX_VALID_PRIME {
+            return Err(PyValueError::new_err(format!("{p} is not prime")));
+        }
+        prime::ValidPrime::try_from(p)
+            .map_err(|_| PyValueError::new_err(format!("{p} is not prime")))
+    }
+
+    fn table_prime(p: u32) -> PyResult<prime::ValidPrime> {
+        if fp::PRIMES.contains(&p) {
+            valid_prime(p)
         } else {
-            Err(PyValueError::new_err(format!("{p} is not prime")))
+            Err(PyValueError::new_err(format!(
+                "{p} is not a supported table prime"
+            )))
         }
     }
 
     #[pyfunction]
-    pub fn power_mod(p: u32, b: u32, e: u32) -> u32 {
-        prime::power_mod(p, b, e)
+    pub fn power_mod(p: u32, b: u32, e: u32) -> PyResult<u32> {
+        Ok(valid_prime(p)?.pow_mod(b, e))
     }
 
     #[pyfunction]
@@ -48,22 +60,22 @@ pub mod fp_py {
 
     #[pyfunction]
     pub fn is_prime(p: u32) -> bool {
-        prime::is_prime(p)
+        valid_prime(p).is_ok()
     }
 
     #[pyfunction]
     pub fn binomial(p: u32, n: u32, k: u32) -> PyResult<u32> {
-        Ok(u32::binomial(valid_prime(p)?, n, k))
+        Ok(u32::binomial(table_prime(p)?, n, k))
     }
 
     #[pyfunction]
     pub fn multinomial(p: u32, mut l: Vec<u32>) -> PyResult<u32> {
-        Ok(u32::multinomial(valid_prime(p)?, &mut l))
+        Ok(u32::multinomial(table_prime(p)?, &mut l))
     }
 
     #[pyfunction]
     pub fn binomial_odd_is_zero(p: u32, n: u32, k: u32) -> PyResult<bool> {
-        Ok(u32::binomial_odd_is_zero(valid_prime(p)?, n, k))
+        Ok(u32::binomial_odd_is_zero(table_prime(p)?, n, k))
     }
 
     #[pyfunction]
