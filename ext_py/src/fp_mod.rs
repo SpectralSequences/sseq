@@ -7,8 +7,8 @@ pub mod fp_py {
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
     use fp::matrix::{
-        Matrix as RustMatrix, QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient,
-        Subspace as RustSubspace,
+        AffineSubspace as RustAffineSubspace, Matrix as RustMatrix,
+        QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient, Subspace as RustSubspace,
     };
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::{
@@ -165,6 +165,9 @@ pub mod fp_py {
 
     #[pyclass(name = "Subquotient")]
     struct PySubquotient(RustSubquotient);
+
+    #[pyclass(name = "AffineSubspace")]
+    struct PyAffineSubspace(RustAffineSubspace);
 
     /// Lazy iterator over every vector in a subspace.
     ///
@@ -1720,6 +1723,93 @@ pub mod fp_py {
                 self.0.dimension(),
                 self.0.ambient_dimension()
             )
+        }
+    }
+
+    impl PyAffineSubspace {
+        /// Validate that `other` matches this affine subspace's prime and
+        /// ambient dimension, returning an error otherwise.
+        fn check_compatible_space(&self, other: &Self) -> PyResult<()> {
+            checked_same_prime(self.prime(), other.prime())?;
+            checked_equal_len(self.ambient_dimension(), other.ambient_dimension())?;
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl PyAffineSubspace {
+        /// Construct an affine subspace `offset + linear_part`.
+        ///
+        /// Upstream `AffineSubspace::new` `assert_eq!`s that the offset length
+        /// matches the linear part's ambient dimension and reduces the offset
+        /// against the linear part (which requires a shared prime), so we
+        /// pre-check both here to raise `ValueError` instead of panicking.
+        #[new]
+        pub fn new(offset: &PyFpVector, linear_part: &PySubspace) -> PyResult<Self> {
+            checked_same_prime(offset.0.prime().as_u32(), linear_part.0.prime().as_u32())?;
+            checked_equal_len(offset.0.len(), linear_part.0.ambient_dimension())?;
+            Ok(Self(RustAffineSubspace::new(
+                offset.0.clone(),
+                linear_part.0.clone(),
+            )))
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.linear_part().prime().as_u32()
+        }
+
+        pub fn ambient_dimension(&self) -> usize {
+            self.0.linear_part().ambient_dimension()
+        }
+
+        pub fn dimension(&self) -> usize {
+            self.0.linear_part().dimension()
+        }
+
+        /// Return an owned copy of the (reduced) offset vector.
+        ///
+        /// We return an owned `FpVector` rather than a borrowed view, matching
+        /// the owned-return precedent used by `Subspace`/`Subquotient`. The
+        /// offset stored upstream is the input reduced against the linear part,
+        /// so it may differ from the vector passed to `new`.
+        pub fn offset(&self) -> PyFpVector {
+            PyFpVector(self.0.offset().clone())
+        }
+
+        /// Return an owned copy (clone) of the linear part `Subspace`,
+        /// consistent with the owned-return precedent.
+        pub fn linear_part(&self) -> PySubspace {
+            PySubspace(self.0.linear_part().clone())
+        }
+
+        /// Test whether `vector` (an `FpVector` or `FpSlice`) lies in this
+        /// affine subspace.
+        pub fn contains(&self, py: Python<'_>, vector: &Bound<'_, PyAny>) -> PyResult<bool> {
+            let vector = extract_input_owned(py, vector)?;
+            checked_same_prime(self.prime(), vector.prime().as_u32())?;
+            checked_equal_len(vector.len(), self.ambient_dimension())?;
+            Ok(self.0.contains(vector.as_slice()))
+        }
+
+        pub fn contains_space(&self, other: &Self) -> PyResult<bool> {
+            self.check_compatible_space(other)?;
+            Ok(self.0.contains_space(&other.0))
+        }
+
+        /// Return the affine subspace spanned by the union of `self` and
+        /// `other`: the sum of the linear parts translated by the sum of the
+        /// offsets.
+        pub fn sum(&self, other: &Self) -> PyResult<Self> {
+            self.check_compatible_space(other)?;
+            Ok(Self(self.0.sum(&other.0)))
+        }
+
+        pub fn __contains__(&self, py: Python<'_>, vector: &Bound<'_, PyAny>) -> PyResult<bool> {
+            self.contains(py, vector)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("AffineSubspace({})", self.0)
         }
     }
 
