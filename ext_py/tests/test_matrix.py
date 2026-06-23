@@ -180,3 +180,43 @@ def test_stale_row_handle_after_trim_raises():
         row.entry(0)
     with pytest.raises(IndexError):
         row[0]
+
+
+def test_stale_row_mut_handle_after_trim_raises():
+    m = fp.Matrix.from_vec(5, [[1, 2, 3], [4, 0, 1], [2, 2, 2]])
+    rm = m.row_mut(2)
+    rm.set_entry(0, 1)
+    m.trim(0, 1, 0)
+    with pytest.raises(IndexError):
+        rm.set_entry(0, 1)
+
+
+def test_row_returns_same_type_as_vector_slice():
+    m = fp.Matrix.from_vec(5, [[1, 2, 3]])
+    v = fp.FpVector.from_slice(5, [1, 2, 3])
+    assert type(m.row(0)) is type(v.slice(0, 3))
+    assert type(m.row_mut(0)) is type(v.slice_mut(0, 3))
+    assert type(m[0]) is type(v.slice(0, 3))
+
+
+def test_row_slice_restrict_and_to_owned():
+    m = fp.Matrix.from_vec(5, [[1, 2, 3, 4]])
+    row = m.row(0)
+    sub = row.restrict(1, 3)
+    assert len(sub) == 2
+    assert [sub[i] for i in range(len(sub))] == [2, 3]
+    owned = row.to_owned()
+    assert isinstance(owned, fp.FpVector)
+    assert repr(owned) == "FpVector(5, [1, 2, 3, 4])"
+    assert repr(row).startswith("FpSlice(5, ")
+
+
+def test_row_mut_to_owned_and_slice_mut():
+    m = fp.Matrix.from_vec(5, [[1, 2, 3, 4]])
+    rm = m.row_mut(0)
+    owned = rm.to_owned()
+    assert owned.prime() == 5
+    sub = rm.slice_mut(0, 2)
+    sub.scale(2)
+    assert m.to_vec()[0] == [2, 4, 3, 4]
+    assert repr(rm).startswith("FpSliceMut(5, ")
