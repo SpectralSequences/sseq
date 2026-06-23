@@ -1,9 +1,9 @@
 use pyo3::prelude::*;
 
-#[pymodule]
-#[pyo3(name = "fp")]
-pub mod fp_py {
-    use fp::field::{element::FieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq};
+pub(crate) mod fp_py_impl {
+    use fp::field::{
+        element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
+    };
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::FpVector as RustFpVector;
     use pyo3::basic::CompareOp;
@@ -18,16 +18,16 @@ pub mod fp_py {
 
     type DynFp = RustFp<prime::ValidPrime>;
     type DynSmallFq = RustSmallFq<prime::ValidPrime>;
-    type DynFpElement = FieldElement<DynFp>;
-    type DynSmallFqElement = FieldElement<DynSmallFq>;
+    type DynFpElement = RustFieldElement<DynFp>;
+    type DynSmallFqElement = RustFieldElement<DynSmallFq>;
 
     #[pyclass(name = "Fp", frozen, from_py_object)]
     #[derive(Clone, Copy)]
-    pub struct PyFp(DynFp);
+    struct PyFp(DynFp);
 
     #[pyclass(name = "SmallFq", frozen, from_py_object)]
     #[derive(Clone, Copy)]
-    pub struct PySmallFq(DynSmallFq);
+    struct PySmallFq(DynSmallFq);
 
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     enum FieldElementKind {
@@ -37,27 +37,27 @@ pub mod fp_py {
 
     #[pyclass(name = "FieldElement", frozen, from_py_object)]
     #[derive(Clone, Copy)]
-    pub struct PyFieldElement(FieldElementKind);
+    struct PyFieldElement(FieldElementKind);
 
     #[pyclass(name = "FpVector")]
-    pub struct PyFpVector(RustFpVector);
+    struct PyFpVector(RustFpVector);
 
     #[pyclass(name = "FpSlice")]
-    pub struct PyFpSlice {
+    struct PyFpSlice {
         parent: Py<PyFpVector>,
         start: usize,
         end: usize,
     }
 
     #[pyclass(name = "FpSliceMut")]
-    pub struct PyFpSliceMut {
+    struct PyFpSliceMut {
         parent: Py<PyFpVector>,
         start: usize,
         end: usize,
     }
 
     #[pyclass(name = "FpVectorIterator")]
-    pub struct PyFpVectorIterator {
+    struct PyFpVectorIterator {
         entries: Vec<u32>,
         index: usize,
     }
@@ -139,6 +139,26 @@ pub mod fp_py {
         PyRuntimeError::new_err(err.to_string())
     }
 
+    fn checked_equal_len(lhs: usize, rhs: usize) -> PyResult<()> {
+        if lhs == rhs {
+            Ok(())
+        } else {
+            Err(PyValueError::new_err(format!(
+                "length mismatch: {lhs} != {rhs}"
+            )))
+        }
+    }
+
+    fn checked_same_prime(lhs: u32, rhs: u32) -> PyResult<()> {
+        if lhs == rhs {
+            Ok(())
+        } else {
+            Err(PyValueError::new_err(format!(
+                "prime mismatch: {lhs} != {rhs}"
+            )))
+        }
+    }
+
     impl FieldElementKind {
         fn field_repr(self) -> String {
             match self {
@@ -156,6 +176,36 @@ pub mod fp_py {
                 lhs.field_repr(),
                 rhs.field_repr()
             ))
+        }
+    }
+
+    impl PyFpSlice {
+        fn checked_parent<'py>(&'py self, py: Python<'py>) -> PyResult<PyRef<'py, PyFpVector>> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            checked_range(self.start, self.end, parent.0.len())?;
+            Ok(parent)
+        }
+
+        fn to_owned_checked(&self, py: Python<'_>) -> PyResult<RustFpVector> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.slice(self.start, self.end).to_owned())
+        }
+    }
+
+    impl PyFpSliceMut {
+        fn checked_parent<'py>(&'py self, py: Python<'py>) -> PyResult<PyRef<'py, PyFpVector>> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            checked_range(self.start, self.end, parent.0.len())?;
+            Ok(parent)
+        }
+
+        fn checked_parent_mut<'py>(
+            &'py self,
+            py: Python<'py>,
+        ) -> PyResult<PyRefMut<'py, PyFpVector>> {
+            let parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            checked_range(self.start, self.end, parent.0.len())?;
+            Ok(parent)
         }
     }
 
@@ -536,7 +586,7 @@ pub mod fp_py {
     #[pymethods]
     impl PyFpSlice {
         pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).prime().as_u32())
         }
 
@@ -550,17 +600,34 @@ pub mod fp_py {
 
         pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
             let index = checked_index(index, self.len())?;
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).entry(index))
         }
 
+        pub fn iter(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
+            let parent = self.checked_parent(py)?;
+            Ok(PyFpVectorIterator {
+                entries: parent.0.slice(self.start, self.end).iter().collect(),
+                index: 0,
+            })
+        }
+
+        pub fn iter_nonzero(&self, py: Python<'_>) -> PyResult<Vec<(usize, u32)>> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent
+                .0
+                .slice(self.start, self.end)
+                .iter_nonzero()
+                .collect())
+        }
+
         pub fn is_zero(&self, py: Python<'_>) -> PyResult<bool> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).is_zero())
         }
 
         pub fn first_nonzero(&self, py: Python<'_>) -> PyResult<Option<(usize, u32)>> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).first_nonzero())
         }
 
@@ -574,8 +641,7 @@ pub mod fp_py {
         }
 
         pub fn to_owned(&self, py: Python<'_>) -> PyResult<PyFpVector> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
-            Ok(PyFpVector(parent.0.slice(self.start, self.end).to_owned()))
+            Ok(PyFpVector(self.to_owned_checked(py)?))
         }
 
         pub fn __len__(&self) -> usize {
@@ -584,12 +650,12 @@ pub mod fp_py {
 
         pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
             let index = py_index(index, self.len())?;
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).entry(index))
         }
 
         pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(format!(
                 "FpSlice({}, {})",
                 parent.0.slice(self.start, self.end).prime().as_u32(),
@@ -601,7 +667,7 @@ pub mod fp_py {
     #[pymethods]
     impl PyFpSliceMut {
         pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).prime().as_u32())
         }
 
@@ -611,7 +677,7 @@ pub mod fp_py {
 
         pub fn set_entry(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
             let index = checked_index(index, self.len())?;
-            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            let mut parent = self.checked_parent_mut(py)?;
             parent
                 .0
                 .slice_mut(self.start, self.end)
@@ -620,20 +686,135 @@ pub mod fp_py {
         }
 
         pub fn set_to_zero(&self, py: Python<'_>) -> PyResult<()> {
-            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            let mut parent = self.checked_parent_mut(py)?;
             parent.0.slice_mut(self.start, self.end).set_to_zero();
             Ok(())
         }
 
         pub fn scale(&self, py: Python<'_>, c: u32) -> PyResult<()> {
-            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            let mut parent = self.checked_parent_mut(py)?;
             parent.0.slice_mut(self.start, self.end).scale(c);
+            Ok(())
+        }
+
+        pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
+            checked_equal_len(self.len(), other.len())?;
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
+            target.add(other_owned.as_slice(), c);
+            Ok(())
+        }
+
+        pub fn add_offset(
+            &self,
+            py: Python<'_>,
+            other: &PyFpSlice,
+            c: u32,
+            offset: usize,
+        ) -> PyResult<()> {
+            checked_equal_len(self.len(), other.len())?;
+            checked_range(offset, self.len(), self.len())?;
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
+            target.add_offset(other_owned.as_slice(), c, offset);
+            Ok(())
+        }
+
+        pub fn add_masked(
+            &self,
+            py: Python<'_>,
+            other: &PyFpSlice,
+            c: u32,
+            mask: Vec<usize>,
+        ) -> PyResult<()> {
+            checked_equal_len(self.len(), mask.len())?;
+            if let Some(&index) = mask.iter().find(|&&index| index >= other.len()) {
+                return Err(PyIndexError::new_err(format!(
+                    "mask index {index} out of range for vector of length {}",
+                    other.len()
+                )));
+            }
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
+            target.add_masked(other_owned.as_slice(), c, &mask);
+            Ok(())
+        }
+
+        pub fn add_unmasked(
+            &self,
+            py: Python<'_>,
+            other: &PyFpSlice,
+            c: u32,
+            mask: Vec<usize>,
+        ) -> PyResult<()> {
+            if other.len() > mask.len() {
+                return Err(PyValueError::new_err(format!(
+                    "mask length {} shorter than source length {}",
+                    mask.len(),
+                    other.len()
+                )));
+            }
+            if let Some(&index) = mask
+                .iter()
+                .take(other.len())
+                .find(|&&index| index >= self.len())
+            {
+                return Err(PyIndexError::new_err(format!(
+                    "mask index {index} out of range for vector of length {}",
+                    self.len()
+                )));
+            }
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
+            target.add_unmasked(other_owned.as_slice(), c, &mask);
+            Ok(())
+        }
+
+        pub fn assign(&self, py: Python<'_>, other: &PyFpSlice) -> PyResult<()> {
+            checked_equal_len(self.len(), other.len())?;
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
+            target.assign(other_owned.as_slice());
+            Ok(())
+        }
+
+        pub fn add_tensor(
+            &self,
+            py: Python<'_>,
+            offset: usize,
+            coeff: u32,
+            left: &PyFpSlice,
+            right: &PyFpSlice,
+        ) -> PyResult<()> {
+            let width = left
+                .len()
+                .checked_mul(right.len())
+                .and_then(|width| offset.checked_add(width))
+                .ok_or_else(|| PyIndexError::new_err("tensor range overflows usize"))?;
+            checked_range(offset, width, self.len())?;
+            let left_owned = left.to_owned_checked(py)?;
+            let right_owned = right.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            let mut target = parent.0.slice_mut(self.start, self.end);
+            checked_same_prime(target.prime().as_u32(), left_owned.prime().as_u32())?;
+            checked_same_prime(target.prime().as_u32(), right_owned.prime().as_u32())?;
+            target.add_tensor(offset, coeff, left_owned.as_slice(), right_owned.as_slice());
             Ok(())
         }
 
         pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
             let index = checked_index(index, self.len())?;
-            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            let mut parent = self.checked_parent_mut(py)?;
             parent
                 .0
                 .slice_mut(self.start, self.end)
@@ -664,13 +845,13 @@ pub mod fp_py {
 
         pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
             let index = py_index(index, self.len())?;
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(parent.0.slice(self.start, self.end).entry(index))
         }
 
         pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
             let index = py_index(index, self.len())?;
-            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            let mut parent = self.checked_parent_mut(py)?;
             parent
                 .0
                 .slice_mut(self.start, self.end)
@@ -679,7 +860,7 @@ pub mod fp_py {
         }
 
         pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            let parent = self.checked_parent(py)?;
             Ok(format!(
                 "FpSliceMut({}, {})",
                 parent.0.slice(self.start, self.end).prime().as_u32(),
@@ -702,77 +883,103 @@ pub mod fp_py {
     }
 
     #[pyfunction]
-    pub fn power_mod(p: u32, b: u32, e: u32) -> PyResult<u32> {
+    fn power_mod(p: u32, b: u32, e: u32) -> PyResult<u32> {
         Ok(valid_prime(p)?.pow_mod(b, e))
     }
 
     #[pyfunction]
-    pub fn log2(n: usize) -> usize {
+    fn log2(n: usize) -> usize {
         prime::log2(n)
     }
 
     #[pyfunction]
-    pub fn logp(p: u32, n: u32) -> PyResult<u32> {
+    fn logp(p: u32, n: u32) -> PyResult<u32> {
         Ok(prime::logp(valid_prime(p)?, n))
     }
 
     #[pyfunction]
-    pub fn factor_pk(p: u32, n: u32) -> PyResult<(u32, u32)> {
+    fn factor_pk(p: u32, n: u32) -> PyResult<(u32, u32)> {
         Ok(prime::factor_pk(valid_prime(p)?, n))
     }
 
     #[pyfunction]
-    pub fn inverse(p: u32, k: u32) -> PyResult<u32> {
+    fn inverse(p: u32, k: u32) -> PyResult<u32> {
         Ok(prime::inverse(valid_prime(p)?, k))
     }
 
     #[pyfunction]
-    pub fn minus_one_to_the_n(p: u32, i: i32) -> PyResult<u32> {
+    fn minus_one_to_the_n(p: u32, i: i32) -> PyResult<u32> {
         Ok(prime::minus_one_to_the_n(valid_prime(p)?, i))
     }
 
     #[pyfunction]
-    pub fn is_prime(p: u32) -> bool {
+    fn is_prime(p: u32) -> bool {
         valid_prime(p).is_ok()
     }
 
     #[pyfunction]
-    pub fn binomial(p: u32, n: u32, k: u32) -> PyResult<u32> {
+    fn binomial(p: u32, n: u32, k: u32) -> PyResult<u32> {
         Ok(u32::binomial(table_prime(p)?, n, k))
     }
 
     #[pyfunction]
-    pub fn multinomial(p: u32, mut l: Vec<u32>) -> PyResult<u32> {
+    fn multinomial(p: u32, mut l: Vec<u32>) -> PyResult<u32> {
         Ok(u32::multinomial(table_prime(p)?, &mut l))
     }
 
     #[pyfunction]
-    pub fn binomial_odd_is_zero(p: u32, n: u32, k: u32) -> PyResult<bool> {
+    fn binomial_odd_is_zero(p: u32, n: u32, k: u32) -> PyResult<bool> {
         Ok(u32::binomial_odd_is_zero(table_prime(p)?, n, k))
     }
 
     #[pyfunction]
-    pub fn binomial2(n: u32, k: u32) -> u32 {
+    fn binomial2(n: u32, k: u32) -> u32 {
         u32::binomial2(n, k)
     }
 
     #[pyfunction]
-    pub fn multinomial2(l: Vec<u32>) -> u32 {
+    fn multinomial2(l: Vec<u32>) -> u32 {
         u32::multinomial2(&l)
     }
 
     #[pyfunction]
-    pub fn binomial4(n: u32, k: u32) -> u32 {
+    fn binomial4(n: u32, k: u32) -> u32 {
         u32::binomial4(n, k)
     }
 
     #[pyfunction]
-    pub fn binomial4_rec(n: u32, k: u32) -> u32 {
+    fn binomial4_rec(n: u32, k: u32) -> u32 {
         u32::binomial4_rec(n, k)
     }
 
-    #[pymodule_init]
-    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_class::<PyFp>()?;
+        m.add_class::<PySmallFq>()?;
+        m.add_class::<PyFieldElement>()?;
+        m.add_class::<PyFpVector>()?;
+        m.add_class::<PyFpSlice>()?;
+        m.add_class::<PyFpSliceMut>()?;
+        m.add_class::<PyFpVectorIterator>()?;
+
+        m.add_function(wrap_pyfunction!(power_mod, m)?)?;
+        m.add_function(wrap_pyfunction!(log2, m)?)?;
+        m.add_function(wrap_pyfunction!(logp, m)?)?;
+        m.add_function(wrap_pyfunction!(factor_pk, m)?)?;
+        m.add_function(wrap_pyfunction!(inverse, m)?)?;
+        m.add_function(wrap_pyfunction!(minus_one_to_the_n, m)?)?;
+        m.add_function(wrap_pyfunction!(is_prime, m)?)?;
+        m.add_function(wrap_pyfunction!(binomial, m)?)?;
+        m.add_function(wrap_pyfunction!(multinomial, m)?)?;
+        m.add_function(wrap_pyfunction!(binomial_odd_is_zero, m)?)?;
+        m.add_function(wrap_pyfunction!(binomial2, m)?)?;
+        m.add_function(wrap_pyfunction!(multinomial2, m)?)?;
+        m.add_function(wrap_pyfunction!(binomial4, m)?)?;
+        m.add_function(wrap_pyfunction!(binomial4_rec, m)?)?;
+
+        if m.hasattr("ValidPrime")? {
+            m.delattr("ValidPrime")?;
+        }
+
         m.add("F2", PyFp(DynFp::new(prime::TWO)))?;
         m.add("F3", PyFp(DynFp::new(prime::P3.to_dyn())))?;
         m.add("F5", PyFp(DynFp::new(prime::P5.to_dyn())))?;
@@ -785,4 +992,9 @@ pub mod fp_py {
         m.add("ODD_PRIMES", fp::ODD_PRIMES)?;
         Ok(())
     }
+}
+
+#[pymodule]
+pub fn fp_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fp_py_impl::register(m)
 }
