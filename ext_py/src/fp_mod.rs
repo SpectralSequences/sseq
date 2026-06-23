@@ -7,8 +7,9 @@ pub mod fp_py {
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
     use fp::matrix::{
-        AffineSubspace as RustAffineSubspace, Matrix as RustMatrix,
-        QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient, Subspace as RustSubspace,
+        AffineSubspace as RustAffineSubspace, AugmentedMatrix as RustAugmentedMatrix,
+        Matrix as RustMatrix, QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient,
+        Subspace as RustSubspace,
     };
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::{
@@ -1813,6 +1814,211 @@ pub mod fp_py {
         }
     }
 
+    /// Validate that `seg` is a segment index in `0..n`.
+    fn checked_segment(seg: usize, n: usize) -> PyResult<()> {
+        if seg < n {
+            Ok(())
+        } else {
+            Err(PyIndexError::new_err(format!(
+                "segment {seg} out of range for {n} segments"
+            )))
+        }
+    }
+
+    /// Validate a `[start, end]` segment-index range against an augmented
+    /// matrix and return the width (column count) of the spanned rectangle.
+    fn segment_cols<const N: usize>(
+        m: &RustAugmentedMatrix<N>,
+        start: usize,
+        end: usize,
+    ) -> PyResult<usize> {
+        checked_segment(start, N)?;
+        checked_segment(end, N)?;
+        let lo = m.start[start];
+        let hi = m.end[end];
+        if lo > hi {
+            return Err(PyValueError::new_err(format!(
+                "segment range [{start}, {end}] is empty or inverted"
+            )));
+        }
+        Ok(hi - lo)
+    }
+
+    /// `AugmentedMatrix<N>` is a const-generic type, and PyO3 cannot expose a
+    /// generic `#[pyclass]`. We therefore bind the two concrete arities used in
+    /// the codebase (`N = 2` and `N = 3`) as separate classes `AugmentedMatrix2`
+    /// and `AugmentedMatrix3`. To avoid duplicating the shared glue, this
+    /// `macro_rules!` macro generates each class from a single definition; the
+    /// per-arity methods are spliced in through the `$extra` token block. Each
+    /// generated class still goes through `#[pyclass]` / `#[pymethods]`, so this
+    /// is not hand-desugared PyO3 registration. However, the `#[pymodule]`
+    /// proc-macro cannot see through a `macro_rules!` expansion to auto-collect
+    /// the classes, so they are registered explicitly with `add_class` in
+    /// `#[pymodule_init]`.
+    macro_rules! augmented_matrix_pyclass {
+        ($name:ident, $pyname:literal, $n:literal, { $($extra:tt)* }) => {
+            #[pyclass(name = $pyname)]
+            struct $name(RustAugmentedMatrix<$n>);
+
+            #[pymethods]
+            impl $name {
+                /// Construct an `rows x sum(columns)` augmented matrix whose
+                /// column blocks have the given widths. `columns` must contain
+                /// exactly `N` segment widths.
+                #[new]
+                fn new(p: u32, rows: usize, columns: Vec<usize>) -> PyResult<Self> {
+                    let len = columns.len();
+                    let cols: [usize; $n] = columns.try_into().map_err(|_| {
+                        PyValueError::new_err(format!(
+                            "expected {} segment widths, got {len}",
+                            $n
+                        ))
+                    })?;
+                    Ok(Self(RustAugmentedMatrix::<$n>::new(
+                        valid_prime(p)?,
+                        rows,
+                        cols,
+                    )))
+                }
+
+                fn prime(&self) -> u32 {
+                    self.0.prime().as_u32()
+                }
+
+                fn rows(&self) -> usize {
+                    self.0.rows()
+                }
+
+                fn columns(&self) -> usize {
+                    self.0.columns()
+                }
+
+                /// Number of column segments (`N`).
+                fn segments(&self) -> usize {
+                    $n
+                }
+
+                /// The starting column index of each segment.
+                fn segment_starts(&self) -> Vec<usize> {
+                    self.0.start.to_vec()
+                }
+
+                /// The (exclusive) ending column index of each segment.
+                fn segment_ends(&self) -> Vec<usize> {
+                    self.0.end.to_vec()
+                }
+
+                fn pivots(&self) -> Vec<isize> {
+                    self.0.pivots().to_vec()
+                }
+
+                fn is_zero(&self) -> bool {
+                    self.0.is_zero()
+                }
+
+                fn to_vec(&self) -> Vec<Vec<u32>> {
+                    self.0.to_vec()
+                }
+
+                fn row_reduce(&mut self) -> usize {
+                    self.0.row_reduce()
+                }
+
+                /// Add an identity matrix into the rectangular segment spanning
+                /// segment indices `start..=end`. The segment must be square
+                /// (its row count equals its column width), matching upstream's
+                /// `MatrixSliceMut::add_identity` invariant; otherwise a
+                /// `ValueError` is raised rather than panicking.
+                fn add_identity(&mut self, start: usize, end: usize) -> PyResult<()> {
+                    let cols = segment_cols(&self.0, start, end)?;
+                    if self.0.rows() != cols {
+                        return Err(PyValueError::new_err(format!(
+                            "add_identity requires a square segment: matrix has {} rows but \
+                             segment [{start}, {end}] has {cols} columns",
+                            self.0.rows()
+                        )));
+                    }
+                    self.0.segment(start, end).add_identity();
+                    Ok(())
+                }
+
+                /// Return an owned copy of row `i` restricted to the columns of
+                /// the segment range `start..=end`.
+                ///
+                /// Upstream `row_segment` returns a borrowed `FpSlice`. We copy
+                /// into an owned `FpVector` instead, matching the owned-return
+                /// precedent used elsewhere (e.g. `Subspace.iter`) and avoiding
+                /// the borrowed-view machinery; the mutable `row_segment_mut`
+                /// and rectangle-returning `segment` are deferred (see below).
+                fn row_segment(
+                    &self,
+                    i: usize,
+                    start: usize,
+                    end: usize,
+                ) -> PyResult<PyFpVector> {
+                    checked_row(i, self.0.rows())?;
+                    segment_cols(&self.0, start, end)?;
+                    Ok(PyFpVector(self.0.row_segment(i, start, end).to_owned()))
+                }
+
+                /// Compute the kernel of the augmented matrix (which must be row
+                /// reduced), returning an owned `Subspace`. Available for all
+                /// arities.
+                fn compute_kernel(&self) -> PySubspace {
+                    PySubspace(self.0.compute_kernel())
+                }
+
+                /// Return the inner `Matrix` as an owned `Matrix`.
+                ///
+                /// Upstream `into_matrix` consumes `self`, but PyO3 methods
+                /// borrow the pyclass and cannot move out of it, so we clone the
+                /// inner matrix. The augmented matrix remains usable afterward.
+                fn into_matrix(&self) -> PyMatrix {
+                    PyMatrix(self.0.inner.clone())
+                }
+
+                fn __repr__(&self) -> String {
+                    format!(
+                        concat!($pyname, "({}, {}x{})"),
+                        self.0.prime().as_u32(),
+                        self.0.rows(),
+                        self.0.columns()
+                    )
+                }
+
+                $($extra)*
+            }
+        };
+    }
+
+    augmented_matrix_pyclass!(PyAugmentedMatrix2, "AugmentedMatrix2", 2, {
+        /// Compute the image of the augmented matrix `[A | I]` (which must be
+        /// row reduced), returning an owned `Subspace`.
+        fn compute_image(&self) -> PySubspace {
+            PySubspace(self.0.compute_image())
+        }
+
+        /// Compute the quasi-inverse of the augmented matrix `[A | I]` (which
+        /// must be row reduced), returning an owned `QuasiInverse`.
+        fn compute_quasi_inverse(&self) -> PyQuasiInverse {
+            PyQuasiInverse(self.0.compute_quasi_inverse())
+        }
+    });
+
+    augmented_matrix_pyclass!(PyAugmentedMatrix3, "AugmentedMatrix3", 3, {
+        /// Compute the two quasi-inverses for a row-reduced augmented matrix of
+        /// the form `[A | 0 | B | 0 | I]` where `A` is surjective, returning the
+        /// pair `(quasi_inverse_of_A, residual_quasi_inverse)`.
+        ///
+        /// Upstream `compute_quasi_inverses` consumes and heavily mutates the
+        /// matrix; since PyO3 cannot move out of a borrowed pyclass we operate
+        /// on a clone, leaving the original augmented matrix unchanged.
+        fn compute_quasi_inverses(&self) -> (PyQuasiInverse, PyQuasiInverse) {
+            let (a, b) = self.0.clone().compute_quasi_inverses();
+            (PyQuasiInverse(a), PyQuasiInverse(b))
+        }
+    });
+
     #[pymethods]
     impl PyFpVectorIterator {
         pub fn __iter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
@@ -1939,6 +2145,11 @@ pub mod fp_py {
         m.add("PRIME_TO_INDEX_MAP", fp::PRIME_TO_INDEX_MAP.to_vec())?;
         m.add("MAX_MULTINOMIAL_LEN", fp::MAX_MULTINOMIAL_LEN)?;
         m.add("ODD_PRIMES", fp::ODD_PRIMES)?;
+        // The `AugmentedMatrix2`/`AugmentedMatrix3` classes are produced by a
+        // `macro_rules!` macro, which the `#[pymodule]` proc-macro cannot see
+        // through to auto-collect, so register them explicitly here.
+        m.add_class::<PyAugmentedMatrix2>()?;
+        m.add_class::<PyAugmentedMatrix3>()?;
         Ok(())
     }
 }
