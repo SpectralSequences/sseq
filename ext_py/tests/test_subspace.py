@@ -49,10 +49,21 @@ def test_contains_space_and_sum():
 
     assert not a.contains_space(b)
 
+    # The sum of two complementary lines is their 2-dimensional span.
     s = a.sum(b)
     assert s.dimension() == 2
     assert s.contains_space(a)
     assert s.contains_space(b)
+    assert s.contains(fp.FpVector.from_slice(3, [1, 0, 0]))
+    assert s.contains(fp.FpVector.from_slice(3, [0, 1, 0]))
+    assert s.dimension() <= s.ambient_dimension()
+
+    # Overlapping subspaces: the sum's dimension is the union's rank.
+    c = fp.Subspace(3, 3)
+    c.add_vector(fp.FpVector.from_slice(3, [1, 0, 0]))
+    overlap = a.sum(c)
+    assert overlap.dimension() == 1
+    assert overlap.contains_space(a)
 
 
 def test_reduce_in_place():

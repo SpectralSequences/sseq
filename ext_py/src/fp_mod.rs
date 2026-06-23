@@ -1259,13 +1259,15 @@ pub mod fp_py {
         pub fn sum(&self, other: &Self) -> PyResult<Self> {
             checked_same_prime(self.0.prime().as_u32(), other.0.prime().as_u32())?;
             checked_equal_len(self.0.ambient_dimension(), other.0.ambient_dimension())?;
-            // `Subspace::sum` calls `Matrix::trim` after `from_matrix`, which
-            // discards the matrix pivots and leaves the returned subspace with
-            // an empty pivot table (so `dimension`/`iter`/`reduce` would all
-            // misbehave). Re-wrap the resulting matrix through `from_matrix` to
-            // re-row-reduce and rebuild the pivots before exposing it.
-            let summed = self.0.sum(&other.0);
-            Ok(Self(RustSubspace::from_matrix((*summed).clone())))
+            // `Subspace::sum` trims the row count of the result (a sum cannot
+            // have rank greater than the ambient dimension), which clears the
+            // pivots. That trimming is intentional, but `dimension`/`iter` need
+            // pivots, so we regenerate them in place. The matrix is already in
+            // RREF, so a no-op `update_then_row_reduce` just rebuilds the pivot
+            // table without cloning.
+            let mut summed = self.0.sum(&other.0);
+            summed.update_then_row_reduce(|_| {});
+            Ok(Self(summed))
         }
 
         /// Return the basis of the subspace as a list of owned `FpVector`s.
