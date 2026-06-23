@@ -1,9 +1,0 @@
-[book]
-authors = ["Hood"]
-language = "en"
-multilingual = false
-src = "src"
-title = "Spectral Sequence Charts"
-
-[output.html]
-mathjax-support = true

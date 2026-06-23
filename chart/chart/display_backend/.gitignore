@@ -1,5 +1,0 @@
-node_modules
-dist
-target
-Cargo.lock
-package-lock.json
