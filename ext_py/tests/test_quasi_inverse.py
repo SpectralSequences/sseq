@@ -114,3 +114,93 @@ def test_compute_quasi_inverse_out_of_range():
     _, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
     with pytest.raises(IndexError):
         m.compute_quasi_inverse(2, 999)
+
+
+def test_inconsistent_image_raises():
+    # preimage has 4 rows; supply an image with 5 non-negative pivots.
+    preimage = fp.Matrix.from_vec(
+        2,
+        [
+            [1, 0, 1, 1],
+            [1, 1, 0, 0],
+            [0, 1, 0, 1],
+            [1, 1, 1, 0],
+        ],
+    )
+    with pytest.raises(ValueError):
+        fp.QuasiInverse([0, 1, 2, 3, 0], preimage)
+
+
+def test_pivot_out_of_range_raises():
+    # preimage has 4 rows; a non-negative pivot of 4 is an invalid row index.
+    preimage = fp.Matrix.from_vec(
+        2,
+        [
+            [1, 0, 1, 1],
+            [1, 1, 0, 0],
+            [0, 1, 0, 1],
+            [1, 1, 1, 0],
+        ],
+    )
+    with pytest.raises(ValueError):
+        fp.QuasiInverse([0, 1, 2, 4], preimage)
+
+
+def test_apply_with_coeff_odd_prime():
+    # At p = 3, identity-style preimage so the result is `coeff * input`.
+    preimage = fp.Matrix.from_vec(
+        3,
+        [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+        ],
+    )
+    qi = fp.QuasiInverse([0, 1, 2], preimage)
+    v = fp.FpVector.from_slice(3, [1, 2, 1])
+
+    out = fp.FpVector(3, 3)
+    qi.apply(out, 2, v)
+    # 2 * [1, 2, 1] mod 3 = [2, 1, 2]
+    assert list(out) == [2, 1, 2]
+
+    # A large coeff must reduce mod p and not overflow/panic.
+    out2 = fp.FpVector(3, 3)
+    qi.apply(out2, 0xFFFF_FFFF, v)
+    # 0xFFFFFFFF mod 3 == 0, so result is the zero vector.
+    assert list(out2) == [0, 0, 0]
+
+    out3 = fp.FpVector(3, 3)
+    qi.apply(out3, 2 + 3 * 10, v)  # coeff = 32 ≡ 2 mod 3
+    assert list(out3) == [2, 1, 2]
+
+
+def test_none_image_construction_and_roundtrip():
+    preimage = fp.Matrix.from_vec(
+        2,
+        [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+        ],
+    )
+    qi = fp.QuasiInverse(None, preimage)
+    assert qi.pivots() is None
+    # With a None (identity) image, target_dimension == image_dimension.
+    assert qi.image_dimension() == 3
+    assert qi.source_dimension() == 3
+    assert qi.target_dimension() == 3
+
+    v = fp.FpVector.from_slice(2, [1, 0, 1])
+    out = fp.FpVector(2, 3)
+    qi.apply(out, 1, v)
+    assert list(out) == [1, 0, 1]
+
+    # A None image is serialized as an explicit identity pivot list and so
+    # round-trips to Some([0, 1, 2, ...]) rather than None.
+    restored = fp.QuasiInverse.from_bytes(2, qi.to_bytes())
+    assert restored.pivots() == [0, 1, 2]
+    assert restored.target_dimension() == 3
+    out2 = fp.FpVector(2, 3)
+    restored.apply(out2, 1, v)
+    assert list(out2) == [1, 0, 1]

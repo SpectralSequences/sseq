@@ -1402,12 +1402,62 @@ pub mod fp_py {
 
     #[pymethods]
     impl PyQuasiInverse {
+        /// Construct a `QuasiInverse` from an optional `image` (pivot list) and a
+        /// `preimage` matrix.
+        ///
+        /// # Invariant enforced
+        ///
+        /// `apply` (and `stream_quasi_inverse`) walk `image` and, for every
+        /// non-negative pivot entry, consume one row of `preimage` (the rows are
+        /// addressed by a running counter that increments once per non-negative
+        /// pivot). Upstream `QuasiInverse::new` performs no validation, so without
+        /// the checks below a Python caller could supply an `image` whose count of
+        /// non-negative pivots exceeds `preimage.rows()`, causing `apply` to index
+        /// `preimage.row(row)` out of bounds and panic across the PyO3 boundary.
+        ///
+        /// We therefore require, when `image` is `Some`:
+        ///  * the number of non-negative pivot entries is `<= preimage.rows()`
+        ///    (this is the exact invariant that makes `apply` safe), and
+        ///  * every non-negative pivot is a valid `preimage` row index, i.e. in
+        ///    `0..preimage.rows()` (pivots are row indices into `preimage`).
+        ///
+        /// When `image` is `None` the image is the standard basis (identity) and
+        /// no pivot validation is needed; that path is always safe.
         #[new]
         #[pyo3(signature = (image, preimage))]
-        pub fn new(image: Option<Vec<isize>>, preimage: &PyMatrix) -> Self {
-            Self(RustQuasiInverse::new(image, preimage.0.clone()))
+        pub fn new(image: Option<Vec<isize>>, preimage: &PyMatrix) -> PyResult<Self> {
+            if let Some(pivots) = image.as_ref() {
+                let rows = preimage.0.rows();
+                let mut nonneg = 0usize;
+                for &p in pivots {
+                    if p >= 0 {
+                        nonneg += 1;
+                        if (p as usize) >= rows {
+                            return Err(PyValueError::new_err(format!(
+                                "inconsistent QuasiInverse: pivot {p} is out of range for a \
+                                 preimage with {rows} rows"
+                            )));
+                        }
+                    }
+                }
+                if nonneg > rows {
+                    return Err(PyValueError::new_err(format!(
+                        "inconsistent QuasiInverse: image has {nonneg} non-negative pivots but \
+                         preimage only has {rows} rows"
+                    )));
+                }
+            }
+            Ok(Self(RustQuasiInverse::new(image, preimage.0.clone())))
         }
 
+        /// Deserialize a `QuasiInverse` from bytes produced by [`Self::to_bytes`].
+        ///
+        /// Note on `image = None`: serialization does not preserve a `None` image.
+        /// [`Self::to_bytes`] writes a `None` image as an explicit identity pivot
+        /// list `[0, 1, 2, ...]` (matching upstream), so a quasi-inverse built with
+        /// `image=None` round-trips to one whose `pivots()` are `Some([0, 1, ...])`
+        /// rather than `None`. This is intended upstream behavior and is not changed
+        /// here.
         #[staticmethod]
         pub fn from_bytes(p: u32, data: &[u8]) -> PyResult<Self> {
             RustQuasiInverse::from_bytes(valid_prime(p)?, &mut Cursor::new(data))
@@ -1462,11 +1512,22 @@ pub mod fp_py {
                     target_slice.as_slice().prime().as_u32(),
                 )?;
                 checked_equal_len(target_slice.as_slice().len(), self.0.source_dimension())?;
+                // Reduce `coeff` mod p before calling upstream. Upstream computes
+                // `(coeff * c) % p`; with `c < p` and an unreduced `coeff` the
+                // product `coeff * c` can overflow u32 (debug panic / wrong result
+                // in release). Reducing first is mathematically equivalent since
+                // `(coeff % p) * c % p == coeff * c % p`.
+                let coeff = coeff % self.0.prime().as_u32();
                 self.0.apply(target_slice, coeff, input_owned.as_slice());
                 Ok(())
             })
         }
 
+        /// Serialize the quasi-inverse to bytes.
+        ///
+        /// Note: a `None` image (identity) is serialized as an explicit identity
+        /// pivot list `[0, 1, 2, ...]` (matching upstream), so it does not survive
+        /// a round-trip as `None`; see [`Self::from_bytes`].
         pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
             let mut buffer = Vec::new();
             self.0
