@@ -248,7 +248,7 @@ impl Subspace {
         }
 
         let mut ret = Self::from_matrix(sum);
-        ret.matrix.trim(0, self.matrix.columns() + 1, 0);
+        ret.matrix.trim(0, self.matrix.columns() + 1, 0, true);
         ret
     }
 }
