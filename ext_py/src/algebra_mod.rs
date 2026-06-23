@@ -84,8 +84,19 @@ pub mod algebra_py {
             return Ok(serde_json::Value::Bool(b.is_true()));
         }
         if let Ok(i) = value.cast::<PyInt>() {
-            let n: i64 = i.extract()?;
-            return Ok(serde_json::Value::from(n));
+            // Accept the full `[i64::MIN, u64::MAX]` range JSON numbers can
+            // represent. Try signed first, then unsigned for the
+            // `(i64::MAX, u64::MAX]` tail; anything outside that range raises
+            // `ValueError` (the taxonomy) rather than leaking `OverflowError`.
+            if let Ok(n) = i.extract::<i64>() {
+                return Ok(serde_json::Value::from(n));
+            }
+            if let Ok(n) = i.extract::<u64>() {
+                return Ok(serde_json::Value::from(n));
+            }
+            return Err(PyValueError::new_err(
+                "integer out of range for JSON (must fit in i64 or u64)",
+            ));
         }
         if let Ok(f) = value.cast::<PyFloat>() {
             let f: f64 = f.extract()?;
@@ -599,18 +610,25 @@ pub mod algebra_py {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
-            // The degree-0 unit has an empty `p_part`; upstream's
-            // `decompose_basis_element_ppart` computes `p_part[0..len - 1]`
-            // with `len == 0`, underflowing and panicking
-            // (milnor_algebra.rs ~1607). The unit is the identity and is
-            // indecomposable -- the trait docs note it is invalid to decompose
-            // a generator, and there is no product of strictly-smaller basis
-            // elements that equals the unit -- so we surface a `ValueError`
-            // instead of aborting. (Empty `p_part` with `q_part == 0` can only
-            // be the degree-0 unit, since any such element has degree 0.)
-            let basis = self.0.basis_element_from_index(degree, idx);
-            if basis.q_part == 0 && basis.p_part.is_empty() {
-                return Err(PyValueError::new_err("the degree-0 unit is indecomposable"));
+            // Decomposition is only defined for non-generators. Upstream has two
+            // underflow panic paths, both of which hit precisely the
+            // indecomposable elements reported by `generators`:
+            //   * `decompose_basis_element_ppart` (q_part == 0) computes
+            //     `p_part[0..len - 1]`; with `len == 0` this underflows
+            //     (milnor_algebra.rs ~1607). An empty `p_part` with
+            //     `q_part == 0` can only be the degree-0 unit.
+            //   * `decompose_basis_element_qpart` (q_part != 0) computes
+            //     `prime().pow(i - 1)` with `i = q_part.trailing_zeros()`; for
+            //     `Q_0` (`q_part == 1`) `i == 0`, so `i - 1` underflows
+            //     (milnor_algebra.rs ~1533-1536). `Q_0` lives in degree 1 and
+            //     is `generators(1) == [0]`.
+            // The generators-based guard (matching the Adem branch) therefore
+            // covers both panic preconditions; it also rejects ordinary
+            // generators such as `P(p^k)`, keeping the two variants consistent.
+            if degree == 0 || self.0.generators(degree).contains(&idx) {
+                return Err(PyValueError::new_err(
+                    "the unit and algebra generators are indecomposable",
+                ));
             }
             Ok(self.0.decompose_basis_element(degree, idx))
         }
@@ -1330,10 +1348,11 @@ pub mod algebra_py {
         /// `unstable` flag. Mirrors `::algebra::SteenrodAlgebra::from_json`,
         /// which reads `{"p": <int>, "algebra": [..]?, "profile": {..}?}`. If
         /// the spec's `algebra` list does not contain the requested type, the
-        /// upstream falls back to the first listed type. The prime is validated
-        /// by serde's `ValidPrime` deserializer; a bad spec/prime maps to
-        /// `ValueError` (parse) or `PyRuntimeError` (other `anyhow` errors),
-        /// consistent with API_PROPOSAL §2.4.
+        /// upstream falls back to the first listed type. Upstream returns an
+        /// `anyhow::Error` for every failure (bad prime, malformed spec, parse
+        /// error) without distinguishing them, so all `from_json` failures map
+        /// to `RuntimeError`. (Type conversion of the Python value itself, in
+        /// `py_to_json`, still raises `ValueError` before upstream is called.)
         #[staticmethod]
         #[pyo3(signature = (value, ty, unstable = false))]
         pub fn from_json(
@@ -1596,26 +1615,17 @@ pub mod algebra_py {
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
             // Decomposition is invalid for indecomposables. The union dispatches
-            // to the active variant's (panicking) implementation, so we apply
-            // the same per-variant guard the `MilnorAlgebra`/`AdemAlgebra`
-            // bindings use: for Milnor, the degree-0 unit has an empty `p_part`
-            // and underflows in `decompose_basis_element_ppart`; for Adem the
-            // degree-0 unit and the algebra generators index out of bounds /
-            // hit a panicking `basis_element_to_index`.
-            match &self.0 {
-                ::algebra::SteenrodAlgebra::MilnorAlgebra(a) => {
-                    let basis = a.basis_element_from_index(degree, idx);
-                    if basis.q_part == 0 && basis.p_part.is_empty() {
-                        return Err(PyValueError::new_err("the degree-0 unit is indecomposable"));
-                    }
-                }
-                ::algebra::SteenrodAlgebra::AdemAlgebra(a) => {
-                    if degree == 0 || a.generators(degree).contains(&idx) {
-                        return Err(PyValueError::new_err(
-                            "the unit and algebra generators are indecomposable",
-                        ));
-                    }
-                }
+            // to the active variant's (panicking) implementation. Both variants
+            // panic on the unit and on algebra generators (Milnor underflows in
+            // `decompose_basis_element_ppart`/`_qpart` on the degree-0 unit and
+            // on `Q_0`; Adem indexes out of bounds / hits a panicking
+            // `basis_element_to_index`). In every case the panicking elements
+            // are exactly those reported by `generators`, so the same
+            // generators-based guard applies uniformly to both variants.
+            if degree == 0 || self.0.generators(degree).contains(&idx) {
+                return Err(PyValueError::new_err(
+                    "the unit and algebra generators are indecomposable",
+                ));
             }
             Ok(self.0.decompose_basis_element(degree, idx))
         }

@@ -185,6 +185,28 @@ def test_decompose_basis_element_guards(variant):
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
+def test_decompose_generator_raises_consistently(variant):
+    # Both variants reject generators identically: Sq^2 / P(2) is the degree-2
+    # generator (idx 0). Previously the Milnor variant returned a degenerate
+    # self-term while Adem raised; the generators-based guard unifies them.
+    a = make(variant, 2, 8)
+    assert 0 in a.generators(2)
+    with pytest.raises(ValueError):
+        a.decompose_basis_element(2, 0)
+    # A non-generator decomposable element still decomposes.
+    assert isinstance(a.decompose_basis_element(3, 0), list)
+
+
+def test_milnor_q0_decompose_raises():
+    # Q_0 (degree 1, idx 0) at an odd prime used to underflow-panic through the
+    # union (`prime().pow(i - 1)` with i == 0). It must raise ValueError.
+    a = make("milnor", 3, 8)
+    assert 0 in a.generators(1)
+    with pytest.raises(ValueError):
+        a.decompose_basis_element(1, 0)
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
 def test_generated_algebra_surface(variant):
     a = make(variant, 2, 8)
     assert a.generators(2) == [0]
@@ -249,13 +271,34 @@ def test_from_json_constructs_known_algebra():
 
 
 def test_from_json_bad_prime_raises():
-    with pytest.raises((ValueError, RuntimeError)):
+    # Upstream returns an opaque anyhow::Error for a bad prime, which the
+    # binding maps to RuntimeError (documented behavior); the Python value
+    # itself converts fine, so this is not a ValueError.
+    with pytest.raises(RuntimeError):
         algebra.SteenrodAlgebra.from_json({"p": 4}, algebra.AlgebraType.Adem, False)
 
 
 def test_from_json_rejects_non_dict():
-    with pytest.raises((ValueError, RuntimeError)):
+    # A list converts to JSON fine, but upstream rejects the shape -> RuntimeError.
+    with pytest.raises(RuntimeError):
         algebra.SteenrodAlgebra.from_json([1, 2, 3], algebra.AlgebraType.Adem, False)
+
+
+def test_from_json_large_int_in_spec():
+    # py_to_json now accepts ints in (i64::MAX, u64::MAX] via the u64 path
+    # rather than raising OverflowError. Such a value is not a valid prime, so
+    # upstream rejects it with a RuntimeError (the int conversion succeeds).
+    big = 2**63 + 1  # > i64::MAX, <= u64::MAX
+    with pytest.raises(RuntimeError):
+        algebra.SteenrodAlgebra.from_json({"p": big}, algebra.AlgebraType.Adem, False)
+
+    # An int outside [i64::MIN, u64::MAX] is rejected by py_to_json itself with
+    # a ValueError (taxonomy), not OverflowError.
+    too_big = 2**64
+    with pytest.raises(ValueError):
+        algebra.SteenrodAlgebra.from_json(
+            {"p": too_big}, algebra.AlgebraType.Adem, False
+        )
 
 
 def test_repr():

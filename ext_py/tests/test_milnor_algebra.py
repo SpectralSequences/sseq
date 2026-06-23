@@ -192,6 +192,29 @@ def test_decompose_degree_zero_unit_raises():
     assert all(len(t) == 3 for t in decomp)
 
 
+def test_decompose_q0_generator_raises_odd_prime():
+    # Q_0 (the Bockstein, degree 1, idx 0) is an in-range generator at odd
+    # primes. Upstream `decompose_basis_element_qpart` computes
+    # `prime().pow(i - 1)` with i == 0, underflowing and panicking. The
+    # generators-based guard must turn this into a ValueError.
+    a = make_algebra(3, 8)
+    assert 0 in a.generators(1)
+    with pytest.raises(ValueError):
+        a.decompose_basis_element(1, 0)
+
+
+def test_decompose_generator_raises_p2():
+    # P(2) (= Sq^2) is a generator in degree 2 (idx 0): indecomposable, so it
+    # must raise ValueError, matching the Adem variant rather than returning a
+    # degenerate self-term.
+    a = make_algebra(2, 8)
+    assert 0 in a.generators(2)
+    with pytest.raises(ValueError):
+        a.decompose_basis_element(2, 0)
+    # A non-generator decomposable element still returns a decomposition.
+    assert isinstance(a.decompose_basis_element(3, 0), list)
+
+
 def test_multiply_large_coeff_does_not_overflow():
     # Upstream computes `coeff * v` before reducing mod p, overflowing for
     # large coeff (panics in debug). The binding reduces coeff mod p first.
