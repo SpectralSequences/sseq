@@ -220,3 +220,68 @@ def test_row_mut_to_owned_and_slice_mut():
     sub.scale(2)
     assert m.to_vec()[0] == [2, 4, 3, 4]
     assert repr(rm).startswith("FpSliceMut(5, ")
+
+
+def test_row_len_revalidates_after_column_shrink():
+    # `trim` with col_start > 0 reduces the number of columns, so a previously
+    # created row slice whose `end` exceeds the new column count is stale.
+    m = fp.Matrix.from_vec(5, [[1, 2, 3, 4], [5, 6, 7, 8]])
+    row = m.row(0)
+    rm = m.row_mut(1)
+    assert len(row) == 4
+    assert len(rm) == 4
+
+    # Drop two leading columns: columns goes 4 -> 2.
+    m.trim(0, 2, 2)
+    assert m.columns() == 2
+
+    with pytest.raises(IndexError):
+        len(row)
+    with pytest.raises(IndexError):
+        row.entry(0)
+    with pytest.raises(IndexError):
+        row[0]
+    with pytest.raises(IndexError):
+        len(rm)
+    with pytest.raises(IndexError):
+        rm.set_entry(0, 1)
+
+
+def test_content_shift_staleness_after_trim_is_documented_behavior():
+    # A sub-slice that survives a `col_start > 0` trim (its `end` stays within
+    # the new column count) does NOT raise: revalidation guards parent
+    # dimensions only, not logical-coordinate remapping. The slice now reads the
+    # shifted columns. This pins the documented semantics.
+    m = fp.Matrix.from_vec(5, [[1, 2, 3, 4]])
+    # restrict to absolute indices 1..3, i.e. logical columns [2, 3].
+    sub = m.row(0).restrict(1, 3)
+    assert [sub[i] for i in range(len(sub))] == [2, 3]
+
+    # Trim one leading column: columns goes 4 -> 3, data shifts left by one.
+    # Row was [1, 2, 3, 4] -> [2, 3, 4]. The sub-slice's range 1..3 still fits.
+    m.trim(0, 1, 1)
+    assert m.columns() == 3
+    assert m.to_vec()[0] == [2, 3, 4]
+
+    # The handle does not raise; it now reads the remapped indices 1..3 -> [3, 4]
+    # instead of the original [2, 3]. Length is unchanged but data has shifted.
+    assert len(sub) == 2
+    assert [sub[i] for i in range(len(sub))] == [3, 4]
+
+
+def test_interacting_mutable_slices_over_same_parent():
+    # Borrow conflicts cannot arise from holding two slice handles: each call
+    # reconstructs and re-borrows the parent for the duration of that single
+    # call, and no parent borrow is held across re-entry into Python. So two
+    # FpSliceMut handles over the same matrix interleave safely rather than
+    # panicking. We assert the safe interleaving here; a genuine borrow conflict
+    # is not reachable from Python with this design.
+    m = fp.Matrix.from_vec(5, [[1, 2], [3, 4]])
+    a = m.row_mut(0)
+    b = m.row_mut(1)
+
+    a.set_entry(0, 0)
+    b.set_entry(1, 0)
+    a.scale(2)
+
+    assert m.to_vec() == [[0, 4], [3, 0]]

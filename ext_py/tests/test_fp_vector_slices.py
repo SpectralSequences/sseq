@@ -178,6 +178,41 @@ def test_fp_slice_mut_new_method_errors_are_python_exceptions():
         )
 
 
+def test_fp_slice_mut_to_owned():
+    v = fp.FpVector.from_slice(5, [1, 2, 3, 4, 0])
+    s = v.slice_mut(1, 4)
+
+    owned = s.to_owned()
+    assert isinstance(owned, fp.FpVector)
+    assert owned.prime() == 5
+    assert repr(owned) == "FpVector(5, [2, 3, 4])"
+
+    # to_owned is a copy: mutating the source does not change the owned vector.
+    s.set_entry(0, 0)
+    assert repr(owned) == "FpVector(5, [2, 3, 4])"
+
+
+def test_fp_slice_len_revalidates_after_parent_shrink():
+    v = fp.FpVector.from_slice(5, [1, 2, 3, 4])
+    s = v.slice(1, 4)
+    sm = v.slice_mut(1, 4)
+
+    assert len(s) == 3
+    assert len(sm) == 3
+    assert not s.is_empty()
+
+    v.set_scratch_vector_size(2)
+
+    with pytest.raises(IndexError):
+        len(s)
+    with pytest.raises(IndexError):
+        s.is_empty()
+    with pytest.raises(IndexError):
+        len(sm)
+    with pytest.raises(IndexError):
+        sm.is_empty()
+
+
 def test_fp_slice_mut_index_and_range_errors():
     v = fp.FpVector(2, 3)
     s = v.slice_mut(1, 3)

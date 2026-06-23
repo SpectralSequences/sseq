@@ -68,6 +68,15 @@ pub(crate) mod fp_py_impl {
 
     /// Run `f` on the reconstructed immutable slice for `parent[start..end]`,
     /// after revalidating the parent's current dimensions.
+    ///
+    /// Revalidation only guards the parent's current *dimensions* (vector length
+    /// or matrix row count and row length). It deliberately does not track
+    /// logical-coordinate remapping: an operation like `Matrix::trim` with
+    /// `col_start > 0` shifts the data backwards in each row without shrinking it
+    /// below the slice's `end`, so a surviving slice silently reads the remapped
+    /// columns rather than raising. Preventing that would require tracking the
+    /// origin of every coordinate, which is out of scope for the
+    /// handle+range design.
     fn with_parent_slice<R>(
         parent: &SliceParent,
         start: usize,
@@ -109,8 +118,12 @@ pub(crate) mod fp_py_impl {
             SliceParent::MatrixRow { matrix, row } => {
                 let mut parent = matrix.try_borrow_mut(py).map_err(borrow_error)?;
                 checked_row(*row, parent.0.rows())?;
-                let columns = parent.0.columns();
-                checked_range(start, end, columns)?;
+                // Validate against the actual current row length, matching the
+                // read path (`with_parent_slice`). For a `Matrix` this equals
+                // `columns()`, but deriving it from the row keeps both paths
+                // consistent regardless of that invariant.
+                let row_len = parent.0.row(*row).len();
+                checked_range(start, end, row_len)?;
                 Ok(f(parent.0.row_mut(*row).slice_mut(start, end)))
             }
         }
@@ -265,6 +278,13 @@ pub(crate) mod fp_py_impl {
             with_parent_slice(&self.parent, self.start, self.end, py, f)
         }
 
+        /// Cached span of the handle, used only for computing index bounds.
+        /// This does NOT revalidate the parent; callers that touch the parent
+        /// go through `with_slice`/`with_slice_mut`, which revalidate.
+        fn span(&self) -> usize {
+            self.end - self.start
+        }
+
         fn to_owned_checked(&self, py: Python<'_>) -> PyResult<RustFpVector> {
             self.with_slice(py, |s| s.to_owned())
         }
@@ -277,6 +297,13 @@ pub(crate) mod fp_py_impl {
             f: impl FnOnce(RustFpSlice<'_>) -> R,
         ) -> PyResult<R> {
             with_parent_slice(&self.parent, self.start, self.end, py, f)
+        }
+
+        /// Cached span of the handle, used only for computing index bounds.
+        /// This does NOT revalidate the parent; callers that touch the parent
+        /// go through `with_slice`/`with_slice_mut`, which revalidate.
+        fn span(&self) -> usize {
+            self.end - self.start
         }
 
         fn with_slice_mut<R>(
@@ -678,16 +705,16 @@ pub(crate) mod fp_py_impl {
             self.with_slice(py, |s| s.prime().as_u32())
         }
 
-        pub fn len(&self) -> usize {
-            self.end - self.start
+        pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
+            self.with_slice(py, |s| s.len())
         }
 
-        pub fn is_empty(&self) -> bool {
-            self.start == self.end
+        pub fn is_empty(&self, py: Python<'_>) -> PyResult<bool> {
+            self.with_slice(py, |s| s.is_empty())
         }
 
         pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
-            let index = checked_index(index, self.len())?;
+            let index = checked_index(index, self.span())?;
             self.with_slice(py, |s| s.entry(index))
         }
 
@@ -709,7 +736,7 @@ pub(crate) mod fp_py_impl {
         }
 
         pub fn restrict(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {
-            checked_range(start, end, self.len())?;
+            checked_range(start, end, self.span())?;
             Ok(Self {
                 parent: self.parent.clone_ref(py),
                 start: self.start + start,
@@ -721,12 +748,12 @@ pub(crate) mod fp_py_impl {
             Ok(PyFpVector(self.to_owned_checked(py)?))
         }
 
-        pub fn __len__(&self) -> usize {
-            self.len()
+        pub fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+            self.len(py)
         }
 
         pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
-            let index = py_index(index, self.len())?;
+            let index = py_index(index, self.span())?;
             self.with_slice(py, |s| s.entry(index))
         }
 
@@ -741,12 +768,16 @@ pub(crate) mod fp_py_impl {
             self.with_slice(py, |s| s.prime().as_u32())
         }
 
-        pub fn len(&self) -> usize {
-            self.end - self.start
+        pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
+            self.with_slice(py, |s| s.len())
+        }
+
+        pub fn is_empty(&self, py: Python<'_>) -> PyResult<bool> {
+            self.with_slice(py, |s| s.is_empty())
         }
 
         pub fn set_entry(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
-            let index = checked_index(index, self.len())?;
+            let index = checked_index(index, self.span())?;
             self.with_slice_mut(py, |mut s| s.set_entry(index, value))
         }
 
@@ -759,7 +790,7 @@ pub(crate) mod fp_py_impl {
         }
 
         pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
-            checked_equal_len(self.len(), other.len())?;
+            checked_equal_len(self.span(), other.span())?;
             let other_owned = other.to_owned_checked(py)?;
             self.with_slice_mut(py, |mut target| {
                 checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
@@ -775,8 +806,8 @@ pub(crate) mod fp_py_impl {
             c: u32,
             offset: usize,
         ) -> PyResult<()> {
-            checked_equal_len(self.len(), other.len())?;
-            checked_range(offset, self.len(), self.len())?;
+            checked_equal_len(self.span(), other.span())?;
+            checked_range(offset, self.span(), self.span())?;
             let other_owned = other.to_owned_checked(py)?;
             self.with_slice_mut(py, |mut target| {
                 checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
@@ -792,11 +823,11 @@ pub(crate) mod fp_py_impl {
             c: u32,
             mask: Vec<usize>,
         ) -> PyResult<()> {
-            checked_equal_len(self.len(), mask.len())?;
-            if let Some(&index) = mask.iter().find(|&&index| index >= other.len()) {
+            checked_equal_len(self.span(), mask.len())?;
+            if let Some(&index) = mask.iter().find(|&&index| index >= other.span()) {
                 return Err(PyIndexError::new_err(format!(
                     "mask index {index} out of range for vector of length {}",
-                    other.len()
+                    other.span()
                 )));
             }
             let other_owned = other.to_owned_checked(py)?;
@@ -814,21 +845,21 @@ pub(crate) mod fp_py_impl {
             c: u32,
             mask: Vec<usize>,
         ) -> PyResult<()> {
-            if other.len() > mask.len() {
+            if other.span() > mask.len() {
                 return Err(PyValueError::new_err(format!(
                     "mask length {} shorter than source length {}",
                     mask.len(),
-                    other.len()
+                    other.span()
                 )));
             }
             if let Some(&index) = mask
                 .iter()
-                .take(other.len())
-                .find(|&&index| index >= self.len())
+                .take(other.span())
+                .find(|&&index| index >= self.span())
             {
                 return Err(PyIndexError::new_err(format!(
                     "mask index {index} out of range for vector of length {}",
-                    self.len()
+                    self.span()
                 )));
             }
             let other_owned = other.to_owned_checked(py)?;
@@ -840,7 +871,7 @@ pub(crate) mod fp_py_impl {
         }
 
         pub fn assign(&self, py: Python<'_>, other: &PyFpSlice) -> PyResult<()> {
-            checked_equal_len(self.len(), other.len())?;
+            checked_equal_len(self.span(), other.span())?;
             let other_owned = other.to_owned_checked(py)?;
             self.with_slice_mut(py, |mut target| {
                 checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
@@ -858,11 +889,11 @@ pub(crate) mod fp_py_impl {
             right: &PyFpSlice,
         ) -> PyResult<()> {
             let width = left
-                .len()
-                .checked_mul(right.len())
+                .span()
+                .checked_mul(right.span())
                 .and_then(|width| offset.checked_add(width))
                 .ok_or_else(|| PyIndexError::new_err("tensor range overflows usize"))?;
-            checked_range(offset, width, self.len())?;
+            checked_range(offset, width, self.span())?;
             let left_owned = left.to_owned_checked(py)?;
             let right_owned = right.to_owned_checked(py)?;
             self.with_slice_mut(py, |mut target| {
@@ -874,7 +905,7 @@ pub(crate) mod fp_py_impl {
         }
 
         pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
-            let index = checked_index(index, self.len())?;
+            let index = checked_index(index, self.span())?;
             self.with_slice_mut(py, |mut s| s.add_basis_element(index, value))
         }
 
@@ -887,7 +918,7 @@ pub(crate) mod fp_py_impl {
         }
 
         pub fn slice_mut(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {
-            checked_range(start, end, self.len())?;
+            checked_range(start, end, self.span())?;
             Ok(Self {
                 parent: self.parent.clone_ref(py),
                 start: self.start + start,
@@ -899,17 +930,17 @@ pub(crate) mod fp_py_impl {
             Ok(PyFpVector(self.with_slice(py, |s| s.to_owned())?))
         }
 
-        pub fn __len__(&self) -> usize {
-            self.len()
+        pub fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+            self.len(py)
         }
 
         pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
-            let index = py_index(index, self.len())?;
+            let index = py_index(index, self.span())?;
             self.with_slice(py, |s| s.entry(index))
         }
 
         pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
-            let index = py_index(index, self.len())?;
+            let index = py_index(index, self.span())?;
             self.with_slice_mut(py, |mut s| s.set_entry(index, value))
         }
 
