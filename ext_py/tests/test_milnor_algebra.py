@@ -155,6 +155,79 @@ def test_basis_element_to_from_string_roundtrip():
         a.basis_element_from_string("not a valid element ###")
 
 
+def test_basis_element_from_string_absent_names_raise():
+    # Parseable-but-absent / out-of-range names used to panic across the PyO3
+    # boundary (upstream `beps_pn(..).unwrap()` / `basis_element_to_index`).
+    # They must now raise a normal ValueError, never a PanicException.
+    a = make_algebra(2, 8)
+    for name in ("Sq0", "P0", "Q_5"):
+        with pytest.raises(ValueError):
+            a.basis_element_from_string(name)
+
+    # An out-of-profile name on a profiled algebra also raises rather than
+    # panicking. With profile p_part=[1], Sq^2 = P(2) is not present.
+    profile = algebra.MilnorProfile(truncated=True, q_part=0xFFFFFFFF, p_part=[1])
+    pa = algebra.MilnorAlgebra.new_with_profile(2, profile)
+    pa.compute_basis(8)
+    with pytest.raises(ValueError):
+        pa.basis_element_from_string("Sq2")
+
+    # Valid names still round-trip correctly.
+    for d in range(7):
+        for i in range(a.dimension(d)):
+            s = a.basis_element_to_string(d, i)
+            assert a.basis_element_from_string(s) == (d, i)
+
+
+def test_decompose_degree_zero_unit_raises():
+    # The degree-0 unit is indecomposable; decomposing it used to underflow
+    # and panic (`p_part[0..len - 1]` with len == 0). It must raise ValueError.
+    a = make_algebra(2, 8)
+    with pytest.raises(ValueError):
+        a.decompose_basis_element(0, 0)
+
+    # A non-trivial decompose still works and returns a list of triples.
+    decomp = a.decompose_basis_element(4, 1)
+    assert isinstance(decomp, list)
+    assert all(len(t) == 3 for t in decomp)
+
+
+def test_multiply_large_coeff_does_not_overflow():
+    # Upstream computes `coeff * v` before reducing mod p, overflowing for
+    # large coeff (panics in debug). The binding reduces coeff mod p first.
+    a = make_algebra(2, 8)
+
+    # Reference: Sq^2 * Sq^2 = P(1, 1) = [0, 1] with coeff 1.
+    ref = fp.FpVector(2, a.dimension(4))
+    a.multiply_basis_elements(ref, 1, 2, 0, 2, 0)
+    assert list(ref) == [0, 1]
+
+    # coeff near u32::MAX. 0xFFFFFFFF % 2 == 1, so result matches coeff 1.
+    big = fp.FpVector(2, a.dimension(4))
+    a.multiply_basis_elements(big, 0xFFFFFFFF, 2, 0, 2, 0)
+    assert list(big) == [0, 1]
+
+    # An even large coeff reduces to 0 mod 2 -> no contribution.
+    even = fp.FpVector(2, a.dimension(4))
+    a.multiply_basis_elements(even, 0xFFFFFFFE, 2, 0, 2, 0)
+    assert list(even) == [0, 0]
+
+    # Odd prime: coeff >= p reduces correctly. At p = 3, Sq-analog product
+    # scaled by coeff 7 == coeff 1 (7 % 3 == 1).
+    a3 = make_algebra(3, 32)
+    base = fp.FpVector(3, a3.dimension(8))
+    a3.multiply_basis_elements(base, 1, 4, 0, 4, 0)
+    scaled = fp.FpVector(3, a3.dimension(8))
+    a3.multiply_basis_elements(scaled, 7, 4, 0, 4, 0)
+    assert list(scaled) == list(base)
+
+    # And via the MilnorBasisElement multiply entry point.
+    m = a.basis_element_from_index(2, 0)
+    out = fp.FpVector(2, a.dimension(4))
+    a.multiply(out, 0xFFFFFFFF, m, m)
+    assert list(out) == [0, 1]
+
+
 def test_element_to_string():
     a = make_algebra(2, 6)
     v = fp.FpVector.from_slice(2, [1, 1])  # P(3) + P(0, 1) in degree 3

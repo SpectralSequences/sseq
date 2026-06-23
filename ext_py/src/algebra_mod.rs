@@ -337,17 +337,25 @@ pub mod algebra_py {
         }
 
         pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.basis_element_to_string(degree, idx))
+            self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
+                PyIndexError::new_err(format!(
+                    "no basis element at degree {degree} index {idx}"
+                ))
+            })
         }
 
         /// Parse a basis element, returning `(degree, index)`. Raises
-        /// `ValueError` if the string does not parse.
+        /// `ValueError` if the string does not parse, or if it names an element
+        /// that is not present in this (possibly profiled) algebra.
+        ///
+        /// Upstream's `basis_element_from_string` is now total: a parseable but
+        /// absent/out-of-profile name (e.g. `"Sq0"`, `"P0"`, `"Q_5"`) returns
+        /// `None` rather than panicking. We map that `None` to `ValueError`.
         pub fn basis_element_from_string(&self, elt: &str) -> PyResult<(i32, usize)> {
             self.0.basis_element_from_string(elt).ok_or_else(|| {
-                PyValueError::new_err(format!("could not parse basis element: {elt}"))
+                PyValueError::new_err(format!(
+                    "{elt} does not name a basis element of this algebra"
+                ))
             })
         }
 
@@ -376,6 +384,12 @@ pub mod algebra_py {
             s_idx: usize,
         ) -> PyResult<()> {
             let p = self.0.prime().as_u32();
+            // Reduce the coefficient mod p before handing it to upstream, which
+            // computes `coeff * v` (milnor_algebra.rs ~555) before reducing and
+            // would overflow (panicking in debug, wrapping in release) for large
+            // `coeff`. The algebra is over F_p, so this is mathematically
+            // equivalent.
+            let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(r_degree, r_idx)?;
@@ -400,6 +414,9 @@ pub mod algebra_py {
             s: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             let p = self.0.prime().as_u32();
+            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
+            // `coeff * v` overflow.
+            let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(r_degree, r_idx)?;
@@ -432,6 +449,9 @@ pub mod algebra_py {
             s_idx: usize,
         ) -> PyResult<()> {
             let p = self.0.prime().as_u32();
+            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
+            // `coeff * v` overflow.
+            let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(s_degree, s_idx)?;
@@ -464,6 +484,9 @@ pub mod algebra_py {
             s: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
             let p = self.0.prime().as_u32();
+            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
+            // `coeff * v` overflow.
+            let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             let r = crate::fp_py::extract_input_owned(py, r)?;
@@ -516,6 +539,19 @@ pub mod algebra_py {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
+            // The degree-0 unit has an empty `p_part`; upstream's
+            // `decompose_basis_element_ppart` computes `p_part[0..len - 1]`
+            // with `len == 0`, underflowing and panicking
+            // (milnor_algebra.rs ~1607). The unit is the identity and is
+            // indecomposable -- the trait docs note it is invalid to decompose
+            // a generator, and there is no product of strictly-smaller basis
+            // elements that equals the unit -- so we surface a `ValueError`
+            // instead of aborting. (Empty `p_part` with `q_part == 0` can only
+            // be the degree-0 unit, since any such element has degree 0.)
+            let basis = self.0.basis_element_from_index(degree, idx);
+            if basis.q_part == 0 && basis.p_part.is_empty() {
+                return Err(PyValueError::new_err("the degree-0 unit is indecomposable"));
+            }
             Ok(self.0.decompose_basis_element(degree, idx))
         }
 
@@ -626,26 +662,12 @@ pub mod algebra_py {
         }
 
         /// The degree and index of `Q_1^e P(x)`. Raises `ValueError` if that
-        /// element is not in the (profiled) algebra (upstream panics).
+        /// element is not in the (profiled) algebra (upstream's non-panicking
+        /// `try_beps_pn` returns `None`).
         pub fn beps_pn(&self, e: u32, x: u32) -> PyResult<(i32, usize)> {
-            let q = self.0.q() as u32;
-            let degree = q
-                .checked_mul(x)
-                .and_then(|v| v.checked_add(e))
-                .ok_or_else(|| PyValueError::new_err("degree overflows"))?
-                as i32;
-            self.ensure_basis(degree);
-            let elt = ::algebra::milnor_algebra::MilnorBasisElement {
-                degree,
-                q_part: e,
-                p_part: vec![x],
-            };
-            self.0
-                .try_basis_element_to_index(&elt)
-                .map(|idx| (degree, idx))
-                .ok_or_else(|| {
-                    PyValueError::new_err(format!("Q_1^{e} P({x}) is not in the algebra"))
-                })
+            self.0.try_beps_pn(e, x).ok_or_else(|| {
+                PyValueError::new_err(format!("Q_1^{e} P({x}) is not in the algebra"))
+            })
         }
 
         /// Multiply two `MilnorBasisElement`s, accumulating into `result`.
@@ -658,6 +680,9 @@ pub mod algebra_py {
             m2: PyRef<'_, MilnorBasisElement>,
         ) -> PyResult<()> {
             let p = self.0.prime().as_u32();
+            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
+            // `coeff * v` overflow.
+            let coeff = coeff % p;
             let target = self.product_target(m1.0.degree, m2.0.degree)?;
             let dim = self.0.dimension(target);
             // Reject elements that are not genuine basis elements of this
