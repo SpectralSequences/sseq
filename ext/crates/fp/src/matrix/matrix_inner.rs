@@ -1080,6 +1080,14 @@ impl Matrix {
         }
     }
 
+    /// Trim the matrix to rows `row_start..row_end` and columns `col_start..`.
+    ///
+    /// When `keep_pivots` is `true` the existing pivot table is carried over to
+    /// the trimmed matrix. This is only valid when `col_start == 0`: a nonzero
+    /// `col_start` shifts every column index, so the old pivots would point at
+    /// the wrong columns (and the pivot table length would no longer match the
+    /// trimmed column count). Passing `keep_pivots == true` with `col_start != 0`
+    /// is therefore forbidden.
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize, keep_pivots: bool) {
         assert!(
             !keep_pivots || col_start == 0,
