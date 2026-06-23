@@ -1081,6 +1081,10 @@ impl Matrix {
     }
 
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize, keep_pivots: bool) {
+        assert!(
+            !keep_pivots || col_start == 0,
+            "trim cannot keep pivots when col_start != 0: column indices would shift"
+        );
         let mut new = Self::new(self.prime(), row_end - row_start, self.columns - col_start);
         for (i, mut row) in new.iter_mut().enumerate() {
             row.assign(self.row(row_start + i).restrict(col_start, self.columns));
