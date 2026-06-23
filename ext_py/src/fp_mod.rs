@@ -1246,10 +1246,17 @@ pub mod fp_py {
                     "mask index {index} out of range for matrix with {other_columns} columns"
                 )));
             }
-            // Clone `other` so the rectangle's `borrow_mut` cannot alias it even
-            // if the same matrix object is passed as both parent and source.
-            let other_matrix = other.0.clone();
-            self.with_slice_mut(py, |mut s| s.add_masked(&other_matrix, &mask))
+            // No aliasing guard is needed here. `other: &PyMatrix` holds a live
+            // immutable borrow of its Python object for the whole method, so if
+            // the same object is passed as both the slice's parent and `other`,
+            // `with_slice_mut`'s `try_borrow_mut` already fails and raises
+            // `RuntimeError` (via `borrow_error`) before any data is touched.
+            // We therefore read straight through the borrowed `other` rather
+            // than cloning the matrix: the borrow checker is satisfied because
+            // `&other.0` and the parent's `&mut` are distinct references, and an
+            // earlier `other.0.clone()` would not have prevented the conflict
+            // anyway (the conflict comes from the held `PyRef`, not the data).
+            self.with_slice_mut(py, |mut s| s.add_masked(&other.0, &mask))
         }
 
         pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {

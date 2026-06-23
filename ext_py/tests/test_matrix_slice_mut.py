@@ -97,6 +97,16 @@ def test_add_masked():
         rect.add_masked(bad_prime, [0, 1])
 
 
+def test_add_masked_self_raises_runtime_error():
+    # Passing the slice's own parent matrix as `other` keeps an immutable
+    # borrow of that object alive while the rectangle tries to borrow it
+    # mutably, so the binding raises RuntimeError rather than aliasing.
+    m = make_matrix([[1, 2], [0, 1]])
+    rect = m.slice_mut(0, 2, 0, 2)
+    with pytest.raises(RuntimeError):
+        rect.add_masked(m, [0, 1])
+
+
 def test_invalid_rectangle_raises():
     m = make_matrix([[1, 2, 3], [4, 0, 1]])
     with pytest.raises(IndexError):
@@ -153,6 +163,39 @@ def test_augmented_row_segment_mut_writes_through():
     assert isinstance(row, fp.FpSliceMut)
     row.set_entry(0, 2)
     assert m.to_vec()[0][0] == 2
+
+
+def test_augmented3_segment_and_row_segment_mut_write_through():
+    # Exercises the MatrixParent::Augmented3 arm: take a segment / row segment
+    # from an AugmentedMatrix3, mutate through it, and observe the change via
+    # the augmented matrix (to_vec / row_segment).
+    m = fp.AugmentedMatrix3(3, 2, [2, 2, 2])
+    seg = m.segment(1, 1)
+    assert isinstance(seg, fp.MatrixSliceMut)
+    assert seg.rows() == 2
+    assert seg.columns() == 2
+    seg.add_identity()
+    start1 = m.segment_starts()[1]
+    rows = m.to_vec()
+    assert rows[0][start1] == 1
+    assert rows[1][start1 + 1] == 1
+
+    row = m.row_segment_mut(0, 0, 0)
+    assert isinstance(row, fp.FpSliceMut)
+    row.set_entry(0, 2)
+    assert m.to_vec()[0][0] == 2
+    # Observable via the read-only row_segment accessor too.
+    assert list(m.row_segment(0, 0, 0))[0] == 2
+
+
+def test_stale_slice_mut_repr_raises():
+    # __repr__ revalidates via with_slice_mut, so a stale handle raises rather
+    # than returning a string.
+    m = make_matrix([[1, 1, 0], [0, 1, 1]])
+    rect = m.slice_mut(0, 2, 0, 3)
+    m.trim(0, 1, 0)
+    with pytest.raises(IndexError):
+        repr(rect)
 
 
 def test_augmented_segment_builds_nontrivial_compute_values():
