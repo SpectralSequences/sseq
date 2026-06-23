@@ -1080,10 +1080,13 @@ impl Matrix {
         }
     }
 
-    pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
+    pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize, keep_pivots: bool) {
         let mut new = Self::new(self.prime(), row_end - row_start, self.columns - col_start);
         for (i, mut row) in new.iter_mut().enumerate() {
             row.assign(self.row(row_start + i).restrict(col_start, self.columns));
+        }
+        if keep_pivots {
+            std::mem::swap(&mut new.pivots, &mut self.pivots);
         }
         std::mem::swap(self, &mut new);
     }
@@ -1349,7 +1352,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         segment_start: usize,
     ) -> Matrix {
         self.inner
-            .trim(row_start, row_end, self.start[segment_start]);
+            .trim(row_start, row_end, self.start[segment_start], false);
         self.inner
     }
 

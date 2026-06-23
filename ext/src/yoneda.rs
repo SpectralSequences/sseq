@@ -258,7 +258,9 @@ where
                     let mut result = Subspace::from_matrix(differentials);
 
                     let dim = result.dimension();
-                    result.update_then_row_reduce(|result_matrix| result_matrix.trim(0, dim, 0));
+                    result.update_then_row_reduce(|result_matrix| {
+                        result_matrix.trim(0, dim, 0, false)
+                    });
                     result
                 });
             }
