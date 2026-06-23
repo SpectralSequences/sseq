@@ -14,7 +14,10 @@ mod json {
     use anyhow::anyhow;
 
     use super::*;
-    use crate::module::{FDModule, FPModule, RealProjectiveSpace, SuspensionModule};
+    use crate::module::{
+        BClassifyingSpace, ComplexProjectiveSpace, FDModule, FPModule, RealProjectiveSpace,
+        SuspensionModule,
+    };
 
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
@@ -34,6 +37,14 @@ mod json {
         match json["type"].as_str() {
             Some("real projective space") => Ok(box_new(
                 RealProjectiveSpace::from_json(algebra, json)?,
+                json,
+            )),
+            Some("complex projective space") => Ok(box_new(
+                ComplexProjectiveSpace::from_json(algebra, json)?,
+                json,
+            )),
+            Some("classifying space BCp") => Ok(box_new(
+                BClassifyingSpace::from_json(algebra, json)?,
                 json,
             )),
             Some("finite dimensional module") => {

@@ -1,3 +1,5 @@
+mod bcp;
+mod cpn;
 mod finite_dimensional_module;
 mod finitely_presented_module;
 mod free_module;
@@ -23,6 +25,8 @@ pub use free_module::{
 pub use hom_module::HomModule;
 pub use module_trait::{Module, ModuleFailedRelationError};
 pub use quotient_module::QuotientModule;
+pub use bcp::BClassifyingSpace;
+pub use cpn::ComplexProjectiveSpace;
 pub use rpn::RealProjectiveSpace;
 pub use steenrod_module::SteenrodModule;
 pub use suspension_module::SuspensionModule;

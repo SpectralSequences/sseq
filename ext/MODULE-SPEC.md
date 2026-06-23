@@ -110,7 +110,7 @@ is perfectly acceptable to interleave the algebra and module parts.
 
 ## Module
 
-The specification of a module starts with the `type`. The possible values are `finite dimensional module`, `finitely presented module` and `real projective space`.
+The specification of a module starts with the `type`. The possible values are `finite dimensional module`, `finitely presented module`, `real projective space`, `complex projective space` and `classifying space BCp`.
 
 ### Finite Dimensional Module
 
@@ -148,6 +148,39 @@ This only works at the prime `2`, resolving `RP_n^m`
   by degrees less than `min`. This is useful for approximating `tmf ∧ RP_∞^n`,
   c.f. Proposition 2.2 of Bailey and Ricka. Note that this quotient always has
   minimum degree -1 mod 8.
+
+### (Stunted) Complex Projective Space
+
+This works at any prime, resolving `CP_n^m`. The cohomology is the subquotient
+of `F_p[u^±]` (where `|u| = 2`) with polynomial degrees between `min` and `max`.
+
+* `min`: The minimum polynomial degree. The corresponding topological degree is
+  `2 * min`. This can be negative.
+* `max`: The maximum polynomial degree. The corresponding topological degree is
+  `2 * max`. If unspecified, it is infinity.
+
+Example:
+```json
+{ "p": 2, "type": "complex projective space", "min": 1, "max": 10 }
+```
+
+### Classifying Space BCp
+
+This works at any prime, resolving the cohomology of `BZ/p`.
+
+At `p = 2`, this is equivalent to `RealProjectiveSpace` (`BC_2 = RP^∞`).
+
+At odd `p`, `H*(BZ/p; F_p) = E[y] ⊗ F_p[x]` where `|y| = 1` and `|x| = 2`.
+There is one basis element in each degree: even degree `2k` has `x^k`, odd
+degree `2k+1` has `x^k · y`.
+
+* `min`: The minimum topological degree. This can be negative.
+* `max`: The maximum topological degree. If unspecified, it is infinity.
+
+Example:
+```json
+{ "p": 3, "type": "classifying space BCp", "min": 1 }
+```
 
 ## Products and self maps
 
