@@ -6,7 +6,7 @@ pub mod fp_py {
     use fp::field::{
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
-    use fp::matrix::Matrix as RustMatrix;
+    use fp::matrix::{Matrix as RustMatrix, Subspace as RustSubspace};
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::{
         FpSlice as RustFpSlice, FpSliceMut as RustFpSliceMut, FpVector as RustFpVector,
@@ -153,6 +153,9 @@ pub mod fp_py {
 
     #[pyclass(name = "Matrix")]
     struct PyMatrix(RustMatrix);
+
+    #[pyclass(name = "Subspace")]
+    struct PySubspace(RustSubspace);
 
     fn valid_prime(p: u32) -> PyResult<prime::ValidPrime> {
         if p < 2 || p >= MAX_VALID_PRIME {
@@ -1180,6 +1183,135 @@ pub mod fp_py {
 
         pub fn __repr__(&self) -> String {
             format!("Matrix({}, {})", self.prime(), self.0)
+        }
+    }
+
+    impl PySubspace {
+        /// Validate that `vector` matches this subspace's prime and ambient
+        /// dimension, returning an error otherwise.
+        fn check_compatible(&self, vector: &RustFpVector) -> PyResult<()> {
+            checked_same_prime(self.0.prime().as_u32(), vector.prime().as_u32())?;
+            checked_equal_len(vector.len(), self.0.ambient_dimension())?;
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl PySubspace {
+        #[new]
+        pub fn new(p: u32, dim: usize) -> PyResult<Self> {
+            Ok(Self(RustSubspace::new(valid_prime(p)?, dim)))
+        }
+
+        #[staticmethod]
+        pub fn from_matrix(matrix: &PyMatrix) -> Self {
+            Self(RustSubspace::from_matrix(matrix.0.clone()))
+        }
+
+        #[staticmethod]
+        pub fn entire_space(p: u32, dim: usize) -> PyResult<Self> {
+            Ok(Self(RustSubspace::entire_space(valid_prime(p)?, dim)))
+        }
+
+        #[staticmethod]
+        pub fn from_bytes(p: u32, data: &[u8]) -> PyResult<Self> {
+            RustSubspace::from_bytes(valid_prime(p)?, &mut Cursor::new(data))
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e.to_string()))
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn dimension(&self) -> usize {
+            self.0.dimension()
+        }
+
+        pub fn ambient_dimension(&self) -> usize {
+            self.0.ambient_dimension()
+        }
+
+        pub fn contains(&self, vector: &PyFpVector) -> PyResult<bool> {
+            self.check_compatible(&vector.0)?;
+            Ok(self.0.contains(vector.0.as_slice()))
+        }
+
+        pub fn contains_space(&self, other: &Self) -> PyResult<bool> {
+            checked_same_prime(self.0.prime().as_u32(), other.0.prime().as_u32())?;
+            checked_equal_len(self.0.ambient_dimension(), other.0.ambient_dimension())?;
+            Ok(self.0.contains_space(&other.0))
+        }
+
+        pub fn add_vector(&mut self, vector: &PyFpVector) -> PyResult<usize> {
+            self.check_compatible(&vector.0)?;
+            Ok(self.0.add_vector(vector.0.as_slice()))
+        }
+
+        /// Reduce `vector` in place against this subspace, projecting it onto a
+        /// complement of the subspace.
+        pub fn reduce(&self, vector: &mut PyFpVector) -> PyResult<()> {
+            self.check_compatible(&vector.0)?;
+            self.0.reduce(vector.0.as_slice_mut());
+            Ok(())
+        }
+
+        pub fn sum(&self, other: &Self) -> PyResult<Self> {
+            checked_same_prime(self.0.prime().as_u32(), other.0.prime().as_u32())?;
+            checked_equal_len(self.0.ambient_dimension(), other.0.ambient_dimension())?;
+            // `Subspace::sum` calls `Matrix::trim` after `from_matrix`, which
+            // discards the matrix pivots and leaves the returned subspace with
+            // an empty pivot table (so `dimension`/`iter`/`reduce` would all
+            // misbehave). Re-wrap the resulting matrix through `from_matrix` to
+            // re-row-reduce and rebuild the pivots before exposing it.
+            let summed = self.0.sum(&other.0);
+            Ok(Self(RustSubspace::from_matrix((*summed).clone())))
+        }
+
+        /// Return the basis of the subspace as a list of owned `FpVector`s.
+        pub fn iter(&self) -> Vec<PyFpVector> {
+            self.0
+                .iter()
+                .map(|row| PyFpVector(row.to_owned()))
+                .collect()
+        }
+
+        /// Return every vector in the subspace as a list of owned `FpVector`s.
+        pub fn iter_all_vectors(&self) -> Vec<PyFpVector> {
+            self.0.iter_all_vectors().map(PyFpVector).collect()
+        }
+
+        pub fn set_to_zero(&mut self) {
+            self.0.set_to_zero()
+        }
+
+        pub fn set_to_entire(&mut self) {
+            self.0.set_to_entire()
+        }
+
+        pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+            let mut buffer = Vec::new();
+            self.0
+                .to_bytes(&mut buffer)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            Ok(PyBytes::new(py, &buffer))
+        }
+
+        pub fn __len__(&self) -> usize {
+            self.0.dimension()
+        }
+
+        pub fn __contains__(&self, vector: &PyFpVector) -> PyResult<bool> {
+            self.contains(vector)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "Subspace({}, dim={}, ambient={})",
+                self.prime(),
+                self.0.dimension(),
+                self.0.ambient_dimension()
+            )
         }
     }
 
