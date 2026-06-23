@@ -44,7 +44,7 @@ impl MilnorProfile {
     pub fn is_valid(&self) -> bool {
         for (i, &hi) in self.p_part.iter().enumerate() {
             for (j, &hj) in self.p_part.iter().enumerate().skip(i + 1) {
-                if hi > (j - i) as PPartEntry + hj && self.p_part[j - i] > hj {
+                if hi > (j - i) as PPartEntry + hj && self.p_part[j - i - 1] > hj {
                     return false;
                 }
             }
@@ -2065,6 +2065,15 @@ mod tests {
                 p_part: vec![3, 2, 1],
                 q_part: 0b1111,
                 truncated: true
+            })
+            .is_valid()
+        );
+
+        assert!(
+            (MilnorProfile {
+                p_part: vec![2, 4, 2],
+                q_part: 0,
+                truncated: false
             })
             .is_valid()
         );
