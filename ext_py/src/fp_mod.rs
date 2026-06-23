@@ -4,6 +4,7 @@ pub(crate) mod fp_py_impl {
     use fp::field::{
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
+    use fp::matrix::Matrix as RustMatrix;
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::FpVector as RustFpVector;
     use pyo3::basic::CompareOp;
@@ -60,6 +61,21 @@ pub(crate) mod fp_py_impl {
     struct PyFpVectorIterator {
         entries: Vec<u32>,
         index: usize,
+    }
+
+    #[pyclass(name = "Matrix")]
+    struct PyMatrix(RustMatrix);
+
+    #[pyclass(name = "MatrixRow")]
+    struct PyMatrixRow {
+        parent: Py<PyMatrix>,
+        row: usize,
+    }
+
+    #[pyclass(name = "MatrixRowMut")]
+    struct PyMatrixRowMut {
+        parent: Py<PyMatrix>,
+        row: usize,
     }
 
     fn valid_prime(p: u32) -> PyResult<prime::ValidPrime> {
@@ -205,6 +221,41 @@ pub(crate) mod fp_py_impl {
         ) -> PyResult<PyRefMut<'py, PyFpVector>> {
             let parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
             checked_range(self.start, self.end, parent.0.len())?;
+            Ok(parent)
+        }
+    }
+
+    fn checked_row(row: usize, rows: usize) -> PyResult<usize> {
+        if row < rows {
+            Ok(row)
+        } else {
+            Err(PyIndexError::new_err(format!(
+                "row {row} out of range for matrix with {rows} rows"
+            )))
+        }
+    }
+
+    impl PyMatrixRow {
+        fn checked_parent<'py>(&'py self, py: Python<'py>) -> PyResult<PyRef<'py, PyMatrix>> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            checked_row(self.row, parent.0.rows())?;
+            Ok(parent)
+        }
+    }
+
+    impl PyMatrixRowMut {
+        fn checked_parent<'py>(&'py self, py: Python<'py>) -> PyResult<PyRef<'py, PyMatrix>> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            checked_row(self.row, parent.0.rows())?;
+            Ok(parent)
+        }
+
+        fn checked_parent_mut<'py>(
+            &'py self,
+            py: Python<'py>,
+        ) -> PyResult<PyRefMut<'py, PyMatrix>> {
+            let parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            checked_row(self.row, parent.0.rows())?;
             Ok(parent)
         }
     }
@@ -870,6 +921,376 @@ pub(crate) mod fp_py_impl {
     }
 
     #[pymethods]
+    impl PyMatrix {
+        #[new]
+        pub fn new(p: u32, rows: usize, columns: usize) -> PyResult<Self> {
+            Ok(Self(RustMatrix::new(valid_prime(p)?, rows, columns)))
+        }
+
+        #[staticmethod]
+        pub fn from_rows(
+            p: u32,
+            rows: Vec<PyRef<'_, PyFpVector>>,
+            columns: usize,
+        ) -> PyResult<Self> {
+            let p = valid_prime(p)?;
+            for row in &rows {
+                checked_same_prime(row.0.prime().as_u32(), p.as_u32())?;
+                checked_equal_len(row.0.len(), columns)?;
+            }
+            let input = rows.iter().map(|row| row.0.clone()).collect();
+            Ok(Self(RustMatrix::from_rows(p, input, columns)))
+        }
+
+        #[staticmethod]
+        pub fn from_row(p: u32, row: PyRef<'_, PyFpVector>, columns: usize) -> PyResult<Self> {
+            let p = valid_prime(p)?;
+            checked_same_prime(row.0.prime().as_u32(), p.as_u32())?;
+            checked_equal_len(row.0.len(), columns)?;
+            Ok(Self(RustMatrix::from_row(p, row.0.clone(), columns)))
+        }
+
+        #[staticmethod]
+        pub fn from_vec(p: u32, input: Vec<Vec<u32>>) -> PyResult<Self> {
+            let p = valid_prime(p)?;
+            if let Some(first) = input.first() {
+                let columns = first.len();
+                for row in &input {
+                    checked_equal_len(row.len(), columns)?;
+                }
+            }
+            Ok(Self(RustMatrix::from_vec(p, &input)))
+        }
+
+        #[staticmethod]
+        pub fn identity(p: u32, dim: usize) -> PyResult<Self> {
+            Ok(Self(RustMatrix::identity(valid_prime(p)?, dim)))
+        }
+
+        #[staticmethod]
+        pub fn augmented_from_vec(p: u32, input: Vec<Vec<u32>>) -> PyResult<(usize, Self)> {
+            let p = valid_prime(p)?;
+            if input.is_empty() {
+                return Err(PyValueError::new_err(
+                    "augmented_from_vec requires at least one row",
+                ));
+            }
+            let columns = input[0].len();
+            for row in &input {
+                checked_equal_len(row.len(), columns)?;
+            }
+            let (first_source_column, matrix) = RustMatrix::augmented_from_vec(p, &input);
+            Ok((first_source_column, Self(matrix)))
+        }
+
+        #[staticmethod]
+        pub fn from_bytes(p: u32, rows: usize, columns: usize, data: &[u8]) -> PyResult<Self> {
+            RustMatrix::from_bytes(valid_prime(p)?, rows, columns, &mut Cursor::new(data))
+                .map(Self)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn rows(&self) -> usize {
+            self.0.rows()
+        }
+
+        pub fn columns(&self) -> usize {
+            self.0.columns()
+        }
+
+        pub fn pivots(&self) -> Vec<isize> {
+            self.0.pivots().to_vec()
+        }
+
+        pub fn is_zero(&self) -> bool {
+            self.0.is_zero()
+        }
+
+        pub fn to_vec(&self) -> Vec<Vec<u32>> {
+            self.0.to_vec()
+        }
+
+        pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+            let mut buffer = Vec::new();
+            self.0
+                .to_bytes(&mut buffer)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            Ok(PyBytes::new(py, &buffer))
+        }
+
+        pub fn row(slf: PyRef<'_, Self>, row: usize) -> PyResult<PyMatrixRow> {
+            checked_row(row, slf.0.rows())?;
+            let py = slf.py();
+            Ok(PyMatrixRow {
+                parent: slf.into_pyobject(py)?.unbind(),
+                row,
+            })
+        }
+
+        pub fn row_mut(slf: PyRef<'_, Self>, row: usize) -> PyResult<PyMatrixRowMut> {
+            checked_row(row, slf.0.rows())?;
+            let py = slf.py();
+            Ok(PyMatrixRowMut {
+                parent: slf.into_pyobject(py)?.unbind(),
+                row,
+            })
+        }
+
+        pub fn set_to_zero(&mut self) {
+            self.0.set_to_zero()
+        }
+
+        pub fn assign(&mut self, other: &Self) -> PyResult<()> {
+            checked_same_prime(self.0.prime().as_u32(), other.0.prime().as_u32())?;
+            checked_equal_len(self.0.rows(), other.0.rows())?;
+            checked_equal_len(self.0.columns(), other.0.columns())?;
+            self.0.assign(&other.0);
+            Ok(())
+        }
+
+        pub fn swap_rows(&mut self, i: usize, j: usize) -> PyResult<()> {
+            checked_row(i, self.0.rows())?;
+            checked_row(j, self.0.rows())?;
+            self.0.swap_rows(i, j);
+            Ok(())
+        }
+
+        pub fn safe_row_op(&mut self, target: usize, source: usize, c: u32) -> PyResult<()> {
+            checked_row(target, self.0.rows())?;
+            checked_row(source, self.0.rows())?;
+            if target == source {
+                return Err(PyValueError::new_err(
+                    "target and source rows must be distinct",
+                ));
+            }
+            self.0.safe_row_op(target, source, c);
+            Ok(())
+        }
+
+        pub fn initialize_pivots(&mut self) {
+            self.0.initialize_pivots()
+        }
+
+        pub fn extend_column_dimension(&mut self, columns: usize) {
+            self.0.extend_column_dimension(columns)
+        }
+
+        pub fn extend_column_capacity(&mut self, columns: usize) {
+            self.0.extend_column_capacity(columns)
+        }
+
+        pub fn add_row(slf: PyRef<'_, Self>) -> PyResult<PyMatrixRowMut> {
+            let py = slf.py();
+            let parent = slf.into_pyobject(py)?.unbind();
+            let row = {
+                let mut matrix = parent.try_borrow_mut(py).map_err(borrow_error)?;
+                matrix.0.add_row();
+                matrix.0.rows() - 1
+            };
+            Ok(PyMatrixRowMut { parent, row })
+        }
+
+        pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) -> PyResult<()> {
+            checked_range(row_start, row_end, self.0.rows())?;
+            if col_start > self.0.columns() {
+                return Err(PyIndexError::new_err(format!(
+                    "column {col_start} out of range for matrix with {} columns",
+                    self.0.columns()
+                )));
+            }
+            self.0.trim(row_start, row_end, col_start);
+            Ok(())
+        }
+
+        pub fn rotate_down(&mut self, start: usize, end: usize, shift: usize) -> PyResult<()> {
+            checked_range(start, end, self.0.rows())?;
+            if shift > end - start {
+                return Err(PyValueError::new_err(format!(
+                    "shift {shift} exceeds range length {}",
+                    end - start
+                )));
+            }
+            self.0.rotate_down(start..end, shift);
+            Ok(())
+        }
+
+        pub fn row_reduce(&mut self) -> usize {
+            self.0.row_reduce()
+        }
+
+        pub fn __len__(&self) -> usize {
+            self.0.rows()
+        }
+
+        pub fn __getitem__(slf: PyRef<'_, Self>, row: usize) -> PyResult<PyMatrixRow> {
+            Self::row(slf, row)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("Matrix({}, {})", self.prime(), self.0)
+        }
+    }
+
+    #[pymethods]
+    impl PyMatrixRow {
+        pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).prime().as_u32())
+        }
+
+        pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).len())
+        }
+
+        pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(row.entry(checked_index(index, row.len())?))
+        }
+
+        pub fn is_zero(&self, py: Python<'_>) -> PyResult<bool> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).is_zero())
+        }
+
+        pub fn first_nonzero(&self, py: Python<'_>) -> PyResult<Option<(usize, u32)>> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).first_nonzero())
+        }
+
+        pub fn iter(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
+            let parent = self.checked_parent(py)?;
+            Ok(PyFpVectorIterator {
+                entries: parent.0.row(self.row).iter().collect(),
+                index: 0,
+            })
+        }
+
+        pub fn iter_nonzero(&self, py: Python<'_>) -> PyResult<Vec<(usize, u32)>> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).iter_nonzero().collect())
+        }
+
+        pub fn to_owned(&self, py: Python<'_>) -> PyResult<PyFpVector> {
+            let parent = self.checked_parent(py)?;
+            Ok(PyFpVector(parent.0.row(self.row).to_owned()))
+        }
+
+        pub fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+            self.len(py)
+        }
+
+        pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(row.entry(py_index(index, row.len())?))
+        }
+
+        pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(format!("MatrixRow({}, {})", row.prime().as_u32(), row))
+        }
+    }
+
+    #[pymethods]
+    impl PyMatrixRowMut {
+        pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).prime().as_u32())
+        }
+
+        pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
+            let parent = self.checked_parent(py)?;
+            Ok(parent.0.row(self.row).len())
+        }
+
+        pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(row.entry(checked_index(index, row.len())?))
+        }
+
+        pub fn set_entry(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
+            let mut parent = self.checked_parent_mut(py)?;
+            let columns = parent.0.columns();
+            let index = checked_index(index, columns)?;
+            parent.0.row_mut(self.row).set_entry(index, value);
+            Ok(())
+        }
+
+        pub fn set_to_zero(&self, py: Python<'_>) -> PyResult<()> {
+            let mut parent = self.checked_parent_mut(py)?;
+            parent.0.row_mut(self.row).set_to_zero();
+            Ok(())
+        }
+
+        pub fn scale(&self, py: Python<'_>, c: u32) -> PyResult<()> {
+            let mut parent = self.checked_parent_mut(py)?;
+            parent.0.row_mut(self.row).scale(c);
+            Ok(())
+        }
+
+        pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
+            let mut parent = self.checked_parent_mut(py)?;
+            let columns = parent.0.columns();
+            let index = checked_index(index, columns)?;
+            parent.0.row_mut(self.row).add_basis_element(index, value);
+            Ok(())
+        }
+
+        pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
+            let other_owned = other.to_owned_checked(py)?;
+            let mut parent = self.checked_parent_mut(py)?;
+            checked_equal_len(parent.0.columns(), other_owned.len())?;
+            checked_same_prime(parent.0.prime().as_u32(), other_owned.prime().as_u32())?;
+            parent.0.row_mut(self.row).add(other_owned.as_slice(), c);
+            Ok(())
+        }
+
+        pub fn to_owned(&self, py: Python<'_>) -> PyResult<PyFpVector> {
+            let parent = self.checked_parent(py)?;
+            Ok(PyFpVector(parent.0.row(self.row).to_owned()))
+        }
+
+        pub fn as_slice(&self, py: Python<'_>) -> PyResult<PyMatrixRow> {
+            Ok(PyMatrixRow {
+                parent: self.parent.clone_ref(py),
+                row: self.row,
+            })
+        }
+
+        pub fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+            self.len(py)
+        }
+
+        pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(row.entry(py_index(index, row.len())?))
+        }
+
+        pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
+            let mut parent = self.checked_parent_mut(py)?;
+            let columns = parent.0.columns();
+            let index = py_index(index, columns)?;
+            parent.0.row_mut(self.row).set_entry(index, value);
+            Ok(())
+        }
+
+        pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            let parent = self.checked_parent(py)?;
+            let row = parent.0.row(self.row);
+            Ok(format!("MatrixRowMut({}, {})", row.prime().as_u32(), row))
+        }
+    }
+
+    #[pymethods]
     impl PyFpVectorIterator {
         pub fn __iter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
             slf
@@ -960,6 +1381,9 @@ pub(crate) mod fp_py_impl {
         m.add_class::<PyFpSlice>()?;
         m.add_class::<PyFpSliceMut>()?;
         m.add_class::<PyFpVectorIterator>()?;
+        m.add_class::<PyMatrix>()?;
+        m.add_class::<PyMatrixRow>()?;
+        m.add_class::<PyMatrixRowMut>()?;
 
         m.add_function(wrap_pyfunction!(power_mod, m)?)?;
         m.add_function(wrap_pyfunction!(log2, m)?)?;
