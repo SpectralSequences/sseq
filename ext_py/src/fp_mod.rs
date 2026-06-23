@@ -42,6 +42,20 @@ pub mod fp_py {
     #[pyclass(name = "FpVector")]
     pub struct PyFpVector(RustFpVector);
 
+    #[pyclass(name = "FpSlice")]
+    pub struct PyFpSlice {
+        parent: Py<PyFpVector>,
+        start: usize,
+        end: usize,
+    }
+
+    #[pyclass(name = "FpSliceMut")]
+    pub struct PyFpSliceMut {
+        parent: Py<PyFpVector>,
+        start: usize,
+        end: usize,
+    }
+
     #[pyclass(name = "FpVectorIterator")]
     pub struct PyFpVectorIterator {
         entries: Vec<u32>,
@@ -109,6 +123,20 @@ pub mod fp_py {
                 "index {index} out of range for vector of length {len}"
             )))
         }
+    }
+
+    fn checked_range(start: usize, end: usize, len: usize) -> PyResult<()> {
+        if start <= end && end <= len {
+            Ok(())
+        } else {
+            Err(PyIndexError::new_err(format!(
+                "range {start}..{end} out of range for vector of length {len}"
+            )))
+        }
+    }
+
+    fn borrow_error(err: impl ToString) -> PyErr {
+        PyRuntimeError::new_err(err.to_string())
     }
 
     impl FieldElementKind {
@@ -419,6 +447,26 @@ pub mod fp_py {
             self.0.first_nonzero()
         }
 
+        pub fn slice(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSlice> {
+            checked_range(start, end, slf.0.len())?;
+            let py = slf.py();
+            Ok(PyFpSlice {
+                parent: slf.into_pyobject(py)?.unbind(),
+                start,
+                end,
+            })
+        }
+
+        pub fn slice_mut(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSliceMut> {
+            checked_range(start, end, slf.0.len())?;
+            let py = slf.py();
+            Ok(PyFpSliceMut {
+                parent: slf.into_pyobject(py)?.unbind(),
+                start,
+                end,
+            })
+        }
+
         pub fn set_entry(&mut self, index: usize, value: u32) -> PyResult<()> {
             self.0.set_entry(checked_index(index, self.0.len())?, value);
             Ok(())
@@ -482,6 +530,161 @@ pub mod fp_py {
 
         pub fn __repr__(&self) -> String {
             format!("FpVector({}, {})", self.prime(), self.0)
+        }
+    }
+
+    #[pymethods]
+    impl PyFpSlice {
+        pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).prime().as_u32())
+        }
+
+        pub fn len(&self) -> usize {
+            self.end - self.start
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.start == self.end
+        }
+
+        pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
+            let index = checked_index(index, self.len())?;
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).entry(index))
+        }
+
+        pub fn is_zero(&self, py: Python<'_>) -> PyResult<bool> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).is_zero())
+        }
+
+        pub fn first_nonzero(&self, py: Python<'_>) -> PyResult<Option<(usize, u32)>> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).first_nonzero())
+        }
+
+        pub fn restrict(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {
+            checked_range(start, end, self.len())?;
+            Ok(Self {
+                parent: self.parent.clone_ref(py),
+                start: self.start + start,
+                end: self.start + end,
+            })
+        }
+
+        pub fn to_owned(&self, py: Python<'_>) -> PyResult<PyFpVector> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(PyFpVector(parent.0.slice(self.start, self.end).to_owned()))
+        }
+
+        pub fn __len__(&self) -> usize {
+            self.len()
+        }
+
+        pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
+            let index = py_index(index, self.len())?;
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).entry(index))
+        }
+
+        pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(format!(
+                "FpSlice({}, {})",
+                parent.0.slice(self.start, self.end).prime().as_u32(),
+                parent.0.slice(self.start, self.end)
+            ))
+        }
+    }
+
+    #[pymethods]
+    impl PyFpSliceMut {
+        pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).prime().as_u32())
+        }
+
+        pub fn len(&self) -> usize {
+            self.end - self.start
+        }
+
+        pub fn set_entry(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
+            let index = checked_index(index, self.len())?;
+            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            parent
+                .0
+                .slice_mut(self.start, self.end)
+                .set_entry(index, value);
+            Ok(())
+        }
+
+        pub fn set_to_zero(&self, py: Python<'_>) -> PyResult<()> {
+            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            parent.0.slice_mut(self.start, self.end).set_to_zero();
+            Ok(())
+        }
+
+        pub fn scale(&self, py: Python<'_>, c: u32) -> PyResult<()> {
+            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            parent.0.slice_mut(self.start, self.end).scale(c);
+            Ok(())
+        }
+
+        pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
+            let index = checked_index(index, self.len())?;
+            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            parent
+                .0
+                .slice_mut(self.start, self.end)
+                .add_basis_element(index, value);
+            Ok(())
+        }
+
+        pub fn as_slice(&self, py: Python<'_>) -> PyFpSlice {
+            PyFpSlice {
+                parent: self.parent.clone_ref(py),
+                start: self.start,
+                end: self.end,
+            }
+        }
+
+        pub fn slice_mut(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {
+            checked_range(start, end, self.len())?;
+            Ok(Self {
+                parent: self.parent.clone_ref(py),
+                start: self.start + start,
+                end: self.start + end,
+            })
+        }
+
+        pub fn __len__(&self) -> usize {
+            self.len()
+        }
+
+        pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
+            let index = py_index(index, self.len())?;
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(parent.0.slice(self.start, self.end).entry(index))
+        }
+
+        pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
+            let index = py_index(index, self.len())?;
+            let mut parent = self.parent.try_borrow_mut(py).map_err(borrow_error)?;
+            parent
+                .0
+                .slice_mut(self.start, self.end)
+                .set_entry(index, value);
+            Ok(())
+        }
+
+        pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            let parent = self.parent.try_borrow(py).map_err(borrow_error)?;
+            Ok(format!(
+                "FpSliceMut({}, {})",
+                parent.0.slice(self.start, self.end).prime().as_u32(),
+                parent.0.slice(self.start, self.end)
+            ))
         }
     }
 
