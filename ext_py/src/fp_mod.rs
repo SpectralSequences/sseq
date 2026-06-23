@@ -7,7 +7,8 @@ pub mod fp_py {
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
     use fp::matrix::{
-        Matrix as RustMatrix, QuasiInverse as RustQuasiInverse, Subspace as RustSubspace,
+        Matrix as RustMatrix, QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient,
+        Subspace as RustSubspace,
     };
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::{
@@ -161,6 +162,9 @@ pub mod fp_py {
 
     #[pyclass(name = "QuasiInverse")]
     struct PyQuasiInverse(RustQuasiInverse);
+
+    #[pyclass(name = "Subquotient")]
+    struct PySubquotient(RustSubquotient);
 
     /// Lazy iterator over every vector in a subspace.
     ///
@@ -1543,6 +1547,178 @@ pub mod fp_py {
                 self.0.image_dimension(),
                 self.0.source_dimension(),
                 self.0.target_dimension()
+            )
+        }
+    }
+
+    impl PySubquotient {
+        /// Validate that `vector` matches this subquotient's prime and ambient
+        /// dimension, returning an error otherwise.
+        fn check_compatible(&self, vector: &RustFpVector) -> PyResult<()> {
+            checked_same_prime(self.0.prime().as_u32(), vector.prime().as_u32())?;
+            checked_equal_len(vector.len(), self.0.ambient_dimension())?;
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl PySubquotient {
+        /// Create a new subquotient of an ambient space of dimension `dim`,
+        /// defaulting to the zero subspace.
+        #[new]
+        pub fn new(p: u32, dim: usize) -> PyResult<Self> {
+            Ok(Self(RustSubquotient::new(valid_prime(p)?, dim)))
+        }
+
+        /// Create a new subquotient of an ambient space of dimension `dim`,
+        /// where the subspace is the full space and the quotient is trivial.
+        #[staticmethod]
+        pub fn new_full(p: u32, dim: usize) -> PyResult<Self> {
+            Ok(Self(RustSubquotient::new_full(valid_prime(p)?, dim)))
+        }
+
+        /// Construct the subquotient `(sub + quotient) / quotient` from a chain
+        /// of subspaces. The two subspaces must share a prime and ambient
+        /// dimension.
+        #[staticmethod]
+        pub fn from_parts(sub: &PySubspace, quotient: &PySubspace) -> PyResult<Self> {
+            checked_same_prime(sub.0.prime().as_u32(), quotient.0.prime().as_u32())?;
+            checked_equal_len(sub.0.ambient_dimension(), quotient.0.ambient_dimension())?;
+            Ok(Self(RustSubquotient::from_parts(
+                sub.0.clone(),
+                quotient.0.clone(),
+            )))
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn dimension(&self) -> usize {
+            self.0.dimension()
+        }
+
+        pub fn ambient_dimension(&self) -> usize {
+            self.0.ambient_dimension()
+        }
+
+        pub fn quotient_dimension(&self) -> usize {
+            self.0.quotient_dimension()
+        }
+
+        pub fn subspace_dimension(&self) -> usize {
+            self.0.subspace_dimension()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.0.is_empty()
+        }
+
+        /// The quotient (zero) subspace of the subquotient, returned as an owned
+        /// `Subspace`.
+        pub fn zeros(&self) -> PySubspace {
+            PySubspace(self.0.zeros().clone())
+        }
+
+        /// The generators of the subquotient, returned as a list of owned
+        /// `FpVector`s. Mirrors the choice made for `Subspace.iter`: the
+        /// upstream iterator borrows the subquotient, so we materialize owned
+        /// vectors rather than expose borrowed slice handles.
+        pub fn gens(&self) -> Vec<PyFpVector> {
+            self.0
+                .gens()
+                .map(|row| PyFpVector(row.to_owned()))
+                .collect()
+        }
+
+        /// The generators of the subspace part of the subquotient, returned as
+        /// a list of owned `FpVector`s (see `gens` for the ownership choice).
+        pub fn subspace_gens(&self) -> Vec<PyFpVector> {
+            self.0
+                .subspace_gens()
+                .map(|row| PyFpVector(row.to_owned()))
+                .collect()
+        }
+
+        /// The pivot columns of the complement to the subspace.
+        pub fn complement_pivots(&self) -> Vec<usize> {
+            self.0.complement_pivots().collect()
+        }
+
+        /// The pivot table of the quotient subspace.
+        pub fn quotient_pivots(&self) -> Vec<isize> {
+            self.0.quotient_pivots().to_vec()
+        }
+
+        /// Reduce `vector` in place: project it onto a complement of the
+        /// quotient and express it relative to the generators. Returns the list
+        /// of coefficients with respect to the generators. After the call,
+        /// `vector` holds the residual; a nonzero residual means the vector was
+        /// not in the subspace.
+        pub fn reduce(&self, vector: &mut PyFpVector) -> PyResult<Vec<u32>> {
+            self.check_compatible(&vector.0)?;
+            Ok(self.0.reduce(vector.0.as_slice_mut()))
+        }
+
+        /// Project `vector` in place onto the complement of the quotient part.
+        pub fn reduce_by_quotient(&self, vector: &mut PyFpVector) -> PyResult<()> {
+            self.check_compatible(&vector.0)?;
+            self.0.reduce_by_quotient(vector.0.as_slice_mut());
+            Ok(())
+        }
+
+        /// Add `vector` to the quotient part of the subquotient.
+        pub fn quotient(&mut self, vector: &PyFpVector) -> PyResult<()> {
+            self.check_compatible(&vector.0)?;
+            self.0.quotient(vector.0.as_slice());
+            Ok(())
+        }
+
+        /// Add `vector` as a generator of the subquotient.
+        pub fn add_gen(&mut self, vector: &PyFpVector) -> PyResult<()> {
+            self.check_compatible(&vector.0)?;
+            self.0.add_gen(vector.0.as_slice());
+            Ok(())
+        }
+
+        /// Remove all generators, leaving the quotient part untouched.
+        pub fn clear_gens(&mut self) {
+            self.0.clear_gens()
+        }
+
+        /// Set the subquotient to be the full ambient space quotiented by zero.
+        pub fn set_to_full(&mut self) {
+            self.0.set_to_full()
+        }
+
+        /// Apply `matrix` to each generator of `source`, then reduce the image
+        /// in `target`, returning the coefficient lists. `matrix` must map the
+        /// ambient space of `source` into the ambient space of `target`.
+        #[staticmethod]
+        pub fn reduce_matrix(
+            matrix: &PyMatrix,
+            source: &Self,
+            target: &Self,
+        ) -> PyResult<Vec<Vec<u32>>> {
+            checked_same_prime(source.0.prime().as_u32(), target.0.prime().as_u32())?;
+            checked_same_prime(source.0.prime().as_u32(), matrix.0.prime().as_u32())?;
+            checked_equal_len(matrix.0.rows(), source.0.ambient_dimension())?;
+            checked_equal_len(matrix.0.columns(), target.0.ambient_dimension())?;
+            Ok(RustSubquotient::reduce_matrix(
+                &matrix.0, &source.0, &target.0,
+            ))
+        }
+
+        pub fn __len__(&self) -> usize {
+            self.0.dimension()
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "Subquotient({}, dim={}, ambient={})",
+                self.prime(),
+                self.0.dimension(),
+                self.0.ambient_dimension()
             )
         }
     }
