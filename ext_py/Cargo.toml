@@ -15,4 +15,4 @@ sseq = { path = "../ext/crates/sseq" }
 
 ext = { path = "../ext", features = ["logging"] }
 
-pyo3 = "0.25.0"
+pyo3 = "0.29.0"
