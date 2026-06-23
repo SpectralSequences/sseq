@@ -49,6 +49,25 @@ def test_offset_is_reduced():
     assert list(aff.offset()) == [1, 0, 0]
 
 
+def test_offset_and_linear_part_are_owned_copies():
+    linear = make_subspace(2, [[0, 1, 0], [0, 0, 1]])
+    offset = fp.FpVector.from_slice(2, [1, 0, 0])
+    aff = fp.AffineSubspace(offset, linear)
+
+    # Mutating the returned offset must not alias the stored offset.
+    off = aff.offset()
+    off.set_entry(0, 0)
+    off.set_entry(1, 1)
+    assert list(aff.offset()) == [1, 0, 0]
+
+    # Mutating the returned linear part must not alias the stored linear part.
+    lin = aff.linear_part()
+    lin.set_to_zero()
+    assert aff.linear_part().dimension() == 2
+    assert aff.dimension() == 2
+    assert [list(v) for v in aff.linear_part().iter()] == [[0, 1, 0], [0, 0, 1]]
+
+
 def test_contains_membership():
     linear = make_subspace(2, [[0, 1, 0], [0, 0, 1]])
     offset = fp.FpVector.from_slice(2, [1, 0, 0])
@@ -104,8 +123,12 @@ def test_sum_semantics():
         make_subspace(2, [[0, 0, 1]]),
     )
 
-    # sum: linear part = span{[0,1,0],[0,0,1]} (dim 2); offset =
-    # [1,0,0] + [0,0,1] = [1,0,1] reduced against the linear part -> [1,0,0].
+    # sum adds the already-stored, already-reduced offsets, not the
+    # constructor arguments. a.offset stays [1,0,0] (already reduced against
+    # span{[0,1,0]}); b's offset [0,0,1] reduces to [0,0,0] against
+    # span{[0,0,1]} when b is constructed. So the sum offset is
+    # a.offset [1,0,0] + b.offset [0,0,0] = [1,0,0], re-reduced against
+    # span{[0,1,0],[0,0,1]} (dim 2) -> [1,0,0]. No [1,0,1] intermediate occurs.
     s = a.sum(b)
     assert s.dimension() == 2
     assert list(s.offset()) == [1, 0, 0]
