@@ -49,6 +49,12 @@ def test_contains_space_and_sum():
 
     assert not a.contains_space(b)
 
+    # Incompatible prime/ambient dimension raise ValueError rather than panic.
+    with pytest.raises(ValueError):
+        a.contains_space(fp.Subspace(5, 3))
+    with pytest.raises(ValueError):
+        a.contains_space(fp.Subspace(3, 4))
+
     # The sum of two complementary lines is their 2-dimensional span.
     s = a.sum(b)
     assert s.dimension() == 2
@@ -95,8 +101,22 @@ def test_iter_returns_basis_vectors():
 def test_iter_all_vectors():
     m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
     s = fp.Subspace.from_matrix(m)
+
+    # iter_all_vectors returns a lazy iterator, not a list.
+    it = s.iter_all_vectors()
+    assert not isinstance(it, list)
+    assert iter(it) is it
+
+    # Iterating via a for-loop yields every vector in the subspace.
+    collected = []
+    for v in s.iter_all_vectors():
+        collected.append(list(v))
+    assert len(collected) == 9
+
+    # list(...) over the iterator yields the same set/count.
     vectors = sorted(list(v) for v in s.iter_all_vectors())
     assert len(vectors) == 9
+    assert sorted(collected) == vectors
     assert [0, 0, 0] in vectors
     assert [1, 1, 2] in vectors
 
@@ -123,5 +143,10 @@ def test_invalid_inputs_raise():
     with pytest.raises(ValueError):
         fp.Subspace(1, 3)
 
-    with pytest.raises(ValueError):
+
+def test_bytes_error_taxonomy_is_consistent():
+    # Subspace mirrors FpVector/Matrix: both to_bytes and from_bytes map
+    # serialization failures to RuntimeError, so malformed bytes raise
+    # RuntimeError (not ValueError).
+    with pytest.raises(RuntimeError):
         fp.Subspace.from_bytes(3, b"\x00\x01\x02")

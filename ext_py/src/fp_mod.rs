@@ -157,6 +157,22 @@ pub mod fp_py {
     #[pyclass(name = "Subspace")]
     struct PySubspace(RustSubspace);
 
+    /// Lazy iterator over every vector in a subspace.
+    ///
+    /// The upstream `Subspace::iter_all_vectors` iterator borrows the subspace,
+    /// so it cannot be stored alongside an owned subspace in a `#[pyclass]`
+    /// without a self-referential struct. Instead we own a clone of the
+    /// subspace and an index counter, regenerating the i-th vector on each
+    /// `__next__` from the base-`p` decomposition of the index. This keeps
+    /// iteration lazy (O(1) memory) while yielding the same owned `FpVector`s
+    /// in the same order as the eager version.
+    #[pyclass(name = "SubspaceVectorIterator")]
+    struct PySubspaceVectorIterator {
+        subspace: RustSubspace,
+        index: u128,
+        total: u128,
+    }
+
     fn valid_prime(p: u32) -> PyResult<prime::ValidPrime> {
         if p < 2 || p >= MAX_VALID_PRIME {
             return Err(PyValueError::new_err(format!("{p} is not prime")));
@@ -1194,6 +1210,14 @@ pub mod fp_py {
             checked_equal_len(vector.len(), self.0.ambient_dimension())?;
             Ok(())
         }
+
+        /// Validate that `other` matches this subspace's prime and ambient
+        /// dimension, returning an error otherwise.
+        fn check_compatible_space(&self, other: &RustSubspace) -> PyResult<()> {
+            checked_same_prime(self.0.prime().as_u32(), other.prime().as_u32())?;
+            checked_equal_len(self.0.ambient_dimension(), other.ambient_dimension())?;
+            Ok(())
+        }
     }
 
     #[pymethods]
@@ -1217,7 +1241,7 @@ pub mod fp_py {
         pub fn from_bytes(p: u32, data: &[u8]) -> PyResult<Self> {
             RustSubspace::from_bytes(valid_prime(p)?, &mut Cursor::new(data))
                 .map(Self)
-                .map_err(|e| PyValueError::new_err(e.to_string()))
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         }
 
         pub fn prime(&self) -> u32 {
@@ -1238,8 +1262,7 @@ pub mod fp_py {
         }
 
         pub fn contains_space(&self, other: &Self) -> PyResult<bool> {
-            checked_same_prime(self.0.prime().as_u32(), other.0.prime().as_u32())?;
-            checked_equal_len(self.0.ambient_dimension(), other.0.ambient_dimension())?;
+            self.check_compatible_space(&other.0)?;
             Ok(self.0.contains_space(&other.0))
         }
 
@@ -1278,9 +1301,16 @@ pub mod fp_py {
                 .collect()
         }
 
-        /// Return every vector in the subspace as a list of owned `FpVector`s.
-        pub fn iter_all_vectors(&self) -> Vec<PyFpVector> {
-            self.0.iter_all_vectors().map(PyFpVector).collect()
+        /// Return a lazy iterator over every vector in the subspace.
+        pub fn iter_all_vectors(&self) -> PySubspaceVectorIterator {
+            let p = u128::from(self.0.prime().as_u32());
+            let dim = self.0.dimension() as u32;
+            let total = p.checked_pow(dim).unwrap_or(u128::MAX);
+            PySubspaceVectorIterator {
+                subspace: self.0.clone(),
+                index: 0,
+                total,
+            }
         }
 
         pub fn set_to_zero(&mut self) {
@@ -1327,6 +1357,37 @@ pub mod fp_py {
             let value = self.entries.get(self.index).copied();
             self.index += usize::from(value.is_some());
             value
+        }
+    }
+
+    #[pymethods]
+    impl PySubspaceVectorIterator {
+        pub fn __iter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+            slf
+        }
+
+        pub fn __next__(&mut self) -> Option<PyFpVector> {
+            if self.index >= self.total {
+                return None;
+            }
+            let p = u128::from(self.subspace.prime().as_u32());
+            let dim = self.subspace.dimension();
+            // Decode `index` into base-`p` digits, most significant first, to
+            // match the lexicographic order of `combinations` upstream where
+            // the first digit (matching the first basis row) varies slowest.
+            let mut digits = vec![0u32; dim];
+            let mut rem = self.index;
+            for slot in digits.iter_mut().rev() {
+                *slot = (rem % p) as u32;
+                rem /= p;
+            }
+            let mut vector =
+                RustFpVector::new(self.subspace.prime(), self.subspace.ambient_dimension());
+            for (&c, row) in digits.iter().zip(self.subspace.iter()) {
+                vector.as_slice_mut().add(row, c);
+            }
+            self.index += 1;
+            Some(PyFpVector(vector))
         }
     }
 
