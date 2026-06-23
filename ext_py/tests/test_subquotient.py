@@ -58,6 +58,42 @@ def test_add_gen_quotient_reduce_and_gens():
     )
 
 
+def test_subspace_gens_quotient_pivots_and_dimension():
+    # Non-trivial subquotient (non-empty quotient and one generator), mirroring
+    # the upstream `test_add_gen` example at p = 3, dim = 5. After the calls the
+    # upstream `Display` is:
+    #   Generators: [0, 0, 0, 0, 1]
+    #   Zeros:      [1, 0, 0, 0, 2]
+    #               [0, 1, 0, 0, 2]
+    sq = fp.Subquotient(3, 5)
+    sq.quotient(fp.FpVector.from_slice(3, [1, 1, 0, 0, 1]))
+    sq.quotient(fp.FpVector.from_slice(3, [0, 2, 0, 0, 1]))
+    sq.add_gen(fp.FpVector.from_slice(3, [1, 1, 0, 0, 0]))
+    sq.add_gen(fp.FpVector.from_slice(3, [0, 1, 0, 0, 0]))
+
+    # dimension is the subspace-part generator count; quotient (zeros) dim is 2.
+    assert sq.dimension() == 1
+    assert sq.zeros().dimension() == 2
+
+    # subspace_dimension == self.dimension + quotient.dimension() per upstream
+    # `subquotient.rs::subspace_dimension`.
+    assert sq.subspace_dimension() == sq.dimension() + sq.zeros().dimension()
+    assert sq.subspace_dimension() == 3
+
+    # subspace_gens chains gens() with the quotient's basis vectors (upstream
+    # `subspace_gens` = `gens().chain(quotient.iter())`).
+    subspace_gens = [list(v) for v in sq.subspace_gens()]
+    assert subspace_gens == [
+        [0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 2],
+        [0, 1, 0, 0, 2],
+    ]
+
+    # quotient_pivots is the quotient subspace's pivot table: pivots[col] = row
+    # index of the pivot in that column, else -1. Quotient pivots are in cols 0,1.
+    assert sq.quotient_pivots() == [0, 1, -1, -1, -1]
+
+
 def test_clear_gens_keeps_quotient():
     sq = fp.Subquotient(3, 5)
     sq.quotient(fp.FpVector.from_slice(3, [1, 1, 0, 0, 1]))
@@ -74,6 +110,16 @@ def test_set_to_full():
     # `set_to_full` makes the gens the entire space and clears the quotient,
     # but (matching upstream) does not update the cached `dimension` counter.
     assert sq.zeros().dimension() == 0
+    assert len(sq.gens()) == 3
+
+    # Stale-`dimension` quirk: `set_to_full` makes gens the entire space and
+    # clears the quotient, but upstream does NOT update the cached `dimension`
+    # counter. So on a fresh Subquotient these are inconsistent today:
+    #   dimension()/len(sq) report 0 (stale), while gens() actually has 3 rows.
+    # Pin the surprising current behavior so a future upstream fix (syncing the
+    # cached dimension) trips this test and prompts a revisit.
+    assert sq.dimension() == 0
+    assert len(sq) == 0
     assert len(sq.gens()) == 3
 
 
@@ -124,3 +170,45 @@ def test_reduce_matrix():
     m = fp.Matrix.from_vec(3, [[1, 0], [0, 1]])
     result = fp.Subquotient.reduce_matrix(m, source, target)
     assert len(result) == source.dimension()
+
+
+def test_reduce_matrix_values_with_nontrivial_quotient():
+    # source = full space of dim 2 at p = 3, so gens() = [1, 0] and [0, 1].
+    source = fp.Subquotient.new_full(3, 2)
+
+    # target has a non-trivial quotient: quotient kills coordinate 1, generator
+    # is [1, 0]. So target.reduce projects out column 1 and reads coeff at col 0.
+    target = fp.Subquotient(3, 2)
+    target.quotient(fp.FpVector.from_slice(3, [0, 1]))
+    target.add_gen(fp.FpVector.from_slice(3, [1, 0]))
+
+    # Non-identity matrix. `Matrix.apply` computes (input row-vector) * matrix:
+    # result = sum_i input[i] * row(i). So gen [1,0] -> row 0 = [2, 1];
+    # gen [0,1] -> row 1 = [0, 1].
+    m = fp.Matrix.from_vec(3, [[2, 1], [0, 1]])
+
+    # Reducing images in target: drop col 1 then read coeff at col 0.
+    #   [2, 1] -> quotient -> [2, 0] -> coeff [2]
+    #   [0, 1] -> quotient -> [0, 0] -> coeff [0]
+    result = fp.Subquotient.reduce_matrix(m, source, target)
+    assert result == [[2], [0]]
+
+
+def test_reduce_matrix_dimension_mismatches_raise():
+    source = fp.Subquotient.new_full(3, 2)
+    target = fp.Subquotient.new_full(3, 2)
+
+    # rows != source.ambient_dimension (3 rows vs ambient 2).
+    bad_rows = fp.Matrix.from_vec(3, [[1, 0], [0, 1], [0, 0]])
+    with pytest.raises(ValueError):
+        fp.Subquotient.reduce_matrix(bad_rows, source, target)
+
+    # columns != target.ambient_dimension (3 cols vs ambient 2).
+    bad_cols = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 0]])
+    with pytest.raises(ValueError):
+        fp.Subquotient.reduce_matrix(bad_cols, source, target)
+
+    # prime mismatch between matrix and subquotients.
+    bad_prime = fp.Matrix.from_vec(5, [[1, 0], [0, 1]])
+    with pytest.raises(ValueError):
+        fp.Subquotient.reduce_matrix(bad_prime, source, target)
