@@ -8,8 +8,8 @@ pub mod fp_py {
     };
     use fp::matrix::{
         AffineSubspace as RustAffineSubspace, AugmentedMatrix as RustAugmentedMatrix,
-        Matrix as RustMatrix, QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient,
-        Subspace as RustSubspace,
+        Matrix as RustMatrix, MatrixSliceMut as RustMatrixSliceMut,
+        QuasiInverse as RustQuasiInverse, Subquotient as RustSubquotient, Subspace as RustSubspace,
     };
     use fp::prime::{self, Binomial, Prime};
     use fp::vector::{
@@ -51,13 +51,61 @@ pub mod fp_py {
     #[pyclass(name = "FpVector")]
     struct PyFpVector(RustFpVector);
 
+    /// A matrix-like parent that can back a borrowed row or rectangle view.
+    ///
+    /// A plain `Matrix` is held directly; an `AugmentedMatrix<N>` is held as its
+    /// concrete pyclass and accessed through its `Deref<Target = Matrix>` so
+    /// that segment rectangles and segment rows can revalidate against the inner
+    /// matrix's current dimensions. We keep the parent Python object alive and
+    /// reconstruct the underlying Rust matrix view on each call.
+    enum MatrixParent {
+        Matrix(Py<PyMatrix>),
+        Augmented2(Py<PyAugmentedMatrix2>),
+        Augmented3(Py<PyAugmentedMatrix3>),
+    }
+
+    impl MatrixParent {
+        fn clone_ref(&self, py: Python<'_>) -> Self {
+            match self {
+                Self::Matrix(m) => Self::Matrix(m.clone_ref(py)),
+                Self::Augmented2(m) => Self::Augmented2(m.clone_ref(py)),
+                Self::Augmented3(m) => Self::Augmented3(m.clone_ref(py)),
+            }
+        }
+
+        /// Run `f` on the current inner `Matrix`, holding the borrow for the
+        /// duration of the call. Deref coercion turns an `&AugmentedMatrix<N>`
+        /// into the `&Matrix` expected by `f`.
+        fn with_matrix<R>(&self, py: Python<'_>, f: impl FnOnce(&RustMatrix) -> R) -> PyResult<R> {
+            match self {
+                Self::Matrix(m) => Ok(f(&m.try_borrow(py).map_err(borrow_error)?.0)),
+                Self::Augmented2(m) => Ok(f(&m.try_borrow(py).map_err(borrow_error)?.0)),
+                Self::Augmented3(m) => Ok(f(&m.try_borrow(py).map_err(borrow_error)?.0)),
+            }
+        }
+
+        /// Run `f` on the current inner `Matrix` mutably, holding the borrow for
+        /// the duration of the call.
+        fn with_matrix_mut<R>(
+            &self,
+            py: Python<'_>,
+            f: impl FnOnce(&mut RustMatrix) -> R,
+        ) -> PyResult<R> {
+            match self {
+                Self::Matrix(m) => Ok(f(&mut m.try_borrow_mut(py).map_err(borrow_error)?.0)),
+                Self::Augmented2(m) => Ok(f(&mut m.try_borrow_mut(py).map_err(borrow_error)?.0)),
+                Self::Augmented3(m) => Ok(f(&mut m.try_borrow_mut(py).map_err(borrow_error)?.0)),
+            }
+        }
+    }
+
     /// The source backing a slice handle: either an owned vector, or a row of a
-    /// matrix. In both cases we keep the parent Python object alive and store
-    /// enough metadata to reconstruct the underlying Rust slice on each call,
-    /// revalidating against the parent's current dimensions first.
+    /// matrix-like parent. In both cases we keep the parent Python object alive
+    /// and store enough metadata to reconstruct the underlying Rust slice on
+    /// each call, revalidating against the parent's current dimensions first.
     enum SliceParent {
         Vector(Py<PyFpVector>),
-        MatrixRow { matrix: Py<PyMatrix>, row: usize },
+        MatrixRow { matrix: MatrixParent, row: usize },
     }
 
     impl SliceParent {
@@ -96,13 +144,12 @@ pub mod fp_py {
                 checked_range(start, end, parent.0.len())?;
                 Ok(f(parent.0.slice(start, end)))
             }
-            SliceParent::MatrixRow { matrix, row } => {
-                let parent = matrix.try_borrow(py).map_err(borrow_error)?;
-                checked_row(*row, parent.0.rows())?;
-                let full = parent.0.row(*row);
+            SliceParent::MatrixRow { matrix, row } => matrix.with_matrix(py, |m| {
+                checked_row(*row, m.rows())?;
+                let full = m.row(*row);
                 checked_range(start, end, full.len())?;
                 Ok(f(full.restrict(start, end)))
-            }
+            })?,
         }
     }
 
@@ -121,17 +168,16 @@ pub mod fp_py {
                 checked_range(start, end, parent.0.len())?;
                 Ok(f(parent.0.slice_mut(start, end)))
             }
-            SliceParent::MatrixRow { matrix, row } => {
-                let mut parent = matrix.try_borrow_mut(py).map_err(borrow_error)?;
-                checked_row(*row, parent.0.rows())?;
+            SliceParent::MatrixRow { matrix, row } => matrix.with_matrix_mut(py, |m| {
+                checked_row(*row, m.rows())?;
                 // Validate against the actual current row length, matching the
                 // read path (`with_parent_slice`). For a `Matrix` this equals
                 // `columns()`, but deriving it from the row keeps both paths
                 // consistent regardless of that invariant.
-                let row_len = parent.0.row(*row).len();
+                let row_len = m.row(*row).len();
                 checked_range(start, end, row_len)?;
-                Ok(f(parent.0.row_mut(*row).slice_mut(start, end)))
-            }
+                Ok(f(m.row_mut(*row).slice_mut(start, end)))
+            })?,
         }
     }
 
@@ -153,6 +199,19 @@ pub mod fp_py {
     struct PyFpVectorIterator {
         entries: Vec<u32>,
         index: usize,
+    }
+
+    /// A borrowed mutable rectangular view into a matrix-like parent. We hold
+    /// the parent plus the rectangle (row range + column range) and reconstruct
+    /// the Rust `MatrixSliceMut` on each call, revalidating the rectangle
+    /// against the parent's current dimensions first.
+    #[pyclass(name = "MatrixSliceMut")]
+    struct PyMatrixSliceMut {
+        parent: MatrixParent,
+        row_start: usize,
+        row_end: usize,
+        col_start: usize,
+        col_end: usize,
     }
 
     #[pyclass(name = "Matrix")]
@@ -355,6 +414,26 @@ pub mod fp_py {
         } else {
             Err(PyIndexError::new_err(format!(
                 "row {row} out of range for matrix with {rows} rows"
+            )))
+        }
+    }
+
+    /// Validate a `row_start..row_end` x `col_start..col_end` rectangle against
+    /// a matrix's current `rows` x `columns`, raising `IndexError` otherwise.
+    fn checked_rect(
+        row_start: usize,
+        row_end: usize,
+        col_start: usize,
+        col_end: usize,
+        rows: usize,
+        columns: usize,
+    ) -> PyResult<()> {
+        if row_start <= row_end && row_end <= rows && col_start <= col_end && col_end <= columns {
+            Ok(())
+        } else {
+            Err(PyIndexError::new_err(format!(
+                "rectangle [{row_start}..{row_end}] x [{col_start}..{col_end}] out of range \
+                 for matrix with {rows} rows and {columns} columns"
             )))
         }
     }
@@ -1012,6 +1091,174 @@ pub mod fp_py {
         }
     }
 
+    impl PyMatrixSliceMut {
+        /// Number of rows spanned by the rectangle (cached; `with_slice_mut`
+        /// revalidates against the parent before any data access).
+        fn rows_span(&self) -> usize {
+            self.row_end - self.row_start
+        }
+
+        /// Number of columns spanned by the rectangle (cached; see `rows_span`).
+        fn cols_span(&self) -> usize {
+            self.col_end - self.col_start
+        }
+
+        /// Run `f` on the reconstructed `MatrixSliceMut`, after revalidating the
+        /// rectangle against the parent's current dimensions.
+        fn with_slice_mut<R>(
+            &self,
+            py: Python<'_>,
+            f: impl FnOnce(RustMatrixSliceMut<'_>) -> R,
+        ) -> PyResult<R> {
+            self.parent.with_matrix_mut(py, |m| {
+                checked_rect(
+                    self.row_start,
+                    self.row_end,
+                    self.col_start,
+                    self.col_end,
+                    m.rows(),
+                    m.columns(),
+                )?;
+                Ok(f(m.slice_mut(
+                    self.row_start,
+                    self.row_end,
+                    self.col_start,
+                    self.col_end,
+                )))
+            })?
+        }
+    }
+
+    #[pymethods]
+    impl PyMatrixSliceMut {
+        pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
+            self.with_slice_mut(py, |s| s.prime().as_u32())
+        }
+
+        pub fn rows(&self, py: Python<'_>) -> PyResult<usize> {
+            self.with_slice_mut(py, |s| s.rows())
+        }
+
+        pub fn columns(&self, py: Python<'_>) -> PyResult<usize> {
+            self.with_slice_mut(py, |s| s.columns())
+        }
+
+        /// Return an immutable `FpSlice` over row `i` of the rectangle (the
+        /// columns `col_start..col_end` of the parent's absolute row
+        /// `row_start + i`). The handle revalidates against the parent on use.
+        pub fn row(&self, py: Python<'_>, i: usize) -> PyResult<PyFpSlice> {
+            let row = checked_row(i, self.rows_span())? + self.row_start;
+            Ok(PyFpSlice {
+                parent: SliceParent::MatrixRow {
+                    matrix: self.parent.clone_ref(py),
+                    row,
+                },
+                start: self.col_start,
+                end: self.col_end,
+            })
+        }
+
+        /// Return a mutable `FpSliceMut` over row `i` of the rectangle; mutating
+        /// it writes through to the parent matrix.
+        pub fn row_mut(&self, py: Python<'_>, i: usize) -> PyResult<PyFpSliceMut> {
+            let row = checked_row(i, self.rows_span())? + self.row_start;
+            Ok(PyFpSliceMut {
+                parent: SliceParent::MatrixRow {
+                    matrix: self.parent.clone_ref(py),
+                    row,
+                },
+                start: self.col_start,
+                end: self.col_end,
+            })
+        }
+
+        /// Restrict the rectangle to rows `row_start..row_end` (relative to this
+        /// view), returning a new `MatrixSliceMut` over the same columns and
+        /// parent.
+        pub fn row_slice(
+            &self,
+            py: Python<'_>,
+            row_start: usize,
+            row_end: usize,
+        ) -> PyResult<Self> {
+            checked_range(row_start, row_end, self.rows_span())?;
+            Ok(Self {
+                parent: self.parent.clone_ref(py),
+                row_start: self.row_start + row_start,
+                row_end: self.row_start + row_end,
+                col_start: self.col_start,
+                col_end: self.col_end,
+            })
+        }
+
+        /// Return immutable `FpSlice` handles for every row of the rectangle.
+        ///
+        /// We materialize a list of row handles (rather than a lazy iterator)
+        /// because PyO3 cannot store the borrowing Rust iterator alongside the
+        /// owned parent. Each handle points into the parent and revalidates on
+        /// use, mirroring the `Matrix`/`Subspace` choice of returning concrete
+        /// per-row objects.
+        pub fn iter(&self, py: Python<'_>) -> PyResult<Vec<PyFpSlice>> {
+            (0..self.rows_span()).map(|i| self.row(py, i)).collect()
+        }
+
+        /// Return mutable `FpSliceMut` handles for every row of the rectangle.
+        ///
+        /// As with `iter`, this is an eager list of index-based row handles
+        /// rather than a lazy borrowing iterator. Mutating any handle writes
+        /// through to the parent matrix, so this is the safe PyO3 analogue of
+        /// the upstream `iter_mut`.
+        pub fn iter_mut(&self, py: Python<'_>) -> PyResult<Vec<PyFpSliceMut>> {
+            (0..self.rows_span()).map(|i| self.row_mut(py, i)).collect()
+        }
+
+        /// Add an identity matrix into the rectangle. Requires a square
+        /// rectangle (`rows == columns`), matching upstream's invariant;
+        /// otherwise a `ValueError` is raised rather than panicking.
+        pub fn add_identity(&self, py: Python<'_>) -> PyResult<()> {
+            if self.rows_span() != self.cols_span() {
+                return Err(PyValueError::new_err(format!(
+                    "add_identity requires a square rectangle: {} rows but {} columns",
+                    self.rows_span(),
+                    self.cols_span()
+                )));
+            }
+            self.with_slice_mut(py, |mut s| s.add_identity())
+        }
+
+        /// For each row, add the `mask[i]`th entry of the corresponding row of
+        /// `other` into this rectangle. `other` must have the same prime and the
+        /// same number of rows as the rectangle, `mask` must have length equal
+        /// to the rectangle's column count, and every mask index must be a valid
+        /// column of `other`.
+        pub fn add_masked(
+            &self,
+            py: Python<'_>,
+            other: &PyMatrix,
+            mask: Vec<usize>,
+        ) -> PyResult<()> {
+            checked_same_prime(self.prime(py)?, other.0.prime().as_u32())?;
+            checked_equal_len(self.rows_span(), other.0.rows())?;
+            checked_equal_len(mask.len(), self.cols_span())?;
+            let other_columns = other.0.columns();
+            if let Some(&index) = mask.iter().find(|&&index| index >= other_columns) {
+                return Err(PyIndexError::new_err(format!(
+                    "mask index {index} out of range for matrix with {other_columns} columns"
+                )));
+            }
+            // Clone `other` so the rectangle's `borrow_mut` cannot alias it even
+            // if the same matrix object is passed as both parent and source.
+            let other_matrix = other.0.clone();
+            self.with_slice_mut(py, |mut s| s.add_masked(&other_matrix, &mask))
+        }
+
+        pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            let (prime, rows, columns) =
+                self.with_slice_mut(py, |s| (s.prime().as_u32(), s.rows(), s.columns()))?;
+            Ok(format!("MatrixSliceMut({prime}, {rows}x{columns})"))
+        }
+    }
+
     #[pymethods]
     impl PyMatrix {
         #[new]
@@ -1120,7 +1367,7 @@ pub mod fp_py {
             let py = slf.py();
             Ok(PyFpSlice {
                 parent: SliceParent::MatrixRow {
-                    matrix: slf.into_pyobject(py)?.unbind(),
+                    matrix: MatrixParent::Matrix(slf.into_pyobject(py)?.unbind()),
                     row,
                 },
                 start: 0,
@@ -1134,7 +1381,7 @@ pub mod fp_py {
             let py = slf.py();
             Ok(PyFpSliceMut {
                 parent: SliceParent::MatrixRow {
-                    matrix: slf.into_pyobject(py)?.unbind(),
+                    matrix: MatrixParent::Matrix(slf.into_pyobject(py)?.unbind()),
                     row,
                 },
                 start: 0,
@@ -1195,11 +1442,40 @@ pub mod fp_py {
             };
             Ok(PyFpSliceMut {
                 parent: SliceParent::MatrixRow {
-                    matrix: parent,
+                    matrix: MatrixParent::Matrix(parent),
                     row,
                 },
                 start: 0,
                 end,
+            })
+        }
+
+        /// Return a mutable rectangular view over rows `row_start..row_end` and
+        /// columns `col_start..col_end`. The returned `MatrixSliceMut` holds
+        /// this matrix and revalidates the rectangle against the matrix's
+        /// current dimensions on every call.
+        pub fn slice_mut(
+            slf: PyRef<'_, Self>,
+            row_start: usize,
+            row_end: usize,
+            col_start: usize,
+            col_end: usize,
+        ) -> PyResult<PyMatrixSliceMut> {
+            checked_rect(
+                row_start,
+                row_end,
+                col_start,
+                col_end,
+                slf.0.rows(),
+                slf.0.columns(),
+            )?;
+            let py = slf.py();
+            Ok(PyMatrixSliceMut {
+                parent: MatrixParent::Matrix(slf.into_pyobject(py)?.unbind()),
+                row_start,
+                row_end,
+                col_start,
+                col_end,
             })
         }
 
@@ -1879,14 +2155,17 @@ pub mod fp_py {
     /// the codebase (`N = 2` and `N = 3`) as separate classes `AugmentedMatrix2`
     /// and `AugmentedMatrix3`. To avoid duplicating the shared glue, this
     /// `macro_rules!` macro generates each class from a single definition; the
-    /// per-arity methods are spliced in through the `$extra` token block. Each
+    /// per-arity methods are spliced in through the `$extra` token block, and
+    /// `$variant` names the matching `MatrixParent` enum case so that the
+    /// shared `segment`/`row_segment_mut` methods can build borrowed views that
+    /// revalidate against this concrete arity. Each
     /// generated class still goes through `#[pyclass]` / `#[pymethods]`, so this
     /// is not hand-desugared PyO3 registration. However, the `#[pymodule]`
     /// proc-macro cannot see through a `macro_rules!` expansion to auto-collect
     /// the classes, so they are registered explicitly with `add_class` in
     /// `#[pymodule_init]`.
     macro_rules! augmented_matrix_pyclass {
-        ($name:ident, $pyname:literal, $n:literal, { $($extra:tt)* }) => {
+        ($name:ident, $pyname:literal, $n:literal, $variant:ident, { $($extra:tt)* }) => {
             #[pyclass(name = $pyname)]
             struct $name(RustAugmentedMatrix<$n>);
 
@@ -1977,9 +2256,9 @@ pub mod fp_py {
                 ///
                 /// Upstream `row_segment` returns a borrowed `FpSlice`. We copy
                 /// into an owned `FpVector` instead, matching the owned-return
-                /// precedent used elsewhere (e.g. `Subspace.iter`) and avoiding
-                /// the borrowed-view machinery; the mutable `row_segment_mut`
-                /// and rectangle-returning `segment` are deferred (see below).
+                /// precedent used elsewhere (e.g. `Subspace.iter`); the mutable
+                /// `row_segment_mut` and rectangle-returning `segment` provide
+                /// the write-through borrowed views (see below).
                 fn row_segment(
                     &self,
                     i: usize,
@@ -1989,6 +2268,58 @@ pub mod fp_py {
                     checked_row(i, self.0.rows())?;
                     segment_cols(&self.0, start, end)?;
                     Ok(PyFpVector(self.0.row_segment(i, start, end).to_owned()))
+                }
+
+                /// Return a mutable rectangular view spanning all rows and the
+                /// columns of segment range `start..=end`, as a
+                /// `MatrixSliceMut` over the inner matrix. Mutations write
+                /// through to this augmented matrix. The handle revalidates the
+                /// rectangle against the inner matrix's current dimensions on
+                /// every call.
+                fn segment(
+                    slf: PyRef<'_, Self>,
+                    start: usize,
+                    end: usize,
+                ) -> PyResult<PyMatrixSliceMut> {
+                    segment_cols(&slf.0, start, end)?;
+                    let row_end = slf.0.rows();
+                    let col_start = slf.0.start[start];
+                    let col_end = slf.0.end[end];
+                    let py = slf.py();
+                    Ok(PyMatrixSliceMut {
+                        parent: MatrixParent::$variant(slf.into_pyobject(py)?.unbind()),
+                        row_start: 0,
+                        row_end,
+                        col_start,
+                        col_end,
+                    })
+                }
+
+                /// Return a mutable `FpSliceMut` over row `i` restricted to the
+                /// columns of segment range `start..=end`. Mutations write
+                /// through to this augmented matrix. Now thin glue over the
+                /// unified slice-handle machinery (it reuses the matrix-row
+                /// `SliceParent` variant with this augmented matrix as parent),
+                /// so it is bound here rather than deferred.
+                fn row_segment_mut(
+                    slf: PyRef<'_, Self>,
+                    i: usize,
+                    start: usize,
+                    end: usize,
+                ) -> PyResult<PyFpSliceMut> {
+                    checked_row(i, slf.0.rows())?;
+                    segment_cols(&slf.0, start, end)?;
+                    let col_start = slf.0.start[start];
+                    let col_end = slf.0.end[end];
+                    let py = slf.py();
+                    Ok(PyFpSliceMut {
+                        parent: SliceParent::MatrixRow {
+                            matrix: MatrixParent::$variant(slf.into_pyobject(py)?.unbind()),
+                            row: i,
+                        },
+                        start: col_start,
+                        end: col_end,
+                    })
                 }
 
                 /// Compute the kernel of the augmented matrix (which must be row
@@ -2023,7 +2354,7 @@ pub mod fp_py {
         };
     }
 
-    augmented_matrix_pyclass!(PyAugmentedMatrix2, "AugmentedMatrix2", 2, {
+    augmented_matrix_pyclass!(PyAugmentedMatrix2, "AugmentedMatrix2", 2, Augmented2, {
         /// Compute the image of the augmented matrix `[A | I]` (which must be
         /// row reduced), returning an owned `Subspace`. Raises `ValueError` if
         /// the matrix has not been row reduced, instead of panicking.
@@ -2042,7 +2373,7 @@ pub mod fp_py {
         }
     });
 
-    augmented_matrix_pyclass!(PyAugmentedMatrix3, "AugmentedMatrix3", 3, {
+    augmented_matrix_pyclass!(PyAugmentedMatrix3, "AugmentedMatrix3", 3, Augmented3, {
         /// Compute the two quasi-inverses for a row-reduced augmented matrix of
         /// the form `[A | 0 | B | 0 | I]` where `A` is surjective, returning the
         /// pair `(quasi_inverse_of_A, residual_quasi_inverse)`.
