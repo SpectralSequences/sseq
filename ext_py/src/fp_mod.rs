@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 
-pub(crate) mod fp_py_impl {
+#[pymodule]
+#[pyo3(name = "fp")]
+pub mod fp_py {
     use fp::field::{
         element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
@@ -1264,35 +1266,8 @@ pub(crate) mod fp_py_impl {
         u32::binomial4_rec(n, k)
     }
 
-    pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_class::<PyFp>()?;
-        m.add_class::<PySmallFq>()?;
-        m.add_class::<PyFieldElement>()?;
-        m.add_class::<PyFpVector>()?;
-        m.add_class::<PyFpSlice>()?;
-        m.add_class::<PyFpSliceMut>()?;
-        m.add_class::<PyFpVectorIterator>()?;
-        m.add_class::<PyMatrix>()?;
-
-        m.add_function(wrap_pyfunction!(power_mod, m)?)?;
-        m.add_function(wrap_pyfunction!(log2, m)?)?;
-        m.add_function(wrap_pyfunction!(logp, m)?)?;
-        m.add_function(wrap_pyfunction!(factor_pk, m)?)?;
-        m.add_function(wrap_pyfunction!(inverse, m)?)?;
-        m.add_function(wrap_pyfunction!(minus_one_to_the_n, m)?)?;
-        m.add_function(wrap_pyfunction!(is_prime, m)?)?;
-        m.add_function(wrap_pyfunction!(binomial, m)?)?;
-        m.add_function(wrap_pyfunction!(multinomial, m)?)?;
-        m.add_function(wrap_pyfunction!(binomial_odd_is_zero, m)?)?;
-        m.add_function(wrap_pyfunction!(binomial2, m)?)?;
-        m.add_function(wrap_pyfunction!(multinomial2, m)?)?;
-        m.add_function(wrap_pyfunction!(binomial4, m)?)?;
-        m.add_function(wrap_pyfunction!(binomial4_rec, m)?)?;
-
-        if m.hasattr("ValidPrime")? {
-            m.delattr("ValidPrime")?;
-        }
-
+    #[pymodule_init]
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add("F2", PyFp(DynFp::new(prime::TWO)))?;
         m.add("F3", PyFp(DynFp::new(prime::P3.to_dyn())))?;
         m.add("F5", PyFp(DynFp::new(prime::P5.to_dyn())))?;
@@ -1305,9 +1280,4 @@ pub(crate) mod fp_py_impl {
         m.add("ODD_PRIMES", fp::ODD_PRIMES)?;
         Ok(())
     }
-}
-
-#[pymodule]
-pub fn fp_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    fp_py_impl::register(m)
 }
