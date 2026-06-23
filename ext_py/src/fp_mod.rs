@@ -5,7 +5,9 @@ use pyo3::prelude::*;
 pub mod fp_py {
     use fp::field::{element::FieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq};
     use fp::prime::{self, Binomial, Prime};
-    use pyo3::exceptions::PyValueError;
+    use pyo3::basic::CompareOp;
+    use pyo3::exceptions::{PyValueError, PyZeroDivisionError};
+    use std::hash::{DefaultHasher, Hash, Hasher};
 
     use super::*;
 
@@ -24,7 +26,7 @@ pub mod fp_py {
     #[derive(Clone, Copy)]
     pub struct PySmallFq(DynSmallFq);
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     enum FieldElementKind {
         Fp(DynFpElement),
         SmallFq(DynSmallFqElement),
@@ -63,19 +65,31 @@ pub mod fp_py {
         Ok(DynSmallFq::new(p, degree))
     }
 
+    fn py_hash<T: Hash>(value: &T) -> isize {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        match hasher.finish() as isize {
+            -1 => -2,
+            hash => hash,
+        }
+    }
+
     impl FieldElementKind {
-        fn field_name(self) -> &'static str {
+        fn field_repr(self) -> String {
             match self {
-                Self::Fp(_) => "Fp",
-                Self::SmallFq(_) => "SmallFq",
+                Self::Fp(x) => format!("Fp({})", x.field().characteristic().as_u32()),
+                Self::SmallFq(x) => {
+                    let f = x.field();
+                    format!("SmallFq({}, {})", f.characteristic().as_u32(), f.degree())
+                }
             }
         }
 
         fn mismatched_field_error(lhs: Self, rhs: Self) -> PyErr {
             PyValueError::new_err(format!(
-                "cannot combine {} element with {} element",
-                lhs.field_name(),
-                rhs.field_name()
+                "cannot combine elements from {} and {}",
+                lhs.field_repr(),
+                rhs.field_repr()
             ))
         }
     }
@@ -109,6 +123,21 @@ pub mod fp_py {
 
         pub fn __repr__(&self) -> String {
             format!("Fp({})", self.characteristic())
+        }
+
+        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
+            let eq = other
+                .extract::<PyRef<Self>>()
+                .is_ok_and(|other| self.0 == other.0);
+            match op {
+                CompareOp::Eq => eq,
+                CompareOp::Ne => !eq,
+                _ => false,
+            }
+        }
+
+        pub fn __hash__(&self) -> isize {
+            py_hash(&self.0)
         }
     }
 
@@ -145,6 +174,21 @@ pub mod fp_py {
 
         pub fn __repr__(&self) -> String {
             format!("SmallFq({}, {})", self.p(), self.degree())
+        }
+
+        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
+            let eq = other
+                .extract::<PyRef<Self>>()
+                .is_ok_and(|other| self.0 == other.0);
+            match op {
+                CompareOp::Eq => eq,
+                CompareOp::Ne => !eq,
+                _ => false,
+            }
+        }
+
+        pub fn __hash__(&self) -> isize {
+            py_hash(&self.0)
         }
     }
 
@@ -217,15 +261,18 @@ pub mod fp_py {
             }
         }
 
-        pub fn __truediv__(&self, rhs: Self) -> PyResult<Option<Self>> {
+        pub fn __truediv__(&self, rhs: Self) -> PyResult<Self> {
             match (self.0, rhs.0) {
-                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => {
-                    Ok((a / b).map(|x| Self(FieldElementKind::Fp(x))))
-                }
+                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => (a
+                    / b)
+                    .map(|x| Self(FieldElementKind::Fp(x)))
+                    .ok_or_else(|| PyZeroDivisionError::new_err("division by zero")),
                 (FieldElementKind::SmallFq(a), FieldElementKind::SmallFq(b))
                     if a.field() == b.field() =>
                 {
-                    Ok((a / b).map(|x| Self(FieldElementKind::SmallFq(x))))
+                    (a / b)
+                        .map(|x| Self(FieldElementKind::SmallFq(x)))
+                        .ok_or_else(|| PyZeroDivisionError::new_err("division by zero"))
                 }
                 (a, b) => Err(FieldElementKind::mismatched_field_error(a, b)),
             }
@@ -261,6 +308,21 @@ pub mod fp_py {
                     )
                 }
             }
+        }
+
+        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
+            let eq = other
+                .extract::<PyRef<Self>>()
+                .is_ok_and(|other| self.0 == other.0);
+            match op {
+                CompareOp::Eq => eq,
+                CompareOp::Ne => !eq,
+                _ => false,
+            }
+        }
+
+        pub fn __hash__(&self) -> isize {
+            py_hash(&self.0)
         }
     }
 
