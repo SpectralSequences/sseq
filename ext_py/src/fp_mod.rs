@@ -49,7 +49,7 @@ pub mod fp_py {
     struct PyFieldElement(FieldElementKind);
 
     #[pyclass(name = "FpVector")]
-    struct PyFpVector(RustFpVector);
+    pub(crate) struct PyFpVector(RustFpVector);
 
     /// A matrix-like parent that can back a borrowed row or rectangle view.
     ///
@@ -182,14 +182,14 @@ pub mod fp_py {
     }
 
     #[pyclass(name = "FpSlice")]
-    struct PyFpSlice {
+    pub(crate) struct PyFpSlice {
         parent: SliceParent,
         start: usize,
         end: usize,
     }
 
     #[pyclass(name = "FpSliceMut")]
-    struct PyFpSliceMut {
+    pub(crate) struct PyFpSliceMut {
         parent: SliceParent,
         start: usize,
         end: usize,
@@ -1695,7 +1695,14 @@ pub mod fp_py {
 
     /// Extract an owned copy of a vector-like argument (`FpVector` or
     /// `FpSlice`) for use as an immutable input.
-    fn extract_input_owned(py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<RustFpVector> {
+    ///
+    /// Exposed `pub(crate)` so that other binding modules (e.g. `algebra_py`)
+    /// can accept the bound `fp_py` vector/slice pyclasses as input element
+    /// arguments without reinventing the slice-handle revalidation machinery.
+    pub(crate) fn extract_input_owned(
+        py: Python<'_>,
+        obj: &Bound<'_, PyAny>,
+    ) -> PyResult<RustFpVector> {
         if let Ok(vector) = obj.extract::<PyRef<'_, PyFpVector>>() {
             Ok(vector.0.clone())
         } else if let Ok(slice) = obj.extract::<PyRef<'_, PyFpSlice>>() {
@@ -1707,7 +1714,12 @@ pub mod fp_py {
 
     /// Run `f` on the mutable slice backing a vector-like argument
     /// (`FpVector` or `FpSliceMut`), used as an output target.
-    fn with_target_slice_mut<R>(
+    ///
+    /// Exposed `pub(crate)` so that other binding modules (e.g. `algebra_py`)
+    /// can accept a bound `fp_py` result argument for the `multiply_*` family;
+    /// the closure receives the reconstructed `FpSliceMut` and may return a
+    /// `PyResult` so callers can pre-validate (prime/length) inside the borrow.
+    pub(crate) fn with_target_slice_mut<R>(
         py: Python<'_>,
         obj: &Bound<'_, PyAny>,
         f: impl FnOnce(RustFpSliceMut<'_>) -> PyResult<R>,
