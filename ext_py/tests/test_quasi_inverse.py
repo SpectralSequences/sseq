@@ -112,8 +112,20 @@ def test_compute_quasi_inverse_from_matrix():
 
 def test_compute_quasi_inverse_out_of_range():
     _, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    # Row reduce first so we exercise the column-range check rather than the
+    # not-row-reduced guard (which would otherwise fire first).
+    m.row_reduce()
     with pytest.raises(IndexError):
         m.compute_quasi_inverse(2, 999)
+
+
+def test_compute_quasi_inverse_requires_row_reduce():
+    # Without row_reduce the matrix has uninitialized (empty) pivots, which
+    # upstream would slice out of bounds and panic. The guard turns that into
+    # a clean ValueError.
+    padded_cols, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    with pytest.raises(ValueError):
+        m.compute_quasi_inverse(2, padded_cols)
 
 
 def test_inconsistent_image_raises():
