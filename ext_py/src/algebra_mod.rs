@@ -228,6 +228,22 @@ pub mod algebra_py {
         }
     }
 
+    /// Like `non_negative_degree`, but raises `ValueError` rather than
+    /// `IndexError`. The combinatorics free functions (`inadmissible_pairs`)
+    /// treat a negative degree as malformed *input*, not an out-of-range index,
+    /// so the `ValueError` taxonomy that the other combinatorics guards use
+    /// applies. `non_negative_degree` itself is left unchanged because its other
+    /// callers use the degree as an index and rely on `IndexError`.
+    fn non_negative_degree_value(degree: i32) -> PyResult<()> {
+        if degree >= 0 {
+            Ok(())
+        } else {
+            Err(PyValueError::new_err(format!(
+                "degree {degree} is negative"
+            )))
+        }
+    }
+
     /// Convert a Python value (`dict`/`list`/`int`/`float`/`str`/`bool`/`None`)
     /// into a `serde_json::Value`. This is the minimal hand-rolled half of the
     /// `serde_json::Value` <-> Python bridge described in API_PROPOSAL §2.6
@@ -8520,6 +8536,39 @@ pub mod algebra_py {
     /// tighter bound and raise `ValueError`.
     const MAX_TABLE_PRIME: u32 = 251;
 
+    /// Upper bound on the magnitude of any degree (and on the span between the
+    /// smallest and largest degree) accepted by `module_gens_from_json`. Real
+    /// module specifications have tiny degrees (well under a few hundred), so
+    /// this cap is far above any realistic spec. It is also far below the point
+    /// where upstream's `BiVec::with_capacity(min_degree, max_degree + 1)`
+    /// (which eagerly allocates one `usize` *and* one `Vec<String>` for every
+    /// degree in the whole `[min, max]` span) would exhaust memory and abort
+    /// the process — an allocation failure that `catch_unwind` cannot catch. A
+    /// cap of 1_000_000 also keeps `max_degree + 1` (computed upstream as
+    /// `i32`) comfortably clear of the `i32::MAX` overflow.
+    const MAX_MODULE_DEGREE: i32 = 1_000_000;
+
+    /// Upper bound on the `degree` accepted by `inadmissible_pairs`. Upstream
+    /// loops roughly `p * degree / (q * (p + 1))` times, pushing a
+    /// `(u32, u32, u32)` triple each iteration, so an unbounded huge degree
+    /// would allocate a multi-gigabyte `Vec` and abort the process (an OOM that
+    /// `catch_unwind` cannot catch). Resolutions in practice use degrees in the
+    /// hundreds, so this cap is far above realistic use; it also keeps the
+    /// internal `p * (degree / q)` arithmetic well within `u32` (with the
+    /// degree capped, `degree / q` shrinks as `p` grows), so the computation
+    /// cannot overflow in release either.
+    const MAX_INADMISSIBLE_DEGREE: i32 = 100_000;
+
+    /// Upper bound on the magnitude of the `x`, `y`, `j`, `e1`, `e2` arguments
+    /// to `adem_relation_coefficient`. Upstream casts these to `i32` and forms
+    /// `(y - j) * (p - 1) + e1 - 1` and `x - p * j - e2` with `p <= 251`; with
+    /// each argument capped at this bound those products stay well below
+    /// `i32::MAX` (`251 * 1_000_000 < 2.6e8`), so the result is well-defined in
+    /// BOTH debug (no overflow panic) and release (no silent wrap). Real Adem
+    /// inputs are tiny (degrees in the hundreds), so this cap is far above
+    /// realistic use.
+    const MAX_ADEM_ARG: u32 = 1_000_000;
+
     /// Validate a prime that will be used to index the `fp` precomputed tables.
     /// Raises `ValueError` for a non-prime (via `valid_prime`) or for a prime
     /// larger than `MAX_TABLE_PRIME` (which would index out of bounds upstream).
@@ -8566,14 +8615,40 @@ pub mod algebra_py {
                 "module generator spec must be a JSON object mapping names to degrees",
             )
         })?;
+        let mut min_degree: Option<i64> = None;
+        let mut max_degree: Option<i64> = None;
         for (name, degree) in obj {
-            if !degree.is_i64() {
+            let Some(degree) = degree.as_i64() else {
                 return Err(PyValueError::new_err(format!(
                     "generator {name:?} must have an integer degree"
                 )));
+            };
+            // Reject any single degree whose magnitude is so large that
+            // upstream's `BiVec::with_capacity(min, max + 1)` would over-allocate
+            // (or `max + 1` would overflow `i32`). See `MAX_MODULE_DEGREE`.
+            if degree < i64::from(-MAX_MODULE_DEGREE) || degree > i64::from(MAX_MODULE_DEGREE) {
+                return Err(PyValueError::new_err(format!(
+                    "generator {name:?} has degree {degree} outside the supported \
+                     range [-{MAX_MODULE_DEGREE}, {MAX_MODULE_DEGREE}]"
+                )));
+            }
+            min_degree = Some(min_degree.map_or(degree, |m| m.min(degree)));
+            max_degree = Some(max_degree.map_or(degree, |m| m.max(degree)));
+        }
+        // Reject an oversized degree *span*: upstream allocates the full
+        // `[min, max]` range, so a spec like `{"a": -1e6, "b": 1e6}` would still
+        // over-allocate even though each individual degree is within bounds.
+        if let (Some(min), Some(max)) = (min_degree, max_degree) {
+            if max - min > i64::from(MAX_MODULE_DEGREE) {
+                return Err(PyValueError::new_err(format!(
+                    "module generator degrees span {} ({min}..={max}), exceeding the \
+                     supported span of {MAX_MODULE_DEGREE}",
+                    max - min
+                )));
             }
         }
-        // Validated above, so the upstream `unwrap`/`as_i64` calls cannot panic.
+        // Validated above, so the upstream `unwrap`/`as_i64` calls cannot panic
+        // and the bounded degree span cannot over-allocate or overflow.
         let (graded_dimension, gen_names, _name_lookup) = ::algebra::module_gens_from_json(&json);
         let dims = graded_dimension
             .iter_enum()
@@ -8608,6 +8683,18 @@ pub mod algebra_py {
     ) -> PyResult<u32> {
         use std::panic::catch_unwind;
         let prime = table_prime(p)?;
+        // Range pre-check: cap each argument so the internal `i32` degree
+        // arithmetic cannot overflow for accepted inputs. Without this the
+        // overflow is a silent wrap in release (overflow-checks off) and only a
+        // panic in debug, so the result would otherwise be ill-defined. See
+        // `MAX_ADEM_ARG`. `catch_unwind` is kept below purely as a backstop.
+        for (label, arg) in [("x", x), ("y", y), ("j", j), ("e1", e1), ("e2", e2)] {
+            if arg > MAX_ADEM_ARG {
+                return Err(PyValueError::new_err(format!(
+                    "argument {label} = {arg} exceeds the supported maximum of {MAX_ADEM_ARG}"
+                )));
+            }
+        }
         catch_unwind(|| ::algebra::combinatorics::adem_relation_coefficient(prime, x, y, j, e1, e2))
             .map_err(|_| PyValueError::new_err("degree arithmetic overflowed for these inputs"))
     }
@@ -8630,7 +8717,19 @@ pub mod algebra_py {
     ) -> PyResult<Vec<(u32, u32, u32)>> {
         use std::panic::catch_unwind;
         let prime = valid_prime(p)?;
-        non_negative_degree(degree)?;
+        // A negative degree is malformed input for this combinatorics function,
+        // so raise `ValueError` (not `IndexError`). Upstream would otherwise
+        // cast it to a huge `u32`.
+        non_negative_degree_value(degree)?;
+        // Magnitude pre-check: a huge degree makes upstream push a multi-GB
+        // `Vec`, an OOM abort that `catch_unwind` cannot catch. The cap also
+        // bounds the internal `u32` arithmetic, so it cannot overflow in
+        // release. See `MAX_INADMISSIBLE_DEGREE`.
+        if degree > MAX_INADMISSIBLE_DEGREE {
+            return Err(PyValueError::new_err(format!(
+                "degree {degree} exceeds the supported maximum of {MAX_INADMISSIBLE_DEGREE}"
+            )));
+        }
         catch_unwind(|| ::algebra::combinatorics::inadmissible_pairs(prime, generic, degree))
             .map_err(|_| PyValueError::new_err("degree arithmetic overflowed for these inputs"))
     }

@@ -57,6 +57,19 @@ def test_adem_relation_coefficient_rejects_bad_primes():
         algebra.adem_relation_coefficient(257, 1, 1, 0, 0, 0)
 
 
+def test_adem_relation_coefficient_rejects_oversized_args():
+    # Pre-fix, absurdly large args drove the internal i32 degree arithmetic
+    # (e.g. (y - j) * (p - 1) + e1 - 1) to overflow: a silent wrap in release
+    # and only a panic in debug. They are now rejected with ValueError, and
+    # normal args still return the known value.
+    huge = 2_000_000
+    with pytest.raises(ValueError):
+        algebra.adem_relation_coefficient(2, huge, 2, 1, 0, 0)
+    with pytest.raises(ValueError):
+        algebra.adem_relation_coefficient(2, 2, 2, huge, 0, 0)
+    assert algebra.adem_relation_coefficient(2, 2, 2, 1, 0, 0) == 1
+
+
 # --- inadmissible_pairs ------------------------------------------------------
 
 
@@ -73,8 +86,20 @@ def test_inadmissible_pairs_rejects_bad_prime():
 
 
 def test_inadmissible_pairs_rejects_negative_degree():
-    with pytest.raises((ValueError, IndexError)):
+    # A negative degree is malformed input for this combinatorics function, so
+    # it now raises ValueError specifically (not IndexError): the function used
+    # to cast it to a huge u32 upstream.
+    with pytest.raises(ValueError):
         algebra.inadmissible_pairs(2, False, -1)
+
+
+def test_inadmissible_pairs_rejects_oversized_degree():
+    # Pre-fix, a huge degree made upstream push a multi-GB Vec (an uncatchable
+    # OOM abort). It is now rejected with ValueError before allocating, while a
+    # normal small degree still returns the correct pairs.
+    with pytest.raises(ValueError):
+        algebra.inadmissible_pairs(2, False, 100_001)
+    assert algebra.inadmissible_pairs(2, False, 2) == [(1, 0, 1)]
 
 
 # --- module_gens_from_json ---------------------------------------------------
@@ -109,6 +134,36 @@ def test_module_gens_from_json_rejects_non_object():
 def test_module_gens_from_json_rejects_non_integer_degree():
     with pytest.raises(ValueError):
         algebra.module_gens_from_json({"x0": "not an int"})
+
+
+def test_module_gens_from_json_rejects_huge_degree():
+    # Pre-fix, a degree near i32::MAX made upstream's
+    # BiVec::with_capacity(min, max + 1) attempt a ~4-billion-entry allocation
+    # (an uncatchable OOM abort) and `max + 1` overflow i32. Now ValueError.
+    with pytest.raises(ValueError):
+        algebra.module_gens_from_json({"x": 2147483647})
+
+
+def test_module_gens_from_json_rejects_huge_span():
+    # Each degree's magnitude is huge; upstream would allocate the full span.
+    with pytest.raises(ValueError):
+        algebra.module_gens_from_json({"a": -2000000000, "b": 2000000000})
+
+
+def test_module_gens_from_json_rejects_just_over_cap():
+    # Just over the per-degree cap (1_000_000) -> ValueError.
+    with pytest.raises(ValueError):
+        algebra.module_gens_from_json({"x": 1000001})
+
+
+def test_module_gens_from_json_legitimate_small_spec_still_works():
+    # A realistic small spec is unaffected by the guards.
+    dims, names = algebra.module_gens_from_json({"x0": 0, "x1": 7, "x2": 7})
+    # dims spans the full [min, max] degree range (empty degrees map to 0),
+    # matching upstream's BiVec semantics.
+    assert dims == {0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 2}
+    assert names[0] == ["x0"]
+    assert sorted(names[7]) == ["x1", "x2"]
 
 
 def test_dualpairs_indexer_not_bound():
