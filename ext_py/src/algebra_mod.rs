@@ -9,8 +9,10 @@ pub mod algebra_py {
         block_structure::BlockStructure as RsBlockStructure,
         homomorphism::{
             FreeModuleHomomorphism as RsFreeModuleHomomorphism,
-            FullModuleHomomorphism as RsFullModuleHomomorphism, IdentityHomomorphism,
-            ModuleHomomorphism, ZeroHomomorphism,
+            FullModuleHomomorphism as RsFullModuleHomomorphism,
+            GenericZeroHomomorphism as RsGenericZeroHomomorphism, IdentityHomomorphism,
+            ModuleHomomorphism, QuotientHomomorphism as RsQuotientHomomorphism,
+            QuotientHomomorphismSource as RsQuotientHomomorphismSource, ZeroHomomorphism,
         },
         steenrod_module, FDModule as RsFDModule, FPModule as RsFPModule,
         FreeModule as RsFreeModule, HomModule as RsHomModule, Module,
@@ -102,6 +104,37 @@ pub mod algebra_py {
     /// wrapped once more in an `Arc`. All of its tables use interior mutability
     /// (`OnceBiVec`) and take `&self`, so the pyclass holds the value directly.
     type FullModuleHomomorphismInner = RsFullModuleHomomorphism<RsSteenrodModule, RsSteenrodModule>;
+    /// The induced map on quotients, monomorphised so its underlying
+    /// homomorphism `F` is exactly the bound `FullModuleHomomorphism` (whose
+    /// `Source` and `Target` are both the boxed dynamic module
+    /// `RsSteenrodModule`). With `F = FullModuleHomomorphismInner` we have
+    /// `QuotientHomomorphism::Source = QuotientModule<F::Source> =
+    /// QuotientModule<RsSteenrodModule> = QuotientModuleInner` and likewise for
+    /// `Target`, so both `source()` and `target()` hand back the bound
+    /// `QuotientModule` pyclass (sharing the same `Arc`). This is the only
+    /// monomorphisation for which both quotients are the already-bound
+    /// `QuotientModule` type. Upstream `new(f, s, t)` takes `Arc<F>` plus the two
+    /// quotient `Arc`s; the binding clones the `FullModuleHomomorphism`'s inner
+    /// value into a fresh `Arc` (it is `Clone`) and shares the quotients'
+    /// `Arc`s.
+    type QuotientHomomorphismInner = RsQuotientHomomorphism<FullModuleHomomorphismInner>;
+    /// The source-side quotient map `QuotientModule<F::Source> -> F::Target`,
+    /// monomorphised the same way over `F = FullModuleHomomorphismInner`. Its
+    /// `Source` is `QuotientModuleInner` (the bound `QuotientModule`) and its
+    /// `Target` is `F::Target = RsSteenrodModule` (the bound `SteenrodModule`).
+    /// Upstream `new(f, s)` takes `Arc<F>` and the source quotient `Arc`.
+    type QuotientHomomorphismSourceInner =
+        RsQuotientHomomorphismSource<FullModuleHomomorphismInner>;
+    /// The generic zero map between two boxed dynamic modules, monomorphised
+    /// `<RsSteenrodModule, RsSteenrodModule>` so both `source()` and `target()`
+    /// hand back the bound `SteenrodModule` pyclass. Upstream `new(source,
+    /// target, degree_shift)` takes `Arc<S>`/`Arc<T>`, i.e.
+    /// `Arc<RsSteenrodModule> = Arc<Arc<dyn Module>>`, so each factor is wrapped
+    /// once more in an `Arc`. `apply_to_basis_element` is a no-op upstream and
+    /// the map carries no auxiliary data (kernel/image/quasi_inverse are always
+    /// `None`).
+    type GenericZeroHomomorphismInner =
+        RsGenericZeroHomomorphism<RsSteenrodModule, RsSteenrodModule>;
     /// A borrowed trait object over the algebra union. The flattened `Module`
     /// method set is implemented once against this type and shared by every
     /// concrete module pyclass and by `SteenrodModule` via dynamic dispatch.
@@ -6052,6 +6085,846 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!(
                 "FullModuleHomomorphism(degree_shift={}, min_degree={}, prime={})",
+                self.0.degree_shift(),
+                self.0.min_degree(),
+                self.0.prime().as_u32()
+            )
+        }
+    }
+
+    /// The homomorphism induced on quotient modules by an underlying
+    /// `FullModuleHomomorphism` `f`: given quotients `s` of `f.source()` and `t`
+    /// of `f.target()`, this is the map `s -> t` sending the class of a basis
+    /// element to the class of its image. Both source and target are the bound
+    /// `QuotientModule` pyclass and share their `Arc`-held state with the inputs.
+    ///
+    /// The two quotients must genuinely be quotients of `f`'s source and target
+    /// modules (checked by `Arc` identity at construction); otherwise the
+    /// basis-index translation `s.basis_list[..]` would index a foreign module
+    /// and panic. Every degree-indexed access is pre-checked so that an
+    /// out-of-range index, prime/length mismatch, or an output degree outside
+    /// the target quotient's range raises `ValueError`/`IndexError` rather than
+    /// panicking across the FFI boundary.
+    ///
+    /// NOTE: upstream this homomorphism overrides only `apply_to_basis_element`;
+    /// it carries no auxiliary data, so `kernel`/`image`/`quasi_inverse` always
+    /// return `None`, `compute_auxiliary_data_through_degree` is a no-op, and
+    /// `apply_quasi_inverse` always returns `False`. They are bound anyway so the
+    /// flattened `ModuleHomomorphism` surface is uniform across homomorphisms.
+    #[pyclass(name = "QuotientHomomorphism")]
+    pub struct QuotientHomomorphism(QuotientHomomorphismInner);
+
+    impl QuotientHomomorphism {
+        /// `min_degree()` of the (quotient) source module.
+        fn source_min_degree(&self) -> i32 {
+            self.0.source().min_degree()
+        }
+
+        /// Dimension of the (quotient) source module in `degree` (guarded).
+        fn source_dim(&self, degree: i32) -> usize {
+            module_dimension(&*self.0.source() as &DynModule, degree)
+        }
+
+        /// Dimension of the (quotient) target module in `degree` (guarded).
+        fn target_dim(&self, degree: i32) -> usize {
+            module_dimension(&*self.0.target() as &DynModule, degree)
+        }
+
+        /// Ensure both quotients' bases (and algebra) are computed through the
+        /// relevant degrees. (Quotient `compute_basis` is a no-op upstream; the
+        /// underlying modules are already computed through each quotient's
+        /// truncation at construction.)
+        fn ensure_through(&self, input_degree: i32, output_degree: i32) {
+            module_ensure(&*self.0.source() as &DynModule, input_degree);
+            module_ensure(&*self.0.target() as &DynModule, output_degree);
+        }
+
+        /// `input_degree - degree_shift`, raising `ValueError` on overflow.
+        fn output_degree(&self, input_degree: i32) -> PyResult<i32> {
+            input_degree
+                .checked_sub(self.0.degree_shift())
+                .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))
+        }
+    }
+
+    #[pymethods]
+    impl QuotientHomomorphism {
+        /// Build the induced map `source -> target` from the underlying
+        /// `FullModuleHomomorphism` `f`. `source` must be a quotient of
+        /// `f.source()` and `target` a quotient of `f.target()` (checked by
+        /// `Arc` identity); otherwise raises `ValueError`.
+        #[new]
+        pub fn new(
+            f: PyRef<'_, FullModuleHomomorphism>,
+            source: PyRef<'_, QuotientModule>,
+            target: PyRef<'_, QuotientModule>,
+        ) -> PyResult<Self> {
+            if !Arc::ptr_eq(&*f.0.source(), &*source.0.module) {
+                return Err(PyValueError::new_err(
+                    "source must be a quotient of the homomorphism's source module",
+                ));
+            }
+            if !Arc::ptr_eq(&*f.0.target(), &*target.0.module) {
+                return Err(PyValueError::new_err(
+                    "target must be a quotient of the homomorphism's target module",
+                ));
+            }
+            Ok(QuotientHomomorphism(QuotientHomomorphismInner::new(
+                Arc::new(f.0.clone()),
+                Arc::clone(&source.0),
+                Arc::clone(&target.0),
+            )))
+        }
+
+        // --- flattened ModuleHomomorphism method set --------------------------
+
+        /// The (quotient) source module (shares state via `Arc`).
+        pub fn source(&self) -> QuotientModule {
+            QuotientModule(self.0.source())
+        }
+
+        /// The (quotient) target module (shares state via `Arc`).
+        pub fn target(&self) -> QuotientModule {
+            QuotientModule(self.0.target())
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        pub fn degree_shift(&self) -> i32 {
+            self.0.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// Apply the homomorphism to the basis element `input_idx` in
+        /// `input_degree`, adding `coeff` times its image into `result` (a vector
+        /// of length `target.dimension(input_degree - degree_shift)`).
+        pub fn apply_to_basis_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            if input_idx >= src_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "input index {input_idx} out of range for source degree {input_degree} \
+                     (dimension {src_dim})"
+                )));
+            }
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_equal_len(res.as_slice().len(), out_dim)?;
+                // When the target quotient is zero in the output degree (the
+                // output degree is above the target truncation or below its min
+                // degree) the image is zero; the upstream call would index the
+                // target's `basis_list`/underlying-module dimension out of range,
+                // so skip it. `out_dim == 0` already forces `res` to length 0.
+                if out_dim != 0 {
+                    self.0
+                        .apply_to_basis_element(res.copy(), coeff, input_degree, input_idx);
+                }
+                Ok(())
+            })
+        }
+
+        /// Apply the homomorphism to a general `input` element of the (quotient)
+        /// source in `input_degree` (length `source.dimension(input_degree)`),
+        /// adding `coeff` times its image into `result`. Aliasing the same vector
+        /// as both `input` and `result` raises `RuntimeError`.
+        pub fn apply(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), src_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), out_dim)?;
+                    if out_dim != 0 {
+                        self.0.apply(res.copy(), coeff, input_degree, in_slice);
+                    }
+                    Ok(())
+                })
+            })
+        }
+
+        /// The kernel in `degree`. Always `None`: this homomorphism stores no
+        /// auxiliary data upstream.
+        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .kernel(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The image in `degree`. Always `None` (see `kernel`).
+        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .image(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
+        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+            self.0
+                .quasi_inverse(degree)
+                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+        }
+
+        /// No-op upstream (this homomorphism stores no auxiliary data); bound for
+        /// surface uniformity. Still validates the output degree against `i32`
+        /// overflow.
+        pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            self.0.compute_auxiliary_data_through_degree(degree);
+            Ok(())
+        }
+
+        /// The matrix whose rows are the images of the (quotient) source basis
+        /// elements `inputs` in `degree`. Columns index `target.dimension(degree)`.
+        ///
+        /// The per-row application lands in `target.dimension(degree -
+        /// degree_shift)`, so the call is only well-defined when that equals
+        /// `target.dimension(degree)` (always so for `degree_shift == 0`);
+        /// otherwise this raises `ValueError` rather than panicking.
+        pub fn get_partial_matrix(
+            &self,
+            degree: i32,
+            inputs: Vec<usize>,
+        ) -> PyResult<crate::fp_py::PyMatrix> {
+            let src_min = self.source_min_degree();
+            if degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            let src_dim = self.source_dim(degree);
+            for &i in &inputs {
+                if i >= src_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "input index {i} out of range for source degree {degree} (dimension \
+                         {src_dim})"
+                    )));
+                }
+            }
+            if self.target_dim(degree) != self.target_dim(output_degree) {
+                return Err(PyValueError::new_err(
+                    "get_partial_matrix is only well-defined when target.dimension(degree) == \
+                     target.dimension(degree - degree_shift) (e.g. degree_shift == 0)",
+                ));
+            }
+            Ok(crate::fp_py::PyMatrix::from_rust(
+                self.0.get_partial_matrix(degree, &inputs),
+            ))
+        }
+
+        /// Apply the quasi-inverse at `degree` to `input`. Always returns `False`
+        /// (no quasi-inverse is stored).
+        pub fn apply_quasi_inverse(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            let p = self.0.prime().as_u32();
+            let Some(qi) = self.0.quasi_inverse(degree) else {
+                return Ok(false);
+            };
+            let source_dim = qi.source_dimension();
+            let target_dim = qi.target_dimension();
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), target_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), source_dim)?;
+                    qi.apply(res.copy(), 1, in_slice);
+                    Ok(())
+                })
+            })?;
+            Ok(true)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "QuotientHomomorphism(degree_shift={}, min_degree={}, prime={})",
+                self.0.degree_shift(),
+                self.0.min_degree(),
+                self.0.prime().as_u32()
+            )
+        }
+    }
+
+    /// The source-side quotient map `s -> f.target()` induced by a
+    /// `FullModuleHomomorphism` `f` and a quotient `s` of `f.source()`: it sends
+    /// the class of a basis element to its image in the (un-quotiented) target.
+    /// Its source is the bound `QuotientModule` pyclass and its target is the
+    /// bound `SteenrodModule` pyclass; both share their `Arc`-held state.
+    ///
+    /// `s` must genuinely be a quotient of `f.source()` (checked by `Arc`
+    /// identity at construction). As with `QuotientHomomorphism`, this carries no
+    /// auxiliary data: `kernel`/`image`/`quasi_inverse` are always `None`,
+    /// `compute_auxiliary_data_through_degree` is a no-op and
+    /// `apply_quasi_inverse` always returns `False`.
+    #[pyclass(name = "QuotientHomomorphismSource")]
+    pub struct QuotientHomomorphismSource(QuotientHomomorphismSourceInner);
+
+    impl QuotientHomomorphismSource {
+        /// `min_degree()` of the (quotient) source module.
+        fn source_min_degree(&self) -> i32 {
+            self.0.source().min_degree()
+        }
+
+        /// Dimension of the (quotient) source module in `degree` (guarded).
+        fn source_dim(&self, degree: i32) -> usize {
+            module_dimension(&*self.0.source() as &DynModule, degree)
+        }
+
+        /// Dimension of the (plain) target module in `degree` (guarded).
+        fn target_dim(&self, degree: i32) -> usize {
+            module_dimension(&**self.0.target() as &DynModule, degree)
+        }
+
+        /// Ensure the (quotient) source basis and the (plain) target basis are
+        /// computed through the relevant degrees (the latter is a genuine module
+        /// whose basis must be extended).
+        fn ensure_through(&self, input_degree: i32, output_degree: i32) {
+            module_ensure(&*self.0.source() as &DynModule, input_degree);
+            module_ensure(&**self.0.target() as &DynModule, output_degree);
+        }
+
+        /// `input_degree - degree_shift`, raising `ValueError` on overflow.
+        fn output_degree(&self, input_degree: i32) -> PyResult<i32> {
+            input_degree
+                .checked_sub(self.0.degree_shift())
+                .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))
+        }
+    }
+
+    #[pymethods]
+    impl QuotientHomomorphismSource {
+        /// Build the source-side quotient map from the underlying
+        /// `FullModuleHomomorphism` `f` and a quotient `source` of `f.source()`
+        /// (checked by `Arc` identity; otherwise raises `ValueError`).
+        #[new]
+        pub fn new(
+            f: PyRef<'_, FullModuleHomomorphism>,
+            source: PyRef<'_, QuotientModule>,
+        ) -> PyResult<Self> {
+            if !Arc::ptr_eq(&*f.0.source(), &*source.0.module) {
+                return Err(PyValueError::new_err(
+                    "source must be a quotient of the homomorphism's source module",
+                ));
+            }
+            Ok(QuotientHomomorphismSource(
+                QuotientHomomorphismSourceInner::new(Arc::new(f.0.clone()), Arc::clone(&source.0)),
+            ))
+        }
+
+        // --- flattened ModuleHomomorphism method set --------------------------
+
+        /// The (quotient) source module (shares state via `Arc`).
+        pub fn source(&self) -> QuotientModule {
+            QuotientModule(self.0.source())
+        }
+
+        /// The (plain) target module, boxed as a `SteenrodModule` (shares state
+        /// via `Arc`).
+        pub fn target(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.target()).clone())
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        pub fn degree_shift(&self) -> i32 {
+            self.0.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// Apply the homomorphism to the basis element `input_idx` in
+        /// `input_degree`, adding `coeff` times its image into `result` (a vector
+        /// of length `target.dimension(input_degree - degree_shift)`).
+        pub fn apply_to_basis_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            if input_idx >= src_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "input index {input_idx} out of range for source degree {input_degree} \
+                     (dimension {src_dim})"
+                )));
+            }
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_equal_len(res.as_slice().len(), out_dim)?;
+                self.0
+                    .apply_to_basis_element(res.copy(), coeff, input_degree, input_idx);
+                Ok(())
+            })
+        }
+
+        /// Apply the homomorphism to a general `input` element of the (quotient)
+        /// source in `input_degree` (length `source.dimension(input_degree)`),
+        /// adding `coeff` times its image into `result`. Aliasing the same vector
+        /// as both `input` and `result` raises `RuntimeError`.
+        pub fn apply(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), src_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), out_dim)?;
+                    self.0.apply(res.copy(), coeff, input_degree, in_slice);
+                    Ok(())
+                })
+            })
+        }
+
+        /// The kernel in `degree`. Always `None` (no auxiliary data upstream).
+        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .kernel(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The image in `degree`. Always `None` (see `kernel`).
+        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .image(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
+        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+            self.0
+                .quasi_inverse(degree)
+                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+        }
+
+        /// No-op upstream (no auxiliary data); validates output-degree overflow.
+        pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            self.0.compute_auxiliary_data_through_degree(degree);
+            Ok(())
+        }
+
+        /// The matrix whose rows are the images of the (quotient) source basis
+        /// elements `inputs` in `degree`. Columns index `target.dimension(degree)`.
+        /// Only well-defined when `target.dimension(degree) == target.dimension(
+        /// degree - degree_shift)` (e.g. `degree_shift == 0`); otherwise raises
+        /// `ValueError`.
+        pub fn get_partial_matrix(
+            &self,
+            degree: i32,
+            inputs: Vec<usize>,
+        ) -> PyResult<crate::fp_py::PyMatrix> {
+            let src_min = self.source_min_degree();
+            if degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            let src_dim = self.source_dim(degree);
+            for &i in &inputs {
+                if i >= src_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "input index {i} out of range for source degree {degree} (dimension \
+                         {src_dim})"
+                    )));
+                }
+            }
+            if self.target_dim(degree) != self.target_dim(output_degree) {
+                return Err(PyValueError::new_err(
+                    "get_partial_matrix is only well-defined when target.dimension(degree) == \
+                     target.dimension(degree - degree_shift) (e.g. degree_shift == 0)",
+                ));
+            }
+            Ok(crate::fp_py::PyMatrix::from_rust(
+                self.0.get_partial_matrix(degree, &inputs),
+            ))
+        }
+
+        /// Apply the quasi-inverse at `degree`. Always returns `False`.
+        pub fn apply_quasi_inverse(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            let p = self.0.prime().as_u32();
+            let Some(qi) = self.0.quasi_inverse(degree) else {
+                return Ok(false);
+            };
+            let source_dim = qi.source_dimension();
+            let target_dim = qi.target_dimension();
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), target_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), source_dim)?;
+                    qi.apply(res.copy(), 1, in_slice);
+                    Ok(())
+                })
+            })?;
+            Ok(true)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "QuotientHomomorphismSource(degree_shift={}, min_degree={}, prime={})",
+                self.0.degree_shift(),
+                self.0.min_degree(),
+                self.0.prime().as_u32()
+            )
+        }
+    }
+
+    /// The generic zero homomorphism `source -> target` with a given
+    /// `degree_shift`: it maps every element to `0`. Both source and target are
+    /// the bound `SteenrodModule` pyclass and share their `Arc`-held state.
+    ///
+    /// Upstream `apply_to_basis_element` is a no-op, so `apply` never changes
+    /// `result`. The map carries no auxiliary data:
+    /// `kernel`/`image`/`quasi_inverse` are always `None`,
+    /// `compute_auxiliary_data_through_degree` is a no-op and
+    /// `apply_quasi_inverse` always returns `False`. Inputs are still validated
+    /// (prime/length/index/aliasing) so misuse raises `ValueError`/`IndexError`/
+    /// `RuntimeError` rather than silently succeeding.
+    #[pyclass(name = "GenericZeroHomomorphism")]
+    pub struct GenericZeroHomomorphism(GenericZeroHomomorphismInner);
+
+    impl GenericZeroHomomorphism {
+        fn source_min_degree(&self) -> i32 {
+            self.0.source().min_degree()
+        }
+
+        fn source_dim(&self, degree: i32) -> usize {
+            module_dimension(&**self.0.source() as &DynModule, degree)
+        }
+
+        fn target_dim(&self, degree: i32) -> usize {
+            module_dimension(&**self.0.target() as &DynModule, degree)
+        }
+
+        fn ensure_through(&self, input_degree: i32, output_degree: i32) {
+            module_ensure(&**self.0.source() as &DynModule, input_degree);
+            module_ensure(&**self.0.target() as &DynModule, output_degree);
+        }
+
+        fn output_degree(&self, input_degree: i32) -> PyResult<i32> {
+            input_degree
+                .checked_sub(self.0.degree_shift())
+                .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))
+        }
+    }
+
+    #[pymethods]
+    impl GenericZeroHomomorphism {
+        /// Build the zero homomorphism `source -> target` with the given
+        /// `degree_shift`. The factors must be built over the *same* algebra
+        /// object (checked by prime and `Arc` identity); otherwise raises
+        /// `ValueError`.
+        #[new]
+        #[pyo3(signature = (source, target, degree_shift = 0))]
+        pub fn new(
+            source: PyRef<'_, SteenrodModule>,
+            target: PyRef<'_, SteenrodModule>,
+            degree_shift: i32,
+        ) -> PyResult<Self> {
+            let source_alg = source.0.algebra();
+            let target_alg = target.0.algebra();
+            checked_same_prime(source_alg.prime().as_u32(), target_alg.prime().as_u32())?;
+            if !Arc::ptr_eq(&source_alg, &target_alg) {
+                return Err(PyValueError::new_err(
+                    "source and target must be built over the same algebra",
+                ));
+            }
+            Ok(GenericZeroHomomorphism(GenericZeroHomomorphismInner::new(
+                Arc::new(source.0.clone()),
+                Arc::new(target.0.clone()),
+                degree_shift,
+            )))
+        }
+
+        // --- flattened ModuleHomomorphism method set --------------------------
+
+        /// The source module (shares state via `Arc`).
+        pub fn source(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.source()).clone())
+        }
+
+        /// The target module (shares state via `Arc`).
+        pub fn target(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.target()).clone())
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        pub fn degree_shift(&self) -> i32 {
+            self.0.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// Apply the homomorphism to the basis element `input_idx` in
+        /// `input_degree`. A no-op (the zero map), but still validates the
+        /// inputs. `result` has length `target.dimension(input_degree -
+        /// degree_shift)`.
+        pub fn apply_to_basis_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            if input_idx >= src_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "input index {input_idx} out of range for source degree {input_degree} \
+                     (dimension {src_dim})"
+                )));
+            }
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_equal_len(res.as_slice().len(), out_dim)?;
+                self.0
+                    .apply_to_basis_element(res.copy(), coeff, input_degree, input_idx);
+                Ok(())
+            })
+        }
+
+        /// Apply the homomorphism to a general `input` element in `input_degree`.
+        /// A no-op (the zero map), but still validates the inputs. Aliasing the
+        /// same vector as both `input` and `result` raises `RuntimeError`.
+        pub fn apply(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), src_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), out_dim)?;
+                    self.0.apply(res.copy(), coeff, input_degree, in_slice);
+                    Ok(())
+                })
+            })
+        }
+
+        /// The kernel in `degree`. Always `None` (no auxiliary data upstream).
+        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .kernel(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The image in `degree`. Always `None` (see `kernel`).
+        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .image(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
+        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+            self.0
+                .quasi_inverse(degree)
+                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+        }
+
+        /// No-op upstream (no auxiliary data); validates output-degree overflow.
+        pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            self.0.compute_auxiliary_data_through_degree(degree);
+            Ok(())
+        }
+
+        /// The matrix whose rows are the images of the source basis elements
+        /// `inputs` in `degree` — always the zero matrix of shape `len(inputs) x
+        /// target.dimension(degree)`. Validates the input indices.
+        pub fn get_partial_matrix(
+            &self,
+            degree: i32,
+            inputs: Vec<usize>,
+        ) -> PyResult<crate::fp_py::PyMatrix> {
+            let src_min = self.source_min_degree();
+            if degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            let src_dim = self.source_dim(degree);
+            for &i in &inputs {
+                if i >= src_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "input index {i} out of range for source degree {degree} (dimension \
+                         {src_dim})"
+                    )));
+                }
+            }
+            Ok(crate::fp_py::PyMatrix::from_rust(
+                self.0.get_partial_matrix(degree, &inputs),
+            ))
+        }
+
+        /// Apply the quasi-inverse at `degree`. Always returns `False`.
+        pub fn apply_quasi_inverse(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            let p = self.0.prime().as_u32();
+            let Some(qi) = self.0.quasi_inverse(degree) else {
+                return Ok(false);
+            };
+            let source_dim = qi.source_dimension();
+            let target_dim = qi.target_dimension();
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), target_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), source_dim)?;
+                    qi.apply(res.copy(), 1, in_slice);
+                    Ok(())
+                })
+            })?;
+            Ok(true)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "GenericZeroHomomorphism(degree_shift={}, min_degree={}, prime={})",
                 self.0.degree_shift(),
                 self.0.min_degree(),
                 self.0.prime().as_u32()
