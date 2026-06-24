@@ -5973,6 +5973,17 @@ pub mod algebra_py {
     pub struct FreeModuleHomomorphismToFree(Arc<FreeModuleHomToFreeInner>);
 
     impl FreeModuleHomomorphismToFree {
+        /// Wrap an existing `Arc<FreeModuleHomomorphism<FreeModule>>`, sharing
+        /// the *same* underlying homomorphism (a cheap refcount bump). Exposed
+        /// `pub(crate)` so sibling binding modules can hand back maps they hold
+        /// behind an `Arc` without copying — in particular
+        /// `ResolutionHomomorphism.get_map`, whose upstream `get_map(s)` returns
+        /// exactly `Arc<MuFreeModuleHomomorphism<false, FreeModule>>`. Mirrors
+        /// the `FreeModule::from_arc` Arc-sharing precedent.
+        pub(crate) fn from_arc(inner: Arc<FreeModuleHomToFreeInner>) -> Self {
+            FreeModuleHomomorphismToFree(inner)
+        }
+
         /// Dimension of the source `FreeModule` in `degree` (guarded; computes
         /// the basis first and reads 0 below `min_degree`).
         fn source_dim(&self, degree: i32) -> usize {

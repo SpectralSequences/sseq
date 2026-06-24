@@ -69,7 +69,7 @@ KNOWN_UNBOUND = {
     # get_unit: unit resolution accessor is not bound.
     "get_unit",
     # ResolutionHomomorphism and friends: lifting/secondary machinery not bound.
-    "ResolutionHomomorphism",
+    # (ResolutionHomomorphism itself is now bound.)
     "SecondaryResolutionHomomorphism",
     "UnstableResolutionHomomorphism",
     # ChainHomotopy / SecondaryChainHomotopy: homotopy types not bound.

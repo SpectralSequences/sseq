@@ -882,6 +882,14 @@ pub mod fp_py {
         pub(crate) fn as_rust(&self) -> &RustFpVector {
             &self.0
         }
+
+        /// Mutably borrow the underlying upstream `FpVector`. Exposed
+        /// `pub(crate)` so sibling binding modules can write into a
+        /// caller-provided vector (e.g. `ResolutionHomomorphism.act`, which
+        /// accumulates into a result vector via `FpSliceMut`).
+        pub(crate) fn as_rust_mut(&mut self) -> &mut RustFpVector {
+            &mut self.0
+        }
     }
 
     #[pymethods]
