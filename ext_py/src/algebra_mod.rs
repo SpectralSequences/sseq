@@ -8505,6 +8505,158 @@ pub mod algebra_py {
             .map_err(|e| PyValueError::new_err(format!("{e:#}")))
     }
 
+    // ------------------------------------------------------------------------
+    // §5.2 standalone algebra-crate items: module generator parsing and
+    // combinatorics free functions.
+    // ------------------------------------------------------------------------
+
+    /// The largest prime for which the `fp` crate precomputes its index map and
+    /// binomial/degree tables (`MAX_PRIME` upstream). `tau_degrees`,
+    /// `xi_degrees`, and `adem_relation_coefficient` look up
+    /// `PRIME_TO_INDEX_MAP[p]` (and, for the latter, the binomial table) by
+    /// indexing arrays of length `MAX_PRIME + 1` / `NUM_PRIMES`, so a prime
+    /// above this bound — though accepted by `valid_prime` — would index out of
+    /// bounds and panic. These functions therefore validate against this
+    /// tighter bound and raise `ValueError`.
+    const MAX_TABLE_PRIME: u32 = 251;
+
+    /// Validate a prime that will be used to index the `fp` precomputed tables.
+    /// Raises `ValueError` for a non-prime (via `valid_prime`) or for a prime
+    /// larger than `MAX_TABLE_PRIME` (which would index out of bounds upstream).
+    fn table_prime(p: u32) -> PyResult<prime::ValidPrime> {
+        let prime = valid_prime(p)?;
+        if p > MAX_TABLE_PRIME {
+            return Err(PyValueError::new_err(format!(
+                "p = {p} exceeds the largest precomputed prime ({MAX_TABLE_PRIME})"
+            )));
+        }
+        Ok(prime)
+    }
+
+    /// Parse a module's generator specification (a JSON object mapping each
+    /// generator name to its integer degree) into its graded structure.
+    ///
+    /// Returns `(graded_dims, names)` where
+    ///   * `graded_dims` is a `dict[int, int]` mapping each degree to the number
+    ///     of generators in that degree, and
+    ///   * `names` is a `dict[int, list[str]]` mapping each degree to the names
+    ///     of its generators (in the order they index that degree's basis).
+    ///
+    /// Upstream `module_gens_from_json` returns a third element: a name-lookup
+    /// *closure* `&str -> Result<(i32, usize)>`. Per API_PROPOSAL §8 ("Closures
+    /// returned from Rust"), returned Rust closures cannot be wrapped thinly and
+    /// are intentionally dropped; the same information is recoverable from
+    /// `names` (the index of a name within `names[degree]` is its basis index).
+    ///
+    /// The upstream function uses `unwrap`/`as_i64` and panics on a value that is
+    /// not a JSON object or whose degrees are not integers, so we validate the
+    /// shape up front and raise `ValueError` instead of letting it panic across
+    /// the FFI boundary. (Type conversion of the Python value, in `py_to_json`,
+    /// also raises `ValueError`.)
+    #[pyfunction]
+    pub fn module_gens_from_json(
+        value: &Bound<'_, PyAny>,
+    ) -> PyResult<(
+        std::collections::BTreeMap<i32, usize>,
+        std::collections::BTreeMap<i32, Vec<String>>,
+    )> {
+        let json = py_to_json(value)?;
+        let obj = json.as_object().ok_or_else(|| {
+            PyValueError::new_err(
+                "module generator spec must be a JSON object mapping names to degrees",
+            )
+        })?;
+        for (name, degree) in obj {
+            if !degree.is_i64() {
+                return Err(PyValueError::new_err(format!(
+                    "generator {name:?} must have an integer degree"
+                )));
+            }
+        }
+        // Validated above, so the upstream `unwrap`/`as_i64` calls cannot panic.
+        let (graded_dimension, gen_names, _name_lookup) = ::algebra::module_gens_from_json(&json);
+        let dims = graded_dimension
+            .iter_enum()
+            .map(|(degree, &dim)| (degree, dim))
+            .collect();
+        let names = gen_names
+            .iter_enum()
+            .map(|(degree, names)| (degree, names.clone()))
+            .collect();
+        Ok((dims, names))
+    }
+
+    /// The Adem relation coefficient for the (in)admissible pair encoded by
+    /// `(x, y, j, e1, e2)` at the prime `p`, reduced mod `p`. Mirrors upstream
+    /// `combinatorics::adem_relation_coefficient`.
+    ///
+    /// Upstream takes a `ValidPrime` and indexes the `fp` binomial table by
+    /// `PRIME_TO_INDEX_MAP[p]`, so `p` is validated against `MAX_TABLE_PRIME`
+    /// (raising `ValueError` otherwise). The intermediate degree arithmetic is
+    /// `i32` and could overflow (panicking in a debug build) for pathologically
+    /// large inputs, so the computation is run under `catch_unwind` and any such
+    /// overflow is reported as `ValueError` rather than aborting across the FFI
+    /// boundary.
+    #[pyfunction]
+    pub fn adem_relation_coefficient(
+        p: u32,
+        x: u32,
+        y: u32,
+        j: u32,
+        e1: u32,
+        e2: u32,
+    ) -> PyResult<u32> {
+        use std::panic::catch_unwind;
+        let prime = table_prime(p)?;
+        catch_unwind(|| ::algebra::combinatorics::adem_relation_coefficient(prime, x, y, j, e1, e2))
+            .map_err(|_| PyValueError::new_err("degree arithmetic overflowed for these inputs"))
+    }
+
+    /// The inadmissible `(P^i, b, P^j)` pairs in the given `degree` at the prime
+    /// `p` (with `generic` selecting the odd-primary/generic relations). Each
+    /// triple `(i, b, j)` denotes `P^i P^j` when `b == 0` and `P^i β P^j` when
+    /// `b == 1`. Mirrors upstream `combinatorics::inadmissible_pairs`.
+    ///
+    /// Upstream casts `degree` to `u32` (so a negative degree would wrap to a
+    /// huge value) and performs `u32` degree arithmetic that could overflow
+    /// (panicking in a debug build) for pathological inputs. We require a
+    /// non-negative degree and run the computation under `catch_unwind`,
+    /// reporting any overflow as `ValueError`.
+    #[pyfunction]
+    pub fn inadmissible_pairs(
+        p: u32,
+        generic: bool,
+        degree: i32,
+    ) -> PyResult<Vec<(u32, u32, u32)>> {
+        use std::panic::catch_unwind;
+        let prime = valid_prime(p)?;
+        non_negative_degree(degree)?;
+        catch_unwind(|| ::algebra::combinatorics::inadmissible_pairs(prime, generic, degree))
+            .map_err(|_| PyValueError::new_err("degree arithmetic overflowed for these inputs"))
+    }
+
+    /// The degrees of the exterior generators `τ_i` of the dual Steenrod algebra
+    /// at the prime `p` (the values are meaningless at `p = 2`). Mirrors
+    /// upstream `combinatorics::tau_degrees`, returning the precomputed slice as
+    /// a Python `list[int]`. `p` is validated against `MAX_TABLE_PRIME` since
+    /// upstream indexes `PRIME_TO_INDEX_MAP[p]`.
+    #[pyfunction]
+    pub fn tau_degrees(p: u32) -> PyResult<Vec<i32>> {
+        let prime = table_prime(p)?;
+        Ok(::algebra::combinatorics::tau_degrees(prime).to_vec())
+    }
+
+    /// The degrees (divided by `q = 2p - 2`, or `1` at `p = 2`) of the
+    /// polynomial generators `ξ_i` of the dual Steenrod algebra at the prime
+    /// `p`. Mirrors upstream `combinatorics::xi_degrees`, returning the
+    /// precomputed slice as a Python `list[int]`. `p` is validated against
+    /// `MAX_TABLE_PRIME` since upstream indexes `PRIME_TO_INDEX_MAP[p]`.
+    #[pyfunction]
+    pub fn xi_degrees(p: u32) -> PyResult<Vec<i32>> {
+        let prime = table_prime(p)?;
+        Ok(::algebra::combinatorics::xi_degrees(prime).to_vec())
+    }
+
     /// An evaluator for Steenrod algebra expressions. Wraps upstream's
     /// `steenrod_evaluator::SteenrodEvaluator`, which holds an `AdemAlgebra` and
     /// a `MilnorAlgebra` at a fixed prime and can parse + evaluate expression

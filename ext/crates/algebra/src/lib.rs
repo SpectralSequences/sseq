@@ -13,7 +13,7 @@ mod algebra;
 
 pub use crate::algebra::*;
 
-pub(crate) fn module_gens_from_json(
+pub fn module_gens_from_json(
     gens: &serde_json::Value,
 ) -> (
     bivec::BiVec<usize>,
