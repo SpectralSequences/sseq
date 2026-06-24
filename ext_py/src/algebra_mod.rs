@@ -6,7 +6,8 @@ pub mod algebra_py {
     use std::sync::Arc;
 
     use ::algebra::module::{
-        steenrod_module, FDModule as RsFDModule, FreeModule as RsFreeModule,
+        block_structure::BlockStructure as RsBlockStructure, steenrod_module,
+        FDModule as RsFDModule, FPModule as RsFPModule, FreeModule as RsFreeModule,
         HomModule as RsHomModule, Module, OperationGeneratorPair as RsOperationGeneratorPair,
         QuotientModule as RsQuotientModule, RealProjectiveSpace as RsRealProjectiveSpace,
         SteenrodModule as RsSteenrodModule, SuspensionModule as RsSuspensionModule,
@@ -60,6 +61,15 @@ pub mod algebra_py {
     /// algebra-generic `module_*` helpers above.
     type HomModuleInner = RsHomModule<RsSteenrodModule>;
     type RpInner = RsRealProjectiveSpace<RsSteenrodAlgebra>;
+    /// The finitely presented module is monomorphised over the concrete
+    /// `SteenrodAlgebra` (like `FreeModule`/`FDModule`), since upstream
+    /// `FinitelyPresentedModule::new` takes `Arc<A>` and the module's own
+    /// generators/relations are concrete `FreeModule<SteenrodAlgebra>`s. The
+    /// inner module is held in an `Arc` so `into_steenrod_module()` can unsize
+    /// it directly (the `FreeModule` Arc-unsizing pattern) and so the mutating
+    /// `add_generators`/`add_relations` can take `&mut` via `Arc::get_mut` (the
+    /// `QuotientModule` pattern: mutation fails while a box shares the `Arc`).
+    type FPModuleInner = RsFPModule<RsSteenrodAlgebra>;
     /// A borrowed trait object over the algebra union. The flattened `Module`
     /// method set is implemented once against this type and shared by every
     /// concrete module pyclass and by `SteenrodModule` via dynamic dispatch.
@@ -4208,6 +4218,559 @@ pub mod algebra_py {
 
         pub fn __repr__(&self) -> String {
             format!("HomModule({})", self.0)
+        }
+    }
+
+    /// A finitely presented module over the Steenrod algebra: the quotient of a
+    /// `FreeModule` (the *generators*) by the sub-`FreeModule` spanned by a set
+    /// of *relations*. Build it by adding generators (in consecutive degrees)
+    /// and then relations, or all at once with `from_json`.
+    ///
+    /// The inner module is held in an `Arc`. `into_steenrod_module()` shares
+    /// that `Arc` (the `FreeModule` pattern); while a boxed `SteenrodModule`
+    /// from this module is alive the mutating `add_generators`/`add_relations`
+    /// raise `RuntimeError` (the `QuotientModule` pattern), since the box
+    /// observes the same state. Drop every such box to mutate again.
+    #[pyclass(name = "FPModule")]
+    pub struct FPModule {
+        inner: Arc<FPModuleInner>,
+        /// The degree at which the next batch of relations must be added.
+        /// Upstream pushes relations into an `OnceBiVec` starting at
+        /// `min_degree` via `push_checked`, which asserts the appended index is
+        /// exactly the next one; we track that next degree here so we can raise
+        /// `ValueError` instead of letting the assertion fire. Mutated only by
+        /// `add_relations` (which needs `&mut self` anyway).
+        next_relation_degree: i32,
+    }
+
+    impl FPModule {
+        fn as_dyn(&self) -> &DynModule {
+            &*self.inner
+        }
+
+        /// Mutable access for `add_generators`/`add_relations`, which upstream
+        /// take `&mut self`. Fails while the `Arc` is shared (a boxed
+        /// `SteenrodModule` from `into_steenrod_module()` is still alive), since
+        /// that box observes the same state.
+        fn inner_mut(&mut self) -> PyResult<&mut FPModuleInner> {
+            Arc::get_mut(&mut self.inner).ok_or_else(|| {
+                PyRuntimeError::new_err(
+                    "cannot mutate an FPModule after it has been boxed into a SteenrodModule",
+                )
+            })
+        }
+    }
+
+    #[pymethods]
+    impl FPModule {
+        /// Build an empty finitely presented module over `algebra`, named
+        /// `name`, with generators living in degrees `>= min_degree`.
+        #[new]
+        #[pyo3(signature = (algebra, name, min_degree = 0))]
+        pub fn new(algebra: PyRef<'_, SteenrodAlgebra>, name: String, min_degree: i32) -> Self {
+            FPModule {
+                inner: Arc::new(FPModuleInner::new(algebra.arc(), name, min_degree)),
+                next_relation_degree: min_degree,
+            }
+        }
+
+        // --- flattened Module method set --------------------------------------
+
+        pub fn algebra(&self) -> SteenrodAlgebra {
+            SteenrodAlgebra::from_arc(self.inner.algebra())
+        }
+
+        pub fn min_degree(&self) -> i32 {
+            self.inner.min_degree()
+        }
+
+        pub fn max_computed_degree(&self) -> i32 {
+            self.inner.max_computed_degree()
+        }
+
+        pub fn max_degree(&self) -> Option<i32> {
+            self.inner.max_degree()
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.inner.prime().as_u32()
+        }
+
+        pub fn compute_basis(&self, degree: i32) {
+            module_ensure(self.as_dyn(), degree);
+        }
+
+        pub fn dimension(&self, degree: i32) -> usize {
+            module_dimension(self.as_dyn(), degree)
+        }
+
+        pub fn total_dimension(&self) -> PyResult<usize> {
+            module_total_dimension(self.as_dyn())
+        }
+
+        pub fn is_unit(&self) -> bool {
+            self.inner.is_unit()
+        }
+
+        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+            module_basis_element_to_string(self.as_dyn(), degree, idx)
+        }
+
+        pub fn element_to_string(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            element: &Bound<'_, PyAny>,
+        ) -> PyResult<String> {
+            module_element_to_string(self.as_dyn(), py, degree, element)
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_on_basis(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            mod_degree: i32,
+            mod_index: usize,
+        ) -> PyResult<()> {
+            module_act_on_basis(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                mod_degree,
+                mod_index,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            module_act(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                input_degree,
+                input,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_by_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op: &Bound<'_, PyAny>,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            module_act_by_element(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op,
+                input_degree,
+                input,
+            )
+        }
+
+        // --- FPModule-specific (thin) -----------------------------------------
+
+        /// The underlying generators `FreeModule` (shares state via an `Arc`).
+        /// A general element of the FP module is a homogeneous sum of operations
+        /// on these generators, modulo the relations.
+        pub fn generators(&self) -> FreeModule {
+            FreeModule(self.inner.generators())
+        }
+
+        /// Add generators in `degree`, one per name in `gen_names`. Generators
+        /// must be added at the next consecutive degree (mirroring
+        /// `FreeModule.add_generators`, which `push_checked`s into an
+        /// `OnceBiVec` keyed by degree): `degree` must equal
+        /// `generators().max_computed_degree() + 1` and be `>= min_degree`.
+        /// Raises `ValueError` (never panics) otherwise.
+        pub fn add_generators(&mut self, degree: i32, gen_names: Vec<String>) -> PyResult<()> {
+            let min_degree = self.inner.min_degree();
+            if degree < min_degree {
+                return Err(PyValueError::new_err(format!(
+                    "degree {degree} is below the module's min_degree {min_degree}"
+                )));
+            }
+            let next_expected = self.inner.generators().max_computed_degree() + 1;
+            if degree != next_expected {
+                return Err(PyValueError::new_err(format!(
+                    "generators must be added at the next consecutive degree {next_expected}, got \
+                     {degree}"
+                )));
+            }
+            // `add_generators` reads the algebra/opgen tables up to the current
+            // computed degree, so make sure they are populated through `degree`.
+            module_ensure(&*self.inner.generators(), degree);
+            self.inner_mut()?.add_generators(degree, gen_names);
+            Ok(())
+        }
+
+        /// Add relations in `degree`: each relation is a coefficient vector over
+        /// the generators' basis in `degree` (length
+        /// `generators().dimension(degree)`, same prime as the module). Pass an
+        /// empty list to register a degree with no relations.
+        ///
+        /// Relations are stored in an `OnceBiVec` starting at `min_degree` and
+        /// pushed with `push_checked`, so they must be added at consecutive
+        /// degrees starting from `min_degree`: `degree` must equal the next
+        /// pending relation degree. Fill intervening degrees with empty lists.
+        /// Raises `ValueError` for a wrong degree, prime, or length (never
+        /// panics).
+        pub fn add_relations(
+            &mut self,
+            py: Python<'_>,
+            degree: i32,
+            relations: Vec<Bound<'_, PyAny>>,
+        ) -> PyResult<()> {
+            let min_degree = self.inner.min_degree();
+            if degree < min_degree {
+                return Err(PyValueError::new_err(format!(
+                    "degree {degree} is below the module's min_degree {min_degree}"
+                )));
+            }
+            if degree != self.next_relation_degree {
+                return Err(PyValueError::new_err(format!(
+                    "relations must be added at consecutive degrees starting from min_degree; \
+                     expected degree {} but got {degree} (fill gaps with empty relation lists)",
+                    self.next_relation_degree
+                )));
+            }
+            let p = self.inner.prime().as_u32();
+            // The relation vectors live in the generators' space in `degree`;
+            // make sure it is computed, then validate every vector's prime and
+            // length before handing them to the upstream (which pushes them
+            // verbatim and would only panic much later, in `compute_basis`).
+            let gens = self.inner.generators();
+            module_ensure(&*gens, degree);
+            let gen_dim = module_dimension(&*gens, degree);
+            let mut rows = Vec::with_capacity(relations.len());
+            for reln in &relations {
+                let v = crate::fp_py::extract_input_owned(py, reln)?;
+                checked_same_prime(v.prime().as_u32(), p)?;
+                checked_equal_len(v.len(), gen_dim)?;
+                rows.push(v);
+            }
+            self.inner_mut()?.add_relations(degree, rows);
+            self.next_relation_degree = degree + 1;
+            Ok(())
+        }
+
+        /// Map a generator basis index `idx` in `degree` to its index in the FP
+        /// module's basis, or `-1` if that generator is killed by a relation.
+        /// Raises `IndexError` for an out-of-range `idx` or a `degree` below
+        /// `min_degree` (the degree's data is computed first).
+        pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> PyResult<isize> {
+            if degree < self.inner.min_degree() {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the module's min_degree {}",
+                    self.inner.min_degree()
+                )));
+            }
+            module_ensure(self.as_dyn(), degree);
+            // The `gen_idx_to_fp_idx` table has one entry per generator basis
+            // element in `degree`, i.e. `generators().dimension(degree)`.
+            let gen_dim = module_dimension(&*self.inner.generators(), degree);
+            if idx >= gen_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "generator index {idx} out of range for degree {degree} (generator dimension \
+                     {gen_dim})"
+                )));
+            }
+            Ok(self.inner.gen_idx_to_fp_idx(degree, idx))
+        }
+
+        /// Map an FP module basis index `idx` in `degree` to the generator basis
+        /// index it represents. Raises `IndexError` for an out-of-range `idx`
+        /// or a `degree` below `min_degree`.
+        pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> PyResult<usize> {
+            if degree < self.inner.min_degree() {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the module's min_degree {}",
+                    self.inner.min_degree()
+                )));
+            }
+            module_ensure(self.as_dyn(), degree);
+            // The `fp_idx_to_gen_idx` table has one entry per FP-module basis
+            // element in `degree`, i.e. `self.dimension(degree)`.
+            let dim = module_dimension(self.as_dyn(), degree);
+            if idx >= dim {
+                return Err(PyIndexError::new_err(format!(
+                    "fp index {idx} out of range for degree {degree} (dimension {dim})"
+                )));
+            }
+            Ok(self.inner.fp_idx_to_gen_idx(degree, idx))
+        }
+
+        /// Build a finitely presented module from a module-spec `dict` over
+        /// `algebra`. Mirrors `FinitelyPresentedModule::from_json`, which reads
+        /// the generators (`"gens"`) and the `<prefix>_relations` list. All
+        /// failures map to `ValueError`.
+        ///
+        /// Two panic hazards are guarded, exactly as `steenrod_module_from_json`.
+        /// First, upstream does not check the spec's prime against `algebra`; a
+        /// mismatch (or wrong-prefix relations) makes the relation parser
+        /// compute the wrong degree and index out of bounds, so we reject a
+        /// spec `p` that disagrees with `algebra.prime()` up front. Second, the
+        /// upstream `from_json` `unwrap()`s the `<prefix>_relations` array and
+        /// other fields, so we wrap the call in `catch_unwind` to surface a
+        /// malformed spec as `ValueError` rather than aborting across the FFI
+        /// boundary.
+        #[staticmethod]
+        pub fn from_json(
+            algebra: PyRef<'_, SteenrodAlgebra>,
+            value: &Bound<'_, PyAny>,
+        ) -> PyResult<Self> {
+            use std::panic::{catch_unwind, AssertUnwindSafe};
+            let json = py_to_json(value)?;
+            if let Some(spec_p) = json["p"].as_u64() {
+                let algebra_p = algebra.prime() as u64;
+                if spec_p != algebra_p {
+                    return Err(PyValueError::new_err(format!(
+                        "module spec is over p = {spec_p} but the algebra is over p = {algebra_p}"
+                    )));
+                }
+            }
+            let arc = algebra.arc();
+            match catch_unwind(AssertUnwindSafe(|| FPModuleInner::from_json(arc, &json))) {
+                Ok(Ok(module)) => {
+                    let next_relation_degree = module.max_computed_degree() + 1;
+                    Ok(FPModule {
+                        inner: Arc::new(module),
+                        next_relation_degree,
+                    })
+                }
+                Ok(Err(e)) => Err(PyValueError::new_err(e.to_string())),
+                Err(_) => Err(PyValueError::new_err(
+                    "failed to build FPModule from JSON (malformed spec)",
+                )),
+            }
+        }
+
+        /// Box this module into a `SteenrodModule` for downstream use. Shares
+        /// state with this `FPModule` via an `Arc` (the `FreeModule` pattern);
+        /// while a boxed `SteenrodModule` from this module is alive the
+        /// `add_generators`/`add_relations` setters raise `RuntimeError`, and
+        /// they work again once every such box is dropped.
+        pub fn into_steenrod_module(&self) -> SteenrodModule {
+            SteenrodModule(Arc::clone(&self.inner) as RsSteenrodModule)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("FPModule({})", self.inner)
+        }
+    }
+
+    /// One basis element of a [`BlockStructure`]: the `basis_index`-th basis
+    /// element of the block belonging to generator `(generator_degree,
+    /// generator_index)`. Mirrors upstream `GeneratorBasisEltPair`'s three
+    /// public fields.
+    #[pyclass(name = "GeneratorBasisEltPair")]
+    #[derive(Clone)]
+    pub struct GeneratorBasisEltPair {
+        #[pyo3(get)]
+        pub generator_degree: i32,
+        #[pyo3(get)]
+        pub generator_index: usize,
+        #[pyo3(get)]
+        pub basis_index: usize,
+    }
+
+    #[pymethods]
+    impl GeneratorBasisEltPair {
+        #[new]
+        pub fn new(generator_degree: i32, generator_index: usize, basis_index: usize) -> Self {
+            GeneratorBasisEltPair {
+                generator_degree,
+                generator_index,
+                basis_index,
+            }
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "GeneratorBasisEltPair(generator_degree={}, generator_index={}, basis_index={})",
+                self.generator_degree, self.generator_index, self.basis_index
+            )
+        }
+    }
+
+    /// A book-keeping structure mapping between an index into a direct sum of
+    /// vector spaces (one "block" per generator) and the individual block
+    /// coordinates. Used internally by `FreeModule`/`TensorModule`; exposed as a
+    /// standalone helper.
+    ///
+    /// Construct from `min_degree` and `block_sizes`, a list (indexed from
+    /// `min_degree`) of lists giving the size of each generator's block in that
+    /// degree.
+    #[pyclass(name = "BlockStructure")]
+    pub struct BlockStructure {
+        inner: RsBlockStructure,
+        min_degree: i32,
+        /// The block sizes the structure was built from, kept so the query
+        /// methods can bounds-check (degree, generator, basis element) against
+        /// the private `BiVec`/`Vec` upstream indexes, which would otherwise
+        /// panic on out-of-range input.
+        block_sizes: Vec<Vec<usize>>,
+    }
+
+    impl BlockStructure {
+        /// The block sizes for `gen_deg`, or `None` (raising `IndexError`) if
+        /// `gen_deg` is outside the populated degree range.
+        fn sizes_in_degree(&self, gen_deg: i32) -> PyResult<&Vec<usize>> {
+            if gen_deg < self.min_degree {
+                return Err(PyIndexError::new_err(format!(
+                    "generator degree {gen_deg} is below min_degree {}",
+                    self.min_degree
+                )));
+            }
+            let i = (gen_deg - self.min_degree) as usize;
+            self.block_sizes.get(i).ok_or_else(|| {
+                PyIndexError::new_err(format!(
+                    "generator degree {gen_deg} is above the maximum degree {}",
+                    self.min_degree + self.block_sizes.len() as i32 - 1
+                ))
+            })
+        }
+
+        fn checked_generator(&self, gen_deg: i32, gen_idx: usize) -> PyResult<usize> {
+            let sizes = self.sizes_in_degree(gen_deg)?;
+            sizes.get(gen_idx).copied().ok_or_else(|| {
+                PyIndexError::new_err(format!(
+                    "generator index {gen_idx} out of range in degree {gen_deg} ({} generators)",
+                    sizes.len()
+                ))
+            })
+        }
+    }
+
+    #[pymethods]
+    impl BlockStructure {
+        #[new]
+        pub fn new(min_degree: i32, block_sizes: Vec<Vec<usize>>) -> Self {
+            let bivec = ::bivec::BiVec::from_vec(min_degree, block_sizes.clone());
+            BlockStructure {
+                inner: RsBlockStructure::new(&bivec),
+                min_degree,
+                block_sizes,
+            }
+        }
+
+        /// The half-open index range `(start, end)` of the block belonging to
+        /// generator `(gen_deg, gen_idx)`.
+        pub fn generator_to_block(&self, gen_deg: i32, gen_idx: usize) -> PyResult<(usize, usize)> {
+            self.checked_generator(gen_deg, gen_idx)?;
+            let range = self.inner.generator_to_block(gen_deg, gen_idx);
+            Ok((range.start, range.end))
+        }
+
+        /// The index in the direct sum of the `basis_elt`-th element of the
+        /// block belonging to generator `(gen_deg, gen_idx)`.
+        pub fn generator_basis_elt_to_index(
+            &self,
+            gen_deg: i32,
+            gen_idx: usize,
+            basis_elt: usize,
+        ) -> PyResult<usize> {
+            let size = self.checked_generator(gen_deg, gen_idx)?;
+            if basis_elt >= size {
+                return Err(PyIndexError::new_err(format!(
+                    "basis element {basis_elt} out of range for the block of generator \
+                     ({gen_deg}, {gen_idx}) (block size {size})"
+                )));
+            }
+            Ok(self
+                .inner
+                .generator_basis_elt_to_index(gen_deg, gen_idx, basis_elt))
+        }
+
+        /// The `(generator, basis element)` pair corresponding to index `idx`
+        /// of the direct sum.
+        pub fn index_to_generator_basis_elt(&self, idx: usize) -> PyResult<GeneratorBasisEltPair> {
+            let total = self.inner.total_dimension();
+            if idx >= total {
+                return Err(PyIndexError::new_err(format!(
+                    "index {idx} out of range (total dimension {total})"
+                )));
+            }
+            let pair = self.inner.index_to_generator_basis_elt(idx);
+            Ok(GeneratorBasisEltPair {
+                generator_degree: pair.generator_degree,
+                generator_index: pair.generator_index,
+                basis_index: pair.basis_index,
+            })
+        }
+
+        /// The total dimension of the direct sum (the sum of all block sizes).
+        pub fn total_dimension(&self) -> usize {
+            self.inner.total_dimension()
+        }
+
+        /// Add `coeff * source` into the block of `target` belonging to
+        /// generator `(gen_deg, gen_idx)`. `source` must have length equal to
+        /// that block's size and `target` must be long enough to cover the
+        /// block; both must share the same prime. Raises `ValueError`/
+        /// `IndexError` (never panics) on a mismatch.
+        pub fn add_block(
+            &self,
+            py: Python<'_>,
+            target: &Bound<'_, PyAny>,
+            coeff: u32,
+            gen_deg: i32,
+            gen_idx: usize,
+            source: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let size = self.checked_generator(gen_deg, gen_idx)?;
+            let range = self.inner.generator_to_block(gen_deg, gen_idx);
+            let source = crate::fp_py::extract_input_owned(py, source)?;
+            let p = source.prime().as_u32();
+            let coeff = coeff % p;
+            checked_equal_len(source.len(), size)?;
+            crate::fp_py::with_target_slice_mut(py, target, |res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                // `add_block` writes into `target[range.start..range.end]`.
+                if res.as_slice().len() < range.end {
+                    return Err(PyValueError::new_err(format!(
+                        "target has length {} but the block ends at index {}",
+                        res.as_slice().len(),
+                        range.end
+                    )));
+                }
+                self.inner
+                    .add_block(res, coeff, gen_deg, gen_idx, source.as_slice());
+                Ok(())
+            })
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "BlockStructure(total_dimension={})",
+                self.inner.total_dimension()
+            )
         }
     }
 
