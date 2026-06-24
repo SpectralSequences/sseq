@@ -6322,12 +6322,18 @@ pub mod algebra_py {
         /// `G`'s generators in degree `t`, columns by `F`'s generators in degree
         /// `t + degree_shift`). Only available on this free → free variant
         /// (upstream gates `hom_k` on a `FreeModule` target). Returns an empty
-        /// list when the target has no generators in degree `t`.
+        /// list when the target has no generators in degree `t` (including when
+        /// `t` is above the target's computed range, which morally has 0
+        /// generators). When the source has no generators in degree
+        /// `t + degree_shift` (including degrees above the source's computed
+        /// range), the dual matrix has `target_dim` rows of length 0, matching
+        /// upstream's `vec![vec![0; source_dim]; target_dim]` with `source_dim ==
+        /// 0`.
         ///
         /// Guards: the relevant source/target generator degrees must have their
         /// bases computed (done here) and, when the source has generators in
         /// degree `t + degree_shift`, their outputs must be defined (otherwise
-        /// `ValueError`).
+        /// `ValueError`). Out-of-computed-range degrees never panic.
         pub fn hom_k(&self, t: i32) -> PyResult<Vec<Vec<u32>>> {
             let degree_shift = self.0.degree_shift();
             let gen_degree = t
@@ -6337,9 +6343,25 @@ pub mod algebra_py {
             let target = self.0.target();
             module_ensure(&*source as &DynModule, gen_degree);
             module_ensure(&*target as &DynModule, t);
+            // Upstream `hom_k` reads `target.number_of_gens_in_degree(t)` before
+            // any early return. That read PANICS (OnceBiVec index) when
+            // `t > target.max_computed_degree()`; `fm_num_gens_safe` returns 0
+            // there instead, and upstream returns `vec![]` when the target has no
+            // generators in degree `t`. An uncomputed target degree morally has 0
+            // generators, so `vec![]` is the correct (and safe) result.
             let target_dim = fm_num_gens_safe(&target, t);
             if target_dim == 0 {
                 return Ok(vec![]);
+            }
+            // Upstream then reads `source.number_of_gens_in_degree(gen_degree)`,
+            // which likewise PANICS for `gen_degree > source.max_computed_degree()`
+            // (and returns 0 below `source.min_degree()`). In either case the
+            // source has no generators in `gen_degree`, so `source_dim` is morally
+            // 0 and upstream's result `vec![vec![0; source_dim]; target_dim]` is
+            // `target_dim` empty rows. Return that directly to match upstream
+            // without tripping the out-of-bounds index.
+            if gen_degree < source.min_degree() || gen_degree > source.max_computed_degree() {
+                return Ok(vec![Vec::new(); target_dim]);
             }
             let source_dim = fm_num_gens_safe(&source, gen_degree);
             if source_dim > 0
@@ -7777,6 +7799,20 @@ pub mod algebra_py {
         /// X.max_degree()`, calling `map.output(..)` on each, which panics if the
         /// outputs are not yet defined there; we replicate
         /// `FreeModuleHomomorphism::check_outputs_cover` against the `map`.
+        ///
+        /// `map.output(..)` also asserts `target_gen_deg >= map.min_degree()`
+        /// (`free_module_homomorphism.rs:150`). This is unreachable: the upstream
+        /// per-call filter (`hom_pullback.rs:86`) keeps only generators with
+        /// `target_gen_deg >= max(generator_degree + degree_shift, ..)`, where
+        /// `generator_degree` is a generator degree of `B = map.target()`, hence
+        /// `>= B.min_degree()`. So the filter's lower bound is
+        /// `>= B.min_degree() + degree_shift`. Since `map.min_degree() ==
+        /// max(A.min_degree(), B.min_degree() + degree_shift)`, every admitted
+        /// generator satisfies `target_gen_deg >= map.min_degree()` whether the
+        /// max is attained by `A` (the iterated generators all live `>=
+        /// A.min_degree()`) or by `B` (the filter bound dominates). No guard is
+        /// needed for the `min_degree` assert; only the outputs-cover check
+        /// above is required.
         fn ensure_apply(&self, fn_degree: i32, output_degree: i32) -> PyResult<()> {
             // Computing the source HomModule through `fn_degree` and the target
             // HomModule through `output_degree` also computes (via

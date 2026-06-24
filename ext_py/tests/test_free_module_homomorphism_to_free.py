@@ -134,6 +134,35 @@ def test_hom_k_known_value():
     assert hom.hom_k(1) == []
 
 
+def test_hom_k_source_above_max_computed_degree_no_panic():
+    # Target has generators up to degree 5, but the source only up to degree 2
+    # (degree_shift == 0). Upstream `hom_k` reads
+    # `source.number_of_gens_in_degree(t + shift)` before any early return, which
+    # panics for a degree above the source's computed range. The binding must
+    # instead return the correct upstream result: with no source generators in
+    # `t + shift`, `source_dim` is morally 0, so the dual matrix is `target_dim`
+    # rows of length 0. Here `target_dim == 1`, so the result is `[[]]`.
+    alg = milnor(2)
+    source = free_gen_in_degree(alg, "F1", 2)
+    target = free_gen_in_degree(alg, "F0", 5)
+    assert source.max_computed_degree() == 2
+    assert target.number_of_gens_in_degree(5) == 1
+    hom = algebra.FreeModuleHomomorphismToFree(source, target, 0)
+    assert hom.hom_k(5) == [[]]
+
+
+def test_hom_k_target_above_max_computed_degree_is_empty():
+    # `t` above the target's computed range morally has 0 target generators, so
+    # the empty list is returned rather than panicking (matches upstream's
+    # `target_dim == 0 => vec![]`).
+    alg = milnor(2)
+    source = free_gen_in_degree(alg, "F1", 2)
+    target = free_gen_in_degree(alg, "F0", 5)
+    assert target.max_computed_degree() == 5
+    hom = algebra.FreeModuleHomomorphismToFree(source, target, 0)
+    assert hom.hom_k(6) == []
+
+
 def test_hom_k_undefined_outputs_raises():
     alg = milnor(2)
     source = free_gen_in_degree(alg, "F1", 0)

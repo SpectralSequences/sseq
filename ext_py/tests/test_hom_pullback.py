@@ -39,6 +39,19 @@ def free_one_gen(alg, name):
     return f
 
 
+def free_gen_in_degree(alg, name, gen_degree, min_degree=0):
+    """A FreeModule with a single generator in `gen_degree` and the given
+    `min_degree` (empty generators are added at the intervening degrees)."""
+    b = algebra.FPModuleBuilder(alg, name, min_degree)
+    for d in range(min_degree, gen_degree):
+        b.add_generators(d, [])
+    b.add_generators(gen_degree, [name + "g"])
+    b.add_relations(min_degree, [])
+    f = b.build().generators()
+    f.compute_basis(6)
+    return f
+
+
 def identity_pullback(alg):
     """The identity pullback Hom(F0, C2) -> Hom(F1, C2) of d: F1 -> F0, d(b)=a."""
     f0 = free_one_gen(alg, "F0")
@@ -248,6 +261,92 @@ def test_assertion_distinct_X_raises():
     target = algebra.HomModule(f1, make_c2(alg))  # distinct X object
     with pytest.raises(ValueError):
         algebra.HomPullback(source, target, d)
+
+
+# --- nonzero degree_shift --------------------------------------------------
+
+
+def shifted_pullback(alg, shift=1):
+    """A pullback of a map with a nonzero `degree_shift`.
+
+    `map: A -> B` with `A = f1 = <g>` in degree `shift`, `B = f0 = <a>` in
+    degree 0, `map(g) = a` (so `map.degree_shift() == shift`). The pullback
+    `Hom(B, X) -> Hom(A, X)` then has `degree_shift == -shift`.
+    """
+    f0 = free_gen_in_degree(alg, "F0", 0, min_degree=0)
+    f1 = free_gen_in_degree(alg, "F1", shift, min_degree=shift)
+    d = algebra.FreeModuleHomomorphismToFree(f1, f0, shift)
+    row = fp.FpVector(2, f0.dimension(0))  # lands in f0 degree 0
+    row[0] = 1
+    d.add_generators_from_rows(shift, [row])
+    x = make_c2(alg)
+    source = algebra.HomModule(f0, x)  # Hom(B, X)
+    target = source.with_source(f1)  # Hom(A, X), sharing X
+    pb = algebra.HomPullback(source, target, d)
+    return pb, source, target
+
+
+def test_nonzero_degree_shift_invariants_and_apply():
+    pb, source, target = shifted_pullback(milnor(2), shift=1)
+    # HomPullback.degree_shift() == -map.degree_shift() == -1.
+    assert pb.degree_shift() == -1
+    source.compute_basis(2)
+    target.compute_basis(2)
+    # apply at input degree -1: output_degree = -1 - (-1) = 0, both dim 1.
+    res = fp.FpVector(2, target.dimension(0))
+    pb.apply_to_basis_element(res, 1, -1, 0)
+    assert res[0] == 1
+    # apply at input degree 0: output_degree = 1, both dim 1.
+    res1 = fp.FpVector(2, target.dimension(1))
+    pb.apply_to_basis_element(res1, 1, 0, 0)
+    assert res1[0] == 1
+    # get_partial_matrix sizes its columns by target.dimension(degree) (the
+    # upstream convention). At degree 0 that equals target.dimension(0) == 1 and
+    # matches the output degree's dimension, so the induced map reads [[1]].
+    assert pb.get_partial_matrix(0, [0]).to_vec() == [[1]]
+    # At degree -1 the source has a basis element but target.dimension(-1) == 0,
+    # so get_partial_matrix returns a 1 x 0 matrix (no panic). (We avoid
+    # `.to_vec()` here: it independently panics on any 0-column matrix — a
+    # pre-existing PyMatrix issue unrelated to this fix.)
+    m_lo = pb.get_partial_matrix(-1, [0])
+    assert m_lo.rows() == 1
+    assert m_lo.columns() == 0
+
+
+# --- misaligned map min-degrees (Fix 2 reachability) -----------------------
+
+
+def test_misaligned_map_min_degree_apply_no_panic():
+    """`map.target().min_degree() + degree_shift > map.source().min_degree()`.
+
+    Here `B = map.target()` has `min_degree == 1` while `A = map.source()` has
+    `min_degree == 0` and a generator in degree 0, with `degree_shift == 0`, so
+    `map.min_degree() == max(0, 1) == 1` and A's degree-0 generator lives below
+    `map.min_degree()`. Upstream `map.output(..)` asserts
+    `generator_degree >= map.min_degree()`, which would panic if the pullback's
+    per-call filter admitted that generator. It does not: the filter's lower
+    bound is `>= B.min_degree() + degree_shift == map.min_degree()`, so the
+    bad generator is excluded and `apply` is safe (produces zero / valid output,
+    never panics). This documents that the assert is unreachable.
+    """
+    alg = milnor(2)
+    f0 = free_gen_in_degree(alg, "F0", 1, min_degree=1)  # B, min_degree 1
+    f1 = free_gen_in_degree(alg, "F1", 0, min_degree=0)  # A, gen in degree 0
+    d = algebra.FreeModuleHomomorphismToFree(f1, f0, 0)
+    assert d.min_degree() == 1  # max(A.min=0, B.min+shift=1)
+    x = make_c2(alg)
+    source = algebra.HomModule(f0, x)  # Hom(B, X)
+    target = source.with_source(f1)  # Hom(A, X), sharing X
+    pb = algebra.HomPullback(source, target, d)
+    source.compute_basis(3)
+    target.compute_basis(3)
+    # Apply across every computed degree: no panic despite A's degree-0 gen
+    # sitting below map.min_degree().
+    for deg in range(pb.min_degree(), 3):
+        out_deg = deg - pb.degree_shift()
+        res = fp.FpVector(2, target.dimension(out_deg))
+        for idx in range(source.dimension(deg)):
+            pb.apply_to_basis_element(res, 1, deg, idx)
 
 
 def test_independent_hommodules_over_same_x_still_mismatch():
