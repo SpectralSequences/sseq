@@ -345,3 +345,105 @@ def test_leibniz_guards():
     # Undefined source bidegree.
     with pytest.raises(IndexError):
         s.leibniz(2, elem(Bidegree.x_y(9, 9), 2, [1]), prod, None)
+
+
+def test_leibniz_product_prime_mismatch():
+    # A product matrix over the wrong prime raises a clear ValueError
+    # ("product prime mismatch") rather than an opaque catch_unwind message.
+    s = sseq.Sseq(2)
+    s.set_dimension(Bidegree.x_y(0, 0), 1)
+    s.set_dimension(Bidegree.x_y(1, 1), 1)
+    # Matrix over F_3 but the Sseq is over F_2.
+    bad_prod = sseq.Product(
+        Bidegree.x_y(1, 1), True, [(Bidegree.x_y(0, 0), Matrix.from_vec(3, [[1]]))]
+    )
+    with pytest.raises(ValueError, match="product prime mismatch"):
+        s.leibniz((1 << 31) - 1, elem(Bidegree.x_y(0, 0), 2, [1]), bad_prod, None)
+    # The source-product check also covers the differential (target) product.
+    good_prod = sseq.Product(
+        Bidegree.x_y(1, 1), True, [(Bidegree.x_y(0, 0), Matrix.from_vec(2, [[1]]))]
+    )
+    with pytest.raises(ValueError, match="product prime mismatch"):
+        s.leibniz(
+            2,
+            elem(Bidegree.x_y(0, 0), 2, [1]),
+            good_prod,
+            bad_prod,
+        )
+    # The Sseq is untouched: the wrong-prime product was rejected before any
+    # mutation, so a subsequent read still works.
+    assert s.dimension(Bidegree.x_y(0, 0)) == 1
+
+
+# --------------------------------------------------------------------------
+# Fix 1: d_r for r >= 3 must guard *intermediate* target bidegrees
+# --------------------------------------------------------------------------
+
+
+def test_add_differential_r3_undefined_intermediate_raises_index_error():
+    # A d_3 out of (1,0) makes upstream index profile(2,(1,0)) = (0,2) and
+    # profile(3,(1,0)) = (0,3). With (0,2) undefined (but (0,3) defined!), the
+    # binding used to pass its single final-target check and then panic in
+    # MultiIndexed. It must now raise a clean IndexError naming (0, 2).
+    s = sseq.Sseq(2)
+    s.set_dimension(Bidegree.x_y(1, 0), 2)
+    # (0,2) deliberately NOT defined.
+    s.set_dimension(Bidegree.x_y(0, 3), 2)
+
+    assert sseq.Adams.profile(2, Bidegree.x_y(1, 0)) == Bidegree.x_y(0, 2)
+    assert sseq.Adams.profile(3, Bidegree.x_y(1, 0)) == Bidegree.x_y(0, 3)
+
+    src = elem(Bidegree.x_y(1, 0), 2, [1, 0])
+    with pytest.raises(IndexError):
+        s.add_differential(3, src, vec(2, [1, 0]))
+
+
+def test_add_differential_r3_all_defined_succeeds():
+    # With every intermediate (profile(2,..)=(0,2)) and final
+    # (profile(3,..)=(0,3)) target defined, the d_3 is recorded and shows up
+    # as a differential hitting (0,3); the source class is killed on E_4.
+    s = sseq.Sseq(2)
+    s.set_dimension(Bidegree.x_y(1, 0), 1)
+    s.set_dimension(Bidegree.x_y(0, 2), 1)
+    s.set_dimension(Bidegree.x_y(0, 3), 1)
+
+    assert s.add_differential(3, elem(Bidegree.x_y(1, 0), 2, [1]), vec(2, [1]))
+    s.update()
+
+    hitting = s.differentials_hitting(Bidegree.x_y(0, 3))
+    assert any(r == 3 for (r, _d) in hitting)
+    # E_3 at (1,0) still has the class; E_4 has it killed (it supports a d_3).
+    assert s.page_data(Bidegree.x_y(1, 0), 3).dimension() == 1
+    assert s.page_data(Bidegree.x_y(1, 0), 4).dimension() == 0
+    # (0,3) is a boundary on E_4.
+    assert s.page_data(Bidegree.x_y(0, 3), 4).dimension() == 0
+
+
+# --------------------------------------------------------------------------
+# Other review gaps: shape-mismatched multiply, aliased evaluate
+# --------------------------------------------------------------------------
+
+
+def test_multiply_shape_mismatch_raises():
+    # A product matrix whose row/column count disagrees with the source/target
+    # dimensions must raise a clean error instead of panicking in Matrix::apply.
+    s = sseq.Sseq(2)
+    s.set_dimension(Bidegree.x_y(0, 0), 2)
+    s.set_dimension(Bidegree.x_y(1, 1), 2)
+    # Source dim is 2 but the matrix has a single row.
+    prod = sseq.Product(
+        Bidegree.x_y(1, 1), True, [(Bidegree.x_y(0, 0), Matrix.from_vec(2, [[1, 0]]))]
+    )
+    with pytest.raises(ValueError):
+        s.multiply(elem(Bidegree.x_y(0, 0), 2, [1, 0]), prod)
+
+
+def test_differential_evaluate_aliased_source_target_raises():
+    # Passing the same FpVector as both source and target violates PyO3's
+    # borrow rules (one shared, one exclusive borrow of the same object) and
+    # must surface as a RuntimeError, not UB.
+    d = sseq.Differential(2, 2, 2)
+    d.add(vec(2, [1, 0]), vec(2, [1, 0]))
+    shared = vec(2, [1, 0])
+    with pytest.raises(RuntimeError):
+        d.evaluate(shared, shared)

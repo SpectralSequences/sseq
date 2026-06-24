@@ -848,6 +848,54 @@ pub mod sseq_py {
                 )))
             }
         }
+
+        /// Guard that every intermediate (and final) target bidegree a
+        /// `d_r` differential out of `source_b` touches is defined.
+        ///
+        /// Upstream `add_differential(r, source, _)` calls
+        /// `extend_differential(r, source)` and `extend_page_data`, which index
+        /// `self.dimension(profile(r', source))` / `self.data[profile(r',
+        /// source)]` for *every* page `r'` in `MIN_R..=r` — not just the final
+        /// `r`. Any undefined such bidegree panics in `MultiIndexed`'s `Index`
+        /// impl, so we pre-check them all and raise `IndexError` naming the
+        /// first undefined one. (The `profile_inverse` degrees upstream touches
+        /// after recording the differential are already `defined()`-guarded
+        /// upstream, so they need no check here.)
+        fn require_intermediate_targets_defined(&self, source_b: Bidegree, r: i32) -> PyResult<()> {
+            for r_prime in MIN_R..=r {
+                let target = Bidegree(<::sseq::Adams as RsSseqProfile<2>>::profile(
+                    r_prime, source_b.0,
+                ));
+                if !self.0.defined(target.0) {
+                    return Err(PyIndexError::new_err(format!(
+                        "intermediate target bidegree {} (= profile({r_prime}, {})) \
+                         of a d_{r} differential is not defined",
+                        target.0, source_b.0
+                    )));
+                }
+            }
+            Ok(())
+        }
+
+        /// Validate that every stored multiplication matrix in `product` is over
+        /// the Sseq's prime, raising `ValueError("product prime mismatch")`
+        /// otherwise. Upstream `leibniz`/`multiply` only ever exercise the
+        /// matrix at the relevant source bidegree, so a stray wrong-prime matrix
+        /// might otherwise either go unnoticed or surface as an opaque
+        /// `catch_unwind` panic; checking up front gives a clear error.
+        fn require_product_prime(&self, product: &Product) -> PyResult<()> {
+            let p = self.1.as_u32();
+            for (_coords, matrix) in product.0.matrices.iter() {
+                if matrix.prime().as_u32() != p {
+                    return Err(PyValueError::new_err(format!(
+                        "product prime mismatch: Sseq is over F_{p}, but a product \
+                         matrix is over F_{}",
+                        matrix.prime().as_u32()
+                    )));
+                }
+            }
+            Ok(())
+        }
     }
 
     #[pymethods]
@@ -949,8 +997,16 @@ pub mod sseq_py {
         ///
         /// Guards (all raising clean exceptions instead of panicking):
         ///  - `r >= MIN_R` (`ValueError`),
-        ///  - the source bidegree and the target bidegree
-        ///    `profile(r, source)` are both defined (`IndexError`),
+        ///  - the source bidegree is defined (`IndexError`),
+        ///  - *every* intermediate target bidegree `profile(r', source)` for
+        ///    `r'` in `MIN_R..=r` is defined (`IndexError`), naming the first
+        ///    undefined one. Upstream `add_differential` calls
+        ///    `extend_differential(r, source)`/`extend_page_data`, which index
+        ///    `self.dimension(profile(r', source))` and
+        ///    `self.data[profile(r', source)]` for every page `r'` in that
+        ///    range (not just the final `r`), so each must be defined or the
+        ///    upstream `MultiIndexed` index panics. The final target is the
+        ///    `r' = r` case.
         ///  - prime and length match for both the source vector
         ///    (`= dim(source)`) and `target` (`= dim(target_bidegree)`)
         ///    (`ValueError`).
@@ -968,8 +1024,12 @@ pub mod sseq_py {
             }
             let source_b = Bidegree(source.0.degree());
             self.require_defined(&source_b)?;
+            // Guard every bidegree the upstream `extend_differential` /
+            // `extend_page_data` path indexes: `profile(r', source)` for every
+            // page `r'` in `MIN_R..=r`. The final iteration (`r' = r`) is the
+            // differential's actual target.
+            self.require_intermediate_targets_defined(source_b, r)?;
             let target_b = Bidegree(<::sseq::Adams as RsSseqProfile<2>>::profile(r, source_b.0));
-            self.require_defined(&target_b)?;
 
             let p = self.1.as_u32();
             check_same_prime(p, source.0.vec().prime().as_u32())?;
@@ -1094,11 +1154,31 @@ pub mod sseq_py {
         /// differential, or `None` if no differential was added (trivial, or the
         /// product data is not yet available).
         ///
-        /// Guards: `elem`'s bidegree must be defined and the prime must match
-        /// (`ValueError`/`IndexError`). Any remaining upstream precondition
-        /// (e.g. an undefined `d_r` differential that the rule would need) is
-        /// contained with `catch_unwind` and surfaced as a `ValueError` rather
-        /// than crossing the FFI boundary as a panic.
+        /// Guards checked up front (before any mutation): `elem`'s bidegree
+        /// must be defined (`IndexError`), `elem`'s vector prime must match
+        /// (`ValueError`), and every stored matrix in `source_product` /
+        /// `target_product` must be over the Sseq's prime
+        /// (`ValueError("product prime mismatch")`).
+        ///
+        /// The set of bidegrees the rule ultimately touches (it calls
+        /// `multiply` and `add_differential` on a *derived* source/page that
+        /// depends on both products and the differential length) is not
+        /// cleanly determinable from the binding without replaying upstream's
+        /// internal control flow, so any remaining upstream precondition (e.g.
+        /// an undefined intermediate target bidegree the rule would index) is
+        /// contained with `catch_unwind` and surfaced as a `RuntimeError`
+        /// rather than crossing the FFI boundary as a panic.
+        ///
+        /// # Stale state on a caught error
+        ///
+        /// `leibniz` mutates the owned `Sseq` in place via the same
+        /// `add_differential`/`extend_*` path. If it panics partway through,
+        /// `catch_unwind` keeps the process memory-safe, but the `Sseq` may be
+        /// left **partially mutated** (extra differentials/page-data rows,
+        /// degrees flagged invalid). It remains safe to read, but is logically
+        /// stale; if `leibniz` raises a `RuntimeError`, rebuild the `Sseq`
+        /// rather than trusting its state. The up-front guards above cover the
+        /// common misuse cases without entering this path.
         #[pyo3(signature = (r, elem, source_product, target_product=None))]
         pub fn leibniz(
             &mut self,
@@ -1109,14 +1189,19 @@ pub mod sseq_py {
         ) -> PyResult<Option<(i32, BidegreeElement)>> {
             self.require_defined(&Bidegree(elem.0.degree()))?;
             check_same_prime(self.1.as_u32(), elem.0.vec().prime().as_u32())?;
+            self.require_product_prime(source_product)?;
+            if let Some(tp) = target_product {
+                self.require_product_prime(tp)?;
+            }
 
             let target = target_product.map(|p| &p.0);
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 self.0.leibniz(r, &elem.0, &source_product.0, target)
             }))
             .map_err(|_| {
-                PyValueError::new_err(
-                    "leibniz failed: the required differentials/page data are not available",
+                pyo3::exceptions::PyRuntimeError::new_err(
+                    "leibniz failed: the required differentials/page data are not available; \
+                     the Sseq may now be in a partially mutated (stale) state and should be rebuilt",
                 )
             })?;
             Ok(result.map(|(r, e)| (r, BidegreeElement(e))))
