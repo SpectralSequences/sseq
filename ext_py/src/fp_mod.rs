@@ -1534,6 +1534,15 @@ pub mod fp_py {
         }
 
         pub fn to_vec(&self) -> Vec<Vec<u32>> {
+            // Upstream `Matrix::to_vec` splits the flat limb buffer with
+            // `itertools::chunks(stride)`, which panics (`size != 0`) when
+            // `stride == 0`, i.e. for a matrix with zero columns. Other upstream
+            // methods guard this case but `to_vec` does not, so special-case the
+            // degenerate dimensions here: a matrix with `rows` rows and zero
+            // columns is `rows` empty rows.
+            if self.0.columns() == 0 {
+                return vec![Vec::new(); self.0.rows()];
+            }
             self.0.to_vec()
         }
 

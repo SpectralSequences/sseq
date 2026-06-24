@@ -14,6 +14,22 @@ def test_matrix_construction_and_queries():
     assert repr(m).startswith("Matrix(7, ")
 
 
+def test_matrix_to_vec_zero_dimensions():
+    # Regression: a matrix with zero columns and nonzero rows used to panic in
+    # upstream `Matrix::to_vec` (`itertools::chunks(0)` -> "size != 0") across
+    # the FFI boundary. The mathematically correct value is one empty row per
+    # row of the matrix.
+    assert fp.Matrix(2, 1, 0).to_vec() == [[]]
+    assert fp.Matrix(2, 3, 0).to_vec() == [[], [], []]
+    # Zero rows (with or without columns) is the empty list of rows.
+    assert fp.Matrix(2, 0, 3).to_vec() == []
+    assert fp.Matrix(2, 0, 0).to_vec() == []
+    # Sibling row-materializing access must also not panic on zero columns.
+    assert fp.Matrix(2, 1, 0).rows() == 1
+    assert fp.Matrix(2, 1, 0).columns() == 0
+    assert list(fp.Matrix(2, 1, 0).row(0)) == []
+
+
 def test_matrix_from_vec_and_identity():
     m = fp.Matrix.from_vec(7, [[1, 3, 6], [0, 3, 4]])
     assert m.to_vec() == [[1, 3, 6], [0, 3, 4]]
