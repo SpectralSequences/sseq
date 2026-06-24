@@ -72,6 +72,111 @@ def test_tensor_module_seek_and_offset():
         t.offset(1, 9)
 
 
+def test_tensor_module_offset_empty_block_raises():
+    # A left factor with an internal degree gap (graded dims [1, 0, 1]) has
+    # dimension 0 in degree 1. `offset(2, 1)` is inside the accepted left-degree
+    # range [0, 2] but addresses an empty block; upstream would index
+    # `blocks[1][0]` out of bounds. We must raise IndexError, not panic.
+    alg = milnor(2)
+    gap = algebra.FDModule(alg, "g", [1, 0, 1]).into_steenrod_module()
+    t = algebra.TensorModule(gap, make_c2(alg))
+    t.compute_basis(4)
+    assert gap.dimension(1) == 0
+    with pytest.raises(IndexError):
+        t.offset(2, 1)
+    # A non-empty block still returns the correct offset. The block structure in
+    # total degree 2 lays out left_degree 0 (dim 1) then left_degree 2 (dim 1),
+    # each tensored against the right factor's degree.
+    assert t.offset(2, 0) == 0
+    assert t.offset(2, 2) == t.dimension(2) - 1
+
+
+def test_tensor_module_act_by_element_known_result():
+    alg = milnor(2)
+    t = algebra.TensorModule(make_c2(alg), make_c2(alg))
+    t.compute_basis(4)
+    # Sq1 as an algebra element in degree 1 (the unique basis element).
+    op = fp.FpVector(2, alg.dimension(1))
+    op[0] = 1
+    # input = x0 (x) x0 (the single basis element in degree 0).
+    inp = fp.FpVector(2, t.dimension(0))
+    inp[0] = 1
+    res = fp.FpVector(2, t.dimension(1))
+    t.act_by_element(res, 1, 1, op, 0, inp)
+    # Sq1 . (x0 (x) x0) = x1 (x) x0 + x0 (x) x1.
+    assert res[0] == 1
+    assert res[1] == 1
+    assert sum(res) == 2
+
+
+def test_tensor_module_act_by_element_length_mismatch_raises():
+    alg = milnor(2)
+    t = algebra.TensorModule(make_c2(alg), make_c2(alg))
+    t.compute_basis(4)
+    op = fp.FpVector(2, alg.dimension(1))
+    op[0] = 1
+    # Input vector of the wrong length for degree 0 (dimension 1).
+    bad_input = fp.FpVector(2, 5)
+    res = fp.FpVector(2, t.dimension(1))
+    with pytest.raises(ValueError):
+        t.act_by_element(res, 1, 1, op, 0, bad_input)
+
+
+def test_suspension_module_act_by_element_prime_mismatch_raises():
+    alg = milnor(2)
+    s = algebra.SuspensionModule(make_c2(alg), 3)
+    s.compute_basis(8)
+    # Operation vector at the wrong prime.
+    op = fp.FpVector(3, alg.dimension(1))
+    inp = fp.FpVector(2, s.dimension(3))
+    inp[0] = 1
+    res = fp.FpVector(2, s.dimension(4))
+    with pytest.raises(ValueError):
+        s.act_by_element(res, 1, 1, op, 3, inp)
+
+
+def test_tensor_module_odd_prime_action_runs():
+    # p = 3 exercises the coproduct sign path. The Milnor algebra panics with
+    # "Coproduct at odd primes not supported", so we use the Adem (generic)
+    # algebra, whose coproduct is defined at odd primes. We assert the action
+    # runs without panic and dimensions are consistent rather than pinning a
+    # hand value.
+    alg = adem(3)
+    # A two-cell module with a degree-1 generator carrying a Bockstein action.
+    m = algebra.FDModule(alg, "M", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])  # beta . x0 = x1
+    m = m.into_steenrod_module()
+    t = algebra.TensorModule(m, m)
+    t.compute_basis(6)
+    # Dimensions: convolution of [1, 1] with [1, 1] = [1, 2, 1].
+    assert t.dimension(0) == 1
+    assert t.dimension(1) == 2
+    assert t.dimension(2) == 1
+    res = fp.FpVector(3, t.dimension(1))
+    t.act_on_basis(res, 1, 1, 0, 0, 0)
+    assert len(res) == t.dimension(1)
+
+
+def test_derived_modules_string_and_is_unit():
+    alg = milnor(2)
+    t = algebra.TensorModule(make_c2(alg), make_c2(alg))
+    t.compute_basis(4)
+    s = algebra.SuspensionModule(make_c2(alg), 3)
+    s.compute_basis(8)
+    z = algebra.ZeroModule(alg, 0)
+    rp = algebra.RealProjectiveSpace(adem(2), 1, 4)
+    rp.compute_basis(6)
+    # basis_element_to_string success paths.
+    assert isinstance(t.basis_element_to_string(0, 0), str)
+    assert isinstance(s.basis_element_to_string(3, 0), str)
+    assert isinstance(rp.basis_element_to_string(1, 0), str)
+    # is_unit is callable and returns a bool on each derived class.
+    assert isinstance(t.is_unit(), bool)
+    assert isinstance(s.is_unit(), bool)
+    assert isinstance(z.is_unit(), bool)
+    assert isinstance(rp.is_unit(), bool)
+
+
 def test_tensor_module_prime_mismatch_raises():
     left = make_c2(milnor(3))
     right = make_c2(milnor(2))

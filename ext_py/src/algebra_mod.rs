@@ -2810,13 +2810,17 @@ pub mod algebra_py {
 
     #[pymethods]
     impl TensorModule {
-        /// Build `left (x) right`. The two factors must be over the same
-        /// algebra: upstream takes the coproduct from `left`'s algebra and
-        /// applies it to `right`'s basis, so a prime mismatch would panic on a
-        /// length/prime mismatch inside the `FpVector` action and an algebra
-        /// mismatch would silently compute the wrong answer. We therefore
-        /// reject both up front with `ValueError` (upstream `new` does no such
-        /// check).
+        /// Build `left (x) right`. Both factors must be built from the *same*
+        /// `SteenrodAlgebra` Python object: the same-algebra check uses
+        /// `Arc::ptr_eq` (there is no cheap structural equality on
+        /// `SteenrodAlgebra`, so we cannot accept distinct-but-equal algebras),
+        /// meaning a distinct-but-equal algebra object is rejected with
+        /// `ValueError`. The requirement exists because upstream takes the
+        /// coproduct from `left`'s algebra and applies it to `right`'s basis,
+        /// so a prime mismatch would panic on a length/prime mismatch inside
+        /// the `FpVector` action and an algebra mismatch would silently compute
+        /// the wrong answer. We therefore reject both up front with
+        /// `ValueError` (upstream `new` does no such check).
         #[new]
         pub fn new(
             left: PyRef<'_, SteenrodModule>,
@@ -2987,6 +2991,18 @@ pub mod algebra_py {
                 return Err(PyIndexError::new_err(format!(
                     "left_degree {left_degree} out of range [{left_min}, {left_max}] for total \
                      degree {degree}"
+                )));
+            }
+            // A `left_degree` inside the accepted range can still address an
+            // empty block when the left factor has dimension 0 there (an
+            // internal degree gap, e.g. graded dims `[1, 0, 1]`). Upstream
+            // `offset` would then index `blocks[left_degree][0]` out of bounds,
+            // so reject it explicitly. `&**self.0.left` reaches the left factor
+            // as a `DynModule` for the shared dimension helper.
+            if module_dimension(&**self.0.left, left_degree) == 0 {
+                return Err(PyIndexError::new_err(format!(
+                    "left_degree {left_degree} addresses an empty block (the left factor has \
+                     dimension 0 there); the offset of an empty block is undefined"
                 )));
             }
             Ok(self.0.offset(degree, left_degree))
