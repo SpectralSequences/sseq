@@ -72,15 +72,35 @@ def test_row_segment_returns_owned_fpvector():
     assert seg[1] == 0
 
 
-def test_into_matrix_returns_matrix():
+def test_into_matrix_returns_matrix_and_consumes():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     m.add_identity(1, 1)
+    cols = m.columns()
     inner = m.into_matrix()
     assert isinstance(inner, fp.Matrix)
     assert inner.rows() == 2
-    assert inner.columns() == m.columns()
-    # The augmented matrix is still usable (into_matrix clones the inner matrix).
-    assert m.rows() == 2
+    assert inner.columns() == cols
+    # `into_matrix` now consumes the augmented matrix: any further use raises
+    # RuntimeError, and calling it again also raises.
+    with pytest.raises(RuntimeError):
+        m.rows()
+    with pytest.raises(RuntimeError):
+        m.into_matrix()
+
+
+def test_compute_quasi_inverses_consumes():
+    m = fp.AugmentedMatrix3(3, 2, [2, 2, 2])
+    m.add_identity(0, 0)
+    m.add_identity(1, 1)
+    m.add_identity(2, 2)
+    m.row_reduce()
+    a, b = m.compute_quasi_inverses()
+    assert isinstance(a, fp.QuasiInverse)
+    # The augmented matrix is consumed afterwards.
+    with pytest.raises(RuntimeError):
+        m.compute_quasi_inverses()
+    with pytest.raises(RuntimeError):
+        m.to_vec()
 
 
 def test_augmented_matrix2_compute_image_and_quasi_inverse():
