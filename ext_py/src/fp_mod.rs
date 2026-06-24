@@ -1840,6 +1840,15 @@ pub mod fp_py {
     /// if the same object is simultaneously borrowed mutably elsewhere — e.g.
     /// passed as both the input and the mutable target — rather than UB.
     ///
+    /// # Error taxonomy
+    ///
+    /// We first dispatch on the object's *type* and only then attempt the
+    /// borrow, so the two failure modes stay distinct:
+    ///  * a genuinely wrong type → `ValueError("expected an FpVector or
+    ///    FpSlice")`, and
+    ///  * a correct type that is already borrowed mutably elsewhere (aliasing)
+    ///    → the borrow conflict is propagated verbatim as `RuntimeError`.
+    ///
     /// Exposed `pub(crate)` so that other binding modules (e.g. `algebra_py`)
     /// reuse it for immutable input element arguments.
     pub(crate) fn with_input_slice<R>(
@@ -1847,9 +1856,11 @@ pub mod fp_py {
         obj: &Bound<'_, PyAny>,
         f: impl FnOnce(RustFpSlice<'_>) -> PyResult<R>,
     ) -> PyResult<R> {
-        if let Ok(vector) = obj.extract::<PyRef<'_, PyFpVector>>() {
+        if let Ok(vector) = obj.cast::<PyFpVector>() {
+            let vector = vector.try_borrow().map_err(borrow_error)?;
             f(vector.0.as_slice())
-        } else if let Ok(slice) = obj.extract::<PyRef<'_, PyFpSlice>>() {
+        } else if let Ok(slice) = obj.cast::<PyFpSlice>() {
+            let slice = slice.try_borrow().map_err(borrow_error)?;
             slice.with_slice(py, f)?
         } else {
             Err(PyValueError::new_err("expected an FpVector or FpSlice"))
@@ -1858,6 +1869,21 @@ pub mod fp_py {
 
     /// Run `f` on the mutable slice backing a vector-like argument
     /// (`FpVector` or `FpSliceMut`), used as an output target.
+    ///
+    /// # Error taxonomy
+    ///
+    /// We dispatch on the object's *type* before attempting the mutable
+    /// borrow, so the two failure modes stay distinct:
+    ///  * a genuinely wrong type → `ValueError("expected an FpVector or
+    ///    FpSliceMut")`, and
+    ///  * a correct type that is already borrowed elsewhere (e.g. the same
+    ///    `FpVector` simultaneously passed as a borrowed input via
+    ///    [`with_input_slice`] *and* as this mutable target) → the borrow
+    ///    conflict is propagated verbatim as `RuntimeError`.
+    ///
+    /// Aliasing the mutable target with an input is therefore rejected with a
+    /// `RuntimeError` (an intentional API change from the pre-clone-removal
+    /// behavior, which silently succeeded by cloning the input first).
     ///
     /// Exposed `pub(crate)` so that other binding modules (e.g. `algebra_py`)
     /// can accept a bound `fp_py` result argument for the `multiply_*` family;
@@ -1868,9 +1894,11 @@ pub mod fp_py {
         obj: &Bound<'_, PyAny>,
         f: impl FnOnce(RustFpSliceMut<'_>) -> PyResult<R>,
     ) -> PyResult<R> {
-        if let Ok(mut vector) = obj.extract::<PyRefMut<'_, PyFpVector>>() {
+        if let Ok(vector) = obj.cast::<PyFpVector>() {
+            let mut vector = vector.try_borrow_mut().map_err(borrow_error)?;
             f(vector.0.as_slice_mut())
-        } else if let Ok(slice) = obj.extract::<PyRef<'_, PyFpSliceMut>>() {
+        } else if let Ok(slice) = obj.cast::<PyFpSliceMut>() {
+            let slice = slice.try_borrow().map_err(borrow_error)?;
             slice.with_slice_mut(py, f)?
         } else {
             Err(PyValueError::new_err("expected an FpVector or FpSliceMut"))

@@ -108,6 +108,37 @@ def test_quotient_module_old_basis_to_new():
     assert new[0] == 1
 
 
+def test_quotient_module_old_basis_to_new_aliasing_raises_runtimeerror():
+    # In degree 0 the original and quotient dimensions are both 1, so a single
+    # length-1 vector is shape-valid as both `old` (input) and `new` (target).
+    # Aliasing them must raise RuntimeError (borrow conflict), NOT ValueError.
+    alg = milnor(2)
+    q = algebra.QuotientModule(make_c2(alg), 1)
+    q.compute_basis(2)
+    q.quotient_basis_elements(1, [0])
+    v = fp.FpVector(2, q.dimension(0))
+    v[0] = 1
+    with pytest.raises(RuntimeError):
+        q.old_basis_to_new(0, v, v)
+    with pytest.raises(Exception) as excinfo:
+        q.old_basis_to_new(0, v, v)
+    assert not isinstance(excinfo.value, ValueError)
+
+
+def test_quotient_module_old_basis_to_new_wrong_type_is_valueerror():
+    alg = milnor(2)
+    q = algebra.QuotientModule(make_c2(alg), 1)
+    q.compute_basis(2)
+    q.quotient_basis_elements(1, [0])
+    new = fp.FpVector(2, q.dimension(0))
+    old = fp.FpVector(2, 1)
+    old[0] = 1
+    with pytest.raises(ValueError):
+        q.old_basis_to_new(0, 123, old)
+    with pytest.raises(ValueError):
+        q.old_basis_to_new(0, new, 123)
+
+
 def test_quotient_module_action_is_reduced():
     alg = milnor(2)
     q = algebra.QuotientModule(make_c2(alg), 1)

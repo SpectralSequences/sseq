@@ -71,6 +71,47 @@ def test_fdmodule_act_by_element():
     assert res[0] == 1
 
 
+def test_fdmodule_act_input_target_aliasing_raises_runtimeerror():
+    # Sq1 . x0 = x1: input degree 0 (dim 1) and output degree 1 (dim 1) both
+    # have length 1, so a single length-1 vector is shape-valid as both the
+    # input and the mutable result. Aliasing them must raise RuntimeError
+    # (borrow conflict), NOT the generic ValueError.
+    m = make_c2_fdmodule()
+    v = fp.FpVector(2, 1)
+    v[0] = 1
+    with pytest.raises(RuntimeError):
+        m.act(v, 1, 1, 0, 0, v)
+    with pytest.raises(Exception) as excinfo:
+        m.act(v, 1, 1, 0, 0, v)
+    assert not isinstance(excinfo.value, ValueError)
+
+    # act_by_element with the result aliased as the input.
+    op = fp.FpVector(2, 1)
+    op[0] = 1
+    with pytest.raises(RuntimeError):
+        m.act_by_element(v, 1, 1, op, 0, v)
+
+
+def test_fdmodule_act_wrong_type_is_valueerror():
+    m = make_c2_fdmodule()
+    inp = fp.FpVector(2, m.dimension(0))
+    inp[0] = 1
+    res = fp.FpVector(2, m.dimension(1))
+    with pytest.raises(ValueError):
+        m.act(123, 1, 1, 0, 0, inp)
+    with pytest.raises(ValueError):
+        m.act(res, 1, 1, 0, 0, 123)
+
+
+def test_fdmodule_act_distinct_objects_regression():
+    m = make_c2_fdmodule()
+    inp = fp.FpVector(2, m.dimension(0))
+    inp[0] = 1
+    res = fp.FpVector(2, m.dimension(1))
+    m.act(res, 1, 1, 0, 0, inp)
+    assert res[0] == 1
+
+
 def test_fdmodule_action_getter_and_string():
     m = make_c2_fdmodule()
     assert list(m.action(1, 0, 0, 0)) == [1]
@@ -299,8 +340,53 @@ def test_fdmodule_into_steenrod_module_shares_state_and_blocks_mutation():
         m.add_generator(0, "x")
     with pytest.raises(RuntimeError):
         m.extend_actions(0, 1)
+    # set_basis_element_name is also blocked while the box is alive (parity
+    # with the Rust test, which the Python test previously omitted).
+    with pytest.raises(RuntimeError):
+        m.set_basis_element_name(0, 0, "y")
     # Releasing the boxed module lets mutation work again.
     del sm
+    m.set_action(1, 0, 0, 0, [0])
+
+
+def test_fdmodule_two_boxes_keep_lock_until_all_dropped():
+    import gc
+
+    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    sm1 = m.into_steenrod_module()
+    sm2 = m.into_steenrod_module()
+    # Two boxes share the state (strong count > 1): mutation is blocked.
+    with pytest.raises(RuntimeError):
+        m.set_action(1, 0, 0, 0, [0])
+    # Dropping ONE box is not enough; the count is still > 1.
+    del sm1
+    gc.collect()
+    with pytest.raises(RuntimeError):
+        m.set_action(1, 0, 0, 0, [0])
+    # Dropping the second box releases the last shared Arc; mutation works.
+    del sm2
+    gc.collect()
+    m.set_action(1, 0, 0, 0, [0])
+
+
+def test_fdmodule_derived_module_clone_keeps_lock():
+    import gc
+
+    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    sm = m.into_steenrod_module()
+    # A derived module (TensorModule) retains its own Arc clone of the state.
+    t = algebra.TensorModule(sm, sm)
+    # Dropping the direct box is not enough: the derived module still holds an
+    # Arc clone, so the FDModule stays locked.
+    del sm
+    gc.collect()
+    with pytest.raises(RuntimeError):
+        m.set_action(1, 0, 0, 0, [0])
+    # Dropping the derived module releases the last clone; mutation works again.
+    del t
+    gc.collect()
     m.set_action(1, 0, 0, 0, [0])
 
 

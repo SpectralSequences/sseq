@@ -171,6 +171,62 @@ def test_compute_methods_require_row_reduce():
     with pytest.raises(ValueError):
         m3.compute_quasi_inverses()
 
+    # The failed (not-row-reduced) compute_* call must NOT consume the matrix;
+    # it is still usable afterwards (parity with the Rust test).
+    assert m2.rows() == 2
+    m2.row_reduce()
+    assert isinstance(m2.compute_kernel(), fp.Subspace)
+    assert m3.rows() == 2
+    m3.row_reduce()
+    a, _ = m3.compute_quasi_inverses()
+    assert isinstance(a, fp.QuasiInverse)
+
+
+def test_outstanding_handles_after_into_matrix_raise_not_panic():
+    # Cross-feature hazard: a `segment(...)` and a `row_segment_mut(...)` handle
+    # outstanding when the matrix is consumed via into_matrix() must raise a
+    # clean RuntimeError (consumed) when used, never panic.
+    m = fp.AugmentedMatrix2(3, 2, [2, 2])
+    m.add_identity(1, 1)
+    seg = m.segment(0, 1)
+    rseg = m.row_segment_mut(0, 0, 0)
+    m.into_matrix()
+    with pytest.raises(RuntimeError):
+        seg.rows()
+    with pytest.raises(RuntimeError):
+        rseg.len()
+    with pytest.raises(RuntimeError):
+        rseg.to_owned()
+
+
+def test_outstanding_handles_after_compute_quasi_inverses_raise_not_panic():
+    m = fp.AugmentedMatrix3(3, 2, [2, 2, 2])
+    m.add_identity(0, 0)
+    m.add_identity(1, 1)
+    m.add_identity(2, 2)
+    seg = m.segment(0, 2)
+    rseg = m.row_segment_mut(1, 0, 0)
+    m.row_reduce()
+    m.compute_quasi_inverses()
+    with pytest.raises(RuntimeError):
+        seg.rows()
+    with pytest.raises(RuntimeError):
+        rseg.len()
+
+
+def test_into_matrix_repr_and_value_correctness():
+    # Build a small known matrix via add_identity in the identity segment.
+    m = fp.AugmentedMatrix2(2, 2, [2, 2])
+    m.add_identity(1, 1)
+    expected = m.to_vec()
+    assert "consumed" not in repr(m)
+
+    inner = m.into_matrix()
+    # The returned matrix's entries equal the pre-consume contents.
+    assert inner.to_vec() == expected
+    # __repr__ reflects the consumed state.
+    assert "consumed" in repr(m)
+
 
 def test_repr():
     m = fp.AugmentedMatrix2(3, 2, [2, 2])

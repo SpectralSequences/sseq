@@ -149,6 +149,86 @@ def test_fp_slice_mut_add_tensor():
     assert [v[i] for i in range(len(v))] == [0, 1, 3, 2, 1, 0]
 
 
+def test_fp_slice_mut_add_offset_distinct_and_aliased():
+    # add_offset(other, c, offset): self[offset..] += c * other[offset..].
+    # Distinct objects exercise the no-clone borrow path; two slices over the
+    # same vector exercise the clone-fallback path. Both must agree.
+    # Distinct: target over one vector, operand over another.
+    vt = fp.FpVector.from_slice(5, [0, 1, 2, 3, 0])
+    vo = fp.FpVector.from_slice(5, [0, 1, 1, 1, 0])
+    target = vt.slice_mut(1, 4)
+    other = vo.slice(1, 4)
+    target.add_offset(other, 2, 1)
+    assert [vt[i] for i in range(5)] == [0, 1, 4, 0, 0]
+
+    # Aliased (clone fallback): non-overlapping slices over the same vector.
+    v = fp.FpVector.from_slice(5, [1, 2, 3, 1, 1, 1])
+    v.slice_mut(0, 3).add_offset(v.slice(3, 6), 2, 1)
+    assert [v[i] for i in range(6)] == [1, 4, 0, 1, 1, 1]
+
+
+def test_fp_slice_mut_add_masked_distinct_and_aliased():
+    # add_masked(other, c, mask): self[i] += c * other[mask[i]].
+    vt = fp.FpVector.from_slice(5, [1, 1, 1])
+    vo = fp.FpVector.from_slice(5, [0, 2, 3, 4])
+    vt.slice_mut(0, 3).add_masked(vo.slice(0, 4), 1, [3, 1, 2])
+    assert [vt[i] for i in range(3)] == [0, 3, 4]
+
+    # Aliased clone fallback: target and operand over the same vector.
+    v = fp.FpVector.from_slice(5, [1, 1, 1, 0, 2, 3, 4])
+    v.slice_mut(0, 3).add_masked(v.slice(3, 7), 1, [3, 1, 2])
+    assert [v[i] for i in range(7)] == [0, 3, 4, 0, 2, 3, 4]
+
+
+def test_fp_slice_mut_assign_distinct_and_aliased():
+    vt = fp.FpVector.from_slice(5, [1, 2, 3])
+    vo = fp.FpVector.from_slice(5, [4, 0, 1])
+    vt.slice_mut(0, 3).assign(vo.slice(0, 3))
+    assert [vt[i] for i in range(3)] == [4, 0, 1]
+
+    # Aliased clone fallback over the same vector (non-overlapping halves).
+    v = fp.FpVector.from_slice(5, [1, 2, 3, 4, 0, 1])
+    v.slice_mut(0, 3).assign(v.slice(3, 6))
+    assert [v[i] for i in range(6)] == [4, 0, 1, 4, 0, 1]
+
+
+def test_fp_slice_mut_add_tensor_distinct_and_aliased():
+    # Distinct operands, distinct target (no-clone path).
+    vt = fp.FpVector(5, 6)
+    left = fp.FpVector.from_slice(5, [1, 2])
+    right = fp.FpVector.from_slice(5, [3, 4])
+    vt.slice_mut(0, 6).add_tensor(1, 2, left.slice(0, 2), right.slice(0, 2))
+    assert [vt[i] for i in range(6)] == [0, 1, 3, 2, 1, 0]
+
+    # Dual-operand left == right over the SAME vector (two shared borrows of
+    # one operand coexist; neither aliases the distinct target).
+    vt2 = fp.FpVector(5, 6)
+    w = fp.FpVector.from_slice(5, [1, 2])
+    vt2.slice_mut(0, 6).add_tensor(1, 2, w.slice(0, 2), w.slice(0, 2))
+    assert [vt2[i] for i in range(6)] == [0, 2, 4, 4, 3, 0]
+
+    # An operand aliasing the target: the clone fallback must read the operand's
+    # ORIGINAL contents even though the target overwrites them mid-op.
+    v = fp.FpVector.from_slice(5, [1, 2, 0, 0, 0, 0])
+    r = fp.FpVector.from_slice(5, [3, 4])
+    v.slice_mut(0, 6).add_tensor(1, 2, v.slice(0, 2), r.slice(0, 2))
+    assert [v[i] for i in range(6)] == [1, 3, 3, 2, 1, 0]
+
+
+def test_fp_slice_mut_matrix_row_aliasing_clone_fallback():
+    # Two slices over different rows of the SAME matrix are conservatively
+    # treated as aliased (the whole Matrix pyclass is borrowed as a unit), so
+    # this takes the clone fallback. The result must still be correct.
+    m = fp.Matrix.from_vec(5, [[1, 1, 1], [2, 2, 2]])
+    m.row_mut(0).add(m.row(1), 1)
+    assert m.to_vec() == [[3, 3, 3], [2, 2, 2]]
+
+    # assign across rows of one matrix likewise clones but stays correct.
+    m2 = fp.Matrix.from_vec(5, [[1, 2, 3], [4, 0, 1]])
+    m2.row_mut(0).assign(m2.row(1))
+    assert m2.to_vec() == [[4, 0, 1], [4, 0, 1]]
+
+
 def test_fp_slice_mut_new_method_errors_are_python_exceptions():
     target_v = fp.FpVector(5, 3)
     target = target_v.slice_mut(0, 3)

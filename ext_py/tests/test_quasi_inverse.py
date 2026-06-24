@@ -75,6 +75,45 @@ def test_apply_wrong_type():
         qi.apply(123, 1, fp.FpVector(2, 6))
 
 
+def make_identity_qi():
+    # Square identity preimage at p=3, so source==target==3 and a single
+    # length-3 vector is a valid argument both as input and as output target.
+    preimage = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    return fp.QuasiInverse([0, 1, 2], preimage)
+
+
+def test_apply_input_target_aliasing_raises_runtimeerror():
+    # Passing the SAME bare FpVector as both the mutable target and the input
+    # is an aliasing conflict: it must raise RuntimeError (borrow conflict),
+    # NOT the generic ValueError reserved for wrong-type arguments.
+    qi = make_identity_qi()
+    v = fp.FpVector.from_slice(3, [1, 2, 1])
+    with pytest.raises(RuntimeError):
+        qi.apply(v, 1, v)
+    with pytest.raises(Exception) as excinfo:
+        qi.apply(v, 1, v)
+    assert not isinstance(excinfo.value, ValueError)
+
+
+def test_apply_wrong_type_is_valueerror_not_runtimeerror():
+    # A genuine wrong-type argument still raises ValueError (not RuntimeError).
+    qi = make_identity_qi()
+    good = fp.FpVector(3, 3)
+    with pytest.raises(ValueError):
+        qi.apply(123, 1, good)
+    with pytest.raises(ValueError):
+        qi.apply(fp.Matrix.from_vec(3, [[1, 0, 0]]), 1, good)
+
+
+def test_apply_distinct_objects_regression():
+    # The normal distinct-objects call still produces the known value.
+    qi = make_identity_qi()
+    v = fp.FpVector.from_slice(3, [1, 2, 1])
+    out = fp.FpVector(3, 3)
+    qi.apply(out, 2, v)
+    assert list(out) == [2, 1, 2]
+
+
 def test_bytes_roundtrip():
     qi = make_qi()
     data = qi.to_bytes()

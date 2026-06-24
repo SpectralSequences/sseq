@@ -120,6 +120,43 @@ def test_multiply_accepts_fpslice_and_fpslicemut():
     assert result_vec[sq3_idx] == 1
 
 
+def test_multiply_input_target_aliasing_raises_runtimeerror():
+    # Passing the SAME bare FpVector as both an input element and the mutable
+    # result target is an aliasing conflict -> RuntimeError, NOT ValueError.
+    a = make_algebra(2, 8)
+    v = fp.FpVector.from_slice(2, [1])  # Sq1 element / result alias
+    with pytest.raises(RuntimeError):
+        a.multiply_element_by_basis_element(v, 1, 1, v, 2, 0)
+    with pytest.raises(Exception) as excinfo:
+        a.multiply_element_by_basis_element(v, 1, 1, v, 2, 0)
+    assert not isinstance(excinfo.value, ValueError)
+
+    # Dual-input variant: same object as both r and s and result.
+    with pytest.raises(RuntimeError):
+        a.multiply_element_by_element(v, 1, 1, v, 1, v)
+
+
+def test_multiply_wrong_type_is_valueerror():
+    # A genuine wrong-type argument still raises ValueError.
+    a = make_algebra(2, 8)
+    s = fp.FpVector.from_slice(2, [1])
+    out = fp.FpVector(2, a.dimension(3))
+    with pytest.raises(ValueError):
+        a.multiply_element_by_basis_element(123, 1, 1, s, 2, 0)
+    with pytest.raises(ValueError):
+        a.multiply_element_by_basis_element(out, 1, 1, 123, 2, 0)
+
+
+def test_multiply_distinct_objects_regression():
+    # Distinct objects still produce the known value.
+    a = make_algebra(2, 8)
+    r = fp.FpVector.from_slice(2, [1])  # Sq1
+    out = fp.FpVector(2, a.dimension(3))
+    a.multiply_element_by_basis_element(out, 1, 1, r, 2, 0)
+    _, sq3_idx = a.basis_element_from_string("Sq3")
+    assert out[sq3_idx] == 1
+
+
 def test_multiply_prime_and_length_errors():
     a = make_algebra(2, 8)
 
