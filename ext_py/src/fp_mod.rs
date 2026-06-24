@@ -863,6 +863,16 @@ pub mod fp_py {
         pub(crate) fn from_rust(vector: RustFpVector) -> Self {
             Self(vector)
         }
+
+        /// Borrow the underlying upstream `FpVector`. Exposed `pub(crate)` so
+        /// sibling binding modules (e.g. `algebra_py`) can read vectors they
+        /// were handed back (mirrors the `as_rust` accessors on `PyMatrix`
+        /// etc.). Currently only the Rust unit tests need this, so it is gated
+        /// to test builds to avoid a dead-code warning in the extension lib.
+        #[cfg(test)]
+        pub(crate) fn as_rust(&self) -> &RustFpVector {
+            &self.0
+        }
     }
 
     #[pymethods]

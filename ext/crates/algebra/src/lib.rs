@@ -7,7 +7,7 @@
 
 pub mod module;
 pub mod steenrod_evaluator;
-pub(crate) mod steenrod_parser;
+pub mod steenrod_parser;
 
 mod algebra;
 

@@ -51,9 +51,6 @@ EXT_PY_SUBMODULES = (algebra, fp, sseq)
 # becomes bound (or a CURRENTLY-bound name is removed/renamed) the test changes
 # behaviour and forces a conscious update.
 KNOWN_UNBOUND = {
-    # define_module.py: finitely-presented path uses a Steenrod expression
-    # evaluator that is not bound (no SteenrodEvaluator pyclass exists).
-    "SteenrodEvaluator",
     # tensor.py: parses a module *name* (e.g. "S_2") into JSON; no such free
     # function is bound (only steenrod_module_from_json, which takes JSON).
     "parse_module_name",

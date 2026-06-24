@@ -8123,6 +8123,363 @@ pub mod algebra_py {
         }
     }
 
+    // === §5.5 Steenrod evaluator / parser ====================================
+
+    /// A single factor of an admissible (`A(..)`) list in a parsed Steenrod
+    /// expression: either a Bockstein `b` or a Steenrod power `Sq^n`/`P^n`.
+    /// Mirrors upstream's `steenrod_parser::BocksteinOrSq`. This is a faithful
+    /// (complete) binding of the upstream enum; the upstream
+    /// `to_adem_basis_elt` helper is `pub(crate)` and intentionally not exposed.
+    #[pyclass(name = "BocksteinOrSq")]
+    #[derive(Clone, Debug)]
+    pub enum BocksteinOrSq {
+        Bockstein {},
+        Sq(u32),
+    }
+
+    impl From<::algebra::steenrod_parser::BocksteinOrSq> for BocksteinOrSq {
+        fn from(value: ::algebra::steenrod_parser::BocksteinOrSq) -> Self {
+            match value {
+                ::algebra::steenrod_parser::BocksteinOrSq::Bockstein => Self::Bockstein {},
+                ::algebra::steenrod_parser::BocksteinOrSq::Sq(x) => Self::Sq(x),
+            }
+        }
+    }
+
+    /// A basis element appearing in a parsed Steenrod expression. Mirrors
+    /// upstream's `steenrod_parser::AlgebraBasisElt`, which is a (non-recursive)
+    /// enum with four shapes. Rather than a PyO3 complex enum (one variant,
+    /// `AList`, carries a `Vec<BocksteinOrSq>` of bound pyclasses) we wrap the
+    /// upstream value and expose a `kind()` discriminator plus per-shape
+    /// accessors, each of which raises `ValueError` when called on the wrong
+    /// shape. This is a faithful, fully-inspectable binding: every field of
+    /// every variant is reachable.
+    #[pyclass(name = "AlgebraBasisElt")]
+    #[derive(Clone)]
+    pub struct AlgebraBasisElt(::algebra::steenrod_parser::AlgebraBasisElt);
+
+    #[pymethods]
+    impl AlgebraBasisElt {
+        /// One of `"AList"`, `"PList"`, `"P"`, `"Q"`.
+        pub fn kind(&self) -> &'static str {
+            use ::algebra::steenrod_parser::AlgebraBasisElt::*;
+            match self.0 {
+                AList(_) => "AList",
+                PList(_) => "PList",
+                P(_) => "P",
+                Q(_) => "Q",
+            }
+        }
+
+        /// The admissible list, for an `AList` element. Raises `ValueError`
+        /// otherwise.
+        pub fn a_list(&self) -> PyResult<Vec<BocksteinOrSq>> {
+            use ::algebra::steenrod_parser::AlgebraBasisElt::*;
+            match &self.0 {
+                AList(list) => Ok(list.iter().map(|&x| x.into()).collect()),
+                _ => Err(PyValueError::new_err("not an AList basis element")),
+            }
+        }
+
+        /// The `P(R)` partition, for a `PList` element. Raises `ValueError`
+        /// otherwise.
+        pub fn p_list(&self) -> PyResult<Vec<u32>> {
+            use ::algebra::steenrod_parser::AlgebraBasisElt::*;
+            match &self.0 {
+                PList(p_part) => Ok(p_part.clone()),
+                _ => Err(PyValueError::new_err("not a PList basis element")),
+            }
+        }
+
+        /// The exponent `n`, for a `P` (i.e. `P^n`/`Sq^n`) element. Raises
+        /// `ValueError` otherwise.
+        pub fn p(&self) -> PyResult<u32> {
+            use ::algebra::steenrod_parser::AlgebraBasisElt::*;
+            match self.0 {
+                P(x) => Ok(x),
+                _ => Err(PyValueError::new_err("not a P basis element")),
+            }
+        }
+
+        /// The index `k`, for a `Q` (Milnor `Q_k`) element. Raises `ValueError`
+        /// otherwise.
+        pub fn q(&self) -> PyResult<u32> {
+            use ::algebra::steenrod_parser::AlgebraBasisElt::*;
+            match self.0 {
+                Q(x) => Ok(x),
+                _ => Err(PyValueError::new_err("not a Q basis element")),
+            }
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("{:?}", self.0)
+        }
+    }
+
+    /// A node of a parsed algebra expression tree. Mirrors upstream's recursive
+    /// `steenrod_parser::AlgebraNode` enum (`Product`/`Sum`/`BasisElt`/`Scalar`).
+    /// Because the upstream enum is recursive (`Box<Self>` children), we wrap it
+    /// and expose a `kind()` discriminator plus accessors that hand back the
+    /// child `AlgebraNode`s (for `Product`/`Sum`), the `AlgebraBasisElt` (for
+    /// `BasisElt`), or the `int` scalar (for `Scalar`). A Python user can fully
+    /// walk the tree; each accessor raises `ValueError` on the wrong shape.
+    #[pyclass(name = "AlgebraNode")]
+    #[derive(Clone)]
+    pub struct AlgebraNode(::algebra::steenrod_parser::AlgebraNode);
+
+    #[pymethods]
+    impl AlgebraNode {
+        /// One of `"Product"`, `"Sum"`, `"BasisElt"`, `"Scalar"`.
+        pub fn kind(&self) -> &'static str {
+            use ::algebra::steenrod_parser::AlgebraNode::*;
+            match self.0 {
+                Product(..) => "Product",
+                Sum(..) => "Sum",
+                BasisElt(_) => "BasisElt",
+                Scalar(_) => "Scalar",
+            }
+        }
+
+        /// The left child of a `Product`/`Sum` node. Raises `ValueError`
+        /// otherwise.
+        pub fn left(&self) -> PyResult<AlgebraNode> {
+            use ::algebra::steenrod_parser::AlgebraNode::*;
+            match &self.0 {
+                Product(l, _) | Sum(l, _) => Ok(AlgebraNode((**l).clone())),
+                _ => Err(PyValueError::new_err("node has no left child")),
+            }
+        }
+
+        /// The right child of a `Product`/`Sum` node. Raises `ValueError`
+        /// otherwise.
+        pub fn right(&self) -> PyResult<AlgebraNode> {
+            use ::algebra::steenrod_parser::AlgebraNode::*;
+            match &self.0 {
+                Product(_, r) | Sum(_, r) => Ok(AlgebraNode((**r).clone())),
+                _ => Err(PyValueError::new_err("node has no right child")),
+            }
+        }
+
+        /// The basis element of a `BasisElt` node. Raises `ValueError`
+        /// otherwise.
+        pub fn basis_element(&self) -> PyResult<AlgebraBasisElt> {
+            use ::algebra::steenrod_parser::AlgebraNode::*;
+            match &self.0 {
+                BasisElt(b) => Ok(AlgebraBasisElt(b.clone())),
+                _ => Err(PyValueError::new_err("not a BasisElt node")),
+            }
+        }
+
+        /// The integer of a `Scalar` node. Raises `ValueError` otherwise.
+        pub fn scalar(&self) -> PyResult<i32> {
+            use ::algebra::steenrod_parser::AlgebraNode::*;
+            match self.0 {
+                Scalar(x) => Ok(x),
+                _ => Err(PyValueError::new_err("not a Scalar node")),
+            }
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("{:?}", self.0)
+        }
+    }
+
+    /// Parse an algebra expression string into an `AlgebraNode` tree. Raises
+    /// `ValueError` on any parse failure (upstream returns `anyhow::Error`;
+    /// `parse_algebra` itself never panics).
+    #[pyfunction]
+    pub fn parse_algebra(input: &str) -> PyResult<AlgebraNode> {
+        ::algebra::steenrod_parser::parse_algebra(input)
+            .map(AlgebraNode)
+            .map_err(|e| PyValueError::new_err(format!("{e:#}")))
+    }
+
+    /// Parse a module expression string into the upstream `ModuleNode`, a list
+    /// of `(AlgebraNode, generator_name)` pairs. Raises `ValueError` on any
+    /// parse failure (upstream returns `anyhow::Error`; `parse_module` itself
+    /// never panics).
+    #[pyfunction]
+    pub fn parse_module(input: &str) -> PyResult<Vec<(AlgebraNode, String)>> {
+        ::algebra::steenrod_parser::parse_module(input)
+            .map(|tree| {
+                tree.into_iter()
+                    .map(|(node, g)| (AlgebraNode(node), g))
+                    .collect()
+            })
+            .map_err(|e| PyValueError::new_err(format!("{e:#}")))
+    }
+
+    /// An evaluator for Steenrod algebra expressions. Wraps upstream's
+    /// `steenrod_evaluator::SteenrodEvaluator`, which holds an `AdemAlgebra` and
+    /// a `MilnorAlgebra` at a fixed prime and can parse + evaluate expression
+    /// strings into elements, as well as change basis between the Adem and
+    /// Milnor bases.
+    ///
+    /// `adem_element_to_string`/`milnor_element_to_string` are *not* re-bound
+    /// here: they are reachable via the already-bound `AdemAlgebra` /
+    /// `MilnorAlgebra` `element_to_string`. The upstream `PairAlgebra` /
+    /// `pair_algebra` element type is deferred (low priority; only used by
+    /// `SecondaryResolution` internals).
+    #[pyclass(name = "SteenrodEvaluator")]
+    pub struct SteenrodEvaluator(::algebra::steenrod_evaluator::SteenrodEvaluator);
+
+    impl SteenrodEvaluator {
+        /// Run an evaluation closure, translating both the upstream
+        /// `anyhow::Error` (parse / degree-mismatch errors) and any deeper
+        /// `panic!`/`unwrap` (e.g. an out-of-range `Q_k`, an inadmissible list,
+        /// or a `P(R)` not present in the algebra — the evaluator reaches the
+        /// panicking `basis_element_to_index`/index paths buried in the Adem and
+        /// Milnor algebras for such inputs) into a clean `ValueError`. The panic
+        /// is contained with `catch_unwind`: it always originates from a failed
+        /// lookup, never a half-finished mutation of shared state, so no
+        /// inconsistent state survives the unwind.
+        fn eval(
+            &self,
+            f: impl FnOnce(
+                &::algebra::steenrod_evaluator::SteenrodEvaluator,
+            ) -> anyhow::Result<(i32, ::fp::vector::FpVector)>,
+        ) -> PyResult<(i32, crate::fp_py::PyFpVector)> {
+            use std::panic::{catch_unwind, AssertUnwindSafe};
+            match catch_unwind(AssertUnwindSafe(|| f(&self.0))) {
+                Ok(Ok((degree, vec))) => Ok((degree, crate::fp_py::PyFpVector::from_rust(vec))),
+                Ok(Err(e)) => Err(PyValueError::new_err(format!("{e:#}"))),
+                Err(_) => Err(PyValueError::new_err(
+                    "could not evaluate Steenrod expression",
+                )),
+            }
+        }
+    }
+
+    #[pymethods]
+    impl SteenrodEvaluator {
+        /// Construct an evaluator at prime `p`. Validates the prime ->
+        /// `ValueError` (`ValidPrime` is never exposed).
+        #[new]
+        pub fn new(p: u32) -> PyResult<Self> {
+            Ok(SteenrodEvaluator(
+                ::algebra::steenrod_evaluator::SteenrodEvaluator::new(valid_prime(p)?),
+            ))
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.adem.prime().as_u32()
+        }
+
+        /// Parse and evaluate `input` in the Adem basis, returning
+        /// `(degree, FpVector)`. Raises `ValueError` on a parse error, a degree
+        /// mismatch, or an otherwise-invalid expression.
+        pub fn evaluate_algebra_adem(
+            &self,
+            input: &str,
+        ) -> PyResult<(i32, crate::fp_py::PyFpVector)> {
+            self.eval(|ev| ev.evaluate_algebra_adem(input))
+        }
+
+        /// Parse and evaluate `input` in the Milnor basis, returning
+        /// `(degree, FpVector)`. Raises `ValueError` on a parse error, a degree
+        /// mismatch, or an otherwise-invalid expression.
+        pub fn evaluate_algebra_milnor(
+            &self,
+            input: &str,
+        ) -> PyResult<(i32, crate::fp_py::PyFpVector)> {
+            self.eval(|ev| ev.evaluate_algebra_milnor(input))
+        }
+
+        /// Parse and evaluate a module expression `input` in the Adem basis,
+        /// returning a `dict` mapping each generator name to its
+        /// `(degree, FpVector)` coefficient. Raises `ValueError` on a parse
+        /// error or an otherwise-invalid expression.
+        ///
+        /// (Upstream has only an Adem variant of `evaluate_module_*`; there is
+        /// no `evaluate_module_milnor`, so none is bound.)
+        pub fn evaluate_module_adem(
+            &self,
+            input: &str,
+        ) -> PyResult<std::collections::BTreeMap<String, (i32, crate::fp_py::PyFpVector)>> {
+            use std::panic::{catch_unwind, AssertUnwindSafe};
+            match catch_unwind(AssertUnwindSafe(|| self.0.evaluate_module_adem(input))) {
+                Ok(Ok(map)) => Ok(map
+                    .into_iter()
+                    .map(|(g, (degree, vec))| {
+                        (g, (degree, crate::fp_py::PyFpVector::from_rust(vec)))
+                    })
+                    .collect()),
+                Ok(Err(e)) => Err(PyValueError::new_err(format!("{e:#}"))),
+                Err(_) => Err(PyValueError::new_err(
+                    "could not evaluate Steenrod module expression",
+                )),
+            }
+        }
+
+        /// Convert an element given in the Adem basis (in degree `degree`) to
+        /// the Milnor basis, returning a freshly-allocated `FpVector`. Validates
+        /// the degree (non-negative), the prime, and the input length against
+        /// the dimension of `degree`.
+        pub fn adem_to_milnor(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<crate::fp_py::PyFpVector> {
+            self.change_basis(py, degree, input, true)
+        }
+
+        /// Convert an element given in the Milnor basis (in degree `degree`) to
+        /// the Adem basis, returning a freshly-allocated `FpVector`. Validates
+        /// the degree (non-negative), the prime, and the input length against
+        /// the dimension of `degree`.
+        pub fn milnor_to_adem(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<crate::fp_py::PyFpVector> {
+            self.change_basis(py, degree, input, false)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("SteenrodEvaluator(p={})", self.0.adem.prime().as_u32())
+        }
+    }
+
+    impl SteenrodEvaluator {
+        /// Shared own-output change-of-basis helper for
+        /// `adem_to_milnor`/`milnor_to_adem`. Both upstream methods take a
+        /// `&mut FpVector` result of the *same* dimension as the input (the Adem
+        /// and Milnor bases agree dimension-wise in every degree), so we
+        /// allocate the result, copy the input into an owned `FpVector`, and run
+        /// upstream with `coeff = 1`.
+        fn change_basis(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+            adem_to_milnor: bool,
+        ) -> PyResult<crate::fp_py::PyFpVector> {
+            non_negative_degree(degree)?;
+            // Populate both algebras' book-keeping so the dimension read and the
+            // internal index lookups are in range.
+            self.0.adem.compute_basis(degree);
+            self.0.milnor.compute_basis(degree);
+            let p = self.0.adem.prime();
+            let dim = self.0.adem.dimension(degree);
+            crate::fp_py::with_input_slice(py, input, |slice| {
+                checked_same_prime(slice.prime().as_u32(), p.as_u32())?;
+                checked_equal_len(slice.len(), dim)?;
+                let mut owned = ::fp::vector::FpVector::new(p, dim);
+                owned.as_slice_mut().assign(slice);
+                let mut result = ::fp::vector::FpVector::new(p, dim);
+                if adem_to_milnor {
+                    self.0.adem_to_milnor(&mut result, 1, degree, &owned);
+                } else {
+                    self.0.milnor_to_adem(&mut result, 1, degree, &owned);
+                }
+                Ok(crate::fp_py::PyFpVector::from_rust(result))
+            })
+        }
+    }
+
     #[pymodule_init]
     fn init(_m: &Bound<'_, PyModule>) -> PyResult<()> {
         // Arbitrary code to run at the module initialization
