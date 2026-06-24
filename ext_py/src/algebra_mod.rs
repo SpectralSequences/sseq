@@ -6,15 +6,19 @@ pub mod algebra_py {
     use std::sync::Arc;
 
     use ::algebra::module::{
-        steenrod_module, ActError, FDModule as RsFDModule, FreeModule as RsFreeModule, Module,
-        OperationGeneratorPair as RsOperationGeneratorPair,
-        RealProjectiveSpace as RsRealProjectiveSpace, SteenrodModule as RsSteenrodModule,
-        SuspensionModule as RsSuspensionModule, TensorModule as RsTensorModule,
+        steenrod_module, FDModule as RsFDModule, FreeModule as RsFreeModule,
+        HomModule as RsHomModule, Module, OperationGeneratorPair as RsOperationGeneratorPair,
+        QuotientModule as RsQuotientModule, RealProjectiveSpace as RsRealProjectiveSpace,
+        SteenrodModule as RsSteenrodModule, SuspensionModule as RsSuspensionModule,
+        TensorModule as RsTensorModule,
     };
-    use ::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+    // Imported on its own line (not folded into the multi-item `module` import
+    // above) so that later commits extending that import block do not conflict.
+    use ::algebra::module::ActError;
+    use ::algebra::{Algebra, Bialgebra, Field as RsField, GeneratedAlgebra};
     use ::fp::prime::{self, Prime};
     use pyo3::basic::CompareOp;
-    use pyo3::exceptions::{PyIndexError, PyValueError};
+    use pyo3::exceptions::{PyIndexError, PyRuntimeError, PyValueError};
 
     use super::*;
 
@@ -37,6 +41,24 @@ pub mod algebra_py {
     /// `into_steenrod_module()` unsizes an `Arc` of either directly.
     type TensorModuleInner = RsTensorModule<RsSteenrodModule, RsSteenrodModule>;
     type SuspensionModuleInner = RsSuspensionModule<RsSteenrodModule>;
+    /// The quotient module is monomorphised over the boxed dynamic module
+    /// (`RsSteenrodModule = Arc<dyn Module>`), exactly like Tensor/Suspension:
+    /// upstream `QuotientModule<M>::new` takes `Arc<M>`, so the inner module is
+    /// accepted as the bound `SteenrodModule` pyclass and wrapped once more in
+    /// an `Arc`. `QuotientModule<RsSteenrodModule>::Algebra` is
+    /// `SteenrodAlgebra`, so `into_steenrod_module()` unsizes the stored `Arc`
+    /// directly into a `SteenrodModule`.
+    type QuotientModuleInner = RsQuotientModule<RsSteenrodModule>;
+    /// The Hom module is monomorphised the same way over `RsSteenrodModule` for
+    /// its *target*; its *source* is the concrete `FreeModule<SteenrodAlgebra>`
+    /// upstream requires. Crucially `HomModule<M>::Algebra` is `Field` (the
+    /// ground field), *not* `SteenrodAlgebra`: the module is the graded
+    /// vector space `Hom(source, target)`, only acted on by scalars. It is
+    /// therefore *not* a `SteenrodModule` and exposes no
+    /// `into_steenrod_module()`/`algebra()` (see the binding for why those are
+    /// deferred). The flattened `Module` method set is still shared via the
+    /// algebra-generic `module_*` helpers above.
+    type HomModuleInner = RsHomModule<RsSteenrodModule>;
     type RpInner = RsRealProjectiveSpace<RsSteenrodAlgebra>;
     /// A borrowed trait object over the algebra union. The flattened `Module`
     /// method set is implemented once against this type and shared by every
@@ -1767,7 +1789,7 @@ pub mod algebra_py {
     /// module's `min_degree`. Both the algebra and the module are advanced,
     /// because a `FreeModule`'s own `compute_basis` reads (but does not extend)
     /// the algebra's tables.
-    fn module_ensure(m: &DynModule, degree: i32) {
+    fn module_ensure<A: Algebra>(m: &dyn Module<Algebra = A>, degree: i32) {
         if degree >= m.min_degree() {
             // op degrees landing in `degree` are at most `degree - min_degree`.
             m.algebra().compute_basis(degree - m.min_degree());
@@ -1778,7 +1800,7 @@ pub mod algebra_py {
     /// Dimension of `m` in `degree`, guarded so the `FreeModule` `OnceVec`
     /// length assertion can never fire across the boundary. Degrees below
     /// `min_degree` are empty.
-    fn module_dimension(m: &DynModule, degree: i32) -> usize {
+    fn module_dimension<A: Algebra>(m: &dyn Module<Algebra = A>, degree: i32) -> usize {
         if degree < m.min_degree() {
             return 0;
         }
@@ -1786,7 +1808,11 @@ pub mod algebra_py {
         m.dimension(degree)
     }
 
-    fn module_basis_element_to_string(m: &DynModule, degree: i32, idx: usize) -> PyResult<String> {
+    fn module_basis_element_to_string<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
+        degree: i32,
+        idx: usize,
+    ) -> PyResult<String> {
         let dim = module_dimension(m, degree);
         if idx >= dim {
             return Err(PyIndexError::new_err(format!(
@@ -1796,8 +1822,8 @@ pub mod algebra_py {
         Ok(m.basis_element_to_string(degree, idx))
     }
 
-    fn module_element_to_string(
-        m: &DynModule,
+    fn module_element_to_string<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
         py: Python<'_>,
         degree: i32,
         element: &Bound<'_, PyAny>,
@@ -1811,7 +1837,12 @@ pub mod algebra_py {
 
     /// Validate the output degree of an action and ensure every degree it
     /// touches is computed. Returns `(prime, reduced_coeff, output_degree)`.
-    fn action_target(m: &DynModule, coeff: u32, op_degree: i32, mod_degree: i32) -> PyResult<i32> {
+    fn action_target<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
+        coeff: u32,
+        op_degree: i32,
+        mod_degree: i32,
+    ) -> PyResult<i32> {
         non_negative_degree(op_degree)?;
         let _ = coeff;
         let output_degree = mod_degree
@@ -1823,7 +1854,11 @@ pub mod algebra_py {
         Ok(output_degree)
     }
 
-    fn checked_op_index(m: &DynModule, op_degree: i32, op_index: usize) -> PyResult<()> {
+    fn checked_op_index<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
+        op_degree: i32,
+        op_index: usize,
+    ) -> PyResult<()> {
         let dim = m.algebra().dimension(op_degree);
         if op_index < dim {
             Ok(())
@@ -1835,7 +1870,11 @@ pub mod algebra_py {
         }
     }
 
-    fn checked_mod_index(m: &DynModule, mod_degree: i32, mod_index: usize) -> PyResult<()> {
+    fn checked_mod_index<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
+        mod_degree: i32,
+        mod_index: usize,
+    ) -> PyResult<()> {
         let dim = module_dimension(m, mod_degree);
         if mod_index < dim {
             Ok(())
@@ -1857,8 +1896,8 @@ pub mod algebra_py {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn module_act_on_basis(
-        m: &DynModule,
+    fn module_act_on_basis<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
         py: Python<'_>,
         result: &Bound<'_, PyAny>,
         coeff: u32,
@@ -1891,8 +1930,8 @@ pub mod algebra_py {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn module_act(
-        m: &DynModule,
+    fn module_act<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
         py: Python<'_>,
         result: &Bound<'_, PyAny>,
         coeff: u32,
@@ -1929,8 +1968,8 @@ pub mod algebra_py {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn module_act_by_element(
-        m: &DynModule,
+    fn module_act_by_element<A: Algebra>(
+        m: &dyn Module<Algebra = A>,
         py: Python<'_>,
         result: &Bound<'_, PyAny>,
         coeff: u32,
@@ -1968,7 +2007,7 @@ pub mod algebra_py {
         })
     }
 
-    fn module_total_dimension(m: &DynModule) -> PyResult<usize> {
+    fn module_total_dimension<A: Algebra>(m: &dyn Module<Algebra = A>) -> PyResult<usize> {
         match m.max_degree() {
             Some(max) => {
                 module_ensure(m, max);
@@ -3537,6 +3576,569 @@ pub mod algebra_py {
 
         pub fn __repr__(&self) -> String {
             format!("RealProjectiveSpace({})", self.0)
+        }
+    }
+
+    /// A quotient `module / W` of a module over the Steenrod algebra, truncated
+    /// above `truncation`: every degree `> truncation` is quotiented to zero,
+    /// and in each degree `<= truncation` a subspace `W` (built up with the
+    /// `quotient*` methods) is divided out. The inner module is passed as a
+    /// `SteenrodModule` (box concrete modules with `.into_steenrod_module()`).
+    ///
+    /// The `quotient*` methods mutate the subspace and therefore require unique
+    /// ownership of the inner `Arc`; once the module has been boxed with
+    /// `into_steenrod_module()` (which shares the `Arc`), further mutation
+    /// raises `RuntimeError`. Build up the quotient first, then box it.
+    #[pyclass(name = "QuotientModule")]
+    pub struct QuotientModule(Arc<QuotientModuleInner>);
+
+    impl QuotientModule {
+        fn as_dyn(&self) -> &DynModule {
+            &*self.0
+        }
+
+        /// Mutable access to the inner module for the `quotient*` setters.
+        /// Fails once the `Arc` has been shared (i.e. after
+        /// `into_steenrod_module()`), since the boxed `SteenrodModule` then
+        /// observes the same state and a mutation would be unsound.
+        fn inner_mut(&mut self) -> PyResult<&mut QuotientModuleInner> {
+            Arc::get_mut(&mut self.0).ok_or_else(|| {
+                PyRuntimeError::new_err(
+                    "cannot mutate a QuotientModule after it has been boxed into a SteenrodModule",
+                )
+            })
+        }
+
+        /// Validate that `degree` indexes a populated subspace, i.e. lies in
+        /// `[min_degree, truncation]`. Below `min_degree` or above `truncation`
+        /// the `subspaces`/`basis_list` `BiVec`s have no entry and upstream
+        /// would index-panic.
+        fn checked_subspace_degree(&self, degree: i32) -> PyResult<()> {
+            let min = self.0.min_degree();
+            let trunc = self.0.truncation;
+            if degree < min || degree > trunc {
+                Err(PyIndexError::new_err(format!(
+                    "degree {degree} is outside the quotient's range [{min}, {trunc}]"
+                )))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    #[pymethods]
+    impl QuotientModule {
+        /// Build the quotient of `module` truncated above `truncation`. Raises
+        /// `ValueError` if `truncation` is below `min_degree - 1` (upstream
+        /// builds `BiVec`s spanning `[min_degree, truncation]` and would
+        /// allocate a negative-length capacity / `debug_assert`), or if
+        /// `truncation + 1` overflows `i32`.
+        #[new]
+        pub fn new(module: PyRef<'_, SteenrodModule>, truncation: i32) -> PyResult<Self> {
+            let min_degree = module.0.min_degree();
+            truncation
+                .checked_add(1)
+                .ok_or_else(|| PyValueError::new_err("truncation is too large"))?;
+            if truncation < min_degree - 1 {
+                return Err(PyValueError::new_err(format!(
+                    "truncation {truncation} is below the module's min_degree {min_degree}"
+                )));
+            }
+            Ok(QuotientModule(Arc::new(QuotientModuleInner::new(
+                Arc::new(Arc::clone(&module.0)),
+                truncation,
+            ))))
+        }
+
+        // --- flattened Module method set --------------------------------------
+
+        pub fn algebra(&self) -> SteenrodAlgebra {
+            SteenrodAlgebra::from_arc(self.0.algebra())
+        }
+
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        pub fn max_computed_degree(&self) -> i32 {
+            self.0.max_computed_degree()
+        }
+
+        pub fn max_degree(&self) -> Option<i32> {
+            self.0.max_degree()
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn compute_basis(&self, degree: i32) {
+            module_ensure(self.as_dyn(), degree);
+        }
+
+        pub fn dimension(&self, degree: i32) -> usize {
+            module_dimension(self.as_dyn(), degree)
+        }
+
+        pub fn total_dimension(&self) -> PyResult<usize> {
+            module_total_dimension(self.as_dyn())
+        }
+
+        pub fn is_unit(&self) -> bool {
+            self.0.is_unit()
+        }
+
+        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+            module_basis_element_to_string(self.as_dyn(), degree, idx)
+        }
+
+        pub fn element_to_string(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            element: &Bound<'_, PyAny>,
+        ) -> PyResult<String> {
+            module_element_to_string(self.as_dyn(), py, degree, element)
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_on_basis(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            mod_degree: i32,
+            mod_index: usize,
+        ) -> PyResult<()> {
+            module_act_on_basis(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                mod_degree,
+                mod_index,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            module_act(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                input_degree,
+                input,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_by_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op: &Bound<'_, PyAny>,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            module_act_by_element(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op,
+                input_degree,
+                input,
+            )
+        }
+
+        // --- QuotientModule-specific (thin) -----------------------------------
+
+        /// The degree above which everything is quotiented out.
+        #[getter]
+        pub fn truncation(&self) -> i32 {
+            self.0.truncation
+        }
+
+        /// Quotient out the subspace spanned (additionally) by `element` in
+        /// `degree`. `element` is a coefficient vector of length equal to the
+        /// *original* module's dimension in `degree`. A `degree > truncation`
+        /// is a no-op upstream; we still require a valid in-range `degree`
+        /// (`[min_degree, truncation]`) for the subspace it indexes, the right
+        /// prime, and the right length, raising rather than letting
+        /// `Subspace::add_vector`/the `BiVec` index panic.
+        pub fn quotient(
+            &mut self,
+            py: Python<'_>,
+            degree: i32,
+            element: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            self.checked_subspace_degree(degree)?;
+            let p = self.0.prime().as_u32();
+            let orig_dim = module_dimension(&**self.0.module, degree);
+            let element = crate::fp_py::extract_input_owned(py, element)?;
+            checked_same_prime(element.prime().as_u32(), p)?;
+            checked_equal_len(element.len(), orig_dim)?;
+            self.inner_mut()?.quotient(degree, element.as_slice());
+            Ok(())
+        }
+
+        /// Quotient out the original basis elements at the given `indices` in
+        /// `degree`. Each index must be a valid basis index of the *original*
+        /// module in `degree` (`Subspace::add_basis_elements` would otherwise
+        /// `set_entry` out of bounds), and `degree` must be in
+        /// `[min_degree, truncation]`.
+        pub fn quotient_basis_elements(
+            &mut self,
+            degree: i32,
+            indices: Vec<usize>,
+        ) -> PyResult<()> {
+            self.checked_subspace_degree(degree)?;
+            let orig_dim = module_dimension(&**self.0.module, degree);
+            for &idx in &indices {
+                if idx >= orig_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "basis index {idx} out of range for degree {degree} (original dimension \
+                         {orig_dim})"
+                    )));
+                }
+            }
+            self.inner_mut()?
+                .quotient_basis_elements(degree, indices.into_iter());
+            Ok(())
+        }
+
+        /// Quotient out the entire degree `degree` (set it to zero in the
+        /// quotient). `degree` must be in `[min_degree, truncation]`.
+        pub fn quotient_all(&mut self, degree: i32) -> PyResult<()> {
+            self.checked_subspace_degree(degree)?;
+            self.inner_mut()?.quotient_all(degree);
+            Ok(())
+        }
+
+        /// Reduce `vec` modulo the quotient subspace in `degree`, in place.
+        /// For `degree > truncation` this zeroes `vec` (any length is fine);
+        /// for `degree` in `[min_degree, truncation]`, `vec` must have length
+        /// equal to the *original* module's dimension there (the subspace's
+        /// ambient dimension), which `Subspace::reduce` asserts. A
+        /// `degree < min_degree` raises `IndexError`.
+        pub fn reduce(&self, py: Python<'_>, degree: i32, vec: &Bound<'_, PyAny>) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            if degree < self.0.min_degree() {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the module's min_degree {}",
+                    self.0.min_degree()
+                )));
+            }
+            if degree <= self.0.truncation {
+                let orig_dim = module_dimension(&**self.0.module, degree);
+                crate::fp_py::with_target_slice_mut(py, vec, |res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), orig_dim)?;
+                    self.0.reduce(degree, res);
+                    Ok(())
+                })
+            } else {
+                crate::fp_py::with_target_slice_mut(py, vec, |res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    self.0.reduce(degree, res);
+                    Ok(())
+                })
+            }
+        }
+
+        /// Re-express an element written in the *original* module's basis as an
+        /// element of the quotient's basis, accumulating into `new`. `old` must
+        /// have length equal to the original dimension in `degree`, and `new`
+        /// must have length at least the quotient dimension there. `degree`
+        /// must be in `[min_degree, truncation]`.
+        pub fn old_basis_to_new(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            new: &Bound<'_, PyAny>,
+            old: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            self.checked_subspace_degree(degree)?;
+            let p = self.0.prime().as_u32();
+            let orig_dim = module_dimension(&**self.0.module, degree);
+            let quot_dim = module_dimension(self.as_dyn(), degree);
+            let old = crate::fp_py::extract_input_owned(py, old)?;
+            checked_same_prime(old.prime().as_u32(), p)?;
+            checked_equal_len(old.len(), orig_dim)?;
+            crate::fp_py::with_target_slice_mut(py, new, |res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_result_len(res.as_slice().len(), quot_dim)?;
+                self.0.old_basis_to_new(degree, res, old.as_slice());
+                Ok(())
+            })
+        }
+
+        /// Box this module into a `SteenrodModule` for downstream use. Shares
+        /// state with this `QuotientModule` via an `Arc` (the `FreeModule`
+        /// pattern); after boxing, the `quotient*` setters raise `RuntimeError`.
+        pub fn into_steenrod_module(&self) -> SteenrodModule {
+            SteenrodModule(Arc::clone(&self.0) as RsSteenrodModule)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("QuotientModule({})", self.0)
+        }
+    }
+
+    /// The Hom module `Hom(source, target)` over the Steenrod algebra, where
+    /// `source` is a `FreeModule` and `target` is a *bounded* module. This is
+    /// the graded vector space of degree-shifting maps, graded *opposite* to
+    /// the usual grading so that it is bounded below; it is a module over the
+    /// ground field `F_p` (acted on only by scalars), **not** over the Steenrod
+    /// algebra. Consequently it is not a `SteenrodModule` and exposes neither
+    /// `algebra()` (the ground-field algebra pyclass `Field` is a separate
+    /// §5.2 binding, not yet available) nor `into_steenrod_module()`; both are
+    /// deferred for this reason.
+    #[pyclass(name = "HomModule")]
+    pub struct HomModule(Arc<HomModuleInner>);
+
+    impl HomModule {
+        fn as_dyn(&self) -> &dyn Module<Algebra = RsField> {
+            &*self.0
+        }
+
+        /// Populate book-keeping so that degree-`degree` data can be queried.
+        ///
+        /// Unlike the other modules, a `HomModule`'s `algebra()` is the ground
+        /// field, *not* the Steenrod algebra its source/target are built over.
+        /// The generic `module_ensure` therefore cannot extend the right
+        /// algebra: `HomModule::compute_basis(degree)` internally runs
+        /// `source.compute_basis(degree + target.max_degree())`, which reads
+        /// (but does not extend) the source's *Steenrod* algebra tables and
+        /// would `OnceVec`-panic if they are not computed far enough. So we
+        /// extend the source's Steenrod algebra here, then call the upstream
+        /// `compute_basis` (idempotent). A no-op below `min_degree`.
+        fn ensure(&self, degree: i32) {
+            if degree < self.0.min_degree() {
+                return;
+            }
+            // `target.max_degree()` is `Some` (checked in `new`).
+            let tmax = self.0.target().max_degree().unwrap();
+            if let Some(src_deg) = degree.checked_add(tmax) {
+                let source = self.0.source();
+                source
+                    .algebra()
+                    .compute_basis(src_deg - source.min_degree());
+            }
+            self.0.compute_basis(degree);
+        }
+    }
+
+    #[pymethods]
+    impl HomModule {
+        /// Build `Hom(source, target)`. `source` must be a `FreeModule` and
+        /// `target` any (boxed) `SteenrodModule`. Both must be built from the
+        /// *same* `SteenrodAlgebra` Python object: the same-algebra check uses
+        /// `Arc::ptr_eq` (there is no cheap structural equality on
+        /// `SteenrodAlgebra`), so a distinct-but-equal algebra object is
+        /// rejected with `ValueError`. A prime mismatch is rejected first.
+        /// `target` must be bounded above (`max_degree()` is not `None`);
+        /// otherwise upstream `new` panics, so we raise `ValueError`.
+        #[new]
+        pub fn new(
+            source: PyRef<'_, FreeModule>,
+            target: PyRef<'_, SteenrodModule>,
+        ) -> PyResult<Self> {
+            let source_arc = Arc::clone(&source.0);
+            let source_alg = source_arc.algebra();
+            let target_alg = target.0.algebra();
+            checked_same_prime(source_alg.prime().as_u32(), target_alg.prime().as_u32())?;
+            if !Arc::ptr_eq(&source_alg, &target_alg) {
+                return Err(PyValueError::new_err(
+                    "Hom source and target must be built over the same algebra",
+                ));
+            }
+            if target.0.max_degree().is_none() {
+                return Err(PyValueError::new_err(
+                    "HomModule requires the target module to be bounded above",
+                ));
+            }
+            Ok(HomModule(Arc::new(HomModuleInner::new(
+                source_arc,
+                Arc::new(Arc::clone(&target.0)),
+            ))))
+        }
+
+        // --- flattened Module method set (algebra() deferred, see docstring) --
+
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        pub fn max_computed_degree(&self) -> i32 {
+            self.0.max_computed_degree()
+        }
+
+        pub fn max_degree(&self) -> Option<i32> {
+            self.0.max_degree()
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn compute_basis(&self, degree: i32) {
+            self.ensure(degree);
+        }
+
+        pub fn dimension(&self, degree: i32) -> usize {
+            self.ensure(degree);
+            module_dimension(self.as_dyn(), degree)
+        }
+
+        pub fn total_dimension(&self) -> PyResult<usize> {
+            // `HomModule` is unbounded above (over a free source), so
+            // `max_degree()` is `None` and this raises without computing.
+            module_total_dimension(self.as_dyn())
+        }
+
+        pub fn is_unit(&self) -> bool {
+            self.0.is_unit()
+        }
+
+        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+            self.ensure(degree);
+            module_basis_element_to_string(self.as_dyn(), degree, idx)
+        }
+
+        pub fn element_to_string(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            element: &Bound<'_, PyAny>,
+        ) -> PyResult<String> {
+            self.ensure(degree);
+            module_element_to_string(self.as_dyn(), py, degree, element)
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_on_basis(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            mod_degree: i32,
+            mod_index: usize,
+        ) -> PyResult<()> {
+            // Pre-extend the source algebra for every degree the guard helper
+            // will touch (`mod_degree` and the output `mod_degree + op_degree`).
+            self.ensure(mod_degree);
+            if op_degree >= 0 {
+                if let Some(out) = mod_degree.checked_add(op_degree) {
+                    self.ensure(out);
+                }
+            }
+            module_act_on_basis(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                mod_degree,
+                mod_index,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            self.ensure(input_degree);
+            if op_degree >= 0 {
+                if let Some(out) = input_degree.checked_add(op_degree) {
+                    self.ensure(out);
+                }
+            }
+            module_act(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op_index,
+                input_degree,
+                input,
+            )
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn act_by_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            op_degree: i32,
+            op: &Bound<'_, PyAny>,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            self.ensure(input_degree);
+            if op_degree >= 0 {
+                if let Some(out) = input_degree.checked_add(op_degree) {
+                    self.ensure(out);
+                }
+            }
+            module_act_by_element(
+                self.as_dyn(),
+                py,
+                result,
+                coeff,
+                op_degree,
+                op,
+                input_degree,
+                input,
+            )
+        }
+
+        // --- HomModule-specific (thin) ----------------------------------------
+
+        /// The source `FreeModule` (shares state via an `Arc`).
+        pub fn source(&self) -> FreeModule {
+            FreeModule(self.0.source())
+        }
+
+        /// The target module, as a `SteenrodModule` (shares state via an
+        /// `Arc`).
+        pub fn target(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.target()).clone())
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("HomModule({})", self.0)
         }
     }
 
