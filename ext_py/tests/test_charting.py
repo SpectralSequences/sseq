@@ -227,3 +227,64 @@ def test_write_to_graph_header_callback_exception_propagates():
 
     with pytest.raises(ValueError, match="boom from header"):
         s.write_to_graph(SvgBackend(io.StringIO()), 2, False, [], bad_header)
+
+
+# --------------------------------------------------------------------------
+# Regression: a .write that fails ONLY on the closing tag must not be swallowed
+# --------------------------------------------------------------------------
+
+
+class CloseTagRaisingFile:
+    """A text file-like that succeeds for every body write but raises on the
+    single write containing the closing tag (``</svg>`` / ``\\end{tikzpicture}``).
+
+    The closing tag is emitted by the backend's ``Drop``, which runs inside the
+    upstream ``write_to_graph`` call (the backend is moved in by value). Before
+    the fix, that error was recorded but never re-raised because the upstream
+    result was ``Ok``, so ``write_to_graph`` returned success with truncated
+    output. It must now propagate.
+    """
+
+    def __init__(self, closing_tag):
+        self.closing_tag = closing_tag
+        self.parts = []
+
+    def write(self, data):
+        text = data if isinstance(data, str) else data.decode()
+        if self.closing_tag in text:
+            raise ValueError("boom on closing tag")
+        self.parts.append(text)
+        return len(data)
+
+
+def test_write_to_graph_svg_closing_tag_write_error_propagates():
+    s = make_small_sseq()
+    f = CloseTagRaisingFile("</svg>")
+    with pytest.raises(ValueError, match="boom on closing tag"):
+        s.write_to_graph(SvgBackend(f), 2, False, [], lambda _: None)
+    # The body was written but the chart is truncated (no closing tag); the
+    # point is that the failure is surfaced rather than silently swallowed.
+    assert "".join(f.parts).startswith("<svg") or f.parts
+
+
+def test_write_to_graph_tikz_closing_tag_write_error_propagates():
+    s = make_small_sseq()
+    f = CloseTagRaisingFile(r"\end{tikzpicture}")
+    with pytest.raises(ValueError, match="boom on closing tag"):
+        s.write_to_graph(TikzBackend(f), 2, False, [], lambda _: None)
+
+
+# --------------------------------------------------------------------------
+# SvgBackend.legend
+# --------------------------------------------------------------------------
+
+
+def test_svg_backend_legend_nonempty():
+    buf = io.StringIO()
+    SvgBackend.legend(buf)
+    out = buf.getvalue()
+    assert out  # nonempty
+    assert "<svg" in out
+    # The legend draws one bordered box per node pattern.
+    assert '<rect fill="none" stroke="black"' in out
+    assert "</svg>" in out

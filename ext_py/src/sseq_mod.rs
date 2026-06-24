@@ -1369,9 +1369,26 @@ pub mod sseq_py {
     /// Convert an upstream `io::Result` back into a `PyResult`, re-raising any
     /// `PyErr` recorded by the [`PyFileWriter`] (or a generic `IOError` if the
     /// `io::Error` did not originate from a Python exception).
+    ///
+    /// The recorded `PyErr` must be re-raised **even when `res` is `Ok`**. The
+    /// closing `</svg>` / `\end{tikzpicture}` tag is emitted by the backend's
+    /// `Drop`, which runs when the moved-in backend value is dropped *inside*
+    /// the upstream `write_to_graph` call (the backend is taken by value), i.e.
+    /// before that call returns `res`. `Drop` cannot propagate its `.write`
+    /// error, so it only records it in the shared slot and leaves `res` as
+    /// `Ok(())`. If we inspected the slot only on `Err`, a failure that occurs
+    /// *only* on the closing-tag write would be silently swallowed and
+    /// `write_to_graph` would report success with truncated output. Because the
+    /// Drop has already run by the time `raise_io` reads the slot, checking the
+    /// slot on the `Ok` path correctly surfaces that error.
     fn raise_io(err: &Rc<RefCell<Option<PyErr>>>, res: io::Result<()>) -> PyResult<()> {
         match res {
-            Ok(()) => Ok(()),
+            // Even on a successful upstream result, a closing-tag `.write`
+            // error recorded by the dropped backend must be re-raised.
+            Ok(()) => match err.borrow_mut().take() {
+                Some(e) => Err(e),
+                None => Ok(()),
+            },
             Err(e) => Err(err
                 .borrow_mut()
                 .take()
