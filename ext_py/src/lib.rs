@@ -263,10 +263,28 @@ mod ext_py {
         }
 
         /// Build a finite chain complex from an explicit list of `modules`
-        /// (`C_0, C_1, ...`) and the `differentials` between consecutive ones
-        /// (`differentials[i]: C_{i+1} -> C_i`). Zero homomorphisms are appended
-        /// at both ends automatically. Raises `ValueError` if `modules` is empty
-        /// (the underlying constructor indexes `modules[0]`).
+        /// (`C_0, C_1, ..., C_n`) and the `differentials` between consecutive
+        /// ones (`differentials[i]: C_{i+1} -> C_i`). The augmentation
+        /// `d_0: C_0 -> 0` and the boundary `0 -> C_n` are appended by the
+        /// underlying constructor automatically, so the caller supplies only the
+        /// `n` interior differentials.
+        ///
+        /// Upstream `FiniteChainComplex::new` stores `modules`/`differentials`
+        /// verbatim with no structural checks, so the inputs are validated here
+        /// before construction. Raises `ValueError` if:
+        /// * `modules` is empty (the underlying constructor indexes `modules[0]`);
+        /// * `differentials.len() != modules.len() - 1` (one interior
+        ///   differential per consecutive pair `C_{i+1} -> C_i`);
+        /// * the modules do not all share the same prime and algebra object;
+        /// * a differential is not built over that same prime and algebra.
+        ///
+        /// The exact source/target *module* of each differential is **not**
+        /// checked against the adjacent modules: there is no cheap structural
+        /// equality on `dyn Module`, and `Arc::ptr_eq` would reject the common,
+        /// legitimate case where the differential was built from separate
+        /// (cloned) module handles. The prime + algebra checks reject the
+        /// incoherent cases (mixed prime/algebra, wrong count) while never
+        /// rejecting a consistently-built complex.
         #[staticmethod]
         pub fn new(
             py: Python<'_>,
@@ -278,14 +296,67 @@ mod ext_py {
                     "ChainComplex.new requires at least one module",
                 ));
             }
+            // For a complex C_0 <- C_1 <- ... <- C_n (modules.len() == n+1),
+            // there are exactly n interior differentials (differentials[i] maps
+            // C_{i+1} -> C_i). Cf. upstream `FiniteChainComplex::new`, which
+            // prepends d_0 and appends the boundary map itself.
+            let expected = modules.len() - 1;
+            if differentials.len() != expected {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "ChainComplex.new expects exactly {expected} differential(s) for {} module(s) \
+                     (differentials[i] is the map C_(i+1) -> C_i); got {}",
+                    modules.len(),
+                    differentials.len()
+                )));
+            }
             let modules: Vec<Arc<algebra::module::SteenrodModule>> = modules
                 .iter()
                 .map(|m| Arc::new(m.borrow(py).as_rust().clone()))
                 .collect();
+            // All modules must share the same prime AND the same algebra object
+            // (the latter via `Arc::ptr_eq`, as TensorModule/homomorphism
+            // constructors do). Otherwise `prime()`/`algebra()` would report
+            // module 0's values while later modules disagree.
+            let ref_algebra = modules[0].algebra();
+            let p = modules[0].prime().as_u32();
+            for (i, m) in modules.iter().enumerate() {
+                let alg = m.algebra();
+                if m.prime().as_u32() != p {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "all modules must share the same prime; module 0 is over p={p} but \
+                         module {i} is over p={}",
+                        m.prime().as_u32()
+                    )));
+                }
+                if !Arc::ptr_eq(&alg, &ref_algebra) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "all modules must be built over the same algebra object; module {i} is \
+                         over a different algebra than module 0"
+                    )));
+                }
+            }
             let differentials = differentials
                 .iter()
-                .map(|d| Arc::new(d.borrow(py).clone_rust()))
-                .collect();
+                .enumerate()
+                .map(|(i, d)| {
+                    let d = d.borrow(py);
+                    if d.prime() != p {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "differential {i} is over p={} but the complex is over p={p}",
+                            d.prime()
+                        )));
+                    }
+                    if !Arc::ptr_eq(&d.source_algebra(), &ref_algebra)
+                        || !Arc::ptr_eq(&d.target_algebra(), &ref_algebra)
+                    {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "differential {i} must be built over the same algebra object as the \
+                             complex's modules"
+                        )));
+                    }
+                    Ok(Arc::new(d.clone_rust()))
+                })
+                .collect::<PyResult<Vec<_>>>()?;
             Ok(ChainComplex(Arc::new(CCC::new(modules, differentials))))
         }
 
@@ -293,7 +364,9 @@ mod ext_py {
         ///
         /// Requires sole ownership of the underlying `Arc`; raises `RuntimeError`
         /// if the complex is shared (e.g. obtained from `Resolution.chain_complex`
-        /// or aliased by another Python handle).
+        /// or aliased by another Python handle). A live `StemIterator` from
+        /// `iter_stem` also holds a shared handle, so drop any such iterator
+        /// before calling `pop`.
         pub fn pop(&mut self) -> PyResult<()> {
             let cc = Arc::get_mut(&mut self.0).ok_or_else(|| {
                 pyo3::exceptions::PyRuntimeError::new_err(
@@ -360,9 +433,18 @@ mod ext_py {
             ))
         }
 
-        /// Whether the complex has been computed at bidegree `b`.
-        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> bool {
-            self.0.has_computed_bidegree(b.0)
+        /// Whether the complex has been computed at bidegree `b`. Like
+        /// `module`/`differential`/`compute_through_bidegree`, a negative
+        /// `s`/`t` is rejected with a `ValueError` rather than wrapping to a
+        /// huge `usize`.
+        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(self.0.has_computed_bidegree(b.0))
         }
 
         /// Ensure every bidegree `<= b` has been computed. Like
@@ -387,6 +469,10 @@ mod ext_py {
         /// per-stem cutoff never triggers. It is exposed faithfully as a lazy
         /// iterator (it will not hang unless fully materialised); slice it with
         /// `itertools.islice` rather than `list()`.
+        ///
+        /// The returned `StemIterator` holds a shared handle to the complex, so
+        /// while one is alive `pop` will raise `RuntimeError`. Drop any
+        /// `StemIterator` before calling `pop`.
         pub fn iter_stem(&self) -> StemIterator {
             StemIterator {
                 cc: Arc::clone(&self.0),

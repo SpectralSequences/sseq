@@ -6659,6 +6659,19 @@ pub mod algebra_py {
             self.0.clone()
         }
 
+        /// The algebra of the source module (`Arc`-shared). Used by
+        /// `ChainComplex.new` to check a differential is built over the same
+        /// algebra as the complex's modules (via `Arc::ptr_eq`).
+        pub(crate) fn source_algebra(&self) -> Arc<RsSteenrodAlgebra> {
+            self.0.source().algebra()
+        }
+
+        /// The algebra of the target module (`Arc`-shared); see
+        /// [`Self::source_algebra`].
+        pub(crate) fn target_algebra(&self) -> Arc<RsSteenrodAlgebra> {
+            self.0.target().algebra()
+        }
+
         /// `min_degree()` of the source module (the smallest input degree).
         fn source_min_degree(&self) -> i32 {
             self.0.source().min_degree()
