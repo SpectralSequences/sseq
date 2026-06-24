@@ -63,6 +63,38 @@ KNOWN_UNBOUND = {
     "query_unstable_module",
     # massey.py: Massey product computer is not bound.
     "MasseyProductComputer",
+    # --- Resolution / construction entry points (not yet bound) ---
+    # construct/construct_standard: top-level resolution constructors are not
+    # bound (only the lower-level builder APIs are).
+    "construct",
+    "construct_standard",
+    # get_unit: unit resolution accessor is not bound.
+    "get_unit",
+    # ResolutionHomomorphism and friends: lifting/secondary machinery not bound.
+    "ResolutionHomomorphism",
+    "SecondaryResolutionHomomorphism",
+    "UnstableResolutionHomomorphism",
+    # ChainHomotopy / SecondaryChainHomotopy: homotopy types not bound.
+    "ChainHomotopy",
+    "SecondaryChainHomotopy",
+    # --- Chain complex types (not yet bound) ---
+    "ChainComplex",
+    "DoubleChainComplex",
+    "TensorChainComplex",
+    # --- Unstable machinery (not yet bound) ---
+    "UnstableResolution",
+    # --- Yoneda products (not yet bound) ---
+    "yoneda_representative_element",
+    # --- Misc constants / helpers (not yet bound) ---
+    # secondary_*: lambda-algebra bidegree constant is not bound.
+    "LAMBDA_BIDEGREE",
+    # ext_m_n.py: unicode integer formatter helper is not bound.
+    "unicode_num",
+    # --- Charting backends / enums (not yet bound) ---
+    # d2_charts.py / unstable_chart.py: TikZ charting backend is not bound.
+    "TikzBackend",
+    # unstable_chart.py: chart orientation enum is not bound.
+    "Orientation",
 }
 
 
