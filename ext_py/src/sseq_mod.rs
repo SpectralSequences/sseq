@@ -848,6 +848,14 @@ pub mod sseq_py {
     pub struct Sseq(RsSseq, prime::ValidPrime);
 
     impl Sseq {
+        /// Wrap an upstream `Sseq<2, Adams>` (e.g. the page produced by a chain
+        /// complex's `to_sseq`). The prime must match the one the `Sseq` was
+        /// built over; it is recorded separately because `Sseq` exposes no
+        /// public prime accessor.
+        pub(crate) fn from_rust(sseq: RsSseq, p: prime::ValidPrime) -> Self {
+            Sseq(sseq, p)
+        }
+
         /// Guard that bidegree `b` has been defined, returning `IndexError`
         /// otherwise (the upstream `data[b]` indexing would panic).
         fn require_defined(&self, b: &Bidegree) -> PyResult<()> {

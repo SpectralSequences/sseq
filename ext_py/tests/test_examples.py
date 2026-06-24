@@ -76,7 +76,6 @@ KNOWN_UNBOUND = {
     "ChainHomotopy",
     "SecondaryChainHomotopy",
     # --- Chain complex types (not yet bound) ---
-    "ChainComplex",
     "DoubleChainComplex",
     "TensorChainComplex",
     # --- Unstable machinery (not yet bound) ---

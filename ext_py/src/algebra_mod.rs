@@ -2365,6 +2365,20 @@ pub mod algebra_py {
     #[pyclass(name = "SteenrodModule")]
     pub struct SteenrodModule(RsSteenrodModule);
 
+    impl SteenrodModule {
+        /// Wrap an upstream boxed dynamic module (`Arc<dyn Module>`). Used by the
+        /// `ext` chain-complex bindings to hand back the modules of a `CCC`
+        /// while sharing the same `Arc`.
+        pub(crate) fn from_rust(module: RsSteenrodModule) -> Self {
+            SteenrodModule(module)
+        }
+
+        /// Borrow the underlying `Arc<dyn Module>` (shares interior-mutable state).
+        pub(crate) fn as_rust(&self) -> &RsSteenrodModule {
+            &self.0
+        }
+    }
+
     #[pymethods]
     impl SteenrodModule {
         pub fn algebra(&self) -> SteenrodAlgebra {
@@ -6631,6 +6645,20 @@ pub mod algebra_py {
     pub struct FullModuleHomomorphism(FullModuleHomomorphismInner);
 
     impl FullModuleHomomorphism {
+        /// Wrap an upstream `FullModuleHomomorphism<SteenrodModule>` (the
+        /// differential type of `CCC`). Used by the `ext` chain-complex
+        /// bindings; the inner value is cloned out of its `Arc` (cheap: the
+        /// recorded matrices are `Arc`-shared).
+        pub(crate) fn from_rust(inner: FullModuleHomomorphismInner) -> Self {
+            FullModuleHomomorphism(inner)
+        }
+
+        /// Clone the underlying upstream homomorphism out of the pyclass (cheap:
+        /// the recorded matrices are `Arc`-shared). Used by `ChainComplex.new`.
+        pub(crate) fn clone_rust(&self) -> FullModuleHomomorphismInner {
+            self.0.clone()
+        }
+
         /// `min_degree()` of the source module (the smallest input degree).
         fn source_min_degree(&self) -> i32 {
             self.0.source().min_degree()

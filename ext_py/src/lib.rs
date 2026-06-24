@@ -13,8 +13,18 @@ pub use sseq_mod::sseq_py;
 mod ext_py {
     use std::sync::Arc;
 
-    use algebra::{milnor_algebra::MilnorAlgebra, module::FDModule};
-    use ext::{chain_complex::FreeChainComplex, secondary::SecondaryLift, utils::Config};
+    use algebra::{
+        milnor_algebra::MilnorAlgebra,
+        module::{FDModule, Module},
+    };
+    use ext::{
+        chain_complex::{AugmentedChainComplex, ChainComplex as RsChainComplex, FreeChainComplex},
+        secondary::SecondaryLift,
+        utils::Config,
+        CCC,
+    };
+    use fp::prime::Prime;
+    use sseq::coordinates::Bidegree as RsBidegree;
 
     #[pymodule_export]
     use super::algebra_py;
@@ -150,6 +160,38 @@ mod ext_py {
         pub fn graded_dimension_string(&self) -> String {
             dispatch!(&self.0, r => r.graded_dimension_string())
         }
+
+        /// The `E_2`-page of the resolution as a bound `sseq_py.Sseq`.
+        ///
+        /// This is a `FreeChainComplex` method (a resolution's modules are free,
+        /// so it implements `FreeChainComplex`; the bare `ChainComplex` pyclass
+        /// over `CCC` does not — its modules are arbitrary `SteenrodModule`s).
+        /// Upstream `to_sseq` only ever queries bidegrees yielded by
+        /// `iter_stem`, all of which lie in the computed range, so it is
+        /// panic-free over the range resolved so far.
+        pub fn to_sseq(&self) -> sseq_py::Sseq {
+            let p = dispatch!(&self.0, r => r.prime());
+            let sseq = dispatch!(&self.0, r => r.to_sseq());
+            sseq_py::Sseq::from_rust(sseq, p)
+        }
+
+        /// The chain complex this resolution resolves, as a bound `ChainComplex`
+        /// (`CCC`), sharing the same `Arc`.
+        ///
+        /// Only the standard backend resolves a `CCC`; Nassau's algorithm
+        /// resolves a different (monomorphised) complex type that the
+        /// `ChainComplex` pyclass cannot represent, so it is rejected with a
+        /// `ValueError`.
+        pub fn chain_complex(&self) -> PyResult<ChainComplex> {
+            match &self.0 {
+                AnyResolution::Standard(r) => Ok(ChainComplex(r.target())),
+                AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
+                    "chain_complex() is only available on the standard backend; Nassau resolves a \
+                     different complex type that the ChainComplex pyclass (CCC) cannot represent. \
+                     Construct the Resolution with algorithm='standard'.",
+                )),
+            }
+        }
     }
 
     /// A secondary resolution is only supported over the standard backend. Nassau's algorithm
@@ -184,6 +226,219 @@ mod ext_py {
 
         pub fn underlying(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())))
+        }
+    }
+
+    /// A finite chain complex of Steenrod modules: the crate's default
+    /// `CCC = FiniteChainComplex<SteenrodModule>`, i.e. exactly the type
+    /// `utils::construct` resolves over.
+    ///
+    /// Stored as a (possibly shared) `Arc<CCC>`. Most methods take `&self` and
+    /// either read or compute into the modules' interior-mutable tables, mirror-
+    /// ing the `Resolution` binding. Unlike `Resolution`, this pyclass is *not*
+    /// `frozen`, because `pop` structurally mutates the complex and needs
+    /// `&mut self`; `pop` additionally requires sole ownership of the `Arc`.
+    ///
+    /// Only the `ChainComplex` trait surface is bound here. The
+    /// `FreeChainComplex` methods (`graded_dimension_string`, `to_sseq`,
+    /// `filtration_one_product(s)`, `number_of_gens_in_bidegree`,
+    /// `iter_nonzero_stem`, `boundary_string`) are **not** implemented for
+    /// `CCC`: that trait requires `Module = FreeModule`, but a `CCC`'s modules
+    /// are arbitrary `SteenrodModule`s (`Arc<dyn Module>`). Those methods live
+    /// on `Resolution` instead (whose modules are free); `to_sseq` is bound
+    /// there.
+    #[pyclass]
+    pub struct ChainComplex(Arc<CCC>);
+
+    #[pymethods]
+    impl ChainComplex {
+        /// The "concentrated chain complex, degreewise zero differential" of a
+        /// single module: the one-term complex `C_0 = module`, `C_s = 0`
+        /// otherwise. This is the simplest way to obtain a `ChainComplex` from a
+        /// `SteenrodModule` (then `compute_through_bidegree`, `module`, ...).
+        #[staticmethod]
+        pub fn ccdz(module: PyRef<'_, algebra_py::SteenrodModule>) -> Self {
+            let m = module.as_rust().clone();
+            ChainComplex(Arc::new(CCC::ccdz(Arc::new(m))))
+        }
+
+        /// Build a finite chain complex from an explicit list of `modules`
+        /// (`C_0, C_1, ...`) and the `differentials` between consecutive ones
+        /// (`differentials[i]: C_{i+1} -> C_i`). Zero homomorphisms are appended
+        /// at both ends automatically. Raises `ValueError` if `modules` is empty
+        /// (the underlying constructor indexes `modules[0]`).
+        #[staticmethod]
+        pub fn new(
+            py: Python<'_>,
+            modules: Vec<Py<algebra_py::SteenrodModule>>,
+            differentials: Vec<Py<algebra_py::FullModuleHomomorphism>>,
+        ) -> PyResult<Self> {
+            if modules.is_empty() {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "ChainComplex.new requires at least one module",
+                ));
+            }
+            let modules: Vec<Arc<algebra::module::SteenrodModule>> = modules
+                .iter()
+                .map(|m| Arc::new(m.borrow(py).as_rust().clone()))
+                .collect();
+            let differentials = differentials
+                .iter()
+                .map(|d| Arc::new(d.borrow(py).clone_rust()))
+                .collect();
+            Ok(ChainComplex(Arc::new(CCC::new(modules, differentials))))
+        }
+
+        /// Remove the top module (and its differentials) from the complex.
+        ///
+        /// Requires sole ownership of the underlying `Arc`; raises `RuntimeError`
+        /// if the complex is shared (e.g. obtained from `Resolution.chain_complex`
+        /// or aliased by another Python handle).
+        pub fn pop(&mut self) -> PyResult<()> {
+            let cc = Arc::get_mut(&mut self.0).ok_or_else(|| {
+                pyo3::exceptions::PyRuntimeError::new_err(
+                    "cannot pop a shared ChainComplex (the underlying complex is referenced \
+                     elsewhere, e.g. by a Resolution)",
+                )
+            })?;
+            cc.pop();
+            Ok(())
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The Steenrod algebra the complex is built over.
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
+        }
+
+        /// The minimum internal degree shared by every module.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The first `s` for which `module(s)` is not defined. For a
+        /// `FiniteChainComplex` this is `i32::MAX` (every `s` resolves to the
+        /// zero module past the top), so `iter_stem` is *infinite*; see there.
+        pub fn next_homological_degree(&self) -> i32 {
+            self.0.next_homological_degree()
+        }
+
+        /// The zero module (the target/source of the boundary differentials).
+        pub fn zero_module(&self) -> algebra_py::SteenrodModule {
+            algebra_py::SteenrodModule::from_rust((*self.0.zero_module()).clone())
+        }
+
+        /// The `s`-th module `C_s`, sharing its `Arc`. Out-of-range `s` (`>=` the
+        /// number of modules) returns the zero module, matching upstream.
+        /// Raises `ValueError` for negative `s`.
+        pub fn module(&self, s: i32) -> PyResult<algebra_py::SteenrodModule> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            Ok(algebra_py::SteenrodModule::from_rust(
+                (*self.0.module(s)).clone(),
+            ))
+        }
+
+        /// The differential `C_s -> C_{s-1}`, as a bound `FullModuleHomomorphism`
+        /// sharing its `Arc`. Out-of-range `s` returns a zero homomorphism.
+        /// Raises `ValueError` for negative `s`.
+        pub fn differential(&self, s: i32) -> PyResult<algebra_py::FullModuleHomomorphism> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            Ok(algebra_py::FullModuleHomomorphism::from_rust(
+                (*self.0.differential(s)).clone(),
+            ))
+        }
+
+        /// Whether the complex has been computed at bidegree `b`.
+        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> bool {
+            self.0.has_computed_bidegree(b.0)
+        }
+
+        /// Ensure every bidegree `<= b` has been computed. Like
+        /// `Resolution.compute_through_stem`, a negative `s`/`t` is rejected with
+        /// a `ValueError` rather than risking an internal panic.
+        pub fn compute_through_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<()> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            self.0.compute_through_bidegree(b.0);
+            Ok(())
+        }
+
+        /// Iterate over the defined bidegrees in increasing order of stem.
+        ///
+        /// WARNING: for a `FiniteChainComplex` whose modules report an unbounded
+        /// `max_computed_degree` (as `FDModule` does), this iterator is
+        /// *infinite* — `next_homological_degree` is `i32::MAX` and the
+        /// per-stem cutoff never triggers. It is exposed faithfully as a lazy
+        /// iterator (it will not hang unless fully materialised); slice it with
+        /// `itertools.islice` rather than `list()`.
+        pub fn iter_stem(&self) -> StemIterator {
+            StemIterator {
+                cc: Arc::clone(&self.0),
+                current: RsBidegree::n_s(self.0.min_degree(), 0),
+                max_s: self.0.next_homological_degree(),
+            }
+        }
+
+        /// The directory used to persist this complex, or `None` if it is purely
+        /// in-memory (the default for `CCC`).
+        pub fn save_dir(&self) -> Option<String> {
+            self.0.save_dir().read().map(|p| p.display().to_string())
+        }
+    }
+
+    /// The lazy iterator returned by [`ChainComplex::iter_stem`]. Re-implements
+    /// the upstream `chain_complex::StemIterator` over an owned `Arc<CCC>` so it
+    /// can live in a `#[pyclass]` without a borrow of the complex.
+    #[pyclass]
+    pub struct StemIterator {
+        cc: Arc<CCC>,
+        current: RsBidegree,
+        max_s: i32,
+    }
+
+    #[pymethods]
+    impl StemIterator {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
+            loop {
+                if self.max_s == 0 {
+                    return None;
+                }
+                let cur = self.current;
+                if cur.s() == self.max_s {
+                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                    continue;
+                }
+                if cur.t() > self.cc.module(cur.s()).max_computed_degree() {
+                    if cur.s() == 0 {
+                        return None;
+                    } else {
+                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                        continue;
+                    }
+                }
+                self.current = cur + RsBidegree::n_s(0, 1);
+                return Some(sseq_py::Bidegree(cur));
+            }
         }
     }
 
