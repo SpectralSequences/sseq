@@ -9,18 +9,35 @@ pub mod sseq_py {
         sync::Mutex,
     };
 
-    use ::fp::prime::{self};
+    use ::fp::{
+        matrix::Matrix as RsMatrix,
+        prime::{self, Prime},
+        vector::FpVector as RsFpVector,
+    };
+    use ::once::MultiIndexed;
+    use ::sseq::SseqProfile as RsSseqProfile;
     use pyo3::{
         basic::CompareOp,
         exceptions::{PyIndexError, PyValueError},
     };
 
     use super::*;
-    use crate::fp_py::PyFpVector;
+    use crate::fp_py::{
+        with_input_slice, with_target_slice_mut, PyFpVector, PyMatrix, PySubquotient, PySubspace,
+    };
 
     type RsBidegree = ::sseq::coordinates::Bidegree;
     type RsBidegreeElement = ::sseq::coordinates::BidegreeElement;
     type RsBidegreeGenerator = ::sseq::coordinates::BidegreeGenerator;
+    type RsSseq = ::sseq::Sseq<2, ::sseq::Adams>;
+    type RsProduct = ::sseq::Product<2>;
+    type RsDifferential = ::sseq::Differential;
+
+    /// The minimal page number for the (cohomological Adams) spectral sequence,
+    /// i.e. `Adams::MIN_R`. Differentials and page data are indexed by pages
+    /// `>= MIN_R`; binding methods pre-check `r >= MIN_R` to avoid the
+    /// below-`min_degree` indexing panics in the upstream `BiVec`s.
+    const MIN_R: i32 = <::sseq::Adams as RsSseqProfile<2>>::MIN_R;
 
     /// Upper bound on accepted primes, mirroring `fp_py::valid_prime`.
     const MAX_VALID_PRIME: u32 = 1 << 31;
@@ -476,5 +493,638 @@ pub mod sseq_py {
             Some(e) => Err(e),
             None => Ok(()),
         }
+    }
+
+    /// Validate that two primes agree, raising `ValueError` otherwise.
+    fn check_same_prime(expected: u32, got: u32) -> PyResult<()> {
+        if expected != got {
+            return Err(PyValueError::new_err(format!(
+                "prime mismatch: expected {expected}, got {got}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validate that two lengths/dimensions agree, raising `ValueError`
+    /// otherwise.
+    fn check_equal_len(expected: usize, got: usize) -> PyResult<()> {
+        if expected != got {
+            return Err(PyValueError::new_err(format!(
+                "dimension mismatch: expected {expected}, got {got}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// The profile of the (cohomological) Adams spectral sequence: the only
+    /// `SseqProfile<2>` implementation upstream, and the default profile used by
+    /// `Sseq`. The differentials go `(n, s) -> (n - 1, s + r)`.
+    ///
+    /// This is the concrete implementation of the upstream `SseqProfile` trait
+    /// for the bigraded (`N = 2`) case. The trait itself is not separately
+    /// bound: it has no runtime representation, and `Adams` is its sole `N = 2`
+    /// implementor. `Sseq` is monomorphized to `Sseq<2, Adams>`, so `Adams` is
+    /// always the active profile; this class exposes the profile's
+    /// page/bidegree arithmetic for inspection.
+    #[pyclass(frozen)]
+    #[derive(Clone, Copy)]
+    pub struct Adams;
+
+    #[pymethods]
+    impl Adams {
+        #[new]
+        pub fn new() -> Self {
+            Adams
+        }
+
+        /// The minimal page number, `2`.
+        #[classattr]
+        #[allow(non_snake_case)]
+        pub fn MIN_R() -> i32 {
+            MIN_R
+        }
+
+        /// The target bidegree of a `d_r` differential out of `b`.
+        #[staticmethod]
+        pub fn profile(r: i32, b: &Bidegree) -> Bidegree {
+            Bidegree(<::sseq::Adams as RsSseqProfile<2>>::profile(r, b.0))
+        }
+
+        /// The source bidegree of a `d_r` differential hitting `b` (inverse of
+        /// `profile`).
+        #[staticmethod]
+        pub fn profile_inverse(r: i32, b: &Bidegree) -> Bidegree {
+            Bidegree(<::sseq::Adams as RsSseqProfile<2>>::profile_inverse(r, b.0))
+        }
+
+        /// The page `r` of a differential with the given bidegree `offset`
+        /// between source and target.
+        #[staticmethod]
+        pub fn differential_length(offset: &Bidegree) -> i32 {
+            <::sseq::Adams as RsSseqProfile<2>>::differential_length(offset.0)
+        }
+
+        pub fn __repr__(&self) -> &'static str {
+            "Adams"
+        }
+    }
+
+    /// The interface implemented by spectral-sequence profiles. Upstream this is
+    /// a trait (`SseqProfile<N>`) with no runtime data; `Adams` is its only
+    /// `N = 2` implementation and the default profile for `Sseq`. This marker
+    /// pyclass exists so the name `SseqProfile` is available from Python and to
+    /// hand back the default profile via `default()`.
+    #[pyclass(frozen)]
+    #[derive(Clone, Copy)]
+    pub struct SseqProfile;
+
+    #[pymethods]
+    impl SseqProfile {
+        /// The default (and only) profile for the bigraded spectral sequence:
+        /// `Adams`.
+        #[staticmethod]
+        pub fn default() -> Adams {
+            Adams
+        }
+
+        pub fn __repr__(&self) -> &'static str {
+            "SseqProfile"
+        }
+    }
+
+    /// A product structure on the spectral sequence: multiplication by a fixed
+    /// class living in bidegree `b`. For each source bidegree it stores the
+    /// matrix of the multiplication map (as a `MultiIndexed<2, Matrix>`).
+    ///
+    /// `left` records whether the product acts on the left, which affects the
+    /// sign in the Leibniz rule. This is the `N = 2` case of the upstream
+    /// `Product`.
+    #[pyclass(name = "Product")]
+    pub struct Product(pub RsProduct);
+
+    #[pymethods]
+    impl Product {
+        /// Construct a product in bidegree `b`. `matrices` is a list of
+        /// `(source_bidegree, Matrix)` pairs giving the multiplication map out
+        /// of each source bidegree; the matrix maps the source basis (its rows)
+        /// to the target basis (its columns). `left` records the handedness for
+        /// the Leibniz sign.
+        ///
+        /// Raises `ValueError` if two matrices are given for the same bidegree.
+        #[new]
+        #[pyo3(signature = (b, left, matrices))]
+        pub fn new(
+            b: &Bidegree,
+            left: bool,
+            matrices: Vec<(Bidegree, PyRef<'_, PyMatrix>)>,
+        ) -> PyResult<Self> {
+            let indexed: MultiIndexed<2, RsMatrix> = MultiIndexed::new();
+            for (deg, matrix) in matrices {
+                indexed
+                    .try_insert(deg.0, matrix.as_rust().clone())
+                    .map_err(|_| {
+                        PyValueError::new_err(format!("duplicate matrix for bidegree {}", deg.0))
+                    })?;
+            }
+            Ok(Product(RsProduct {
+                b: b.0,
+                left,
+                matrices: indexed,
+            }))
+        }
+
+        /// The bidegree the product lives in (the shift it applies).
+        #[getter]
+        pub fn b(&self) -> Bidegree {
+            Bidegree(self.0.b)
+        }
+
+        /// Whether the product acts on the left.
+        #[getter]
+        pub fn left(&self) -> bool {
+            self.0.left
+        }
+
+        /// The stored multiplication matrices as a list of
+        /// `(source_bidegree, Matrix)` pairs.
+        #[getter]
+        pub fn matrices(&self) -> Vec<(Bidegree, PyMatrix)> {
+            self.0
+                .matrices
+                .iter()
+                .map(|(coords, m)| {
+                    (
+                        Bidegree(RsBidegree::from(coords)),
+                        PyMatrix::from_rust(m.clone()),
+                    )
+                })
+                .collect()
+        }
+
+        /// The multiplication matrix out of `source`, or `None` if undefined.
+        pub fn get_matrix(&self, source: &Bidegree) -> Option<PyMatrix> {
+            self.0
+                .matrices
+                .get(source.0)
+                .map(|m| PyMatrix::from_rust(m.clone()))
+        }
+    }
+
+    /// A (reduced) differential between two graded vector spaces, stored as the
+    /// span of `(source, target)` pairs. This is the building block the
+    /// `Sseq` stores per page; it can also be used standalone.
+    #[pyclass(name = "Differential")]
+    pub struct Differential(pub RsDifferential);
+
+    impl Differential {
+        /// Wrap an owned upstream `Differential`.
+        pub(crate) fn from_rust(differential: RsDifferential) -> Self {
+            Differential(differential)
+        }
+    }
+
+    #[pymethods]
+    impl Differential {
+        /// A new zero differential from a `source_dim`-dimensional space to a
+        /// `target_dim`-dimensional space over `F_p`. Raises `ValueError` for a
+        /// non-prime `p`.
+        #[new]
+        pub fn new(p: u32, source_dim: usize, target_dim: usize) -> PyResult<Self> {
+            Ok(Differential(RsDifferential::new(
+                valid_prime(p)?,
+                source_dim,
+                target_dim,
+            )))
+        }
+
+        /// The prime of the underlying field.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The dimension of the source space.
+        #[getter]
+        pub fn source_dim(&self) -> usize {
+            self.0.source_dim()
+        }
+
+        /// The dimension of the target space.
+        #[getter]
+        pub fn target_dim(&self) -> usize {
+            self.0.target_dim()
+        }
+
+        /// Add the differential `d(source) = target`. If `target` is `None`,
+        /// records that `source` is a cycle (zero differential). Returns whether
+        /// a genuinely new differential was added.
+        ///
+        /// Raises `ValueError` on a prime/length mismatch (`source` must have
+        /// length `source_dim`, `target` length `target_dim`) to avoid the
+        /// upstream slice-length panic.
+        #[pyo3(signature = (source, target=None))]
+        pub fn add(
+            &mut self,
+            py: Python<'_>,
+            source: &Bound<'_, PyAny>,
+            target: Option<&Bound<'_, PyAny>>,
+        ) -> PyResult<bool> {
+            let p = self.0.prime().as_u32();
+            let source_dim = self.0.source_dim();
+            let target_dim = self.0.target_dim();
+            with_input_slice(py, source, |src| {
+                check_same_prime(p, src.prime().as_u32())?;
+                check_equal_len(source_dim, src.len())?;
+                match target {
+                    None => Ok(self.0.add(src, None)),
+                    Some(t) => with_input_slice(py, t, |tgt| {
+                        check_same_prime(p, tgt.prime().as_u32())?;
+                        check_equal_len(target_dim, tgt.len())?;
+                        Ok(self.0.add(src, Some(tgt)))
+                    }),
+                }
+            })
+        }
+
+        /// Reset to the zero differential.
+        pub fn set_to_zero(&mut self) {
+            self.0.set_to_zero();
+        }
+
+        /// Whether the recorded differentials are inconsistent. Only meaningful
+        /// after the targets have been reduced (which `Sseq.update` does).
+        pub fn inconsistent(&self) -> bool {
+            self.0.inconsistent()
+        }
+
+        /// The recorded `(source, target)` pairs, as a list of `FpVector`
+        /// pairs.
+        pub fn get_source_target_pairs(&self) -> Vec<(PyFpVector, PyFpVector)> {
+            self.0
+                .get_source_target_pairs()
+                .into_iter()
+                .map(|(s, t)| (PyFpVector::from_rust(s), PyFpVector::from_rust(t)))
+                .collect()
+        }
+
+        /// Evaluate the differential on `source`, adding the result into the
+        /// mutable `target`. Assumes every non-pivot column has zero
+        /// differential.
+        ///
+        /// Raises `ValueError` on a prime/length mismatch (`source` length must
+        /// be `source_dim`, `target` length `target_dim`).
+        pub fn evaluate(
+            &self,
+            py: Python<'_>,
+            source: &Bound<'_, PyAny>,
+            target: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let source_dim = self.0.source_dim();
+            let target_dim = self.0.target_dim();
+            with_input_slice(py, source, |src| {
+                check_same_prime(p, src.prime().as_u32())?;
+                check_equal_len(source_dim, src.len())?;
+                with_target_slice_mut(py, target, |tgt| {
+                    check_same_prime(p, tgt.as_slice().prime().as_u32())?;
+                    check_equal_len(target_dim, tgt.as_slice().len())?;
+                    self.0.evaluate(src, tgt);
+                    Ok(())
+                })
+            })
+        }
+
+        /// Find a preimage of `value` under the differential, i.e. apply the
+        /// quasi-inverse. Returns a new `FpVector` of length `source_dim`.
+        ///
+        /// Note: upstream `Differential::quasi_inverse` writes the preimage into
+        /// a caller-supplied slice rather than returning a `QuasiInverse`
+        /// object (which is what the API proposal anticipated); we follow
+        /// upstream and return the computed preimage vector.
+        ///
+        /// Raises `ValueError` on a prime/length mismatch (`value` length must
+        /// be `target_dim`).
+        pub fn quasi_inverse(
+            &self,
+            py: Python<'_>,
+            value: &Bound<'_, PyAny>,
+        ) -> PyResult<PyFpVector> {
+            let p = self.0.prime();
+            let source_dim = self.0.source_dim();
+            let target_dim = self.0.target_dim();
+            with_input_slice(py, value, |val| {
+                check_same_prime(p.as_u32(), val.prime().as_u32())?;
+                check_equal_len(target_dim, val.len())?;
+                let mut result = RsFpVector::new(p, source_dim);
+                self.0.quasi_inverse(result.as_slice_mut(), val);
+                Ok(PyFpVector::from_rust(result))
+            })
+        }
+    }
+
+    /// A bigraded spectral sequence with the Adams profile (`Sseq<2, Adams>`),
+    /// the only spectral sequence used by the examples.
+    ///
+    /// # Storage
+    ///
+    /// Held as a plain owned value in a `#[pyclass]`. Every upstream mutator
+    /// (`set_dimension`, `add_differential`, `add_permanent_class`, `update`,
+    /// ...) takes `&mut self`, and PyO3 hands out the `&mut` via its runtime
+    /// borrow check, so no `Arc`/interior-mutability wrapper is needed. (No
+    /// `Sseq` pyclass existed previously: `SecondaryResolution.e3_page`, which
+    /// would return one, is not yet bound, so there was nothing to reconcile.)
+    #[pyclass(name = "Sseq", unsendable)]
+    pub struct Sseq(RsSseq, prime::ValidPrime);
+
+    impl Sseq {
+        /// Guard that bidegree `b` has been defined, returning `IndexError`
+        /// otherwise (the upstream `data[b]` indexing would panic).
+        fn require_defined(&self, b: &Bidegree) -> PyResult<()> {
+            if self.0.defined(b.0) {
+                Ok(())
+            } else {
+                Err(PyIndexError::new_err(format!(
+                    "bidegree {} is not defined",
+                    b.0
+                )))
+            }
+        }
+    }
+
+    #[pymethods]
+    impl Sseq {
+        /// A new, empty spectral sequence over `F_p`. Raises `ValueError` for a
+        /// non-prime `p`.
+        #[new]
+        pub fn new(p: u32) -> PyResult<Self> {
+            let p = valid_prime(p)?;
+            Ok(Sseq(RsSseq::new(p), p))
+        }
+
+        /// The prime of the underlying field.
+        pub fn prime(&self) -> u32 {
+            self.1.as_u32()
+        }
+
+        /// Define bidegree `b` to have dimension `dim` (number of generators).
+        /// Raises `ValueError` if `b` is already defined (upstream would panic
+        /// on the duplicate insert).
+        pub fn set_dimension(&mut self, b: &Bidegree, dim: usize) -> PyResult<()> {
+            if self.0.defined(b.0) {
+                return Err(PyValueError::new_err(format!(
+                    "bidegree {} is already defined",
+                    b.0
+                )));
+            }
+            self.0.set_dimension(b.0, dim);
+            Ok(())
+        }
+
+        /// The dimension at bidegree `b`. Raises `IndexError` if `b` is not
+        /// defined; use `get_dimension` for the optional form.
+        pub fn dimension(&self, b: &Bidegree) -> PyResult<usize> {
+            self.require_defined(b)?;
+            Ok(self.0.dimension(b.0))
+        }
+
+        /// The dimension at bidegree `b`, or `None` if it is not defined.
+        pub fn get_dimension(&self, b: &Bidegree) -> Option<usize> {
+            self.0.get_dimension(b.0)
+        }
+
+        /// Reset all permanent classes, differentials, and page data, marking
+        /// every defined bidegree invalid.
+        pub fn clear(&mut self) {
+            self.0.clear();
+        }
+
+        /// The minimal defined bidegree (componentwise), or `(0, 0)` if empty.
+        pub fn min(&self) -> Bidegree {
+            Bidegree(self.0.min())
+        }
+
+        /// The maximal defined bidegree (componentwise), or `(0, 0)` if empty.
+        pub fn max(&self) -> Bidegree {
+            Bidegree(self.0.max())
+        }
+
+        /// Whether bidegree `b` has been defined.
+        pub fn defined(&self, b: &Bidegree) -> bool {
+            self.0.defined(b.0)
+        }
+
+        /// The list of all defined bidegrees, in sorted order.
+        pub fn iter_degrees(&self) -> Vec<Bidegree> {
+            self.0.iter_degrees().map(Bidegree).collect()
+        }
+
+        /// Record that `elem` (a `BidegreeElement`) is a permanent class.
+        /// Returns whether a genuinely new permanent class was added.
+        ///
+        /// Raises `IndexError` if the element's bidegree is undefined and
+        /// `ValueError` on a prime/length mismatch (the element's vector must
+        /// have length equal to the bidegree's dimension).
+        pub fn add_permanent_class(&mut self, elem: &BidegreeElement) -> PyResult<bool> {
+            let b = Bidegree(elem.0.degree());
+            self.require_defined(&b)?;
+            check_same_prime(self.1.as_u32(), elem.0.vec().prime().as_u32())?;
+            check_equal_len(self.0.dimension(b.0), elem.0.vec().len())?;
+            Ok(self.0.add_permanent_class(&elem.0))
+        }
+
+        /// The subspace of permanent classes at bidegree `b`. Raises
+        /// `IndexError` if `b` is not defined.
+        pub fn permanent_classes(&self, b: &Bidegree) -> PyResult<PySubspace> {
+            self.require_defined(b)?;
+            Ok(PySubspace::from_rust(self.0.permanent_classes(b.0).clone()))
+        }
+
+        /// Add a `d_r` differential with the given `source` class (a
+        /// `BidegreeElement`, which carries both the source bidegree and the
+        /// source vector) and `target` vector. Returns whether the differential
+        /// is new.
+        ///
+        /// Note: the API proposal described the source as a bare `Bidegree`, but
+        /// upstream needs the source *class* (bidegree + vector), so we take a
+        /// `BidegreeElement`.
+        ///
+        /// Guards (all raising clean exceptions instead of panicking):
+        ///  - `r >= MIN_R` (`ValueError`),
+        ///  - the source bidegree and the target bidegree
+        ///    `profile(r, source)` are both defined (`IndexError`),
+        ///  - prime and length match for both the source vector
+        ///    (`= dim(source)`) and `target` (`= dim(target_bidegree)`)
+        ///    (`ValueError`).
+        pub fn add_differential(
+            &mut self,
+            py: Python<'_>,
+            r: i32,
+            source: &BidegreeElement,
+            target: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            if r < MIN_R {
+                return Err(PyValueError::new_err(format!(
+                    "page number r = {r} is below the minimal page {MIN_R}"
+                )));
+            }
+            let source_b = Bidegree(source.0.degree());
+            self.require_defined(&source_b)?;
+            let target_b = Bidegree(<::sseq::Adams as RsSseqProfile<2>>::profile(r, source_b.0));
+            self.require_defined(&target_b)?;
+
+            let p = self.1.as_u32();
+            check_same_prime(p, source.0.vec().prime().as_u32())?;
+            check_equal_len(self.0.dimension(source_b.0), source.0.vec().len())?;
+            let target_dim = self.0.dimension(target_b.0);
+            with_input_slice(py, target, |tgt| {
+                check_same_prime(p, tgt.prime().as_u32())?;
+                check_equal_len(target_dim, tgt.len())?;
+                Ok(self.0.add_differential(r, &source.0, tgt))
+            })
+        }
+
+        /// The list of differentials at bidegree `b`, one per page starting at
+        /// `MIN_R`. Raises `IndexError` if `b` is not defined.
+        pub fn differentials(&self, b: &Bidegree) -> PyResult<Vec<Differential>> {
+            self.require_defined(b)?;
+            Ok(self
+                .0
+                .differentials(b.0)
+                .iter()
+                .map(|d| Differential::from_rust(d.clone()))
+                .collect())
+        }
+
+        /// The differentials that hit bidegree `b`, as a list of
+        /// `(r, Differential)` pairs. Raises `IndexError` if `b` is not
+        /// defined.
+        pub fn differentials_hitting(&self, b: &Bidegree) -> PyResult<Vec<(i32, Differential)>> {
+            self.require_defined(b)?;
+            Ok(self
+                .0
+                .differentials_hitting(b.0)
+                .map(|(r, d)| (r, Differential::from_rust(d.clone())))
+                .collect())
+        }
+
+        /// The `E_r` page data (a `Subquotient`) at bidegree `b`. Raises
+        /// `IndexError` if `b` is not defined or `r` is out of the computed page
+        /// range.
+        pub fn page_data(&self, b: &Bidegree, r: i32) -> PyResult<PySubquotient> {
+            self.require_defined(b)?;
+            let data = self.0.page_data(b.0);
+            match data.get(r) {
+                Some(sq) => Ok(PySubquotient::from_rust(sq.clone())),
+                None => Err(PyIndexError::new_err(format!(
+                    "page {r} is out of range [{}, {}) at bidegree {}",
+                    data.min_degree(),
+                    data.len(),
+                    b.0
+                ))),
+            }
+        }
+
+        /// Whether the page data at bidegree `b` is stale (needs recomputing via
+        /// `update`/`update_degree`). Raises `IndexError` if `b` is not defined.
+        pub fn invalid(&self, b: &Bidegree) -> PyResult<bool> {
+            self.require_defined(b)?;
+            Ok(self.0.invalid(b.0))
+        }
+
+        /// Recompute every invalid bidegree.
+        pub fn update(&mut self) {
+            self.0.update();
+        }
+
+        /// Recompute bidegree `b` and return, per page (starting at `MIN_R`),
+        /// the differentials to draw: a list (indexed by page) of lists (indexed
+        /// by source generator) of target coordinate lists. Raises `IndexError`
+        /// if `b` is not defined.
+        pub fn update_degree(&mut self, b: &Bidegree) -> PyResult<Vec<Vec<Vec<u32>>>> {
+            self.require_defined(b)?;
+            Ok(self.0.update_degree(b.0).into_iter().collect())
+        }
+
+        /// Whether the calculations at bidegree `b` are complete (every class on
+        /// the final page is known to be permanent). Raises `IndexError` if `b`
+        /// is not defined.
+        pub fn complete(&self, b: &Bidegree) -> PyResult<bool> {
+            self.require_defined(b)?;
+            Ok(self.0.complete(b.0))
+        }
+
+        /// Whether there is an inconsistent differential involving bidegree `b`.
+        /// Raises `IndexError` if `b` is not defined.
+        pub fn inconsistent(&self, b: &Bidegree) -> PyResult<bool> {
+            self.require_defined(b)?;
+            Ok(self.0.inconsistent(b.0))
+        }
+
+        /// Multiply the class `elem` by the product `product`. Returns the
+        /// resulting `BidegreeElement`, or `None` if the product is not yet
+        /// computed at `elem`'s bidegree (or the target bidegree is undefined).
+        ///
+        /// Raises `ValueError` on a prime mismatch or if the stored product
+        /// matrix is incompatible with the element/target dimensions (which
+        /// would otherwise panic inside `Matrix::apply`).
+        pub fn multiply(
+            &self,
+            elem: &BidegreeElement,
+            product: &Product,
+        ) -> PyResult<Option<BidegreeElement>> {
+            let elem_b = elem.0.degree();
+            check_same_prime(self.1.as_u32(), elem.0.vec().prime().as_u32())?;
+            let Some(matrix) = product.0.matrices.get(elem_b) else {
+                return Ok(None);
+            };
+            let target_b = elem_b + product.0.b;
+            let Some(target_dim) = self.0.get_dimension(target_b) else {
+                return Ok(None);
+            };
+            check_same_prime(self.1.as_u32(), matrix.prime().as_u32())?;
+            check_equal_len(matrix.rows(), elem.0.vec().len())?;
+            check_equal_len(matrix.columns(), target_dim)?;
+            Ok(self.0.multiply(&elem.0, &product.0).map(BidegreeElement))
+        }
+
+        /// Apply the Leibniz rule to propagate differentials. Starting from a
+        /// `d_r` differential on `elem` (use `r = 2**31 - 1` if `elem` is a
+        /// permanent class), multiply by `source_product` (with the
+        /// differential on the product given by `target_product`, or `None` if
+        /// the product is permanent). Returns `(r, class)` recording the new
+        /// differential, or `None` if no differential was added (trivial, or the
+        /// product data is not yet available).
+        ///
+        /// Guards: `elem`'s bidegree must be defined and the prime must match
+        /// (`ValueError`/`IndexError`). Any remaining upstream precondition
+        /// (e.g. an undefined `d_r` differential that the rule would need) is
+        /// contained with `catch_unwind` and surfaced as a `ValueError` rather
+        /// than crossing the FFI boundary as a panic.
+        #[pyo3(signature = (r, elem, source_product, target_product=None))]
+        pub fn leibniz(
+            &mut self,
+            r: i32,
+            elem: &BidegreeElement,
+            source_product: &Product,
+            target_product: Option<&Product>,
+        ) -> PyResult<Option<(i32, BidegreeElement)>> {
+            self.require_defined(&Bidegree(elem.0.degree()))?;
+            check_same_prime(self.1.as_u32(), elem.0.vec().prime().as_u32())?;
+
+            let target = target_product.map(|p| &p.0);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.0.leibniz(r, &elem.0, &source_product.0, target)
+            }))
+            .map_err(|_| {
+                PyValueError::new_err(
+                    "leibniz failed: the required differentials/page data are not available",
+                )
+            })?;
+            Ok(result.map(|(r, e)| (r, BidegreeElement(e))))
+        }
+
+        // NOTE: `write_to_graph` (the charting entry point) is intentionally
+        // deferred to the §6.3 task: it is generic over the unbound
+        // `charting::Backend` trait (`SvgBackend`/`TikzBackend`), which are not
+        // yet exposed, so there is no Python-visible argument to give it.
     }
 }

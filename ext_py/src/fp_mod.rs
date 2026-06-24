@@ -318,7 +318,16 @@ pub mod fp_py {
     }
 
     #[pyclass(name = "Subquotient")]
-    struct PySubquotient(RustSubquotient);
+    pub struct PySubquotient(RustSubquotient);
+
+    impl PySubquotient {
+        /// Wrap an owned upstream `Subquotient` into the bound pyclass. Exposed
+        /// `pub(crate)` so sibling binding modules (e.g. `sseq_py`) can return
+        /// subquotients they own (e.g. `Sseq.page_data`).
+        pub(crate) fn from_rust(subquotient: RustSubquotient) -> Self {
+            Self(subquotient)
+        }
+    }
 
     #[pyclass(name = "AffineSubspace")]
     struct PyAffineSubspace(RustAffineSubspace);

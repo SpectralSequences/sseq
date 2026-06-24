@@ -13,6 +13,7 @@ anyhow = "1.0"
 algebra = { path = "../ext/crates/algebra" }
 bivec = { path = "../ext/crates/bivec" }
 fp = { path = "../ext/crates/fp" }
+once = { path = "../ext/crates/once" }
 sseq = { path = "../ext/crates/sseq" }
 
 ext = { path = "../ext", features = ["logging"] }
