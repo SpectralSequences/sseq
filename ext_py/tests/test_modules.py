@@ -217,6 +217,87 @@ def test_freemodule_total_dimension_unbounded_raises():
         m.total_dimension()
 
 
+def test_freemodule_number_of_gens_in_degree_above_range_returns_zero():
+    # Fresh module: no generators added anywhere yet -> 0, never panics.
+    fresh = algebra.FreeModule(milnor(2), "F", 0)
+    assert fresh.number_of_gens_in_degree(0) == 0
+    assert fresh.number_of_gens_in_degree(5) == 0
+    assert fresh.number_of_gens_in_degree(-1) == 0
+    # After adding degree-0 generators, degrees above the populated range
+    # still read 0 rather than panicking.
+    m = make_free()
+    assert m.number_of_gens_in_degree(0) == 1
+    assert m.number_of_gens_in_degree(1) == 0
+    assert m.number_of_gens_in_degree(99) == 0
+
+
+def test_freemodule_generator_offset_out_of_range_raises():
+    m = make_free()
+    # gen_degree above the populated range raises IndexError, not panic.
+    with pytest.raises(IndexError):
+        m.generator_offset(4, 3, 0)
+    # gen_index out of range in a populated degree raises IndexError.
+    with pytest.raises(IndexError):
+        m.generator_offset(1, 0, 5)
+
+
+def test_freemodule_operation_generator_to_index_out_of_range_raises():
+    m = make_free()
+    with pytest.raises(IndexError):
+        m.operation_generator_to_index(0, 0, 3, 0)
+    with pytest.raises(IndexError):
+        m.operation_generator_to_index(0, 0, 0, 5)
+
+
+def test_freemodule_add_generators_consecutive_only():
+    m = algebra.FreeModule(milnor(2), "F", 0)
+    m.compute_basis(6)
+    # Consecutive happy path.
+    m.add_generators(0, 1)
+    m.add_generators(1, 1)
+    # Non-consecutive (gap) raises ValueError.
+    with pytest.raises(ValueError):
+        m.add_generators(3, 1)
+    # Duplicate degree raises ValueError.
+    with pytest.raises(ValueError):
+        m.add_generators(1, 1)
+    # extend_by_zero fills the gap, then the filled degree works.
+    m.extend_by_zero(3)
+    m.add_generators(4, 1)
+    assert m.number_of_gens_in_degree(4) == 1
+
+
+def test_freemodule_iter_gens_below_min_degree_empty():
+    m = algebra.FreeModule(milnor(2), "F", 0)
+    m.compute_basis(6)
+    m.add_generators(0, 1)
+    m.add_generators(1, 1)
+    # Below min_degree must be empty, not "all generators".
+    assert m.iter_gens(-1) == []
+    assert len(m.iter_gens(1)) == 2
+
+
+def test_fdmodule_set_action_out_of_range_output_degree_raises():
+    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    # op_degree 5 lands in output degree 5 (above max_degree 1); an empty
+    # output used to slip past the length check and panic.
+    with pytest.raises(ValueError):
+        m.set_action(5, 0, 0, 0, [])
+    # Valid set_action still works.
+    m.set_action(1, 0, 0, 0, [1])
+    assert list(m.action(1, 0, 0, 0)) == [1]
+
+
+def test_fdmodule_into_steenrod_module_is_snapshot():
+    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    sm = m.into_steenrod_module()
+    # Mutating the FDModule after boxing does not affect the boxed snapshot.
+    m.set_action(1, 0, 0, 0, [1])
+    res = fp.FpVector(2, sm.dimension(1))
+    sm.act_on_basis(res, 1, 1, 0, 0, 0)
+    assert res[0] == 0
+
+
 # --- invalid construction -------------------------------------------------
 
 
