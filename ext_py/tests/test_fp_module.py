@@ -9,15 +9,15 @@ def milnor(p=2):
 
 def a_mod_sq1(alg):
     """A/(Sq1) on one generator x0: x0 in degree 0, relation Sq1 x0 in degree 1."""
-    m = algebra.FPModule(alg, "A/(Sq1)", 0)
-    m.add_generators(0, ["x0"])
+    b = algebra.FPModuleBuilder(alg, "A/(Sq1)", 0)
+    b.add_generators(0, ["x0"])
     # Relations must start at min_degree; degree 0 has none.
-    m.add_relations(0, [])
+    b.add_relations(0, [])
     # Sq1 x0 lives in degree 1 where the generators are 1-dimensional.
     v = fp.FpVector(2, 1)
     v.set_entry(0, 1)
-    m.add_relations(1, [v])
-    return m
+    b.add_relations(1, [v])
+    return b.build()
 
 
 # --- FPModule construction / invariants -----------------------------------
@@ -71,16 +71,45 @@ def test_fp_module_into_steenrod_module_round_trip():
     assert boxed.dimension(2) == m.dimension(2)
 
 
-def test_fp_module_mutation_after_boxing_raises():
+def test_fp_module_is_immutable():
+    # The built FPModule is immutable: it exposes no mutators at all.
     alg = milnor(2)
     m = a_mod_sq1(alg)
-    boxed = m.into_steenrod_module()
-    # While a box shares the Arc, mutation raises (never panics). Degree 2 is
-    # the next pending relation degree, so this passes the degree check and
-    # hits the shared-Arc guard.
+    assert not hasattr(m, "add_generators")
+    assert not hasattr(m, "add_relations")
+    # And it cannot be constructed directly from Python (no __new__).
+    with pytest.raises(TypeError):
+        algebra.FPModule(alg, "M", 0)
+
+
+# --- FreeModule is query-only ----------------------------------------------
+
+
+def test_free_module_has_no_mutators():
+    alg = milnor(2)
+    f = algebra.FreeModule(alg, "F", 0)
+    assert not hasattr(f, "add_generators")
+    assert not hasattr(f, "extend_by_zero")
+    assert not hasattr(algebra.FreeModule, "add_generators")
+    assert not hasattr(algebra.FreeModule, "extend_by_zero")
+
+
+# --- FPModuleBuilder -------------------------------------------------------
+
+
+def test_fp_module_builder_build_and_mutation_after_build_raises():
+    alg = milnor(2)
+    b = algebra.FPModuleBuilder(alg, "M", 0)
+    assert b.prime() == 2
+    assert b.min_degree() == 0
+    b.add_generators(0, ["x0"])
+    m = b.build()
+    assert isinstance(m, algebra.FPModule)
+    # After build(), mutating the builder raises RuntimeError (never panics).
     with pytest.raises(RuntimeError):
-        m.add_relations(2, [])
-    del boxed
+        b.add_generators(1, ["y"])
+    with pytest.raises(RuntimeError):
+        b.add_relations(0, [])
 
 
 # --- invalid inputs --------------------------------------------------------
@@ -91,38 +120,38 @@ def test_fp_module_bad_prime_raises():
         algebra.SteenrodAlgebra.milnor(4)
 
 
-def test_fp_module_add_generators_non_consecutive_raises():
+def test_fp_module_builder_add_generators_non_consecutive_raises():
     alg = milnor(2)
-    m = algebra.FPModule(alg, "M", 0)
+    b = algebra.FPModuleBuilder(alg, "M", 0)
     # First expected degree is 0; skipping to 2 raises rather than panics.
     with pytest.raises(ValueError):
-        m.add_generators(2, ["x"])
-    m.add_generators(0, ["x0"])
+        b.add_generators(2, ["x"])
+    b.add_generators(0, ["x0"])
     # Re-adding degree 0 raises.
     with pytest.raises(ValueError):
-        m.add_generators(0, ["x0b"])
+        b.add_generators(0, ["x0b"])
     # Below min_degree raises.
     with pytest.raises(ValueError):
-        m.add_generators(-1, [])
+        b.add_generators(-1, [])
 
 
-def test_fp_module_add_relations_bad_input_raises():
+def test_fp_module_builder_add_relations_bad_input_raises():
     alg = milnor(2)
-    m = algebra.FPModule(alg, "M", 0)
-    m.add_generators(0, ["x0"])
+    b = algebra.FPModuleBuilder(alg, "M", 0)
+    b.add_generators(0, ["x0"])
     # Relations must start at min_degree 0; degree 1 first raises.
     v = fp.FpVector(2, 1)
     with pytest.raises(ValueError):
-        m.add_relations(1, [v])
-    m.add_relations(0, [])
+        b.add_relations(1, [v])
+    b.add_relations(0, [])
     # Wrong length in degree 1 (gen dim is 1) raises.
     bad_len = fp.FpVector(2, 3)
     with pytest.raises(ValueError):
-        m.add_relations(1, [bad_len])
+        b.add_relations(1, [bad_len])
     # Wrong prime raises.
     bad_p = fp.FpVector(3, 1)
     with pytest.raises(ValueError):
-        m.add_relations(1, [bad_p])
+        b.add_relations(1, [bad_p])
 
 
 # --- from_json -------------------------------------------------------------
@@ -140,12 +169,17 @@ A_MOD_SQ1_SQ2 = {
 def test_fp_module_from_json():
     alg = milnor(2)
     m = algebra.FPModule.from_json(alg, A_MOD_SQ1_SQ2)
+    assert isinstance(m, algebra.FPModule)
     assert m.prime() == 2
     assert m.min_degree() == 0
     assert m.dimension(0) == 1
     # Both Sq1 x0 and Sq2 x0 are killed.
     assert m.dimension(1) == 0
     assert m.dimension(2) == 0
+    # The result is immutable: the prior HIGH desync path (calling
+    # add_relations on a from_json result) is gone by construction.
+    assert not hasattr(m, "add_relations")
+    assert not hasattr(m, "add_generators")
     # Round-trips into a SteenrodModule.
     boxed = m.into_steenrod_module()
     assert boxed.dimension(0) == 1

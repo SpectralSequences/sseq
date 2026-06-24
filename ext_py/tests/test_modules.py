@@ -144,10 +144,15 @@ def test_steenrod_module_from_json_bad_spec_raises():
 # --- FreeModule -----------------------------------------------------------
 
 
-def make_free():
-    m = algebra.FreeModule(milnor(2), "F", 0)
+def make_free(gen_degrees=(0,)):
+    # `FreeModule` is query-only (no Python mutators). Obtain a populated
+    # FreeModule via the remaining path: build an FPModule whose generators
+    # live in the requested degrees, then take its `generators()` FreeModule.
+    b = algebra.FPModuleBuilder(milnor(2), "F", 0)
+    for d in gen_degrees:
+        b.add_generators(d, [f"x{d}"])
+    m = b.build().generators()
     m.compute_basis(6)
-    m.add_generators(0, 1)
     return m
 
 
@@ -249,29 +254,18 @@ def test_freemodule_operation_generator_to_index_out_of_range_raises():
         m.operation_generator_to_index(0, 0, 0, 5)
 
 
-def test_freemodule_add_generators_consecutive_only():
+def test_freemodule_has_no_python_mutators():
+    # FreeModule is query-only: the consecutiveness guard that used to live on
+    # FreeModule.add_generators (former test_freemodule_add_generators_
+    # consecutive_only) now lives on FPModuleBuilder.add_generators, tested in
+    # test_fp_module.py. Confirm the mutators are gone here.
     m = algebra.FreeModule(milnor(2), "F", 0)
-    m.compute_basis(6)
-    # Consecutive happy path.
-    m.add_generators(0, 1)
-    m.add_generators(1, 1)
-    # Non-consecutive (gap) raises ValueError.
-    with pytest.raises(ValueError):
-        m.add_generators(3, 1)
-    # Duplicate degree raises ValueError.
-    with pytest.raises(ValueError):
-        m.add_generators(1, 1)
-    # extend_by_zero fills the gap, then the filled degree works.
-    m.extend_by_zero(3)
-    m.add_generators(4, 1)
-    assert m.number_of_gens_in_degree(4) == 1
+    assert not hasattr(m, "add_generators")
+    assert not hasattr(m, "extend_by_zero")
 
 
 def test_freemodule_iter_gens_below_min_degree_empty():
-    m = algebra.FreeModule(milnor(2), "F", 0)
-    m.compute_basis(6)
-    m.add_generators(0, 1)
-    m.add_generators(1, 1)
+    m = make_free(gen_degrees=(0, 1))
     # Below min_degree must be empty, not "all generators".
     assert m.iter_gens(-1) == []
     assert len(m.iter_gens(1)) == 2
