@@ -9,6 +9,7 @@ name = "ext_py"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0"
 algebra = { path = "../ext/crates/algebra" }
 bivec = { path = "../ext/crates/bivec" }
 fp = { path = "../ext/crates/fp" }
