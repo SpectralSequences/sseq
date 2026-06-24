@@ -2913,6 +2913,14 @@ pub mod algebra_py {
             &*self.0
         }
 
+        /// Wrap an existing `Arc<FreeModule<SteenrodAlgebra>>`, sharing the
+        /// `Arc` rather than deep-copying. Used by `ext_py::Resolution::module`
+        /// to expose a resolution's free modules (which live behind an `Arc`)
+        /// without cloning their generator tables.
+        pub(crate) fn from_arc(module: Arc<FreeModuleInner>) -> Self {
+            FreeModule(module)
+        }
+
         /// The number of generators in `degree`, returning 0 (never panicking)
         /// for degrees outside the populated `num_gens` range. Upstream
         /// `number_of_gens_in_degree` only guards `degree < min_degree` and then

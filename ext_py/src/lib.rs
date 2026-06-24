@@ -123,8 +123,52 @@ mod ext_py {
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
+    impl AnyResolution {
+        /// Clone the inner `Arc` (a cheap refcount bump), producing a second
+        /// handle to the *same* resolution. Used to hand an owned
+        /// `AnyResolution` to a `ResolutionStemIterator` so the iterator can
+        /// live in a `#[pyclass]` without borrowing the `Resolution`.
+        fn clone_ref(&self) -> AnyResolution {
+            match self {
+                AnyResolution::Nassau(r) => AnyResolution::Nassau(Arc::clone(r)),
+                AnyResolution::Standard(r) => AnyResolution::Standard(Arc::clone(r)),
+            }
+        }
+    }
+
     #[pyclass(frozen)]
     pub struct Resolution(AnyResolution);
+
+    impl Resolution {
+        /// Number of generators of the resolution at bidegree `b`, returning 0
+        /// (never panicking) for any bidegree outside the computed range.
+        ///
+        /// Upstream `FreeChainComplex::number_of_gens_in_bidegree` is
+        /// `self.module(b.s()).number_of_gens_in_degree(b.t())`, and BOTH
+        /// indexing steps panic out of range: `module(s)` indexes the resolution's
+        /// `modules` `OnceBiVec` (panicking for `s >= next_homological_degree()`),
+        /// and `number_of_gens_in_degree(t)` indexes the module's `num_gens`
+        /// `OnceBiVec` (panicking for `t > max_computed_degree()`). This mirrors
+        /// the `algebra_py.FreeModule::num_gens_safe` guard: clamp both axes to
+        /// the populated range and read 0 outside it.
+        fn num_gens_at(&self, b: RsBidegree) -> usize {
+            if b.s() < 0 || b.t() < 0 {
+                return 0;
+            }
+            dispatch!(&self.0, r => {
+                if b.s() >= r.next_homological_degree() {
+                    0
+                } else {
+                    let m = r.module(b.s());
+                    if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+                        0
+                    } else {
+                        m.number_of_gens_in_degree(b.t())
+                    }
+                }
+            })
+        }
+    }
 
     #[pymethods]
     impl Resolution {
@@ -190,6 +234,373 @@ mod ext_py {
                      different complex type that the ChainComplex pyclass (CCC) cannot represent. \
                      Construct the Resolution with algorithm='standard'.",
                 )),
+            }
+        }
+
+        /// Resolve through the given target bidegree (fixed `t`, as opposed to
+        /// `compute_through_stem`'s fixed stem). Validates `s >= 0`/`t >= 0`,
+        /// raising `ValueError` rather than risking an internal panic (cf.
+        /// `compute_through_stem`).
+        pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            dispatch!(&self.0, r => r.compute_through_bidegree(b));
+            Ok(())
+        }
+
+        /// As [`compute_through_bidegree`], but invoke `callback(bidegree)` once
+        /// for each *newly* computed bidegree (matching the upstream
+        /// `compute_through_bidegree_with_callback`, whose `cb: FnMut(Bidegree)`
+        /// fires only when `new` is true). The callback receives an
+        /// `sseq_py.Bidegree`.
+        ///
+        /// **Standard backend only.** The callback variants live on
+        /// `ext::resolution::Resolution`; the Nassau algorithm exposes no
+        /// per-bidegree callback hook (its `ChainComplex::compute_through_bidegree`
+        /// is a plain double loop). A Nassau-backed resolution raises `ValueError`;
+        /// use `compute_through_bidegree` (no callback) instead, or construct with
+        /// `algorithm='standard'`.
+        ///
+        /// If the callback raises, the exception is captured and re-raised after
+        /// the computation finishes (the in-flight upstream iteration cannot be
+        /// unwound across the FFI boundary, so we record the first error, ignore
+        /// later callbacks, and propagate it once control returns).
+        pub fn compute_through_bidegree_with_callback(
+            &self,
+            py: Python<'_>,
+            max: sseq_py::Bidegree,
+            callback: Py<PyAny>,
+        ) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            let r = match &self.0 {
+                AnyResolution::Standard(r) => r,
+                AnyResolution::Nassau(_) => {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "compute_through_bidegree_with_callback is only available on the standard \
+                         backend; the Nassau algorithm has no per-bidegree callback hook. Use \
+                         compute_through_bidegree (no callback) or algorithm='standard'.",
+                    ));
+                }
+            };
+            let mut err: Option<PyErr> = None;
+            r.compute_through_bidegree_with_callback(b, |bd| {
+                if err.is_some() {
+                    return;
+                }
+                if let Err(e) = callback.call1(py, (sseq_py::Bidegree(bd),)) {
+                    err = Some(e);
+                }
+            });
+            match err {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+
+        /// As [`compute_through_stem`], but invoke `callback(bidegree)` once for
+        /// each newly computed bidegree. See
+        /// [`compute_through_bidegree_with_callback`] for the callback exception
+        /// semantics and the standard-backend-only restriction.
+        pub fn compute_through_stem_with_callback(
+            &self,
+            py: Python<'_>,
+            max: sseq_py::Bidegree,
+            callback: Py<PyAny>,
+        ) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            let r = match &self.0 {
+                AnyResolution::Standard(r) => r,
+                AnyResolution::Nassau(_) => {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "compute_through_stem_with_callback is only available on the standard \
+                         backend; the Nassau algorithm has no per-bidegree callback hook. Use \
+                         compute_through_stem (no callback) or algorithm='standard'.",
+                    ));
+                }
+            };
+            let mut err: Option<PyErr> = None;
+            r.compute_through_stem_with_callback(b, |bd| {
+                if err.is_some() {
+                    return;
+                }
+                if let Err(e) = callback.call1(py, (sseq_py::Bidegree(bd),)) {
+                    err = Some(e);
+                }
+            });
+            match err {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            dispatch!(&self.0, r => r.prime().as_u32())
+        }
+
+        /// The minimum internal degree of the resolution's modules.
+        pub fn min_degree(&self) -> i32 {
+            dispatch!(&self.0, r => r.min_degree())
+        }
+
+        /// The first `s` for which `module(s)` is not yet defined (i.e. the
+        /// number of homological degrees resolved so far).
+        pub fn next_homological_degree(&self) -> i32 {
+            dispatch!(&self.0, r => r.next_homological_degree())
+        }
+
+        /// Whether the resolution has been computed at bidegree `b`. Negative
+        /// `s`/`t` is rejected with a `ValueError` rather than wrapping to a huge
+        /// `usize`.
+        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(dispatch!(&self.0, r => r.has_computed_bidegree(b.0)))
+        }
+
+        /// The number of generators of the resolution at bidegree `b` (the
+        /// dimension of `Ext` there). Returns 0 for any uncomputed or
+        /// out-of-range bidegree; raises `ValueError` for negative `s`/`t`.
+        ///
+        /// Both backends' modules' generator tables (`OnceBiVec`s) panic when
+        /// indexed out of range, so this is guarded; see `num_gens_at`.
+        pub fn number_of_gens_in_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(self.num_gens_at(b.0))
+        }
+
+        /// The resolution's `s`-th free module, as a bound `algebra_py.FreeModule`
+        /// sharing its `Arc`.
+        ///
+        /// Only the standard backend's modules are over the `SteenrodAlgebra`
+        /// union the `FreeModule` pyclass wraps. Nassau's modules are over the
+        /// concrete `MilnorAlgebra` (a distinct, non-interconvertible type
+        /// parameter), so the pyclass cannot represent them; `module()` rejects
+        /// the Nassau backend with a `ValueError`, matching `chain_complex()`.
+        ///
+        /// Raises `ValueError` for negative `s` or `s` beyond the resolved range
+        /// (`>= next_homological_degree()`); indexing the modules `OnceBiVec`
+        /// there would otherwise panic.
+        pub fn module(&self, s: i32) -> PyResult<algebra_py::FreeModule> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            match &self.0 {
+                AnyResolution::Standard(r) => {
+                    if s >= r.next_homological_degree() {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "module index s = {s} is beyond the resolved range (next homological \
+                             degree is {}); compute_through_bidegree / compute_through_stem first",
+                            r.next_homological_degree()
+                        )));
+                    }
+                    Ok(algebra_py::FreeModule::from_arc(r.module(s)))
+                }
+                AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
+                    "module() is only available on the standard backend; Nassau resolves over the \
+                     concrete MilnorAlgebra, whose FreeModule the algebra_py.FreeModule pyclass \
+                     (over the SteenrodAlgebra union) cannot represent. Construct the Resolution \
+                     with algorithm='standard'.",
+                )),
+            }
+        }
+
+        /// The full filtration-one product (e.g. `h_0`, `h_1`, ...) given by the
+        /// algebra operation of degree `op_deg` and index `op_idx`, as a bound
+        /// `sseq_py.Product` over the range resolved so far.
+        ///
+        /// Upstream iterates only over `has_computed_bidegree` bidegrees, so it is
+        /// panic-free over the computed range. `op_deg`/`op_idx` must index a
+        /// valid algebra operation (e.g. `op_deg = 2^i`, `op_idx = 0` for `h_i`
+        /// at the prime 2); `op_deg` is required to be non-negative.
+        pub fn filtration_one_products(
+            &self,
+            op_deg: i32,
+            op_idx: usize,
+        ) -> PyResult<sseq_py::Product> {
+            if op_deg < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "op_deg must be non-negative",
+                ));
+            }
+            let product = dispatch!(&self.0, r => r.filtration_one_products(op_deg, op_idx));
+            Ok(sseq_py::Product(product))
+        }
+
+        /// The single filtration-one product matrix out of `source`, as a list of
+        /// rows (one per source generator) of `u32` entries, or `None` if the
+        /// target bidegree `source + (1, op_deg)` has not been computed.
+        ///
+        /// Mirrors upstream `filtration_one_product`, which returns the nested
+        /// `Vec<Vec<u32>>` directly and is guarded by its own
+        /// `has_computed_bidegree` check. Raises `ValueError` for negative
+        /// `source` coordinates or negative `op_deg`.
+        pub fn filtration_one_product(
+            &self,
+            op_deg: i32,
+            op_idx: usize,
+            source: sseq_py::Bidegree,
+        ) -> PyResult<Option<Vec<Vec<u32>>>> {
+            if op_deg < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "op_deg must be non-negative",
+                ));
+            }
+            if source.0.s() < 0 || source.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid source bidegree {}: require s >= 0 and t >= 0",
+                    source.0
+                )));
+            }
+            Ok(dispatch!(&self.0, r => r.filtration_one_product(op_deg, op_idx, source.0)))
+        }
+
+        /// A string representation of `d(g)`, the differential applied to the
+        /// generator `g = (s, t, idx)`. Raises `ValueError` if `g` lies outside
+        /// the computed range or `idx` exceeds the number of generators there
+        /// (upstream would otherwise panic indexing the differential's output
+        /// table).
+        pub fn boundary_string(&self, g: sseq_py::BidegreeGenerator) -> PyResult<String> {
+            let gen = g.0;
+            if gen.s() < 0 || gen.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid generator {gen}: require s >= 0 and t >= 0"
+                )));
+            }
+            let ngens = self.num_gens_at(gen.degree());
+            if gen.idx() >= ngens {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "generator index {} out of range at bidegree {} ({ngens} generators, or the \
+                     bidegree is uncomputed)",
+                    gen.idx(),
+                    gen.degree()
+                )));
+            }
+            Ok(dispatch!(&self.0, r => r.boundary_string(gen)))
+        }
+
+        /// Iterate over the defined bidegrees in increasing order of stem. The
+        /// iterator yields `sseq_py.Bidegree`s and holds its own `Arc` handle to
+        /// the resolution (so the `Resolution` may be dropped while it is alive).
+        ///
+        /// The iteration is bounded by the resolved range (each module's
+        /// `max_computed_degree` and `next_homological_degree`), so unlike
+        /// `ChainComplex.iter_stem` it terminates; it is still exposed lazily.
+        pub fn iter_stem(&self) -> ResolutionStemIterator {
+            ResolutionStemIterator::new(self.0.clone_ref(), false)
+        }
+
+        /// As [`iter_stem`], but yield only bidegrees with a nonzero number of
+        /// generators (the nonzero entries of the `Ext` chart).
+        pub fn iter_nonzero_stem(&self) -> ResolutionStemIterator {
+            ResolutionStemIterator::new(self.0.clone_ref(), true)
+        }
+
+        /// The resolution's name (used in tracing/logging). Both backends store a
+        /// plain `String` name.
+        ///
+        /// The companion `set_name` is intentionally **not** bound: it takes
+        /// `&mut self` upstream, but the `Resolution` pyclass is `frozen` and
+        /// wraps the resolution in a (shareable) `Arc`, so no exclusive `&mut`
+        /// reference is obtainable to mutate the name in place.
+        pub fn name(&self) -> String {
+            dispatch!(&self.0, r => r.name().to_string())
+        }
+    }
+
+    /// The lazy iterator returned by [`Resolution::iter_stem`] /
+    /// [`Resolution::iter_nonzero_stem`]. Holds an owned `AnyResolution` (a
+    /// cloned `Arc`) and dispatches over both backends, re-implementing the
+    /// upstream `chain_complex::StemIterator` walk so it can live in a
+    /// `#[pyclass]` without borrowing the resolution. When `nonzero` is set it
+    /// additionally skips bidegrees with no generators.
+    #[pyclass]
+    pub struct ResolutionStemIterator {
+        res: AnyResolution,
+        current: RsBidegree,
+        max_s: i32,
+        nonzero: bool,
+    }
+
+    impl ResolutionStemIterator {
+        fn new(res: AnyResolution, nonzero: bool) -> Self {
+            let min_degree = dispatch!(&res, r => r.min_degree());
+            let max_s = dispatch!(&res, r => r.next_homological_degree());
+            ResolutionStemIterator {
+                res,
+                current: RsBidegree::n_s(min_degree, 0),
+                max_s,
+                nonzero,
+            }
+        }
+
+        /// The raw (unfiltered) stem walk, mirroring upstream `StemIterator`.
+        fn raw_next(&mut self) -> Option<RsBidegree> {
+            loop {
+                if self.max_s == 0 {
+                    return None;
+                }
+                let cur = self.current;
+                if cur.s() == self.max_s {
+                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                    continue;
+                }
+                let max_deg = dispatch!(&self.res, r => r.module(cur.s()).max_computed_degree());
+                if cur.t() > max_deg {
+                    if cur.s() == 0 {
+                        return None;
+                    } else {
+                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                        continue;
+                    }
+                }
+                self.current = cur + RsBidegree::n_s(0, 1);
+                return Some(cur);
+            }
+        }
+    }
+
+    #[pymethods]
+    impl ResolutionStemIterator {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
+            loop {
+                let b = self.raw_next()?;
+                if !self.nonzero {
+                    return Some(sseq_py::Bidegree(b));
+                }
+                let n = dispatch!(&self.res, r => r.number_of_gens_in_bidegree(b));
+                if n > 0 {
+                    return Some(sseq_py::Bidegree(b));
+                }
             }
         }
     }

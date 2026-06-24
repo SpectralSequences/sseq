@@ -17,6 +17,8 @@ Ranges are kept small (`Bidegree.n_s(8, 4)`) so the suite stays fast (~0.05s tot
 on the dev machine).
 """
 
+from itertools import islice
+
 import pytest
 
 import ext
@@ -101,3 +103,141 @@ def test_secondary_over_nassau_backend_raises_valueerror():
     r = ext.Resolution("S_2", "nassau")
     with pytest.raises(ValueError):
         ext.SecondaryResolution(r)
+
+
+# --- FreeChainComplex method set (§7.2) ------------------------------------
+#
+# Known low-dimensional Ext of the sphere S_2 over the mod-2 Steenrod algebra,
+# in Adams indexing (s, t) [stem n = t - s]. These are standard, textbook,
+# algorithm-independent values:
+#   (0,0) = 1 (the unit), h_0 = (1,1), h_1 = (1,2), h_2 = (1,4),
+#   h_0^2 = (2,2), h_0^3 = (3,3); the gaps (1,3) = 0.
+# They are cross-checked below against `graded_dimension_string`/the other
+# backend, so they are validated rather than merely asserted.
+KNOWN_NONZERO = {(0, 0): 1, (1, 1): 1, (1, 2): 1, (1, 4): 1, (2, 2): 1, (3, 3): 1}
+KNOWN_ZERO = [(1, 3), (2, 1)]
+
+
+@pytest.mark.parametrize("algorithm", ["standard", "nassau"])
+def test_compute_through_bidegree_and_number_of_gens(algorithm):
+    r = ext.Resolution("S_2", algorithm)
+    r.compute_through_bidegree(sseq.Bidegree.s_t(4, 12))
+    for (s, t), n in KNOWN_NONZERO.items():
+        assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(s, t)) == n
+    for s, t in KNOWN_ZERO:
+        assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(s, t)) == 0
+
+
+def test_known_values_agree_across_backends():
+    # The two algorithms resolve the same object; their Ext dimensions over a
+    # shared range must agree, which validates the hardcoded KNOWN_* tables.
+    a = resolve("standard")
+    b = resolve("nassau")
+    for s, t in list(KNOWN_NONZERO) + KNOWN_ZERO:
+        bd = sseq.Bidegree.s_t(s, t)
+        assert a.number_of_gens_in_bidegree(bd) == b.number_of_gens_in_bidegree(bd)
+
+
+def test_number_of_gens_guards():
+    r = resolve("standard")
+    # Negative s/t -> clean ValueError, never a panic.
+    with pytest.raises(ValueError):
+        r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(-1, 0))
+    with pytest.raises(ValueError):
+        r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(0, -1))
+    # Far outside the computed range -> 0, never a panic.
+    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(100, 200)) == 0
+
+
+def test_module_standard_shares_arc():
+    r = resolve("standard")
+    m0 = r.module(0)
+    # C_0 is free on one generator in degree 0.
+    assert m0.dimension(0) == 1
+    assert m0.prime() == 2
+    # Negative / out-of-range s -> ValueError.
+    with pytest.raises(ValueError):
+        r.module(-1)
+    with pytest.raises(ValueError):
+        r.module(r.next_homological_degree())
+
+
+def test_module_nassau_unsupported():
+    # Nassau resolves over the concrete MilnorAlgebra; the FreeModule pyclass
+    # (over the SteenrodAlgebra union) cannot represent its modules.
+    r = resolve("nassau")
+    with pytest.raises(ValueError):
+        r.module(0)
+
+
+@pytest.mark.parametrize("algorithm", ["standard", "nassau"])
+def test_iter_nonzero_stem(algorithm):
+    r = resolve(algorithm)
+    # The iterator is bounded but exposed lazily; slice it with islice.
+    seen = [(b.n, b.s) for b in islice(r.iter_nonzero_stem(), 8)]
+    # Every yielded bidegree is nonzero.
+    for n, s in seen:
+        assert r.number_of_gens_in_bidegree(sseq.Bidegree.n_s(n, s)) > 0
+    # The unit and the start of the h_0-tower are present.
+    assert (0, 0) in seen
+    assert (0, 1) in seen
+
+
+def test_iter_stem_yields_bidegrees():
+    r = resolve("standard")
+    first = next(iter(r.iter_stem()))
+    assert isinstance(first, sseq.Bidegree)
+
+
+def test_filtration_one_products_h0():
+    r = resolve("standard")
+    # h_0 is the filtration-one product of the degree-1 operation Sq^1.
+    prod = r.filtration_one_products(1, 0)
+    assert prod.b.s == 1
+    assert prod.b.n == 0
+    # The product matrix out of the unit (0,0) is [[1]] (h_0 hits h_0).
+    m = r.filtration_one_product(1, 0, sseq.Bidegree.s_t(0, 0))
+    assert m == [[1]]
+    with pytest.raises(ValueError):
+        r.filtration_one_products(-1, 0)
+
+
+def test_boundary_string_guards():
+    r = resolve("standard")
+    g = sseq.BidegreeGenerator.s_t(0, 0, 0)
+    assert isinstance(r.boundary_string(g), str)
+    # idx beyond the generators at (0,0) -> ValueError.
+    with pytest.raises(ValueError):
+        r.boundary_string(sseq.BidegreeGenerator.s_t(0, 0, 5))
+
+
+def test_callback_records_bidegrees():
+    r = ext.Resolution("S_2", "standard")
+    visited = []
+    r.compute_through_bidegree_with_callback(sseq.Bidegree.s_t(3, 6), visited.append)
+    assert len(visited) > 0
+    assert all(isinstance(b, sseq.Bidegree) for b in visited)
+
+
+def test_callback_exception_propagates():
+    r = ext.Resolution("S_2", "standard")
+
+    def boom(b):
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError):
+        r.compute_through_stem_with_callback(sseq.Bidegree.n_s(4, 4), boom)
+
+
+def test_callback_unsupported_on_nassau():
+    r = ext.Resolution("S_2", "nassau")
+    with pytest.raises(ValueError):
+        r.compute_through_bidegree_with_callback(sseq.Bidegree.s_t(2, 2), lambda b: None)
+
+
+def test_name_is_method_returning_str():
+    # `name` is bound as a method (not a getter); `set_name` is intentionally
+    # not bound (frozen, Arc-shared resolution has no exclusive &mut).
+    r = resolve("standard")
+    assert isinstance(r.name(), str)
+    assert not hasattr(r, "set_name")
