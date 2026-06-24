@@ -168,6 +168,7 @@
 #![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 pub mod chain_complex;
+pub mod ext_algebra;
 pub mod resolution;
 pub mod resolution_homomorphism;
 pub mod save;
