@@ -4382,6 +4382,38 @@ pub mod algebra_py {
             SteenrodModule((*self.0.target()).clone())
         }
 
+        /// Build another `HomModule` `Hom(new_source, X)` over the *same* target
+        /// module `X` as this one, sharing `X`'s exact `Arc` storage (not just an
+        /// equal module).
+        ///
+        /// This is needed to build a compatible `(source, target)` pair for
+        /// `HomPullback`: its upstream constructor asserts the two Hom modules
+        /// share the identical `X` `Arc` (`Arc::ptr_eq`). Because the dynamic
+        /// monomorphisation stores `X` behind a *per-instance* outer `Arc`, two
+        /// independent `HomModule(f, X)` constructions each wrap `X` afresh and
+        /// would fail that identity check; building the second Hom module with
+        /// `with_source` reuses the first's outer `Arc` so the check passes.
+        ///
+        /// `new_source` must be over the same algebra as `X` (checked by prime
+        /// and `Arc` identity, like `new`).
+        pub fn with_source(&self, new_source: PyRef<'_, FreeModule>) -> PyResult<HomModule> {
+            let source_arc = Arc::clone(&new_source.0);
+            let source_alg = source_arc.algebra();
+            let x = self.0.target();
+            let target_alg = x.algebra();
+            checked_same_prime(source_alg.prime().as_u32(), target_alg.prime().as_u32())?;
+            if !Arc::ptr_eq(&source_alg, &target_alg) {
+                return Err(PyValueError::new_err(
+                    "Hom source and target must be built over the same algebra",
+                ));
+            }
+            // `X` was already checked bounded above when `self` was built.
+            Ok(HomModule(Arc::new(HomModuleInner::new(
+                source_arc,
+                Arc::clone(&x),
+            ))))
+        }
+
         pub fn __repr__(&self) -> String {
             format!("HomModule({})", self.0)
         }
@@ -7659,6 +7691,398 @@ pub mod algebra_py {
                 self.0.degree_shift(),
                 self.0.min_degree(),
                 self.0.prime().as_u32()
+            )
+        }
+    }
+
+    /// The induced pullback map `Hom(B, X) -> Hom(A, X)` of a free → free map
+    /// `map: A -> B`, where `A`, `B` are `FreeModule`s and `X` is a (boxed)
+    /// `SteenrodModule`. Its `source` is `Hom(B, X)` and its `target` is
+    /// `Hom(A, X)`, both the bound `HomModule` pyclass (sharing their `Arc`-held
+    /// state). The `map` is the bound `FreeModuleHomomorphismToFree`.
+    ///
+    /// `HomModule`'s algebra is the ground `Field` (it is *not* a
+    /// `SteenrodModule`), so the binding drives basis computation through
+    /// `HomModule::ensure` — which extends the underlying source's *Steenrod*
+    /// algebra and is the same machinery the `HomModule` pyclass uses.
+    ///
+    /// Construction enforces the three upstream `assert!`s as `ValueError`s (not
+    /// panics): `source.source() == map.target()`, `target.source() ==
+    /// map.source()` and `source.target() == target.target()` (all compared by
+    /// `Arc::ptr_eq` on the underlying `FreeModule`/`SteenrodModule`).
+    ///
+    /// Upstream `HomPullback` overrides `apply_to_basis_element`,
+    /// `compute_auxiliary_data_through_degree`, `kernel`, `image`,
+    /// `quasi_inverse`, `source`, `target`, `degree_shift` and `min_degree`; the
+    /// remaining `ModuleHomomorphism` surface (`apply`, `get_matrix`/
+    /// `get_partial_matrix`, `auxiliary_data`, `apply_quasi_inverse`) uses the
+    /// trait defaults. Unlike `QuotientHomomorphism`, the auxiliary data is
+    /// genuinely computed and stored (`kernel`/`image`/`quasi_inverse` return
+    /// real subspaces once `compute_auxiliary_data_through_degree` runs).
+    ///
+    /// Every degree-indexed access is pre-checked: an uncomputed/out-of-range
+    /// degree reads as dimension 0 (yielding a zero matrix / skipped apply), an
+    /// out-of-range index, prime/length mismatch or aliasing raises
+    /// `IndexError`/`ValueError`/`RuntimeError`, and a `map` whose outputs are
+    /// not defined far enough raises `ValueError` rather than panicking. The
+    /// pyclass keeps an `Arc` clone of the `map` so these guards can inspect its
+    /// outputs (the upstream `map` field is private).
+    #[pyclass(name = "HomPullback")]
+    pub struct HomPullback {
+        inner: HomPullbackInner,
+        map: Arc<FreeModuleHomToFreeInner>,
+    }
+
+    impl HomPullback {
+        /// The source `Hom(B, X)` module as the bound `HomModule` pyclass
+        /// (sharing the `Arc`).
+        fn src_hom(&self) -> HomModule {
+            HomModule(self.inner.source())
+        }
+
+        /// The target `Hom(A, X)` module as the bound `HomModule` pyclass.
+        fn tgt_hom(&self) -> HomModule {
+            HomModule(self.inner.target())
+        }
+
+        /// Dimension of the source `HomModule` in `degree` (guarded; reuses
+        /// `HomModule::dimension`, which short-circuits to 0 for an
+        /// out-of-range / uncomputable degree and never panics).
+        fn source_dim(&self, degree: i32) -> usize {
+            self.src_hom().dimension(degree)
+        }
+
+        /// Dimension of the target `HomModule` in `degree` (guarded).
+        fn target_dim(&self, degree: i32) -> usize {
+            self.tgt_hom().dimension(degree)
+        }
+
+        /// `input_degree - degree_shift`, raising `ValueError` on overflow.
+        /// (`HomPullback::degree_shift() == -map.degree_shift()`, so the output
+        /// degree is `input_degree + map.degree_shift()`.)
+        fn output_degree(&self, input_degree: i32) -> PyResult<i32> {
+            input_degree
+                .checked_sub(self.inner.degree_shift())
+                .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))
+        }
+
+        /// Compute every basis (both `HomModule`s, and their underlying Steenrod
+        /// algebra) the upstream `apply_to_basis_element` touches at input degree
+        /// `fn_degree`, and verify the `map`'s outputs cover every target
+        /// free-module generator it reads. Returns `Ok` once it is safe to apply
+        /// the pullback to *any* basis element of `fn_degree`.
+        ///
+        /// Upstream iterates `map.source()`'s generators up to `max_degree =
+        /// fn_degree + map.degree_shift() + X.max_degree() = output_degree +
+        /// X.max_degree()`, calling `map.output(..)` on each, which panics if the
+        /// outputs are not yet defined there; we replicate
+        /// `FreeModuleHomomorphism::check_outputs_cover` against the `map`.
+        fn ensure_apply(&self, fn_degree: i32, output_degree: i32) -> PyResult<()> {
+            // Computing the source HomModule through `fn_degree` and the target
+            // HomModule through `output_degree` also computes (via
+            // `HomModule::compute_basis`) the underlying free modules through the
+            // degrees upstream reads, plus the shared module `X`.
+            self.src_hom().ensure(fn_degree);
+            self.tgt_hom().ensure(output_degree);
+            let tmax = self.inner.source().target().max_degree().ok_or_else(|| {
+                PyValueError::new_err("the common module X must be bounded above")
+            })?;
+            let max_degree = output_degree
+                .checked_add(tmax)
+                .ok_or_else(|| PyValueError::new_err("degree overflows i32"))?;
+            let a = self.map.source();
+            let lo = self.map.next_degree().max(a.min_degree());
+            let hi = max_degree.min(a.max_computed_degree());
+            for d in lo..=hi {
+                if a.number_of_gens_in_degree(d) > 0 {
+                    return Err(PyValueError::new_err(format!(
+                        "the pullback map's outputs are not defined on its source generators in \
+                         degree {d}; extend the map (add_generators_from_rows / extend_by_zero) up \
+                         to degree {max_degree} first"
+                    )));
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl HomPullback {
+        /// Build the pullback `source = Hom(B, X) -> target = Hom(A, X)` of the
+        /// free → free `map: A -> B`. The three upstream identities are checked
+        /// by `Arc::ptr_eq` and raise `ValueError` on mismatch:
+        ///   * `source.source()` (the free module `B`) `== map.target()`,
+        ///   * `target.source()` (the free module `A`) `== map.source()`,
+        ///   * `source.target() == target.target()` (the common module `X`).
+        #[new]
+        pub fn new(
+            source: PyRef<'_, HomModule>,
+            target: PyRef<'_, HomModule>,
+            map: PyRef<'_, FreeModuleHomomorphismToFree>,
+        ) -> PyResult<Self> {
+            let map_arc = Arc::clone(&map.0);
+            if !Arc::ptr_eq(&source.0.source(), &map_arc.target()) {
+                return Err(PyValueError::new_err(
+                    "source.source() must equal map.target() (source must be Hom(B, X) for \
+                     map: A -> B)",
+                ));
+            }
+            if !Arc::ptr_eq(&target.0.source(), &map_arc.source()) {
+                return Err(PyValueError::new_err(
+                    "target.source() must equal map.source() (target must be Hom(A, X) for \
+                     map: A -> B)",
+                ));
+            }
+            if !Arc::ptr_eq(&source.0.target(), &target.0.target()) {
+                return Err(PyValueError::new_err(
+                    "source.target() must equal target.target() (both Hom modules must share the \
+                     same module X)",
+                ));
+            }
+            let inner = HomPullbackInner::new(
+                Arc::clone(&source.0),
+                Arc::clone(&target.0),
+                Arc::clone(&map_arc),
+            );
+            Ok(HomPullback {
+                inner,
+                map: map_arc,
+            })
+        }
+
+        // --- flattened ModuleHomomorphism method set --------------------------
+
+        /// The source `Hom(B, X)` module (shares state via `Arc`).
+        pub fn source(&self) -> HomModule {
+            self.src_hom()
+        }
+
+        /// The target `Hom(A, X)` module (shares state via `Arc`).
+        pub fn target(&self) -> HomModule {
+            self.tgt_hom()
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        /// Upstream this is `-map.degree_shift()`.
+        pub fn degree_shift(&self) -> i32 {
+            self.inner.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on
+        /// (`source.min_degree()`).
+        pub fn min_degree(&self) -> i32 {
+            self.inner.min_degree()
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.inner.prime().as_u32()
+        }
+
+        /// Apply the pullback to the basis element `input_idx` in `input_degree`,
+        /// adding `coeff` times its image into `result` (a vector of length
+        /// `target.dimension(input_degree - degree_shift)`).
+        pub fn apply_to_basis_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.inner.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.inner.min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_apply(input_degree, output_degree)?;
+            let src_dim = self.source_dim(input_degree);
+            if input_idx >= src_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "input index {input_idx} out of range for source degree {input_degree} \
+                     (dimension {src_dim})"
+                )));
+            }
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_equal_len(res.as_slice().len(), out_dim)?;
+                // When the target Hom module is zero in the output degree the
+                // image is zero; the upstream call would index the target's
+                // block structure out of range, so skip it. `out_dim == 0`
+                // already forces `res` to length 0.
+                if out_dim != 0 {
+                    self.inner
+                        .apply_to_basis_element(res.copy(), coeff, input_degree, input_idx);
+                }
+                Ok(())
+            })
+        }
+
+        /// Apply the pullback to a general `input` element of `source` in
+        /// `input_degree` (length `source.dimension(input_degree)`), adding
+        /// `coeff` times its image into `result`. Aliasing the same vector as
+        /// both `input` and `result` raises `RuntimeError`.
+        pub fn apply(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.inner.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.inner.min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_apply(input_degree, output_degree)?;
+            let src_dim = self.source_dim(input_degree);
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), src_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), out_dim)?;
+                    if out_dim != 0 {
+                        self.inner.apply(res.copy(), coeff, input_degree, in_slice);
+                    }
+                    Ok(())
+                })
+            })
+        }
+
+        /// The kernel of the pullback in `degree`, if it has been computed (via
+        /// `compute_auxiliary_data_through_degree`). Returns `None` otherwise.
+        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.inner
+                .kernel(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The image of the pullback in `degree`, if it has been computed.
+        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.inner
+                .image(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The quasi-inverse of the pullback in `degree`, if it has been
+        /// computed.
+        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+            self.inner
+                .quasi_inverse(degree)
+                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+        }
+
+        /// Compute (and cache) the image, kernel and quasi-inverse at every
+        /// input degree up to `degree`. Requires the `map`'s outputs to be
+        /// defined far enough (else `ValueError`); computing the top degree's
+        /// bases also computes every lower degree's (the bases are cumulative).
+        pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
+            if degree >= self.inner.min_degree() {
+                let output_degree = self.output_degree(degree)?;
+                self.ensure_apply(degree, output_degree)?;
+            }
+            self.inner.compute_auxiliary_data_through_degree(degree);
+            Ok(())
+        }
+
+        /// The matrix whose rows are the images of the source basis elements
+        /// `inputs` in `degree`. Columns index `target.dimension(degree)`.
+        ///
+        /// Only well-defined when `target.dimension(degree) ==
+        /// target.dimension(degree - degree_shift)` (always so for
+        /// `degree_shift == 0`); otherwise raises `ValueError`. An out-of-range /
+        /// uncomputed target degree reads as dimension 0 and yields the empty
+        /// (`len(inputs) x 0`) matrix instead of panicking.
+        pub fn get_partial_matrix(
+            &self,
+            degree: i32,
+            inputs: Vec<usize>,
+        ) -> PyResult<crate::fp_py::PyMatrix> {
+            let src_min = self.inner.min_degree();
+            if degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_apply(degree, output_degree)?;
+            let src_dim = self.source_dim(degree);
+            for &i in &inputs {
+                if i >= src_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "input index {i} out of range for source degree {degree} (dimension \
+                         {src_dim})"
+                    )));
+                }
+            }
+            let tgt_dim = self.target_dim(degree);
+            if tgt_dim == 0 {
+                return Ok(crate::fp_py::PyMatrix::from_rust(fp::matrix::Matrix::new(
+                    self.inner.prime(),
+                    inputs.len(),
+                    0,
+                )));
+            }
+            if tgt_dim != self.target_dim(output_degree) {
+                return Err(PyValueError::new_err(
+                    "get_partial_matrix is only well-defined when target.dimension(degree) == \
+                     target.dimension(degree - degree_shift) (e.g. degree_shift == 0)",
+                ));
+            }
+            Ok(crate::fp_py::PyMatrix::from_rust(
+                self.inner.get_partial_matrix(degree, &inputs),
+            ))
+        }
+
+        /// Apply the quasi-inverse at `degree` to `input`, adding the result into
+        /// `result`. Returns `True` if the quasi-inverse was available (and
+        /// applied), `False` otherwise. `input` has length
+        /// `target.dimension(degree - degree_shift)` and `result` has length
+        /// `source.dimension(degree)`.
+        pub fn apply_quasi_inverse(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            let p = self.inner.prime().as_u32();
+            let Some(qi) = self.inner.quasi_inverse(degree) else {
+                return Ok(false);
+            };
+            let source_dim = qi.source_dimension();
+            let target_dim = qi.target_dimension();
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), target_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), source_dim)?;
+                    qi.apply(res.copy(), 1, in_slice);
+                    Ok(())
+                })
+            })?;
+            Ok(true)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "HomPullback(source={}, target={}, degree_shift={})",
+                self.inner.source(),
+                self.inner.target(),
+                self.inner.degree_shift()
             )
         }
     }
