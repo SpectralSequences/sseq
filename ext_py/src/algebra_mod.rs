@@ -5730,7 +5730,20 @@ pub mod algebra_py {
         ) -> PyResult<Self> {
             Self::check_same_algebra(&source.0, &target.0)?;
             let p = source.0.prime().as_u32();
-            let min_degree = min_degree.unwrap_or_else(|| target.0.min_degree());
+            let target_min = target.0.min_degree();
+            let min_degree = min_degree.unwrap_or(target_min);
+            // Upstream `FullModuleHomomorphism::from_matrices` always builds the
+            // kernels/images/quasi_inverses `OnceBiVec`s starting at
+            // `target.min_degree()`, regardless of the `matrices` BiVec's min.
+            // A `min_degree` below `target.min_degree()` would therefore record
+            // matrices whose auxiliary data is never computed — a silent
+            // correctness surprise. Reject it up front.
+            if min_degree < target_min {
+                return Err(PyValueError::new_err(format!(
+                    "min_degree {min_degree} is below the target min_degree {target_min}; \
+                     auxiliary data is only computed at and above target.min_degree()"
+                )));
+            }
             let mut bivec = ::bivec::BiVec::new(min_degree);
             for (offset, m) in matrices.iter().enumerate() {
                 let offset = i32::try_from(offset)

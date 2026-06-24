@@ -249,3 +249,197 @@ def test_apply_aliasing_input_and_target_raises():
     # Same object as both input and mutable target -> RuntimeError.
     with pytest.raises(RuntimeError):
         hom.apply(v, 1, 0, v)
+
+
+# --- from_matrices min_degree guard ----------------------------------------
+
+
+def test_from_matrices_rejects_min_degree_below_target_min():
+    alg = milnor(2)
+    m = c2_module(alg)
+    target_min = m.min_degree()
+    assert target_min == 0
+    # Upstream builds the kernels/images/quasi_inverses tables starting at
+    # target.min_degree(), so matrices recorded below it would never get
+    # auxiliary data -> rejected with a clear ValueError.
+    with pytest.raises(ValueError):
+        algebra.FullModuleHomomorphism.from_matrices(
+            m, m, [], 0, min_degree=target_min - 1
+        )
+
+
+def test_from_matrices_min_degree_at_target_min_and_default_ok():
+    alg = milnor(2)
+    m = c2_module(alg)
+    target_min = m.min_degree()
+    # min_degree == target.min_degree() is accepted.
+    hom = algebra.FullModuleHomomorphism.from_matrices(
+        m, m, [], 0, min_degree=target_min
+    )
+    assert isinstance(hom, algebra.FullModuleHomomorphism)
+    # The default (None) path is unaffected.
+    hom_default = algebra.FullModuleHomomorphism.from_matrices(m, m, [], 0)
+    assert isinstance(hom_default, algebra.FullModuleHomomorphism)
+
+
+def test_from_matrices_explicit_min_degree_multi_degree_apply():
+    """`matrices[i]` is the matrix in output degree `min_degree + i`."""
+    alg = milnor(2)
+    m = c2_module(alg)
+    # degree_shift 0; zero on the bottom cell (output degree 0), identity on the
+    # top cell (output degree 1). If the ordering were reversed, the asserts
+    # below would flip.
+    m0 = fp.Matrix.from_vec(2, [[0]])  # output degree 0
+    m1 = fp.Matrix.from_vec(2, [[1]])  # output degree 1
+    hom = algebra.FullModuleHomomorphism.from_matrices(
+        m, m, [m0, m1], 0, min_degree=m.min_degree()
+    )
+    r0 = fp.FpVector(2, 1)
+    hom.apply_to_basis_element(r0, 1, 0, 0)
+    assert r0[0] == 0
+    r1 = fp.FpVector(2, 1)
+    hom.apply_to_basis_element(r1, 1, 1, 0)
+    assert r1[0] == 1
+
+
+# --- degree_shift != 0 -----------------------------------------------------
+
+
+def shift_one_top_to_bottom(alg):
+    """f: C2 -> C2 with degree_shift 1, so output_degree = input_degree - 1.
+
+    `matrices[0]` is the matrix in output degree min_degree (= 0); its rows
+    index the source basis in degree output_degree + degree_shift = 1 and its
+    columns index the target basis in degree 0. The single matrix [[1]] sends
+    the source top cell x1 (degree 1) to the target bottom cell x0 (degree 0).
+    """
+    m = c2_module(alg)
+    m0 = fp.Matrix.from_vec(2, [[1]])
+    return algebra.FullModuleHomomorphism.from_matrices(m, m, [m0], 1)
+
+
+def test_shift_apply_lands_in_shifted_degree():
+    alg = milnor(2)
+    hom = shift_one_top_to_bottom(alg)
+    assert hom.degree_shift() == 1
+    # input_degree 1 -> output_degree 0; result lives in target.dim(0) == 1.
+    # Per upstream apply_to_basis_element: result += matrices.get(0).row(0) = [1].
+    res = fp.FpVector(2, 1)
+    hom.apply_to_basis_element(res, 1, 1, 0)
+    assert res[0] == 1
+    # apply on the general top-cell element [1] in degree 1 agrees.
+    inp = fp.FpVector(2, 1)
+    inp[0] = 1
+    res2 = fp.FpVector(2, 1)
+    hom.apply(res2, 1, 1, inp)
+    assert res2[0] == 1
+    # input_degree 0 -> output_degree -1 (target.dim == 0): no matrix recorded
+    # there, so the map contributes nothing (length-0 result, no panic).
+    res_empty = fp.FpVector(2, 0)
+    hom.apply_to_basis_element(res_empty, 1, 0, 0)
+
+
+def test_shift_get_partial_matrix_success_and_guard():
+    alg = milnor(2)
+    hom = shift_one_top_to_bottom(alg)
+    # Success case: target.dim(1) == target.dim(0) == 1.
+    gm = hom.get_partial_matrix(1, [0])
+    assert isinstance(gm, fp.Matrix)
+    assert gm.rows() == 1
+    assert gm.columns() == 1
+    assert gm.to_vec() == [[1]]
+    # Guard case: target.dim(0) == 1 != target.dim(-1) == 0 -> ValueError.
+    with pytest.raises(ValueError):
+        hom.get_partial_matrix(0, [0])
+
+
+def test_shift_get_partial_matrix_out_of_range_degree():
+    alg = milnor(2)
+    hom = shift_one_top_to_bottom(alg)
+    # Degree beyond the (FD) source's range has dimension 0, so any input index
+    # is out of range -> clean IndexError (no panic).
+    with pytest.raises((IndexError, ValueError)):
+        hom.get_partial_matrix(50, [0])
+
+
+def test_shift_from_matrices_row_dimension_validation():
+    alg = milnor(2)
+    m = c2_module(alg)
+    # For output degree 0 and degree_shift 1, rows must equal
+    # source.dim(0 + 1) == 1. A 2-row matrix is rejected.
+    bad = fp.Matrix.from_vec(2, [[1], [1]])
+    with pytest.raises(ValueError):
+        algebra.FullModuleHomomorphism.from_matrices(m, m, [bad], 1)
+
+
+# --- empty-matrices aux-data no-op -----------------------------------------
+
+
+def test_empty_new_aux_data_noop():
+    alg = milnor(2)
+    m = c2_module(alg)
+    hom = algebra.FullModuleHomomorphism(m, m, 0)
+    # No matrices were recorded, so the upstream computation is a no-op and must
+    # not panic; nothing is cached, so reads return None.
+    hom.compute_auxiliary_data_through_degree(2)
+    assert hom.kernel(0) is None
+    assert hom.image(0) is None
+    assert hom.quasi_inverse(0) is None
+
+
+def test_empty_zero_aux_data_noop():
+    alg = milnor(2)
+    m = c2_module(alg)
+    hom = algebra.FullModuleHomomorphism.zero(m, m, 0)
+    hom.compute_auxiliary_data_through_degree(2)
+    assert hom.kernel(0) is None
+    assert hom.image(0) is None
+    assert hom.quasi_inverse(0) is None
+
+
+# --- apply_quasi_inverse aliasing ------------------------------------------
+
+
+def test_apply_quasi_inverse_aliasing_raises():
+    alg = milnor(2)
+    hom = from_matrices_bottom_cell(alg)
+    hom.compute_auxiliary_data_through_degree(1)
+    v = fp.FpVector(2, 1)
+    v[0] = 1
+    # Same object as both input and mutable result -> RuntimeError.
+    with pytest.raises(RuntimeError):
+        hom.apply_quasi_inverse(v, 0, v)
+
+
+# --- apply degree-range guards ---------------------------------------------
+
+
+def test_apply_below_min_degree_raises():
+    alg = milnor(2)
+    hom = algebra.FullModuleHomomorphism.identity(c2_module(alg))
+    res = fp.FpVector(2, 1)
+    with pytest.raises(IndexError):
+        hom.apply_to_basis_element(res, 1, -1, 0)
+
+
+def test_apply_above_range_raises():
+    alg = milnor(2)
+    hom = algebra.FullModuleHomomorphism.identity(c2_module(alg))
+    res = fp.FpVector(2, 1)
+    # Degree above the FD source's range has dimension 0 -> index out of range.
+    with pytest.raises((IndexError, ValueError)):
+        hom.apply_to_basis_element(res, 1, 50, 0)
+
+
+# --- overflow guard --------------------------------------------------------
+
+
+def test_apply_output_degree_overflow_raises():
+    alg = milnor(2)
+    m = c2_module(alg)
+    # degree_shift = i32::MIN; output_degree = input_degree - degree_shift then
+    # overflows i32 for any in-range input_degree -> clean ValueError, no panic.
+    hom = algebra.FullModuleHomomorphism(m, m, -2147483648)
+    res = fp.FpVector(2, 1)
+    with pytest.raises(ValueError):
+        hom.apply_to_basis_element(res, 1, 0, 0)
