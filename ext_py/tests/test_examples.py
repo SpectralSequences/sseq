@@ -68,13 +68,9 @@ KNOWN_UNBOUND = {
     "construct_standard",
     # get_unit: unit resolution accessor is not bound.
     "get_unit",
-    # ResolutionHomomorphism and friends: lifting/secondary machinery not bound.
-    # (ResolutionHomomorphism itself is now bound.)
-    "SecondaryResolutionHomomorphism",
+    # ResolutionHomomorphism and friends: lifting/secondary machinery.
+    # (ResolutionHomomorphism, SecondaryResolutionHomomorphism are now bound.)
     "UnstableResolutionHomomorphism",
-    # SecondaryChainHomotopy: secondary homotopy type not bound.
-    # (ChainHomotopy itself is now bound.)
-    "SecondaryChainHomotopy",
     # --- Chain complex types (not yet bound) ---
     "DoubleChainComplex",
     "TensorChainComplex",

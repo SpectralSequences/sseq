@@ -1223,8 +1223,18 @@ mod ext_py {
     /// Only the standard backend is supported (see `RsCH`); the input
     /// `ResolutionHomomorphism`s already enforce this, so no extra backend check
     /// is needed here.
+    ///
+    /// Held behind an `Arc` (not by value) so the *same* instance can be shared
+    /// into a [`SecondaryChainHomotopy`] via `Arc::clone`:
+    /// `SecondaryChainHomotopy::new` takes `Arc<ChainHomotopy<…>>`, and sharing
+    /// the same `Arc` (rather than a clone) means any further `extend*` of this
+    /// homotopy is visible to the secondary lift built from it (mirroring the
+    /// upstream `examples/secondary_massey.rs` usage). Every method takes `&self`
+    /// and the homotopy table is interior-mutable (`OnceBiVec`), so the `Arc`
+    /// adds no friction; `SecondaryChainHomotopy.underlying()` hands this `Arc`
+    /// back.
     #[pyclass(frozen)]
-    pub struct ChainHomotopy(RsCH);
+    pub struct ChainHomotopy(Arc<RsCH>);
 
     impl ChainHomotopy {
         /// Pre-flight guard for the `extend*` family, mirroring
@@ -1353,10 +1363,10 @@ mod ext_py {
                      right.source(); pass the same Resolution handle to both ResolutionHomomorphisms",
                 ));
             }
-            Ok(ChainHomotopy(RsCH::new(
+            Ok(ChainHomotopy(Arc::new(RsCH::new(
                 Arc::clone(&left.0),
                 Arc::clone(&right.0),
-            )))
+            ))))
         }
 
         /// The prime as a plain `int`.
@@ -1469,24 +1479,33 @@ mod ext_py {
         }
     }
 
+    /// The concrete (standard-backend) `SecondaryResolution` monomorphisation.
+    type RsSecRes = ext::secondary::SecondaryResolution<ext::resolution::Resolution<ext::CCC>>;
+
     /// A secondary resolution is only supported over the standard backend. Nassau's algorithm
     /// stores its quasi-inverses on disk and returns them only when a save directory is present;
     /// without one, `apply_quasi_inverse` always reports failure and the secondary lift's internal
     /// `assert!` panics. Since the binding never gives Nassau a save directory, we reject the
     /// pairing up front rather than expose a guaranteed FFI panic.
+    ///
+    /// Held behind an `Arc` (not by value) so the *same* instance can be shared
+    /// into a [`SecondaryResolutionHomomorphism`] via `Arc::clone`:
+    /// `SecondaryResolutionHomomorphism::new` takes
+    /// `Arc<SecondaryResolution<…>>` and `assert!`s the source/target secondary
+    /// resolutions are pointer-equal to the underlying homomorphism's
+    /// source/target resolutions. Every method takes `&self` (the homotopy
+    /// tables are interior-mutable `OnceBiVec`s), so the `Arc` adds no friction.
     #[pyclass(frozen)]
-    pub struct SecondaryResolution(
-        ext::secondary::SecondaryResolution<ext::resolution::Resolution<ext::CCC>>,
-    );
+    pub struct SecondaryResolution(Arc<RsSecRes>);
 
     #[pymethods]
     impl SecondaryResolution {
         #[new]
         pub fn new(cc: &Resolution) -> PyResult<Self> {
             match &cc.0 {
-                AnyResolution::Standard(r) => Ok(SecondaryResolution(
+                AnyResolution::Standard(r) => Ok(SecondaryResolution(Arc::new(
                     ext::secondary::SecondaryResolution::new(Arc::clone(r)),
-                )),
+                ))),
                 AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
                     "SecondaryResolution requires the standard backend (Nassau resolutions store \
                      quasi-inverses on disk and need a save directory); construct the Resolution \
@@ -1501,6 +1520,359 @@ mod ext_py {
 
         pub fn underlying(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())))
+        }
+    }
+
+    /// The concrete (standard→standard) `SecondaryResolutionHomomorphism`
+    /// monomorphisation. As with `RsResHom`/`RsCH`, only this Standard-backend
+    /// instantiation is reachable: it is built from two `SecondaryResolution`s
+    /// (standard-only — Nassau is rejected at their construction) and a
+    /// `ResolutionHomomorphism` (also standard-only), so all chain-complex type
+    /// parameters are `ext::resolution::Resolution<CCC>`.
+    type RsSecResHom = ext::secondary::SecondaryResolutionHomomorphism<
+        ext::resolution::Resolution<CCC>,
+        ext::resolution::Resolution<CCC>,
+    >;
+
+    /// The concrete (standard) `SecondaryChainHomotopy` monomorphisation. All
+    /// three chain-complex type parameters are `ext::resolution::Resolution<CCC>`
+    /// for the same reason as `RsSecResHom`.
+    type RsSecCH = ext::secondary::SecondaryChainHomotopy<
+        ext::resolution::Resolution<CCC>,
+        ext::resolution::Resolution<CCC>,
+        ext::resolution::Resolution<CCC>,
+    >;
+
+    /// The secondary (`Mod_{Cλ²}`) lift of a `ResolutionHomomorphism`: the
+    /// datum that promotes a chain map of resolutions to a map respecting the
+    /// secondary (`d₂`) structure, used to compute secondary products (see
+    /// `examples/secondary_product.rs`).
+    ///
+    /// Built from a `source` and `target` `SecondaryResolution` and the
+    /// `underlying` `ResolutionHomomorphism` between their underlying
+    /// resolutions. Upstream `new` `assert!`s that `underlying.source` /
+    /// `underlying.target` are the *same* resolution objects (`Arc::ptr_eq`) as
+    /// the source/target secondary resolutions' underlying resolutions; we
+    /// pre-check this and raise `ValueError` rather than let the assert panic
+    /// across FFI (mirroring `ChainHomotopy::new`).
+    ///
+    /// Held behind an `Arc` so it can be shared into a [`SecondaryChainHomotopy`]
+    /// (whose `new` takes `Arc<SecondaryResolutionHomomorphism<…>>`). The source
+    /// and target secondary-resolution `Arc`s are stored alongside so
+    /// `extend_all` can verify (through public `homotopies()` ranges) that they
+    /// have been extended far enough, raising `ValueError` rather than indexing
+    /// an unpopulated `OnceBiVec`.
+    ///
+    /// Standard backend only (see `RsSecResHom`).
+    #[pyclass(frozen)]
+    pub struct SecondaryResolutionHomomorphism {
+        inner: Arc<RsSecResHom>,
+        source: Arc<RsSecRes>,
+        target: Arc<RsSecRes>,
+    }
+
+    impl SecondaryResolutionHomomorphism {
+        /// Pre-flight guard for `extend_all`. `extend_all` drives
+        /// `compute_composites`, which iterates the homotopy `OnceBiVec` over
+        /// `[shift.s, max_s)` (where `max_s = underlying.next_homological_degree()`,
+        /// the eager part of `max()`), and for each `s` evaluates the `max()`
+        /// closure, which *indexes* `source.homotopies[s]` (and, for
+        /// `s > shift.s`, `target.homotopies[s + 1 - shift.s]`). Indexing an
+        /// unpopulated `OnceBiVec` panics, so we require the source/target
+        /// secondary resolutions to be extended far enough up front.
+        ///
+        /// The internal degree of each step is itself clamped by `max()` to
+        /// `underlying.get_map(s).next_degree()`, so the underlying
+        /// homomorphism need not be extended any further than it already is —
+        /// `extend_all` simply does less work — and no extra `t`-grid check is
+        /// needed here. (The inherent mathematical lift-validity `assert!` in
+        /// `compute_homotopy_step` — "secondary: Failed to lift …" — fires only
+        /// on topologically invalid input and cannot be pre-checked without
+        /// performing the computation; upstream itself treats it as a panic.)
+        fn check_extend_all(&self) -> PyResult<()> {
+            let max_s = self.inner.max().s();
+            let shift_s = self.inner.shift().s();
+            if max_s <= shift_s {
+                // Empty touched range: extend_all is a safe no-op.
+                return Ok(());
+            }
+            let src_h = self.source.homotopies();
+            // source.homotopies[s] is read for every s in [shift_s, max_s - 1].
+            if src_h.min_degree() > shift_s || src_h.len() < max_s {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "the source SecondaryResolution is not extended far enough (its secondary \
+                     homotopies cover [{}, {}), but extending this homomorphism reads s in [{}, \
+                     {}]); call source.extend_all() first",
+                    src_h.min_degree(),
+                    src_h.len(),
+                    shift_s,
+                    max_s - 1
+                )));
+            }
+            // target.homotopies[s'] is read for s' = s + 1 - shift_s with
+            // s in [shift_s + 1, max_s - 1], i.e. s' in [2, max_s - shift_s].
+            let tgt_top = max_s - shift_s;
+            if tgt_top >= 2 {
+                let tgt_h = self.target.homotopies();
+                if tgt_h.min_degree() > 2 || tgt_h.len() <= tgt_top {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "the target SecondaryResolution is not extended far enough (its secondary \
+                         homotopies cover [{}, {}), but extending this homomorphism reads s up to \
+                         {tgt_top}); call target.extend_all() first",
+                        tgt_h.min_degree(),
+                        tgt_h.len()
+                    )));
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl SecondaryResolutionHomomorphism {
+        /// Construct the secondary lift of `underlying` over `source`/`target`.
+        ///
+        /// `underlying` must be the `ResolutionHomomorphism` between exactly the
+        /// `source` and `target` secondary resolutions' underlying resolutions:
+        /// upstream `assert!`s `Arc::ptr_eq(&underlying.source, &source.underlying)`
+        /// and `Arc::ptr_eq(&underlying.target, &target.underlying)`. We pre-check
+        /// both and raise `ValueError` (never panic). All three objects are
+        /// standard-backend (enforced at their own construction), so the shared
+        /// resolutions force a common prime/algebra and no further coherence
+        /// check is needed.
+        ///
+        /// Construction does not require any of the three to be computed/extended
+        /// yet (only `extend_all` does — see its guard).
+        #[new]
+        pub fn new(
+            source: &SecondaryResolution,
+            target: &SecondaryResolution,
+            underlying: &ResolutionHomomorphism,
+        ) -> PyResult<Self> {
+            if !Arc::ptr_eq(&underlying.0.source, &source.0.underlying()) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "SecondaryResolutionHomomorphism requires the underlying homomorphism's source \
+                     to be the same resolution object as the source SecondaryResolution's \
+                     underlying resolution; build the homomorphism from source.underlying()",
+                ));
+            }
+            if !Arc::ptr_eq(&underlying.0.target, &target.0.underlying()) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "SecondaryResolutionHomomorphism requires the underlying homomorphism's target \
+                     to be the same resolution object as the target SecondaryResolution's \
+                     underlying resolution; build the homomorphism from target.underlying()",
+                ));
+            }
+            Ok(SecondaryResolutionHomomorphism {
+                inner: Arc::new(RsSecResHom::new(
+                    Arc::clone(&source.0),
+                    Arc::clone(&target.0),
+                    Arc::clone(&underlying.0),
+                )),
+                source: Arc::clone(&source.0),
+                target: Arc::clone(&target.0),
+            })
+        }
+
+        /// The homomorphism's name, bracketed (`[name]`) to mark it as the
+        /// secondary lift (matching upstream `name()`).
+        pub fn name(&self) -> String {
+            self.inner.name()
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.inner.prime().as_u32()
+        }
+
+        /// The Steenrod algebra the resolutions are built over.
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            algebra_py::SteenrodAlgebra::from_arc(self.inner.algebra())
+        }
+
+        /// The shift bidegree of the secondary lift (`underlying.shift + (1, 0)`).
+        pub fn shift(&self) -> sseq_py::Bidegree {
+            sseq_py::Bidegree(self.inner.shift())
+        }
+
+        /// The source resolution (the *underlying* resolution of the source
+        /// secondary resolution; shares its `Arc`).
+        pub fn source(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(self.inner.source()))
+        }
+
+        /// The target resolution (the *underlying* resolution of the target
+        /// secondary resolution; shares its `Arc`).
+        pub fn target(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(self.inner.target()))
+        }
+
+        /// The underlying `ResolutionHomomorphism` (shares its `Arc`; a live
+        /// shared view — extending it is visible here and vice versa).
+        pub fn underlying(&self) -> ResolutionHomomorphism {
+            ResolutionHomomorphism(self.inner.underlying())
+        }
+
+        /// The directory used to persist the lift, or `None` if held in memory
+        /// (the default for the in-memory resolutions built here).
+        pub fn save_dir(&self) -> Option<String> {
+            self.inner
+                .save_dir()
+                .read()
+                .map(|p| p.display().to_string())
+        }
+
+        /// Compute the secondary homotopies as far as the source/target
+        /// secondary resolutions and the underlying homomorphism are computed
+        /// (the upstream `SecondaryLift::extend_all`).
+        ///
+        /// The source and target `SecondaryResolution`s must have been
+        /// `extend_all`-ed far enough first (see the guard); otherwise a clean
+        /// `ValueError` is raised rather than indexing an unpopulated
+        /// `OnceBiVec`. A topologically invalid input can still trip the
+        /// inherent upstream lift-validity `assert!` (a caught `PanicException`,
+        /// memory-safe): that condition is mathematical and cannot be
+        /// pre-checked without performing the computation.
+        pub fn extend_all(&self) -> PyResult<()> {
+            self.check_extend_all()?;
+            self.inner.extend_all();
+            Ok(())
+        }
+    }
+
+    /// The secondary (`Mod_{Cλ²}`) lift of a `ChainHomotopy`: the datum used to
+    /// assemble secondary Massey products (see `examples/secondary_massey.rs`).
+    ///
+    /// Built from the secondary lifts `left`/`right` of the two homomorphisms
+    /// the underlying `ChainHomotopy` is a null-homotopy of, optional λ-parts
+    /// `left_lambda`/`right_lambda` (the non-standard-lift part of each class),
+    /// and the `underlying` `ChainHomotopy`. Upstream `new` `assert!`s a chain
+    /// of `Arc::ptr_eq` structural preconditions (and shift relations for the
+    /// λ-parts); we pre-check every one and raise `ValueError` rather than let
+    /// an assert panic across FFI.
+    ///
+    /// Standard backend only (see `RsSecCH`). This class is bound for
+    /// construction and structural inspection; its homotopy *computation*
+    /// (`extend_all`/`compute_partial`) is deferred — see the module notes.
+    #[pyclass(frozen)]
+    pub struct SecondaryChainHomotopy(Arc<RsSecCH>);
+
+    #[pymethods]
+    impl SecondaryChainHomotopy {
+        /// Construct the secondary lift of `underlying` from the secondary
+        /// homomorphism lifts `left`/`right` and optional λ-parts.
+        ///
+        /// Pre-checks (all `ValueError`, never a panic), mirroring upstream's
+        /// `assert!`s:
+        ///  - `underlying.left()` is the same homomorphism object (`Arc::ptr_eq`)
+        ///    as `left`'s underlying homomorphism, and likewise for `right`;
+        ///  - if `left_lambda` is given, its `source`/`target` are the same
+        ///    objects as `underlying.left()`'s, and its shift equals
+        ///    `underlying.left().shift + LAMBDA_BIDEGREE`; likewise `right_lambda`.
+        ///
+        /// `left_lambda`/`right_lambda` default to `None` (standard lifts).
+        #[new]
+        #[pyo3(signature = (left, right, underlying, left_lambda=None, right_lambda=None))]
+        pub fn new(
+            left: &SecondaryResolutionHomomorphism,
+            right: &SecondaryResolutionHomomorphism,
+            underlying: &ChainHomotopy,
+            left_lambda: Option<&ResolutionHomomorphism>,
+            right_lambda: Option<&ResolutionHomomorphism>,
+        ) -> PyResult<Self> {
+            let u_left = underlying.0.left();
+            let u_right = underlying.0.right();
+            if !Arc::ptr_eq(&u_left, &left.inner.underlying()) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "SecondaryChainHomotopy requires underlying.left() to be the same \
+                     homomorphism object as left's underlying ResolutionHomomorphism",
+                ));
+            }
+            if !Arc::ptr_eq(&u_right, &right.inner.underlying()) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "SecondaryChainHomotopy requires underlying.right() to be the same \
+                     homomorphism object as right's underlying ResolutionHomomorphism",
+                ));
+            }
+            let lambda = ext::secondary::LAMBDA_BIDEGREE;
+            if let Some(ll) = left_lambda {
+                if !Arc::ptr_eq(&ll.0.source, &u_left.source)
+                    || !Arc::ptr_eq(&ll.0.target, &u_left.target)
+                {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "left_lambda must have the same source/target resolutions as \
+                         underlying.left()",
+                    ));
+                }
+                if ll.0.shift != u_left.shift + lambda {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "left_lambda shift {} must equal underlying.left().shift + LAMBDA_BIDEGREE \
+                         ({})",
+                        ll.0.shift,
+                        u_left.shift + lambda
+                    )));
+                }
+            }
+            if let Some(rl) = right_lambda {
+                if !Arc::ptr_eq(&rl.0.source, &u_right.source)
+                    || !Arc::ptr_eq(&rl.0.target, &u_right.target)
+                {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "right_lambda must have the same source/target resolutions as \
+                         underlying.right()",
+                    ));
+                }
+                if rl.0.shift != u_right.shift + lambda {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "right_lambda shift {} must equal underlying.right().shift + \
+                         LAMBDA_BIDEGREE ({})",
+                        rl.0.shift,
+                        u_right.shift + lambda
+                    )));
+                }
+            }
+            Ok(SecondaryChainHomotopy(Arc::new(RsSecCH::new(
+                Arc::clone(&left.inner),
+                Arc::clone(&right.inner),
+                left_lambda.map(|x| Arc::clone(&x.0)),
+                right_lambda.map(|x| Arc::clone(&x.0)),
+                Arc::clone(&underlying.0),
+            ))))
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The Steenrod algebra the resolutions are built over.
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
+        }
+
+        /// The total shift bidegree of the secondary chain homotopy.
+        pub fn shift(&self) -> sseq_py::Bidegree {
+            sseq_py::Bidegree(self.0.shift())
+        }
+
+        /// The source resolution (`left`'s source; shares its `Arc`).
+        pub fn source(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(self.0.source()))
+        }
+
+        /// The target resolution (`right`'s target; shares its `Arc`).
+        pub fn target(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(self.0.target()))
+        }
+
+        /// The underlying `ChainHomotopy` (shares its `Arc`; a live shared view).
+        pub fn underlying(&self) -> ChainHomotopy {
+            ChainHomotopy(self.0.underlying())
+        }
+
+        /// The directory used to persist the lift, or `None` if held in memory.
+        pub fn save_dir(&self) -> Option<String> {
+            self.0.save_dir().read().map(|p| p.display().to_string())
         }
     }
 
