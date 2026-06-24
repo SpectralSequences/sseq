@@ -7,7 +7,11 @@ pub mod algebra_py {
 
     use ::algebra::module::{
         block_structure::BlockStructure as RsBlockStructure,
-        homomorphism::{FreeModuleHomomorphism as RsFreeModuleHomomorphism, ModuleHomomorphism},
+        homomorphism::{
+            FreeModuleHomomorphism as RsFreeModuleHomomorphism,
+            FullModuleHomomorphism as RsFullModuleHomomorphism, IdentityHomomorphism,
+            ModuleHomomorphism, ZeroHomomorphism,
+        },
         steenrod_module, FDModule as RsFDModule, FPModule as RsFPModule,
         FreeModule as RsFreeModule, HomModule as RsHomModule, Module,
         OperationGeneratorPair as RsOperationGeneratorPair, QuotientModule as RsQuotientModule,
@@ -83,6 +87,21 @@ pub mod algebra_py {
     /// `OnceBiVec`) and take `&self`, so the pyclass holds the value directly
     /// (no `Consumable`/`Arc::get_mut` dance is required).
     type FreeModuleHomomorphismInner = RsFreeModuleHomomorphism<RsSteenrodModule>;
+    /// A `FullModuleHomomorphism` whose *source* and *target* are both the
+    /// boxed dynamic module `RsSteenrodModule` (`Arc<dyn Module>`). Upstream
+    /// `FullModuleHomomorphism<S, T>` records the matrix of the map in every
+    /// degree, so unlike `FreeModuleHomomorphism` it does not need its source
+    /// to be a concrete `FreeModule`; the symmetric `<RsSteenrodModule,
+    /// RsSteenrodModule>` monomorphisation lets both factors be the bound
+    /// `SteenrodModule` pyclass and is the only choice for which the
+    /// `IdentityHomomorphism` impl (which requires `Source == Target`) is
+    /// reachable. Since `RsSteenrodModule::Algebra = SteenrodAlgebra`, both the
+    /// source and target accessors hand back the same `Arc`-shared
+    /// `SteenrodModule`. Upstream `new`/`from_matrices` take `Arc<S>`/`Arc<T>`,
+    /// i.e. `Arc<RsSteenrodModule> = Arc<Arc<dyn Module>>`, so each factor is
+    /// wrapped once more in an `Arc`. All of its tables use interior mutability
+    /// (`OnceBiVec`) and take `&self`, so the pyclass holds the value directly.
+    type FullModuleHomomorphismInner = RsFullModuleHomomorphism<RsSteenrodModule, RsSteenrodModule>;
     /// A borrowed trait object over the algebra union. The flattened `Module`
     /// method set is implemented once against this type and shared by every
     /// concrete module pyclass and by `SteenrodModule` via dynamic dispatch.
@@ -5585,6 +5604,444 @@ pub mod algebra_py {
                 self.0.source(),
                 self.0.target(),
                 self.0.degree_shift()
+            )
+        }
+    }
+
+    /// A `ModuleHomomorphism` `f: S -> M` that simply records its matrix in
+    /// every degree (`output_degree = input_degree - degree_shift`). Both the
+    /// source and target are arbitrary modules, accepted (and returned) as the
+    /// bound `SteenrodModule` pyclass; both share their `Arc`-held state with
+    /// this homomorphism. Box a concrete module with `.into_steenrod_module()`
+    /// first.
+    ///
+    /// Unlike `FreeModuleHomomorphism`, an unspecified matrix is treated as
+    /// zero, so applying the map to any degree never requires the outputs to be
+    /// "defined" — undefined degrees simply contribute nothing. Every
+    /// degree-indexed access is still pre-checked so that an out-of-range index,
+    /// prime/length mismatch, or unbounded `identity`/`from_matrices` request
+    /// raises `ValueError`/`IndexError` rather than panicking across the FFI
+    /// boundary. The internal `matrices`/`images`/`kernels`/`quasi_inverses`
+    /// tables use interior mutability (`OnceBiVec`), so every method takes
+    /// `&self`.
+    ///
+    /// NOTE (deferred to later §5.4 tasks): `FullModuleHomomorphism::from`,
+    /// `replace_source` and `replace_target` are *not* bound here. `from<F>`
+    /// converts another `ModuleHomomorphism` with the *same* `Source`/`Target`
+    /// type parameters into a `FullModuleHomomorphism`; with the single
+    /// `<RsSteenrodModule, RsSteenrodModule>` monomorphisation the only
+    /// reachable conversion is from another `FullModuleHomomorphism` (i.e. a
+    /// plain clone), while the useful conversions (e.g. from a
+    /// `FreeModuleHomomorphism`, whose `Source` is a concrete `FreeModule`)
+    /// require additional monomorphisations not bound in this task.
+    /// `replace_source`/`replace_target` only change a *type parameter* (not the
+    /// mathematical module) and consume `self` by value; with one
+    /// monomorphisation there is no distinct type to replace into, so they are
+    /// likewise deferred until those other module-typed homomorphisms exist.
+    #[pyclass(name = "FullModuleHomomorphism")]
+    pub struct FullModuleHomomorphism(FullModuleHomomorphismInner);
+
+    impl FullModuleHomomorphism {
+        /// `min_degree()` of the source module (the smallest input degree).
+        fn source_min_degree(&self) -> i32 {
+            self.0.source().min_degree()
+        }
+
+        /// Dimension of the source module in `degree` (guarded; computes the
+        /// basis first and reads 0 below `min_degree`).
+        fn source_dim(&self, degree: i32) -> usize {
+            module_dimension(&**self.0.source() as &DynModule, degree)
+        }
+
+        /// Dimension of the target module in `degree` (guarded).
+        fn target_dim(&self, degree: i32) -> usize {
+            module_dimension(&**self.0.target() as &DynModule, degree)
+        }
+
+        /// Ensure both the source basis through `input_degree` and the target
+        /// basis through `output_degree` are computed (algebra + module).
+        fn ensure_through(&self, input_degree: i32, output_degree: i32) {
+            module_ensure(&**self.0.source() as &DynModule, input_degree);
+            module_ensure(&**self.0.target() as &DynModule, output_degree);
+        }
+
+        /// `input_degree - degree_shift`, raising `ValueError` on overflow.
+        fn output_degree(&self, input_degree: i32) -> PyResult<i32> {
+            input_degree
+                .checked_sub(self.0.degree_shift())
+                .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))
+        }
+
+        /// Validate that `source` and `target` are built over the *same* algebra
+        /// object (checked by prime and `Arc` identity, like `TensorModule`),
+        /// raising `ValueError` otherwise.
+        fn check_same_algebra(
+            source: &RsSteenrodModule,
+            target: &RsSteenrodModule,
+        ) -> PyResult<()> {
+            let source_alg = source.algebra();
+            let target_alg = target.algebra();
+            checked_same_prime(source_alg.prime().as_u32(), target_alg.prime().as_u32())?;
+            if !Arc::ptr_eq(&source_alg, &target_alg) {
+                return Err(PyValueError::new_err(
+                    "source and target must be built over the same algebra",
+                ));
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl FullModuleHomomorphism {
+        /// Build the zero homomorphism `source -> target` with the given
+        /// `degree_shift` (every recorded matrix is absent, i.e. zero). The
+        /// factors must be built over the *same* algebra object.
+        #[new]
+        #[pyo3(signature = (source, target, degree_shift = 0))]
+        pub fn new(
+            source: PyRef<'_, SteenrodModule>,
+            target: PyRef<'_, SteenrodModule>,
+            degree_shift: i32,
+        ) -> PyResult<Self> {
+            Self::check_same_algebra(&source.0, &target.0)?;
+            Ok(FullModuleHomomorphism(FullModuleHomomorphismInner::new(
+                Arc::new(source.0.clone()),
+                Arc::new(target.0.clone()),
+                degree_shift,
+            )))
+        }
+
+        /// Build a `FullModuleHomomorphism` from explicit per-degree matrices.
+        /// `matrices[i]` is the matrix in *output* degree `min_degree + i`
+        /// (defaulting `min_degree` to `target.min_degree()`); its rows index
+        /// the source basis in degree `min_degree + i + degree_shift` and its
+        /// columns index the target basis in degree `min_degree + i`. Each
+        /// matrix's prime and both dimensions are validated against the modules
+        /// (raising `ValueError`) so that later `apply`/auxiliary-data
+        /// computations can never index a row/column out of range.
+        #[staticmethod]
+        #[pyo3(signature = (source, target, matrices, degree_shift = 0, min_degree = None))]
+        pub fn from_matrices(
+            source: PyRef<'_, SteenrodModule>,
+            target: PyRef<'_, SteenrodModule>,
+            matrices: Vec<PyRef<'_, crate::fp_py::PyMatrix>>,
+            degree_shift: i32,
+            min_degree: Option<i32>,
+        ) -> PyResult<Self> {
+            Self::check_same_algebra(&source.0, &target.0)?;
+            let p = source.0.prime().as_u32();
+            let min_degree = min_degree.unwrap_or_else(|| target.0.min_degree());
+            let mut bivec = ::bivec::BiVec::new(min_degree);
+            for (offset, m) in matrices.iter().enumerate() {
+                let offset = i32::try_from(offset)
+                    .map_err(|_| PyValueError::new_err("too many matrices"))?;
+                let output_degree = min_degree
+                    .checked_add(offset)
+                    .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))?;
+                let input_degree = output_degree
+                    .checked_add(degree_shift)
+                    .ok_or_else(|| PyValueError::new_err("input degree overflows i32"))?;
+                module_ensure(&*source.0 as &DynModule, input_degree);
+                module_ensure(&*target.0 as &DynModule, output_degree);
+                let src_dim = module_dimension(&*source.0 as &DynModule, input_degree);
+                let tgt_dim = module_dimension(&*target.0 as &DynModule, output_degree);
+                let m = m.as_rust();
+                checked_same_prime(m.prime().as_u32(), p)?;
+                if m.rows() != src_dim {
+                    return Err(PyValueError::new_err(format!(
+                        "matrix for output degree {output_degree} has {} rows but the source \
+                         degree {input_degree} has dimension {src_dim}",
+                        m.rows()
+                    )));
+                }
+                if m.columns() != tgt_dim {
+                    return Err(PyValueError::new_err(format!(
+                        "matrix for output degree {output_degree} has {} columns but the target \
+                         degree {output_degree} has dimension {tgt_dim}",
+                        m.columns()
+                    )));
+                }
+                bivec.push(m.clone());
+            }
+            Ok(FullModuleHomomorphism(
+                FullModuleHomomorphismInner::from_matrices(
+                    Arc::new(source.0.clone()),
+                    Arc::new(target.0.clone()),
+                    degree_shift,
+                    bivec,
+                ),
+            ))
+        }
+
+        /// The zero homomorphism `source -> target` with the given
+        /// `degree_shift` (the `ZeroHomomorphism` constructor). Identical to the
+        /// `new` constructor for `FullModuleHomomorphism`, exposed separately to
+        /// mirror the upstream trait surface.
+        #[staticmethod]
+        #[pyo3(signature = (source, target, degree_shift = 0))]
+        pub fn zero(
+            source: PyRef<'_, SteenrodModule>,
+            target: PyRef<'_, SteenrodModule>,
+            degree_shift: i32,
+        ) -> PyResult<Self> {
+            Self::check_same_algebra(&source.0, &target.0)?;
+            Ok(FullModuleHomomorphism(
+                <FullModuleHomomorphismInner as ZeroHomomorphism<
+                    RsSteenrodModule,
+                    RsSteenrodModule,
+                >>::zero_homomorphism(
+                    Arc::new(source.0.clone()),
+                    Arc::new(target.0.clone()),
+                    degree_shift,
+                ),
+            ))
+        }
+
+        /// The identity homomorphism on `module` (the `IdentityHomomorphism`
+        /// constructor): `degree_shift = 0` and the identity matrix in every
+        /// degree. Its source and target are the *same* module, so source ==
+        /// target holds by construction. Requires the module to be bounded
+        /// above (`max_degree()` is `Some`); raises `ValueError` otherwise
+        /// rather than letting the upstream `expect` panic.
+        #[staticmethod]
+        pub fn identity(module: PyRef<'_, SteenrodModule>) -> PyResult<Self> {
+            let Some(max) = module.0.max_degree() else {
+                return Err(PyValueError::new_err(
+                    "identity requires a module that is bounded above",
+                ));
+            };
+            // Populate the module (and algebra) basis through `max` so the
+            // upstream loop's `dimension(i)` reads never index past the computed
+            // range.
+            module_ensure(&*module.0 as &DynModule, max);
+            Ok(
+                FullModuleHomomorphism(<FullModuleHomomorphismInner as IdentityHomomorphism<
+                    RsSteenrodModule,
+                >>::identity_homomorphism(Arc::new(
+                    module.0.clone(),
+                ))),
+            )
+        }
+
+        // --- flattened ModuleHomomorphism method set --------------------------
+
+        /// The source module (shares state via `Arc`).
+        pub fn source(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.source()).clone())
+        }
+
+        /// The target module (shares state via `Arc`).
+        pub fn target(&self) -> SteenrodModule {
+            SteenrodModule((*self.0.target()).clone())
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        pub fn degree_shift(&self) -> i32 {
+            self.0.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on
+        /// (`source.min_degree()`).
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// Apply the homomorphism to the basis element `input_idx` in
+        /// `input_degree`, adding `coeff` times its image into `result` (a
+        /// vector of length `target.dimension(input_degree - degree_shift)`).
+        pub fn apply_to_basis_element(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            if input_idx >= src_dim {
+                return Err(PyIndexError::new_err(format!(
+                    "input index {input_idx} out of range for source degree {input_degree} \
+                     (dimension {src_dim})"
+                )));
+            }
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_equal_len(res.as_slice().len(), out_dim)?;
+                self.0
+                    .apply_to_basis_element(res.copy(), coeff, input_degree, input_idx);
+                Ok(())
+            })
+        }
+
+        /// Apply the homomorphism to a general `input` element of `source` in
+        /// `input_degree` (length `source.dimension(input_degree)`), adding
+        /// `coeff` times its image into `result`. Aliasing the same vector as
+        /// both `input` and `result` raises `RuntimeError` (the borrow
+        /// conflict).
+        pub fn apply(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            input_degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            let coeff = coeff % p;
+            let src_min = self.source_min_degree();
+            if input_degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "input degree {input_degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(input_degree)?;
+            self.ensure_through(input_degree, output_degree);
+            let src_dim = self.source_dim(input_degree);
+            let out_dim = self.target_dim(output_degree);
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), src_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), out_dim)?;
+                    self.0.apply(res.copy(), coeff, input_degree, in_slice);
+                    Ok(())
+                })
+            })
+        }
+
+        /// The kernel of the homomorphism in `degree`, if it has been computed
+        /// (via `compute_auxiliary_data_through_degree`). Returns `None`
+        /// otherwise (never panics).
+        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .kernel(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The image of the homomorphism in `degree`, if it has been computed.
+        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+            self.0
+                .image(degree)
+                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+        }
+
+        /// The quasi-inverse of the homomorphism in `degree`, if it has been
+        /// computed.
+        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+            self.0
+                .quasi_inverse(degree)
+                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+        }
+
+        /// Compute (and cache) the image, kernel and quasi-inverse at every
+        /// input degree up to `degree`. Upstream clamps the work to the range of
+        /// recorded matrices, so degrees beyond the recorded matrices are a
+        /// no-op (the zero homomorphism built by `new`/`zero` records no
+        /// matrices, hence computes nothing). The source/target bases (and the
+        /// algebra) are computed first so the per-degree matrix reductions never
+        /// index past the computed range.
+        pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            self.0.compute_auxiliary_data_through_degree(degree);
+            Ok(())
+        }
+
+        /// The matrix whose rows are the images of the source basis elements
+        /// `inputs` in `degree`. Columns index `target.dimension(degree)`.
+        ///
+        /// As with `FreeModuleHomomorphism`, the per-row application lands in
+        /// `target.dimension(degree - degree_shift)`, so the call is only
+        /// well-defined when that equals `target.dimension(degree)` (always the
+        /// case for `degree_shift == 0`); otherwise this raises `ValueError`
+        /// rather than letting the dimension mismatch panic.
+        pub fn get_partial_matrix(
+            &self,
+            degree: i32,
+            inputs: Vec<usize>,
+        ) -> PyResult<crate::fp_py::PyMatrix> {
+            let src_min = self.source_min_degree();
+            if degree < src_min {
+                return Err(PyIndexError::new_err(format!(
+                    "degree {degree} is below the source min_degree {src_min}"
+                )));
+            }
+            let output_degree = self.output_degree(degree)?;
+            self.ensure_through(degree, output_degree);
+            let src_dim = self.source_dim(degree);
+            for &i in &inputs {
+                if i >= src_dim {
+                    return Err(PyIndexError::new_err(format!(
+                        "input index {i} out of range for source degree {degree} (dimension \
+                         {src_dim})"
+                    )));
+                }
+            }
+            if self.target_dim(degree) != self.target_dim(output_degree) {
+                return Err(PyValueError::new_err(
+                    "get_partial_matrix is only well-defined when target.dimension(degree) == \
+                     target.dimension(degree - degree_shift) (e.g. degree_shift == 0)",
+                ));
+            }
+            Ok(crate::fp_py::PyMatrix::from_rust(
+                self.0.get_partial_matrix(degree, &inputs),
+            ))
+        }
+
+        /// Apply the quasi-inverse at `degree` to `input`, adding the result
+        /// into `result`. Returns `True` if the quasi-inverse was available (and
+        /// applied), `False` otherwise. `input` has length
+        /// `target.dimension(degree - degree_shift)` and `result` has length
+        /// `source.dimension(degree)`.
+        pub fn apply_quasi_inverse(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            degree: i32,
+            input: &Bound<'_, PyAny>,
+        ) -> PyResult<bool> {
+            let p = self.0.prime().as_u32();
+            let Some(qi) = self.0.quasi_inverse(degree) else {
+                return Ok(false);
+            };
+            let source_dim = qi.source_dimension();
+            let target_dim = qi.target_dimension();
+            crate::fp_py::with_input_slice(py, input, |in_slice| {
+                checked_same_prime(in_slice.prime().as_u32(), p)?;
+                checked_equal_len(in_slice.len(), target_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_equal_len(res.as_slice().len(), source_dim)?;
+                    qi.apply(res.copy(), 1, in_slice);
+                    Ok(())
+                })
+            })?;
+            Ok(true)
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "FullModuleHomomorphism(degree_shift={}, min_degree={}, prime={})",
+                self.0.degree_shift(),
+                self.0.min_degree(),
+                self.0.prime().as_u32()
             )
         }
     }
