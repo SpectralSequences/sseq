@@ -15,11 +15,20 @@ mod ext_py {
 
     use algebra::{
         milnor_algebra::MilnorAlgebra,
-        module::{homomorphism::ModuleHomomorphism, FDModule, Module},
+        module::{
+            homomorphism::{
+                FullModuleHomomorphism as RsFullModuleHomomorphism, ModuleHomomorphism,
+            },
+            FDModule, Module, SteenrodModule as RsSteenrodModule,
+        },
         Algebra,
     };
     use ext::{
-        chain_complex::{AugmentedChainComplex, ChainComplex as RsChainComplex, FreeChainComplex},
+        chain_complex::{
+            AugmentedChainComplex, ChainComplex as RsChainComplex,
+            ChainHomotopy as RsChainHomotopy,
+            FiniteAugmentedChainComplex as RsFiniteAugmentedChainComplex, FreeChainComplex,
+        },
         resolution_homomorphism::ResolutionHomomorphism as RsResolutionHomomorphism,
         secondary::SecondaryLift,
         utils::Config,
@@ -720,8 +729,16 @@ mod ext_py {
     /// view* and should be treated as read-only; calling its mutating methods
     /// (`add_generators_from_rows`, `set_quasi_inverse`, `extend_by_zero`, …)
     /// is memory-safe but can logically corrupt the chain map.
+    ///
+    /// Held behind an `Arc` (not by value) so it can be shared into a
+    /// [`ChainHomotopy`] via `Arc::clone`: `ChainHomotopy::new` takes
+    /// `Arc<ResolutionHomomorphism<…>>`, and sharing the same `Arc` (rather
+    /// than a clone) means any further `extend*` of this homomorphism is visible
+    /// to the homotopy built from it (and vice versa), matching the upstream
+    /// `examples/massey.rs` usage. Every method takes `&self` and the inner
+    /// state is interior-mutable (`OnceBiVec`), so the `Arc` adds no friction.
     #[pyclass(frozen)]
-    pub struct ResolutionHomomorphism(RsResHom);
+    pub struct ResolutionHomomorphism(Arc<RsResHom>);
 
     impl ResolutionHomomorphism {
         /// Extract the Standard-backend `Arc` from a bound `Resolution`, or
@@ -857,7 +874,9 @@ mod ext_py {
                     shift.0
                 )));
             }
-            Ok(ResolutionHomomorphism(RsResHom::new(name, s, t, shift.0)))
+            Ok(ResolutionHomomorphism(Arc::new(RsResHom::new(
+                name, s, t, shift.0,
+            ))))
         }
 
         /// Build the resolution homomorphism representing (multiplication by)
@@ -940,9 +959,9 @@ mod ext_py {
                      (a unit/sphere resolution); got dimension {aug_dim}"
                 )));
             }
-            Ok(ResolutionHomomorphism(RsResHom::from_class(
+            Ok(ResolutionHomomorphism(Arc::new(RsResHom::from_class(
                 name, s, t, b, &class,
-            )))
+            ))))
         }
 
         /// The homomorphism's name (used in tracing/logging).
@@ -1173,6 +1192,280 @@ mod ext_py {
             }
             self.0.act(result.as_rust_mut().as_slice_mut(), coef, gen);
             Ok(())
+        }
+    }
+
+    /// The concrete `ChainHomotopy` monomorphisation bound here. Following the
+    /// `ResolutionHomomorphism` precedent, only the standard-backend instantiation
+    /// is reachable: all three chain-complex type parameters are
+    /// `ext::resolution::Resolution<CCC>` (the type held by
+    /// `AnyResolution::Standard`), because the inputs are two
+    /// `ResolutionHomomorphism`s and those are standard→standard only. The
+    /// homotopy maps are then `FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>`,
+    /// exactly the inner type of the bound `FreeModuleHomomorphismToFree` pyclass.
+    type RsCH = RsChainHomotopy<
+        ext::resolution::Resolution<CCC>,
+        ext::resolution::Resolution<CCC>,
+        ext::resolution::Resolution<CCC>,
+    >;
+
+    /// A chain homotopy between two chain maps `left: S -> T` and `right: T -> U`
+    /// (equivalently, a null-homotopy of their difference), the primitive used to
+    /// assemble (triple) Massey products — see `examples/massey.rs`. Built from
+    /// two `ResolutionHomomorphism`s `left` and `right` for which
+    /// `left.target()` is the *same* resolution object as `right.source()`.
+    ///
+    /// Held by value (a `frozen` pyclass): every method takes `&self` and the
+    /// homotopy table is interior-mutable (`OnceBiVec`). The `num_chain` count
+    /// is not needed (the homotopy table's populated range is queried upstream
+    /// via `defined_range`).
+    ///
+    /// Only the standard backend is supported (see `RsCH`); the input
+    /// `ResolutionHomomorphism`s already enforce this, so no extra backend check
+    /// is needed here.
+    #[pyclass(frozen)]
+    pub struct ChainHomotopy(RsCH);
+
+    impl ChainHomotopy {
+        /// Pre-flight guard for the `extend*` family, mirroring
+        /// `ResolutionHomomorphism::check_extend_range`. `extend`/`extend_all`
+        /// drive `iter_s_t` over a profile grid; for every touched source
+        /// bidegree `(s, t)` the upstream `extend_step` indexes (and would panic
+        /// out of range):
+        ///  - `left.source.module(s).number_of_gens_in_degree(t)` and
+        ///    `right.target.module(s + 1 - shift.s).dimension(t - shift.t)` (plus
+        ///    that target differential's quasi-inverse), so both resolutions must
+        ///    be computed over the grid; and
+        ///  - for the non-trivial lifts (`s >= shift.s`), `left.get_map(s)` and
+        ///    `right.get_map(s - left.shift.s)`, extended through `t` and
+        ///    `t - left.shift.t` respectively, so both chain maps must have been
+        ///    extended over the grid (call `ResolutionHomomorphism.extend*`
+        ///    first).
+        ///
+        /// We verify the whole profile grid up front (a conservative
+        /// over-approximation — `extend_step` may skip some bidegrees via its
+        /// zero-homotopy early return — but never an under-approximation), raising
+        /// `ValueError` rather than letting an upstream index/`assert!` panic
+        /// across FFI. `max_s` is the inclusive top homological degree;
+        /// `t_hi(s)` the inclusive top internal degree of row `s`.
+        fn check_extend_range(&self, max_s: i32, t_hi: impl Fn(i32) -> i32) -> PyResult<()> {
+            let left = self.0.left();
+            let right = self.0.right();
+            let shift = self.0.shift();
+            let left_shift = left.shift;
+            let base_s = shift.s() - 1;
+            if max_s < base_s {
+                // Nothing is touched (upstream `extend_profile` returns early).
+                return Ok(());
+            }
+            let min_t = std::cmp::min(
+                left.source.min_degree(),
+                right.target.min_degree() + shift.t(),
+            );
+            for s in base_s..=max_s {
+                let hi = t_hi(s);
+                if hi < min_t {
+                    continue;
+                }
+                // Resolution coverage (needed for every touched source bidegree,
+                // including the s = shift.s - 1 bottom row). has_computed_bidegree
+                // is monotone in t, so the row corner suffices.
+                let src_b = RsBidegree::s_t(s, hi);
+                if !left.source.has_computed_bidegree(src_b) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "the left source resolution is not computed at bidegree (s={s}, t={hi}), \
+                         which is required to extend the homotopy over this range; resolve it \
+                         further"
+                    )));
+                }
+                let tgt_b = src_b + RsBidegree::s_t(1, 0) - shift;
+                if !right.target.has_computed_bidegree(tgt_b) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "the right target resolution is not computed at bidegree (s={}, t={}), \
+                         which is required to extend the homotopy over this range; resolve it \
+                         further",
+                        tgt_b.s(),
+                        tgt_b.t()
+                    )));
+                }
+                // Chain-map coverage for the non-trivial lifts (s >= shift.s).
+                if s >= shift.s() {
+                    if s >= left.next_homological_degree() {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "the left chain map is not defined at homological degree s = {s}; \
+                             extend it (ResolutionHomomorphism.extend*) first"
+                        )));
+                    }
+                    if left.get_map(s).next_degree() <= hi {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "the left chain map is not extended through (s={s}, t={hi}); extend it \
+                             further first"
+                        )));
+                    }
+                    let rs = s - left_shift.s();
+                    let rt = hi - left_shift.t();
+                    if rs >= right.next_homological_degree() {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "the right chain map is not defined at homological degree s = {rs} \
+                             (= {s} - left.shift.s); extend it first"
+                        )));
+                    }
+                    if right.get_map(rs).next_degree() <= rt {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "the right chain map is not extended through (s={rs}, t={rt}); extend \
+                             it further first"
+                        )));
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl ChainHomotopy {
+        /// Construct the chain homotopy from two `ResolutionHomomorphism`s
+        /// `left: S -> T` and `right: T -> U`. Upstream `ChainHomotopy::new`
+        /// asserts `Arc::ptr_eq(&left.target, &right.source)` — i.e. `left`'s
+        /// target resolution must be *the very same object* as `right`'s source
+        /// resolution (a shared `Arc`, as produced by passing the same Python
+        /// `Resolution` to both). We pre-check this and raise `ValueError`
+        /// rather than letting the `assert!` panic across FFI.
+        ///
+        /// Both homomorphisms are standard-backend (the `ResolutionHomomorphism`
+        /// pyclass is standard-only), and the shared middle resolution forces a
+        /// common prime/algebra across the whole zig-zag, so no further coherence
+        /// check is needed.
+        ///
+        /// Note: if `left`'s source resolution has a save directory *and* both
+        /// homomorphisms have non-empty names, upstream `new` creates a
+        /// `massey/{left},{right}/` directory on disk. The default in-memory
+        /// resolutions built here have no save directory, so this path is not
+        /// exercised.
+        #[new]
+        pub fn new(
+            left: &ResolutionHomomorphism,
+            right: &ResolutionHomomorphism,
+        ) -> PyResult<Self> {
+            if !Arc::ptr_eq(&left.0.target, &right.0.source) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "ChainHomotopy requires left.target() to be the same resolution object as \
+                     right.source(); pass the same Resolution handle to both ResolutionHomomorphisms",
+                ));
+            }
+            Ok(ChainHomotopy(RsCH::new(
+                Arc::clone(&left.0),
+                Arc::clone(&right.0),
+            )))
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The total shift bidegree `left.shift + right.shift`.
+        pub fn shift(&self) -> sseq_py::Bidegree {
+            sseq_py::Bidegree(self.0.shift())
+        }
+
+        /// The left homomorphism `S -> T` (shares the underlying `Arc`).
+        pub fn left(&self) -> ResolutionHomomorphism {
+            ResolutionHomomorphism(self.0.left())
+        }
+
+        /// The right homomorphism `T -> U` (shares the underlying `Arc`).
+        pub fn right(&self) -> ResolutionHomomorphism {
+            ResolutionHomomorphism(self.0.right())
+        }
+
+        /// Lift the maps so the chain homotopy is defined on every source
+        /// bidegree `(s, t)` with `s <= max_source.s` and `t - s <= max_source.n`
+        /// (a stem-shaped profile, matching upstream). Both underlying
+        /// resolutions must be computed, and both chain maps extended, over the
+        /// touched grid (see the guard); otherwise a clean `ValueError` is
+        /// raised. Negative `max_source` is rejected.
+        pub fn extend(&self, max_source: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max_source.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid max_source bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            // Upstream profile (exclusive): max_s = b.s() + 1, t_max(s) =
+            // b.t() - b.s() + s + 1. Inclusive form below.
+            self.check_extend_range(b.s(), |s| b.t() - b.s() + s)?;
+            self.0.extend(b);
+            Ok(())
+        }
+
+        /// Lift the maps as far as both resolutions are already resolved and
+        /// both chain maps extended.
+        ///
+        /// Upstream `extend_all` computes its own profile by indexing
+        /// `right.target.module(s + 1 - shift.s)` up to `s = max_s - 1`, where
+        /// `max_s = min(left.source.next_homological_degree(),
+        /// right.target.next_homological_degree() + shift.s)`. When the source is
+        /// resolved at least as far as the (shifted) target — i.e.
+        /// `left.source.next_homological_degree() >= right.target.next_homological_degree()
+        /// + shift.s` — that profile would index the target's module at its
+        /// `next_homological_degree` and panic. We reject this configuration with
+        /// a `ValueError` (resolve the right target further, or use the bounded
+        /// `extend(max_source)` instead, which is what the Massey workflow uses).
+        pub fn extend_all(&self) -> PyResult<()> {
+            let left = self.0.left();
+            let right = self.0.right();
+            let shift = self.0.shift();
+            let n_left = left.source.next_homological_degree();
+            let n_right = right.target.next_homological_degree();
+            // Safe iff the source is the *strict* binding limit; otherwise the
+            // upstream profile indexes right.target.module(n_right) and panics.
+            if n_left >= n_right + shift.s() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "cannot extend_all: the left source resolution (next homological degree {n_left}) \
+                     is resolved at least as far as the shifted right target (next homological \
+                     degree {n_right} + shift.s {}); resolve the right target further or use \
+                     extend(max_source) instead",
+                    shift.s()
+                )));
+            }
+            // Inclusive top s = n_left - 1; the upstream t-profile, inclusive.
+            let max_s = n_left - 1;
+            let t_hi = |s: i32| {
+                std::cmp::min(
+                    left.source.module(s).max_computed_degree(),
+                    right.target.module(s + 1 - shift.s()).max_computed_degree() + shift.t(),
+                )
+            };
+            self.check_extend_range(max_s, t_hi)?;
+            self.0.extend_all();
+            Ok(())
+        }
+
+        /// The `s`-th homotopy map (`h_s: C_s -> D_{s + 1 - shift.s}`), as a bound
+        /// `FreeModuleHomomorphismToFree` sharing its `Arc`.
+        ///
+        /// Raises `IndexError` for `s` outside the range for which the homotopy
+        /// is currently defined (the populated range of the internal homotopy
+        /// table, queried via upstream `defined_range`), which would otherwise
+        /// panic on the `OnceBiVec` index. Call `extend`/`extend_all` first.
+        ///
+        /// WARNING: the returned homomorphism is a *live shared view* of this
+        /// homotopy's internal map (the same `Arc`), not a copy. Treat it as
+        /// read-only; calling its mutating methods is memory-safe but may
+        /// logically corrupt the homotopy.
+        pub fn homotopy(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
+            let range = self.0.defined_range();
+            if s < range.start || s >= range.end {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no homotopy defined at homological degree s = {s}; defined range is [{}, {}) \
+                     (extend the homotopy first)",
+                    range.start, range.end
+                )));
+            }
+            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(
+                self.0.homotopy(s),
+            ))
         }
     }
 
@@ -1507,6 +1800,284 @@ mod ext_py {
                 self.current = cur + RsBidegree::n_s(0, 1);
                 return Some(sseq_py::Bidegree(cur));
             }
+        }
+    }
+
+    /// The inner monomorphisation of a `FullModuleHomomorphism` between boxed
+    /// dynamic modules — the differential/chain-map type of `CCC` and the
+    /// element type the bound `FullModuleHomomorphism` pyclass holds (matching
+    /// `algebra_py`'s `FullModuleHomomorphismInner`).
+    type FullHomInner = RsFullModuleHomomorphism<RsSteenrodModule, RsSteenrodModule>;
+
+    /// The augmented finite chain complex bound here: a `CCC` (a
+    /// `FiniteChainComplex<SteenrodModule>`) together with an augmentation chain
+    /// map to a target `CCC`. Both the interior differentials and the
+    /// augmentation maps are `FullModuleHomomorphism<SteenrodModule>`, exactly
+    /// the bound `FullModuleHomomorphism` pyclass's inner type.
+    type FACC = RsFiniteAugmentedChainComplex<RsSteenrodModule, FullHomInner, FullHomInner, CCC>;
+
+    /// An augmented finite chain complex `C -> D`: a finite chain complex `C`
+    /// (the `cc`) plus an augmentation chain map to a target complex `D` (the
+    /// `target`). This is the structure `utils::construct` and `yoneda`
+    /// produce; here it is constructible directly from explicit modules,
+    /// differentials, a target complex, and one augmentation map per module.
+    ///
+    /// Stored as the value plus the number of augmentation maps (so
+    /// `chain_map(s)` can be range-guarded — upstream exposes no length
+    /// accessor and `chain_map` panics out of range). `frozen`: every method
+    /// takes `&self` and reads interior-mutable module tables.
+    ///
+    /// The `ChainComplex`/`FreeChainComplex` query surface mirrors the
+    /// `ChainComplex` pyclass (the underlying `cc` is a `CCC`), so only the
+    /// genuinely new augmented surface (`target`, `chain_map`) plus the shared
+    /// `ChainComplex` accessors are bound; the free-module-only methods are
+    /// absent for the same reason as on `ChainComplex` (the modules are
+    /// arbitrary `SteenrodModule`s).
+    #[pyclass(frozen)]
+    pub struct FiniteAugmentedChainComplex {
+        inner: Arc<FACC>,
+        num_chain_maps: usize,
+    }
+
+    #[pymethods]
+    impl FiniteAugmentedChainComplex {
+        /// Build an augmented finite chain complex from an explicit list of
+        /// `modules` (`C_0, ..., C_n`), the interior `differentials`
+        /// (`differentials[i]: C_{i+1} -> C_i`), a `target` chain complex `D`,
+        /// and the augmentation `chain_maps` (`chain_maps[s]: C_s -> D_s`, one
+        /// per module). Mirrors `ChainComplex.new` for the `C`-side validation
+        /// and additionally validates the augmentation.
+        ///
+        /// Raises `ValueError` if (all checks mirror upstream conventions):
+        /// * `modules` is empty;
+        /// * `differentials.len() != modules.len() - 1` (one interior
+        ///   differential per consecutive pair `C_{i+1} -> C_i`);
+        /// * `chain_maps.len() != modules.len()` — the augmentation has exactly
+        ///   one map per source module (`chain_map(s)` returns `chain_maps[s]`);
+        /// * the modules / differentials / chain maps / target do not all share
+        ///   the same prime and algebra object (`Arc::ptr_eq`).
+        ///
+        /// As in `ChainComplex.new`, the exact *source/target module identity*
+        /// of each differential and chain map is **not** checked (there is no
+        /// cheap structural equality on `dyn Module`, and `Arc::ptr_eq` would
+        /// reject legitimate cloned handles); the prime+algebra checks reject the
+        /// incoherent cases without rejecting a consistently-built complex.
+        #[new]
+        pub fn new(
+            py: Python<'_>,
+            modules: Vec<Py<algebra_py::SteenrodModule>>,
+            differentials: Vec<Py<algebra_py::FullModuleHomomorphism>>,
+            target: &ChainComplex,
+            chain_maps: Vec<Py<algebra_py::FullModuleHomomorphism>>,
+        ) -> PyResult<Self> {
+            if modules.is_empty() {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "FiniteAugmentedChainComplex.new requires at least one module",
+                ));
+            }
+            let n_modules = modules.len();
+            let expected_diffs = n_modules - 1;
+            if differentials.len() != expected_diffs {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "FiniteAugmentedChainComplex.new expects exactly {expected_diffs} \
+                     differential(s) for {n_modules} module(s) (differentials[i] is the map \
+                     C_(i+1) -> C_i); got {}",
+                    differentials.len()
+                )));
+            }
+            if chain_maps.len() != n_modules {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "FiniteAugmentedChainComplex.new expects exactly {n_modules} augmentation \
+                     chain map(s) (one per module, chain_maps[s]: C_s -> D_s); got {}",
+                    chain_maps.len()
+                )));
+            }
+            let modules: Vec<Arc<RsSteenrodModule>> = modules
+                .iter()
+                .map(|m| Arc::new(m.borrow(py).as_rust().clone()))
+                .collect();
+            let ref_algebra = modules[0].algebra();
+            let p = modules[0].prime().as_u32();
+            for (i, m) in modules.iter().enumerate() {
+                if m.prime().as_u32() != p {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "all modules must share the same prime; module 0 is over p={p} but \
+                         module {i} is over p={}",
+                        m.prime().as_u32()
+                    )));
+                }
+                if !Arc::ptr_eq(&m.algebra(), &ref_algebra) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "all modules must be built over the same algebra object; module {i} is \
+                         over a different algebra than module 0"
+                    )));
+                }
+            }
+            // The target complex must be over the same prime + algebra.
+            if target.0.prime().as_u32() != p {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "the target complex is over p={} but the complex is over p={p}",
+                    target.0.prime().as_u32()
+                )));
+            }
+            if !Arc::ptr_eq(&target.0.algebra(), &ref_algebra) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "the target complex must be built over the same algebra object as the modules",
+                ));
+            }
+            let check_hom = |i: usize, d: &algebra_py::FullModuleHomomorphism, kind: &str| {
+                if d.prime() != p {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "{kind} {i} is over p={} but the complex is over p={p}",
+                        d.prime()
+                    )));
+                }
+                if !Arc::ptr_eq(&d.source_algebra(), &ref_algebra)
+                    || !Arc::ptr_eq(&d.target_algebra(), &ref_algebra)
+                {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "{kind} {i} must be built over the same algebra object as the complex's \
+                         modules"
+                    )));
+                }
+                Ok(())
+            };
+            let differentials = differentials
+                .iter()
+                .enumerate()
+                .map(|(i, d)| {
+                    let d = d.borrow(py);
+                    check_hom(i, &d, "differential")?;
+                    Ok(Arc::new(d.clone_rust()))
+                })
+                .collect::<PyResult<Vec<_>>>()?;
+            let chain_maps_rust = chain_maps
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let c = c.borrow(py);
+                    check_hom(i, &c, "chain map")?;
+                    Ok(Arc::new(c.clone_rust()))
+                })
+                .collect::<PyResult<Vec<_>>>()?;
+            let cc = CCC::new(modules, differentials);
+            let augmented = cc.augment(Arc::clone(&target.0), chain_maps_rust);
+            Ok(FiniteAugmentedChainComplex {
+                inner: Arc::new(augmented),
+                num_chain_maps: n_modules,
+            })
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.inner.prime().as_u32()
+        }
+
+        /// The Steenrod algebra the complex is built over.
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            algebra_py::SteenrodAlgebra::from_arc(self.inner.algebra())
+        }
+
+        /// The minimum internal degree shared by every module.
+        pub fn min_degree(&self) -> i32 {
+            self.inner.min_degree()
+        }
+
+        /// The first `s` for which `module(s)` is not defined (`i32::MAX` for a
+        /// finite complex; `iter`-style helpers are therefore not bound here,
+        /// matching `ChainComplex`).
+        pub fn next_homological_degree(&self) -> i32 {
+            self.inner.next_homological_degree()
+        }
+
+        /// The zero module.
+        pub fn zero_module(&self) -> algebra_py::SteenrodModule {
+            algebra_py::SteenrodModule::from_rust((*self.inner.zero_module()).clone())
+        }
+
+        /// The `s`-th module `C_s`, sharing its `Arc`. Out-of-range `s` returns
+        /// the zero module (matching upstream). Raises `ValueError` for negative
+        /// `s`.
+        pub fn module(&self, s: i32) -> PyResult<algebra_py::SteenrodModule> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            Ok(algebra_py::SteenrodModule::from_rust(
+                (*self.inner.module(s)).clone(),
+            ))
+        }
+
+        /// The differential `C_s -> C_{s-1}`, as a bound `FullModuleHomomorphism`.
+        /// Out-of-range `s` returns a zero homomorphism. Raises `ValueError` for
+        /// negative `s`.
+        pub fn differential(&self, s: i32) -> PyResult<algebra_py::FullModuleHomomorphism> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            Ok(algebra_py::FullModuleHomomorphism::from_rust(
+                (*self.inner.differential(s)).clone(),
+            ))
+        }
+
+        /// Whether the complex has been computed at bidegree `b`. Negative
+        /// `s`/`t` is rejected with a `ValueError`.
+        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(self.inner.has_computed_bidegree(b.0))
+        }
+
+        /// Ensure every bidegree `<= b` has been computed. Negative `s`/`t` is
+        /// rejected with a `ValueError`.
+        pub fn compute_through_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<()> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            self.inner.compute_through_bidegree(b.0);
+            Ok(())
+        }
+
+        /// The augmentation target complex `D`, as a bound `ChainComplex`
+        /// sharing the underlying `Arc`. (Because it shares the `Arc`, the
+        /// returned complex cannot be `pop`-ped — `pop` requires sole ownership.)
+        pub fn target(&self) -> ChainComplex {
+            ChainComplex(self.inner.target())
+        }
+
+        /// The `s`-th augmentation chain map `C_s -> D_s`, as a bound
+        /// `FullModuleHomomorphism` (a clone of the shared map, mirroring
+        /// `differential`). Raises `IndexError` for `s` outside
+        /// `[0, len(chain_maps))` (upstream `chain_map` indexes a `Vec` and would
+        /// otherwise panic).
+        pub fn chain_map(&self, s: i32) -> PyResult<algebra_py::FullModuleHomomorphism> {
+            if s < 0 || s as usize >= self.num_chain_maps {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no augmentation chain map at homological degree s = {s}; defined range is \
+                     [0, {})",
+                    self.num_chain_maps
+                )));
+            }
+            Ok(algebra_py::FullModuleHomomorphism::from_rust(
+                (*self.inner.chain_map(s)).clone(),
+            ))
+        }
+
+        /// The maximum homological degree `s` with `C_s != 0` (the bounded-complex
+        /// `max_s`).
+        pub fn max_s(&self) -> i32 {
+            use ext::chain_complex::BoundedChainComplex;
+            self.inner.max_s()
         }
     }
 

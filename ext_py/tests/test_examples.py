@@ -72,8 +72,8 @@ KNOWN_UNBOUND = {
     # (ResolutionHomomorphism itself is now bound.)
     "SecondaryResolutionHomomorphism",
     "UnstableResolutionHomomorphism",
-    # ChainHomotopy / SecondaryChainHomotopy: homotopy types not bound.
-    "ChainHomotopy",
+    # SecondaryChainHomotopy: secondary homotopy type not bound.
+    # (ChainHomotopy itself is now bound.)
     "SecondaryChainHomotopy",
     # --- Chain complex types (not yet bound) ---
     "DoubleChainComplex",

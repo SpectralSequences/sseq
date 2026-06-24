@@ -280,6 +280,14 @@ impl<
         Arc::clone(&self.homotopies[source_s])
     }
 
+    /// The range of homological degrees `s` for which [`Self::homotopy`] is
+    /// currently defined (i.e. the populated range of the internal homotopy
+    /// table). Used by external callers (e.g. the Python bindings) to guard
+    /// [`Self::homotopy`] against an out-of-range index without panicking.
+    pub fn defined_range(&self) -> std::ops::Range<i32> {
+        self.homotopies.range()
+    }
+
     pub fn save_dir(&self) -> &SaveDirectory {
         &self.save_dir
     }

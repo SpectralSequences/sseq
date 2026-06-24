@@ -268,3 +268,130 @@ def test_chain_complex_has_no_free_chain_complex_methods():
     assert not hasattr(cc, "to_sseq")
     assert not hasattr(cc, "graded_dimension_string")
     assert not hasattr(cc, "number_of_gens_in_bidegree")
+
+
+# --- FiniteAugmentedChainComplex -------------------------------------------
+#
+# An augmented finite chain complex C -> D: a finite complex C plus an
+# augmentation chain map (one per module, chain_maps[s]: C_s -> D_s) to a target
+# complex D. Constructed here directly from explicit modules/differentials, a
+# target ChainComplex, and the augmentation maps. The C-side validation mirrors
+# ChainComplex.new; additionally chain_maps must have exactly one map per module
+# and share the complex's prime+algebra.
+
+
+def test_facc_valid_one_module():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0 = point(alg, 0)
+    d0 = point(alg, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    aug = algebra.FullModuleHomomorphism(c0, d0)  # C_0 -> D_0
+    facc = ext.FiniteAugmentedChainComplex([c0], [], target, [aug])
+    assert facc.prime() == 2
+    assert facc.min_degree() == 0
+    assert facc.algebra().prime() == 2
+    assert facc.max_s() == 1
+    assert facc.module(0).dimension(0) == 1
+    # target() shares the Arc and reports the same prime.
+    assert isinstance(facc.target(), ext.ChainComplex)
+    assert facc.target().prime() == 2
+    # chain_map(0) is the augmentation.
+    assert isinstance(facc.chain_map(0), algebra.FullModuleHomomorphism)
+    assert facc.chain_map(0).prime() == 2
+
+
+def test_facc_valid_two_module():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0, c1 = point(alg, 0), point(alg, 1)
+    d0, d1 = point(alg, 0), point(alg, 1)
+    diff = algebra.FullModuleHomomorphism(c1, c0)  # C_1 -> C_0
+    target = ext.ChainComplex.new([d0, d1], [algebra.FullModuleHomomorphism(d1, d0)])
+    aug0 = algebra.FullModuleHomomorphism(c0, d0)
+    aug1 = algebra.FullModuleHomomorphism(c1, d1)
+    facc = ext.FiniteAugmentedChainComplex([c0, c1], [diff], target, [aug0, aug1])
+    assert facc.max_s() == 2
+    assert facc.module(1).dimension(1) == 1
+    assert facc.differential(1).prime() == 2
+    assert facc.chain_map(1).prime() == 2
+
+
+def test_facc_chain_map_out_of_range_raises_index_error():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0, d0 = point(alg, 0), point(alg, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    aug = algebra.FullModuleHomomorphism(c0, d0)
+    facc = ext.FiniteAugmentedChainComplex([c0], [], target, [aug])
+    with pytest.raises(IndexError):
+        facc.chain_map(1)
+    with pytest.raises(IndexError):
+        facc.chain_map(-1)
+
+
+def test_facc_module_large_s_is_zero_and_negative_raises():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0, d0 = point(alg, 0), point(alg, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    facc = ext.FiniteAugmentedChainComplex(
+        [c0], [], target, [algebra.FullModuleHomomorphism(c0, d0)]
+    )
+    # Out-of-range s: zero module, no panic.
+    assert facc.module(1000).dimension(0) == 0
+    # Negative s: ValueError.
+    with pytest.raises(ValueError):
+        facc.module(-1)
+    with pytest.raises(ValueError):
+        facc.differential(-1)
+
+
+def test_facc_empty_modules_raises_value_error():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    target = ext.ChainComplex.ccdz(point(alg, 0))
+    with pytest.raises(ValueError):
+        ext.FiniteAugmentedChainComplex([], [], target, [])
+
+
+def test_facc_mismatched_differential_count_raises_value_error():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0, c1 = point(alg, 0), point(alg, 1)
+    d0 = point(alg, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    # Two modules need exactly one differential; supplying none fails.
+    aug0 = algebra.FullModuleHomomorphism(c0, d0)
+    aug1 = algebra.FullModuleHomomorphism(c1, d0)
+    with pytest.raises(ValueError):
+        ext.FiniteAugmentedChainComplex([c0, c1], [], target, [aug0, aug1])
+
+
+def test_facc_mismatched_chain_map_count_raises_value_error():
+    alg = algebra.SteenrodAlgebra.milnor(2)
+    c0 = point(alg, 0)
+    d0 = point(alg, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    # One module needs exactly one chain map; supplying two fails.
+    aug = algebra.FullModuleHomomorphism(c0, d0)
+    with pytest.raises(ValueError):
+        ext.FiniteAugmentedChainComplex([c0], [], target, [aug, aug])
+
+
+def test_facc_mixed_prime_raises_value_error():
+    a2 = algebra.SteenrodAlgebra.milnor(2)
+    a3 = algebra.SteenrodAlgebra.milnor(3)
+    c0 = point(a3, 0)
+    d0 = point(a2, 0)
+    target = ext.ChainComplex.ccdz(d0)
+    aug = algebra.FullModuleHomomorphism(c0, c0)
+    with pytest.raises(ValueError):
+        ext.FiniteAugmentedChainComplex([c0], [], target, [aug])
+
+
+def test_facc_mixed_algebra_raises_value_error():
+    # Same prime but the target complex is over a *distinct* algebra object than
+    # the modules -> incoherent. (A homomorphism cannot itself mix algebras, so
+    # the reachable incoherence is module-algebra vs target-algebra.)
+    a2a = algebra.SteenrodAlgebra.milnor(2)
+    a2b = algebra.SteenrodAlgebra.milnor(2)
+    c0 = point(a2a, 0)
+    target = ext.ChainComplex.ccdz(point(a2b, 0))  # over a2b
+    aug = algebra.FullModuleHomomorphism(c0, c0)  # over a2a
+    with pytest.raises(ValueError):
+        ext.FiniteAugmentedChainComplex([c0], [], target, [aug])

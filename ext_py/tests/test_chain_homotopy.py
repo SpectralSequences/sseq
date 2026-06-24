@@ -1,0 +1,145 @@
+"""Tests for the `ChainHomotopy` pyclass (`ext::chain_complex::ChainHomotopy`).
+
+A `ChainHomotopy` is built from two `ResolutionHomomorphism`s `left: S -> T` and
+`right: T -> U` whose middle resolution is shared (the *same* Python `Resolution`
+object passed to both, so the underlying `Arc`s are pointer-equal). It is the
+primitive used to assemble (triple) Massey products — see `examples/massey.rs`,
+which is the canonical construction this mirrors: two `from_class` lifts sharing
+the unit resolution, extended over a stem, then `ChainHomotopy.extend`-ed.
+
+Only the standard backend is reachable (the input `ResolutionHomomorphism`s are
+standard-only). Every degree/index input is pre-checked and raises
+`ValueError`/`IndexError` rather than panicking across the FFI boundary:
+mismatched middle resolution, negative bidegrees, extending beyond the resolved
+range or beyond the maps' extended range, and out-of-range `homotopy(s)`.
+
+The `s`-th homotopy map `h_s` goes `C_s -> C_{s + 1 - shift.s}` and raises the
+internal degree by `shift.t` (`degree_shift`). These structural invariants are
+asserted (a concrete Massey-product *value* is not derivable without the full
+multi-step workflow, which lives in Python `examples/`, not the binding layer).
+"""
+
+import pytest
+
+import ext
+from ext import sseq
+
+Bidegree = sseq.Bidegree
+
+
+def sphere(max_st=8):
+    r = ext.Resolution("S_2", "standard")
+    r.compute_through_bidegree(Bidegree.s_t(max_st, max_st))
+    return r
+
+
+def h0_mult(r, name, max_st=6):
+    """Multiplication by h0 = (s=1, t=1) as a ResolutionHomomorphism r -> r,
+    extended over the (max_st, max_st) rectangle."""
+    hom = ext.ResolutionHomomorphism.from_class(name, r, r, Bidegree.s_t(1, 1), [1])
+    hom.extend(Bidegree.s_t(max_st, max_st))
+    return hom
+
+
+def homotopy(max_st=8, ext_deg=6):
+    r = sphere(max_st)
+    left = h0_mult(r, "a", ext_deg)
+    right = h0_mult(r, "b", ext_deg)
+    return ext.ChainHomotopy(left, right)
+
+
+# --- construction & accessors ----------------------------------------------
+
+
+def test_construction_and_accessors():
+    ch = homotopy()
+    assert ch.prime() == 2
+    # shift = left.shift + right.shift = (1,1) + (1,1) = (2,2).
+    assert ch.shift().s == 2
+    assert ch.shift().t == 2
+    # left()/right() share the underlying ResolutionHomomorphism Arcs.
+    assert isinstance(ch.left(), ext.ResolutionHomomorphism)
+    assert isinstance(ch.right(), ext.ResolutionHomomorphism)
+    assert ch.left().name() == "a"
+    assert ch.right().name() == "b"
+
+
+def test_construction_requires_shared_middle():
+    # left.target and right.source must be the SAME resolution object.
+    r1 = sphere(4)
+    r2 = sphere(4)
+    left = ext.ResolutionHomomorphism.from_class("a", r1, r2, Bidegree.s_t(1, 1), [1])
+    # right.source is r2's *handle*, but obtained from a different Python object.
+    r3 = sphere(4)
+    right = ext.ResolutionHomomorphism.from_class("b", r3, r2, Bidegree.s_t(1, 1), [1])
+    with pytest.raises(ValueError):
+        ext.ChainHomotopy(left, right)
+
+
+# --- extend + homotopy shapes ----------------------------------------------
+
+
+def test_extend_and_homotopy_shapes():
+    ch = homotopy(max_st=8, ext_deg=6)
+    ch.extend(Bidegree.s_t(4, 4))
+    # The homotopy table starts at shift.s - 1 = 1; homotopy(0) is undefined.
+    with pytest.raises(IndexError):
+        ch.homotopy(0)
+    for s in range(1, 5):
+        h = ch.homotopy(s)
+        # h_s : C_s -> C_{s + 1 - shift.s} = C_{s - 1}, raising t by shift.t = 2.
+        assert h.source().prime() == 2
+        assert h.target().prime() == 2
+        assert h.degree_shift() == 2
+
+
+def test_extend_all_succeeds_when_maps_fully_extended():
+    r = sphere(5)
+    left = h0_mult(r, "a", 5)
+    right = h0_mult(r, "b", 5)
+    ch = ext.ChainHomotopy(left, right)
+    ch.extend_all()
+    # The homotopy is now defined on [shift.s - 1, ...]; homotopy(1..) work.
+    h = ch.homotopy(2)
+    assert h.degree_shift() == 2
+    assert h.source().prime() == 2
+
+
+# --- guards: no panics across the FFI boundary -----------------------------
+
+
+def test_homotopy_out_of_range_raises_index_error():
+    ch = homotopy()
+    # Nothing extended yet -> the homotopy table is empty.
+    with pytest.raises(IndexError):
+        ch.homotopy(0)
+    with pytest.raises(IndexError):
+        ch.homotopy(2)
+
+
+def test_extend_negative_bidegree_raises_value_error():
+    ch = homotopy()
+    with pytest.raises(ValueError):
+        ch.extend(Bidegree.s_t(-1, 0))
+    with pytest.raises(ValueError):
+        ch.extend(Bidegree.s_t(0, -1))
+
+
+def test_extend_unextended_maps_raises_value_error():
+    # Build the homotopy from homs that were NOT extended; extend must reject
+    # rather than panic when it would index an undefined chain map.
+    r = sphere(6)
+    left = ext.ResolutionHomomorphism.from_class("a", r, r, Bidegree.s_t(1, 1), [1])
+    right = ext.ResolutionHomomorphism.from_class("b", r, r, Bidegree.s_t(1, 1), [1])
+    ch = ext.ChainHomotopy(left, right)
+    with pytest.raises(ValueError):
+        ch.extend(Bidegree.s_t(4, 4))
+
+
+def test_extend_beyond_resolved_range_raises_value_error():
+    r = sphere(4)
+    left = h0_mult(r, "a", 4)
+    right = h0_mult(r, "b", 4)
+    ch = ext.ChainHomotopy(left, right)
+    with pytest.raises(ValueError):
+        ch.extend(Bidegree.s_t(20, 20))
