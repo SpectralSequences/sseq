@@ -4,8 +4,11 @@ use pyo3::prelude::*;
 #[pyo3(name = "sseq")]
 pub mod sseq_py {
     use std::{
+        cell::RefCell,
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
+        io::{self, Write},
+        rc::Rc,
         sync::Mutex,
     };
 
@@ -15,10 +18,19 @@ pub mod sseq_py {
         vector::FpVector as RsFpVector,
     };
     use ::once::MultiIndexed;
-    use ::sseq::SseqProfile as RsSseqProfile;
+    use ::sseq::{
+        charting::{
+            Backend as RsBackend, Orientation as RsOrientation, SvgBackend as RsSvgBackend,
+            TikzBackend as RsTikzBackend,
+        },
+        SseqProfile as RsSseqProfile,
+    };
     use pyo3::{
         basic::CompareOp,
-        exceptions::{PyIndexError, PyValueError},
+        exceptions::{
+            PyAttributeError, PyIOError, PyIndexError, PyRuntimeError, PyTypeError, PyValueError,
+        },
+        types::PyBytes,
     };
 
     use super::*;
@@ -1207,9 +1219,462 @@ pub mod sseq_py {
             Ok(result.map(|(r, e)| (r, BidegreeElement(e))))
         }
 
-        // NOTE: `write_to_graph` (the charting entry point) is intentionally
-        // deferred to the §6.3 task: it is generic over the unbound
-        // `charting::Backend` trait (`SvgBackend`/`TikzBackend`), which are not
-        // yet exposed, so there is no Python-visible argument to give it.
+        /// Chart this spectral sequence to `backend` (an `SvgBackend` or
+        /// `TikzBackend`), drawing the `E_r` page.
+        ///
+        /// - `r`: the page to draw.
+        /// - `differentials`: whether to draw the `d_r` differentials.
+        /// - `products`: a list of `(name, Product)` pairs; for each, the
+        ///   structure lines it induces are drawn (labelled `name`).
+        /// - `header`: a Python callable invoked (with a single `None`
+        ///   argument) after the grid is drawn. The upstream header receives
+        ///   the live Rust backend, which has no Python representation, so the
+        ///   callback cannot draw to the chart; pass a no-op `lambda _: None`.
+        ///
+        /// Dispatches over the two concrete bound backends (keeping the generic
+        /// upstream call monomorphic). The backend is *consumed*: its inner
+        /// value is moved into `write_to_graph`, whose `Drop` emits the closing
+        /// tag, so the output is complete only after this returns and the
+        /// backend can no longer be used for manual drawing.
+        ///
+        /// Raises `TypeError` if `backend` is not an `SvgBackend`/`TikzBackend`,
+        /// `RuntimeError` if it was already consumed or if the upstream call
+        /// panics (e.g. the sseq's minimal filtration is not 0), and propagates
+        /// any exception raised by the file object's `.write` or by `header`.
+        pub fn write_to_graph(
+            &self,
+            backend: &Bound<'_, PyAny>,
+            r: i32,
+            differentials: bool,
+            products: Vec<(String, PyRef<'_, Product>)>,
+            header: Py<PyAny>,
+        ) -> PyResult<()> {
+            let prods: Vec<(String, RsProduct)> = products
+                .iter()
+                .map(|(name, p)| (name.clone(), clone_product(&p.0)))
+                .collect();
+
+            if let Ok(svg) = backend.cast::<SvgBackend>() {
+                let mut b = svg.borrow_mut();
+                let err = Rc::clone(&b.err);
+                run_write_to_graph(
+                    &mut b.inner,
+                    &err,
+                    &self.0,
+                    r,
+                    differentials,
+                    &prods,
+                    header,
+                )
+            } else if let Ok(tikz) = backend.cast::<TikzBackend>() {
+                let mut b = tikz.borrow_mut();
+                let err = Rc::clone(&b.err);
+                run_write_to_graph(
+                    &mut b.inner,
+                    &err,
+                    &self.0,
+                    r,
+                    differentials,
+                    &prods,
+                    header,
+                )
+            } else {
+                Err(PyTypeError::new_err(
+                    "backend must be an SvgBackend or TikzBackend",
+                ))
+            }
+        }
+    }
+
+    // ===================================================================
+    // §6.3 Charting backends
+    // ===================================================================
+
+    /// Adapter turning a Python file-like object into a Rust [`io::Write`].
+    ///
+    /// The upstream `SvgBackend<W>`/`TikzBackend<W>` are generic over
+    /// `W: io::Write`; Python file objects are not, so this bridges the two.
+    /// Each `write` decodes the (always-UTF-8, produced by upstream `write!`)
+    /// bytes and calls the Python object's `.write`, trying a `str` first and
+    /// falling back to `bytes` for binary files (`io.BytesIO`). The GIL is
+    /// (re)acquired per call via `Python::attach`; this is sound whether or not
+    /// the caller already holds the GIL (the binding always calls the backend
+    /// with the GIL held).
+    ///
+    /// # Error propagation (never panics across FFI)
+    ///
+    /// `io::Write` cannot carry a `PyErr`, so a Python exception raised by
+    /// `.write`/`.flush` is *recorded* in the shared `err` slot (first error
+    /// wins) and surfaced as a generic `io::Error`. The backend pyclass holds a
+    /// clone of the same `Rc<RefCell<Option<PyErr>>>`; after the upstream call
+    /// returns its `io::Error`, the binding takes the stored `PyErr` back out
+    /// and re-raises it (see `raise_io`). Nothing panics.
+    pub struct PyFileWriter {
+        file: Py<PyAny>,
+        err: Rc<RefCell<Option<PyErr>>>,
+    }
+
+    impl PyFileWriter {
+        fn record(&self, e: PyErr) {
+            let mut slot = self.err.borrow_mut();
+            if slot.is_none() {
+                *slot = Some(e);
+            }
+        }
+    }
+
+    impl Write for PyFileWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            // Short-circuit once an error has been recorded: keep producing
+            // errors so the upstream call unwinds promptly to the binding.
+            if self.err.borrow().is_some() {
+                return Err(io::Error::other("python file .write previously raised"));
+            }
+            let s = String::from_utf8_lossy(buf);
+            Python::attach(|py| {
+                // Text files (StringIO, sys.stdout) take str; binary files
+                // (BytesIO) take bytes and raise TypeError on str. Try str,
+                // then fall back to bytes on a TypeError.
+                let res = match self.file.call_method1(py, "write", (s.as_ref(),)) {
+                    Ok(_) => Ok(()),
+                    Err(e) if e.is_instance_of::<PyTypeError>(py) => {
+                        let bytes = PyBytes::new(py, buf);
+                        self.file.call_method1(py, "write", (bytes,)).map(|_| ())
+                    }
+                    Err(e) => Err(e),
+                };
+                match res {
+                    Ok(()) => Ok(buf.len()),
+                    Err(e) => {
+                        self.record(e);
+                        Err(io::Error::other("python file .write raised"))
+                    }
+                }
+            })
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Python::attach(|py| match self.file.call_method0(py, "flush") {
+                Ok(_) => Ok(()),
+                // A missing `.flush` is fine (not every file-like has one).
+                Err(e) if e.is_instance_of::<PyAttributeError>(py) => Ok(()),
+                Err(e) => {
+                    self.record(e);
+                    Err(io::Error::other("python file .flush raised"))
+                }
+            })
+        }
+    }
+
+    /// Convert an upstream `io::Result` back into a `PyResult`, re-raising any
+    /// `PyErr` recorded by the [`PyFileWriter`] (or a generic `IOError` if the
+    /// `io::Error` did not originate from a Python exception).
+    fn raise_io(err: &Rc<RefCell<Option<PyErr>>>, res: io::Result<()>) -> PyResult<()> {
+        match res {
+            Ok(()) => Ok(()),
+            Err(e) => Err(err
+                .borrow_mut()
+                .take()
+                .unwrap_or_else(|| PyIOError::new_err(e.to_string()))),
+        }
+    }
+
+    /// Chart label placement relative to a bidegree. Mirrors the upstream
+    /// `charting::Orientation`. Note: `SvgBackend` only implements `Left` and
+    /// `Below` (used for axis labels); `Right`/`Above` raise (see
+    /// `SvgBackend.text`).
+    #[pyclass(eq, eq_int, name = "Orientation", from_py_object)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Orientation {
+        Left,
+        Right,
+        Above,
+        Below,
+    }
+
+    impl From<Orientation> for RsOrientation {
+        fn from(value: Orientation) -> Self {
+            match value {
+                Orientation::Left => RsOrientation::Left,
+                Orientation::Right => RsOrientation::Right,
+                Orientation::Above => RsOrientation::Above,
+                Orientation::Below => RsOrientation::Below,
+            }
+        }
+    }
+
+    /// Build a fresh `PyFileWriter` and its shared error slot from a Python
+    /// file-like object.
+    fn new_writer(file: Py<PyAny>) -> (PyFileWriter, Rc<RefCell<Option<PyErr>>>) {
+        let err = Rc::new(RefCell::new(None));
+        (
+            PyFileWriter {
+                file,
+                err: Rc::clone(&err),
+            },
+            err,
+        )
+    }
+
+    /// Generic message for a charting backend method that panicked upstream
+    /// (e.g. an unsupported `SvgBackend` orientation, or a `node`/`structline`
+    /// referencing a bidegree for which `node()` was never called, or more
+    /// classes than the node patterns support). Contained with `catch_unwind`
+    /// so it never crosses the FFI boundary as a panic.
+    fn panic_msg() -> PyErr {
+        PyRuntimeError::new_err(
+            "charting backend method panicked: likely an unsupported orientation \
+             (SvgBackend supports only Left/Below), a node()/structline() at a \
+             bidegree where node() was not called, or too many classes for the \
+             node patterns",
+        )
+    }
+
+    /// Clone an upstream `Product` (which is not `Clone`) by rebuilding its
+    /// `MultiIndexed` matrix store. Used to copy the products passed to
+    /// `write_to_graph` into an owned `Vec` the upstream iterator can borrow.
+    fn clone_product(p: &RsProduct) -> RsProduct {
+        let matrices: MultiIndexed<2, RsMatrix> = MultiIndexed::new();
+        for (coords, m) in p.matrices.iter() {
+            let _ = matrices.try_insert(RsBidegree::from(coords), m.clone());
+        }
+        RsProduct {
+            b: p.b,
+            left: p.left,
+            matrices,
+        }
+    }
+
+    /// Drive `Sseq::write_to_graph` over a concrete bound backend.
+    ///
+    /// Takes (consumes) the backend's inner upstream value: `write_to_graph`
+    /// owns its `T: Backend` and its `Drop` writes the closing
+    /// `</svg>`/`\end{tikzpicture}`, so the chart is only complete once the
+    /// backend is dropped at the end of the call. Subsequent manual method
+    /// calls on the same pyclass therefore raise "already consumed".
+    ///
+    /// `header` is a Python callable invoked (after the grid is drawn) with a
+    /// single `None` argument: the upstream `header` receives the live Rust
+    /// `&mut T`, which has no Python representation, so the callback cannot
+    /// write to the chart. All examples pass a no-op `lambda _: None`; richer
+    /// header drawing is not supported (documented limitation).
+    fn run_write_to_graph<T>(
+        inner: &mut Option<T>,
+        err: &Rc<RefCell<Option<PyErr>>>,
+        sseq: &RsSseq,
+        r: i32,
+        differentials: bool,
+        products: &[(String, RsProduct)],
+        header: Py<PyAny>,
+    ) -> PyResult<()>
+    where
+        T: RsBackend<Error = io::Error>,
+    {
+        let g = inner.take().ok_or_else(|| {
+            PyRuntimeError::new_err("backend was already consumed by a previous write_to_graph")
+        })?;
+
+        let header_err = Rc::clone(err);
+        let header_closure = move |_g: &mut T| -> io::Result<()> {
+            Python::attach(|py| match header.call1(py, (py.None(),)) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    let mut slot = header_err.borrow_mut();
+                    if slot.is_none() {
+                        *slot = Some(e);
+                    }
+                    Err(io::Error::other("header callback raised"))
+                }
+            })
+        };
+
+        // `try_write_to_graph` checks the "minimum y-coordinate == 0" precondition
+        // (the sseq's minimal filtration) up front and returns `Err(String)`
+        // instead of panicking; map that to a clear error. The remaining,
+        // genuinely-unguardable panics (e.g. too many classes for the node
+        // patterns) are still contained with `catch_unwind`.
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            sseq.try_write_to_graph(g, r, differentials, products.iter(), header_closure)
+        }))
+        .map_err(|_| {
+            PyRuntimeError::new_err(
+                "write_to_graph panicked (e.g. too many classes for the node patterns)",
+            )
+        })?;
+        let res = outcome.map_err(PyRuntimeError::new_err)?;
+        raise_io(err, res)
+    }
+
+    /// Generate a charting backend pyclass wrapping the upstream
+    /// `$Rs<PyFileWriter>`, with the flattened `Backend` trait methods.
+    macro_rules! charting_backend {
+        ($Name:ident, $Rs:ty, $ext:literal, $doc:literal, [$($extra:tt)*]) => {
+            #[doc = $doc]
+            ///
+            /// # Storage
+            ///
+            /// Holds the upstream backend in an `Option` (plain owned value,
+            /// not interior mutability): PyO3 hands out `&mut self` under its
+            /// runtime borrow check, so the manual `Backend` methods just take
+            /// `&mut self`. `write_to_graph` *consumes* the backend (its `Drop`
+            /// emits the closing tag), so it `take()`s the `Option`, after which
+            /// the backend is `None` and further calls raise. The shared `err`
+            /// slot (cloned into the `PyFileWriter`) carries Python `.write`
+            /// exceptions back across the upstream `io::Write` boundary.
+            #[pyclass(unsendable)]
+            pub struct $Name {
+                inner: Option<$Rs>,
+                err: Rc<RefCell<Option<PyErr>>>,
+            }
+
+            impl $Name {
+                /// Run a `Backend` method on the live inner backend, guarding
+                /// against a consumed backend (`RuntimeError`), containing any
+                /// upstream panic (`catch_unwind` -> `RuntimeError`), and
+                /// re-raising a recorded Python `.write` exception.
+                fn with_inner<F>(&mut self, f: F) -> PyResult<()>
+                where
+                    F: FnOnce(&mut $Rs) -> io::Result<()>,
+                {
+                    let res = {
+                        let inner = self.inner.as_mut().ok_or_else(|| {
+                            PyRuntimeError::new_err(
+                                "backend was already consumed by write_to_graph",
+                            )
+                        })?;
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(inner)))
+                            .map_err(|_| panic_msg())?
+                    };
+                    raise_io(&self.err, res)
+                }
+            }
+
+            #[pymethods]
+            impl $Name {
+                /// The file extension commonly used for this backend's output.
+                #[classattr]
+                #[allow(non_upper_case_globals)]
+                const EXT: &'static str = $ext;
+
+                /// Wrap a Python file-like object (anything with a `.write`
+                /// accepting `str` or `bytes`, e.g. `io.StringIO`,
+                /// `io.BytesIO`, an `open(...)` handle, or `sys.stdout`).
+                #[new]
+                fn py_new(file: Py<PyAny>) -> Self {
+                    let (writer, err) = new_writer(file);
+                    $Name {
+                        inner: Some(<$Rs>::new(writer)),
+                        err,
+                    }
+                }
+
+                /// Write the chart header for a chart whose maximal bidegree is
+                /// `max`.
+                fn header(&mut self, max: &Bidegree) -> PyResult<()> {
+                    self.with_inner(|g| g.header(max.0))
+                }
+
+                /// Draw the background grid and axis labels up to `max`
+                /// (calls `header` then the grid lines/labels).
+                fn init(&mut self, max: &Bidegree) -> PyResult<()> {
+                    self.with_inner(|g| g.init(max.0))
+                }
+
+                /// Draw a line from `start` to `end` with CSS/TikZ class
+                /// `style`.
+                fn line(&mut self, start: &Bidegree, end: &Bidegree, style: &str) -> PyResult<()> {
+                    self.with_inner(|g| g.line(start.0, end.0, style))
+                }
+
+                /// Draw `content` near bidegree `b` with the given
+                /// `orientation`. `SvgBackend` supports only `Left`/`Below`
+                /// (others raise via the panic guard).
+                fn text(
+                    &mut self,
+                    b: &Bidegree,
+                    content: String,
+                    orientation: Orientation,
+                ) -> PyResult<()> {
+                    let orientation = RsOrientation::from(orientation);
+                    self.with_inner(|g| g.text(b.0, content, orientation))
+                }
+
+                /// Draw `n` nodes (classes) at bidegree `b`. Must be called for
+                /// a bidegree before any `structline` referencing it.
+                fn node(&mut self, b: &Bidegree, n: usize) -> PyResult<()> {
+                    self.with_inner(|g| g.node(b.0, n))
+                }
+
+                /// Draw a structure line between two basis generators, with an
+                /// optional CSS/TikZ class.
+                #[pyo3(signature = (source, target, style=None))]
+                fn structline(
+                    &mut self,
+                    source: &BidegreeGenerator,
+                    target: &BidegreeGenerator,
+                    style: Option<&str>,
+                ) -> PyResult<()> {
+                    self.with_inner(|g| g.structline(source.0, target.0, style))
+                }
+
+                /// Draw the structure lines encoded by a matrix between the
+                /// classes at `source` and `target` (`matrix[k][l] != 0` draws
+                /// the line from source generator `k` to target generator `l`).
+                #[pyo3(signature = (source, target, matrix, class_=None))]
+                fn structline_matrix(
+                    &mut self,
+                    source: &Bidegree,
+                    target: &Bidegree,
+                    matrix: Vec<Vec<u32>>,
+                    class_: Option<&str>,
+                ) -> PyResult<()> {
+                    self.with_inner(|g| g.structline_matrix(source.0, target.0, matrix, class_))
+                }
+
+                $($extra)*
+            }
+        };
+    }
+
+    charting_backend!(
+        SvgBackend,
+        RsSvgBackend<PyFileWriter>,
+        "svg",
+        "An SVG charting backend writing to a Python file-like object.",
+        [
+            /// Write the node-pattern legend SVG to `file`.
+            #[staticmethod]
+            fn legend(file: Py<PyAny>) -> PyResult<()> {
+                let (writer, err) = new_writer(file);
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    RsSvgBackend::legend(writer)
+                }))
+                .map_err(|_| panic_msg())?;
+                raise_io(&err, res)
+            }
+        ]
+    );
+
+    charting_backend!(
+        TikzBackend,
+        RsTikzBackend<PyFileWriter>,
+        "tex",
+        "A TikZ charting backend writing to a Python file-like object.",
+        []
+    );
+
+    /// Register the charting backends.
+    ///
+    /// `SvgBackend`/`TikzBackend` are generated by the `charting_backend!`
+    /// macro, so the `#[pymodule]` proc-macro (which scans for `#[pyclass]`
+    /// items at expansion time, before the `macro_rules!` invocation is
+    /// expanded) does not auto-collect them. Every other pyclass in this module
+    /// is written out directly and auto-registers; these two are added by hand
+    /// here. (`Orientation`, being written directly, is auto-registered.)
+    #[pymodule_init]
+    fn init_charting(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_class::<SvgBackend>()?;
+        m.add_class::<TikzBackend>()?;
+        Ok(())
     }
 }

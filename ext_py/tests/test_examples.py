@@ -57,8 +57,6 @@ KNOWN_UNBOUND = {
     # tensor.py: FDModuleBuilder.from_tensor_module / .from_module conversion
     # constructor is documented as a planned thin wrapper but is not yet bound.
     "from_tensor_module",
-    # chart.py / unstable_chart.py: SVG charting backend is not bound.
-    "SvgBackend",
     # unstable_chart.py: unstable resolution entry point is not bound.
     "query_unstable_module",
     # massey.py: Massey product computer is not bound.
@@ -90,11 +88,6 @@ KNOWN_UNBOUND = {
     "LAMBDA_BIDEGREE",
     # ext_m_n.py: unicode integer formatter helper is not bound.
     "unicode_num",
-    # --- Charting backends / enums (not yet bound) ---
-    # d2_charts.py / unstable_chart.py: TikZ charting backend is not bound.
-    "TikzBackend",
-    # unstable_chart.py: chart orientation enum is not bound.
-    "Orientation",
 }
 
 
