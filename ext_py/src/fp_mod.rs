@@ -49,7 +49,7 @@ pub mod fp_py {
     struct PyFieldElement(FieldElementKind);
 
     #[pyclass(name = "FpVector")]
-    pub(crate) struct PyFpVector(RustFpVector);
+    pub struct PyFpVector(RustFpVector);
 
     /// A matrix-like parent that can back a borrowed row or rectangle view.
     ///
@@ -227,21 +227,21 @@ pub mod fp_py {
     }
 
     #[pyclass(name = "FpSlice")]
-    pub(crate) struct PyFpSlice {
+    pub struct PyFpSlice {
         parent: SliceParent,
         start: usize,
         end: usize,
     }
 
     #[pyclass(name = "FpSliceMut")]
-    pub(crate) struct PyFpSliceMut {
+    pub struct PyFpSliceMut {
         parent: SliceParent,
         start: usize,
         end: usize,
     }
 
     #[pyclass(name = "FpVectorIterator")]
-    struct PyFpVectorIterator {
+    pub struct PyFpVectorIterator {
         entries: Vec<u32>,
         index: usize,
     }
@@ -251,7 +251,7 @@ pub mod fp_py {
     /// the Rust `MatrixSliceMut` on each call, revalidating the rectangle
     /// against the parent's current dimensions first.
     #[pyclass(name = "MatrixSliceMut")]
-    struct PyMatrixSliceMut {
+    pub struct PyMatrixSliceMut {
         parent: MatrixParent,
         row_start: usize,
         row_end: usize,
@@ -260,13 +260,62 @@ pub mod fp_py {
     }
 
     #[pyclass(name = "Matrix")]
-    struct PyMatrix(RustMatrix);
+    pub struct PyMatrix(RustMatrix);
 
     #[pyclass(name = "Subspace")]
-    struct PySubspace(RustSubspace);
+    pub struct PySubspace(RustSubspace);
 
     #[pyclass(name = "QuasiInverse")]
-    struct PyQuasiInverse(RustQuasiInverse);
+    pub struct PyQuasiInverse(RustQuasiInverse);
+
+    impl PyMatrix {
+        /// Wrap an owned upstream `Matrix` into the bound pyclass. Exposed
+        /// `pub(crate)` so sibling binding modules (e.g. `algebra_py`) can
+        /// return matrices computed by their own Rust APIs.
+        pub(crate) fn from_rust(matrix: RustMatrix) -> Self {
+            Self(matrix)
+        }
+
+        /// Borrow the underlying upstream `Matrix`. Exposed `pub(crate)` so
+        /// sibling binding modules can read its rows (e.g.
+        /// `FreeModuleHomomorphism.add_generators_from_matrix_rows`, which only
+        /// needs the row data).
+        pub(crate) fn as_rust(&self) -> &RustMatrix {
+            &self.0
+        }
+    }
+
+    impl PySubspace {
+        /// Wrap an owned upstream `Subspace` into the bound pyclass. Exposed
+        /// `pub(crate)` so sibling binding modules can return subspaces (e.g.
+        /// `ModuleHomomorphism.kernel`/`image`).
+        pub(crate) fn from_rust(subspace: RustSubspace) -> Self {
+            Self(subspace)
+        }
+
+        /// Borrow the underlying upstream `Subspace`. Exposed `pub(crate)` so
+        /// sibling binding modules can store it (e.g.
+        /// `FreeModuleHomomorphism.set_image`/`set_kernel`).
+        pub(crate) fn as_rust(&self) -> &RustSubspace {
+            &self.0
+        }
+    }
+
+    impl PyQuasiInverse {
+        /// Wrap an owned upstream `QuasiInverse` into the bound pyclass. Exposed
+        /// `pub(crate)` so sibling binding modules can return quasi-inverses
+        /// (e.g. `ModuleHomomorphism.quasi_inverse`).
+        pub(crate) fn from_rust(quasi_inverse: RustQuasiInverse) -> Self {
+            Self(quasi_inverse)
+        }
+
+        /// Borrow the underlying upstream `QuasiInverse`. Exposed `pub(crate)`
+        /// so sibling binding modules can store it (e.g.
+        /// `FreeModuleHomomorphism.set_quasi_inverse`).
+        pub(crate) fn as_rust(&self) -> &RustQuasiInverse {
+            &self.0
+        }
+    }
 
     #[pyclass(name = "Subquotient")]
     struct PySubquotient(RustSubquotient);
@@ -284,7 +333,7 @@ pub mod fp_py {
     /// iteration lazy (O(1) memory) while yielding the same owned `FpVector`s
     /// in the same order as the eager version.
     #[pyclass(name = "SubspaceVectorIterator")]
-    struct PySubspaceVectorIterator {
+    pub struct PySubspaceVectorIterator {
         subspace: RustSubspace,
         index: u128,
         total: u128,
@@ -803,6 +852,16 @@ pub mod fp_py {
 
         pub fn __hash__(&self) -> isize {
             py_hash(&self.0)
+        }
+    }
+
+    impl PyFpVector {
+        /// Wrap an owned upstream `FpVector` into the bound pyclass. Exposed
+        /// `pub(crate)` so sibling binding modules (e.g. `algebra_py`) can
+        /// return vectors they own (e.g.
+        /// `FreeModuleHomomorphism.output`/`apply_to_generator`).
+        pub(crate) fn from_rust(vector: RustFpVector) -> Self {
+            Self(vector)
         }
     }
 
