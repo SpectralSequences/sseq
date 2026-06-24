@@ -2234,43 +2234,55 @@ pub mod algebra_py {
         }
     }
 
-    /// A finite-dimensional module over the Steenrod algebra. The graded
-    /// dimensions are given as a `list[int]` starting at `min_degree`.
+    /// A mutable builder for a finite-dimensional module over the Steenrod
+    /// algebra. The graded dimensions are given as a `list[int]` starting at
+    /// `min_degree`. Populate the actions with
+    /// `add_generator`/`set_action`/`extend_actions`/`set_basis_element_name`,
+    /// then call [`FDModuleBuilder::build`] to obtain an immutable
+    /// `SteenrodModule`.
     ///
     /// The inner module is held in an `Arc` (like `FreeModule`) so that
-    /// `into_steenrod_module()` can unsize that `Arc` directly into a
-    /// `SteenrodModule`, sharing state rather than deep-cloning. While such a
-    /// boxed `SteenrodModule` is still alive, the mutating methods
-    /// (`set_basis_element_name`/`add_generator`/`set_action`/`extend_actions`)
-    /// raise `RuntimeError` instead of silently diverging from the boxed copy.
-    #[pyclass(name = "FDModule")]
-    pub struct FDModule(Arc<FDModuleInner>);
+    /// `build()` can unsize that `Arc` directly into a `SteenrodModule`,
+    /// sharing state rather than deep-cloning. `build()` flips a `built` flag;
+    /// once it is set, every mutating method raises `RuntimeError` (checked
+    /// first, before any other validation, so the error is deterministic and
+    /// never a `ValueError`/panic). The `Arc::get_mut` guard in `inner_mut`
+    /// remains as a backstop. Read-only query methods stay available for
+    /// inspection during construction.
+    #[pyclass(name = "FDModuleBuilder")]
+    pub struct FDModuleBuilder {
+        inner: Arc<FDModuleInner>,
+        /// Set by `build()`; once set, all mutators raise `RuntimeError`.
+        built: bool,
+    }
 
-    impl FDModule {
+    impl FDModuleBuilder {
         fn as_dyn(&self) -> &DynModule {
-            &*self.0
+            &*self.inner
         }
 
         /// Mutable access for the action/generator setters. Fails with
-        /// `RuntimeError` (rather than panicking or diverging) once the inner
-        /// `Arc` is shared — i.e. after `into_steenrod_module()` has handed out
-        /// a boxed module that aliases this state.
+        /// `RuntimeError` (rather than panicking or diverging) once `build()`
+        /// has been called: either the `built` flag is set, or the shared `Arc`
+        /// makes `Arc::get_mut` return `None`.
         fn inner_mut(&mut self) -> PyResult<&mut FDModuleInner> {
-            Arc::get_mut(&mut self.0).ok_or_else(|| {
-                PyRuntimeError::new_err(
-                    "cannot mutate an FDModule whose state is shared with a boxed SteenrodModule \
-                     (created via into_steenrod_module())",
-                )
+            if self.built {
+                return Err(PyRuntimeError::new_err(
+                    "cannot mutate an FDModuleBuilder after build()",
+                ));
+            }
+            Arc::get_mut(&mut self.inner).ok_or_else(|| {
+                PyRuntimeError::new_err("cannot mutate an FDModuleBuilder after build()")
             })
         }
     }
 
     #[pymethods]
-    impl FDModule {
-        /// Build a finite-dimensional module with `graded_dims[i]` generators in
-        /// degree `min_degree + i`. All actions are initialised to zero; use
-        /// `add_generator`/`set_action`/`extend_actions` to populate them, or
-        /// build from JSON via `steenrod_module_from_json`.
+    impl FDModuleBuilder {
+        /// Build an in-progress finite-dimensional module with `graded_dims[i]`
+        /// generators in degree `min_degree + i`. All actions are initialised to
+        /// zero; use `add_generator`/`set_action`/`extend_actions` to populate
+        /// them, then call `build()` to obtain the immutable `SteenrodModule`.
         #[new]
         #[pyo3(signature = (algebra, name, graded_dims, min_degree = 0))]
         pub fn new(
@@ -2280,33 +2292,32 @@ pub mod algebra_py {
             min_degree: i32,
         ) -> Self {
             let graded_dimension = ::bivec::BiVec::from_vec(min_degree, graded_dims);
-            FDModule(Arc::new(FDModuleInner::new(
-                algebra.arc(),
-                name,
-                graded_dimension,
-            )))
+            FDModuleBuilder {
+                inner: Arc::new(FDModuleInner::new(algebra.arc(), name, graded_dimension)),
+                built: false,
+            }
         }
 
         // --- flattened Module method set --------------------------------------
 
         pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
+            SteenrodAlgebra::from_arc(self.inner.algebra())
         }
 
         pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
+            self.inner.min_degree()
         }
 
         pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
+            self.inner.max_computed_degree()
         }
 
         pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
+            self.inner.max_degree()
         }
 
         pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
+            self.inner.prime().as_u32()
         }
 
         pub fn compute_basis(&self, degree: i32) {
@@ -2322,7 +2333,7 @@ pub mod algebra_py {
         }
 
         pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
+            self.inner.is_unit()
         }
 
         pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
@@ -2407,32 +2418,44 @@ pub mod algebra_py {
             )
         }
 
-        // --- FDModule-specific (thin) -----------------------------------------
+        // --- FDModuleBuilder-specific (thin) ----------------------------------
 
-        /// Rename a basis element. Raises `IndexError` if `(degree, idx)` is not
-        /// a basis element (upstream indexes `gen_names` and would panic).
+        /// Rename a basis element. Raises `RuntimeError` after `build()`
+        /// (checked first), or `IndexError` if `(degree, idx)` is not a basis
+        /// element (upstream indexes `gen_names` and would panic).
         pub fn set_basis_element_name(
             &mut self,
             degree: i32,
             idx: usize,
             name: String,
         ) -> PyResult<()> {
+            if self.built {
+                return Err(PyRuntimeError::new_err(
+                    "cannot mutate an FDModuleBuilder after build()",
+                ));
+            }
             checked_mod_index(self.as_dyn(), degree, idx)?;
             self.inner_mut()?.set_basis_element_name(degree, idx, name);
             Ok(())
         }
 
-        /// Append a new generator in `degree`. Raises `RuntimeError` if the
-        /// module's state is shared with a boxed `SteenrodModule`.
+        /// Append a new generator in `degree`. Raises `RuntimeError` after
+        /// `build()`.
         pub fn add_generator(&mut self, degree: i32, name: String) -> PyResult<()> {
+            if self.built {
+                return Err(PyRuntimeError::new_err(
+                    "cannot mutate an FDModuleBuilder after build()",
+                ));
+            }
             self.inner_mut()?.add_generator(degree, name);
             Ok(())
         }
 
         /// Set the action `op * x = output`, where `op = (op_degree, op_index)`
         /// and `x = (input_degree, input_index)`. `output` is a coefficient
-        /// vector in degree `input_degree + op_degree`. Raises `IndexError`/
-        /// `ValueError` rather than letting an upstream assertion/`copy_from_slice`
+        /// vector in degree `input_degree + op_degree`. Raises `RuntimeError`
+        /// after `build()` (checked first), otherwise `IndexError`/`ValueError`
+        /// rather than letting an upstream assertion/`copy_from_slice`
         /// length-mismatch panic.
         #[allow(clippy::too_many_arguments)]
         pub fn set_action(
@@ -2443,8 +2466,13 @@ pub mod algebra_py {
             input_index: usize,
             output: Vec<u32>,
         ) -> PyResult<()> {
+            if self.built {
+                return Err(PyRuntimeError::new_err(
+                    "cannot mutate an FDModuleBuilder after build()",
+                ));
+            }
             non_negative_degree(op_degree)?;
-            self.0.algebra().compute_basis(op_degree);
+            self.inner.algebra().compute_basis(op_degree);
             checked_op_index(self.as_dyn(), op_degree, op_index)?;
             checked_mod_index(self.as_dyn(), input_degree, input_index)?;
             let output_degree = input_degree
@@ -2463,7 +2491,7 @@ pub mod algebra_py {
                 )));
             }
             checked_equal_len(output.len(), out_dim)?;
-            let p = self.0.prime().as_u32();
+            let p = self.inner.prime().as_u32();
             for v in &output {
                 if *v >= p {
                     return Err(PyValueError::new_err(format!(
@@ -2486,7 +2514,7 @@ pub mod algebra_py {
             input_index: usize,
         ) -> PyResult<Vec<u32>> {
             non_negative_degree(op_degree)?;
-            self.0.algebra().compute_basis(op_degree);
+            self.inner.algebra().compute_basis(op_degree);
             checked_op_index(self.as_dyn(), op_degree, op_index)?;
             checked_mod_index(self.as_dyn(), input_degree, input_index)?;
             let output_degree = input_degree
@@ -2498,7 +2526,7 @@ pub mod algebra_py {
                 )));
             }
             let vec = self
-                .0
+                .inner
                 .action(op_degree, op_index, input_degree, input_index);
             Ok(vec.iter().collect())
         }
@@ -2507,12 +2535,19 @@ pub mod algebra_py {
         /// the actions of the algebra generators. Raises if `output_deg <=
         /// input_deg` (upstream asserts).
         pub fn extend_actions(&mut self, input_degree: i32, output_degree: i32) -> PyResult<()> {
+            if self.built {
+                return Err(PyRuntimeError::new_err(
+                    "cannot mutate an FDModuleBuilder after build()",
+                ));
+            }
             if output_degree <= input_degree {
                 return Err(PyValueError::new_err(
                     "output_degree must be strictly greater than input_degree",
                 ));
             }
-            self.0.algebra().compute_basis(output_degree - input_degree);
+            self.inner
+                .algebra()
+                .compute_basis(output_degree - input_degree);
             self.inner_mut()?
                 .extend_actions(input_degree, output_degree);
             Ok(())
@@ -2527,8 +2562,10 @@ pub mod algebra_py {
                     "output_degree must be strictly greater than input_degree",
                 ));
             }
-            self.0.algebra().compute_basis(output_degree - input_degree);
-            self.0
+            self.inner
+                .algebra()
+                .compute_basis(output_degree - input_degree);
+            self.inner
                 .check_validity(input_degree, output_degree)
                 .map_err(|e| PyValueError::new_err(e.to_string()))
         }
@@ -2536,25 +2573,28 @@ pub mod algebra_py {
         /// Look up a basis element by its name, returning `(degree, index)` or
         /// `None`.
         pub fn string_to_basis_element(&self, string: &str) -> Option<(i32, usize)> {
-            self.0.string_to_basis_element(string)
+            self.inner.string_to_basis_element(string)
         }
 
-        /// Box this module into a `SteenrodModule` for downstream use.
+        /// Finalize the builder and return the immutable `SteenrodModule` it has
+        /// constructed. This is the only producer of the finished module.
         ///
-        /// This **shares state** with the `FDModule` via an `Arc` (the
-        /// `FreeModule.into_steenrod_module` pattern): no deep clone is made.
-        /// While the returned `SteenrodModule` is alive the `Arc` is shared, so
-        /// any subsequent mutation of this `FDModule`
-        /// (`set_action`/`add_generator`/`set_basis_element_name`/
-        /// `extend_actions`) raises `RuntimeError` rather than silently
-        /// diverging from the boxed module.
-        pub fn into_steenrod_module(&self) -> SteenrodModule {
+        /// The returned `SteenrodModule` **shares state** with this builder via
+        /// an `Arc` (the `FreeModule.into_steenrod_module` pattern): no deep
+        /// clone is made, so any pre-build mutation is reflected in the built
+        /// module. `build()` flips a `built` flag; afterwards every mutating
+        /// method (`set_action`/`add_generator`/`set_basis_element_name`/
+        /// `extend_actions`) raises `RuntimeError` (checked first, never a
+        /// `ValueError`/panic). `build()` may be called multiple times to obtain
+        /// additional handles to the same shared module.
+        pub fn build(&mut self) -> SteenrodModule {
+            self.built = true;
             // `Arc<FDModuleInner>` unsizes directly to `Arc<dyn Module>`.
-            SteenrodModule(Arc::clone(&self.0) as RsSteenrodModule)
+            SteenrodModule(Arc::clone(&self.inner) as RsSteenrodModule)
         }
 
         pub fn __repr__(&self) -> String {
-            format!("FDModule({})", self.0)
+            format!("FDModuleBuilder({})", self.inner)
         }
     }
 

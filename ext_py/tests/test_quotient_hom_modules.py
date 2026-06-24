@@ -8,10 +8,10 @@ def milnor(p=2):
 
 
 def make_c2(alg):
-    """Build a C2 SteenrodModule over the given algebra via an FDModule."""
-    m = algebra.FDModule(alg, "C2", [1, 1])
+    """Build a C2 SteenrodModule over the given algebra via an FDModuleBuilder."""
+    m = algebra.FDModuleBuilder(alg, "C2", [1, 1])
     m.set_action(1, 0, 0, 0, [1])  # Sq1 x0 = x1
-    return m.into_steenrod_module()
+    return m.build()
 
 
 def free_one_gen(alg):

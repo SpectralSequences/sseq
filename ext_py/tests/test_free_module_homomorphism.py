@@ -513,16 +513,14 @@ def test_apply_to_basis_element_below_min_degree_raises():
 
 def test_target_state_is_shared_not_snapshotted():
     # The homomorphism holds the target's `Arc`, so it shares state with the
-    # boxed SteenrodModule rather than snapshotting it. We observe this through
-    # the FDModule mutation guard: an FDModule whose state is shared with a
-    # boxed SteenrodModule refuses to mutate (RuntimeError). After dropping the
-    # boxed SteenrodModule, the FDModule is *still* locked because the
-    # homomorphism keeps the shared Arc alive -- proving the hom shares state.
+    # built SteenrodModule rather than snapshotting it. A SteenrodModule built
+    # via FDModuleBuilder(...).build() works as a homomorphism target (the
+    # consumer that previously used into_steenrod_module()).
     alg = milnor(2)
-    fd = algebra.FDModule(alg, "C2", [1, 1], 0)
+    fd = algebra.FDModuleBuilder(alg, "C2", [1, 1], 0)
     fd.set_action(1, 0, 0, 0, [1])  # Sq1 x0 = x1
-    sm = fd.into_steenrod_module()
-    # While the boxed module is alive, fd is locked.
+    sm = fd.build()
+    # After build() the builder is locked (the `built` flag fires first).
     with pytest.raises(RuntimeError):
         fd.add_generator(2, "y")
 
@@ -532,15 +530,11 @@ def test_target_state_is_shared_not_snapshotted():
     row[0] = 1
     hom.add_generators_from_rows(0, [row])  # f(g) = x0
 
-    # Drop the boxed SteenrodModule; only the homomorphism now shares fd.
+    # Drop the directly held box; the homomorphism keeps its own shared Arc.
     del sm
     gc.collect()
 
-    # fd remains locked solely because the homomorphism shares its Arc.
-    with pytest.raises(RuntimeError):
-        fd.add_generator(2, "y")
-
-    # And the homomorphism's target() handle still reflects the shared module.
+    # The homomorphism's target() handle still reflects the shared module.
     target = hom.target()
     assert target.dimension(0) == 1
     assert target.dimension(1) == 1

@@ -17,14 +17,18 @@ def milnor(p=2):
 
 
 def make_c2_fdmodule():
-    """Build the C2 module by hand as an FDModule and set its single action."""
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    """Build the C2 module by hand via an FDModuleBuilder and set its action.
+
+    Returns the (pre-build) builder; read-only query methods stay available on
+    it for inspection during construction.
+    """
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
     # Sq1 is the algebra operation (degree 1, index 0).
     m.set_action(1, 0, 0, 0, [1])
     return m
 
 
-# --- FDModule -------------------------------------------------------------
+# --- FDModuleBuilder ------------------------------------------------------
 
 
 def test_fdmodule_basic_invariants():
@@ -115,14 +119,14 @@ def test_fdmodule_act_distinct_objects_regression():
 def test_fdmodule_action_getter_and_string():
     m = make_c2_fdmodule()
     assert list(m.action(1, 0, 0, 0)) == [1]
-    # FDModule auto-names basis elements `x{degree}_{index}`.
+    # FDModuleBuilder auto-names basis elements `x{degree}_{index}`.
     assert m.basis_element_to_string(0, 0) == "x0_0"
     assert m.string_to_basis_element("x1_0") == (1, 0)
     assert m.string_to_basis_element("nope") is None
 
 
 def test_fdmodule_set_action_invalid_raises():
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
     # Output degree 2 is empty -> length mismatch raises (not panic).
     with pytest.raises((ValueError, IndexError)):
         m.set_action(2, 0, 0, 0, [1])
@@ -142,9 +146,9 @@ def test_fdmodule_act_out_of_range_raises():
         m.act_on_basis(res, 1, -1, 0, 0, 0)
 
 
-def test_fdmodule_into_steenrod_module():
+def test_fdmodule_build():
     m = make_c2_fdmodule()
-    sm = m.into_steenrod_module()
+    sm = m.build()
     assert isinstance(sm, algebra.SteenrodModule)
     assert sm.prime() == m.prime()
     assert sm.dimension(0) == m.dimension(0)
@@ -313,7 +317,7 @@ def test_freemodule_iter_gens_below_min_degree_empty():
 
 
 def test_fdmodule_set_action_out_of_range_output_degree_raises():
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
     # op_degree 5 lands in output degree 5 (above max_degree 1); an empty
     # output used to slip past the length check and panic.
     with pytest.raises(ValueError):
@@ -323,71 +327,80 @@ def test_fdmodule_set_action_out_of_range_output_degree_raises():
     assert list(m.action(1, 0, 0, 0)) == [1]
 
 
-def test_fdmodule_into_steenrod_module_shares_state_and_blocks_mutation():
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
-    # Pre-boxing mutation works and is reflected in the boxed module (shared
+def test_fdmodule_build_shares_state_and_locks_mutation():
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
+    # Pre-build mutation works and is reflected in the built module (shared
     # state via Arc).
     m.set_action(1, 0, 0, 0, [1])
-    sm = m.into_steenrod_module()
+    sm = m.build()
     res = fp.FpVector(2, sm.dimension(1))
     sm.act_on_basis(res, 1, 1, 0, 0, 0)
     assert res[0] == 1
-    # While the boxed module is alive, mutating the FDModule raises RuntimeError
-    # (the Arc is shared) instead of silently diverging.
+    # After build() the builder is locked: the `built` flag is checked first in
+    # every mutator, so they raise RuntimeError even with valid arguments.
     with pytest.raises(RuntimeError):
         m.set_action(1, 0, 0, 0, [0])
     with pytest.raises(RuntimeError):
         m.add_generator(0, "x")
     with pytest.raises(RuntimeError):
         m.extend_actions(0, 1)
-    # set_basis_element_name is also blocked while the box is alive (parity
-    # with the Rust test, which the Python test previously omitted).
     with pytest.raises(RuntimeError):
         m.set_basis_element_name(0, 0, "y")
-    # Releasing the boxed module lets mutation work again.
-    del sm
-    m.set_action(1, 0, 0, 0, [0])
 
 
-def test_fdmodule_two_boxes_keep_lock_until_all_dropped():
+def test_fdmodule_build_lock_is_checked_before_validation():
+    # The build-lock (the `built` flag) is checked FIRST, before any argument
+    # validation, so even arguments that would otherwise raise ValueError/
+    # IndexError raise a clean RuntimeError after build().
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    m.build()
+    # op_degree 99 lands in an empty output degree (would be ValueError before
+    # build); out-of-range indices (would be IndexError). Both must surface as
+    # RuntimeError because the build-lock fires first.
+    with pytest.raises(RuntimeError):
+        m.set_action(99, 0, 0, 0, [])
+    with pytest.raises(RuntimeError):
+        m.set_action(1, 0, 0, 9, [1])
+    with pytest.raises(RuntimeError):
+        m.set_basis_element_name(0, 9, "y")
+
+
+def test_fdmodule_build_callable_multiple_times():
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    sm1 = m.build()
+    sm2 = m.build()
+    # Both handles share the same finished module.
+    assert isinstance(sm1, algebra.SteenrodModule)
+    assert isinstance(sm2, algebra.SteenrodModule)
+    assert sm1.dimension(1) == sm2.dimension(1) == 1
+    # The builder stays locked regardless of how many handles are alive or
+    # dropped: the `built` flag is the primary gate.
     import gc
 
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
-    m.set_action(1, 0, 0, 0, [1])
-    sm1 = m.into_steenrod_module()
-    sm2 = m.into_steenrod_module()
-    # Two boxes share the state (strong count > 1): mutation is blocked.
-    with pytest.raises(RuntimeError):
-        m.set_action(1, 0, 0, 0, [0])
-    # Dropping ONE box is not enough; the count is still > 1.
     del sm1
-    gc.collect()
-    with pytest.raises(RuntimeError):
-        m.set_action(1, 0, 0, 0, [0])
-    # Dropping the second box releases the last shared Arc; mutation works.
     del sm2
     gc.collect()
-    m.set_action(1, 0, 0, 0, [0])
-
-
-def test_fdmodule_derived_module_clone_keeps_lock():
-    import gc
-
-    m = algebra.FDModule(milnor(2), "C2", [1, 1])
-    m.set_action(1, 0, 0, 0, [1])
-    sm = m.into_steenrod_module()
-    # A derived module (TensorModule) retains its own Arc clone of the state.
-    t = algebra.TensorModule(sm, sm)
-    # Dropping the direct box is not enough: the derived module still holds an
-    # Arc clone, so the FDModule stays locked.
-    del sm
-    gc.collect()
     with pytest.raises(RuntimeError):
         m.set_action(1, 0, 0, 0, [0])
-    # Dropping the derived module releases the last clone; mutation works again.
-    del t
-    gc.collect()
-    m.set_action(1, 0, 0, 0, [0])
+
+
+def test_fdmodule_build_result_usable_by_consumers():
+    # A TensorModule built from FDModuleBuilder(...).build() still works (the
+    # consumer that previously used into_steenrod_module()).
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    sm = m.build()
+    t = algebra.TensorModule(sm, sm)
+    t.compute_basis(2)
+    assert t.dimension(0) == 1
+
+
+def test_fdmodulebuilder_present_fdmodule_absent():
+    names = dir(algebra)
+    assert "FDModuleBuilder" in names
+    assert "FDModule" not in names
 
 
 # --- invalid construction -------------------------------------------------
