@@ -3586,9 +3586,11 @@ pub mod algebra_py {
     /// `SteenrodModule` (box concrete modules with `.into_steenrod_module()`).
     ///
     /// The `quotient*` methods mutate the subspace and therefore require unique
-    /// ownership of the inner `Arc`; once the module has been boxed with
-    /// `into_steenrod_module()` (which shares the `Arc`), further mutation
-    /// raises `RuntimeError`. Build up the quotient first, then box it.
+    /// ownership of the inner `Arc`; while a boxed `SteenrodModule` produced
+    /// from this module (via `into_steenrod_module()`) is still alive it shares
+    /// the `Arc`, so mutation raises `RuntimeError`. Dropping every such box
+    /// restores unique ownership and mutation works again. Build up the
+    /// quotient first, then box it.
     #[pyclass(name = "QuotientModule")]
     pub struct QuotientModule(Arc<QuotientModuleInner>);
 
@@ -3598,9 +3600,11 @@ pub mod algebra_py {
         }
 
         /// Mutable access to the inner module for the `quotient*` setters.
-        /// Fails once the `Arc` has been shared (i.e. after
-        /// `into_steenrod_module()`), since the boxed `SteenrodModule` then
-        /// observes the same state and a mutation would be unsound.
+        /// Fails while the `Arc` is shared (i.e. while a boxed `SteenrodModule`
+        /// produced via `into_steenrod_module()` is still alive), since that
+        /// box observes the same state and a mutation would be unsound. Once
+        /// every such box is dropped, unique ownership is restored and mutation
+        /// succeeds again.
         fn inner_mut(&mut self) -> PyResult<&mut QuotientModuleInner> {
             Arc::get_mut(&mut self.0).ok_or_else(|| {
                 PyRuntimeError::new_err(
@@ -3644,6 +3648,11 @@ pub mod algebra_py {
                     "truncation {truncation} is below the module's min_degree {min_degree}"
                 )));
             }
+            // Upstream `QuotientModuleInner::new` calls `module.compute_basis(truncation)`,
+            // which for a `FreeModule` inner reads `algebra.dimension_unstable(..)` *without*
+            // extending the algebra and `OnceVec`-panics if the algebra is not computed
+            // through `truncation`. Pre-extend the inner module (and its algebra) here.
+            module_ensure(&*module.0, truncation);
             Ok(QuotientModule(Arc::new(QuotientModuleInner::new(
                 Arc::new(Arc::clone(&module.0)),
                 truncation,
@@ -3894,7 +3903,9 @@ pub mod algebra_py {
 
         /// Box this module into a `SteenrodModule` for downstream use. Shares
         /// state with this `QuotientModule` via an `Arc` (the `FreeModule`
-        /// pattern); after boxing, the `quotient*` setters raise `RuntimeError`.
+        /// pattern); while a boxed `SteenrodModule` from this module is alive
+        /// the `quotient*` setters raise `RuntimeError`, and they work again
+        /// once every such box is dropped.
         pub fn into_steenrod_module(&self) -> SteenrodModule {
             SteenrodModule(Arc::clone(&self.0) as RsSteenrodModule)
         }
@@ -3931,20 +3942,33 @@ pub mod algebra_py {
         /// (but does not extend) the source's *Steenrod* algebra tables and
         /// would `OnceVec`-panic if they are not computed far enough. So we
         /// extend the source's Steenrod algebra here, then call the upstream
-        /// `compute_basis` (idempotent). A no-op below `min_degree`.
-        fn ensure(&self, degree: i32) {
+        /// `compute_basis` (idempotent).
+        ///
+        /// Returns `true` when degree-`degree` data is (or already was)
+        /// computable, and `false` *without computing anything* when `degree`
+        /// is so large that the upstream `compute_basis` — which itself adds
+        /// `degree + target.max_degree()` (the same sum guarded below) — would
+        /// overflow `i32`. Such a degree is not a reachable module degree, so
+        /// callers short-circuit to a clean error / zero dimension rather than
+        /// panic. A no-op (returning `true`) below `min_degree`, where the
+        /// guarded `module_*` helpers already treat the degree as empty.
+        fn ensure(&self, degree: i32) -> bool {
             if degree < self.0.min_degree() {
-                return;
+                return true;
             }
             // `target.max_degree()` is `Some` (checked in `new`).
             let tmax = self.0.target().max_degree().unwrap();
-            if let Some(src_deg) = degree.checked_add(tmax) {
-                let source = self.0.source();
-                source
-                    .algebra()
-                    .compute_basis(src_deg - source.min_degree());
-            }
+            let Some(src_deg) = degree.checked_add(tmax) else {
+                // Upstream `HomModule::compute_basis(degree)` recomputes this
+                // same `degree + tmax`; bail before it overflows.
+                return false;
+            };
+            let source = self.0.source();
+            source
+                .algebra()
+                .compute_basis(src_deg - source.min_degree());
             self.0.compute_basis(degree);
+            true
         }
     }
 
@@ -4006,7 +4030,12 @@ pub mod algebra_py {
         }
 
         pub fn dimension(&self, degree: i32) -> usize {
-            self.ensure(degree);
+            // An uncomputable (overflowing) degree is not a reachable module
+            // degree; report a 0 dimension instead of letting the upstream
+            // `compute_basis` re-add `degree + tmax` and overflow-panic.
+            if !self.ensure(degree) {
+                return 0;
+            }
             module_dimension(self.as_dyn(), degree)
         }
 
@@ -4021,7 +4050,12 @@ pub mod algebra_py {
         }
 
         pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            self.ensure(degree);
+            // Uncomputable degree -> dimension 0, so any index is out of range.
+            if !self.ensure(degree) {
+                return Err(PyIndexError::new_err(format!(
+                    "index {idx} out of range for degree {degree} (dimension 0)"
+                )));
+            }
             module_basis_element_to_string(self.as_dyn(), degree, idx)
         }
 
@@ -4031,7 +4065,11 @@ pub mod algebra_py {
             degree: i32,
             element: &Bound<'_, PyAny>,
         ) -> PyResult<String> {
-            self.ensure(degree);
+            if !self.ensure(degree) {
+                return Err(PyValueError::new_err(format!(
+                    "degree {degree} is too large to compute"
+                )));
+            }
             module_element_to_string(self.as_dyn(), py, degree, element)
         }
 
@@ -4048,10 +4086,21 @@ pub mod algebra_py {
         ) -> PyResult<()> {
             // Pre-extend the source algebra for every degree the guard helper
             // will touch (`mod_degree` and the output `mod_degree + op_degree`).
-            self.ensure(mod_degree);
+            // An uncomputable (overflowing) degree has dimension 0, so the
+            // basis index cannot exist; bail with a clean `IndexError` before
+            // the upstream `compute_basis` overflow-panics.
+            if !self.ensure(mod_degree) {
+                return Err(PyIndexError::new_err(format!(
+                    "module index {mod_index} out of range for degree {mod_degree} (dimension 0)"
+                )));
+            }
             if op_degree >= 0 {
                 if let Some(out) = mod_degree.checked_add(op_degree) {
-                    self.ensure(out);
+                    if !self.ensure(out) {
+                        return Err(PyValueError::new_err(
+                            "output degree is too large to compute",
+                        ));
+                    }
                 }
             }
             module_act_on_basis(
@@ -4077,10 +4126,21 @@ pub mod algebra_py {
             input_degree: i32,
             input: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
-            self.ensure(input_degree);
+            // Uncomputable (overflowing) input/output degrees are unreachable
+            // module degrees; raise cleanly before the upstream `compute_basis`
+            // overflow-panics.
+            if !self.ensure(input_degree) {
+                return Err(PyValueError::new_err(format!(
+                    "degree {input_degree} is too large to compute"
+                )));
+            }
             if op_degree >= 0 {
                 if let Some(out) = input_degree.checked_add(op_degree) {
-                    self.ensure(out);
+                    if !self.ensure(out) {
+                        return Err(PyValueError::new_err(
+                            "output degree is too large to compute",
+                        ));
+                    }
                 }
             }
             module_act(
@@ -4106,10 +4166,19 @@ pub mod algebra_py {
             input_degree: i32,
             input: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
-            self.ensure(input_degree);
+            // See `act`: bail cleanly on uncomputable (overflowing) degrees.
+            if !self.ensure(input_degree) {
+                return Err(PyValueError::new_err(format!(
+                    "degree {input_degree} is too large to compute"
+                )));
+            }
             if op_degree >= 0 {
                 if let Some(out) = input_degree.checked_add(op_degree) {
-                    self.ensure(out);
+                    if !self.ensure(out) {
+                        return Err(PyValueError::new_err(
+                            "output degree is too large to compute",
+                        ));
+                    }
                 }
             }
             module_act_by_element(

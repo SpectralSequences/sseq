@@ -143,6 +143,40 @@ def test_quotient_module_construct_below_min_degree_raises():
         algebra.QuotientModule(make_c2(alg), -5)
 
 
+def test_quotient_module_free_inner_uncomputed_algebra_no_panic():
+    # A FreeModule inner whose Steenrod algebra has NOT been computed: a
+    # truncation above the algebra's computed degree used to make upstream
+    # `module.compute_basis(truncation)` index past the empty algebra basis
+    # and panic. `QuotientModule.new` now pre-extends the inner module.
+    alg = milnor(2)
+    f = algebra.FreeModule(alg, "F", 0)
+    f.add_generators(0, 1)  # one generator in degree 0, algebra NOT computed
+    q = algebra.QuotientModule(f.into_steenrod_module(), 20)
+    assert q.prime() == 2
+    assert q.truncation == 20
+    assert q.min_degree() == 0
+    # F<x0> over A: dim in degree t equals the algebra dimension in t.
+    assert q.dimension(0) == 1  # 1 (unit)
+    assert q.dimension(1) == 1  # Sq1
+    assert q.dimension(2) == 1  # Sq2
+    assert q.dimension(3) == 2  # Sq3, Sq2 Sq1
+
+
+def test_quotient_module_mutation_works_again_after_box_dropped():
+    # The mutation lock is only active while a boxed SteenrodModule from this
+    # module is alive; dropping it restores unique ownership and mutation.
+    alg = milnor(2)
+    q = algebra.QuotientModule(make_c2(alg), 1)
+    q.compute_basis(2)
+    boxed = q.into_steenrod_module()
+    with pytest.raises(RuntimeError):
+        q.quotient_basis_elements(1, [0])
+    # Drop the only outstanding box; the Arc is unique again.
+    del boxed
+    q.quotient_basis_elements(1, [0])
+    assert q.dimension(1) == 0
+
+
 def test_quotient_module_into_steenrod_module_roundtrip_and_locks():
     alg = milnor(2)
     q = algebra.QuotientModule(make_c2(alg), 1)
@@ -246,6 +280,21 @@ def test_hom_module_out_of_range_no_panic():
     assert hom.dimension(5) == 0
     with pytest.raises(IndexError):
         hom.basis_element_to_string(-5, 0)
+
+
+def test_hom_module_overflow_degree_no_panic():
+    # target.max_degree() == 1, so the upstream compute_basis would add
+    # i32::MAX + 1 and overflow. The degree-touching methods short-circuit
+    # cleanly instead of panicking.
+    alg = milnor(2)
+    hom = algebra.HomModule(free_one_gen(alg), make_c2(alg))
+    IMAX = 2147483647
+    assert hom.dimension(IMAX) == 0
+    with pytest.raises(IndexError):
+        hom.basis_element_to_string(IMAX, 0)
+    res = fp.FpVector(2, 0)
+    with pytest.raises((IndexError, ValueError)):
+        hom.act_on_basis(res, 1, 0, 0, IMAX, 0)
 
 
 def test_hom_module_total_dimension_unbounded_raises():
