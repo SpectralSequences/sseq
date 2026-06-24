@@ -1680,9 +1680,11 @@ mod ext_py {
             algebra_py::SteenrodModule::from_rust((*self.0.zero_module()).clone())
         }
 
-        /// The `s`-th module `C_s`, sharing its `Arc`. Out-of-range `s` (`>=` the
-        /// number of modules) returns the zero module, matching upstream.
-        /// Raises `ValueError` for negative `s`.
+        /// The `s`-th module `C_s`, as a *clone* (snapshot) of the underlying
+        /// module — not a shared `Arc` view, since `SteenrodModule` wraps the
+        /// value by clone. Out-of-range `s` (`>=` the number of modules) returns
+        /// the zero module, matching upstream. Raises `ValueError` for negative
+        /// `s`.
         pub fn module(&self, s: i32) -> PyResult<algebra_py::SteenrodModule> {
             if s < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(
@@ -1822,7 +1824,7 @@ mod ext_py {
     /// produce; here it is constructible directly from explicit modules,
     /// differentials, a target complex, and one augmentation map per module.
     ///
-    /// Stored as the value plus the number of augmentation maps (so
+    /// Stored as an `Arc<FACC>` plus the number of augmentation maps (so
     /// `chain_map(s)` can be range-guarded — upstream exposes no length
     /// accessor and `chain_map` panics out of range). `frozen`: every method
     /// takes `&self` and reads interior-mutable module tables.
@@ -1995,9 +1997,10 @@ mod ext_py {
             algebra_py::SteenrodModule::from_rust((*self.inner.zero_module()).clone())
         }
 
-        /// The `s`-th module `C_s`, sharing its `Arc`. Out-of-range `s` returns
-        /// the zero module (matching upstream). Raises `ValueError` for negative
-        /// `s`.
+        /// The `s`-th module `C_s`, as a *clone* (snapshot) of the underlying
+        /// module — not a shared `Arc` view, since `SteenrodModule` wraps the
+        /// value by clone. Out-of-range `s` returns the zero module (matching
+        /// upstream). Raises `ValueError` for negative `s`.
         pub fn module(&self, s: i32) -> PyResult<algebra_py::SteenrodModule> {
             if s < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(

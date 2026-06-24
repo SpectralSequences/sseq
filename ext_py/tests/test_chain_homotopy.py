@@ -85,12 +85,46 @@ def test_extend_and_homotopy_shapes():
     # The homotopy table starts at shift.s - 1 = 1; homotopy(0) is undefined.
     with pytest.raises(IndexError):
         ch.homotopy(0)
+    shift = ch.shift()  # (2, 2): shift.s == 2, shift.t == 2
+    # Upstream `ChainHomotopy::initialize_homotopies` builds each h_s as
+    # FreeModuleHomomorphism::new(left.source.module(s),
+    #                             right.target.module(s + 1 - shift.s),
+    #                             shift.t)
+    # (ext/src/chain_complex/chain_homotopy.rs L122-130). So h_s is exactly the
+    # map C_s -> C_{s + 1 - shift.s} with degree_shift == shift.t. Pin that down
+    # concretely against the two input resolutions' modules.
+    src_res = ch.left().source()  # the resolution S (= C)
+    tgt_res = ch.right().target()  # the resolution U (= D)
     for s in range(1, 5):
         h = ch.homotopy(s)
-        # h_s : C_s -> C_{s + 1 - shift.s} = C_{s - 1}, raising t by shift.t = 2.
         assert h.source().prime() == 2
         assert h.target().prime() == 2
-        assert h.degree_shift() == 2
+        # degree_shift == shift.t (raises internal degree by 2).
+        assert h.degree_shift() == shift.t
+        # h.source() is left.source.module(s); h.target() is
+        # right.target.module(s + 1 - shift.s). Identify each module by its
+        # generator/dimension profile over a range of internal degrees.
+        expected_src = src_res.module(s)
+        expected_tgt = tgt_res.module(s + 1 - shift.s)
+        # Non-vacuous: source (C_s) and target (C_{s-1}) are genuinely different
+        # modules (different homological degree), so this comparison pins down
+        # the C_s -> C_{s + 1 - shift.s} relationship rather than trivially
+        # matching the same module against itself.
+        differ = False
+        for t in range(0, 9):
+            assert h.source().number_of_gens_in_degree(
+                t
+            ) == expected_src.number_of_gens_in_degree(t)
+            assert h.source().dimension(t) == expected_src.dimension(t)
+            assert h.target().number_of_gens_in_degree(
+                t
+            ) == expected_tgt.number_of_gens_in_degree(t)
+            assert h.target().dimension(t) == expected_tgt.dimension(t)
+            if expected_src.number_of_gens_in_degree(
+                t
+            ) != expected_tgt.number_of_gens_in_degree(t):
+                differ = True
+        assert differ, f"source/target modules must differ at s={s}"
 
 
 def test_extend_all_succeeds_when_maps_fully_extended():
@@ -106,6 +140,29 @@ def test_extend_all_succeeds_when_maps_fully_extended():
 
 
 # --- guards: no panics across the FFI boundary -----------------------------
+
+
+def test_extend_all_rejects_when_source_outpaces_target():
+    # Massey-style zig-zag S -> T -> U sharing the middle resolution T, but with
+    # the left source S resolved strictly further than the right target U. Then
+    #   n_left  = S.next_homological_degree()  (= 9)
+    #   n_right = U.next_homological_degree()  (= 3)
+    #   shift.s = 2
+    # so n_left >= n_right + shift.s, the config where upstream extend_all would
+    # index right.target.module(n_right) and panic. The binding must reject this
+    # with a clean ValueError, NOT panic across the FFI boundary.
+    src = sphere(8)  # left.source S, resolved deep
+    mid = sphere(8)  # shared middle T (left.target == right.source)
+    tgt = sphere(2)  # right.target U, resolved shallow
+    left = ext.ResolutionHomomorphism.from_class(
+        "a", src, mid, Bidegree.s_t(1, 1), [1]
+    )
+    right = ext.ResolutionHomomorphism.from_class(
+        "b", mid, tgt, Bidegree.s_t(1, 1), [1]
+    )
+    ch = ext.ChainHomotopy(left, right)
+    with pytest.raises(ValueError):
+        ch.extend_all()
 
 
 def test_homotopy_out_of_range_raises_index_error():
