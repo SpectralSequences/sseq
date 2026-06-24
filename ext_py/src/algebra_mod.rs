@@ -503,10 +503,11 @@ pub mod algebra_py {
         ) -> PyResult<String> {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
-            let element = crate::fp_py::extract_input_owned(py, element)?;
-            checked_same_prime(element.prime().as_u32(), self.0.prime().as_u32())?;
-            checked_equal_len(element.len(), self.0.dimension(degree))?;
-            Ok(self.0.element_to_string(degree, element.as_slice()))
+            crate::fp_py::with_input_slice(py, element, |slice| {
+                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.0.dimension(degree))?;
+                Ok(self.0.element_to_string(degree, slice))
+            })
         }
 
         pub fn multiply_basis_elements(
@@ -556,21 +557,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(r_degree, r_idx)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_basis_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r_idx,
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, s, |s_slice| {
+                checked_same_prime(s_slice.prime().as_u32(), p)?;
+                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_basis_element_by_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_idx,
+                        s_degree,
+                        s_slice,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -591,21 +593,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(s_degree, s_idx)?;
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_basis_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s_idx,
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_element_by_basis_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_slice,
+                        s_degree,
+                        s_idx,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -625,24 +628,26 @@ pub mod algebra_py {
             let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_input_slice(py, s, |s_slice| {
+                    checked_same_prime(s_slice.prime().as_u32(), p)?;
+                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                        checked_same_prime(res.prime().as_u32(), p)?;
+                        checked_result_len(res.as_slice().len(), dim)?;
+                        self.0.multiply_element_by_element(
+                            res.copy(),
+                            coeff,
+                            r_degree,
+                            r_slice,
+                            s_degree,
+                            s_slice,
+                        );
+                        Ok(())
+                    })
+                })
             })
         }
 
@@ -1073,10 +1078,11 @@ pub mod algebra_py {
         ) -> PyResult<String> {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
-            let element = crate::fp_py::extract_input_owned(py, element)?;
-            checked_same_prime(element.prime().as_u32(), self.0.prime().as_u32())?;
-            checked_equal_len(element.len(), self.0.dimension(degree))?;
-            Ok(self.0.element_to_string(degree, element.as_slice()))
+            crate::fp_py::with_input_slice(py, element, |slice| {
+                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.0.dimension(degree))?;
+                Ok(self.0.element_to_string(degree, slice))
+            })
         }
 
         pub fn multiply_basis_elements(
@@ -1123,21 +1129,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(r_degree, r_idx)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_basis_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r_idx,
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, s, |s_slice| {
+                checked_same_prime(s_slice.prime().as_u32(), p)?;
+                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_basis_element_by_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_idx,
+                        s_degree,
+                        s_slice,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -1156,21 +1163,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(s_degree, s_idx)?;
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_basis_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s_idx,
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_element_by_basis_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_slice,
+                        s_degree,
+                        s_idx,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -1188,24 +1196,26 @@ pub mod algebra_py {
             let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_input_slice(py, s, |s_slice| {
+                    checked_same_prime(s_slice.prime().as_u32(), p)?;
+                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                        checked_same_prime(res.prime().as_u32(), p)?;
+                        checked_result_len(res.as_slice().len(), dim)?;
+                        self.0.multiply_element_by_element(
+                            res.copy(),
+                            coeff,
+                            r_degree,
+                            r_slice,
+                            s_degree,
+                            s_slice,
+                        );
+                        Ok(())
+                    })
+                })
             })
         }
 
@@ -1531,10 +1541,11 @@ pub mod algebra_py {
         ) -> PyResult<String> {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
-            let element = crate::fp_py::extract_input_owned(py, element)?;
-            checked_same_prime(element.prime().as_u32(), self.0.prime().as_u32())?;
-            checked_equal_len(element.len(), self.0.dimension(degree))?;
-            Ok(self.0.element_to_string(degree, element.as_slice()))
+            crate::fp_py::with_input_slice(py, element, |slice| {
+                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.0.dimension(degree))?;
+                Ok(self.0.element_to_string(degree, slice))
+            })
         }
 
         pub fn multiply_basis_elements(
@@ -1580,21 +1591,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(r_degree, r_idx)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_basis_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r_idx,
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, s, |s_slice| {
+                checked_same_prime(s_slice.prime().as_u32(), p)?;
+                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_basis_element_by_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_idx,
+                        s_degree,
+                        s_slice,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -1613,21 +1625,22 @@ pub mod algebra_py {
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
             self.checked_basis_index(s_degree, s_idx)?;
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_basis_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s_idx,
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), dim)?;
+                    self.0.multiply_element_by_basis_element(
+                        res.copy(),
+                        coeff,
+                        r_degree,
+                        r_slice,
+                        s_degree,
+                        s_idx,
+                    );
+                    Ok(())
+                })
             })
         }
 
@@ -1645,24 +1658,26 @@ pub mod algebra_py {
             let coeff = coeff % p;
             let target = self.product_target(r_degree, s_degree)?;
             let dim = self.0.dimension(target);
-            let r = crate::fp_py::extract_input_owned(py, r)?;
-            let s = crate::fp_py::extract_input_owned(py, s)?;
-            checked_same_prime(r.prime().as_u32(), p)?;
-            checked_same_prime(s.prime().as_u32(), p)?;
-            checked_equal_len(r.len(), self.0.dimension(r_degree))?;
-            checked_equal_len(s.len(), self.0.dimension(s_degree))?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0.multiply_element_by_element(
-                    res.copy(),
-                    coeff,
-                    r_degree,
-                    r.as_slice(),
-                    s_degree,
-                    s.as_slice(),
-                );
-                Ok(())
+            crate::fp_py::with_input_slice(py, r, |r_slice| {
+                checked_same_prime(r_slice.prime().as_u32(), p)?;
+                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                crate::fp_py::with_input_slice(py, s, |s_slice| {
+                    checked_same_prime(s_slice.prime().as_u32(), p)?;
+                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                        checked_same_prime(res.prime().as_u32(), p)?;
+                        checked_result_len(res.as_slice().len(), dim)?;
+                        self.0.multiply_element_by_element(
+                            res.copy(),
+                            coeff,
+                            r_degree,
+                            r_slice,
+                            s_degree,
+                            s_slice,
+                        );
+                        Ok(())
+                    })
+                })
             })
         }
 
@@ -1839,10 +1854,11 @@ pub mod algebra_py {
         element: &Bound<'_, PyAny>,
     ) -> PyResult<String> {
         let dim = module_dimension(m, degree);
-        let element = crate::fp_py::extract_input_owned(py, element)?;
-        checked_same_prime(element.prime().as_u32(), m.prime().as_u32())?;
-        checked_equal_len(element.len(), dim)?;
-        Ok(m.element_to_string(degree, element.as_slice()))
+        crate::fp_py::with_input_slice(py, element, |slice| {
+            checked_same_prime(slice.prime().as_u32(), m.prime().as_u32())?;
+            checked_equal_len(slice.len(), dim)?;
+            Ok(m.element_to_string(degree, slice))
+        })
     }
 
     /// Validate the output degree of an action and ensure every degree it
@@ -1958,22 +1974,27 @@ pub mod algebra_py {
         // previously needed `checked_op_index` and the manual length guard.
         let output_degree = action_target(m, coeff, op_degree, input_degree)?;
         let out_dim = module_dimension(m, output_degree);
-        // Own the input before taking the mutable borrow of `result`.
-        let input = crate::fp_py::extract_input_owned(py, input)?;
-        checked_same_prime(input.prime().as_u32(), p)?;
-        crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-            checked_same_prime(res.prime().as_u32(), p)?;
-            checked_result_len(res.as_slice().len(), out_dim)?;
-            m.try_act(
-                res.copy(),
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input.as_slice(),
-            )
-            .map_err(act_error_to_py)?;
-            Ok(())
+        // Borrow the input transiently rather than cloning it. If the same
+        // object is passed as both `input` and `result`, the nested
+        // shared+mutable borrows raise `RuntimeError` (PyO3 borrow conflict)
+        // rather than UB. `try_act` performs the op-index range check and the
+        // `input.len() <= dimension(input_degree)` check internally.
+        crate::fp_py::with_input_slice(py, input, |input_slice| {
+            checked_same_prime(input_slice.prime().as_u32(), p)?;
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_result_len(res.as_slice().len(), out_dim)?;
+                m.try_act(
+                    res.copy(),
+                    coeff,
+                    op_degree,
+                    op_index,
+                    input_degree,
+                    input_slice,
+                )
+                .map_err(act_error_to_py)?;
+                Ok(())
+            })
         })
     }
 
@@ -1994,26 +2015,29 @@ pub mod algebra_py {
         let in_dim = module_dimension(m, input_degree);
         let out_dim = module_dimension(m, output_degree);
         let op_dim = m.algebra().dimension(op_degree);
-        // Own both inputs before the mutable borrow of `result`.
-        let op = crate::fp_py::extract_input_owned(py, op)?;
-        let input = crate::fp_py::extract_input_owned(py, input)?;
-        checked_same_prime(op.prime().as_u32(), p)?;
-        checked_same_prime(input.prime().as_u32(), p)?;
-        // Upstream `act_by_element` asserts both lengths exactly.
-        checked_equal_len(op.len(), op_dim)?;
-        checked_equal_len(input.len(), in_dim)?;
-        crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-            checked_same_prime(res.prime().as_u32(), p)?;
-            checked_result_len(res.as_slice().len(), out_dim)?;
-            m.act_by_element(
-                res.copy(),
-                coeff,
-                op_degree,
-                op.as_slice(),
-                input_degree,
-                input.as_slice(),
-            );
-            Ok(())
+        // Borrow both inputs transiently rather than cloning. Aliasing with the
+        // mutable `result` surfaces as a `RuntimeError` (PyO3 borrow conflict).
+        crate::fp_py::with_input_slice(py, op, |op_slice| {
+            checked_same_prime(op_slice.prime().as_u32(), p)?;
+            // Upstream `act_by_element` asserts both lengths exactly.
+            checked_equal_len(op_slice.len(), op_dim)?;
+            crate::fp_py::with_input_slice(py, input, |input_slice| {
+                checked_same_prime(input_slice.prime().as_u32(), p)?;
+                checked_equal_len(input_slice.len(), in_dim)?;
+                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), out_dim)?;
+                    m.act_by_element(
+                        res.copy(),
+                        coeff,
+                        op_degree,
+                        op_slice,
+                        input_degree,
+                        input_slice,
+                    );
+                    Ok(())
+                })
+            })
         })
     }
 
@@ -3777,11 +3801,12 @@ pub mod algebra_py {
             self.checked_subspace_degree(degree)?;
             let p = self.0.prime().as_u32();
             let orig_dim = module_dimension(&**self.0.module, degree);
-            let element = crate::fp_py::extract_input_owned(py, element)?;
-            checked_same_prime(element.prime().as_u32(), p)?;
-            checked_equal_len(element.len(), orig_dim)?;
-            self.inner_mut()?.quotient(degree, element.as_slice());
-            Ok(())
+            crate::fp_py::with_input_slice(py, element, |slice| {
+                checked_same_prime(slice.prime().as_u32(), p)?;
+                checked_equal_len(slice.len(), orig_dim)?;
+                self.inner_mut()?.quotient(degree, slice);
+                Ok(())
+            })
         }
 
         /// Quotient out the original basis elements at the given `indices` in
@@ -3864,14 +3889,15 @@ pub mod algebra_py {
             let p = self.0.prime().as_u32();
             let orig_dim = module_dimension(&**self.0.module, degree);
             let quot_dim = module_dimension(self.as_dyn(), degree);
-            let old = crate::fp_py::extract_input_owned(py, old)?;
-            checked_same_prime(old.prime().as_u32(), p)?;
-            checked_equal_len(old.len(), orig_dim)?;
-            crate::fp_py::with_target_slice_mut(py, new, |res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), quot_dim)?;
-                self.0.old_basis_to_new(degree, res, old.as_slice());
-                Ok(())
+            crate::fp_py::with_input_slice(py, old, |old_slice| {
+                checked_same_prime(old_slice.prime().as_u32(), p)?;
+                checked_equal_len(old_slice.len(), orig_dim)?;
+                crate::fp_py::with_target_slice_mut(py, new, |res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    checked_result_len(res.as_slice().len(), quot_dim)?;
+                    self.0.old_basis_to_new(degree, res, old_slice);
+                    Ok(())
+                })
             })
         }
 
@@ -4768,23 +4794,24 @@ pub mod algebra_py {
         ) -> PyResult<()> {
             let size = self.checked_generator(gen_deg, gen_idx)?;
             let range = self.inner.generator_to_block(gen_deg, gen_idx);
-            let source = crate::fp_py::extract_input_owned(py, source)?;
-            let p = source.prime().as_u32();
-            let coeff = coeff % p;
-            checked_equal_len(source.len(), size)?;
-            crate::fp_py::with_target_slice_mut(py, target, |res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                // `add_block` writes into `target[range.start..range.end]`.
-                if res.as_slice().len() < range.end {
-                    return Err(PyValueError::new_err(format!(
-                        "target has length {} but the block ends at index {}",
-                        res.as_slice().len(),
-                        range.end
-                    )));
-                }
-                self.inner
-                    .add_block(res, coeff, gen_deg, gen_idx, source.as_slice());
-                Ok(())
+            crate::fp_py::with_input_slice(py, source, |source_slice| {
+                let p = source_slice.prime().as_u32();
+                let coeff = coeff % p;
+                checked_equal_len(source_slice.len(), size)?;
+                crate::fp_py::with_target_slice_mut(py, target, |res| {
+                    checked_same_prime(res.prime().as_u32(), p)?;
+                    // `add_block` writes into `target[range.start..range.end]`.
+                    if res.as_slice().len() < range.end {
+                        return Err(PyValueError::new_err(format!(
+                            "target has length {} but the block ends at index {}",
+                            res.as_slice().len(),
+                            range.end
+                        )));
+                    }
+                    self.inner
+                        .add_block(res, coeff, gen_deg, gen_idx, source_slice);
+                    Ok(())
+                })
             })
         }
 

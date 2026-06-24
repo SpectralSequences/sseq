@@ -322,6 +322,48 @@ pub mod fp_py {
         PyRuntimeError::new_err(err.to_string())
     }
 
+    /// Uniform error for using a value that has been moved out (consumed) by a
+    /// consuming method. Mirrors `borrow_error` for the move-and-invalidate
+    /// pyclasses (e.g. the augmented matrices).
+    pub(crate) fn consumed_error(label: &str) -> PyErr {
+        PyRuntimeError::new_err(format!("{label} has been consumed"))
+    }
+
+    /// A value that a consuming method can `take()` out, after which any further
+    /// access raises `RuntimeError("<label> has been consumed")` instead of
+    /// panicking or operating on stale data. Used to model upstream consuming
+    /// semantics (`into_*`, `compute_quasi_inverses`) across the PyO3 boundary,
+    /// where methods borrow the pyclass and cannot move out of `self` directly.
+    pub(crate) struct Consumable<T> {
+        value: Option<T>,
+        label: &'static str,
+    }
+
+    impl<T> Consumable<T> {
+        pub(crate) fn new(label: &'static str, value: T) -> Self {
+            Self {
+                value: Some(value),
+                label,
+            }
+        }
+
+        pub(crate) fn get(&self) -> PyResult<&T> {
+            self.value
+                .as_ref()
+                .ok_or_else(|| consumed_error(self.label))
+        }
+
+        pub(crate) fn get_mut(&mut self) -> PyResult<&mut T> {
+            self.value
+                .as_mut()
+                .ok_or_else(|| consumed_error(self.label))
+        }
+
+        pub(crate) fn take(&mut self) -> PyResult<T> {
+            self.value.take().ok_or_else(|| consumed_error(self.label))
+        }
+    }
+
     fn checked_equal_len(lhs: usize, rhs: usize) -> PyResult<()> {
         if lhs == rhs {
             Ok(())
@@ -1712,6 +1754,32 @@ pub mod fp_py {
         }
     }
 
+    /// Run `f` on a borrowed immutable slice over a vector-like argument
+    /// (`FpVector` or `FpSlice`), holding the shared borrow only for the
+    /// duration of the call. This is the read-only sibling of
+    /// [`with_target_slice_mut`]: it avoids the deep `FpVector` clone that
+    /// [`extract_input_owned`] performs for every immutable input argument.
+    ///
+    /// The transient borrow surfaces as a PyO3 borrow conflict (`RuntimeError`)
+    /// if the same object is simultaneously borrowed mutably elsewhere — e.g.
+    /// passed as both the input and the mutable target — rather than UB.
+    ///
+    /// Exposed `pub(crate)` so that other binding modules (e.g. `algebra_py`)
+    /// reuse it for immutable input element arguments.
+    pub(crate) fn with_input_slice<R>(
+        py: Python<'_>,
+        obj: &Bound<'_, PyAny>,
+        f: impl FnOnce(RustFpSlice<'_>) -> PyResult<R>,
+    ) -> PyResult<R> {
+        if let Ok(vector) = obj.extract::<PyRef<'_, PyFpVector>>() {
+            f(vector.0.as_slice())
+        } else if let Ok(slice) = obj.extract::<PyRef<'_, PyFpSlice>>() {
+            slice.with_slice(py, f)?
+        } else {
+            Err(PyValueError::new_err("expected an FpVector or FpSlice"))
+        }
+    }
+
     /// Run `f` on the mutable slice backing a vector-like argument
     /// (`FpVector` or `FpSliceMut`), used as an output target.
     ///
@@ -1836,23 +1904,28 @@ pub mod fp_py {
             coeff: u32,
             input: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
-            let input_owned = extract_input_owned(py, input)?;
-            checked_same_prime(self.0.prime().as_u32(), input_owned.prime().as_u32())?;
-            checked_equal_len(input_owned.len(), self.0.target_dimension())?;
-            with_target_slice_mut(py, target, |target_slice| {
-                checked_same_prime(
-                    self.0.prime().as_u32(),
-                    target_slice.as_slice().prime().as_u32(),
-                )?;
-                checked_equal_len(target_slice.as_slice().len(), self.0.source_dimension())?;
-                // Reduce `coeff` mod p before calling upstream. Upstream computes
-                // `(coeff * c) % p`; with `c < p` and an unreduced `coeff` the
-                // product `coeff * c` can overflow u32 (debug panic / wrong result
-                // in release). Reducing first is mathematically equivalent since
-                // `(coeff % p) * c % p == coeff * c % p`.
-                let coeff = coeff % self.0.prime().as_u32();
-                self.0.apply(target_slice, coeff, input_owned.as_slice());
-                Ok(())
+            // Borrow the input transiently rather than cloning it. If the same
+            // object is passed as both `input` and `target`, the nested
+            // shared+mutable borrows raise `RuntimeError` (PyO3 borrow conflict)
+            // rather than UB.
+            with_input_slice(py, input, |input_slice| {
+                checked_same_prime(self.0.prime().as_u32(), input_slice.prime().as_u32())?;
+                checked_equal_len(input_slice.len(), self.0.target_dimension())?;
+                with_target_slice_mut(py, target, |target_slice| {
+                    checked_same_prime(
+                        self.0.prime().as_u32(),
+                        target_slice.as_slice().prime().as_u32(),
+                    )?;
+                    checked_equal_len(target_slice.as_slice().len(), self.0.source_dimension())?;
+                    // Reduce `coeff` mod p before calling upstream. Upstream computes
+                    // `(coeff * c) % p`; with `c < p` and an unreduced `coeff` the
+                    // product `coeff * c` can overflow u32 (debug panic / wrong result
+                    // in release). Reducing first is mathematically equivalent since
+                    // `(coeff % p) * c % p == coeff * c % p`.
+                    let coeff = coeff % self.0.prime().as_u32();
+                    self.0.apply(target_slice, coeff, input_slice);
+                    Ok(())
+                })
             })
         }
 
@@ -2111,10 +2184,11 @@ pub mod fp_py {
         /// Test whether `vector` (an `FpVector` or `FpSlice`) lies in this
         /// affine subspace.
         pub fn contains(&self, py: Python<'_>, vector: &Bound<'_, PyAny>) -> PyResult<bool> {
-            let vector = extract_input_owned(py, vector)?;
-            checked_same_prime(self.prime(), vector.prime().as_u32())?;
-            checked_equal_len(vector.len(), self.ambient_dimension())?;
-            Ok(self.0.contains(vector.as_slice()))
+            with_input_slice(py, vector, |slice| {
+                checked_same_prime(self.prime(), slice.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.ambient_dimension())?;
+                Ok(self.0.contains(slice))
+            })
         }
 
         pub fn contains_space(&self, other: &Self) -> PyResult<bool> {
