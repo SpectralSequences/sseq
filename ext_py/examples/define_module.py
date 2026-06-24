@@ -81,7 +81,7 @@ def define_finite_dimensional_module(prime: int) -> Dict[str, Any]:
     graded_dims = [
         len(generators.get(i, [])) for i in range(min_degree, max_degree + 1)
     ]
-    module = ext.FDModule(alg, "", graded_dims, min_degree)
+    module = ext.FDModuleBuilder(alg, "", graded_dims, min_degree)
 
     # Set generator names
     for degree, gen_list in generators.items():

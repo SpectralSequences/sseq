@@ -35,8 +35,11 @@ def main():
     # Create tensor product
     tensor_module = ext.TensorModule(left_module, right_module)
 
-    # Convert to finite dimensional module for output
-    fd_tensor = ext.FDModule.from_tensor_module(tensor_module)
+    # Convert to finite dimensional module for output.
+    # NOTE: `from_tensor_module` is NOT yet bound (aspirational API); the class
+    # was renamed FDModule -> FDModuleBuilder, but this conversion constructor is
+    # still pending in the bindings. This line will not run until it is bound.
+    fd_tensor = ext.FDModuleBuilder.from_tensor_module(tensor_module)
     fd_tensor.name = ""
 
     # Output as JSON

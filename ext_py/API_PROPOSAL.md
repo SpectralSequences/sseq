@@ -40,9 +40,10 @@ commit to one concrete instantiation of each generic parameter and bind *that*:
 
 Consequences:
 
-- Concrete module types (`FDModule`, `FreeModule`, `TensorModule`, …) are bound over
-  `SteenrodAlgebra`, and each exposes an `.into_steenrod_module()` that boxes it into the dynamic
-  `SteenrodModule` accepted everywhere downstream.
+- Concrete module types (`FDModuleBuilder`, `FreeModule`, `TensorModule`, …) are bound over
+  `SteenrodAlgebra`, and each exposes a conversion into the dynamic `SteenrodModule` accepted
+  everywhere downstream (`FreeModule`/`TensorModule` via `.into_steenrod_module()`; the
+  finite-dimensional builder via `FDModuleBuilder.build()`).
 - The `MuResolution<U, CCC>` / `MuResolutionHomomorphism<U, …>` families bind as `Resolution` /
   `UnstableResolution` and `ResolutionHomomorphism` / `UnstableResolutionHomomorphism`.
 - Trait methods (`Algebra`, `Module`, `ChainComplex`, `ModuleHomomorphism`, …) are bound as
@@ -317,7 +318,7 @@ total_dimension`) plus `.into_steenrod_module()`.
 |---|---|
 | `SteenrodModule = Box<dyn Module<Algebra=SteenrodAlgebra>>` | `SteenrodModule` pyclass (the dynamic module §1) |
 | `from_json(algebra, value)` (steenrod_module) | `algebra.steenrod_module_from_json(algebra, dict)` |
-| `FDModule::new(algebra, name, graded_dims)` | `FDModule(algebra, name, graded_dims, min_degree=0)` |
+| `FDModule::new(algebra, name, graded_dims)` | `FDModuleBuilder(algebra, name, graded_dims, min_degree=0)` (call `.build()` for the `SteenrodModule`) |
 | `FDModule::{set_basis_element_name, add_generator, set_action, action, extend_actions, check_validity, parse_action, string_to_basis_element, from_json, to_json, test_equal}` | methods (`to_json` → dict; `set_action` takes `FpVector`) |
 | `FreeModule::new(algebra, name, min_degree)` | `FreeModule(algebra, name, min_degree)` |
 | `FreeModule::{add_generators, number_of_gens_in_degree, gen_names, generator_offset, internal_generator_offset, operation_generator_to_index, index_to_op_gen, extend_by_zero, iter_gens}` | methods |
@@ -331,7 +332,7 @@ total_dimension`) plus `.into_steenrod_module()`.
 | `RealProjectiveSpace::new(algebra, min, max, clear_bottom)` | `RealProjectiveSpace(algebra, min, max, clear_bottom)` (`+ from_json/to_json`) |
 | `ZeroModule` | `ZeroModule(algebra, min_degree)` |
 | `BlockStructure`, `GeneratorBasisEltPair` | pyclasses |
-| `FDModule::from_tensor_module` (used by `tensor.py`) | provide as `FDModule.from_module(steenrod_module)` — thin wrapper over the existing `From`/bounded-module conversion |
+| `FDModule::from_tensor_module` (used by `tensor.py`) | provide as `FDModuleBuilder.from_module(steenrod_module)` — thin wrapper over the existing `From`/bounded-module conversion (not yet bound) |
 
 ### 5.4 Module homomorphisms (`algebra::module::homomorphism`)  →  `algebra`
 
@@ -557,7 +558,7 @@ exist in Rust. The bindings above follow Rust, so the examples must be adjusted:
 - **`define_module.py`** uses `module.to_json()`, `algebra.generators`, `algebra.basis_element_to_string`,
   `SteenrodEvaluator` — all bound (§5).
 - **`tensor.py`** uses `parse_module_name`, `steenrod_module_from_json`, `TensorModule`,
-  `FDModule.from_module` — all bound (§5.3, §7.7).
+  `FDModuleBuilder.from_module` — all bound (§5.3, §7.7).
 - **`secondary.py`** uses `SecondaryResolution`, `compute_partial`, `extend_all`, `homotopy`,
   `underlying`, `iter_nonzero_stem`, `BidegreeGenerator` — all bound (§7.4).
 
@@ -572,7 +573,7 @@ The bindings are independent and mechanical, so order is driven by example cover
 
 1. `fp`: `ValidPrime`, `FpVector`, `Matrix`, `Subspace` (foundation for everything).
 2. `algebra`: `SteenrodAlgebra`, `MilnorAlgebra`, `AdemAlgebra`, the `Algebra` method set,
-   `SteenrodModule` + `FDModule`/`FreeModule`/`TensorModule`, `steenrod_module_from_json`.
+   `SteenrodModule` + `FDModuleBuilder`/`FreeModule`/`TensorModule`, `steenrod_module_from_json`.
 3. `sseq`: `Bidegree`, `BidegreeGenerator`, `BidegreeElement`, `Sseq`, `SvgBackend`.
 4. `ext` top level: `Resolution`, `construct`/`query_module*`, `ChainComplex` method set,
    `to_sseq`, `filtration_one_products`.
