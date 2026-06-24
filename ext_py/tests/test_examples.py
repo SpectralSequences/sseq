@@ -63,8 +63,6 @@ KNOWN_UNBOUND = {
     "query_unstable_module",
     # massey.py: Massey product computer is not bound.
     "MasseyProductComputer",
-    # secondary.py: BidegreeGenerator is not bound (only Bidegree is).
-    "BidegreeGenerator",
 }
 
 

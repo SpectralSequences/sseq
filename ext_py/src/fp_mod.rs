@@ -865,11 +865,11 @@ pub mod fp_py {
         }
 
         /// Borrow the underlying upstream `FpVector`. Exposed `pub(crate)` so
-        /// sibling binding modules (e.g. `algebra_py`) can read vectors they
-        /// were handed back (mirrors the `as_rust` accessors on `PyMatrix`
-        /// etc.). Currently only the Rust unit tests need this, so it is gated
-        /// to test builds to avoid a dead-code warning in the extension lib.
-        #[cfg(test)]
+        /// sibling binding modules (e.g. `algebra_py`, `sseq_py`) can read
+        /// vectors they were handed (mirrors the `as_rust` accessors on
+        /// `PyMatrix` etc.). `sseq_py::BidegreeElement` clones the inner vector
+        /// through this accessor when it is constructed from a bound
+        /// `fp_py.FpVector`.
         pub(crate) fn as_rust(&self) -> &RustFpVector {
             &self.0
         }
