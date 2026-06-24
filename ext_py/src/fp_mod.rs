@@ -84,6 +84,19 @@ pub mod fp_py {
             }
         }
 
+        /// Whether `self` and `other` are backed by the same Python object
+        /// (same `Matrix`/`AugmentedMatrix` instance). Different enum variants
+        /// are necessarily different objects. Used to decide whether a shared
+        /// borrow of one and a mutable borrow of the other would collide.
+        fn same_object(&self, py: Python<'_>, other: &MatrixParent) -> bool {
+            match (self, other) {
+                (Self::Matrix(a), Self::Matrix(b)) => a.bind(py).is(b.bind(py)),
+                (Self::Augmented2(a), Self::Augmented2(b)) => a.bind(py).is(b.bind(py)),
+                (Self::Augmented3(a), Self::Augmented3(b)) => a.bind(py).is(b.bind(py)),
+                _ => false,
+            }
+        }
+
         /// Run `f` on the current inner `Matrix` mutably, holding the borrow for
         /// the duration of the call.
         fn with_matrix_mut<R>(
@@ -116,6 +129,30 @@ pub mod fp_py {
                     matrix: matrix.clone_ref(py),
                     row: *row,
                 },
+            }
+        }
+
+        /// Whether `self` and `other` are backed by the same Python object, so
+        /// that taking a shared borrow of one while the other is mutably
+        /// borrowed would collide in PyO3.
+        ///
+        /// Two `MatrixRow`s of the *same* matrix object count as the same
+        /// object **regardless of row index**: the whole `Matrix` pyclass is
+        /// borrowed as a unit, so co-borrowing two different rows of it still
+        /// trips PyO3's runtime borrow check. We therefore treat any shared
+        /// matrix parent as aliased (the clone fallback), which is both sound
+        /// and free of behavior regressions (the previous code always cloned).
+        ///
+        /// This is conservative in the safe direction: a false "different"
+        /// would merely surface as a PyO3 `RuntimeError` at borrow time rather
+        /// than UB, and a false "same" would only cost an unnecessary clone.
+        fn same_object(&self, py: Python<'_>, other: &SliceParent) -> bool {
+            match (self, other) {
+                (Self::Vector(a), Self::Vector(b)) => a.bind(py).is(b.bind(py)),
+                (Self::MatrixRow { matrix: a, .. }, Self::MatrixRow { matrix: b, .. }) => {
+                    a.same_object(py, b)
+                }
+                _ => false,
             }
         }
     }
@@ -447,6 +484,26 @@ pub mod fp_py {
             f: impl FnOnce(RustFpSliceMut<'_>) -> R,
         ) -> PyResult<R> {
             with_parent_slice_mut(&self.parent, self.start, self.end, py, f)
+        }
+
+        /// Provide an immutable view of `operand` to `f`, avoiding a deep clone
+        /// in the common case. If `operand` is backed by a *different* Python
+        /// object from `self`, it is borrowed transiently (no clone) so that the
+        /// caller can hold this shared borrow alongside `self`'s mutable borrow.
+        /// Only when they share a backing object (genuine aliasing) does this
+        /// fall back to an owned copy, sidestepping the PyO3 double-borrow.
+        fn with_operand<R>(
+            &self,
+            py: Python<'_>,
+            operand: &PyFpSlice,
+            f: impl FnOnce(RustFpSlice<'_>) -> PyResult<R>,
+        ) -> PyResult<R> {
+            if self.parent.same_object(py, &operand.parent) {
+                let owned = operand.to_owned_checked(py)?;
+                f(owned.as_slice())
+            } else {
+                operand.with_slice(py, f)?
+            }
         }
     }
 
@@ -975,12 +1032,13 @@ pub mod fp_py {
 
         pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
-            let other_owned = other.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
-                target.add(other_owned.as_slice(), c);
-                Ok(())
-            })?
+            self.with_operand(py, other, |other_slice| {
+                self.with_slice_mut(py, |mut target| {
+                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
+                    target.add(other_slice, c);
+                    Ok(())
+                })?
+            })
         }
 
         pub fn add_offset(
@@ -992,12 +1050,13 @@ pub mod fp_py {
         ) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
             checked_range(offset, self.span(), self.span())?;
-            let other_owned = other.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
-                target.add_offset(other_owned.as_slice(), c, offset);
-                Ok(())
-            })?
+            self.with_operand(py, other, |other_slice| {
+                self.with_slice_mut(py, |mut target| {
+                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
+                    target.add_offset(other_slice, c, offset);
+                    Ok(())
+                })?
+            })
         }
 
         pub fn add_masked(
@@ -1014,12 +1073,13 @@ pub mod fp_py {
                     other.span()
                 )));
             }
-            let other_owned = other.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
-                target.add_masked(other_owned.as_slice(), c, &mask);
-                Ok(())
-            })?
+            self.with_operand(py, other, |other_slice| {
+                self.with_slice_mut(py, |mut target| {
+                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
+                    target.add_masked(other_slice, c, &mask);
+                    Ok(())
+                })?
+            })
         }
 
         pub fn add_unmasked(
@@ -1046,22 +1106,24 @@ pub mod fp_py {
                     self.span()
                 )));
             }
-            let other_owned = other.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
-                target.add_unmasked(other_owned.as_slice(), c, &mask);
-                Ok(())
-            })?
+            self.with_operand(py, other, |other_slice| {
+                self.with_slice_mut(py, |mut target| {
+                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
+                    target.add_unmasked(other_slice, c, &mask);
+                    Ok(())
+                })?
+            })
         }
 
         pub fn assign(&self, py: Python<'_>, other: &PyFpSlice) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
-            let other_owned = other.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), other_owned.prime().as_u32())?;
-                target.assign(other_owned.as_slice());
-                Ok(())
-            })?
+            self.with_operand(py, other, |other_slice| {
+                self.with_slice_mut(py, |mut target| {
+                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
+                    target.assign(other_slice);
+                    Ok(())
+                })?
+            })
         }
 
         pub fn add_tensor(
@@ -1078,14 +1140,20 @@ pub mod fp_py {
                 .and_then(|width| offset.checked_add(width))
                 .ok_or_else(|| PyIndexError::new_err("tensor range overflows usize"))?;
             checked_range(offset, width, self.span())?;
-            let left_owned = left.to_owned_checked(py)?;
-            let right_owned = right.to_owned_checked(py)?;
-            self.with_slice_mut(py, |mut target| {
-                checked_same_prime(target.prime().as_u32(), left_owned.prime().as_u32())?;
-                checked_same_prime(target.prime().as_u32(), right_owned.prime().as_u32())?;
-                target.add_tensor(offset, coeff, left_owned.as_slice(), right_owned.as_slice());
-                Ok(())
-            })?
+            // Borrow each operand transiently, falling back to an owned copy
+            // only for one that shares a backing object with the target. Two
+            // shared borrows coexist fine; only the target's mutable borrow can
+            // collide with an operand that aliases it.
+            self.with_operand(py, left, |left_slice| {
+                self.with_operand(py, right, |right_slice| {
+                    self.with_slice_mut(py, |mut target| {
+                        checked_same_prime(target.prime().as_u32(), left_slice.prime().as_u32())?;
+                        checked_same_prime(target.prime().as_u32(), right_slice.prime().as_u32())?;
+                        target.add_tensor(offset, coeff, left_slice, right_slice);
+                        Ok(())
+                    })?
+                })
+            })
         }
 
         pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
