@@ -16,6 +16,7 @@ mod ext_py {
     use algebra::{
         milnor_algebra::MilnorAlgebra,
         module::{FDModule, Module},
+        Algebra,
     };
     use ext::{
         chain_complex::{AugmentedChainComplex, ChainComplex as RsChainComplex, FreeChainComplex},
@@ -269,6 +270,11 @@ mod ext_py {
         /// the computation finishes (the in-flight upstream iteration cannot be
         /// unwound across the FFI boundary, so we record the first error, ignore
         /// later callbacks, and propagate it once control returns).
+        ///
+        /// **Do not re-enter this resolution from the callback.** Upstream runs
+        /// the callback while holding the resolution's internal lock, so calling
+        /// any `compute_through_*` on the *same* `Resolution` from within the
+        /// callback deadlocks.
         pub fn compute_through_bidegree_with_callback(
             &self,
             py: Python<'_>,
@@ -309,7 +315,8 @@ mod ext_py {
         /// As [`compute_through_stem`], but invoke `callback(bidegree)` once for
         /// each newly computed bidegree. See
         /// [`compute_through_bidegree_with_callback`] for the callback exception
-        /// semantics and the standard-backend-only restriction.
+        /// semantics, the standard-backend-only restriction, and the
+        /// re-entrancy deadlock warning.
         pub fn compute_through_stem_with_callback(
             &self,
             py: Python<'_>,
@@ -438,6 +445,23 @@ mod ext_py {
         /// panic-free over the computed range. `op_deg`/`op_idx` must index a
         /// valid algebra operation (e.g. `op_deg = 2^i`, `op_idx = 0` for `h_i`
         /// at the prime 2); `op_deg` is required to be non-negative.
+        ///
+        /// Two extra guards beyond the upstream method (which binds the stable,
+        /// `U = false` resolutions here):
+        ///  - Upstream evaluates `self.module(0).max_computed_degree()`
+        ///    unconditionally, indexing the `modules` `OnceBiVec` at `0`. A
+        ///    freshly constructed (never-resolved) resolution has no modules
+        ///    (`next_homological_degree() == 0`), so this would panic; we instead
+        ///    short-circuit to the empty/zero-length product (an uncomputed
+        ///    resolution has no products).
+        ///  - Upstream's `op_idx >= dimension` bounds check is gated behind
+        ///    `if U`, so for these stable resolutions an out-of-range `op_idx`
+        ///    flows into `FreeModule::operation_generator_to_index` and then
+        ///    `FpVector::entry`, panicking for large `op_idx` or silently reading
+        ///    a neighbouring generator's coefficient for moderate `op_idx`. We
+        ///    pre-validate `op_idx` against the algebra's operation dimension in
+        ///    degree `op_deg` (`IndexError`), mirroring `algebra_py`'s
+        ///    `checked_op_index`.
         pub fn filtration_one_products(
             &self,
             op_deg: i32,
@@ -447,6 +471,28 @@ mod ext_py {
                 return Err(pyo3::exceptions::PyValueError::new_err(
                     "op_deg must be non-negative",
                 ));
+            }
+            // Range-check op_idx against the number of algebra operations in
+            // degree op_deg. compute_basis is idempotent and ensures dimension()
+            // does not index its basis table out of range.
+            let dim = dispatch!(&self.0, r => {
+                let alg = r.algebra();
+                alg.compute_basis(op_deg);
+                alg.dimension(op_deg)
+            });
+            if op_idx >= dim {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "op_idx {op_idx} out of range for op_deg {op_deg} (algebra dimension {dim})"
+                )));
+            }
+            // An uncomputed resolution has no modules; upstream would panic
+            // indexing module(0). Return the empty product directly.
+            if dispatch!(&self.0, r => r.next_homological_degree()) == 0 {
+                return Ok(sseq_py::Product(::sseq::Product {
+                    b: RsBidegree::x_y(op_deg - 1, 1),
+                    left: true,
+                    matrices: ::once::MultiIndexed::new(),
+                }));
             }
             let product = dispatch!(&self.0, r => r.filtration_one_products(op_deg, op_idx));
             Ok(sseq_py::Product(product))
@@ -459,7 +505,17 @@ mod ext_py {
         /// Mirrors upstream `filtration_one_product`, which returns the nested
         /// `Vec<Vec<u32>>` directly and is guarded by its own
         /// `has_computed_bidegree` check. Raises `ValueError` for negative
-        /// `source` coordinates or negative `op_deg`.
+        /// `source` coordinates or negative `op_deg`, and `IndexError` for an
+        /// out-of-range `op_idx`.
+        ///
+        /// Upstream's `op_idx >= dimension` bounds check is gated behind `if U`,
+        /// so for the stable (`U = false`) resolutions bound here an out-of-range
+        /// `op_idx` would flow into `FreeModule::operation_generator_to_index`
+        /// and then `FpVector::entry`, panicking for large `op_idx` or silently
+        /// reading a neighbouring generator's coefficient for moderate `op_idx`.
+        /// We delegate that check to upstream `try_filtration_one_product`, which
+        /// errors (rather than panicking or misreading) for an out-of-range
+        /// `op_idx` or an uncomputed target bidegree.
         pub fn filtration_one_product(
             &self,
             op_deg: i32,
@@ -477,7 +533,29 @@ mod ext_py {
                     source.0
                 )));
             }
-            Ok(dispatch!(&self.0, r => r.filtration_one_product(op_deg, op_idx, source.0)))
+            // Reject a source whose target degree `source.t() + op_deg` overflows
+            // i32 before it can be used to index any module/FpVector.
+            if source.0.t().checked_add(op_deg).is_none() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target degree source.t() + op_deg = {} + {op_deg} overflows i32",
+                    source.0.t()
+                )));
+            }
+            // `try_filtration_one_product` performs the op_idx range check that
+            // previously needed an ad-hoc pre-check. Its error is either an
+            // out-of-range `op_idx` (a caller error -> `IndexError`) or an
+            // uncomputed target bidegree (documented here as `None`).
+            match dispatch!(&self.0, r => r.try_filtration_one_product(op_deg, op_idx, source.0)) {
+                Ok(products) => Ok(Some(products)),
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("out of range") {
+                        Err(pyo3::exceptions::PyIndexError::new_err(msg))
+                    } else {
+                        Ok(None)
+                    }
+                }
+            }
         }
 
         /// A string representation of `d(g)`, the differential applied to the

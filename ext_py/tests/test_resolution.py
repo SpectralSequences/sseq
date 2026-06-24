@@ -202,6 +202,29 @@ def test_filtration_one_products_h0():
         r.filtration_one_products(-1, 0)
 
 
+@pytest.mark.parametrize("algorithm", ["standard", "nassau"])
+def test_filtration_one_products_uncomputed_no_panic(algorithm):
+    # A freshly constructed resolution has no modules; upstream's unconditional
+    # module(0) would panic. The binding returns the empty product instead.
+    r = ext.Resolution("S_2", algorithm)
+    prod = r.filtration_one_products(1, 0)
+    assert list(prod.matrices) == []
+    # h_0 still lives in (n, s) = (0, 1).
+    assert prod.b.s == 1
+    assert prod.b.n == 0
+
+
+@pytest.mark.parametrize("algorithm", ["standard", "nassau"])
+def test_filtration_one_op_idx_out_of_range_raises(algorithm):
+    # op_deg = 1 has a single operation (Sq^1) at p = 2, so op_idx = 999 is out
+    # of range. Both methods must raise IndexError, not panic or read garbage.
+    r = resolve(algorithm)
+    with pytest.raises(IndexError):
+        r.filtration_one_products(1, 999)
+    with pytest.raises(IndexError):
+        r.filtration_one_product(1, 999, sseq.Bidegree.s_t(0, 0))
+
+
 def test_boundary_string_guards():
     r = resolve("standard")
     g = sseq.BidegreeGenerator.s_t(0, 0, 0)
