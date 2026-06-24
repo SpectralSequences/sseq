@@ -150,3 +150,58 @@ def test_iter_s_t_empty_range_raises():
     rng = sseq.BidegreeRange(0, lambda s: 4)
     with pytest.raises(ValueError):
         sseq.iter_s_t(lambda b: None, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_t_callback_exception_propagates():
+    # An exception raised by the range's `t(s)` callback (not the per-bidegree
+    # callback) is propagated as a Python exception.
+    def bad_t(s):
+        raise RuntimeError("t boom")
+
+    rng = sseq.BidegreeRange(3, bad_t)
+    with pytest.raises(RuntimeError, match="t boom"):
+        sseq.iter_s_t(lambda b: None, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_non_callable_t_raises_cleanly():
+    # A non-callable `t` -> clean Python exception (TypeError), not a panic.
+    rng = sseq.BidegreeRange(3, 4)
+    with pytest.raises(TypeError):
+        sseq.iter_s_t(lambda b: None, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_wrong_arity_t_raises_cleanly():
+    # A `t` callback with the wrong arity -> clean Python exception, not a panic.
+    rng = sseq.BidegreeRange(3, lambda: 4)
+    with pytest.raises(TypeError):
+        sseq.iter_s_t(lambda b: None, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_non_callable_callback_raises_cleanly():
+    # A non-callable per-bidegree `callback` -> clean Python exception, not a
+    # panic.
+    rng = sseq.BidegreeRange(3, lambda s: 4)
+    with pytest.raises(TypeError):
+        sseq.iter_s_t(42, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_wrong_arity_callback_raises_cleanly():
+    # A per-bidegree callback with the wrong arity -> clean Python exception.
+    rng = sseq.BidegreeRange(3, lambda s: 4)
+    with pytest.raises(TypeError):
+        sseq.iter_s_t(lambda: None, sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_callback_bad_return_string_raises_valueerror():
+    # callback returns a malformed value (a string) -> clean ValueError from
+    # extract_callback_range, not a panic.
+    rng = sseq.BidegreeRange(3, lambda s: 4)
+    with pytest.raises(ValueError):
+        sseq.iter_s_t(lambda b: "nope", sseq.Bidegree.n_s(0, 0), rng)
+
+
+def test_iter_s_t_callback_bad_return_wrong_length_tuple_raises_valueerror():
+    # callback returns a wrong-length tuple -> clean ValueError, not a panic.
+    rng = sseq.BidegreeRange(3, lambda s: 4)
+    with pytest.raises(ValueError):
+        sseq.iter_s_t(lambda b: (1, 2, 3), sseq.Bidegree.n_s(0, 0), rng)

@@ -402,60 +402,75 @@ pub mod sseq_py {
         }
 
         // The first error raised by either the user callback or the `t`
-        // callback. `iter_s_t` is single-threaded in this build (the `sseq`
-        // `concurrent` feature is off), but the closures must still be `Sync`,
-        // so we use a `Mutex`. `PyErr` is `Send`, so this is `Sync`.
+        // callback. The upstream `iter_s_t` requires the closures (and any data
+        // they capture) to be `Sync`, so the shared error slot is a `Mutex`.
+        // `PyErr` is `Send`, so this is `Sync`. Captured by reference from the
+        // closures below; read back after the iteration to re-raise.
         let err: Mutex<Option<PyErr>> = Mutex::new(None);
 
         // Auxiliary data the range's `t` closure depends on: the Python `t`
-        // callback. `Py<PyAny>` is `Send + Sync`.
+        // callback. `Py<PyAny>` is `Send + Sync` (and `Ungil`), so it can be
+        // moved across the GIL-release boundary below.
         let t_cb = max.t.clone_ref(py);
 
-        let record_err = |slot: &Mutex<Option<PyErr>>, e: PyErr| {
-            let mut guard = slot.lock().unwrap();
-            if guard.is_none() {
-                *guard = Some(e);
-            }
-        };
+        // Release the GIL around the (synchronous, and potentially
+        // parallel-in-future if `sseq/concurrent` is ever enabled) upstream
+        // iteration so other Python threads can run. Each callback invocation
+        // briefly re-acquires the GIL via `Python::attach`. This avoids a
+        // deadlock that would otherwise occur if the upstream iteration spawned
+        // worker threads while this thread held the GIL.
+        //
+        // Everything captured here is `Ungil`: `&Mutex<Option<PyErr>>`,
+        // `Py<PyAny>` callbacks (`&callback`, `&t_cb`), and the `Copy`
+        // bidegrees. No GIL-bound borrow (`Bound`/`PyRef`/`Python`) crosses the
+        // boundary, so the closure satisfies `detach`'s `Ungil` bound.
+        py.detach(|| {
+            let record_err = |slot: &Mutex<Option<PyErr>>, e: PyErr| {
+                let mut guard = slot.lock().unwrap();
+                if guard.is_none() {
+                    *guard = Some(e);
+                }
+            };
 
-        let t_closure = |aux: &Py<PyAny>, s: i32| -> i32 {
-            Python::attach(
-                |py| match aux.call1(py, (s,)).and_then(|r| r.extract::<i32>(py)) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        record_err(&err, e);
-                        s
-                    }
-                },
-            )
-        };
+            let t_closure = |aux: &Py<PyAny>, s: i32| -> i32 {
+                Python::attach(
+                    |py| match aux.call1(py, (s,)).and_then(|r| r.extract::<i32>(py)) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            record_err(&err, e);
+                            s
+                        }
+                    },
+                )
+            };
 
-        let range = ::sseq::coordinates::BidegreeRange::new(&t_cb, max_s, &t_closure);
+            let range = ::sseq::coordinates::BidegreeRange::new(&t_cb, max_s, &t_closure);
 
-        let f = |b: RsBidegree| -> std::ops::Range<i32> {
-            // Short-circuit cheaply once an error has been recorded.
-            if err.lock().unwrap().is_some() {
-                return b.t()..b.t();
-            }
-            Python::attach(|py| {
-                let arg = Bidegree(b);
-                match callback.call1(py, (arg,)) {
-                    Ok(ret) => match extract_callback_range(ret.bind(py), b.t()) {
-                        Ok(rng) => rng,
+            let f = |b: RsBidegree| -> std::ops::Range<i32> {
+                // Short-circuit cheaply once an error has been recorded.
+                if err.lock().unwrap().is_some() {
+                    return b.t()..b.t();
+                }
+                Python::attach(|py| {
+                    let arg = Bidegree(b);
+                    match callback.call1(py, (arg,)) {
+                        Ok(ret) => match extract_callback_range(ret.bind(py), b.t()) {
+                            Ok(rng) => rng,
+                            Err(e) => {
+                                record_err(&err, e);
+                                b.t()..b.t()
+                            }
+                        },
                         Err(e) => {
                             record_err(&err, e);
                             b.t()..b.t()
                         }
-                    },
-                    Err(e) => {
-                        record_err(&err, e);
-                        b.t()..b.t()
                     }
-                }
-            })
-        };
+                })
+            };
 
-        ::sseq::coordinates::iter_s_t(&f, min_b, range);
+            ::sseq::coordinates::iter_s_t(&f, min_b, range);
+        });
 
         match err.into_inner().unwrap() {
             Some(e) => Err(e),
