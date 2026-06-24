@@ -165,6 +165,44 @@ def test_quotient_hom_apply_aliasing_raises():
         qh.apply(v, 1, 0, v)
 
 
+def test_quotient_hom_partial_matrix_below_target_min():
+    # Finding 1: source/target quotients with asymmetric min_degree
+    # (src_min = 0 < target_min = 2). Querying get_partial_matrix at a degree in
+    # [src_min, target_min) used to panic in the trait-default's
+    # target.dimension(degree) (QuotientModule subspaces BiVec assert); it now
+    # returns a correctly-shaped (len(inputs) x 0) zero matrix.
+    alg = milnor(2)
+    sb = algebra.FDModuleBuilder(alg, "s", [1], 0)
+    source = sb.build()
+    tb = algebra.FDModuleBuilder(alg, "t", [1], 2)
+    target = tb.build()
+    f = algebra.FullModuleHomomorphism(source, target, 0)
+    q_src = algebra.QuotientModule(source, 3)
+    q_tgt = algebra.QuotientModule(target, 3)
+    qh = algebra.QuotientHomomorphism(f, q_src, q_tgt)
+    assert qh.source().min_degree() == 0
+    assert qh.target().min_degree() == 2
+    gm = qh.get_partial_matrix(0, [0])
+    assert isinstance(gm, fp.Matrix)
+    assert gm.rows() == 1
+    assert gm.columns() == 0
+
+
+def test_quotient_hom_partial_matrix_degree_shift_guard():
+    # With degree_shift != 0, get_partial_matrix raises ValueError when
+    # target.dimension(degree) != target.dimension(degree - degree_shift) (both
+    # nonzero). dim(0) = 1, dim(1) = 2 makes the two differ.
+    alg = milnor(2)
+    mb = algebra.FDModuleBuilder(alg, "m", [1, 2], 0)
+    m = mb.build()
+    f = algebra.FullModuleHomomorphism(m, m, 1)
+    q = algebra.QuotientModule(m, 3)
+    qh = algebra.QuotientHomomorphism(f, q, q)
+    assert qh.degree_shift() == 1
+    with pytest.raises(ValueError):
+        qh.get_partial_matrix(1, [0])
+
+
 # --- QuotientHomomorphismSource --------------------------------------------
 
 
@@ -213,6 +251,18 @@ def test_quotient_hom_source_no_auxiliary_data():
     assert qhs.kernel(0) is None
     assert qhs.image(0) is None
     assert qhs.quasi_inverse(0) is None
+
+
+def test_quotient_hom_source_get_partial_matrix():
+    # The induced identity into the un-quotiented target is the 1x1 [[1]].
+    alg = milnor(2)
+    _m, f, q = identity_and_quotient(alg)
+    qhs = algebra.QuotientHomomorphismSource(f, q)
+    gm = qhs.get_partial_matrix(0, [0])
+    assert isinstance(gm, fp.Matrix)
+    assert gm.rows() == 1
+    assert gm.columns() == 1
+    assert gm.to_vec() == [[1]]
 
 
 # --- GenericZeroHomomorphism -----------------------------------------------
@@ -311,3 +361,23 @@ def test_generic_zero_apply_aliasing_raises():
     v[0] = 1
     with pytest.raises(RuntimeError):
         z.apply(v, 1, 0, v)
+
+
+def test_generic_zero_partial_matrix_beyond_target_range():
+    # Finding 2: degree_shift > 0 with a FreeModule-backed target. The binding
+    # only ensured the target through the (smaller) output degree, so the
+    # trait-default's target.dimension(degree) used to reach beyond the
+    # FreeModule's computed range and trip its "not computed through degree"
+    # assert. It now returns a clean (len(inputs) x 0) zero matrix.
+    alg = milnor(2)
+    source = c2_module(alg)
+    # An empty FreeModule (no generators) over the same algebra object.
+    free = algebra.FPModuleBuilder(alg, "t", 0).build().generators()
+    target = free.into_steenrod_module()
+    z = algebra.GenericZeroHomomorphism(source, target, 1)
+    assert z.degree_shift() == 1
+    # Source (C2) has dimension 1 in degree 1, so input index 0 is valid.
+    gm = z.get_partial_matrix(1, [0])
+    assert isinstance(gm, fp.Matrix)
+    assert gm.rows() == 1
+    assert gm.columns() == 0

@@ -6347,7 +6347,24 @@ pub mod algebra_py {
                     )));
                 }
             }
-            if self.target_dim(degree) != self.target_dim(output_degree) {
+            // The trait-default builds a `target.dimension(degree)`-column
+            // matrix and returns early when that is 0. But evaluating
+            // `target.dimension(degree)` upstream indexes `QuotientModule`'s
+            // `subspaces` BiVec directly, which panics when `degree` is outside
+            // the target quotient's defined range (below its min degree or above
+            // its truncation) — reachable even with `degree_shift == 0` when the
+            // source/target quotients have asymmetric min degrees. Use the safe
+            // dimension wrapper and return the empty (`len(inputs) x 0`) matrix
+            // directly in that case.
+            let tgt_dim = self.target_dim(degree);
+            if tgt_dim == 0 {
+                return Ok(crate::fp_py::PyMatrix::from_rust(fp::matrix::Matrix::new(
+                    self.0.prime(),
+                    inputs.len(),
+                    0,
+                )));
+            }
+            if tgt_dim != self.target_dim(output_degree) {
                 return Err(PyValueError::new_err(
                     "get_partial_matrix is only well-defined when target.dimension(degree) == \
                      target.dimension(degree - degree_shift) (e.g. degree_shift == 0)",
@@ -6359,7 +6376,8 @@ pub mod algebra_py {
         }
 
         /// Apply the quasi-inverse at `degree` to `input`. Always returns `False`
-        /// (no quasi-inverse is stored).
+        /// (no quasi-inverse is ever stored) and therefore does NOT validate
+        /// `input`/`result` (no prime/length/index/aliasing checks run).
         pub fn apply_quasi_inverse(
             &self,
             py: Python<'_>,
@@ -6631,7 +6649,9 @@ pub mod algebra_py {
             ))
         }
 
-        /// Apply the quasi-inverse at `degree`. Always returns `False`.
+        /// Apply the quasi-inverse at `degree`. Always returns `False` (no
+        /// quasi-inverse is ever stored) and therefore does NOT validate
+        /// `input`/`result` (no prime/length/index/aliasing checks run).
         pub fn apply_quasi_inverse(
             &self,
             py: Python<'_>,
@@ -6676,7 +6696,9 @@ pub mod algebra_py {
     /// `result`. The map carries no auxiliary data:
     /// `kernel`/`image`/`quasi_inverse` are always `None`,
     /// `compute_auxiliary_data_through_degree` is a no-op and
-    /// `apply_quasi_inverse` always returns `False`. Inputs are still validated
+    /// `apply_quasi_inverse` always returns `False` (and, because there is never
+    /// a quasi-inverse, does not validate its inputs). The `apply`/
+    /// `apply_to_basis_element` paths still validate their inputs
     /// (prime/length/index/aliasing) so misuse raises `ValueError`/`IndexError`/
     /// `RuntimeError` rather than silently succeeding.
     #[pyclass(name = "GenericZeroHomomorphism")]
@@ -6890,12 +6912,31 @@ pub mod algebra_py {
                     )));
                 }
             }
+            // The trait-default builds a `target.dimension(degree)`-column matrix
+            // and returns early when that is 0. `ensure_through` above only
+            // computes the target through `output_degree`, so for
+            // `degree_shift > 0` the upstream `target.dimension(degree)` query
+            // would reach beyond the target's computed range (or below its min)
+            // and trip the `OnceVec`/BiVec assertion. Calling the safe wrapper
+            // ensures the target through `degree` (returning 0 when it is out of
+            // range) and makes the subsequent upstream call safe; when it is 0 we
+            // build the empty (`len(inputs) x 0`) matrix directly.
+            let tgt_dim = self.target_dim(degree);
+            if tgt_dim == 0 {
+                return Ok(crate::fp_py::PyMatrix::from_rust(fp::matrix::Matrix::new(
+                    self.0.prime(),
+                    inputs.len(),
+                    0,
+                )));
+            }
             Ok(crate::fp_py::PyMatrix::from_rust(
                 self.0.get_partial_matrix(degree, &inputs),
             ))
         }
 
-        /// Apply the quasi-inverse at `degree`. Always returns `False`.
+        /// Apply the quasi-inverse at `degree`. Always returns `False` (no
+        /// quasi-inverse is ever stored) and therefore does NOT validate
+        /// `input`/`result` (no prime/length/index/aliasing checks run).
         pub fn apply_quasi_inverse(
             &self,
             py: Python<'_>,
