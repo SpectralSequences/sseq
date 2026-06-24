@@ -282,14 +282,26 @@ def test_fdmodule_set_action_out_of_range_output_degree_raises():
     assert list(m.action(1, 0, 0, 0)) == [1]
 
 
-def test_fdmodule_into_steenrod_module_is_snapshot():
+def test_fdmodule_into_steenrod_module_shares_state_and_blocks_mutation():
     m = algebra.FDModule(milnor(2), "C2", [1, 1])
-    sm = m.into_steenrod_module()
-    # Mutating the FDModule after boxing does not affect the boxed snapshot.
+    # Pre-boxing mutation works and is reflected in the boxed module (shared
+    # state via Arc).
     m.set_action(1, 0, 0, 0, [1])
+    sm = m.into_steenrod_module()
     res = fp.FpVector(2, sm.dimension(1))
     sm.act_on_basis(res, 1, 1, 0, 0, 0)
-    assert res[0] == 0
+    assert res[0] == 1
+    # While the boxed module is alive, mutating the FDModule raises RuntimeError
+    # (the Arc is shared) instead of silently diverging.
+    with pytest.raises(RuntimeError):
+        m.set_action(1, 0, 0, 0, [0])
+    with pytest.raises(RuntimeError):
+        m.add_generator(0, "x")
+    with pytest.raises(RuntimeError):
+        m.extend_actions(0, 1)
+    # Releasing the boxed module lets mutation work again.
+    del sm
+    m.set_action(1, 0, 0, 0, [0])
 
 
 # --- invalid construction -------------------------------------------------

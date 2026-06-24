@@ -2223,12 +2223,32 @@ pub mod algebra_py {
 
     /// A finite-dimensional module over the Steenrod algebra. The graded
     /// dimensions are given as a `list[int]` starting at `min_degree`.
+    ///
+    /// The inner module is held in an `Arc` (like `FreeModule`) so that
+    /// `into_steenrod_module()` can unsize that `Arc` directly into a
+    /// `SteenrodModule`, sharing state rather than deep-cloning. While such a
+    /// boxed `SteenrodModule` is still alive, the mutating methods
+    /// (`set_basis_element_name`/`add_generator`/`set_action`/`extend_actions`)
+    /// raise `RuntimeError` instead of silently diverging from the boxed copy.
     #[pyclass(name = "FDModule")]
-    pub struct FDModule(FDModuleInner);
+    pub struct FDModule(Arc<FDModuleInner>);
 
     impl FDModule {
         fn as_dyn(&self) -> &DynModule {
-            &self.0
+            &*self.0
+        }
+
+        /// Mutable access for the action/generator setters. Fails with
+        /// `RuntimeError` (rather than panicking or diverging) once the inner
+        /// `Arc` is shared — i.e. after `into_steenrod_module()` has handed out
+        /// a boxed module that aliases this state.
+        fn inner_mut(&mut self) -> PyResult<&mut FDModuleInner> {
+            Arc::get_mut(&mut self.0).ok_or_else(|| {
+                PyRuntimeError::new_err(
+                    "cannot mutate an FDModule whose state is shared with a boxed SteenrodModule \
+                     (created via into_steenrod_module())",
+                )
+            })
         }
     }
 
@@ -2247,7 +2267,11 @@ pub mod algebra_py {
             min_degree: i32,
         ) -> Self {
             let graded_dimension = ::bivec::BiVec::from_vec(min_degree, graded_dims);
-            FDModule(FDModuleInner::new(algebra.arc(), name, graded_dimension))
+            FDModule(Arc::new(FDModuleInner::new(
+                algebra.arc(),
+                name,
+                graded_dimension,
+            )))
         }
 
         // --- flattened Module method set --------------------------------------
@@ -2380,14 +2404,16 @@ pub mod algebra_py {
             idx: usize,
             name: String,
         ) -> PyResult<()> {
-            checked_mod_index(&self.0, degree, idx)?;
-            self.0.set_basis_element_name(degree, idx, name);
+            checked_mod_index(self.as_dyn(), degree, idx)?;
+            self.inner_mut()?.set_basis_element_name(degree, idx, name);
             Ok(())
         }
 
-        /// Append a new generator in `degree`, returning its index.
-        pub fn add_generator(&mut self, degree: i32, name: String) {
-            self.0.add_generator(degree, name);
+        /// Append a new generator in `degree`. Raises `RuntimeError` if the
+        /// module's state is shared with a boxed `SteenrodModule`.
+        pub fn add_generator(&mut self, degree: i32, name: String) -> PyResult<()> {
+            self.inner_mut()?.add_generator(degree, name);
+            Ok(())
         }
 
         /// Set the action `op * x = output`, where `op = (op_degree, op_index)`
@@ -2406,8 +2432,8 @@ pub mod algebra_py {
         ) -> PyResult<()> {
             non_negative_degree(op_degree)?;
             self.0.algebra().compute_basis(op_degree);
-            checked_op_index(&self.0, op_degree, op_index)?;
-            checked_mod_index(&self.0, input_degree, input_index)?;
+            checked_op_index(self.as_dyn(), op_degree, op_index)?;
+            checked_mod_index(self.as_dyn(), input_degree, input_index)?;
             let output_degree = input_degree
                 .checked_add(op_degree)
                 .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))?;
@@ -2417,7 +2443,7 @@ pub mod algebra_py {
             // empty (out-of-range) `output_degree` passes the length check but
             // would then panic, so reject it the same way the `action` getter
             // does: an empty output degree is a `ValueError`.
-            let out_dim = module_dimension(&self.0, output_degree);
+            let out_dim = module_dimension(self.as_dyn(), output_degree);
             if out_dim == 0 {
                 return Err(PyValueError::new_err(format!(
                     "output degree {output_degree} is empty"
@@ -2432,7 +2458,7 @@ pub mod algebra_py {
                     )));
                 }
             }
-            self.0
+            self.inner_mut()?
                 .set_action(op_degree, op_index, input_degree, input_index, &output);
             Ok(())
         }
@@ -2448,12 +2474,12 @@ pub mod algebra_py {
         ) -> PyResult<Vec<u32>> {
             non_negative_degree(op_degree)?;
             self.0.algebra().compute_basis(op_degree);
-            checked_op_index(&self.0, op_degree, op_index)?;
-            checked_mod_index(&self.0, input_degree, input_index)?;
+            checked_op_index(self.as_dyn(), op_degree, op_index)?;
+            checked_mod_index(self.as_dyn(), input_degree, input_index)?;
             let output_degree = input_degree
                 .checked_add(op_degree)
                 .ok_or_else(|| PyValueError::new_err("output degree overflows i32"))?;
-            if module_dimension(&self.0, output_degree) == 0 {
+            if module_dimension(self.as_dyn(), output_degree) == 0 {
                 return Err(PyValueError::new_err(format!(
                     "output degree {output_degree} is empty"
                 )));
@@ -2474,7 +2500,8 @@ pub mod algebra_py {
                 ));
             }
             self.0.algebra().compute_basis(output_degree - input_degree);
-            self.0.extend_actions(input_degree, output_degree);
+            self.inner_mut()?
+                .extend_actions(input_degree, output_degree);
             Ok(())
         }
 
@@ -2501,13 +2528,16 @@ pub mod algebra_py {
 
         /// Box this module into a `SteenrodModule` for downstream use.
         ///
-        /// This returns an independent snapshot: the `FDModule` is deep-cloned
-        /// into the boxed `SteenrodModule`, so later `set_action`/`add_generator`
-        /// calls on this `FDModule` do *not* propagate to the returned module.
-        /// (`FreeModule.into_steenrod_module`, by contrast, shares state via an
-        /// `Arc`.)
+        /// This **shares state** with the `FDModule` via an `Arc` (the
+        /// `FreeModule.into_steenrod_module` pattern): no deep clone is made.
+        /// While the returned `SteenrodModule` is alive the `Arc` is shared, so
+        /// any subsequent mutation of this `FDModule`
+        /// (`set_action`/`add_generator`/`set_basis_element_name`/
+        /// `extend_actions`) raises `RuntimeError` rather than silently
+        /// diverging from the boxed module.
         pub fn into_steenrod_module(&self) -> SteenrodModule {
-            SteenrodModule(steenrod_module::erase(self.0.clone()))
+            // `Arc<FDModuleInner>` unsizes directly to `Arc<dyn Module>`.
+            SteenrodModule(Arc::clone(&self.0) as RsSteenrodModule)
         }
 
         pub fn __repr__(&self) -> String {
