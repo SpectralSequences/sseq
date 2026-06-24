@@ -714,6 +714,12 @@ mod ext_py {
     /// (`extend*`) takes `&self` upstream via the maps' interior-mutable
     /// `OnceBiVec`, so a `frozen` pyclass works directly; `source()`/`target()`
     /// hand back the resolution `Arc`s the homomorphism already stores.
+    ///
+    /// Note: `get_map(s)` returns a `FreeModuleHomomorphismToFree` that shares
+    /// the internal `Arc` of this homomorphism's `s`-th map. It is a *live
+    /// view* and should be treated as read-only; calling its mutating methods
+    /// (`add_generators_from_rows`, `set_quasi_inverse`, `extend_by_zero`, …)
+    /// is memory-safe but can logically corrupt the chain map.
     #[pyclass(frozen)]
     pub struct ResolutionHomomorphism(RsResHom);
 
@@ -823,6 +829,12 @@ mod ext_py {
         /// share the same prime. `shift` must be non-negative in both `s` and
         /// `t` (a resolution homomorphism raises homological/internal degree; a
         /// negative shift is rejected rather than risking a wrapped index).
+        ///
+        /// Note: if the `source` resolution is backed by a save directory *and*
+        /// `name` is non-empty, upstream `new` creates a `products/{name}`
+        /// subdirectory on disk (filesystem I/O, which can error). The default
+        /// in-memory resolutions built here have no save directory, so this
+        /// path is not exercised by the bound API.
         #[new]
         pub fn new(
             name: String,
@@ -866,6 +878,12 @@ mod ext_py {
         ///    shift`); and that augmentation is 1-dimensional in degree 0 (the
         ///    unit/sphere case the single-column class matrix assumes), else the
         ///    quasi-inverse application would mismatch dimensions.
+        ///
+        /// Note: as with `new`, constructing a *named* homomorphism against a
+        /// `source` resolution backed by a save directory performs filesystem
+        /// I/O (it creates a `products/{name}` directory and can error). The
+        /// default in-memory resolutions built here have no save directory, so
+        /// this path is not exercised by the bound API.
         #[staticmethod]
         pub fn from_class(
             name: String,
@@ -984,6 +1002,12 @@ mod ext_py {
         /// `[shift.s, next_homological_degree)` (the internal `maps` `OnceBiVec`
         /// is indexed there and would otherwise panic). Extend the homomorphism
         /// first to define more maps.
+        ///
+        /// WARNING: the returned homomorphism is a *live shared view* of this
+        /// resolution homomorphism's internal map (the same `Arc`), not a copy.
+        /// Treat it as read-only: calling its mutating methods
+        /// (`add_generators_from_rows`, `set_quasi_inverse`, `extend_by_zero`, …)
+        /// is memory-safe but may logically corrupt the chain map.
         pub fn get_map(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
             if s < self.0.shift.s() || s >= self.0.next_homological_degree() {
                 return Err(pyo3::exceptions::PyIndexError::new_err(format!(
@@ -1002,6 +1026,12 @@ mod ext_py {
         /// target must already be resolved over the touched range (see the
         /// guard); otherwise a clean `ValueError` is raised. Negative `max` is
         /// rejected.
+        ///
+        /// Note: the touched range is the *full strip* — the source (and the
+        /// shifted target) must be resolved over every `t` in
+        /// `[min_degree, max.t]` for each `s` in `[shift.s, max.s]`, not merely
+        /// at the corner `max`. A "thin"/partial computation that does not cover
+        /// the whole strip is rejected rather than risking an upstream panic.
         pub fn extend(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
             if b.s() < 0 || b.t() < 0 {

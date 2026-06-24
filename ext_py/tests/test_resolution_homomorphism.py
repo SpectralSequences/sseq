@@ -150,6 +150,64 @@ def test_act_guards():
         hom.act(result, 1, BidegreeGenerator.s_t(1, 1, 99))
 
 
+def test_act_prime_mismatch_errors():
+    # result over a different prime than the homomorphism -> ValueError (checked
+    # before the length/generator guards).
+    r = s2_rect(6)
+    hom = identity_hom(r, 6)
+    wrong_prime = FpVector(3, 1)
+    with pytest.raises(ValueError):
+        hom.act(wrong_prime, 1, BidegreeGenerator.s_t(1, 1, 0))
+
+
+def test_act_map_undefined_at_s_errors():
+    # src_s = g.s + shift.s beyond where the chain map is defined -> ValueError.
+    r = s2_rect(6)
+    hom = identity_hom(r, 6)
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError):
+        hom.act(result, 1, BidegreeGenerator.s_t(99, 99, 0))
+
+
+def test_act_map_not_extended_far_enough_errors():
+    # The map at s exists but is not extended through src_t -> ValueError.
+    # Resolve the source over the full (6, 6) rectangle but extend the chain map
+    # only through t = 4, so get_map(2).next_degree() == 5 and src_t = 5 is out
+    # of range.
+    r = s2_rect(6)
+    hom = ext.ResolutionHomomorphism.from_class("id", r, r, Bidegree.s_t(0, 0), [1])
+    hom.extend(Bidegree.s_t(6, 4))
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError):
+        hom.act(result, 1, BidegreeGenerator.s_t(2, 5, 0))
+
+
+def test_act_target_s_out_of_range_errors():
+    # g.s >= target.next_homological_degree(). With shift >= 0 this guard is
+    # shadowed by the src_s ("map undefined") guard (src_s = g.s + shift.s >=
+    # g.s), so it cannot fire first from the bound API, but the call still
+    # raises ValueError.
+    r = s2_rect(6)
+    hom = identity_hom(r, 6)
+    assert hom.target().next_homological_degree() == 7
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError):
+        hom.act(result, 1, BidegreeGenerator.s_t(7, 7, 0))
+
+
+def test_act_degree_overflow_errors():
+    # g.s + shift.s / g.t + shift.t overflowing i32 is caught (checked_add) and
+    # raised as ValueError rather than wrapping. BidegreeGenerator imposes no
+    # upper bound, so i32::MAX is constructible from Python.
+    r = s2_rect(4)
+    hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError):
+        hom.act(result, 1, BidegreeGenerator.s_t(2147483647, 0, 0))
+    with pytest.raises(ValueError):
+        hom.act(result, 1, BidegreeGenerator.s_t(0, 2147483647, 0))
+
+
 # --- backend rejection ----------------------------------------------------
 
 
@@ -168,6 +226,22 @@ def test_rejects_nassau_backend():
 
 
 # --- panic guards ---------------------------------------------------------
+
+
+def test_new_prime_mismatch_errors():
+    # source over p=2, target over p=3 -> ValueError (no computation required;
+    # the prime check fires first).
+    s2 = s2_rect(4)
+    s3 = ext.Resolution("S_3", "standard")
+    with pytest.raises(ValueError):
+        ext.ResolutionHomomorphism("f", s2, s3, Bidegree.s_t(0, 0))
+
+
+def test_from_class_prime_mismatch_errors():
+    s2 = s2_rect(4)
+    s3 = ext.Resolution("S_3", "standard")
+    with pytest.raises(ValueError):
+        ext.ResolutionHomomorphism.from_class("f", s2, s3, Bidegree.s_t(0, 0), [1])
 
 
 def test_new_negative_shift_errors():
