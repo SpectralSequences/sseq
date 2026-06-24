@@ -62,11 +62,13 @@ pub mod algebra_py {
     /// its *target*; its *source* is the concrete `FreeModule<SteenrodAlgebra>`
     /// upstream requires. Crucially `HomModule<M>::Algebra` is `Field` (the
     /// ground field), *not* `SteenrodAlgebra`: the module is the graded
-    /// vector space `Hom(source, target)`, only acted on by scalars. It is
-    /// therefore *not* a `SteenrodModule` and exposes no
-    /// `into_steenrod_module()`/`algebra()` (see the binding for why those are
-    /// deferred). The flattened `Module` method set is still shared via the
-    /// algebra-generic `module_*` helpers above.
+    /// vector space `Hom(source, target)`, only acted on by scalars. Its
+    /// `algebra()` is therefore the bound ground-field `Field` pyclass (sharing
+    /// the module's `Arc<Field>`), *not* a `SteenrodAlgebra`. Because its
+    /// algebra is not `SteenrodAlgebra`, it is *not* a `SteenrodModule` and
+    /// exposes no `into_steenrod_module()` (see the binding). The flattened
+    /// `Module` method set is still shared via the algebra-generic `module_*`
+    /// helpers above.
     type HomModuleInner = RsHomModule<RsSteenrodModule>;
     type RpInner = RsRealProjectiveSpace<RsSteenrodAlgebra>;
     /// The finitely presented module is monomorphised over the concrete
@@ -1876,6 +1878,186 @@ pub mod algebra_py {
         pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
+            self.checked_basis_index(degree, idx)?;
+            Ok(self.0.decompose(degree, idx))
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("{}", self.0)
+        }
+    }
+
+    /// The ground field $\mathbb{F}_p$ viewed as a (graded) **algebra over
+    /// itself** — the *trivial* 1-dimensional algebra concentrated in degree 0,
+    /// with single basis element `1` (the unit). This is `algebra::Field`.
+    ///
+    /// Do **not** confuse this with `fp_py.Fp`: `fp_py.Fp` is the *field type*
+    /// (the scalars $\mathbb{F}_p$ themselves, used to build `FpVector`s),
+    /// whereas `algebra_py.Field` is that field re-packaged as an `Algebra` so
+    /// it can be the coefficient algebra of a graded module. Concretely
+    /// `dimension(0) == 1`, `dimension(d) == 0` for `d != 0`, and
+    /// `multiply_basis_elements` is just the field multiplication on the unit.
+    ///
+    /// `Field` is the `algebra()` of a `HomModule` (which is the graded vector
+    /// space `Hom(source, target)`, acted on only by scalars), so a freshly
+    /// constructed `Field` shares the module's `Arc<Field>` storage there.
+    ///
+    /// Like the other algebra bindings the prime is exposed as a plain `int`
+    /// (`ValidPrime` is never surfaced); an invalid prime raises `ValueError`.
+    #[pyclass(name = "Field")]
+    pub struct Field(Arc<RsField>);
+
+    impl Field {
+        /// Re-wrap an `Arc<Field>` handed back by a module's `algebra()` (the
+        /// `SteenrodAlgebra::from_arc` pattern) so the same ground field is
+        /// shared with Python rather than deep-copied.
+        pub(crate) fn from_arc(algebra: Arc<RsField>) -> Self {
+            Field(algebra)
+        }
+
+        /// Range-check a basis index. The field is 1-dimensional concentrated
+        /// in degree 0, so the only valid `(degree, idx)` is `(0, 0)`; every
+        /// other pair is `IndexError`. This also forces `degree == 0` wherever
+        /// it is applied, which is exactly the precondition the upstream
+        /// `basis_element_to_string`/`element_to_string` `assert!(degree == 0)`
+        /// guards rely on.
+        fn checked_basis_index(&self, degree: i32, idx: usize) -> PyResult<()> {
+            let dim = self.0.dimension(degree);
+            if idx < dim {
+                Ok(())
+            } else {
+                Err(PyIndexError::new_err(format!(
+                    "index {idx} out of range for degree {degree} (dimension {dim})"
+                )))
+            }
+        }
+    }
+
+    #[pymethods]
+    impl Field {
+        /// Construct the ground-field algebra `F_p`. Raises `ValueError` for a
+        /// non-prime `p` (see `algebra_py.Field` vs `fp_py.Fp` above).
+        #[new]
+        pub fn new(p: u32) -> PyResult<Self> {
+            Ok(Field(Arc::new(RsField::new(valid_prime(p)?))))
+        }
+
+        // --- Algebra trait surface --------------------------------------------
+
+        /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// A no-op upstream (the field is finite-dimensional and needs no
+        /// book-keeping), kept for parity with the other algebra bindings.
+        pub fn compute_basis(&self, _degree: i32) {}
+
+        /// `1` in degree 0, `0` everywhere else (including negative degrees).
+        pub fn dimension(&self, degree: i32) -> usize {
+            self.0.dimension(degree)
+        }
+
+        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+            // `try_basis_element_to_string` returns `None` for a negative degree
+            // or an out-of-range index (the field is 1-dimensional in degree 0),
+            // i.e. exactly the upstream `assert!(degree == 0)` precondition.
+            self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
+                PyIndexError::new_err(format!(
+                    "no basis element at degree {degree} index {idx}"
+                ))
+            })
+        }
+
+        /// Parse a basis element, returning `(degree, index)`. The field has the
+        /// single basis element `1`, so upstream returns `(0, 0)` for *any*
+        /// input; we surface that total behaviour unchanged.
+        pub fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)> {
+            self.0.basis_element_from_string(elt)
+        }
+
+        pub fn element_to_string(
+            &self,
+            py: Python<'_>,
+            degree: i32,
+            element: &Bound<'_, PyAny>,
+        ) -> PyResult<String> {
+            non_negative_degree(degree)?;
+            // Upstream `element_to_string` asserts `degree == 0` and reads
+            // `element.entry(0)`, so the element must live in degree 0 (where
+            // the dimension is 1).
+            checked_equal_len(self.0.dimension(degree), 1)?;
+            crate::fp_py::with_input_slice(py, element, |slice| {
+                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.0.dimension(degree))?;
+                Ok(self.0.element_to_string(degree, slice))
+            })
+        }
+
+        /// Multiply two basis elements, accumulating `coeff * (r * s)` into
+        /// `result`. The only basis element is the unit `1` in degree 0, so a
+        /// valid product requires `r` and `s` to both be `(0, 0)`; the index
+        /// guards reject anything else. Upstream simply adds `coeff` into
+        /// component 0, so `result` must have length at least 1.
+        pub fn multiply_basis_elements(
+            &self,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
+            coeff: u32,
+            r_degree: i32,
+            r_idx: usize,
+            s_degree: i32,
+            s_idx: usize,
+        ) -> PyResult<()> {
+            let p = self.0.prime().as_u32();
+            // Reduce mod p for parity with the other bindings (harmless here:
+            // upstream only forwards `coeff` to `add_basis_element`).
+            let coeff = coeff % p;
+            // Both factors must be the unit `(0, 0)`; this also pins both
+            // degrees to 0, so the product lands in degree 0 (dimension 1).
+            self.checked_basis_index(r_degree, r_idx)?;
+            self.checked_basis_index(s_degree, s_idx)?;
+            let dim = self.0.dimension(0);
+            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                checked_same_prime(res.prime().as_u32(), p)?;
+                checked_result_len(res.as_slice().len(), dim)?;
+                self.0
+                    .multiply_basis_elements(res.copy(), coeff, r_degree, r_idx, s_degree, s_idx);
+                Ok(())
+            })
+        }
+
+        pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+            self.0.default_filtration_one_products()
+        }
+
+        // --- Bialgebra trait surface ------------------------------------------
+        //
+        // `Field` is a `Bialgebra` (trivial diagonal comultiplication), so
+        // `coproduct`/`decompose` are bound. It does *not* implement
+        // `GeneratedAlgebra` (it has no generators/relations — it is the unit
+        // algebra), so `generators`/`generator_to_string`/
+        // `decompose_basis_element`/`generating_relations` are intentionally
+        // *not* bound (unlike `MilnorAlgebra`/`AdemAlgebra`). The provided
+        // `multiply_*_by_*` element-level helpers are likewise omitted: every
+        // product reduces to scaling the single unit basis element, fully
+        // exercised by `multiply_basis_elements`.
+
+        /// The (trivial) coproduct of the unit. Only `(0, 0)` is a basis
+        /// element, so any other `(degree, idx)` raises rather than describing a
+        /// nonexistent element.
+        pub fn coproduct(
+            &self,
+            degree: i32,
+            idx: usize,
+        ) -> PyResult<Vec<(i32, usize, i32, usize)>> {
+            non_negative_degree(degree)?;
+            self.checked_basis_index(degree, idx)?;
+            Ok(self.0.coproduct(degree, idx))
+        }
+
+        pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
+            non_negative_degree(degree)?;
             self.checked_basis_index(degree, idx)?;
             Ok(self.0.decompose(degree, idx))
         }
@@ -4096,10 +4278,17 @@ pub mod algebra_py {
     /// the graded vector space of degree-shifting maps, graded *opposite* to
     /// the usual grading so that it is bounded below; it is a module over the
     /// ground field `F_p` (acted on only by scalars), **not** over the Steenrod
-    /// algebra. Consequently it is not a `SteenrodModule` and exposes neither
-    /// `algebra()` (the ground-field algebra pyclass `Field` is a separate
-    /// §5.2 binding, not yet available) nor `into_steenrod_module()`; both are
-    /// deferred for this reason.
+    /// algebra. Its `algebra()` therefore returns the bound ground-field `Field`
+    /// pyclass (sharing the module's `Arc<Field>`), not a `SteenrodAlgebra`.
+    ///
+    /// It is still *not* a `SteenrodModule`, so it exposes no
+    /// `into_steenrod_module()`: a `SteenrodModule` is an
+    /// `Arc<dyn Module<Algebra = SteenrodAlgebra>>`, whereas a `HomModule`'s
+    /// `Algebra` is `Field` — there is no unsizing coercion between
+    /// `dyn Module<Algebra = Field>` and `dyn Module<Algebra = SteenrodAlgebra>`
+    /// (the associated `Algebra` types differ), so boxing it as a
+    /// `SteenrodModule` is a type error, not merely unimplemented. It is left
+    /// unbound for that reason.
     #[pyclass(name = "HomModule")]
     pub struct HomModule(Arc<HomModuleInner>);
 
@@ -4183,7 +4372,14 @@ pub mod algebra_py {
             ))))
         }
 
-        // --- flattened Module method set (algebra() deferred, see docstring) --
+        // --- flattened Module method set --------------------------------------
+
+        /// The ground-field algebra `F_p` this Hom space is a module over,
+        /// as the bound `Field` pyclass. Shares the module's `Arc<Field>` (no
+        /// `ValidPrime` is exposed, and the prime matches the source/target).
+        pub fn algebra(&self) -> Field {
+            Field::from_arc(self.0.algebra())
+        }
 
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
