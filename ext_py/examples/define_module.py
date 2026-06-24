@@ -1,259 +1,211 @@
 #!/usr/bin/env python3
-"""
-Interactive module definition tool for creating finite dimensional or finitely presented modules.
-Python translation of define_module.rs example.
+"""Interactively define a finite dimensional or finitely presented module.
+
+The module JSON is printed to stdout; all prompts go to stderr.
+
+Python port of ext/examples/define_module.rs.
 """
 
-import ext
 import json
-from typing import Dict, List, Any
+import sys
+
+import _query as query
+from ext import algebra
 
 
-def get_generators() -> Dict[int, List[str]]:
-    """Interactively get generators from user."""
-    print("Input generators. Press return to finish.")
+def get_gens():
+    """Query generators and their degrees. Returns a dict ``degree -> [names]``."""
+    print("Input generators. Press return to finish.", file=sys.stderr)
 
-    generators = {}
-
+    gens = {}
     while True:
-        degree_input = input("Generator degree (or press Enter to finish): ").strip()
-        if not degree_input:
-            if generators:
-                print("Generators and degrees:")
-                for deg, gens in generators.items():
-                    for gen in gens:
-                        print(f"({deg}, {gen})", end=" ")
-                print()
-
-                if input("Is it okay? (y/n): ").lower().startswith("y"):
-                    break
-                else:
-                    if input("Start over? (y/n): ").lower().startswith("y"):
-                        generators = {}
-                    continue
-            else:
+        gen_deg = query.optional("Generator degree", int)
+        if gen_deg is None:
+            print("This is the list of generators and degrees:", file=sys.stderr)
+            for deg in sorted(gens):
+                for g in gens[deg]:
+                    print(f"({deg}, {g}) ", end="", file=sys.stderr)
+            print(file=sys.stderr)
+            if query.yes_no("Is it okay?"):
                 break
-
-        try:
-            degree = int(degree_input)
-        except ValueError:
-            print("Invalid degree. Please enter an integer.")
+            if query.yes_no("Start over?"):
+                gens = {}
             continue
 
-        if degree not in generators:
-            generators[degree] = []
+        gens.setdefault(gen_deg, [])
+        default = f"x{gen_deg}{len(gens[gen_deg])}".replace("-", "_")
 
-        default_name = f"x{degree}{len(generators[degree])}".replace("-", "_")
-        gen_name = (
-            input(f"Generator name (default '{default_name}'): ").strip()
-            or default_name
-        )
+        def parse_name(x):
+            if not x:
+                raise ValueError("Variable name cannot be empty")
+            if not x[0].isalpha():
+                raise ValueError("variable name must start with a letter")
+            for c in x:
+                if not (c.isalnum() or c == "_"):
+                    raise ValueError(
+                        f"Variable name cannot contain {c}. "
+                        "Should be alphanumeric and '_'"
+                    )
+            return x
 
-        # Validate generator name
-        if not gen_name[0].isalpha():
-            print("Variable name must start with a letter")
-            continue
-        if not all(c.isalnum() or c == "_" for c in gen_name):
-            print("Variable name must be alphanumeric with underscores only")
-            continue
+        gens[gen_deg].append(query.with_default("Generator name", default, parse_name))
 
-        generators[degree].append(gen_name)
-
-    return generators
+    return gens
 
 
-def define_finite_dimensional_module(prime: int) -> Dict[str, Any]:
-    """Define a finite dimensional module interactively."""
-    output = {"p": prime, "type": "finite dimensional module"}
+def define_fdmodule(output_json, p):
+    output_json["p"] = p
+    alg = algebra.AdemAlgebra(p, False)
 
-    # Create algebra
-    alg = ext.AdemAlgebra(prime=prime, truncated=False)
+    gens = get_gens()
+    min_degree = min(gens) if gens else 0
+    max_degree = (max(gens) + 1) if gens else 0
 
-    # Get generators
-    generators = get_generators()
-    min_degree = min(generators.keys()) if generators else 0
-    max_degree = max(generators.keys()) if generators else 0
-
-    # Compute algebra basis
     alg.compute_basis(max_degree - min_degree)
 
     # Create module
-    graded_dims = [
-        len(generators.get(i, [])) for i in range(min_degree, max_degree + 1)
-    ]
-    module = ext.FDModuleBuilder(alg, "", graded_dims, min_degree)
+    graded_dims = [len(gens.get(i, [])) for i in range(min_degree, max_degree)]
+    module = algebra.FDModuleBuilder(alg, "", graded_dims, min_degree)
 
-    # Set generator names
-    for degree, gen_list in generators.items():
-        for idx, gen_name in enumerate(gen_list):
-            module.set_basis_element_name(degree, idx, gen_name)
+    for deg in sorted(gens):
+        for j, g in enumerate(gens[deg]):
+            module.set_basis_element_name(deg, j, g)
 
-    # Input actions
     print(
-        "Input actions. Write the value of the action in the form 'a x0 + b x1 + ...'"
+        "Input actions. Write the value of the action in the form 'a x0 + b x1 + "
+        "...' where a, b are non-negative integers and x0, x1 are names of the "
+        "generators. The coefficient can be omitted if it is 1",
+        file=sys.stderr,
     )
-    print("where a, b are non-negative integers and x0, x1 are generator names.")
-    print("The coefficient can be omitted if it is 1.")
 
-    for input_deg in sorted(generators.keys(), reverse=True):
-        for output_deg in range(input_deg + 1, max_degree + 1):
-            if output_deg not in generators or not generators[output_deg]:
-                continue
-
+    for input_deg in reversed(range(min_degree, max_degree)):
+        for output_deg in range(input_deg + 1, max_degree):
             op_deg = output_deg - input_deg
-
+            out_gens = gens.get(output_deg, [])
+            if not out_gens:
+                continue
             for op_idx in alg.generators(op_deg):
-                for input_idx, input_gen in enumerate(generators[input_deg]):
+                for input_idx in range(len(gens.get(input_deg, []))):
+
+                    def parse_action(expr):
+                        result = [0] * len(out_gens)
+                        if expr == "0":
+                            return result
+                        for term in expr.split("+"):
+                            term = term.strip()
+                            if " " in term:
+                                coef_str, g = term.split(" ", 1)
+                                coef = int(coef_str)
+                            else:
+                                coef, g = 1, term
+                            if g in out_gens:
+                                result[out_gens.index(g)] += coef
+                            else:
+                                raise ValueError(
+                                    f"No generator {g} in degree {output_deg}"
+                                )
+                        return result
+
                     op_string = alg.basis_element_to_string(op_deg, op_idx)
-                    prompt = f"{op_string} {input_gen}: "
-
-                    while True:
-                        expression = input(prompt).strip()
-                        try:
-                            result = parse_linear_combination(
-                                expression, generators[output_deg]
-                            )
-                            module.set_action(
-                                op_deg, op_idx, input_deg, input_idx, result
-                            )
-                            break
-                        except ValueError as e:
-                            print(f"Error: {e}")
-
+                    output = query.raw(
+                        f"{op_string} {gens[input_deg][input_idx]}", parse_action
+                    )
+                    module.set_action(op_deg, op_idx, input_deg, input_idx, output)
             module.extend_actions(input_deg, output_deg)
             module.check_validity(input_deg, output_deg)
 
-    # Convert to JSON
-    output.update(module.to_json())
-    return output
+    output_json.update(module.to_json())
 
 
-def define_finitely_presented_module(prime: int) -> Dict[str, Any]:
-    """Define a finitely presented module interactively."""
-    output = {"p": prime, "type": "finitely presented module"}
+def replace(algebra_elt, g):
+    """Right-multiply each term of an algebra element string by ``g``."""
+    return algebra_elt.replace("+", f"{g} +") + " " + g
 
-    # Get generators
-    generators = get_generators()
 
-    # Create evaluator
-    evaluator = ext.SteenrodEvaluator(prime)
+def define_fpmodule(output_json, p):
+    gens = get_gens()
+    ev = algebra.SteenrodEvaluator(p)
 
-    # Set up generator lookup
-    generator_degrees = {}
-    for degree, gen_list in generators.items():
-        for gen in gen_list:
-            generator_degrees[gen] = degree
-
-    # Input relations
-    print("Input relations")
-    if prime == 2:
-        print("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'")
+    print("Input relations", file=sys.stderr)
+    if p == 2:
+        print("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'", file=sys.stderr)
     else:
-        print("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y'")
-        print("where P(...) and Qi are Milnor basis elements.")
+        print(
+            "Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', "
+            "where P(...) and Qi are Milnor basis elements.",
+            file=sys.stderr,
+        )
+
+    degree_lookup = {g: deg for deg, gs in gens.items() for g in gs}
 
     adem_relations = []
     milnor_relations = []
-
     while True:
-        relation = input("Enter relation (or press Enter to finish): ").strip()
+
+        def parse_relation(rel):
+            result = ev.evaluate_module_adem(rel)
+            if not result:
+                return result
+            degrees = []
+            for g, (op_deg, _) in sorted(result.items()):
+                if g not in degree_lookup:
+                    raise ValueError(f"Unknown generator: {g}")
+                degrees.append(degree_lookup[g] + op_deg)
+            for a, b in zip(degrees, degrees[1:]):
+                if a != b:
+                    raise ValueError(
+                        f"Relation terms have different degrees: {a} and {b}"
+                    )
+            return result
+
+        relation = query.raw("Enter relation", parse_relation)
         if not relation:
             break
 
-        try:
-            # Parse and validate relation
-            result = evaluator.evaluate_module_adem(relation)
-
-            if not result:
+        adem_terms = []
+        milnor_terms = []
+        for g, (op_deg, adem_op) in sorted(relation.items()):
+            if adem_op.is_zero():
                 continue
+            milnor_op = ev.adem_to_milnor(op_deg, adem_op)
+            adem_terms.append(replace(ev.adem_element_to_string(op_deg, adem_op), g))
+            milnor_terms.append(
+                replace(ev.milnor_element_to_string(op_deg, milnor_op), g)
+            )
+        if adem_terms:
+            adem_relations.append(" + ".join(adem_terms))
+            milnor_relations.append(" + ".join(milnor_terms))
 
-            # Check degrees are consistent
-            degrees = []
-            for gen, (op_deg, _) in result.items():
-                total_deg = op_deg + generator_degrees[gen]
-                degrees.append(total_deg)
-
-            if len(set(degrees)) > 1:
-                print(f"Error: Relation terms have different degrees: {degrees}")
-                continue
-
-            # Convert to string representations
-            adem_terms = []
-            milnor_terms = []
-
-            for gen, (op_deg, adem_op) in result.items():
-                if not adem_op.is_zero():
-                    adem_str = evaluator.adem_element_to_string(op_deg, adem_op)
-                    milnor_op = evaluator.adem_to_milnor(op_deg, adem_op)
-                    milnor_str = evaluator.milnor_element_to_string(op_deg, milnor_op)
-
-                    adem_terms.append(f"{adem_str} {gen}")
-                    milnor_terms.append(f"{milnor_str} {gen}")
-
-            if adem_terms:
-                adem_relations.append(" + ".join(adem_terms))
-                milnor_relations.append(" + ".join(milnor_terms))
-
-        except Exception as e:
-            print(f"Error parsing relation: {e}")
-
-    # Build output JSON
-    output["gens"] = {
-        gen: deg for deg, gen_list in generators.items() for gen in gen_list
-    }
-    output["adem_relations"] = adem_relations
-    output["milnor_relations"] = milnor_relations
-
-    return output
-
-
-def parse_linear_combination(expression: str, generator_names: List[str]) -> List[int]:
-    """Parse a linear combination like 'a x0 + b x1' into coefficients."""
-    if expression == "0":
-        return [0] * len(generator_names)
-
-    result = [0] * len(generator_names)
-
-    for term in expression.split("+"):
-        term = term.strip()
-        if " " in term:
-            coef_str, gen = term.split(" ", 1)
-            coef = int(coef_str)
-        else:
-            coef = 1
-            gen = term
-
-        try:
-            gen_idx = generator_names.index(gen)
-            result[gen_idx] += coef
-        except ValueError:
-            raise ValueError(f"Unknown generator: {gen}")
-
-    return result
+    output_json["p"] = p
+    output_json["type"] = "finitely presented module"
+    output_json["gens"] = {g: deg for deg in sorted(gens) for g in gens[deg]}
+    output_json["adem_relations"] = adem_relations
+    output_json["milnor_relations"] = milnor_relations
 
 
 def main():
-    # Get module type
-    print("Input module type:")
-    print("(fd) - finite dimensional module")
-    print("(fp) - finitely presented module")
-    module_type = input("Type (default 'fd'): ").strip() or "fd"
+    def parse_type(x):
+        if x in ("fd", "fp"):
+            return x
+        raise ValueError(f"Invalid type '{x}'. Type must be 'fd' or 'fp'")
 
-    if module_type not in ["fd", "fp"]:
-        print(f"Invalid type '{module_type}'. Type must be 'fd' or 'fp'")
-        return
+    module_type = query.with_default(
+        "Input module type (default 'finite dimensional module'):\n (fd) - finite "
+        "dimensional module \n (fp) - finitely presented module\n",
+        "fd",
+        parse_type,
+    )
 
-    # Get prime
-    prime = int(input("p (default 2): ").strip() or "2")
+    p = query.with_default("p", "2", int)
+    output_json = {}
 
-    print(f"module_type: {module_type}")
-
+    print(f"module_type: {module_type}", file=sys.stderr)
     if module_type == "fd":
-        output = define_finite_dimensional_module(prime)
+        define_fdmodule(output_json, p)
     else:
-        output = define_finitely_presented_module(prime)
+        define_fpmodule(output_json, p)
 
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output_json, separators=(",", ":"), ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -1,63 +1,104 @@
 #!/usr/bin/env python3
-"""
-Compute Massey products in the Adams spectral sequence.
-Python translation of massey.rs example.
+"""Compute the triple Massey product <a, b, -> (up to a sign).
+
+Optimized to compute <a, b, -> for fixed a, b of small degree and all -.
+
+Python port of ext/examples/massey.rs.
 """
 
+import _query as query
 import ext
+from ext import fp, sseq
 
 
 def main():
-    # Query for module
-    resolution = ext.query_module(None, True)
+    resolution = query.query_module()
+    p = resolution.prime()
 
-    # Set up computation bounds
-    max_t = int(input("Max t (default 30): ").strip() or "30")
-    max_s = int(input("Max s (default 15): ").strip() or "15")
+    is_unit, unit = ext.get_unit(resolution)
 
-    max_bidegree = ext.Bidegree.from_t_s(max_t, max_s)
-    resolution.compute_through_bidegree(max_bidegree)
+    a = sseq.Bidegree.n_s(
+        query.raw("n of Ext class a", int),
+        query.raw("s of Ext class a", int),
+    )
+    unit.compute_through_stem(a)
+    a_class = query.vector("Input Ext class a", unit.number_of_gens_in_bidegree(a))
 
-    # Get elements for Massey product
-    print("\nEnter elements for Massey product computation:")
-    elements = []
+    b = sseq.Bidegree.n_s(
+        query.raw("n of Ext class b", int),
+        query.raw("s of Ext class b", int),
+    )
+    unit.compute_through_stem(b)
+    b_class = query.vector("Input Ext class b", unit.number_of_gens_in_bidegree(b))
 
-    while True:
-        element_input = input(
-            f"Element {len(elements) + 1} (or 'done' to finish): "
-        ).strip()
-        if element_input.lower() == "done":
-            if len(elements) >= 3:
-                break
-            else:
-                print("Need at least 3 elements for Massey product")
-                continue
+    # The Massey product shifts the bidegree by this amount.
+    shift = a + b - sseq.Bidegree.s_t(1, 0)
 
-        try:
-            # Parse element specification (e.g., "h_0", "h_1", "c_0")
-            elements.append(element_input)
-        except Exception as e:
-            print(f"Error parsing element: {e}")
+    if not is_unit:
+        unit.compute_through_stem(shift)
 
-    print(f"\nComputing Massey product <{', '.join(elements)}>")
+    if not resolution.has_computed_bidegree(
+        shift + sseq.Bidegree.s_t(0, resolution.min_degree())
+    ):
+        return
 
-    try:
-        # Create Massey product computer
-        massey_computer = ext.MasseyProductComputer(resolution)
+    b_hom = ext.ResolutionHomomorphism.from_class("", unit, unit, b, b_class)
+    b_hom.extend_through_stem(shift)
 
-        # Compute the Massey product
-        result = massey_computer.compute_massey_product(elements)
+    offset_a = unit.module(a.s()).generator_offset(a.t(), a.t(), 0)
+    for c in resolution.iter_nonzero_stem():
+        if not resolution.has_computed_bidegree(c + shift):
+            continue
 
-        if result.is_zero():
-            print("Massey product is zero")
-        elif result.is_indeterminate():
-            print("Massey product is indeterminate")
-            print(f"Indeterminacy: {result.indeterminacy()}")
-        else:
-            print(f"Massey product: {result}")
+        tot = c + shift
 
-    except Exception as e:
-        print(f"Error computing Massey product: {e}")
+        num_gens = resolution.number_of_gens_in_bidegree(c)
+        product_num_gens = resolution.number_of_gens_in_bidegree(b + c)
+        target_num_gens = resolution.number_of_gens_in_bidegree(tot)
+        if target_num_gens == 0:
+            continue
+
+        answers = [[0] * target_num_gens for _ in range(num_gens)]
+        product = fp.AugmentedMatrix2(p, num_gens, [product_num_gens, num_gens])
+        product.segment(1, 1).add_identity()
+
+        matrix = fp.Matrix(p, num_gens, 1)
+        for idx in range(num_gens):
+            hom = ext.ResolutionHomomorphism("", resolution, unit, c)
+
+            matrix.row_mut(idx).set_entry(0, 1)
+            hom.extend_step(c, matrix)
+            matrix.row_mut(idx).set_entry(0, 0)
+
+            hom.extend_through_stem(tot)
+
+            homotopy = ext.ChainHomotopy(hom, b_hom)
+            homotopy.extend(tot)
+
+            last = homotopy.homotopy(tot.s())
+            for i in range(target_num_gens):
+                output = last.output(tot.t(), i)
+                for k, v in enumerate(a_class):
+                    if v != 0:
+                        answers[idx][i] += v * output.entry(offset_a + k)
+
+            for k, v in enumerate(b_class):
+                if v != 0:
+                    g = sseq.BidegreeGenerator(b, k)
+                    hom.act(product.row_mut(idx).slice_mut(0, product_num_gens), v, g)
+
+        product.row_reduce()
+        kernel = product.compute_kernel()
+
+        for row in kernel.iter():
+            c_element = sseq.BidegreeElement(c, row.to_owned())
+            entries = []
+            for i in range(target_num_gens):
+                entry = 0
+                for j, v in enumerate(row):
+                    entry += v * answers[j][i]
+                entries.append(str(entry % p))
+            print(f"<a, b, {c_element.to_basis_string()}> = [{', '.join(entries)}]")
 
 
 if __name__ == "__main__":

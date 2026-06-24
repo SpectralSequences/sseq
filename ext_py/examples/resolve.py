@@ -1,28 +1,22 @@
 #!/usr/bin/env python3
-"""
-Resolves a module up to a fixed (s, t) and prints an ASCII depiction of the Ext groups.
-Python translation of resolve.rs example.
+"""Resolve a module up to a fixed (s, t) and print an ASCII depiction of Ext.
+
+Python port of ext/examples/resolve.rs.
 """
 
-import ext
+import _query as query
 from ext import sseq
 
 
 def main():
-    # Query for module interactively
-    resolution = ext.query_module_only("Module", None, False)
+    res = query.query_module_only("Module")
 
-    # Set computation bounds
-    max_n = int(input("Max n (default 30): ") or "30")
-    max_s = int(input("Max s (default 15): ") or "15")
+    t = query.with_default("Max t", "30", int)
+    s = query.with_default("Max s", "15", int)
 
-    max_bidegree = sseq.Bidegree.n_s(max_n, max_s)
+    res.compute_through_bidegree(sseq.Bidegree.s_t(s, t))
 
-    # Compute resolution through the specified bidegree
-    resolution.compute_through_stem(max_bidegree)
-
-    # Print ASCII chart
-    print(resolution.graded_dimension_string())
+    print(res.graded_dimension_string())
 
 
 if __name__ == "__main__":

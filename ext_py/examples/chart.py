@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
-"""
-Generate SVG chart of a spectral sequence.
-Python translation of chart.rs example.
+"""Write an SVG chart of the spectral sequence of a resolution to stdout.
+
+Python port of ext/examples/chart.rs.
 """
 
 import sys
-import ext
+
+import _query as query
+from ext import sseq
 
 
 def main():
-    # Query for module
-    resolution = ext.query_module(None, False)
+    resolution = query.query_module()
 
-    # Convert resolution to spectral sequence
     ss = resolution.to_sseq()
+    products = [
+        (name, resolution.filtration_one_products(op_deg, op_idx))
+        for (name, op_deg, op_idx) in resolution.algebra().default_filtration_one_products()
+    ]
 
-    # Get filtration one products
-    products = []
-    for name, op_deg, op_idx in resolution.algebra().default_filtration_one_products():
-        product_data = resolution.filtration_one_products(op_deg, op_idx)
-        products.append((name, product_data))
-
-    # Write SVG to stdout
-    svg_backend = ext.SvgBackend(sys.stdout)
     ss.write_to_graph(
-        backend=svg_backend,
-        page_number=2,
-        show_differentials=False,
-        products=products,
-        callback=lambda x: None,
+        sseq.SvgBackend(sys.stdout),
+        2,
+        False,
+        products,
+        lambda _: None,
     )
 
 
