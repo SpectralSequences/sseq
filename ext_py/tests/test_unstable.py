@@ -18,7 +18,7 @@ import itertools
 import pytest
 
 import ext
-from ext import _query, sseq
+from ext import _query, algebra, fp, sseq
 
 
 def _ns(n, s):
@@ -247,6 +247,94 @@ def test_unstable_construct_save_dir_round_trip(tmp_path):
     r2 = ext.construct_unstable("S_2", save_dir=save)
     r2.compute_through_stem(_ns(6, 3))
     assert r2.graded_dimension_string() == chart1
+
+
+# --- UnstableResolutionHomomorphism.extend_step_raw ----------------------
+
+
+def _suspension_module(spec="S_2", shift_t=0):
+    """The (shift_t-suspended) module for `spec` over an unstable Milnor
+    algebra -- mirrors the setup of examples/unstable_suspension.py."""
+    module_json = ext.parse_module_name(spec)
+    alg = algebra.SteenrodAlgebra.from_json(
+        module_json, algebra.AlgebraType.Milnor, True
+    )
+    module = algebra.steenrod_module_from_json(alg, module_json)
+    return algebra.SuspensionModule(module, shift_t)
+
+
+def _suspension_resolution(spec="S_2", shift_t=0, rng=_ns(6, 3)):
+    """An unstable resolution of the shift_t-suspension of `spec`, computed
+    through stem `rng` (plus the shift)."""
+    res = ext.UnstableResolution(
+        ext.ChainComplex.ccdz(_suspension_module(spec, shift_t))
+    )
+    res.compute_through_stem(rng)
+    return res
+
+
+def test_unstable_extend_step_raw_suspension_runs():
+    # Mirror examples/unstable_suspension.py: build the resolution of the
+    # 0-suspension (res_a) and the 1-suspension (res_b) of S_2, then the
+    # (0,1) suspension homomorphism res_b -> res_a, seed it with
+    # extend_step_raw, extend by exactness, and read off a hom_k matrix.
+    max = _ns(6, 3)
+    min_degree = _st(0, 0)
+    suspension_shift = _st(0, 1)
+
+    res_a = _suspension_resolution("S_2", 0, max)
+    res_b = ext.UnstableResolution(
+        ext.ChainComplex.ccdz(_suspension_module("S_2", 1))
+    )
+    res_b.compute_through_stem(max + suspension_shift)
+
+    hom = ext.UnstableResolutionHomomorphism(
+        "suspension", res_b, res_a, suspension_shift
+    )
+    prime = res_b.prime()
+    rng = hom.extend_step_raw(
+        min_degree + suspension_shift,
+        [fp.FpVector.from_slice(prime, [1])],
+    )
+    # The return is the half-open (start, end) range of touched degrees.
+    assert isinstance(rng, tuple) and len(rng) == 2
+    assert rng[0] <= rng[1]
+
+    hom.extend_all()
+
+    # A defined map can be read back. The s=0 map is the suspension on the
+    # unit: it sends the single (0,0) generator to the (0,1) generator.
+    m = hom.get_map(0)
+    out = m.output(suspension_shift.t, 0)
+    assert out[0] == 1
+
+
+def test_unstable_extend_step_raw_extra_images_none_runs():
+    # extra_images=None is the zero-map seed and must also run without panic.
+    max = _ns(4, 2)
+    res = _suspension_resolution("S_2", 0, max)
+    hom = ext.UnstableResolutionHomomorphism(
+        "id", res, res, _st(0, 0)
+    )
+    rng = hom.extend_step_raw(_st(0, 0))
+    assert isinstance(rng, tuple) and len(rng) == 2
+
+
+def test_unstable_extend_step_raw_uncomputed_bidegree_raises_value_error():
+    # Guard test: an input bidegree the resolutions have NOT computed must
+    # raise a clean ValueError, not panic/crash across FFI.
+    res = _suspension_resolution("S_2", 0, _ns(4, 2))
+    hom = ext.UnstableResolutionHomomorphism("id", res, res, _st(0, 0))
+    # Far outside the computed range.
+    with pytest.raises(ValueError):
+        hom.extend_step_raw(_st(50, 500), [fp.FpVector.from_slice(2, [1])])
+    # Negative bidegree is also a ValueError, never a panic.
+    with pytest.raises(ValueError):
+        hom.extend_step_raw(_st(-1, 0))
+    # An input below the shift's homological degree is rejected.
+    shifted = ext.UnstableResolutionHomomorphism("f", res, res, _st(1, 1))
+    with pytest.raises(ValueError):
+        shifted.extend_step_raw(_st(0, 0))
 
 
 # --- query_unstable_module* (pure-Python I/O) ----------------------------

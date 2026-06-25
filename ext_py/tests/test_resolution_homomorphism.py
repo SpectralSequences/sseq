@@ -115,6 +115,45 @@ def test_extend_through_stem():
     assert hom.get_map(0).output(0, 0)[0] == 1
 
 
+# --- extend_step_raw ------------------------------------------------------
+
+
+def test_extend_step_raw_seed_then_extend_all():
+    # Seed the identity map at (0,0) with extra_images=[ [1] ] (sending the
+    # unit generator to itself), then fill in the rest by exactness.
+    r = s2_rect(6)
+    hom = ext.ResolutionHomomorphism("id", r, r, Bidegree.s_t(0, 0))
+    rng = hom.extend_step_raw(Bidegree.s_t(0, 0), [FpVector(2, 1)])
+    # Returns the (start, end) half-open range of touched degrees.
+    assert isinstance(rng, tuple) and len(rng) == 2
+    assert rng[0] <= rng[1]
+    hom.extend_all()
+    assert hom.get_map(0).output(0, 0)[0] == 0  # FpVector(2,1) is the zero seed
+
+
+def test_extend_step_raw_extra_images_none_runs():
+    r = s2_rect(4)
+    hom = ext.ResolutionHomomorphism("id", r, r, Bidegree.s_t(0, 0))
+    rng = hom.extend_step_raw(Bidegree.s_t(0, 0))
+    assert isinstance(rng, tuple) and len(rng) == 2
+
+
+def test_extend_step_raw_uncomputed_bidegree_raises_value_error():
+    # Guard: an input bidegree outside the computed range raises ValueError,
+    # never a panic across FFI.
+    r = s2_rect(4)
+    hom = ext.ResolutionHomomorphism("id", r, r, Bidegree.s_t(0, 0))
+    with pytest.raises(ValueError):
+        hom.extend_step_raw(Bidegree.s_t(50, 500), [FpVector(2, 1)])
+    # Negative bidegree is a ValueError too.
+    with pytest.raises(ValueError):
+        hom.extend_step_raw(Bidegree.s_t(-1, 0))
+    # Input below the shift's homological degree is rejected.
+    shifted = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
+    with pytest.raises(ValueError):
+        shifted.extend_step_raw(Bidegree.s_t(0, 0))
+
+
 # --- act ------------------------------------------------------------------
 
 
