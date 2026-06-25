@@ -92,6 +92,21 @@ mod ext_py {
     ) -> PyResult<AnyResolution> {
         use ext::utils::{construct_nassau, construct_standard};
 
+        // Classify a save-directory problem up front, on EVERY algorithm path. Without this,
+        // a save-dir IO failure (e.g. the path is an existing *file*) would be reported as a
+        // `ValueError` only on the forced-`"nassau"` path (whose blanket `value_err` lumps it in
+        // with module-eligibility errors), giving a confusing eligibility-flavoured message. A
+        // path that exists but is not a directory is a bad *argument*, so we report a clear
+        // `ValueError` here consistently for nassau/standard/auto. A non-existent path is fine:
+        // upstream `create_dir_all` creates it.
+        if let Some(p) = &save_dir {
+            if p.exists() && !p.is_dir() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "save_dir {p:?} exists and is not a directory"
+                )));
+            }
+        }
+
         let nassau = |spec, save_dir: Option<PathBuf>| {
             construct_nassau(spec, save_dir).map(|r| AnyResolution::Nassau(Arc::new(r)))
         };

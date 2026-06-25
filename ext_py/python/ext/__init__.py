@@ -13,6 +13,12 @@ Import-surface contract (all of these must keep working):
   - ``from ext.algebra import <name>`` (etc.)
   - ``import ext.ext`` (the compiled submodule, dotted path)
   - ``ext.construct`` / ``ext.query_module`` / ``ext.query_module_only``
+
+Note the deliberate name overlap: ``ext.query_module`` / ``query_module_only``
+are the interactive *pure-Python* helpers (defined in ``ext.utils``), which
+shadow the lower-level *Rust* pyfunctions of the same name that remain reachable
+as ``ext.ext.query_module`` / ``query_module_only``. They are NOT the same
+object; prefer the package-level (Python) ones.
 """
 
 # 1) Re-export every compiled symbol (top-level functions/classes AND the

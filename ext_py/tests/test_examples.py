@@ -4,9 +4,10 @@ These example scripts are interactive (they read from stdin) and/or run heavy
 resolutions, so we do NOT execute them. Instead, we statically extract every
 top-level module attribute access of the form ``<module>.<Name>`` (where
 ``<module>`` is one of the bound modules ``ext``/``algebra``/``fp``/
-``sseq``) from each example via the ``ast`` module, and assert that every
-referenced name is either actually bound on the built extension module, or is
-explicitly listed in ``KNOWN_UNBOUND`` below.
+``sseq``) AND every ``from ext import <Name>`` / ``from
+ext.<submodule> import <Name>`` statement from each example via the ``ast``
+module, and assert that every referenced name is either actually bound on the
+built extension module, or is explicitly listed in ``KNOWN_UNBOUND`` below.
 
 This catches the class of breakage where a binding is renamed or removed (e.g.
 ``ext.FDModule`` -> ``ext.FDModuleBuilder``) but an example still
@@ -74,6 +75,11 @@ KNOWN_UNBOUND = {
     # --- Chain complex types (not yet bound) ---
     "DoubleChainComplex",
     "TensorChainComplex",
+    # bruner.py imports `from ext import FiniteChainComplex`; that name was
+    # never bound. The bound finite-complex types are ChainComplex (CCC) and
+    # FiniteAugmentedChainComplex; bruner.py predates them. Caught now that the
+    # guard scans `from ext import ...` statements as well as attribute access.
+    "FiniteChainComplex",
     # --- Unstable machinery (not yet bound) ---
     "UnstableResolution",
     # --- Misc constants / helpers (not yet bound) ---
@@ -101,6 +107,37 @@ def _module_attr_references(source):
             yield node.value.id, node.attr
 
 
+def _module_import_references(source):
+    """Yield (module_name, name) for each ``from ext import <name>`` and
+    ``from ext.<submodule> import <name>`` statement.
+
+    ``from ext import X`` resolves ``X`` against the top-level ``ext``
+    package (and, via ``_is_bound``, its re-exported submodules); ``from
+    ext.algebra import X`` resolves against that submodule. Imports of the
+    submodules themselves (``from ext import algebra``) and star imports
+    are skipped, as are non-binding Python submodules (e.g. ``ext._query``).
+    """
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or node.module is None:
+            continue
+        mod = node.module
+        if mod == "ext" or mod == "ext.ext":
+            key = "ext"
+        elif mod.startswith("ext.") and mod.split(".", 1)[1] in MODULES:
+            key = mod.split(".", 1)[1]
+        else:
+            # Not a bound module namespace (e.g. ``ext._query``): skip.
+            continue
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            # ``from ext import algebra`` imports a submodule, not a binding.
+            if key == "ext" and alias.name in MODULES:
+                continue
+            yield key, alias.name
+
+
 def _is_bound(module_name, attr):
     if hasattr(MODULES[module_name], attr):
         return True
@@ -117,7 +154,11 @@ def test_examples_dir_is_nonempty():
 def test_examples_only_reference_bound_or_known_unbound_symbols():
     failures = []
     for path in _example_files():
-        for module_name, attr in _module_attr_references(path.read_text()):
+        source = path.read_text()
+        refs = list(_module_attr_references(source)) + list(
+            _module_import_references(source)
+        )
+        for module_name, attr in refs:
             if _is_bound(module_name, attr):
                 continue
             if attr in KNOWN_UNBOUND:
