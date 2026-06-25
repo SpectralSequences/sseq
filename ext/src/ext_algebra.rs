@@ -46,8 +46,8 @@ impl ExtAlgebra<QueryModuleResolution> {
     /// This may prompt for the unit's save directory when `M != k` (see [`get_unit`]); for a fully
     /// non-interactive setup, use [`ExtAlgebra::new`] with an explicit unit instead.
     pub fn from_resolution(resolution: Arc<QueryModuleResolution>) -> anyhow::Result<Self> {
-        let (is_unit, unit) = get_unit(Arc::clone(&resolution))?;
-        Ok(Self::new(resolution, unit, is_unit))
+        let (_, unit) = get_unit(Arc::clone(&resolution))?;
+        Ok(Self::new(resolution, unit))
     }
 
     /// Ensure both the resolution and the unit are computed through the given stem.
@@ -60,13 +60,12 @@ impl ExtAlgebra<QueryModuleResolution> {
 }
 
 impl<CC: FreeChainComplex> ExtAlgebra<CC> {
-    /// Build an [`ExtAlgebra`] from an explicit `(resolution, unit)` pair. Pass `is_unit = true`
-    /// (and the same `Arc` for both) exactly when `M == k`.
-    pub fn new(resolution: Arc<CC>, unit: Arc<CC>, is_unit: bool) -> Self {
+    /// Build an [`ExtAlgebra`] from an explicit `(resolution, unit)` pair.
+    pub fn new(resolution: Arc<CC>, unit: Arc<CC>) -> Self {
         Self {
+            is_unit: Arc::ptr_eq(&resolution, &unit),
             resolution,
             unit,
-            is_unit,
             products: DashMap::new(),
         }
     }
@@ -109,11 +108,14 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
     /// A class in $\Ext(M, k)$ from its coordinates in the generator basis at bidegree `b`.
     pub fn element(&self, b: Bidegree, coords: &[u32]) -> BidegreeElement {
+        assert_eq!(self.dimension(b), coords.len());
         BidegreeElement::new(b, FpVector::from_slice(self.prime(), coords))
     }
 
     /// A single generator of $\Ext(M, k)$ as a class.
     pub fn generator(&self, g: BidegreeGenerator) -> BidegreeElement {
+        let ambient = self.dimension(g.degree());
+        assert!(ambient >= g.idx());
         g.into_element(self.prime(), self.dimension(g.degree()))
     }
 
@@ -131,6 +133,7 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
     /// A class in $\Ext(k, k)$ from its coordinates in the generator basis at bidegree `b`.
     pub fn unit_element(&self, b: Bidegree, coords: &[u32]) -> BidegreeElement {
+        assert_eq!(self.unit_dimension(b), coords.len());
         BidegreeElement::new(b, FpVector::from_slice(self.prime(), coords))
     }
 }
@@ -241,7 +244,7 @@ mod tests {
     fn test_sphere_products() {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(8, 8));
-        let alg = ExtAlgebra::new(Arc::clone(&res), res, true);
+        let alg = ExtAlgebra::new(Arc::clone(&res), res);
 
         // h_i live in Ext^{1, *}: h_0 = (n=0, s=1), h_1 = (n=1, s=1), h_2 = (n=3, s=1).
         let h0 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
