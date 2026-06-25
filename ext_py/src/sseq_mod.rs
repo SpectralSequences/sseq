@@ -1250,10 +1250,12 @@ pub mod sseq_py {
         /// - `differentials`: whether to draw the `d_r` differentials.
         /// - `products`: a list of `(name, Product)` pairs; for each, the
         ///   structure lines it induces are drawn (labelled `name`).
-        /// - `header`: a Python callable invoked (with a single `None`
-        ///   argument) after the grid is drawn. The upstream header receives
-        ///   the live Rust backend, which has no Python representation, so the
-        ///   callback cannot draw to the chart; pass a no-op `lambda _: None`.
+        /// - `header`: a Python callable invoked after the grid is drawn with
+        ///   a `GraphContext` argument that exposes the backend's drawing
+        ///   methods (`text`, `line`, `node`, `structline`) onto the chart.
+        ///   The context is valid only during the callback; using it after
+        ///   `write_to_graph` returns raises `RuntimeError`. A header that
+        ///   ignores its argument (`lambda _: None`) is fine.
         ///
         /// Dispatches over the two concrete bound backends (keeping the generic
         /// upstream call monomorphic). The backend is *consumed*: its inner
@@ -1486,6 +1488,138 @@ pub mod sseq_py {
         }
     }
 
+    /// Object-safe subset of the upstream [`Backend`](RsBackend) drawing
+    /// methods, exposed to the `write_to_graph` header callback via
+    /// [`GraphContext`]. `text` takes `&str` (rather than the upstream
+    /// `impl Display`) to keep the trait object-safe; `&str: Display`, so the
+    /// delegating impls simply forward.
+    trait HeaderBackend {
+        fn text(&mut self, b: RsBidegree, content: &str, o: RsOrientation) -> io::Result<()>;
+        fn line(&mut self, start: RsBidegree, end: RsBidegree, style: &str) -> io::Result<()>;
+        fn node(&mut self, b: RsBidegree, n: usize) -> io::Result<()>;
+        fn structline(
+            &mut self,
+            s: RsBidegreeGenerator,
+            t: RsBidegreeGenerator,
+            style: Option<&str>,
+        ) -> io::Result<()>;
+    }
+
+    /// Implement [`HeaderBackend`] for a concrete `Backend<Error = io::Error>`
+    /// by delegating to the upstream trait methods.
+    macro_rules! impl_header_backend {
+        ($Rs:ty) => {
+            impl HeaderBackend for $Rs {
+                fn text(&mut self, b: RsBidegree, content: &str, o: RsOrientation) -> io::Result<()> {
+                    RsBackend::text(self, b, content, o)
+                }
+                fn line(
+                    &mut self,
+                    start: RsBidegree,
+                    end: RsBidegree,
+                    style: &str,
+                ) -> io::Result<()> {
+                    RsBackend::line(self, start, end, style)
+                }
+                fn node(&mut self, b: RsBidegree, n: usize) -> io::Result<()> {
+                    RsBackend::node(self, b, n)
+                }
+                fn structline(
+                    &mut self,
+                    s: RsBidegreeGenerator,
+                    t: RsBidegreeGenerator,
+                    style: Option<&str>,
+                ) -> io::Result<()> {
+                    RsBackend::structline(self, s, t, style)
+                }
+            }
+        };
+    }
+
+    impl_header_backend!(RsSvgBackend<PyFileWriter>);
+    impl_header_backend!(RsTikzBackend<PyFileWriter>);
+
+    /// A scoped drawing handle passed to the `write_to_graph` `header`
+    /// callback, exposing the chart backend's drawing methods (`text`, `line`,
+    /// `node`, `structline`).
+    ///
+    /// # Why a separate object
+    ///
+    /// During `write_to_graph`, the binding holds `borrow_mut()` on the
+    /// `SvgBackend`/`TikzBackend` pyclass for the whole upstream call, so the
+    /// header callback cannot call methods on that *same* pyobject (PyO3's
+    /// runtime borrow check would raise "already borrowed"). Instead the
+    /// callback receives this distinct object, which holds a *scoped raw
+    /// pointer* (`active`) to the live `dyn HeaderBackend`. The pointer is set
+    /// only for the duration of the `header.call1` invocation and cleared
+    /// immediately after (in all paths). Calling a method outside that window
+    /// (e.g. on a captured context after `write_to_graph` returns) finds
+    /// `active == None` and raises `RuntimeError`.
+    #[pyclass(unsendable)]
+    pub struct GraphContext {
+        active: Rc<RefCell<Option<std::ptr::NonNull<dyn HeaderBackend>>>>,
+        err: Rc<RefCell<Option<PyErr>>>,
+    }
+
+    impl GraphContext {
+        /// Run a drawing method on the live backend, raising `RuntimeError`
+        /// if the context is not currently active, containing any upstream
+        /// panic, and re-raising a recorded Python `.write` exception.
+        fn with_active<F>(&self, f: F) -> PyResult<()>
+        where
+            F: FnOnce(&mut dyn HeaderBackend) -> io::Result<()>,
+        {
+            let res = {
+                let mut slot = self.active.borrow_mut();
+                let ptr = slot.as_mut().ok_or_else(|| {
+                    PyRuntimeError::new_err(
+                        "graph header context is only usable during the header callback",
+                    )
+                })?;
+                // SAFETY: `active` is non-null only while `run_write_to_graph`
+                // is inside `header.call1`, during which the pointed-to backend
+                // (`&mut T` borrowed by the upstream call) is alive and not
+                // otherwise aliased (this is a distinct pyobject).
+                let backend = unsafe { ptr.as_mut() };
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(backend)))
+                    .map_err(|_| panic_msg())?
+            };
+            raise_io(&self.err, res)
+        }
+    }
+
+    #[pymethods]
+    impl GraphContext {
+        /// Draw `content` near bidegree `b` with the given `orientation`.
+        /// `SvgBackend` supports only `Left`/`Below`.
+        fn text(&self, b: &Bidegree, content: String, orientation: Orientation) -> PyResult<()> {
+            let orientation = RsOrientation::from(orientation);
+            self.with_active(|g| g.text(b.0, &content, orientation))
+        }
+
+        /// Draw a line from `start` to `end` with CSS/TikZ class `style`.
+        fn line(&self, start: &Bidegree, end: &Bidegree, style: &str) -> PyResult<()> {
+            self.with_active(|g| g.line(start.0, end.0, style))
+        }
+
+        /// Draw `n` nodes (classes) at bidegree `b`.
+        fn node(&self, b: &Bidegree, n: usize) -> PyResult<()> {
+            self.with_active(|g| g.node(b.0, n))
+        }
+
+        /// Draw a structure line between two basis generators, with an
+        /// optional CSS/TikZ class.
+        #[pyo3(signature = (source, target, style=None))]
+        fn structline(
+            &self,
+            source: &BidegreeGenerator,
+            target: &BidegreeGenerator,
+            style: Option<&str>,
+        ) -> PyResult<()> {
+            self.with_active(|g| g.structline(source.0, target.0, style))
+        }
+    }
+
     /// Drive `Sseq::write_to_graph` over a concrete bound backend.
     ///
     /// Takes (consumes) the backend's inner upstream value: `write_to_graph`
@@ -1495,10 +1629,11 @@ pub mod sseq_py {
     /// calls on the same pyclass therefore raise "already consumed".
     ///
     /// `header` is a Python callable invoked (after the grid is drawn) with a
-    /// single `None` argument: the upstream `header` receives the live Rust
-    /// `&mut T`, which has no Python representation, so the callback cannot
-    /// write to the chart. All examples pass a no-op `lambda _: None`; richer
-    /// header drawing is not supported (documented limitation).
+    /// [`GraphContext`] exposing the backend's drawing methods (`text`,
+    /// `line`, `node`, `structline`). The context wraps a scoped raw pointer
+    /// to the live Rust `&mut T`, valid only for the duration of the callback;
+    /// it is cleared immediately afterwards (in all paths). A header that
+    /// ignores its argument (`lambda _: None`) keeps working unchanged.
     fn run_write_to_graph<T>(
         inner: &mut Option<T>,
         err: &Rc<RefCell<Option<PyErr>>>,
@@ -1509,15 +1644,45 @@ pub mod sseq_py {
         header: Py<PyAny>,
     ) -> PyResult<()>
     where
-        T: RsBackend<Error = io::Error>,
+        T: RsBackend<Error = io::Error> + HeaderBackend + 'static,
     {
         let g = inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("backend was already consumed by a previous write_to_graph")
         })?;
 
+        // Shared, initially-null pointer slot. The `GraphContext` pyobject and
+        // the header closure both hold a clone; the closure sets it to the live
+        // backend for the call and clears it immediately after.
+        let active: Rc<RefCell<Option<std::ptr::NonNull<dyn HeaderBackend>>>> =
+            Rc::new(RefCell::new(None));
+        let ctx = Python::attach(|py| {
+            Py::new(
+                py,
+                GraphContext {
+                    active: Rc::clone(&active),
+                    err: Rc::clone(err),
+                },
+            )
+        })?;
+
         let header_err = Rc::clone(err);
-        let header_closure = move |_g: &mut T| -> io::Result<()> {
-            Python::attach(|py| match header.call1(py, (py.None(),)) {
+        let header_active = Rc::clone(&active);
+        let header_closure = move |g: &mut T| -> io::Result<()> {
+            // Guard that ALWAYS clears the pointer on drop, so the
+            // `GraphContext` is left dangling-free even if the callback (or
+            // GIL acquisition) unwinds.
+            struct ClearGuard<'a>(&'a RefCell<Option<std::ptr::NonNull<dyn HeaderBackend>>>);
+            impl Drop for ClearGuard<'_> {
+                fn drop(&mut self) {
+                    *self.0.borrow_mut() = None;
+                }
+            }
+
+            let backend: &mut dyn HeaderBackend = g;
+            *header_active.borrow_mut() = Some(std::ptr::NonNull::from(backend));
+            let _guard = ClearGuard(&header_active);
+
+            Python::attach(|py| match header.call1(py, (ctx.clone_ref(py),)) {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     let mut slot = header_err.borrow_mut();
@@ -1527,6 +1692,7 @@ pub mod sseq_py {
                     Err(io::Error::other("header callback raised"))
                 }
             })
+            // `_guard` drops here, clearing `active` back to `None`.
         };
 
         // `try_write_to_graph` checks the "minimum y-coordinate == 0" precondition
@@ -1624,7 +1790,7 @@ pub mod sseq_py {
                 /// Draw a line from `start` to `end` with CSS/TikZ class
                 /// `style`.
                 fn line(&mut self, start: &Bidegree, end: &Bidegree, style: &str) -> PyResult<()> {
-                    self.with_inner(|g| g.line(start.0, end.0, style))
+                    self.with_inner(|g| RsBackend::line(g, start.0, end.0, style))
                 }
 
                 /// Draw `content` near bidegree `b` with the given
@@ -1637,13 +1803,13 @@ pub mod sseq_py {
                     orientation: Orientation,
                 ) -> PyResult<()> {
                     let orientation = RsOrientation::from(orientation);
-                    self.with_inner(|g| g.text(b.0, content, orientation))
+                    self.with_inner(|g| RsBackend::text(g, b.0, content, orientation))
                 }
 
                 /// Draw `n` nodes (classes) at bidegree `b`. Must be called for
                 /// a bidegree before any `structline` referencing it.
                 fn node(&mut self, b: &Bidegree, n: usize) -> PyResult<()> {
-                    self.with_inner(|g| g.node(b.0, n))
+                    self.with_inner(|g| RsBackend::node(g, b.0, n))
                 }
 
                 /// Draw a structure line between two basis generators, with an
@@ -1655,7 +1821,7 @@ pub mod sseq_py {
                     target: &BidegreeGenerator,
                     style: Option<&str>,
                 ) -> PyResult<()> {
-                    self.with_inner(|g| g.structline(source.0, target.0, style))
+                    self.with_inner(|g| RsBackend::structline(g, source.0, target.0, style))
                 }
 
                 /// Draw the structure lines encoded by a matrix between the

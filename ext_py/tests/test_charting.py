@@ -230,6 +230,38 @@ def test_write_to_graph_header_callback_exception_propagates():
 
 
 # --------------------------------------------------------------------------
+# Header callback receives a GraphContext that can draw onto the chart
+# --------------------------------------------------------------------------
+
+
+def test_write_to_graph_header_context_draws_text():
+    s = make_small_sseq()
+    buf = io.StringIO()
+
+    def header(g):
+        g.text(Bidegree.x_y(0, 0), "HELLO", Orientation.Left)
+
+    s.write_to_graph(SvgBackend(buf), 2, False, [], header)
+    out = buf.getvalue()
+    assert "HELLO" in out
+
+
+def test_write_to_graph_header_context_invalid_after_call():
+    s = make_small_sseq()
+    captured = []
+
+    def header(g):
+        captured.append(g)
+
+    s.write_to_graph(SvgBackend(io.StringIO()), 2, False, [], header)
+    # The context's backend pointer is cleared once the callback returns; using
+    # it afterwards raises RuntimeError rather than dereferencing a dangling
+    # pointer.
+    with pytest.raises(RuntimeError):
+        captured[0].text(Bidegree.x_y(0, 0), "x", Orientation.Left)
+
+
+# --------------------------------------------------------------------------
 # Regression: a .write that fails ONLY on the closing tag must not be swallowed
 # --------------------------------------------------------------------------
 
