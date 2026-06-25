@@ -25,7 +25,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+    ext_algebra::{ExtAlgebra, SecondaryExtAlgebra},
     secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };

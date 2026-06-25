@@ -27,6 +27,7 @@ use dashmap::DashMap;
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
+pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
