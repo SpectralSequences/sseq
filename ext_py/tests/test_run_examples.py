@@ -63,7 +63,7 @@ EXAMPLES = [
     {
         "name": "unstable_chart.py",
         "args": ["S_2", "", "6", "3", "M"],
-        "xfail": "UnstableResolution.filtration_one_products not bound",
+        "xfail": "TikzBackend graph object is None (g.text on NoneType)",
     },
     {
         # fd module, p=2, generators x0 (deg 0) and x1 (deg 1), finish (empty),

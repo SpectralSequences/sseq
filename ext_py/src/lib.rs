@@ -1265,6 +1265,52 @@ mod ext_py {
             self.to_sseq()
         }
 
+        /// The filtration-one products induced by the algebra operation
+        /// `(op_deg, op_idx)`, as a bound `sseq_py.Product`. The unstable
+        /// analogue of `Resolution.filtration_one_products`.
+        ///
+        /// Validates `op_deg >= 0` (`ValueError`) and range-checks `op_idx`
+        /// against the algebra's operation dimension in degree `op_deg`
+        /// (`IndexError`). Unstable resolutions are `U = true`, so upstream does
+        /// bounds-check `op_idx`; we keep the explicit pre-check for a clean
+        /// `IndexError` message, mirroring the stable binding. An uncomputed
+        /// resolution (`next_homological_degree() == 0`) has no modules, so the
+        /// empty product is returned directly rather than panicking on
+        /// `module(0)`.
+        pub fn filtration_one_products(
+            &self,
+            op_deg: i32,
+            op_idx: usize,
+        ) -> PyResult<sseq_py::Product> {
+            if op_deg < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "op_deg must be non-negative",
+                ));
+            }
+            // Range-check op_idx against the number of algebra operations in
+            // degree op_deg. compute_basis is idempotent and ensures dimension()
+            // does not index its basis table out of range.
+            let alg = self.0.algebra();
+            alg.compute_basis(op_deg);
+            let dim = alg.dimension(op_deg);
+            if op_idx >= dim {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "op_idx {op_idx} out of range for op_deg {op_deg} (algebra dimension {dim})"
+                )));
+            }
+            // An uncomputed resolution has no modules; upstream would panic
+            // indexing module(0). Return the empty product directly.
+            if self.0.next_homological_degree() == 0 {
+                return Ok(sseq_py::Product(::sseq::Product {
+                    b: RsBidegree::x_y(op_deg - 1, 1),
+                    left: true,
+                    matrices: ::once::MultiIndexed::new(),
+                }));
+            }
+            let product = self.0.filtration_one_products(op_deg, op_idx);
+            Ok(sseq_py::Product(product))
+        }
+
         /// A string representation of `d(g)` for the generator `g = (s, t, idx)`.
         /// Raises `ValueError` if `g` is outside the computed range or `idx`
         /// exceeds the generator count there (upstream would otherwise panic).

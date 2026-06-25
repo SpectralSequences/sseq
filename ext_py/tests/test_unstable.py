@@ -137,6 +137,23 @@ def test_unstable_to_sseq_returns_sseq():
     assert ss.prime() == 2
 
 
+def test_unstable_filtration_one_products():
+    # The unstable analogue of test_filtration_one_products_h0: the degree-1
+    # operation Sq^1 induces the filtration-one product living in (n, s) = (0, 1).
+    r = _unstable_s2()
+    prod = r.filtration_one_products(1, 0)
+    assert isinstance(prod, sseq.Product)
+    assert prod.b.s == 1
+    assert prod.b.n == 0
+    # Negative op_deg is a ValueError (mirrors the stable binding).
+    with pytest.raises(ValueError):
+        r.filtration_one_products(-1, 0)
+    # op_deg = 1 has a single operation (Sq^1) at p = 2, so op_idx = 9999 is out
+    # of range and must raise IndexError, not panic.
+    with pytest.raises(IndexError):
+        r.filtration_one_products(1, 9999)
+
+
 def test_unstable_iter_nonzero_stem_islice():
     r = _unstable_s2()
     # The iterator is bounded; islice a few entries. Every yielded bidegree
