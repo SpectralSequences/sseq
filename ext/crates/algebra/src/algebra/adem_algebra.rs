@@ -1496,6 +1496,30 @@ mod tests {
     }
 
     #[test]
+    fn try_basis_element_to_string_adem() {
+        let p = ValidPrime::new(2);
+        let algebra = AdemAlgebra::new(p, false);
+        algebra.compute_basis(8);
+
+        // Valid (degree, idx) pairs: the non-panicking variant agrees with the
+        // panicking `basis_element_to_string` and returns `Some`.
+        for d in 0..=8 {
+            for i in 0..algebra.dimension(d) {
+                assert_eq!(
+                    algebra.try_basis_element_to_string(d, i),
+                    Some(algebra.basis_element_to_string(d, i)),
+                );
+            }
+        }
+
+        // Negative degree returns `None` rather than panicking.
+        assert_eq!(algebra.try_basis_element_to_string(-1, 0), None);
+
+        // Out-of-range index returns `None` rather than panicking (key guard).
+        assert_eq!(algebra.try_basis_element_to_string(1, 999), None);
+    }
+
+    #[test]
     fn basis_element_from_string_total_adem() {
         let p = ValidPrime::new(2);
         let algebra = AdemAlgebra::new(p, false);

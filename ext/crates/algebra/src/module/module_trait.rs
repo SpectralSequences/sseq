@@ -60,6 +60,92 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         mod_index: usize,
     );
 
+    /// Non-panicking variant of [`Module::act_on_basis`]. Validates the operation and
+    /// module degrees/indices and returns an [`ActError`] describing the problem instead of
+    /// panicking. On success it delegates to [`Module::act_on_basis`] and returns `Ok(())`.
+    fn try_act_on_basis(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
+    ) -> Result<(), ActError> {
+        if op_degree < 0 {
+            return Err(ActError::IndexOutOfRange(format!(
+                "op_degree {op_degree} is negative"
+            )));
+        }
+        self.algebra().compute_basis(op_degree);
+        let op_dim = self.algebra().dimension(op_degree);
+        if op_index >= op_dim {
+            return Err(ActError::IndexOutOfRange(format!(
+                "op_index {op_index} out of range for algebra dimension {op_dim} in degree \
+                 {op_degree}"
+            )));
+        }
+        let min_degree = self.min_degree();
+        if mod_degree < min_degree {
+            return Err(ActError::IndexOutOfRange(format!(
+                "mod_degree {mod_degree} is below the module's min degree {min_degree}"
+            )));
+        }
+        self.compute_basis(mod_degree);
+        let mod_dim = self.dimension(mod_degree);
+        if mod_index >= mod_dim {
+            return Err(ActError::IndexOutOfRange(format!(
+                "mod_index {mod_index} out of range for module dimension {mod_dim} in degree \
+                 {mod_degree}"
+            )));
+        }
+        self.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index);
+        Ok(())
+    }
+
+    /// Non-panicking variant of [`Module::act`]. Validates the operation degree/index and
+    /// the input degree/length and returns an [`ActError`] describing the problem instead of
+    /// panicking. On success it delegates to [`Module::act`] and returns `Ok(())`.
+    fn try_act(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        input_degree: i32,
+        input: FpSlice,
+    ) -> Result<(), ActError> {
+        if op_degree < 0 {
+            return Err(ActError::IndexOutOfRange(format!(
+                "op_degree {op_degree} is negative"
+            )));
+        }
+        self.algebra().compute_basis(op_degree);
+        let op_dim = self.algebra().dimension(op_degree);
+        if op_index >= op_dim {
+            return Err(ActError::IndexOutOfRange(format!(
+                "op_index {op_index} out of range for algebra dimension {op_dim} in degree \
+                 {op_degree}"
+            )));
+        }
+        let min_degree = self.min_degree();
+        if input_degree < min_degree {
+            return Err(ActError::IndexOutOfRange(format!(
+                "input_degree {input_degree} is below the module's min degree {min_degree}"
+            )));
+        }
+        self.compute_basis(input_degree);
+        let input_dim = self.dimension(input_degree);
+        if input.len() > input_dim {
+            return Err(ActError::InvalidInput(format!(
+                "input length {} exceeds module dimension {input_dim} in degree {input_degree}",
+                input.len()
+            )));
+        }
+        self.act(result, coeff, op_degree, op_index, input_degree, input);
+        Ok(())
+    }
+
     /// The name of a basis element. This is useful for debugging and printing results.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
@@ -210,3 +296,25 @@ impl std::fmt::Display for ModuleFailedRelationError {
 }
 
 impl std::error::Error for ModuleFailedRelationError {}
+
+/// Error returned by [`Module::try_act`] and [`Module::try_act_on_basis`].
+///
+/// The variants separate the distinct failure categories so callers (e.g. the
+/// Python bindings) can map them to different error types.
+#[derive(Debug)]
+pub enum ActError {
+    /// A degree is negative, or an operation/module index is beyond the dimension in its degree.
+    IndexOutOfRange(String),
+    /// The input vector is longer than the module dimension in its degree.
+    InvalidInput(String),
+}
+
+impl std::fmt::Display for ActError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IndexOutOfRange(m) | Self::InvalidInput(m) => f.write_str(m),
+        }
+    }
+}
+
+impl std::error::Error for ActError {}

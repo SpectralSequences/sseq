@@ -679,7 +679,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::AdemAlgebra;
+    use crate::{algebra::AdemAlgebra, module::ActError};
 
     #[test]
     fn test_module_check_validity() {
@@ -700,5 +700,107 @@ mod tests {
         adem_module.set_action(1, 0, 1, 1, &[1]);
         adem_module.set_action(2, 0, 0, 0, &[1]);
         adem_module.check_validity(0, 2).unwrap();
+    }
+
+    fn make_test_module() -> FiniteDimensionalModule<AdemAlgebra> {
+        let p = fp::prime::ValidPrime::new(2);
+        let adem_algebra = Arc::new(AdemAlgebra::new(p, false));
+        adem_algebra.compute_basis(10);
+        let json = serde_json::json!({
+            "gens": {"x0": 0, "x10": 1, "x11": 1, "x2": 2},
+            "actions": [
+                "Sq1 x0 = x10 + x11",
+                "Sq1 x10 = x2",
+                "Sq1 x11 = x2",
+                "Sq2 x0 = x2",
+            ],
+        });
+        FiniteDimensionalModule::from_json(adem_algebra, &json).unwrap()
+    }
+
+    #[test]
+    fn try_act_on_basis_fd() {
+        let module = make_test_module();
+        let p = module.prime();
+
+        // Valid call: Sq1 acting on the generator x0 lands in degree 1 (dim 2).
+        // The non-panicking variant must succeed and agree with `act_on_basis`.
+        let out_dim = module.dimension(1);
+        let mut result_try = FpVector::new(p, out_dim);
+        let mut result_direct = FpVector::new(p, out_dim);
+        assert!(
+            module
+                .try_act_on_basis(result_try.as_slice_mut(), 1, 1, 0, 0, 0)
+                .is_ok()
+        );
+        module.act_on_basis(result_direct.as_slice_mut(), 1, 1, 0, 0, 0);
+        assert_eq!(result_try, result_direct);
+
+        // Out-of-range op_index is an IndexOutOfRange error (no panic). Degree 1 of the
+        // algebra has dimension 1, so op_index 999 is out of range.
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act_on_basis(result.as_slice_mut(), 1, 1, 999, 0, 0),
+            Err(ActError::IndexOutOfRange(_))
+        ));
+
+        // Out-of-range mod_index is an IndexOutOfRange error (no panic). Degree 0 of the
+        // module has dimension 1, so mod_index 999 is out of range.
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act_on_basis(result.as_slice_mut(), 1, 1, 0, 0, 999),
+            Err(ActError::IndexOutOfRange(_))
+        ));
+
+        // Negative op_degree is an IndexOutOfRange error.
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act_on_basis(result.as_slice_mut(), 1, -1, 0, 0, 0),
+            Err(ActError::IndexOutOfRange(_))
+        ));
+
+        // A mod_degree below the module's min degree is rejected before reaching
+        // compute_basis/the implementor (which could panic on a negative degree).
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act_on_basis(result.as_slice_mut(), 1, 1, 0, -1, 0),
+            Err(ActError::IndexOutOfRange(_))
+        ));
+    }
+
+    #[test]
+    fn try_act_fd() {
+        let module = make_test_module();
+        let p = module.prime();
+
+        // Valid call: Sq1 acting on x0 (input degree 0, the single generator).
+        let out_dim = module.dimension(1);
+        let mut input = FpVector::new(p, module.dimension(0));
+        input.set_entry(0, 1);
+        let mut result_try = FpVector::new(p, out_dim);
+        let mut result_direct = FpVector::new(p, out_dim);
+        assert!(
+            module
+                .try_act(result_try.as_slice_mut(), 1, 1, 0, 0, input.as_slice())
+                .is_ok()
+        );
+        module.act(result_direct.as_slice_mut(), 1, 1, 0, 0, input.as_slice());
+        assert_eq!(result_try, result_direct);
+
+        // Out-of-range op_index is an IndexOutOfRange error (no panic).
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act(result.as_slice_mut(), 1, 1, 999, 0, input.as_slice()),
+            Err(ActError::IndexOutOfRange(_))
+        ));
+
+        // Input longer than the module dimension is an InvalidInput error (distinct variant,
+        // so the bindings can map it to a different exception type than the index errors).
+        let long_input = FpVector::new(p, module.dimension(0) + 5);
+        let mut result = FpVector::new(p, out_dim);
+        assert!(matches!(
+            module.try_act(result.as_slice_mut(), 1, 1, 0, 0, long_input.as_slice()),
+            Err(ActError::InvalidInput(_))
+        ));
     }
 }

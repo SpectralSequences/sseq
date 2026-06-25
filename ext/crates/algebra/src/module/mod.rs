@@ -21,7 +21,7 @@ pub use free_module::{
     FreeModule, GeneratorData, MuFreeModule, OperationGeneratorPair, UnstableFreeModule,
 };
 pub use hom_module::HomModule;
-pub use module_trait::{Module, ModuleFailedRelationError};
+pub use module_trait::{ActError, Module, ModuleFailedRelationError};
 pub use quotient_module::QuotientModule;
 pub use rpn::RealProjectiveSpace;
 pub use steenrod_module::SteenrodModule;
