@@ -61,6 +61,8 @@ if hasattr(_ext, "__all__"):
 from .utils import (  # noqa: E402
     query_module,
     query_module_only,
+    query_unstable_module,
+    query_unstable_module_only,
 )
 
 # Re-export the low-level query primitives too, so ``ext._query`` consumers
@@ -76,6 +78,13 @@ from ._query import (  # noqa: E402,F401
 # Make sure the Python utils appear in __all__ (so ``from ext import *`` in
 # downstream code exposes them, and they take precedence over the shadowed
 # compiled names).
-for _name in ("query_module", "query_module_only", "construct"):
+for _name in (
+    "query_module",
+    "query_module_only",
+    "query_unstable_module",
+    "query_unstable_module_only",
+    "construct",
+    "construct_unstable",
+):
     if "__all__" in dir() and _name not in __all__:
         __all__.append(_name)

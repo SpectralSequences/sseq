@@ -194,6 +194,67 @@ mod ext_py {
         build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
     }
 
+    /// The concrete unstable resolution type bound here: an `U = true`
+    /// [`MuResolution`] over the default complex `CCC`
+    /// (`UnstableResolution<CCC> = MuResolution<true, CCC>`). The unstable family
+    /// is *general-algorithm only*: Nassau's algorithm has no unstable variant
+    /// (it special-cases the stable, `U = false`, mod-2 sphere), so there is no
+    /// `AnyResolution`-style backend union here — a single concrete type.
+    type RsUnstableResolution = ext::resolution::UnstableResolution<CCC>;
+
+    /// Construct an unstable resolution of `spec` via the general algorithm with
+    /// `U = true`, threading `save_dir` exactly as the stable [`build`] does
+    /// (including the "save_dir is an existing file" pre-check). Unstable
+    /// construction monomorphises `construct_standard::<true, _, _>` — the same
+    /// entry point the stable standard path uses with `U = false` — building the
+    /// Steenrod algebra with `unstable = true` and resolving over it.
+    ///
+    /// Error taxonomy matches the stable standard path: a malformed spec is a
+    /// `ValueError` (raised at the `Config` conversion in [`construct_unstable`]),
+    /// and an internal/IO construction failure is a `RuntimeError`.
+    fn build_unstable(
+        spec: Config,
+        save_dir: Option<PathBuf>,
+    ) -> PyResult<Arc<RsUnstableResolution>> {
+        if let Some(p) = &save_dir {
+            if p.exists() && !p.is_dir() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "save_dir {p:?} exists and is not a directory"
+                )));
+            }
+        }
+        ext::utils::construct_standard::<true, _, _>(spec, save_dir)
+            .map(Arc::new)
+            .map_err(|e: anyhow::Error| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
+    /// Construct an [`UnstableResolution`] of the module `spec`, optionally backed
+    /// by an on-disk save directory, without any interactive prompting (the
+    /// unstable analogue of [`construct`]).
+    ///
+    /// Unstable resolutions are computed by the general algorithm only (there is
+    /// no Nassau analogue), so unlike [`construct`] there is no `algorithm`
+    /// argument: the `U = true` instantiation of `construct_standard` is always
+    /// used. The Steenrod-algebra basis (Adem vs Milnor) is still selected by an
+    /// `@adem`/`@milnor` suffix on the spec; the default is Milnor.
+    ///
+    /// `save_dir` behaves exactly as in [`construct`]: when given, previously
+    /// saved bidegrees are loaded and new ones written back; an existing path
+    /// that is not a directory is a `ValueError`; a non-existent path is created
+    /// by upstream. Error taxonomy: bad spec -> `ValueError`, internal/IO ->
+    /// `RuntimeError`. Nothing panics across FFI.
+    #[pyfunction]
+    #[pyo3(signature = (spec, save_dir=None))]
+    pub fn construct_unstable(
+        spec: &str,
+        save_dir: Option<String>,
+    ) -> PyResult<UnstableResolution> {
+        let config: Config = spec
+            .try_into()
+            .map_err(|e: anyhow::Error| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        build_unstable(config, save_dir.map(PathBuf::from)).map(UnstableResolution)
+    }
+
     impl AnyResolution {
         /// Clone the inner `Arc` (a cheap refcount bump), producing a second
         /// handle to the *same* resolution. Used to hand an owned
@@ -756,6 +817,287 @@ mod ext_py {
                 }
                 let n = dispatch!(&self.res, r => r.number_of_gens_in_bidegree(b));
                 if n > 0 {
+                    return Some(sseq_py::Bidegree(b));
+                }
+            }
+        }
+    }
+
+    /// An unstable minimal resolution (`U = true`), the unstable analogue of
+    /// the stable [`Resolution`].
+    ///
+    /// This is a **separate** pyclass rather than a new variant of
+    /// `AnyResolution`/the stable `Resolution`. The two were deliberately kept
+    /// apart:
+    ///  - the unstable resolution is a distinct monomorphisation
+    ///    (`MuResolution<true, CCC>`), so it cannot share `AnyResolution`'s
+    ///    `match` arms (its modules are `MuFreeModule<true, _>`, a different type
+    ///    from the stable `MuFreeModule<false, _>`);
+    ///  - there is no Nassau unstable algorithm, so the backend-dispatch
+    ///    machinery (`dispatch!`, the standard-only callback methods) has no
+    ///    unstable counterpart;
+    ///  - mixing the two through one pyclass would reintroduce exactly the
+    ///    stable/unstable footguns the upstream `if U` branches guard against.
+    ///
+    /// Holds the resolution behind an `Arc` (mirroring `AnyResolution`'s
+    /// variants) so a [`UnstableResolutionStemIterator`] can own a cheap second
+    /// handle. `frozen`: every method takes `&self` and the resolution's tables
+    /// are interior-mutable.
+    ///
+    /// Deferred members (with concrete reasons):
+    ///  - `module(s)`: the unstable resolution's modules are
+    ///    `MuFreeModule<true, SteenrodAlgebra>`, a *different* type from the
+    ///    bound `algebra_py.FreeModule` pyclass's inner
+    ///    `FreeModule<SteenrodAlgebra> = MuFreeModule<false, _>`. The pyclass
+    ///    cannot represent it, so `module()` is omitted (mirroring how Nassau's
+    ///    `module()` was rejected).
+    ///  - `new_with_save(chain_complex)`: upstream's by-complex constructor is
+    ///    NOT bound because it cannot be made panic-safe at the FFI boundary. An
+    ///    unstable resolution requires its algebra to have been built with
+    ///    `unstable = true` (so the `dimension_unstable` basis tables exist);
+    ///    resolving over a `ChainComplex` whose algebra was built stably panics
+    ///    deep in upstream `once.rs` on the first `compute_through_*`, and there
+    ///    is no public accessor to detect the algebra's unstable flag up front.
+    ///    The spec-based [`construct_unstable`] / `UnstableResolution(spec)` path
+    ///    always builds the algebra with `unstable = true`, so it is safe.
+    ///  - the `*_with_callback` / `chain_complex` / `filtration_one_product(s)`
+    ///    methods are not bound here (the callback hooks and standard-complex
+    ///    accessors carry no unstable-specific value for the primary deliverable;
+    ///    filtration-one is unstable-conditional and can return `None`).
+    #[pyclass(frozen)]
+    pub struct UnstableResolution(Arc<RsUnstableResolution>);
+
+    impl UnstableResolution {
+        /// Number of generators of the unstable resolution at bidegree `b`,
+        /// returning 0 (never panicking) for any bidegree outside the computed
+        /// range. Mirrors `Resolution::num_gens_at`: both indexing steps
+        /// (`module(s)` and `number_of_gens_in_degree(t)`) panic out of range,
+        /// so both axes are clamped to the populated range.
+        fn num_gens_at(&self, b: RsBidegree) -> usize {
+            if b.s() < 0 || b.t() < 0 || b.s() >= self.0.next_homological_degree() {
+                return 0;
+            }
+            let m = self.0.module(b.s());
+            if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+                0
+            } else {
+                m.number_of_gens_in_degree(b.t())
+            }
+        }
+    }
+
+    #[pymethods]
+    impl UnstableResolution {
+        /// Construct an unstable resolution of the module specification `spec`
+        /// (the unstable analogue of `Resolution(spec)`), optionally backed by an
+        /// on-disk save directory. Equivalent to the [`construct_unstable`]
+        /// pyfunction; see it for the full description. There is no `algorithm`
+        /// argument because the unstable family is general-algorithm only.
+        #[new]
+        #[pyo3(signature = (spec, save_dir=None))]
+        pub fn new(spec: &str, save_dir: Option<String>) -> PyResult<Self> {
+            let config: Config = spec.try_into().map_err(|e: anyhow::Error| {
+                pyo3::exceptions::PyValueError::new_err(e.to_string())
+            })?;
+            build_unstable(config, save_dir.map(PathBuf::from)).map(UnstableResolution)
+        }
+
+        /// Resolve through the given target stem. Validates `s >= 0`/`t >= 0`
+        /// (a negative target trips the same internal `assert!`/over-allocation
+        /// as the stable path), raising `ValueError` rather than panicking.
+        pub fn compute_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            self.0.compute_through_stem(b);
+            Ok(())
+        }
+
+        /// Resolve through the given target bidegree (fixed `t`). Validates
+        /// `s >= 0`/`t >= 0`, raising `ValueError` rather than panicking.
+        pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            self.0.compute_through_bidegree(b);
+            Ok(())
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The minimum internal degree of the resolution's modules.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The first `s` for which `module(s)` is not yet defined.
+        pub fn next_homological_degree(&self) -> i32 {
+            self.0.next_homological_degree()
+        }
+
+        /// Whether the resolution has been computed at bidegree `b`. Negative
+        /// `s`/`t` is rejected with a `ValueError`.
+        pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(self.0.has_computed_bidegree(b.0))
+        }
+
+        /// The number of generators of the unstable resolution at bidegree `b`
+        /// (the dimension of unstable `Ext` there). Returns 0 for any uncomputed
+        /// or out-of-range bidegree; raises `ValueError` for negative `s`/`t`.
+        /// Guarded like the stable `number_of_gens_in_bidegree`; see
+        /// `num_gens_at`.
+        pub fn number_of_gens_in_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(self.num_gens_at(b.0))
+        }
+
+        pub fn graded_dimension_string(&self) -> String {
+            self.0.graded_dimension_string()
+        }
+
+        /// The unstable `E_2`-page as a bound `sseq_py.Sseq` (the unstable
+        /// analogue of `Resolution.to_sseq`, i.e. `to_sseq` on the unstable free
+        /// chain complex). Panic-free over the resolved range: upstream only
+        /// queries bidegrees yielded by `iter_stem`, all in range.
+        pub fn to_unstable_sseq(&self) -> sseq_py::Sseq {
+            let p = self.0.prime();
+            sseq_py::Sseq::from_rust(self.0.to_sseq(), p)
+        }
+
+        /// A string representation of `d(g)` for the generator `g = (s, t, idx)`.
+        /// Raises `ValueError` if `g` is outside the computed range or `idx`
+        /// exceeds the generator count there (upstream would otherwise panic).
+        pub fn boundary_string(&self, g: sseq_py::BidegreeGenerator) -> PyResult<String> {
+            let gen = g.0;
+            if gen.s() < 0 || gen.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid generator {gen}: require s >= 0 and t >= 0"
+                )));
+            }
+            let ngens = self.num_gens_at(gen.degree());
+            if gen.idx() >= ngens {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "generator index {} out of range at bidegree {} ({ngens} generators, or the \
+                     bidegree is uncomputed)",
+                    gen.idx(),
+                    gen.degree()
+                )));
+            }
+            Ok(self.0.boundary_string(gen))
+        }
+
+        /// The resolution's name (used in tracing/logging). `set_name` is not
+        /// bound for the same reason as on `Resolution` (it takes `&mut self`,
+        /// but this pyclass is `frozen` and wraps the resolution in an `Arc`).
+        pub fn name(&self) -> String {
+            self.0.name().to_string()
+        }
+
+        /// The directory used to persist the resolution, or `None` if it is held
+        /// purely in memory (the default).
+        pub fn save_dir(&self) -> Option<String> {
+            self.0.save_dir().read().map(|p| p.display().to_string())
+        }
+
+        /// Iterate over the defined bidegrees in increasing order of stem. The
+        /// iterator yields `sseq_py.Bidegree`s and holds its own `Arc` handle to
+        /// the resolution. Bounded by the resolved range (terminates), exposed
+        /// lazily.
+        pub fn iter_stem(&self) -> UnstableResolutionStemIterator {
+            UnstableResolutionStemIterator::new(Arc::clone(&self.0), false)
+        }
+
+        /// As [`iter_stem`], but yield only bidegrees with a nonzero number of
+        /// generators (the nonzero entries of the unstable `Ext` chart).
+        pub fn iter_nonzero_stem(&self) -> UnstableResolutionStemIterator {
+            UnstableResolutionStemIterator::new(Arc::clone(&self.0), true)
+        }
+    }
+
+    /// The lazy iterator returned by [`UnstableResolution::iter_stem`] /
+    /// [`UnstableResolution::iter_nonzero_stem`]. Mirrors
+    /// `ResolutionStemIterator` over the single concrete unstable resolution
+    /// type (no backend dispatch), re-implementing the upstream stem walk so it
+    /// can live in a `#[pyclass]` without borrowing the resolution.
+    #[pyclass]
+    pub struct UnstableResolutionStemIterator {
+        res: Arc<RsUnstableResolution>,
+        current: RsBidegree,
+        max_s: i32,
+        nonzero: bool,
+    }
+
+    impl UnstableResolutionStemIterator {
+        fn new(res: Arc<RsUnstableResolution>, nonzero: bool) -> Self {
+            let min_degree = res.min_degree();
+            let max_s = res.next_homological_degree();
+            UnstableResolutionStemIterator {
+                res,
+                current: RsBidegree::n_s(min_degree, 0),
+                max_s,
+                nonzero,
+            }
+        }
+
+        /// The raw (unfiltered) stem walk, mirroring upstream `StemIterator`.
+        fn raw_next(&mut self) -> Option<RsBidegree> {
+            loop {
+                if self.max_s == 0 {
+                    return None;
+                }
+                let cur = self.current;
+                if cur.s() == self.max_s {
+                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                    continue;
+                }
+                let max_deg = self.res.module(cur.s()).max_computed_degree();
+                if cur.t() > max_deg {
+                    if cur.s() == 0 {
+                        return None;
+                    } else {
+                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
+                        continue;
+                    }
+                }
+                self.current = cur + RsBidegree::n_s(0, 1);
+                return Some(cur);
+            }
+        }
+    }
+
+    #[pymethods]
+    impl UnstableResolutionStemIterator {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
+            loop {
+                let b = self.raw_next()?;
+                if !self.nonzero {
+                    return Some(sseq_py::Bidegree(b));
+                }
+                if self.res.number_of_gens_in_bidegree(b) > 0 {
                     return Some(sseq_py::Bidegree(b));
                 }
             }

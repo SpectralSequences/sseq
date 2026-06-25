@@ -82,3 +82,43 @@ def query_module(alg=None, save_dir=None):
 
     resolution.compute_through_stem(_ext.sseq.Bidegree.n_s(max_n, max_s))
     return resolution
+
+
+def query_unstable_module_only(prompt="Module", alg=None, save_dir=None):
+    """Mirror of ``ext::utils::query_unstable_module_only``.
+
+    The unstable analogue of :func:`query_module_only`: prompt for a module spec
+    (default ``S_2``); prompt for an optional save directory IN PYTHON unless
+    ``save_dir`` is supplied; then build and return an
+    :class:`ext.UnstableResolution` via :func:`ext.construct_unstable`.
+
+    Unstable resolutions are computed by the general algorithm only (there is no
+    Nassau analogue), so there is no ``algorithm`` argument. The algebra basis
+    (Adem vs Milnor, default Milnor) is selected by an ``@adem``/``@milnor``
+    suffix on the spec, exactly as in :func:`query_module_only`; ``algebra``,
+    when given and the spec has no ``@`` suffix, is appended as ``@<algebra>``.
+    """
+    spec = _query.with_default(prompt, "S_2", str)
+
+    if alg is not None and "@" not in spec:
+        spec = f"{spec}@{_algebra_suffix(alg)}"
+
+    if save_dir is None:
+        save_dir = _query.optional(f"{prompt} save directory", str)
+
+    return _ext.construct_unstable(spec, save_dir)
+
+
+def query_unstable_module(alg=None, save_dir=None):
+    """Mirror of ``ext::utils::query_unstable_module``.
+
+    Build an unstable module via :func:`query_unstable_module_only`, then prompt
+    for ``Max n`` (default 30) and ``Max s`` (default 7), resolve through that
+    stem, and return the :class:`ext.UnstableResolution`.
+    """
+    resolution = query_unstable_module_only("Module", alg, save_dir)
+    max_n = _query.with_default("Max n", "30", int)
+    max_s = _query.with_default("Max s", "7", int)
+
+    resolution.compute_through_stem(_ext.sseq.Bidegree.n_s(max_n, max_s))
+    return resolution

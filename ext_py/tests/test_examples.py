@@ -58,8 +58,6 @@ KNOWN_UNBOUND = {
     # tensor.py: FDModuleBuilder.from_tensor_module / .from_module conversion
     # constructor is documented as a planned thin wrapper but is not yet bound.
     "from_tensor_module",
-    # unstable_chart.py: unstable resolution entry point is not bound.
-    "query_unstable_module",
     # massey.py: Massey product computer is not bound.
     "MasseyProductComputer",
     # --- Resolution / construction entry points ---
@@ -80,8 +78,6 @@ KNOWN_UNBOUND = {
     # FiniteAugmentedChainComplex; bruner.py predates them. Caught now that the
     # guard scans `from ext import ...` statements as well as attribute access.
     "FiniteChainComplex",
-    # --- Unstable machinery (not yet bound) ---
-    "UnstableResolution",
     # --- Misc constants / helpers (not yet bound) ---
     # secondary_*: lambda-algebra bidegree constant is not bound.
     "LAMBDA_BIDEGREE",
