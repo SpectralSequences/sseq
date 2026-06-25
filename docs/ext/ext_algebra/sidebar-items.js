@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ExtAlgebra"]};
+window.SIDEBAR_ITEMS = {"mod":["secondary"],"struct":["ExtAlgebra"]};

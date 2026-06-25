@@ -75,44 +75,50 @@
 <a href=#50 id=50 data-nosnippet>50</a><span class="kw">use </span>algebra::module::Module;
 <a href=#51 id=51 data-nosnippet>51</a><span class="kw">use </span>ext::{
 <a href=#52 id=52 data-nosnippet>52</a>    chain_complex::{ChainComplex, FreeChainComplex},
-<a href=#53 id=53 data-nosnippet>53</a>    secondary::<span class="kw-2">*</span>,
+<a href=#53 id=53 data-nosnippet>53</a>    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
 <a href=#54 id=54 data-nosnippet>54</a>    utils::query_module,
 <a href=#55 id=55 data-nosnippet>55</a>};
-<a href=#56 id=56 data-nosnippet>56</a><span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
+<a href=#56 id=56 data-nosnippet>56</a><span class="kw">use </span>sseq::coordinates::Bidegree;
 <a href=#57 id=57 data-nosnippet>57</a>
 <a href=#58 id=58 data-nosnippet>58</a><span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#59 id=59 data-nosnippet>59</a>    ext::utils::init_logging()<span class="question-mark">?</span>;
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);
 <a href=#62 id=62 data-nosnippet>62</a>
-<a href=#63 id=63 data-nosnippet>63</a>    <span class="kw">let </span>lift = SecondaryResolution::new(Arc::clone(<span class="kw-2">&amp;</span>resolution));
-<a href=#64 id=64 data-nosnippet>64</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = ext::utils::secondary_job() {
-<a href=#65 id=65 data-nosnippet>65</a>        lift.compute_partial(s);
-<a href=#66 id=66 data-nosnippet>66</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#67 id=67 data-nosnippet>67</a>    }
-<a href=#68 id=68 data-nosnippet>68</a>
-<a href=#69 id=69 data-nosnippet>69</a>    lift.extend_all();
-<a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">let </span>d2_shift = Bidegree::n_s(-<span class="number">1</span>, <span class="number">2</span>);
-<a href=#72 id=72 data-nosnippet>72</a>
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="comment">// Iterate through target of the d2
-<a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">for </span>b <span class="kw">in </span>lift.underlying().iter_nonzero_stem() {
-<a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">if </span>b.s() &lt; <span class="number">3 </span>{
-<a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">continue</span>;
-<a href=#77 id=77 data-nosnippet>77</a>        }
-<a href=#78 id=78 data-nosnippet>78</a>
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">if </span>b.t() - <span class="number">1 </span>&gt; resolution.module(b.s() - <span class="number">2</span>).max_computed_degree() {
+<a href=#63 id=63 data-nosnippet>63</a>    <span class="comment">// The d2 differential is intrinsic to the resolution and needs no unit, so we avoid the unit
+<a href=#64 id=64 data-nosnippet>64</a>    // setup with `without_unit`.
+<a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">let </span>sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtAlgebra::without_unit(resolution)));
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = ext::utils::secondary_job() {
+<a href=#68 id=68 data-nosnippet>68</a>        sec_e2.compute_partial(s);
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#70 id=70 data-nosnippet>70</a>    }
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a>    sec_e2.extend_all();
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">let </span>e2 = sec_e2.ext_algebra();
+<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">let </span>d2_shift = Bidegree::n_s(-<span class="number">1</span>, <span class="number">2</span>);
+<a href=#76 id=76 data-nosnippet>76</a>
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="comment">// Iterate through the target of the d2, in the same order as before.
+<a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">for </span>b <span class="kw">in </span>e2.resolution().iter_nonzero_stem() {
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">if </span>b.s() &lt; <span class="number">3 </span>{
 <a href=#80 id=80 data-nosnippet>80</a>            <span class="kw">continue</span>;
 <a href=#81 id=81 data-nosnippet>81</a>        }
-<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>homotopy = lift.homotopy(b.s());
-<a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">let </span>m = homotopy.homotopies.hom_k(b.t() - <span class="number">1</span>);
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a>        <span class="kw">for </span>(i, entry) <span class="kw">in </span>m.into_iter().enumerate() {
-<a href=#86 id=86 data-nosnippet>86</a>            <span class="kw">let </span>source_gen = BidegreeGenerator::new(b - d2_shift, i);
-<a href=#87 id=87 data-nosnippet>87</a>            <span class="macro">println!</span>(<span class="string">"d_2 x_{source_gen} = {entry:?}"</span>);
-<a href=#88 id=88 data-nosnippet>88</a>        }
-<a href=#89 id=89 data-nosnippet>89</a>    }
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="prelude-val">Ok</span>(())
-<a href=#92 id=92 data-nosnippet>92</a>}
+<a href=#82 id=82 data-nosnippet>82</a>
+<a href=#83 id=83 data-nosnippet>83</a>        <span class="comment">// The source of the d2 must be computed (its degree may exceed what `module(b.s() - 2)`
+<a href=#84 id=84 data-nosnippet>84</a>        // reaches when resolving through a stem).
+<a href=#85 id=85 data-nosnippet>85</a>        </span><span class="kw">if </span>b.t() - <span class="number">1 </span>&gt; e2.resolution().module(b.s() - <span class="number">2</span>).max_computed_degree() {
+<a href=#86 id=86 data-nosnippet>86</a>            <span class="kw">continue</span>;
+<a href=#87 id=87 data-nosnippet>87</a>        }
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">for </span>g <span class="kw">in </span>e2.basis(b - d2_shift) {
+<a href=#90 id=90 data-nosnippet>90</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(dx) = sec_e2.d2(<span class="kw-2">&amp;</span>e2.generator(g)) {
+<a href=#91 id=91 data-nosnippet>91</a>                <span class="kw">let </span>entry: Vec&lt;u32&gt; = dx.vec().iter().collect();
+<a href=#92 id=92 data-nosnippet>92</a>                <span class="macro">println!</span>(<span class="string">"d_2 x_{g} = {entry:?}"</span>);
+<a href=#93 id=93 data-nosnippet>93</a>            }
+<a href=#94 id=94 data-nosnippet>94</a>        }
+<a href=#95 id=95 data-nosnippet>95</a>    }
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="prelude-val">Ok</span>(())
+<a href=#98 id=98 data-nosnippet>98</a>}
 </code></pre></div></section></main></body></html>
