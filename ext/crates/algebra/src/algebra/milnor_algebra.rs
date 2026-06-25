@@ -967,7 +967,9 @@ impl MilnorAlgebra {
 
 // Multiplication logic
 impl MilnorAlgebra {
-    fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
+    /// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
+    /// (e.g. out of range or excluded by the profile).
+    pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
         let q = self.q() as u32;
         let degree = (q * x + e) as i32;
         self.compute_basis(degree);
@@ -1872,6 +1874,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn try_beps_pn_milnor() {
+        let p = ValidPrime::new(2);
+
+        // On the full algebra, `try_beps_pn` agrees with the panicking `beps_pn`
+        // for valid inputs and never returns `None` (every P(x), x >= 1, exists).
+        let algebra = MilnorAlgebra::new(p, false);
+        for x in 1..16 {
+            assert_eq!(algebra.try_beps_pn(0, x), Some(algebra.beps_pn(0, x)));
+            assert!(algebra.try_beps_pn(0, x).is_some());
+        }
+
+        // On A(2) (profile [3, 2, 1], truncated), the first xi exponent is bounded
+        // by 2^3 - 1 = 7, so P(7) is present but P(8) is excluded by the profile.
+        let a2 = MilnorAlgebra::new_with_profile(
+            p,
+            MilnorProfile {
+                q_part: !0,
+                p_part: vec![3, 2, 1],
+                truncated: true,
+            },
+            false,
+        );
+        // Valid input: agrees with `beps_pn`.
+        assert_eq!(a2.try_beps_pn(0, 7), Some(a2.beps_pn(0, 7)));
+        // Invalid input: excluded by the profile, so `None` instead of a panic.
+        assert_eq!(a2.try_beps_pn(0, 8), None);
     }
 
     use crate::module::ModuleFailedRelationError;
