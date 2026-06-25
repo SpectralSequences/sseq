@@ -337,6 +337,22 @@ pub mod sseq_py {
             format!("{}", self.0)
         }
 
+        /// Support Python format specs, mirroring the upstream `Display` impl's
+        /// alternate flag: `format(g, "")` / `f"{g}"` use the spaced
+        /// `(n, s, idx)` form, while `format(g, "#")` / `f"{g:#}"` use the
+        /// compact `(n,s,idx)` form (Rust's `{:#}`). Any other spec is a
+        /// `ValueError`, matching Python's default rejection of unknown specs.
+        pub fn __format__(&self, spec: &str) -> PyResult<String> {
+            match spec {
+                "" => Ok(format!("{}", self.0)),
+                "#" => Ok(format!("{:#}", self.0)),
+                _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "unsupported format spec {spec:?} for BidegreeGenerator; \
+                     only '' and '#' are supported"
+                ))),
+            }
+        }
+
         pub fn __repr__(&self) -> String {
             format!("BidegreeGenerator({})", self.0)
         }
