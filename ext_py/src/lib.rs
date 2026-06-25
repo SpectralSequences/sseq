@@ -1831,6 +1831,510 @@ mod ext_py {
         }
     }
 
+    /// The concrete `ExtAlgebra` bound here: a bigraded-algebra view of a
+    /// *standard*-backend resolution. `ExtAlgebra<CC>` is generic over a
+    /// `FreeChainComplex` `CC`; we monomorphise it at `ext::resolution::Resolution<CCC>`,
+    /// which is exactly `ext::utils::QueryModuleResolution` (see
+    /// `assert_query_module_is_standard`) — the inner type of
+    /// [`AnyResolution::Standard`]. This is the only instantiation whose
+    /// resolutions the bound `Resolution` pyclass can represent: the Nassau
+    /// backend resolves over the concrete `MilnorAlgebra` and is rejected with a
+    /// `ValueError` (mirroring `ResolutionHomomorphism`/`Resolution.module`).
+    ///
+    /// Bound here in the top-level `ext` module (NOT in the `algebra_py`
+    /// submodule) on purpose: despite its name, `ExtAlgebra` is **not** a
+    /// Steenrod-`Algebra`-trait type like `MilnorAlgebra`/`SteenrodAlgebra`/`Field`
+    /// — it does not implement `Algebra` and has no `(degree, index)` basis. It
+    /// is an Ext-product abstraction *built from resolutions*, so it depends on
+    /// the `Resolution`/`AnyResolution` types defined in this module and belongs
+    /// next to `Resolution`/`ResolutionHomomorphism`.
+    type RsExtAlgebra = ext::ext_algebra::ExtAlgebra<ext::resolution::Resolution<CCC>>;
+
+    /// $\Ext(M, k)$ as a bigraded module over the bigraded algebra $\Ext(k, k)$,
+    /// backed by a (standard-backend) resolution of `M` and a resolution of the
+    /// base field `k` (the "unit"). When `M == k` (same resolution passed twice)
+    /// this is the algebra $\Ext(k, k)$ itself.
+    ///
+    /// Held by value: every method takes `&self` upstream (the per-generator
+    /// product-map cache is an interior-mutable `DashMap`), so a `frozen`
+    /// pyclass works directly.
+    #[pyclass(frozen)]
+    pub struct ExtAlgebra(RsExtAlgebra);
+
+    /// Number of generators of a resolution at bidegree `b`, returning 0 (never
+    /// panicking) outside the computed range. Mirrors `Resolution::num_gens_at`
+    /// (upstream `ExtAlgebra::dimension` is `resolution.number_of_gens_in_bidegree(b)`,
+    /// whose two `OnceBiVec` indexings both panic out of range).
+    fn ext_algebra_num_gens(r: &ext::resolution::Resolution<CCC>, b: RsBidegree) -> usize {
+        if b.s() < 0 || b.t() < 0 || b.s() >= r.next_homological_degree() {
+            return 0;
+        }
+        let m = r.module(b.s());
+        if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+            0
+        } else {
+            m.number_of_gens_in_degree(b.t())
+        }
+    }
+
+    /// Run an `ExtAlgebra` product computation under `catch_unwind`, translating
+    /// any residual upstream panic into a `ValueError` (the established
+    /// `catch_unwind`→`ValueError` backstop; cf. `catch_yoneda_panic` /
+    /// `catch_unstable_construct_panic`).
+    ///
+    /// The `multiply`/`try_multiply`/`multiply_into` family is pre-checked
+    /// exhaustively below (operand bidegrees resolved, vector lengths matching
+    /// the generator counts, primes matching, target degree not overflowing
+    /// `i32`, the unit's `(0,0)` augmentation 1-dimensional). This wrapper exists
+    /// only as a defence-in-depth net for any internal `assert!`/index in the
+    /// `ResolutionHomomorphism::from_class` + `extend_all` + `hom_k` plumbing that
+    /// `ExtAlgebra::multiply_into` drives and that the pre-checks do not reach.
+    ///
+    /// `AssertUnwindSafe` over `&self`: a panic mid-product can leave a partially
+    /// built map in the interior `DashMap` cache, but the cache is rebuilt/
+    /// re-extended idempotently on the next call (a later observer sees a valid,
+    /// possibly-unextended map, never a broken invariant), matching the shared-
+    /// state precedent of `catch_yoneda_panic`.
+    fn catch_ext_algebra_panic<T, F: FnOnce() -> T>(f: F) -> PyResult<T> {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+        match catch_unwind(AssertUnwindSafe(f)) {
+            Ok(v) => Ok(v),
+            Err(payload) => {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_owned())
+                    .or_else(|| payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_owned());
+                Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "ExtAlgebra product computation panicked (an out-of-range or unresolved \
+                     bidegree that slipped past the pre-checks); underlying panic: {detail}"
+                )))
+            }
+        }
+    }
+
+    impl ExtAlgebra {
+        /// Validate that `x` is a well-formed, computed element of $\Ext(M, k)$
+        /// (the resolution side / left operand): non-negative bidegree, the
+        /// bidegree resolved, the coordinate vector over the algebra's prime and
+        /// of length equal to the number of generators there. Mirrors the
+        /// element-validity requirements `ExtAlgebra::multiply_into` assumes (it
+        /// indexes `class[g.idx()]` for each nonzero coordinate of `x`).
+        fn check_res_element(&self, x: &::sseq::coordinates::BidegreeElement) -> PyResult<()> {
+            Self::check_element(
+                "resolution",
+                self.0.resolution(),
+                x,
+                self.0.prime().as_u32(),
+            )
+        }
+
+        /// As [`check_res_element`], but for `y`, an element of $\Ext(k, k)$ (the
+        /// unit side / right operand): `multiply_into`/`try_multiply` index the
+        /// product matrix's rows by the nonzero coordinates of `y`, so `y` must
+        /// match the unit's generator count at its bidegree.
+        fn check_unit_element(&self, y: &::sseq::coordinates::BidegreeElement) -> PyResult<()> {
+            Self::check_element("unit", self.0.unit(), y, self.0.prime().as_u32())
+        }
+
+        fn check_element(
+            which: &str,
+            r: &ext::resolution::Resolution<CCC>,
+            e: &::sseq::coordinates::BidegreeElement,
+            prime: u32,
+        ) -> PyResult<()> {
+            let b = e.degree();
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid {which} element bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            if e.vec().prime().as_u32() != prime {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "{which} element is over prime {} but the ExtAlgebra is over prime {prime}",
+                    e.vec().prime().as_u32()
+                )));
+            }
+            if !r.has_computed_bidegree(b) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "{which} not computed at the element's bidegree (s={}, t={}); resolve it \
+                     there first (compute_through_stem / compute_through_bidegree)",
+                    b.s(),
+                    b.t()
+                )));
+            }
+            let dim = ext_algebra_num_gens(r, b);
+            if e.vec().len() != dim {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "{which} element has {} coordinate(s) but there are {dim} generator(s) at \
+                     bidegree (s={}, t={})",
+                    e.vec().len(),
+                    b.s(),
+                    b.t()
+                )));
+            }
+            Ok(())
+        }
+
+        /// Pre-check the requirement `ExtAlgebra::multiply_into` inherits from
+        /// `ResolutionHomomorphism::from_class`: when the left operand is
+        /// nonzero, a per-generator product map is built, which maps the class
+        /// through the unit's augmentation at `(0, 0)` and requires that
+        /// augmentation to be computed and 1-dimensional (the unit/sphere case).
+        /// Mirrors the `from_class` guard at the bound `ResolutionHomomorphism`.
+        fn check_unit_augmentation(&self) -> PyResult<()> {
+            let u = self.0.unit();
+            let zero = RsBidegree::s_t(0, 0);
+            if !u.has_computed_bidegree(zero) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "unit resolution not computed at bidegree (0, 0); resolve it through (0, 0) \
+                     first",
+                ));
+            }
+            let aug_dim = u.target().module(0).dimension(0);
+            if aug_dim != 1 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "products require the unit resolution's augmentation to be 1-dimensional in \
+                     degree 0 (a unit/sphere resolution); got dimension {aug_dim}"
+                )));
+            }
+            Ok(())
+        }
+
+        /// Reject the addition `a + b` overflowing `i32` (the product lands at
+        /// `x.degree() + y.degree()`, whose coordinates index modules/`FpVector`s).
+        fn checked_target(a: RsBidegree, b: RsBidegree) -> PyResult<()> {
+            if a.s().checked_add(b.s()).is_none() || a.t().checked_add(b.t()).is_none() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target bidegree {a} + {b} overflows i32"
+                )));
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl ExtAlgebra {
+        /// Build an `ExtAlgebra` from an explicit `(resolution, unit)` pair: a
+        /// resolution of `M` (products land in its Ext) and a resolution of the
+        /// base field `k`. Pass the *same* `Resolution` twice for the algebra
+        /// $\Ext(k, k)$ itself.
+        ///
+        /// Both must be standard-backend (a Nassau-backed `Resolution` raises
+        /// `ValueError`, as for `ResolutionHomomorphism`) and over the same prime
+        /// (upstream `ExtAlgebra::new` `assert_eq!`s the two primes; we pre-check
+        /// and raise `ValueError` instead of panicking).
+        ///
+        /// The upstream `ExtAlgebra::from_resolution` single-argument constructor
+        /// is intentionally **not** bound: it derives the unit via
+        /// `ext::utils::get_unit`, which prompts on stdin for a save directory
+        /// when `M != k` — interactive I/O that may not cross the FFI boundary
+        /// (the project invariant; cf. the bound non-interactive `get_unit`
+        /// pyfunction). Build the unit with `ext.get_unit(resolution)` (or
+        /// `ext.construct`) in Python and pass it here.
+        #[new]
+        pub fn new(resolution: &Resolution, unit: &Resolution) -> PyResult<Self> {
+            let r = ResolutionHomomorphism::standard_arc(resolution, "resolution")?;
+            let u = ResolutionHomomorphism::standard_arc(unit, "unit")?;
+            if r.prime().as_u32() != u.prime().as_u32() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "resolution and unit are over different primes ({} != {})",
+                    r.prime().as_u32(),
+                    u.prime().as_u32()
+                )));
+            }
+            Ok(ExtAlgebra(RsExtAlgebra::new(r, u)))
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// Whether the resolution already resolves the unit (i.e. `M == k`, the
+        /// resolution and unit share the same `Arc`).
+        pub fn is_unit(&self) -> bool {
+            self.0.is_unit()
+        }
+
+        /// The resolution of `M` (shares the underlying `Arc`).
+        pub fn resolution(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(Arc::clone(self.0.resolution())))
+        }
+
+        /// The resolution of the unit `k` (shares the underlying `Arc`).
+        pub fn unit(&self) -> Resolution {
+            Resolution(AnyResolution::Standard(Arc::clone(self.0.unit())))
+        }
+
+        /// Ensure both the resolution and the unit are computed through the given
+        /// stem. Negative `s`/`t` is rejected with `ValueError` (the resolve loop
+        /// panics on a negative target; cf. `Resolution.compute_through_stem`).
+        pub fn compute_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            self.0.compute_through_stem(b);
+            Ok(())
+        }
+
+        /// Ensure both the resolution and the unit are computed through the given
+        /// bidegree. Negative `s`/`t` is rejected with `ValueError`.
+        pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            self.0.compute_through_bidegree(b);
+            Ok(())
+        }
+
+        /// The dimension of $\Ext^{s,t}(M, k)$ at bidegree `b` (the number of
+        /// generators of the resolution there). Returns 0 for any uncomputed or
+        /// out-of-range bidegree; raises `ValueError` for negative `s`/`t`.
+        /// (Upstream `ExtAlgebra::dimension` indexes two `OnceBiVec`s and panics
+        /// out of range; this is the guarded analogue.)
+        pub fn dimension(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(ext_algebra_num_gens(self.0.resolution(), b.0))
+        }
+
+        /// The dimension of $\Ext^{s,t}(k, k)$ at bidegree `b` (the
+        /// multiplicand/"scalar" side). Guarded as [`dimension`].
+        pub fn unit_dimension(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            Ok(ext_algebra_num_gens(self.0.unit(), b.0))
+        }
+
+        /// The basis generators of $\Ext(M, k)$ at bidegree `b`, as a list of
+        /// `sseq_py.BidegreeGenerator`. Empty for an uncomputed/out-of-range
+        /// bidegree; raises `ValueError` for negative `s`/`t`.
+        pub fn basis(&self, b: sseq_py::Bidegree) -> PyResult<Vec<sseq_py::BidegreeGenerator>> {
+            let n = self.dimension(b)?;
+            Ok((0..n)
+                .map(|i| {
+                    sseq_py::BidegreeGenerator(::sseq::coordinates::BidegreeGenerator::new(b.0, i))
+                })
+                .collect())
+        }
+
+        /// The basis generators of $\Ext(k, k)$ at bidegree `b`. Guarded as
+        /// [`basis`].
+        pub fn unit_basis(
+            &self,
+            b: sseq_py::Bidegree,
+        ) -> PyResult<Vec<sseq_py::BidegreeGenerator>> {
+            let n = self.unit_dimension(b)?;
+            Ok((0..n)
+                .map(|i| {
+                    sseq_py::BidegreeGenerator(::sseq::coordinates::BidegreeGenerator::new(b.0, i))
+                })
+                .collect())
+        }
+
+        /// A single generator of $\Ext(M, k)$ as a class
+        /// (`sseq_py.BidegreeElement`). Raises `ValueError` for negative `s`/`t`
+        /// and `IndexError` if `g.idx()` is out of range at its bidegree (upstream
+        /// `ExtAlgebra::generator` `assert!`s `dimension > idx`).
+        pub fn generator(
+            &self,
+            g: sseq_py::BidegreeGenerator,
+        ) -> PyResult<sseq_py::BidegreeElement> {
+            let gen = g.0;
+            if gen.s() < 0 || gen.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid generator {gen}: require s >= 0 and t >= 0"
+                )));
+            }
+            let dim = ext_algebra_num_gens(self.0.resolution(), gen.degree());
+            if gen.idx() >= dim {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "generator index {} out of range at bidegree {} ({dim} generator(s), or the \
+                     bidegree is uncomputed)",
+                    gen.idx(),
+                    gen.degree()
+                )));
+            }
+            Ok(sseq_py::BidegreeElement(
+                gen.into_element(self.0.prime(), dim),
+            ))
+        }
+
+        /// A class in $\Ext(M, k)$ from its coordinates in the generator basis at
+        /// bidegree `b`. Raises `ValueError` for negative `s`/`t`, an uncomputed
+        /// `b`, or a `coords` length not matching the dimension there (upstream
+        /// `ExtAlgebra::element` `assert_eq!`s the two).
+        pub fn element(
+            &self,
+            b: sseq_py::Bidegree,
+            coords: Vec<u32>,
+        ) -> PyResult<sseq_py::BidegreeElement> {
+            Self::make_element(
+                self.0.resolution(),
+                self.0.prime(),
+                b.0,
+                coords,
+                "resolution",
+            )
+        }
+
+        /// A class in $\Ext(k, k)$ (the unit side) from its coordinates. Guarded
+        /// as [`element`].
+        pub fn unit_element(
+            &self,
+            b: sseq_py::Bidegree,
+            coords: Vec<u32>,
+        ) -> PyResult<sseq_py::BidegreeElement> {
+            Self::make_element(self.0.unit(), self.0.prime(), b.0, coords, "unit")
+        }
+
+        /// Left-multiplication by the class `x` (in $\Ext(M, k)$) applied to
+        /// every basis generator of $\Ext(k, k)$ at bidegree `b`: a matrix with
+        /// one row per generator of $\Ext(k, k)$ at `b`, row `j` being the product
+        /// `x · g_j` in the generator basis of $\Ext(M, k)$ at `b + x.degree()`.
+        ///
+        /// Returns `None` when the product is out of the computed range (`b` or
+        /// `b + x.degree()` unresolved), so an uncomputed product is never
+        /// mistaken for a zero one (a computed-but-empty bidegree yields a valid
+        /// zero-dimension matrix — an empty/`[]`-rows list — not `None`).
+        ///
+        /// `x` must be a valid, computed element (see the operand guards);
+        /// negative `b`, a degree-sum overflow, or a non-unit augmentation when
+        /// `x` is nonzero raise `ValueError`.
+        pub fn multiply_into(
+            &self,
+            x: &sseq_py::BidegreeElement,
+            b: sseq_py::Bidegree,
+        ) -> PyResult<Option<Vec<Vec<u32>>>> {
+            self.check_res_element(&x.0)?;
+            let bb = b.0;
+            if bb.s() < 0 || bb.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {bb}: require s >= 0 and t >= 0"
+                )));
+            }
+            Self::checked_target(bb, x.0.degree())?;
+            if !x.0.vec().is_zero() {
+                self.check_unit_augmentation()?;
+            }
+            let matrix = catch_ext_algebra_panic(|| self.0.multiply_into(&x.0, bb))?;
+            Ok(matrix.map(|m| {
+                // Upstream `Matrix::to_vec` panics for a zero-column matrix
+                // (chunking by a zero stride); a computed-but-empty target
+                // bidegree is `m.rows()` empty rows. Mirrors `fp_py` PyMatrix.
+                if m.columns() == 0 {
+                    vec![Vec::new(); m.rows()]
+                } else {
+                    m.to_vec()
+                }
+            }))
+        }
+
+        /// The product `x · y` if it lies in the computed range, else `None`.
+        /// `x ∈ Ext(M, k)`, `y ∈ Ext(k, k)`; the result lies in bidegree
+        /// `x.degree() + y.degree()`. Both operands are validated (see the operand
+        /// guards) — a malformed/uncomputed operand raises `ValueError` rather
+        /// than returning a misleading `None`.
+        pub fn try_multiply(
+            &self,
+            x: &sseq_py::BidegreeElement,
+            y: &sseq_py::BidegreeElement,
+        ) -> PyResult<Option<sseq_py::BidegreeElement>> {
+            self.check_res_element(&x.0)?;
+            self.check_unit_element(&y.0)?;
+            Self::checked_target(x.0.degree(), y.0.degree())?;
+            if !x.0.vec().is_zero() {
+                self.check_unit_augmentation()?;
+            }
+            let res = catch_ext_algebra_panic(|| self.0.try_multiply(&x.0, &y.0))?;
+            Ok(res.map(sseq_py::BidegreeElement))
+        }
+
+        /// The product `x · y`, where `x ∈ Ext(M, k)` and `y ∈ Ext(k, k)`. The
+        /// result lies in bidegree `x.degree() + y.degree()`.
+        ///
+        /// Upstream `ExtAlgebra::multiply` `.expect()`s the product to be in the
+        /// computed range; this binding instead raises `ValueError` (never
+        /// panicking) when it is out of range — compute further or use
+        /// [`try_multiply`]. Operands are validated as for [`try_multiply`].
+        pub fn multiply(
+            &self,
+            x: &sseq_py::BidegreeElement,
+            y: &sseq_py::BidegreeElement,
+        ) -> PyResult<sseq_py::BidegreeElement> {
+            self.check_res_element(&x.0)?;
+            self.check_unit_element(&y.0)?;
+            Self::checked_target(x.0.degree(), y.0.degree())?;
+            if !x.0.vec().is_zero() {
+                self.check_unit_augmentation()?;
+            }
+            match catch_ext_algebra_panic(|| self.0.try_multiply(&x.0, &y.0))? {
+                Some(e) => Ok(sseq_py::BidegreeElement(e)),
+                None => Err(pyo3::exceptions::PyValueError::new_err(
+                    "product is out of the computed range; resolve the ExtAlgebra further \
+                     (compute_through_stem / compute_through_bidegree) or use try_multiply",
+                )),
+            }
+        }
+    }
+
+    impl ExtAlgebra {
+        /// Shared helper for `element`/`unit_element`: build a class over `r`'s
+        /// generator basis at `b` from `coords`, validating non-negativity, that
+        /// `b` is resolved, and that `coords` matches the dimension there.
+        fn make_element(
+            r: &ext::resolution::Resolution<CCC>,
+            prime: ::fp::prime::ValidPrime,
+            b: RsBidegree,
+            coords: Vec<u32>,
+            which: &str,
+        ) -> PyResult<sseq_py::BidegreeElement> {
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            if !r.has_computed_bidegree(b) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "{which} not computed at bidegree (s={}, t={}); resolve it there first",
+                    b.s(),
+                    b.t()
+                )));
+            }
+            let dim = ext_algebra_num_gens(r, b);
+            if coords.len() != dim {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "coords has length {} but there are {dim} generator(s) at bidegree \
+                     (s={}, t={})",
+                    coords.len(),
+                    b.s(),
+                    b.t()
+                )));
+            }
+            Ok(sseq_py::BidegreeElement(
+                ::sseq::coordinates::BidegreeElement::new(
+                    b,
+                    ::fp::vector::FpVector::from_slice(prime, &coords),
+                ),
+            ))
+        }
+    }
+
     /// The concrete *unstable* (`U = true`) resolution homomorphism bound here:
     /// a chain map between two `UnstableResolution`s of the default complex
     /// `CCC`. Both source and target are
