@@ -141,3 +141,75 @@ def test_import_surface_intact():
 def test_query_primitives_exposed():
     for name in ("raw", "with_default", "optional", "yes_no", "vector"):
         assert hasattr(ext, name)
+
+
+# --- non-IO module utils: unicode_num / LAMBDA_BIDEGREE / parse_module_name /
+#     load_module_json / get_unit -------------------------------------------
+
+
+def test_unicode_num_exact_output():
+    # Byte-for-byte match with ext::utils::unicode_num (ext/src/utils.rs).
+    assert ext.unicode_num(0) == " "
+    assert ext.unicode_num(1) == "·"
+    assert ext.unicode_num(2) == ":"
+    assert ext.unicode_num(3) == "∴"
+    assert ext.unicode_num(4) == "⁘"
+    assert ext.unicode_num(5) == "⁙"
+    assert ext.unicode_num(6) == "⠿"
+    assert ext.unicode_num(7) == "⡿"
+    assert ext.unicode_num(8) == "⣿"
+    assert ext.unicode_num(9) == "9"
+    # Anything >= 10 collapses to '*'.
+    assert ext.unicode_num(10) == "*"
+    assert ext.unicode_num(123) == "*"
+
+
+def test_lambda_bidegree_value():
+    # ext::secondary::LAMBDA_BIDEGREE == Bidegree::n_s(0, 1) -> n=0, s=1, t=1.
+    b = ext.LAMBDA_BIDEGREE
+    assert isinstance(b, ext.sseq.Bidegree)
+    assert b.n == 0
+    assert b.s == 1
+    assert b.t == 1
+    # The compiled getter agrees with the package-level constant value.
+    assert ext.lambda_bidegree().coords == b.coords
+
+
+def test_parse_module_name_valid():
+    d = ext.parse_module_name("S_2")
+    assert isinstance(d, dict)
+    assert d["p"] == 2
+    assert "type" in d
+    assert "gens" in d
+
+
+def test_parse_module_name_with_shift():
+    d = ext.parse_module_name("S_2[3]")
+    assert isinstance(d, dict)
+    assert d["shift"] == 3
+
+
+def test_parse_module_name_bad_name_raises():
+    with pytest.raises(ValueError):
+        ext.parse_module_name("definitely_not_a_module")
+
+
+def test_load_module_json_valid():
+    d = ext.load_module_json("S_2")
+    assert isinstance(d, dict)
+    assert d["p"] == 2
+
+
+def test_load_module_json_unknown_name_raises():
+    with pytest.raises(ValueError):
+        ext.load_module_json("definitely_not_a_module")
+
+
+def test_get_unit_round_trip():
+    res = ext.construct("S_2", algorithm="standard")
+    res.compute_through_stem(_bidegree(8, 4))
+    is_unit, unit = ext.get_unit(res)
+    # S_2 IS the unit, so upstream returns (True, the same resolution).
+    assert is_unit is True
+    assert isinstance(unit, ext.Resolution)
+    assert unit.prime() == 2

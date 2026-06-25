@@ -52,9 +52,6 @@ EXT_PY_SUBMODULES = (algebra, fp, sseq)
 # becomes bound (or a CURRENTLY-bound name is removed/renamed) the test changes
 # behaviour and forces a conscious update.
 KNOWN_UNBOUND = {
-    # tensor.py: parses a module *name* (e.g. "S_2") into JSON; no such free
-    # function is bound (only steenrod_module_from_json, which takes JSON).
-    "parse_module_name",
     # tensor.py: FDModuleBuilder.from_tensor_module / .from_module conversion
     # constructor is documented as a planned thin wrapper but is not yet bound.
     "from_tensor_module",
@@ -65,8 +62,6 @@ KNOWN_UNBOUND = {
     # the allowlist. construct_standard remains unbound (only the high-level
     # construct dispatcher is exposed).
     "construct_standard",
-    # get_unit: unit resolution accessor is not bound.
-    "get_unit",
     # ResolutionHomomorphism and friends: lifting/secondary machinery.
     # (ResolutionHomomorphism, SecondaryResolutionHomomorphism are now bound.)
     "UnstableResolutionHomomorphism",
@@ -78,11 +73,6 @@ KNOWN_UNBOUND = {
     # FiniteAugmentedChainComplex; bruner.py predates them. Caught now that the
     # guard scans `from ext import ...` statements as well as attribute access.
     "FiniteChainComplex",
-    # --- Misc constants / helpers (not yet bound) ---
-    # secondary_*: lambda-algebra bidegree constant is not bound.
-    "LAMBDA_BIDEGREE",
-    # ext_m_n.py: unicode integer formatter helper is not bound.
-    "unicode_num",
 }
 
 

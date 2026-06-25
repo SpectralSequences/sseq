@@ -161,6 +161,104 @@ mod ext_py {
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
+    /// Parse a module *name*/specification string into its JSON description, as
+    /// a native Python `dict`.
+    ///
+    /// Mirrors `ext::utils::parse_module_name(name: &str) -> anyhow::Result<Value>`:
+    /// it loads the bundled module JSON for the base name and applies any
+    /// `[shift]` suffix. The resulting `serde_json::Value` is converted to a
+    /// Python object via the shared [`algebra_py::json_to_py`] bridge (the same
+    /// helper pair used by `SteenrodAlgebra.from_json`'s `py_to_json`), so the
+    /// caller gets a plain `dict` rather than an opaque handle.
+    ///
+    /// Every failure upstream returns `anyhow::Err` (unknown module name,
+    /// unterminated/`non-integer` shift, missing bundled file); the path is a
+    /// bad *argument*, so all are mapped to `ValueError`. The upstream code is
+    /// pure parsing plus a `std::fs::read_to_string`; it does not panic, so no
+    /// `catch_unwind` is required.
+    #[pyfunction]
+    pub fn parse_module_name(py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        let value = ext::utils::parse_module_name(name)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        algebra_py::json_to_py(py, &value)
+    }
+
+    /// Load a bundled module JSON file by name (without the `.json` extension)
+    /// as a native Python `dict`.
+    ///
+    /// Mirrors `ext::utils::load_module_json(name: &str) -> anyhow::Result<Value>`:
+    /// it searches the current directory, `./steenrod_modules`, and the
+    /// compiled-in `STATIC_MODULES_PATH` (`ext/steenrod_modules`) for
+    /// `<name>.json`. The found `serde_json::Value` is converted via the shared
+    /// [`algebra_py::json_to_py`] bridge.
+    ///
+    /// An unknown/missing module name is a bad *argument* -> `ValueError`
+    /// (matching `parse_module_name`); a present-but-malformed JSON file is a
+    /// genuine read/parse failure -> `RuntimeError`. Upstream returns a typed
+    /// [`LoadModuleError`](ext::utils::LoadModuleError) whose `NotFound`/`Read`
+    /// variants make this distinction without matching on the error string.
+    #[pyfunction]
+    pub fn load_module_json(py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        let value = ext::utils::load_module_json(name).map_err(|e| {
+            let msg = e.to_string();
+            match e {
+                ext::utils::LoadModuleError::NotFound(_) => {
+                    pyo3::exceptions::PyValueError::new_err(msg)
+                }
+                ext::utils::LoadModuleError::Read(_) => {
+                    pyo3::exceptions::PyRuntimeError::new_err(msg)
+                }
+            }
+        })?;
+        algebra_py::json_to_py(py, &value)
+    }
+
+    /// The lambda-algebra bidegree constant `ext::secondary::LAMBDA_BIDEGREE`
+    /// (`Bidegree::n_s(0, 1)`), exposed as a bound [`sseq_py::Bidegree`].
+    ///
+    /// Sourced directly from the Rust constant so it cannot drift from upstream;
+    /// the Python package binds `ext.LAMBDA_BIDEGREE = lambda_bidegree()` as a
+    /// module-level value (the examples use it as a value, e.g.
+    /// `shift + ext.LAMBDA_BIDEGREE`).
+    #[pyfunction]
+    pub fn lambda_bidegree() -> sseq_py::Bidegree {
+        ext::secondary::LAMBDA_BIDEGREE.into()
+    }
+
+    /// Given a resolution, return `(is_unit, unit_resolution)`: a flag for
+    /// whether the input already resolves the unit, and a resolution of the unit
+    /// (the input itself when `is_unit` is true).
+    ///
+    /// Mirrors
+    /// `ext::utils::get_unit(Arc<QueryModuleResolution>) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)>`.
+    /// `ext` builds `ext` without the `nassau` feature, so
+    /// `QueryModuleResolution = Resolution<CCC>`, which is exactly the inner type
+    /// of [`AnyResolution::Standard`]; a Nassau-backed input therefore cannot be
+    /// passed and is rejected with `ValueError` (mirroring `chain_complex()` /
+    /// `ResolutionHomomorphism`'s standard-only precedent).
+    ///
+    /// The `is_unit` check reads `target().max_s()` and `module(0).is_unit()`
+    /// (cheap, non-panicking reads). NOTE: when the input is NOT the unit,
+    /// upstream `get_unit` interactively prompts (`query::optional`) for a unit
+    /// save directory and then constructs a fresh unit resolution; that prompt is
+    /// upstream behavior, so callers in a non-interactive context should only
+    /// pass a unit resolution (e.g. `S_2`, the typical `massey.py` input).
+    /// Construction failures (IO on the save directory) map to `RuntimeError`.
+    #[pyfunction]
+    pub fn get_unit(resolution: &Resolution) -> PyResult<(bool, Resolution)> {
+        let arc =
+            match &resolution.0 {
+                AnyResolution::Standard(r) => Arc::clone(r),
+                AnyResolution::Nassau(_) => return Err(pyo3::exceptions::PyValueError::new_err(
+                    "get_unit() is only available on the standard backend; the Nassau algorithm \
+                     resolves over the concrete MilnorAlgebra and has no get_unit analogue here",
+                )),
+            };
+        let (is_unit, unit) = ext::utils::get_unit(arc)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        Ok((is_unit, Resolution(AnyResolution::Standard(unit))))
+    }
+
     /// Construct a [`Resolution`] of the module `spec`, optionally backed by an on-disk save
     /// directory, without any interactive prompting (all I/O lives in the Python layer).
     ///

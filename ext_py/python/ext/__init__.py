@@ -59,10 +59,12 @@ if hasattr(_ext, "__all__"):
 #    pyfunctions remain bound under ``ext.ext.query_module*`` for anyone
 #    who needs them. ``construct`` is the Rust pyfunction (no Python override).
 from .utils import (  # noqa: E402
+    LAMBDA_BIDEGREE,
     query_module,
     query_module_only,
     query_unstable_module,
     query_unstable_module_only,
+    unicode_num,
 )
 
 # Re-export the low-level query primitives too, so ``ext._query`` consumers
@@ -85,6 +87,8 @@ for _name in (
     "query_unstable_module_only",
     "construct",
     "construct_unstable",
+    "unicode_num",
+    "LAMBDA_BIDEGREE",
 ):
     if "__all__" in dir() and _name not in __all__:
         __all__.append(_name)

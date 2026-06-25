@@ -22,6 +22,44 @@ import os
 from . import ext as _ext
 from . import _query
 
+# Mirror of ``ext::utils::unicode_num`` (ext/src/utils.rs): map a small
+# non-negative integer to a single UTF-8 "domino"/dots character. This is pure
+# string formatting (no Rust state), so it is implemented here in Python and
+# matches the upstream output byte-for-byte. The table is exactly upstream's:
+#   0 -> ' ', 1 -> '·', 2 -> ':', 3 -> '∴', 4 -> '⁘', 5 -> '⁙',
+#   6 -> '⠿', 7 -> '⡿', 8 -> '⣿', 9 -> '9', everything else -> '*'.
+_UNICODE_NUM = {
+    0: " ",
+    1: "·",
+    2: ":",
+    3: "∴",
+    4: "⁘",
+    5: "⁙",
+    6: "⠿",
+    7: "⡿",
+    8: "⣿",
+    9: "9",
+}
+
+
+def unicode_num(n):
+    """Return a single UTF-8 character depicting the small integer ``n``.
+
+    Faithful port of ``ext::utils::unicode_num(n: usize) -> char``: ``n`` in
+    ``0..=8`` maps to a Braille/dots glyph (with ``0`` -> a space), ``9`` maps to
+    the literal ``'9'``, and anything ``>= 10`` maps to ``'*'``. Used by
+    ``examples/ext_m_n.py`` to render homology dimensions compactly.
+    """
+    return _UNICODE_NUM.get(n, "*")
+
+
+# The lambda-algebra bidegree constant, sourced from the Rust
+# ``ext::secondary::LAMBDA_BIDEGREE`` (``Bidegree::n_s(0, 1)``) via the compiled
+# ``lambda_bidegree()`` pyfunction so it cannot drift from upstream. Bound as a
+# module-level VALUE (a ``sseq.Bidegree``) because the examples use it as one
+# (e.g. ``shift + ext.LAMBDA_BIDEGREE``).
+LAMBDA_BIDEGREE = _ext.lambda_bidegree()
+
 
 def _algebra_suffix(alg):
     """Normalize an ``algebra`` argument to the ``"adem"``/``"milnor"`` suffix.

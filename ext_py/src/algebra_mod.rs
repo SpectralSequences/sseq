@@ -252,7 +252,7 @@ pub mod algebra_py {
     /// integers because Python `bool` is a subclass of `int`. Raises
     /// `ValueError` for unsupported types or non-finite floats rather than
     /// panicking.
-    fn py_to_json(value: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
+    pub(crate) fn py_to_json(value: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
         use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
         if value.is_none() {
             return Ok(serde_json::Value::Null);
@@ -313,6 +313,51 @@ pub mod algebra_py {
             "cannot convert {} to JSON",
             value.get_type().name()?
         )))
+    }
+
+    /// Convert a `serde_json::Value` into a native Python object
+    /// (`None`/`bool`/`int`/`float`/`str`/`list`/`dict`). This is the reverse
+    /// direction of [`py_to_json`], completing the single `serde_json::Value`
+    /// <-> Python bridge described in API_PROPOSAL §2.6 (we have no `pythonize`
+    /// dependency). It is total over `serde_json::Value` and never panics:
+    /// every number fits in `i64`/`u64`/`f64` by construction (serde_json's own
+    /// invariant), and object/array recursion mirrors the input structure.
+    pub(crate) fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
+        use pyo3::types::{PyDict, PyList};
+        use serde_json::Value;
+        match value {
+            Value::Null => Ok(py.None()),
+            Value::Bool(b) => Ok(b.into_pyobject(py)?.to_owned().into_any().unbind()),
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Ok(i.into_pyobject(py)?.into_any().unbind())
+                } else if let Some(u) = n.as_u64() {
+                    Ok(u.into_pyobject(py)?.into_any().unbind())
+                } else {
+                    // serde_json guarantees a non-integer number round-trips
+                    // through f64.
+                    let f = n.as_f64().ok_or_else(|| {
+                        PyValueError::new_err("JSON number is not representable as f64")
+                    })?;
+                    Ok(f.into_pyobject(py)?.into_any().unbind())
+                }
+            }
+            Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+            Value::Array(arr) => {
+                let list = PyList::empty(py);
+                for item in arr {
+                    list.append(json_to_py(py, item)?)?;
+                }
+                Ok(list.into_any().unbind())
+            }
+            Value::Object(map) => {
+                let dict = PyDict::new(py);
+                for (k, v) in map {
+                    dict.set_item(k, json_to_py(py, v)?)?;
+                }
+                Ok(dict.into_any().unbind())
+            }
+        }
     }
 
     #[pyclass] // This will be part of the module
