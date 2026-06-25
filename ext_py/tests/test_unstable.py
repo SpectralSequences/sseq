@@ -84,6 +84,52 @@ def test_unstable_adem_milnor_charts_agree():
     )
 
 
+def test_unstable_vs_stable_s3_charts_differ():
+    # THE core semantic proof that the unstable binding produces genuinely
+    # unstable data and is not silently the stable resolution: resolve the
+    # 3-sphere S^3 = S_2[3] BOTH stably and unstably over the same range and
+    # assert the charts DIFFER.
+    #
+    # We use the *standard* stable backend (not the default Nassau backend,
+    # which renormalises min_degree to 0): standard keeps min_degree == 3, the
+    # same coordinate frame as the unstable resolution, so the comparison is a
+    # genuine apples-to-apples per-bidegree contrast rather than a coordinate
+    # artifact.
+    rng = _ns(10, 6)
+    stable = ext.construct("S_2[3]", algorithm="standard")
+    stable.compute_through_stem(rng)
+    unstable = ext.construct_unstable("S_2[3]")
+    unstable.compute_through_stem(rng)
+
+    assert stable.min_degree() == 3
+    assert unstable.min_degree() == 3
+
+    chart_stable = stable.graded_dimension_string()
+    chart_unstable = unstable.graded_dimension_string()
+    assert chart_stable != chart_unstable, (
+        "unstable S^3 chart must differ from the stable S^3 chart:\n"
+        f"STABLE:\n{chart_stable}\nUNSTABLE:\n{chart_unstable}"
+    )
+
+    # Document the first divergence: the unstable resolution truncates/kills a
+    # class that survives stably. In these (shared) coordinates the first such
+    # bidegree is (n=6, s=1): the stable resolution has one generator there, the
+    # unstable one has none (the unstable conditions kill it).
+    assert stable.number_of_gens_in_bidegree(_ns(6, 1)) == 1
+    assert unstable.number_of_gens_in_bidegree(_ns(6, 1)) == 0
+
+    # Sanity: both charts are non-trivial (so "differ" is not a trivial
+    # empty-vs-empty difference), and the unstable resolution exposes genuine
+    # unstable generator data at more than one bidegree.
+    populated_unstable = sum(
+        1
+        for n in range(0, 11)
+        for s in range(0, 7)
+        if unstable.number_of_gens_in_bidegree(_ns(n, s)) > 0
+    )
+    assert populated_unstable > 1, "unstable S^3 chart should be non-trivial"
+
+
 def test_unstable_to_sseq_returns_sseq():
     r = _unstable_s2()
     ss = r.to_unstable_sseq()

@@ -2222,6 +2222,16 @@ mod ext_py {
             // `operation_generator_to_index(0, 0, g.t(), g.idx())` does not index
             // an unbuilt `generator_to_index` row; `has_computed_bidegree`
             // ensures the module is resolved (and its basis built) there.
+            //
+            // NOTE: this guard intentionally OVER-guards relative to the stable
+            // `ResolutionHomomorphism.act` (which omits it): `has_computed_bidegree`
+            // additionally requires the target *differential* at g.degree(), which
+            // `act` never uses. It is a conservative, redundant superset of the
+            // `src_t >= map.next_degree()` guard above — the hom cannot be extended
+            // past the target's computed range, so that guard already fires first
+            // and this branch is unreachable from Python (see the act-guard tests).
+            // Kept deliberately as a belt-and-braces check; do NOT "fix" it away or
+            // propagate it to the stable analogue.
             if !self.0.target.has_computed_bidegree(gen.degree()) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "target not computed at bidegree (s={}, t={}) = g.degree()",

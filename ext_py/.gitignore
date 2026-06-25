@@ -1,5 +1,8 @@
 /target
 
+# Scratch API-ordering note: must never be staged.
+API_BIND_ORDER.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .pytest_cache/

@@ -77,11 +77,27 @@ def test_new_accessors_roundtrip():
 
 
 def test_from_class_identity_matches_basis():
+    # The basis-indicator invariant from ext/tests/extend_identity.rs: the
+    # from_class([1]) identity chain map sends generator (t, idx) of module(s)
+    # to the indicator vector with a single 1 at
+    # operation_generator_to_index(0, 0, t, idx).
+    #
+    # NOTE on the unstable sphere: from_class([1]) at shift (0,0) requires a
+    # degree-0 unit (the augmentation must be 1-dimensional in degree 0) AND a
+    # source generator at bidegree (0,0). The only unstable resolution meeting
+    # both is the *unsuspended* sphere S_2, whose chart is the single (0,0) unit
+    # -- so this invariant necessarily visits exactly one generator here. The
+    # suspended sphere S^3 = S_2[3] HAS a non-trivial unstable chart, but its
+    # bottom cell sits in degree 3 (no (0,0) generator and no degree-0 unit), so
+    # from_class cannot express its identity at all; the genuine
+    # unstable-vs-stable contrast lives in test_unstable.py's
+    # test_unstable_vs_stable_s3_charts_differ instead.
     r = us2_rect(6)
     hom = identity_hom(r, 6)
     assert hom.name() == "id"
     assert hom.shift().s == 0 and hom.shift().t == 0
 
+    visited = 0
     for s in range(0, 7):
         m = hom.get_map(s)
         assert isinstance(m, algebra.UnstableFreeModuleHomomorphism)
@@ -89,12 +105,15 @@ def test_from_class_identity_matches_basis():
         assert isinstance(src, algebra.UnstableFreeModule)
         for t in range(0, 7):
             for idx in range(src.number_of_gens_in_degree(t)):
+                visited += 1
                 out = m.output(t, idx)
                 j = src.operation_generator_to_index(0, 0, t, idx)
                 for i in range(len(out)):
                     assert out[i] == (1 if i == j else 0), (
                         f"identity mismatch at s={s} t={t} idx={idx} i={i}"
                     )
+    # The unstable S_2 chart is exactly the (0,0) unit (see the docstring note).
+    assert visited == 1
 
 
 def test_get_map_is_unstable_free_to_free():
@@ -180,6 +199,57 @@ def test_act_map_undefined_at_s_errors():
     result = FpVector(2, 1)
     with pytest.raises(ValueError):
         hom.act(result, 1, BidegreeGenerator.s_t(99, 99, 0))
+
+
+def test_act_not_extended_far_enough_errors():
+    # The `src_t >= map.next_degree()` guard ("map not extended far enough"):
+    # the hom IS defined at homological degree src_s (so the src_s guard does
+    # NOT fire) and the source IS computed at the source bidegree, but the map
+    # has only been extended through a smaller t. Resolve S_2 through (6, 6) so
+    # the source bidegree (0, 3) is computed, but extend the identity hom only
+    # through (0, 0); then act at g = (0, 3, 0): src = (0, 3) with src_t = 3 >=
+    # map(0).next_degree() == 1.
+    r = us2_rect(6)
+    hom = ext.UnstableResolutionHomomorphism.from_class(
+        "id", r, r, Bidegree.s_t(0, 0), [1]
+    )
+    hom.extend(Bidegree.s_t(0, 0))
+    assert hom.next_homological_degree() == 1  # s = 0 map is defined ...
+    assert hom.get_map(0).next_degree() == 1  # ... but only extended through t=0
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError, match="not extended through"):
+        hom.act(result, 1, BidegreeGenerator.s_t(0, 3, 0))
+
+
+def test_act_target_not_computed_guard_is_shadowed():
+    # The `target.has_computed_bidegree(g.degree())` guard is intentionally
+    # over-strict relative to the stable ResolutionHomomorphism.act (see the
+    # NOTE at that guard in src/lib.rs): it is a conservative superset of the
+    # `src_t >= map.next_degree()` guard and is UNREACHABLE from Python. The hom
+    # cannot be extended past the target's computed range (extend itself guards
+    # `target.has_computed_bidegree(input - shift)`), so whenever g.degree() is
+    # uncomputed in the target the earlier "not extended through" guard fires
+    # first. We therefore exercise the reachable path and assert that guard.
+    #
+    # Setup: source resolved further (through t = 9) than target (through t = 6),
+    # shift (0, 0). The hom can only be extended through (6, 6) (target's range),
+    # so act at g = (0, 7, 0) -- where the target is NOT computed but the source
+    # IS -- trips `src_t >= map.next_degree()` rather than the target guard.
+    src = ext.construct_unstable("S_2")
+    src.compute_through_bidegree(Bidegree.s_t(6, 9))
+    tgt = ext.construct_unstable("S_2")
+    tgt.compute_through_bidegree(Bidegree.s_t(6, 6))
+    hom = ext.UnstableResolutionHomomorphism.from_class(
+        "id", src, tgt, Bidegree.s_t(0, 0), [1]
+    )
+    hom.extend(Bidegree.s_t(6, 6))
+    assert src.has_computed_bidegree(Bidegree.s_t(0, 7)) is True
+    assert tgt.has_computed_bidegree(Bidegree.s_t(0, 7)) is False
+    # g.s = 0 < tgt.next_homological_degree(), so the target-s guard is passed;
+    # the "not extended through" guard is what actually fires.
+    result = FpVector(2, 1)
+    with pytest.raises(ValueError, match="not extended through"):
+        hom.act(result, 1, BidegreeGenerator.s_t(0, 7, 0))
 
 
 def test_act_degree_overflow_errors():
