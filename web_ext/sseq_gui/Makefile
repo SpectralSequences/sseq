@@ -7,6 +7,13 @@ EXT = ../../ext/
 
 EXT_SRC = $(EXT)/Cargo.toml $(shell find $(EXT)/src/) $(wildcard $(EXT)/crates/*/Cargo.tml) $(shell find $(EXT)/crates/*/src/)
 
+# The prebuilt std for wasm32-unknown-unknown is compiled with `panic=abort`,
+# so `-C panic=unwind` alone is silently ignored. To get real unwinding we must
+# rebuild std with `-Z build-std` (nightly only) and enable the wasm
+# exception-handling proposal.
+WASM_RUSTFLAGS = -C panic=unwind -C target-feature=+exception-handling
+WASM_BUILD_STD = -Z build-std=std,panic_unwind
+
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
 lint:
@@ -20,15 +27,26 @@ lint-wasm:
 setup-wasm:
 	cargo install wasm-bindgen-cli --debug
 	rustup target add wasm32-unknown-unknown
+	# rust-src is required by `-Z build-std` (see the WASM_BUILD_STD note above).
+	rustup component add rust-src
 
 $(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC)
-	cargo build --lib --target $(WASM_TARGET) --release
+	RUSTFLAGS="$$RUSTFLAGS $(WASM_RUSTFLAGS)" \
+		cargo build --lib --target $(WASM_TARGET) --release $(WASM_BUILD_STD)
 
 $(WASM_FILE): $(WASM_LIB)
 	wasm-bindgen --no-typescript --target no-modules --out-dir $(WASM_OUT) --out-name $(NAME)_wasm $(WASM_LIB)
-	wasm-opt -O3 $(WASM_FILE) -o $(WASM_FILE) || true
+	wasm-opt -O3 --enable-exception-handling $(WASM_FILE) -o $(WASM_FILE) || true
 
-.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update
+# Assert that the wasm is actually built with unwinding support: a wasm module
+# using the exception-handling proposal contains a `Tag` section. If unwinding
+# silently regressed to `panic=abort` (e.g. build-std got dropped), this fails.
+test-wasm-unwind: $(WASM_LIB)
+	wasm-objdump -h $(WASM_LIB) | grep -qi '^ *Tag ' \
+		|| { echo "ERROR: $(WASM_LIB) has no Tag section; panic=unwind is not in effect"; exit 1; }
+	@echo "OK: wasm built with exception-handling (panic=unwind)"
+
+.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update test-wasm-unwind
 
 wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard $(EXT)/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version

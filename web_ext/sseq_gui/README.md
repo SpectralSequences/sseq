@@ -35,6 +35,11 @@ To setup the build environment, run
 make setup-wasm
 ```
 
+The wasm build rebuilds the standard library with `panic=unwind` (via
+`-Z build-std`) so that Rust panics unwind into JavaScript exceptions instead of
+aborting the whole module. This requires a **nightly** toolchain with the
+`rust-src` component (installed by `make setup-wasm`).
+
 Afterwards, build and serve with
 
 ```shell
