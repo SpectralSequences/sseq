@@ -516,11 +516,20 @@ pub trait SecondaryLift: Sync + Sized {
             })
     }
 
-    #[tracing::instrument(skip(self), fields(%b))]
     fn compute_homotopy_step(&self, b: Bidegree) -> std::ops::Range<i32> {
+        self.try_compute_homotopy_step(b).unwrap()
+    }
+
+    /// Fallible version of [`compute_homotopy_step`](Self::compute_homotopy_step).
+    ///
+    /// Returns `Err` when the input does not lift to a secondary homotopy, i.e. when the input
+    /// is invalid. [`compute_homotopy_step`](Self::compute_homotopy_step) is simply
+    /// `self.try_compute_homotopy_step(b).unwrap()`.
+    #[tracing::instrument(skip(self), fields(%b))]
+    fn try_compute_homotopy_step(&self, b: Bidegree) -> anyhow::Result<std::ops::Range<i32>> {
         let homotopy = &self.homotopies()[b.s()];
         if homotopy.homotopies.next_degree() > b.t() {
-            return b.t()..b.t() + 1;
+            return Ok(b.t()..b.t() + 1);
         }
         let p = self.prime();
         let shift = self.shift();
@@ -545,9 +554,9 @@ pub trait SecondaryLift: Sync + Sized {
                 for _ in 0..num_gens {
                     results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
                 }
-                return self.homotopies()[b.s()]
+                return Ok(self.homotopies()[b.s()]
                     .homotopies
-                    .add_generators_from_rows_ooo(b.t(), results);
+                    .add_generators_from_rows_ooo(b.t(), results));
             }
         }
 
@@ -575,14 +584,17 @@ pub trait SecondaryLift: Sync + Sized {
 
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
-        assert!(target.apply_quasi_inverse(&mut results, target_b, &intermediates,));
+        anyhow::ensure!(
+            target.apply_quasi_inverse(&mut results, target_b, &intermediates,),
+            "secondary: failed to apply quasi-inverse at {b}; the input likely does not lift"
+        );
 
         if b.s() == shift.s() + 1 {
             // Check that we indeed had a lift
             let d = target.differential(target_b.s());
             for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
                 d.apply(tgt.as_slice_mut(), p - 1, target_b.t(), src.as_slice());
-                assert!(
+                anyhow::ensure!(
                     tgt.is_zero(),
                     "secondary: Failed to lift at {b}. This likely indicates an invalid input."
                 );
@@ -616,9 +628,9 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        homotopy
+        Ok(homotopy
             .homotopies
-            .add_generators_from_rows_ooo(b.t(), results)
+            .add_generators_from_rows_ooo(b.t(), results))
     }
 
     #[tracing::instrument(skip(self))]
@@ -1430,5 +1442,59 @@ mod tests {
         resolution.compute_through_stem(Bidegree::n_s(20, 5));
         let lift = SecondaryResolution::new(Arc::new(resolution));
         lift.extend_all();
+    }
+
+    #[test]
+    fn cofib_h4_try_returns_err() {
+        let module = json!({
+            "type": "finite dimensional module",
+            "p": 2,
+            "gens": {
+                "x0": 0,
+                "x16": 16,
+            },
+            "actions": ["Sq16 x0 = x16"]
+        });
+        let resolution = utils::construct((module, algebra::AlgebraType::Milnor), None).unwrap();
+        resolution.compute_through_stem(Bidegree::n_s(20, 5));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+
+        // The failing bidegree is (n, s) = (14, 3), i.e. s = 3, t = 17.
+        let failing = Bidegree::n_s(14, 3);
+
+        // Compute all prerequisite data, then drive the homotopy steps exactly as
+        // `compute_homotopies` does, but skip the failing step (and everything that comes
+        // after it) by returning a dummy "already computed" range. This computes all the
+        // predecessors of `failing` without panicking, leaving `failing` to be computed
+        // explicitly via the fallible path below.
+        lift.initialize_homotopies();
+        lift.compute_composites();
+        lift.compute_intermediates();
+
+        let shift = lift.shift();
+        {
+            let h = &lift.homotopies()[shift.s()];
+            h.homotopies.extend_by_zero(h.composites.max_degree());
+        }
+        let min_t = lift.homotopies()[shift.s()].homotopies.min_degree();
+        let s_range = lift.homotopies().range();
+        let min = Bidegree::s_t(s_range.start + 1, min_t);
+        let max = lift.max().restrict(s_range.end);
+        sseq::coordinates::iter_s_t(
+            &|b| {
+                if b.s() > failing.s() || (b.s() == failing.s() && b.t() >= failing.t()) {
+                    // Skip the failing step and everything after it.
+                    return b.t()..b.t() + 1;
+                }
+                lift.compute_homotopy_step(b)
+            },
+            min,
+            max,
+        );
+
+        // The failing step should report an error rather than panicking.
+        let result = lift.try_compute_homotopy_step(failing);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to lift"));
     }
 }
