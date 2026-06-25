@@ -23,24 +23,49 @@ pub struct HomPullback<M: Module> {
 }
 
 impl<M: Module> HomPullback<M> {
-    pub fn new(
+    /// Fallible version of [`new`](Self::new).
+    ///
+    /// Returns `Err` unless `source`, `target` and `map` are wired together
+    /// consistently: `source = Hom(B, X)`, `target = Hom(A, X)` and `map: A ->
+    /// B`, i.e. `source.source() == map.target()`, `target.source() ==
+    /// map.source()` and `source.target() == target.target()` (all by pointer
+    /// identity). [`new`](Self::new) is simply
+    /// `Self::try_new(source, target, map).unwrap()`.
+    pub fn try_new(
         source: Arc<HomModule<M>>,
         target: Arc<HomModule<M>>,
         map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
-    ) -> Self {
-        assert!(Arc::ptr_eq(&source.source(), &map.target()));
-        assert!(Arc::ptr_eq(&target.source(), &map.source()));
-        assert!(Arc::ptr_eq(&source.target(), &target.target()));
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            Arc::ptr_eq(&source.source(), &map.target()),
+            "HomPullback: source.source() must be the map's target module"
+        );
+        anyhow::ensure!(
+            Arc::ptr_eq(&target.source(), &map.source()),
+            "HomPullback: target.source() must be the map's source module"
+        );
+        anyhow::ensure!(
+            Arc::ptr_eq(&source.target(), &target.target()),
+            "HomPullback: source and target must have the same Hom target module"
+        );
 
         let min_degree = source.min_degree();
-        Self {
+        Ok(Self {
             source,
             target,
             map,
             images: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
             quasi_inverses: OnceBiVec::new(min_degree),
-        }
+        })
+    }
+
+    pub fn new(
+        source: Arc<HomModule<M>>,
+        target: Arc<HomModule<M>>,
+        map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
+    ) -> Self {
+        Self::try_new(source, target, map).unwrap()
     }
 }
 
@@ -261,5 +286,51 @@ mod tests {
             pb.get_matrix(matrix.as_slice_mut(), deg);
             assert_eq!(matrix, outputs[deg]);
         }
+    }
+
+    #[test]
+    fn try_new_wiring() {
+        const SHIFT: i32 = 2;
+        const NUM_GENS: [usize; 3] = [1, 2, 1];
+
+        let p = fp::prime::TWO;
+
+        let algebra = Arc::new(MilnorAlgebra::new(p, false));
+        let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
+        let f1 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F1".to_string(), SHIFT));
+        let m = Arc::new(
+            FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
+        );
+
+        let d = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(&f1),
+            Arc::clone(&f0),
+            SHIFT,
+        ));
+
+        f0.compute_basis(NUM_GENS.len() as i32);
+        f1.compute_basis(NUM_GENS.len() as i32 + SHIFT);
+        for (deg, num_gens) in NUM_GENS.into_iter().enumerate() {
+            f0.add_generators(deg as i32, num_gens, None);
+            f1.add_generators(deg as i32 + SHIFT, num_gens, None);
+            let mut rows = vec![FpVector::new(p, f0.dimension(deg as i32)); num_gens];
+            for (i, row) in rows.iter_mut().enumerate() {
+                row.add_basis_element(row.len() - num_gens + i, 1);
+            }
+            d.add_generators_from_rows(deg as i32 + SHIFT, rows);
+        }
+
+        let source = Arc::new(HomModule::new(Arc::clone(&f0), Arc::clone(&m)));
+        let target = Arc::new(HomModule::new(Arc::clone(&f1), Arc::clone(&m)));
+
+        // Correctly wired: source = Hom(f0, m), target = Hom(f1, m), d: f1 -> f0.
+        assert!(
+            HomPullback::try_new(Arc::clone(&source), Arc::clone(&target), Arc::clone(&d)).is_ok()
+        );
+
+        // Swapping source and target breaks the pointer-identity wiring: report
+        // an error rather than the `assert!` panic in `new`.
+        let result = HomPullback::try_new(target, source, d);
+        assert!(result.is_err());
     }
 }

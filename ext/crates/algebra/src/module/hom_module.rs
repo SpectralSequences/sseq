@@ -28,19 +28,31 @@ impl<M: Module> std::fmt::Display for HomModule<M> {
 }
 
 impl<M: Module> HomModule<M> {
-    pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>) -> Self {
+    /// Fallible version of [`new`](Self::new).
+    ///
+    /// Returns `Err` when `target` is not bounded above (`target.max_degree()`
+    /// is `None`), which `HomModule` requires in order to be bounded below.
+    /// [`new`](Self::new) is simply `Self::try_new(source, target).unwrap()`.
+    pub fn try_new(
+        source: Arc<FreeModule<M::Algebra>>,
+        target: Arc<M>,
+    ) -> anyhow::Result<Self> {
         let p = source.prime();
         let algebra = Arc::new(Field::new(p));
-        let min_degree = source.min_degree()
-            - target
-                .max_degree()
-                .expect("HomModule requires target to be bounded");
-        Self {
+        let max_degree = target.max_degree().ok_or_else(|| {
+            anyhow::anyhow!("HomModule requires the target module to be bounded above")
+        })?;
+        let min_degree = source.min_degree() - max_degree;
+        Ok(Self {
             algebra,
             source,
             target,
             block_structures: OnceBiVec::new(min_degree), // fn_degree -> blocks
-        }
+        })
+    }
+
+    pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>) -> Self {
+        Self::try_new(source, target).unwrap()
     }
 
     pub fn source(&self) -> Arc<FreeModule<M::Algebra>> {
@@ -152,5 +164,36 @@ mod tests {
         {
             assert_eq!(hom.dimension(deg), target_dim);
         }
+    }
+
+    #[test]
+    fn test_try_new_bounded_target() {
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        let f = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
+        let m = Arc::new(
+            FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
+        );
+
+        // A bounded target (the FDModule) succeeds.
+        let hom = HomModule::try_new(Arc::clone(&f), m).unwrap();
+        assert_eq!(hom.min_degree(), -4);
+    }
+
+    #[test]
+    fn test_try_new_unbounded_target_errors() {
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        let f = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
+        // A FreeModule is unbounded above (`max_degree()` is `None`), so it is not
+        // a valid Hom target: `try_new` errors instead of the `expect` panic in `new`.
+        let unbounded = Arc::new(FreeModule::new(Arc::clone(&algebra), "T".to_string(), 0));
+        let result = HomModule::try_new(f, unbounded);
+        assert!(result.is_err());
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("bounded above")
+        );
     }
 }
