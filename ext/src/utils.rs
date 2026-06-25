@@ -218,7 +218,9 @@ where
 
     let cofiber = &json["cofiber"];
     if !cofiber.is_null() {
-        assert!(!U, "Cofiber not supported for unstable resolution");
+        if U {
+            return Err(anyhow!("Cofiber not supported for unstable resolution"));
+        }
         use algebra::module::homomorphism::FreeModuleHomomorphism;
 
         use crate::{chain_complex::ChainMap, yoneda::yoneda_representative};
@@ -226,15 +228,22 @@ where
         let shift = json["shift"].as_i64().unwrap_or(0) as i32;
 
         let cofiber = BidegreeGenerator::s_t(
-            cofiber["s"].as_i64().unwrap() as i32,
-            cofiber["t"].as_i64().unwrap() as i32 + shift,
-            cofiber["idx"].as_u64().unwrap() as usize,
+            cofiber["s"]
+                .as_i64()
+                .context("Cofiber spec is missing an integer `s` field")? as i32,
+            cofiber["t"]
+                .as_i64()
+                .context("Cofiber spec is missing an integer `t` field")? as i32
+                + shift,
+            cofiber["idx"]
+                .as_u64()
+                .context("Cofiber spec is missing an integer `idx` field")? as usize,
         );
 
         let max_degree = Bidegree::n_s(
             module
                 .max_degree()
-                .expect("Can only take cofiber when module is bounded"),
+                .context("Can only take cofiber when module is bounded")?,
             0,
         );
 
@@ -246,13 +255,16 @@ where
             Arc::clone(&module),
             cofiber.t(),
         );
-        let mut new_output = fp::matrix::Matrix::new(
-            module.prime(),
-            resolution
-                .module(cofiber.s())
-                .number_of_gens_in_degree(cofiber.t()),
-            1,
+        let num_gens = resolution
+            .module(cofiber.s())
+            .number_of_gens_in_degree(cofiber.t());
+        anyhow::ensure!(
+            cofiber.idx() < num_gens,
+            "Cofiber idx {} out of range: bidegree {} has {num_gens} generators",
+            cofiber.idx(),
+            cofiber.degree()
         );
+        let mut new_output = fp::matrix::Matrix::new(module.prime(), num_gens, 1);
         new_output.row_mut(cofiber.idx()).set_entry(0, 1);
 
         map.add_generators_from_matrix_rows(cofiber.t(), new_output.as_slice_mut());
