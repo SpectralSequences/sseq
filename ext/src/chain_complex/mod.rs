@@ -90,25 +90,56 @@ where
     /// Computes the filtration one product.
     ///
     /// # Returns
-    /// If the chain complex is stable, this always returns `Some`. If it is unstable, this returns
-    /// `None` if the product is not defined.
+    /// `Some` when the product is defined (the target bidegree is computed and `op_idx` is in
+    /// range), and `None` otherwise. This is
+    /// [`try_filtration_one_product`](Self::try_filtration_one_product) with the error discarded;
+    /// use that variant to learn why the product is unavailable.
     fn filtration_one_product(
         &self,
         op_deg: i32,
         op_idx: usize,
         source: Bidegree,
     ) -> Option<Vec<Vec<u32>>> {
+        self.try_filtration_one_product(op_deg, op_idx, source).ok()
+    }
+
+    /// Computes the filtration one product, returning an error explaining why the product is
+    /// unavailable instead of swallowing it as `None`.
+    ///
+    /// # Returns
+    /// - `Err(..)` if the target bidegree has not been computed, or if `op_idx` is out of range for
+    ///   the operation degree (in the unstable case this means the product is genuinely not
+    ///   defined; in the stable case it is a caller error);
+    /// - `Ok(products)` with the computed products otherwise.
+    fn try_filtration_one_product(
+        &self,
+        op_deg: i32,
+        op_idx: usize,
+        source: Bidegree,
+    ) -> anyhow::Result<Vec<Vec<u32>>> {
+        anyhow::ensure!(
+            op_deg >= 0,
+            "filtration one product unavailable: op_deg {op_deg} is negative"
+        );
+        anyhow::ensure!(
+            source.s() >= 0 && source.t() >= 0,
+            "filtration one product unavailable: source bidegree {source} has negative coordinates"
+        );
+
         let target = source + Bidegree::s_t(1, op_deg);
-        if !self.has_computed_bidegree(target) {
-            return None;
-        }
+        anyhow::ensure!(
+            self.has_computed_bidegree(target),
+            "filtration one product unavailable: target bidegree {target} has not been computed"
+        );
 
         let source_mod = self.module(target.s() - 1);
         let target_mod = self.module(target.s());
 
-        if U && op_idx >= self.algebra().dimension_unstable(op_deg, source.t()) {
-            return None;
-        }
+        let dim = self.algebra().dimension_unstable(op_deg, source.t());
+        anyhow::ensure!(
+            op_idx < dim,
+            "op_idx {op_idx} out of range for operation degree {op_deg} (algebra dimension {dim})"
+        );
 
         let source_dim = source_mod.number_of_gens_in_degree(source.t());
         let target_dim = target_mod.number_of_gens_in_degree(target.t());
@@ -125,7 +156,7 @@ where
             }
         }
 
-        Some(products)
+        Ok(products)
     }
 
     fn number_of_gens_in_bidegree(&self, b: Bidegree) -> usize {
