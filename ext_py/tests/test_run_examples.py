@@ -139,7 +139,7 @@ EXAMPLES = [
     {
         "name": "tensor.py",
         "args": ["S_2", "S_2"],
-        "xfail": "FDModuleBuilder.from_tensor_module not bound",
+        "xfail": None,
     },
     {
         "name": "resolve_unstable.py",

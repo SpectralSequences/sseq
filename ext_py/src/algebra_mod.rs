@@ -2789,6 +2789,42 @@ pub mod algebra_py {
             })
         }
 
+        /// Convert a `TensorModule` into a finite-dimensional module builder
+        /// (mirroring upstream `FiniteDimensionalModule::from(&M)`, which
+        /// computes the basis up to `max_degree` and copies in all actions).
+        /// The tensor module must be bounded: an unbounded factor would make
+        /// upstream panic, so we pre-check `max_degree()` and raise a
+        /// `ValueError` instead. The returned builder is mutable until
+        /// `build()`.
+        #[staticmethod]
+        pub fn from_tensor_module(module: PyRef<'_, TensorModule>) -> PyResult<Self> {
+            // `FiniteDimensionalModule::from(&M)` panics if the module is
+            // unbounded; pre-check.
+            if module.0.max_degree().is_none() {
+                return Err(PyValueError::new_err(
+                    "cannot convert an unbounded TensorModule to a finite-dimensional module",
+                ));
+            }
+            let fd = FDModuleInner::from(&*module.0);
+            Ok(FDModuleBuilder {
+                inner: Arc::new(fd),
+                built: false,
+            })
+        }
+
+        /// The module's name (the `name` field used by `to_json`). Settable
+        /// until `build()`; after `build()` the setter raises `RuntimeError`.
+        #[getter]
+        pub fn name(&self) -> String {
+            self.inner.name.clone()
+        }
+
+        #[setter]
+        pub fn set_name(&mut self, name: String) -> PyResult<()> {
+            self.inner_mut()?.name = name;
+            Ok(())
+        }
+
         // --- flattened Module method set --------------------------------------
 
         pub fn algebra(&self) -> SteenrodAlgebra {

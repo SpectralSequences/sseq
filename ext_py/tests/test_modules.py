@@ -471,3 +471,49 @@ def test_module_from_json_prime_mismatch():
     # Passing a p=3 algebra to a p=2 spec must error, not panic.
     with pytest.raises((ValueError, RuntimeError)):
         algebra.steenrod_module_from_json(milnor(3), C2_JSON)
+
+
+# --- FDModuleBuilder.from_tensor_module -----------------------------------
+
+
+def make_c2_tensor_c2():
+    """Build TensorModule(C2, C2) from two C2 modules over the same algebra.
+
+    TensorModule requires both factors to share the *same* algebra object
+    (checked via Arc::ptr_eq), so both are built from a single `alg`.
+    """
+    alg = algebra.SteenrodAlgebra.adem(2)
+    left = algebra.steenrod_module_from_json(alg, C2_JSON)
+    right = algebra.steenrod_module_from_json(alg, C2_JSON)
+    return algebra.TensorModule(left, right)
+
+
+def test_from_tensor_module_to_json_sensible():
+    fd = algebra.FDModuleBuilder.from_tensor_module(make_c2_tensor_c2())
+    j = fd.to_json()
+    assert j["type"] == "finite dimensional module"
+    # C2 (x) C2 has dimensions 1, 2, 1 in degrees 0, 1, 2.
+    assert fd.min_degree() == 0
+    assert [fd.dimension(t) for t in range(3)] == [1, 2, 1]
+    # gens map names to degrees; there should be 4 of them.
+    assert isinstance(j["gens"], dict)
+    assert len(j["gens"]) == 4
+    assert "p" not in j
+
+
+def test_from_tensor_module_name_roundtrips():
+    fd = algebra.FDModuleBuilder.from_tensor_module(make_c2_tensor_c2())
+    # name is readable and settable.
+    fd.name = ""
+    assert fd.name == ""
+    assert "name" not in fd.to_json()  # empty name is omitted from json
+    fd.name = "C2 (x) C2"
+    assert fd.name == "C2 (x) C2"
+    assert fd.to_json()["name"] == "C2 (x) C2"
+
+
+def test_from_tensor_module_name_setter_locked_after_build():
+    fd = algebra.FDModuleBuilder.from_tensor_module(make_c2_tensor_c2())
+    fd.build()
+    with pytest.raises(RuntimeError):
+        fd.name = "nope"
