@@ -62,6 +62,7 @@ impl ExtAlgebra<QueryModuleResolution> {
 impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// Build an [`ExtAlgebra`] from an explicit `(resolution, unit)` pair.
     pub fn new(resolution: Arc<CC>, unit: Arc<CC>) -> Self {
+        assert_eq!(resolution.prime(), unit.prime());
         Self {
             is_unit: Arc::ptr_eq(&resolution, &unit),
             resolution,
@@ -115,7 +116,7 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// A single generator of $\Ext(M, k)$ as a class.
     pub fn generator(&self, g: BidegreeGenerator) -> BidegreeElement {
         let ambient = self.dimension(g.degree());
-        assert!(ambient >= g.idx());
+        assert!(ambient > g.idx());
         g.into_element(self.prime(), self.dimension(g.degree()))
     }
 
