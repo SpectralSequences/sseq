@@ -25,111 +25,61 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    resolution_homomorphism::ResolutionHomomorphism,
-    secondary::*,
+    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+    secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };
-use fp::{matrix::Matrix, prime::Prime, vector::FpVector};
-use itertools::Itertools;
-use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
-
-    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
-
-    let p = resolution.prime();
+    let e2 = Arc::new(ExtAlgebra::from_resolution(Arc::clone(&resolution))?);
 
     let name: String = query::raw("Name of product", str::parse);
-
     let shift = Bidegree::n_s(
         query::raw(&format!("n of Ext class {name}"), str::parse),
         query::raw(&format!("s of Ext class {name}"), str::parse),
     );
 
-    let hom = ResolutionHomomorphism::new(name, Arc::clone(&resolution), Arc::clone(&unit), shift);
-
-    let mut matrix = Matrix::new(p, hom.source.number_of_gens_in_bidegree(shift), 1);
-
-    if matrix.rows() == 0 || matrix.columns() == 0 {
+    let dim = e2.dimension(shift);
+    if dim == 0 {
         panic!("No classes in this bidegree");
     }
-    let v: Vec<u32> = query::vector("Input ext class", matrix.rows());
-    for (i, &x) in v.iter().enumerate() {
-        matrix.row_mut(i).set_entry(0, x);
-    }
+    let v: Vec<u32> = query::vector("Input ext class", dim);
+    let x = e2.element(shift, &v);
 
-    if !is_unit {
+    // Ensure the unit is resolved far enough to support the products.
+    if !e2.is_unit() {
         let res_max = Bidegree::n_s(
             resolution.module(0).max_computed_degree(),
             resolution.next_homological_degree() - 1,
         );
-        unit.compute_through_stem(res_max - shift);
+        e2.unit().compute_through_stem(res_max - shift);
     }
 
-    hom.extend_step(shift, Some(&matrix));
-    hom.extend_all();
+    let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));
+    sec_e2.extend_all();
 
-    let res_lift = SecondaryResolution::new(Arc::clone(&resolution));
-    res_lift.extend_all();
+    // Check that the class survives to E3 (supports no d2).
+    assert!(sec_e2.survives(&x), "Class supports a non-zero d2");
 
-    // Check that class survives to E3.
-    {
-        let m = res_lift.homotopy(shift.s() + 2).homotopies.hom_k(shift.t());
-        assert_eq!(m.len(), v.len());
-        let mut sum = vec![0; m[0].len()];
-        for (x, d2) in v.iter().zip_eq(&m) {
-            sum.iter_mut().zip_eq(d2).for_each(|(a, b)| *a += x * b);
-        }
-        assert!(
-            sum.iter().all(|x| x.is_multiple_of(p.as_u32())),
-            "Class supports a non-zero d2"
-        );
-    }
-    let res_lift = Arc::new(res_lift);
-
-    let unit_lift = if is_unit {
-        Arc::clone(&res_lift)
-    } else {
-        let lift = SecondaryResolution::new(Arc::clone(&unit));
-        lift.extend_all();
-        Arc::new(lift)
-    };
-
-    let hom = Arc::new(hom);
-    let hom_lift = SecondaryResolutionHomomorphism::new(
-        Arc::clone(&res_lift),
-        Arc::clone(&unit_lift),
-        Arc::clone(&hom),
-    );
+    let lift = sec_e2.secondary_product_lift(&x);
 
     if let Some(s) = ext::utils::secondary_job() {
-        hom_lift.compute_partial(s);
+        lift.underlying().extend_all();
+        lift.compute_partial(s);
         return Ok(());
     }
 
-    hom_lift.extend_all();
+    // `x` multiplies on the left; the printed name is bracketed as in the original output.
+    let disp = format!("[{name}]");
 
-    // Compute E3 page
-    let res_sseq = Arc::new(res_lift.e3_page());
-    let unit_sseq = if is_unit {
-        Arc::clone(&res_sseq)
-    } else {
-        Arc::new(unit_lift.e3_page())
-    };
-
-    fn get_page_data(sseq: &sseq::Sseq<2, sseq::Adams>, b: Bidegree) -> &fp::matrix::Subquotient {
-        let d = sseq.page_data(b);
-        &d[std::cmp::min(3, d.len() - 1)]
-    }
-
-    let name = hom_lift.name();
-    // Iterate through the multiplicand
-    for b in unit.iter_nonzero_stem() {
-        // The potential target has to be hit, and we need to have computed (the data need for) the
-        // d2 that hits the potential target.
+    // Iterate through the multiplicand.
+    for b in e2.unit().iter_nonzero_stem() {
+        // The potential target has to be hit, and we need to have computed (the data needed for)
+        // the d2 that hits the potential target.
         if !resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
             continue;
         }
@@ -137,48 +87,36 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let page_data = get_page_data(unit_sseq.as_ref(), b);
-
-        let target_num_gens = resolution.number_of_gens_in_bidegree(b + shift);
-        let lambda_num_gens = resolution.number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
-
+        let target_num_gens = e2.dimension(b + shift);
+        let lambda_num_gens = e2.dimension(b + shift + LAMBDA_BIDEGREE);
         if target_num_gens == 0 && lambda_num_gens == 0 {
             continue;
         }
 
-        // First print the products with non-surviving classes
-        if target_num_gens > 0 {
-            let hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
-            for i in page_data.complement_pivots() {
+        let page = sec_e2.unit_page_data(b);
+
+        // First the products with non-surviving classes: these are just λ times the (primary)
+        // product, read off the multiplication map.
+        if target_num_gens > 0
+            && let Some(rows) = e2.multiply_into(&x, b)
+        {
+            for i in page.complement_pivots() {
                 let g = BidegreeGenerator::new(b, i);
-                println!("{name} λ x_{g} = λ {:?}", hom_k[i]);
+                let entry: Vec<u32> = rows.row(i).iter().collect();
+                println!("{disp} λ x_{g} = λ {entry:?}");
             }
         }
 
-        // Now print the secondary products
-        if page_data.subspace_dimension() == 0 {
-            continue;
-        }
-
-        let mut outputs = vec![
-            FpVector::new(p, target_num_gens + lambda_num_gens);
-            page_data.subspace_dimension()
-        ];
-
-        hom_lift.hom_k(
-            Some(&res_sseq),
-            b,
-            page_data.subspace_gens(),
-            outputs.iter_mut().map(FpVector::as_slice_mut),
-        );
-        for (g, output) in page_data.subspace_gens().zip_eq(outputs) {
+        // Now the genuinely secondary products with surviving classes.
+        for prod in sec_e2.secondary_multiply_into(&x, b) {
             println!(
-                "{name} [{basis_string}] = {} + λ {}",
-                output.slice(0, target_num_gens),
-                output.slice(target_num_gens, target_num_gens + lambda_num_gens),
-                basis_string = BidegreeElement::new(b, g.to_owned()).to_basis_string(),
+                "{disp} [{basis}] = {ext} + λ {lambda}",
+                basis = prod.source.to_basis_string(),
+                ext = prod.ext_part.as_slice(),
+                lambda = prod.lambda_part.as_slice(),
             );
         }
     }
+
     Ok(())
 }

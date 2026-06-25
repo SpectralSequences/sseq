@@ -15,6 +15,11 @@
 //! computes the products of the multiplier with *all* classes of $\Ext(k, k)$. We cache one such
 //! map per *generator* of $\Ext(M, k)$ (keyed by [`BidegreeGenerator`]); a product by a general
 //! class is assembled at request time as the corresponding linear combination of generator maps.
+//!
+//! The secondary differential ($d_2$) and the $\Mod_{C\lambda^2}$ secondary product live in the
+//! [`secondary`] submodule ([`SecondaryExtAlgebra`]).
+
+pub mod secondary;
 
 use std::sync::Arc;
 
@@ -69,6 +74,18 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             unit,
             products: DashMap::new(),
         }
+    }
+
+    /// Build an [`ExtAlgebra`] for resolution-*intrinsic* operations that do not involve products
+    /// (notably the secondary `d2` differential), using the resolution itself in place of a unit.
+    ///
+    /// This avoids the unit-resolution setup (and any associated prompt) that
+    /// [`from_resolution`](Self::from_resolution) performs. The product methods
+    /// ([`multiply`](Self::multiply) etc.) and the unit-side queries are only meaningful here when
+    /// `M == k`; for products with `M != k`, build with [`from_resolution`](Self::from_resolution)
+    /// or [`new`](Self::new) instead.
+    pub fn without_unit(resolution: Arc<CC>) -> Self {
+        Self::new(Arc::clone(&resolution), resolution)
     }
 
     pub fn resolution(&self) -> &Arc<CC> {
