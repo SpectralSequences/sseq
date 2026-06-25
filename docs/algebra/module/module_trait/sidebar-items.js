@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ModuleFailedRelationError"],"trait":["Module"]};
+window.SIDEBAR_ITEMS = {"enum":["ActError"],"struct":["ModuleFailedRelationError"],"trait":["Module"]};
