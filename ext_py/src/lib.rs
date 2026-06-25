@@ -11,7 +11,7 @@ pub use sseq_mod::sseq_py;
 #[pymodule]
 #[pyo3(name = "ext")]
 mod ext_py {
-    use std::sync::Arc;
+    use std::{path::PathBuf, sync::Arc};
 
     use algebra::{
         milnor_algebra::MilnorAlgebra,
@@ -78,13 +78,25 @@ mod ext_py {
     ///    prime/finite-dimensionality/cofiber eligibility checks, or malformed module JSON),
     ///    so the opaque `anyhow::Error` is reported as a bad argument.
     ///  - `"standard"`/`"auto"` build failures -> `RuntimeError` (may be internal/IO).
-    fn build(spec: Config, algorithm: Option<&str>) -> PyResult<AnyResolution> {
+    ///
+    /// `save_dir` is the optional on-disk save directory threaded down to the upstream
+    /// `construct_nassau`/`construct_standard` (which accept `impl Into<SaveDirectory>`, and
+    /// `Option<PathBuf>: Into<SaveDirectory>`). When `Some`, the resolution is backed by that
+    /// directory: any already-computed bidegrees are loaded from it and newly-computed ones are
+    /// written back. We never prompt for it here (that is the Python I/O layer's job) and do not
+    /// pre-create/validate the path beyond what upstream does (upstream handles dir creation).
+    fn build(
+        spec: Config,
+        save_dir: Option<PathBuf>,
+        algorithm: Option<&str>,
+    ) -> PyResult<AnyResolution> {
         use ext::utils::{construct_nassau, construct_standard};
 
-        let nassau =
-            |spec| construct_nassau(spec, None).map(|r| AnyResolution::Nassau(Arc::new(r)));
-        let standard = |spec| {
-            construct_standard::<false, _, _>(spec, None)
+        let nassau = |spec, save_dir: Option<PathBuf>| {
+            construct_nassau(spec, save_dir).map(|r| AnyResolution::Nassau(Arc::new(r)))
+        };
+        let standard = |spec, save_dir: Option<PathBuf>| {
+            construct_standard::<false, _, _>(spec, save_dir)
                 .map(|r| AnyResolution::Standard(Arc::new(r)))
         };
         let value_err = |e: anyhow::Error| pyo3::exceptions::PyValueError::new_err(e.to_string());
@@ -93,15 +105,15 @@ mod ext_py {
 
         match algorithm {
             // Eligibility/bad-argument: report as ValueError.
-            Some("nassau") => nassau(spec).map_err(value_err),
-            Some("standard") => standard(spec).map_err(runtime_err),
-            None | Some("auto") => match nassau(spec.clone()) {
+            Some("nassau") => nassau(spec, save_dir).map_err(value_err),
+            Some("standard") => standard(spec, save_dir).map_err(runtime_err),
+            None | Some("auto") => match nassau(spec.clone(), save_dir.clone()) {
                 Ok(res) => Ok(res),
                 // `auto` intentionally falls back to the general algorithm on ANY Nassau error,
                 // not just eligibility errors. Nassau rejects ineligible modules up front, so in
                 // practice the discarded error is an eligibility check; a genuinely malformed
                 // module is surfaced by the general algorithm's own error below.
-                Err(_) => standard(spec).map_err(runtime_err),
+                Err(_) => standard(spec, save_dir).map_err(runtime_err),
             },
             Some(other) => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown algorithm {other:?}; expected \"auto\", \"nassau\", or \"standard\""
@@ -132,6 +144,39 @@ mod ext_py {
         )
         .map(|res| Resolution(AnyResolution::Standard(Arc::new(res))))
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
+    /// Construct a [`Resolution`] of the module `spec`, optionally backed by an on-disk save
+    /// directory, without any interactive prompting (all I/O lives in the Python layer).
+    ///
+    /// This is the non-interactive primitive the pure-Python `query_module*` helpers call after
+    /// they have prompted the user for the spec and (optionally) the save directory.
+    ///
+    /// # Arguments
+    ///  - `spec`: the module specification, parsed into a [`Config`] exactly as
+    ///    [`Resolution::new`] does. The Steenrod-algebra basis (Adem vs Milnor) is selected by an
+    ///    `@adem`/`@milnor` suffix on the spec (e.g. `"S_2@milnor"`); there is no separate algebra
+    ///    enum argument here.
+    ///  - `save_dir`: optional filesystem path. When given, the resolution loads any previously
+    ///    saved bidegrees from it and writes newly-computed ones back. Not pre-created/validated
+    ///    here; upstream `construct` handles directory creation.
+    ///  - `algorithm`: `None`/`"auto"` (try Nassau, fall back to the general algorithm),
+    ///    `"nassau"` (force Nassau), or `"standard"` (force the general algorithm). This selects
+    ///    the resolution *algorithm*, NOT the algebra basis (which is the `@`-suffix above).
+    ///
+    /// Error taxonomy matches [`build`]: bad spec/eligibility/unknown-algorithm -> `ValueError`,
+    /// genuine internal/IO failures -> `RuntimeError`. Nothing panics across FFI.
+    #[pyfunction]
+    #[pyo3(signature = (spec, save_dir=None, algorithm=None))]
+    pub fn construct(
+        spec: &str,
+        save_dir: Option<String>,
+        algorithm: Option<&str>,
+    ) -> PyResult<Resolution> {
+        let config: Config = spec
+            .try_into()
+            .map_err(|e: anyhow::Error| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
     }
 
     impl AnyResolution {
@@ -185,13 +230,22 @@ mod ext_py {
     impl Resolution {
         /// Construct a resolution of the given module specification, dispatching to Nassau's
         /// algorithm or the general algorithm at runtime.
+        ///
+        /// `save_dir` is an optional on-disk save directory (added as a third optional argument so
+        /// `Resolution(spec)` and `Resolution(spec, algorithm)` keep working unchanged). When
+        /// given, the resolution loads any previously-saved bidegrees and writes new ones back;
+        /// see [`construct`] for the full description. No prompting happens here.
         #[new]
-        #[pyo3(signature = (spec, algorithm=None))]
-        pub fn new(spec: &str, algorithm: Option<&str>) -> PyResult<Self> {
+        #[pyo3(signature = (spec, algorithm=None, save_dir=None))]
+        pub fn new(
+            spec: &str,
+            algorithm: Option<&str>,
+            save_dir: Option<String>,
+        ) -> PyResult<Self> {
             let config: Config = spec.try_into().map_err(|e: anyhow::Error| {
                 pyo3::exceptions::PyValueError::new_err(e.to_string())
             })?;
-            build(config, algorithm).map(Resolution)
+            build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
         }
 
         /// Resolve through the given target bidegree.

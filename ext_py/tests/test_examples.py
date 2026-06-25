@@ -61,10 +61,10 @@ KNOWN_UNBOUND = {
     "query_unstable_module",
     # massey.py: Massey product computer is not bound.
     "MasseyProductComputer",
-    # --- Resolution / construction entry points (not yet bound) ---
-    # construct/construct_standard: top-level resolution constructors are not
-    # bound (only the lower-level builder APIs are).
-    "construct",
+    # --- Resolution / construction entry points ---
+    # construct: now bound (top-level ext.construct pyfunction); removed from
+    # the allowlist. construct_standard remains unbound (only the high-level
+    # construct dispatcher is exposed).
     "construct_standard",
     # get_unit: unit resolution accessor is not bound.
     "get_unit",
