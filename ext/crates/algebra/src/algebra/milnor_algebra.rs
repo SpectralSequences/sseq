@@ -583,9 +583,9 @@ impl Algebra for MilnorAlgebra {
         let p = self.prime();
 
         let mut parser = alt((
-            map(char('1'), |_| (0, 0)),
-            map(char('b'), |_| (1, 0)),
-            map(preceded(p_or_sq, digits), |i| self.beps_pn(0, i)),
+            map(char('1'), |_| Some((0, 0))),
+            map(char('b'), |_| Some((1, 0))),
+            map(preceded(p_or_sq, digits), |i| self.try_beps_pn(0, i)),
             map((tag("P^"), digits, char('_'), digits), |(_, s, _, t)| {
                 let entry = p.pow(s);
                 let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
@@ -596,7 +596,8 @@ impl Algebra for MilnorAlgebra {
                 };
                 elt.p_part[t - 1] = entry as PPartEntry;
                 self.compute_basis(degree);
-                (degree, self.basis_element_to_index(&elt))
+                self.try_basis_element_to_index(&elt)
+                    .map(|idx| (degree, idx))
             }),
             map(
                 (
@@ -616,13 +617,14 @@ impl Algebra for MilnorAlgebra {
                     elt.compute_degree(p);
                     self.compute_basis(elt.degree);
 
-                    (elt.degree, self.basis_element_to_index(&elt))
+                    self.try_basis_element_to_index(&elt)
+                        .map(|idx| (elt.degree, idx))
                 },
             ),
         ));
 
         if let Ok(("", res)) = parser.parse(elt) {
-            Some(res)
+            res
         } else {
             None
         }
@@ -1903,6 +1905,48 @@ mod tests {
         assert_eq!(a2.try_beps_pn(0, 7), Some(a2.beps_pn(0, 7)));
         // Invalid input: excluded by the profile, so `None` instead of a panic.
         assert_eq!(a2.try_beps_pn(0, 8), None);
+    }
+
+    #[test]
+    fn basis_element_from_string_total_milnor() {
+        let p = ValidPrime::new(2);
+        let algebra = MilnorAlgebra::new(p, false);
+        algebra.compute_basis(8);
+
+        // Sanity: valid names round-trip through the canonical string form.
+        for name in ["P(1)", "P(2)", "P(0, 1)"] {
+            let (d, i) = algebra
+                .basis_element_from_string(name)
+                .unwrap_or_else(|| panic!("expected Some for {name}"));
+            assert_eq!(algebra.basis_element_to_string(d, i), name);
+        }
+
+        // Syntactically-valid names that name no basis element must return `None`
+        // (they previously panicked in `basis_element_to_index`).
+        //
+        // "P0"/"Sq0" parse via `try_beps_pn(0, 0)`, building the element
+        // {q_part: 0, p_part: [0]} in degree 0, which is not a basis element.
+        assert_eq!(algebra.basis_element_from_string("P0"), None);
+        assert_eq!(algebra.basis_element_from_string("Sq0"), None);
+        // "Q_5" parses via the Q/P branch into a candidate element (degree 63)
+        // whose basis lookup finds nothing at p = 2.
+        assert_eq!(algebra.basis_element_from_string("Q_5"), None);
+
+        // On A(2) (profile [3, 2, 1], truncated) the first xi exponent is bounded
+        // by 2^3 - 1 = 7. "P7" exists; the out-of-profile "P8" parses to a valid
+        // candidate that is excluded by the profile, so it must return `None`.
+        let a2 = MilnorAlgebra::new_with_profile(
+            p,
+            MilnorProfile {
+                q_part: !0,
+                p_part: vec![3, 2, 1],
+                truncated: true,
+            },
+            false,
+        );
+        a2.compute_basis(16);
+        assert!(a2.basis_element_from_string("P7").is_some());
+        assert_eq!(a2.basis_element_from_string("P8"), None);
     }
 
     use crate::module::ModuleFailedRelationError;

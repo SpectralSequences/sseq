@@ -301,15 +301,13 @@ impl Algebra for AdemAlgebra {
         }
 
         self.compute_basis(degree);
-        Some((
+        self.try_basis_element_to_index(&AdemBasisElement {
+            ps,
+            bocksteins,
             degree,
-            self.basis_element_to_index(&AdemBasisElement {
-                ps,
-                bocksteins,
-                degree,
-                p_or_sq: self.generic,
-            }),
-        ))
+            p_or_sq: self.generic,
+        })
+        .map(|idx| (degree, idx))
     }
 }
 
@@ -1495,6 +1493,33 @@ mod tests {
         // At p = 2 every Sq^x is admissible, so once its degree is computed the
         // lookup always succeeds: the unrestricted Adem algebra has no genuine
         // `None` case to exhibit here (cf. the profiled Milnor test).
+    }
+
+    #[test]
+    fn basis_element_from_string_total_adem() {
+        let p = ValidPrime::new(2);
+        let algebra = AdemAlgebra::new(p, false);
+        // Compute high enough that the degrees of all parsed candidates below
+        // (including the inadmissible Sq1 Sq2 in degree 3) are available, so we
+        // exercise the now-`None` lookup path rather than an uncomputed degree.
+        algebra.compute_basis(8);
+
+        // Sanity: valid admissible names round-trip through the canonical string.
+        for name in ["Sq1", "Sq2", "Sq2 Sq1"] {
+            let (d, i) = algebra
+                .basis_element_from_string(name)
+                .unwrap_or_else(|| panic!("expected Some for {name}"));
+            assert_eq!(algebra.basis_element_to_string(d, i), name);
+        }
+
+        // Syntactically-valid names that name no basis element must return `None`
+        // (they previously panicked in `basis_element_to_index`).
+        //
+        // "Sq0" parses to ps=[0], degree 0 -- no such basis element exists.
+        assert_eq!(algebra.basis_element_from_string("Sq0"), None);
+        // "Sq1 Sq2" parses to the inadmissible ps=[1,2], degree 3. Its degree is
+        // computed, so this hits the basis lookup, which finds nothing.
+        assert_eq!(algebra.basis_element_from_string("Sq1 Sq2"), None);
     }
 
     use crate::module::ModuleFailedRelationError;
