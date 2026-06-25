@@ -110,15 +110,26 @@ def query_unstable_module_only(prompt="Module", alg=None, save_dir=None):
 
 
 def query_unstable_module(alg=None, save_dir=None):
-    """Mirror of ``ext::utils::query_unstable_module``.
+    """Mirror of the PYTHON :func:`query_module` flow, for the unstable family.
 
-    Build an unstable module via :func:`query_unstable_module_only`, then prompt
-    for ``Max n`` (default 30) and ``Max s`` (default 7), resolve through that
-    stem, and return the :class:`ext.UnstableResolution`.
+    NOTE: this does NOT mirror the Rust ``ext::utils::query_unstable_module``,
+    which only builds the resolution (it neither prompts ``Max n``/``Max s`` nor
+    resolves through a stem). Like the Python :func:`query_module`, this helper
+    builds an unstable module via :func:`query_unstable_module_only`, then prompts
+    for ``Max n`` (default 30) and ``Max s`` (default 7), honors the
+    ``SECONDARY_JOB`` environment hook (capping ``max_s``), resolves through that
+    stem, and returns the :class:`ext.UnstableResolution`.
     """
     resolution = query_unstable_module_only("Module", alg, save_dir)
     max_n = _query.with_default("Max n", "30", int)
     max_s = _query.with_default("Max s", "7", int)
+
+    secondary_job = os.environ.get("SECONDARY_JOB")
+    if secondary_job is not None:
+        s = int(secondary_job)
+        if s > max_s:
+            raise ValueError("SECONDARY_JOB is larger than max_s")
+        max_s = min(s + 1, max_s)
 
     resolution.compute_through_stem(_ext.sseq.Bidegree.n_s(max_n, max_s))
     return resolution

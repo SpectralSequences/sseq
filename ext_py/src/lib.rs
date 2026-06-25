@@ -212,6 +212,16 @@ mod ext_py {
     /// Error taxonomy matches the stable standard path: a malformed spec is a
     /// `ValueError` (raised at the `Config` conversion in [`construct_unstable`]),
     /// and an internal/IO construction failure is a `RuntimeError`.
+    ///
+    /// # Cofiber specs
+    ///
+    /// A module spec whose JSON carries a non-null `cofiber` field (e.g. `C9`,
+    /// `C4`, `Ceta2`, `C2v14`, `C3v1b1`) is supported by the *stable* standard
+    /// path but NOT by the unstable one. Upstream `construct_standard` now
+    /// returns `Err("Cofiber not supported for unstable resolution")` for a
+    /// `cofiber`-bearing spec with `U = true` (rather than asserting/panicking),
+    /// so we surface that as a `ValueError` via `map_err` and leave genuine
+    /// internal/IO failures as `RuntimeError`.
     fn build_unstable(
         spec: Config,
         save_dir: Option<PathBuf>,
@@ -225,7 +235,17 @@ mod ext_py {
         }
         ext::utils::construct_standard::<true, _, _>(spec, save_dir)
             .map(Arc::new)
-            .map_err(|e: anyhow::Error| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+            .map_err(|e: anyhow::Error| {
+                let msg = e.to_string();
+                if msg.contains("Cofiber") || msg.contains("cofiber") {
+                    pyo3::exceptions::PyValueError::new_err(format!(
+                        "unstable resolution does not support cofiber modules (the spec's \
+                         module JSON has a non-null `cofiber` field, which is stable-only): {msg}"
+                    ))
+                } else {
+                    pyo3::exceptions::PyRuntimeError::new_err(msg)
+                }
+            })
     }
 
     /// Construct an [`UnstableResolution`] of the module `spec`, optionally backed

@@ -59,12 +59,29 @@ def test_unstable_resolution_constructor_matches_pyfunction():
     assert a.graded_dimension_string() == b.graded_dimension_string()
 
 
+def _nonblank_glyphs(chart):
+    # Upstream renders an all-zero bidegree as a space (unicode_num(0) == ' ')
+    # and separates entries with spaces/newlines, so the count of non-whitespace
+    # characters is the number of populated bidegrees ("dots") on the chart.
+    return sum(1 for c in chart if not c.isspace())
+
+
 def test_unstable_adem_milnor_charts_agree():
     # Derived known invariant: the unstable Ext chart is independent of the
-    # Steenrod-algebra basis (cf. ext/tests/milnor_vs_adem.rs::compare_unstable).
-    a = _unstable_s2("S_2@adem")
-    b = _unstable_s2("S_2@milnor")
-    assert a.graded_dimension_string() == b.graded_dimension_string()
+    # Steenrod-algebra basis (cf. ext/tests/milnor_vs_adem.rs::compare_unstable,
+    # which uses *suspended* spheres precisely to get non-trivial charts).
+    #
+    # The unsuspended S_2 unstable chart has only the single (0,0) unit glyph, so
+    # its Adem-vs-Milnor agreement is near-vacuous. The suspension S_2[5] has a
+    # genuinely non-trivial chart, so we also assert it has more than one glyph.
+    a = _unstable_s2("S_2[5]@adem")
+    b = _unstable_s2("S_2[5]@milnor")
+    chart_a = a.graded_dimension_string()
+    chart_b = b.graded_dimension_string()
+    assert chart_a == chart_b
+    assert _nonblank_glyphs(chart_a) > 1, (
+        f"suspended-sphere unstable chart should be non-trivial, got:\n{chart_a}"
+    )
 
 
 def test_unstable_to_sseq_returns_sseq():
@@ -135,6 +152,19 @@ def test_unstable_boundary_string_guards():
 def test_unstable_construct_bad_spec_raises_value_error():
     with pytest.raises(ValueError):
         ext.construct_unstable("definitely_not_a_module")
+
+
+@pytest.mark.parametrize("spec", ["C9", "C4"])
+def test_unstable_construct_cofiber_spec_raises_value_error(spec):
+    # A cofiber-bearing spec is stable-only: upstream construct_standard::<true>
+    # builds the algebra/module then trips assert!(!U, "Cofiber not supported for
+    # unstable resolution"). The binding must contain that panic and surface a
+    # clean ValueError (NOT a PanicException, which is a BaseException) on both
+    # construct_unstable and the UnstableResolution(spec) constructor.
+    with pytest.raises(ValueError, match="cofiber"):
+        ext.construct_unstable(spec)
+    with pytest.raises(ValueError, match="cofiber"):
+        ext.UnstableResolution(spec)
 
 
 def test_unstable_construct_save_dir_is_file_raises(tmp_path):
