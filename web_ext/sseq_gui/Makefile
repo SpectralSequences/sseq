@@ -61,7 +61,12 @@ test-wasm-unwind:
 		|| { echo "ERROR: $(WASM_LIB) has no Tag section; panic=unwind is not in effect"; exit 1; }
 	@echo "OK: wasm built with exception-handling (panic=unwind)"
 
-.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update test-wasm-unwind FORCE
+# Unit-test the panic-catching logic in the worker JS (wasm/*_worker.js).
+# Runs in plain Node with mocked wasm globals, so no browser/wasm build needed.
+test-wasm-js:
+	node --test wasm/*.test.mjs
+
+.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update test-wasm-unwind test-wasm-js FORCE
 
 wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard $(EXT)/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version
