@@ -1855,11 +1855,16 @@ mod ext_py {
     /// base field `k` (the "unit"). When `M == k` (same resolution passed twice)
     /// this is the algebra $\Ext(k, k)$ itself.
     ///
-    /// Held by value: every method takes `&self` upstream (the per-generator
-    /// product-map cache is an interior-mutable `DashMap`), so a `frozen`
-    /// pyclass works directly.
+    /// Held behind an `Arc`: every method takes `&self` upstream (the
+    /// per-generator product-map cache is an interior-mutable `DashMap`), so a
+    /// `frozen` pyclass works directly, and `Arc<RsExtAlgebra>` derefs to
+    /// `RsExtAlgebra` so the `&self` methods reach the upstream methods
+    /// unchanged. Sharing the `Arc` (with the secondary layer and
+    /// `SecondaryExtAlgebra::ext_algebra`) gives a stable identity and a shared
+    /// product cache; the interior `DashMap` does its own locking, so concurrent
+    /// `&self` access (under the GIL) through the shared `Arc` is sound.
     #[pyclass(frozen)]
-    pub struct ExtAlgebra(RsExtAlgebra);
+    pub struct ExtAlgebra(Arc<RsExtAlgebra>);
 
     /// Number of generators of a resolution at bidegree `b`, returning 0 (never
     /// panicking) outside the computed range. Mirrors `Resolution::num_gens_at`
@@ -2001,27 +2006,23 @@ mod ext_py {
             Ok(())
         }
 
-        /// Build a fresh `Arc<RsExtAlgebra>` sharing this algebra's resolution
-        /// and unit `Arc`s. The per-generator product-map cache is per-instance
-        /// (an interior `DashMap`), so the clone starts empty; the
-        /// mathematically meaningful state — the resolution of `M` and the unit
-        /// `k`, and hence `is_unit` (recomputed by `RsExtAlgebra::new` via
-        /// `Arc::ptr_eq`) — is shared. Used to hand an `Arc`-held `ExtAlgebra` to
-        /// `SecondaryExtAlgebra::new` (which needs `Arc<ExtAlgebra<CC>>`).
+        /// Share this algebra's `Arc<RsExtAlgebra>` (a cheap `Arc::clone`, not a
+        /// rebuild): the SAME `RsExtAlgebra` instance — including its
+        /// interior-mutable per-generator product-map `DashMap` cache — is
+        /// shared. Used to hand the user's actual `ExtAlgebra` `Arc` to
+        /// `SecondaryExtAlgebra::new` (which needs `Arc<ExtAlgebra<CC>>`), so the
+        /// secondary layer and the `ExtAlgebra` share one instance (ptr-identity,
+        /// shared product cache).
         pub(crate) fn inner_arc(&self) -> Arc<RsExtAlgebra> {
-            Arc::new(RsExtAlgebra::new(
-                Arc::clone(self.0.resolution()),
-                Arc::clone(self.0.unit()),
-            ))
+            Arc::clone(&self.0)
         }
 
-        /// Wrap an `&RsExtAlgebra` into the bound `ExtAlgebra` pyclass, sharing
-        /// its resolution/unit `Arc`s (used by `SecondaryExtAlgebra.ext_algebra`).
-        pub(crate) fn from_rust_ref(alg: &RsExtAlgebra) -> ExtAlgebra {
-            ExtAlgebra(RsExtAlgebra::new(
-                Arc::clone(alg.resolution()),
-                Arc::clone(alg.unit()),
-            ))
+        /// Wrap a shared `Arc<RsExtAlgebra>` into the bound `ExtAlgebra` pyclass
+        /// (a cheap `Arc::clone` of the same instance). Used by
+        /// `SecondaryExtAlgebra::ext_algebra` to return the SAME `ExtAlgebra`
+        /// instance it was built on (stable identity, shared product cache).
+        pub(crate) fn from_arc(alg: &Arc<RsExtAlgebra>) -> ExtAlgebra {
+            ExtAlgebra(Arc::clone(alg))
         }
 
         /// Reject the addition `a + b` overflowing `i32` (the product lands at
@@ -2066,7 +2067,7 @@ mod ext_py {
                     u.prime().as_u32()
                 )));
             }
-            Ok(ExtAlgebra(RsExtAlgebra::new(r, u)))
+            Ok(ExtAlgebra(Arc::new(RsExtAlgebra::new(r, u))))
         }
 
         /// Build an `ExtAlgebra` for resolution-*intrinsic* operations that do
@@ -2087,7 +2088,7 @@ mod ext_py {
         #[staticmethod]
         pub fn without_unit(resolution: &Resolution) -> PyResult<Self> {
             let r = ResolutionHomomorphism::standard_arc(resolution, "resolution")?;
-            Ok(ExtAlgebra(RsExtAlgebra::without_unit(r)))
+            Ok(ExtAlgebra(Arc::new(RsExtAlgebra::without_unit(r))))
         }
 
         /// The prime as a plain `int`.
@@ -3688,9 +3689,10 @@ mod ext_py {
         /// `ExtAlgebra(res, res)` for the $d_2$ of the sphere). Construction is
         /// cheap — call [`extend_all`](Self::extend_all) to actually compute.
         ///
-        /// Shares the `ExtAlgebra`'s resolution/unit `Arc`s (see
-        /// `ExtAlgebra.inner_arc`); the secondary resolutions are built over
-        /// exactly those resolutions.
+        /// Shares the SAME `ExtAlgebra` instance (see `ExtAlgebra.inner_arc`, a
+        /// cheap `Arc::clone`): the secondary resolutions are built over exactly
+        /// that algebra's resolution/unit, and `ext_algebra()` returns it back
+        /// with stable identity and a shared product cache.
         #[new]
         pub fn new(alg: &ExtAlgebra) -> Self {
             SecondaryExtAlgebra {
@@ -3704,11 +3706,11 @@ mod ext_py {
             self.inner.ext_algebra().prime().as_u32()
         }
 
-        /// The primary `ExtAlgebra` this is built on (shares the resolution/unit
-        /// `Arc`s; the per-generator product cache is fresh — see
-        /// `ExtAlgebra.inner_arc`).
+        /// The primary `ExtAlgebra` this is built on: the SAME shared instance
+        /// (stable identity, shared resolution/unit `Arc`s and product cache —
+        /// see `ExtAlgebra.inner_arc`/`from_arc`).
         pub fn ext_algebra(&self) -> ExtAlgebra {
-            ExtAlgebra::from_rust_ref(self.inner.ext_algebra())
+            ExtAlgebra::from_arc(self.inner.ext_algebra())
         }
 
         /// Extend the secondary resolutions as far as the underlying resolutions

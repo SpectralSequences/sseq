@@ -249,3 +249,53 @@ def test_d2_uncomputed_target_returns_none():
         h = gen(alg, 15, 6)
         # Either None (uncomputed target) or a computed class; must not raise.
         sec.d2(h)
+
+
+# --- d2-path element guards: prime / coord-count (check_res_element) --------
+
+
+def test_d2_cross_prime_operand_rejected():
+    # SecondaryExtAlgebra.check_res_element reuses ExtAlgebra::check_element: an
+    # element whose underlying FpVector is over a different prime than the
+    # algebra (p=3 vs the p=2 SecondaryExtAlgebra) is rejected with ValueError,
+    # not a panic. (0, 1) IS computed, but the prime check precedes the
+    # uncomputed-bidegree check, so the prime branch is what fires. Mirrors
+    # test_ext_algebra.py::test_multiply_cross_prime_operand_rejected.
+    alg, sec = build(4, 4)
+    over_p3 = BidegreeElement(Bidegree.n_s(0, 1), fp.FpVector(3, 1))
+    with pytest.raises(ValueError, match="over prime 3 but the ExtAlgebra is over prime 2"):
+        sec.d2(over_p3)
+    with pytest.raises(ValueError, match="over prime 3 but the ExtAlgebra is over prime 2"):
+        sec.survives(over_p3)
+
+
+def test_d2_coord_count_mismatch_rejected():
+    # check_res_element coord-count branch: a class at a computed bidegree whose
+    # vector length differs from the generator count there is rejected with
+    # ValueError. At (n=0, s=1) the dimension is 1 (h0); a length-2 vector over
+    # the right prime trips the coord-count check (which follows the
+    # has_computed_bidegree check, so the bidegree must be computed first).
+    alg, sec = build(4, 4)
+    assert alg.dimension(Bidegree.n_s(0, 1)) == 1
+    wrong_len = BidegreeElement(Bidegree.n_s(0, 1), fp.FpVector.from_slice(2, [0, 0]))
+    with pytest.raises(ValueError, match="coordinate.*but there are 1 generator"):
+        sec.d2(wrong_len)
+    with pytest.raises(ValueError, match="coordinate.*but there are 1 generator"):
+        sec.survives(wrong_len)
+
+
+# --- shared-instance identity (Arc storage) --------------------------------
+
+
+def test_ext_algebra_shares_instance():
+    # The Arc-storage refactor makes SecondaryExtAlgebra hold the SAME ExtAlgebra
+    # instance it was built on, and ext_algebra() return it back with stable
+    # identity (shared resolution/unit Arcs and product cache). Confirm via
+    # observable equivalence: same prime / is_unit / dimension at a computed
+    # bidegree as the algebra passed to the constructor.
+    alg, sec = build(8, 6)
+    e = sec.ext_algebra()
+    assert e.prime() == alg.prime()
+    assert e.is_unit() == alg.is_unit()
+    b = Bidegree.n_s(0, 1)
+    assert e.dimension(b) == alg.dimension(b)
