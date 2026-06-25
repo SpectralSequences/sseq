@@ -7048,6 +7048,17 @@ pub mod algebra_py {
             }
             s.number_of_gens_in_degree(degree)
         }
+
+        /// Number of generators of the (unstable) target in `degree`, reading 0
+        /// outside the populated generator range (the target-side mirror of
+        /// [`Self::source_num_gens`]).
+        fn target_num_gens(&self, degree: i32) -> usize {
+            let t = self.0.target();
+            if degree < t.min_degree() || degree > t.max_computed_degree() {
+                return 0;
+            }
+            t.number_of_gens_in_degree(degree)
+        }
     }
 
     #[pymethods]
@@ -7115,6 +7126,66 @@ pub mod algebra_py {
             Ok(crate::fp_py::PyFpVector::from_rust(
                 self.0.output(generator_degree, generator_index).clone(),
             ))
+        }
+
+        /// The dual map on generators in source degree `t`: given `f: F -> G`,
+        /// computes `f*: Hom(G, k) -> Hom(F, k)` as the matrix (rows indexed by
+        /// `G`'s generators in degree `t`, columns by `F`'s generators in degree
+        /// `t + degree_shift`). The unstable mirror of
+        /// `FreeModuleHomomorphismToFree.hom_k`. Only available because both
+        /// source and target are (unstable) free modules (upstream gates `hom_k`
+        /// on a `MuFreeModule`
+        /// target). Returns an empty list when the target has no generators in
+        /// degree `t` (including when `t` is above the target's computed range,
+        /// which morally has 0 generators). When the source has no generators in
+        /// degree `t + degree_shift` (including degrees above the source's
+        /// computed range), the dual matrix has `target_dim` rows of length 0,
+        /// matching upstream's `vec![vec![0; source_dim]; target_dim]` with
+        /// `source_dim == 0`.
+        ///
+        /// Guards: the relevant source/target generator degrees must have their
+        /// bases computed (done here) and, when the source has generators in
+        /// degree `t + degree_shift`, their outputs must be defined (otherwise
+        /// `ValueError`). Out-of-computed-range degrees never panic.
+        pub fn hom_k(&self, t: i32) -> PyResult<Vec<Vec<u32>>> {
+            let degree_shift = self.0.degree_shift();
+            let gen_degree = t
+                .checked_add(degree_shift)
+                .ok_or_else(|| PyValueError::new_err("input degree overflows i32"))?;
+            let source = self.0.source();
+            let target = self.0.target();
+            module_ensure(&*source as &DynModule, gen_degree);
+            module_ensure(&*target as &DynModule, t);
+            // Upstream `hom_k` reads `target.number_of_gens_in_degree(t)` before
+            // any early return. That read PANICS (OnceBiVec index) when
+            // `t > target.max_computed_degree()`; `target_num_gens` returns 0
+            // there instead, and upstream returns `vec![]` when the target has no
+            // generators in degree `t`. An uncomputed target degree morally has 0
+            // generators, so `vec![]` is the correct (and safe) result.
+            let target_dim = self.target_num_gens(t);
+            if target_dim == 0 {
+                return Ok(vec![]);
+            }
+            // Upstream then reads `source.number_of_gens_in_degree(gen_degree)`,
+            // which likewise PANICS for `gen_degree > source.max_computed_degree()`
+            // (and returns 0 below `source.min_degree()`). In either case the
+            // source has no generators in `gen_degree`, so `source_dim` is morally
+            // 0 and upstream's result `vec![vec![0; source_dim]; target_dim]` is
+            // `target_dim` empty rows. Return that directly to match upstream
+            // without tripping the out-of-bounds index.
+            if gen_degree < source.min_degree() || gen_degree > source.max_computed_degree() {
+                return Ok(vec![Vec::new(); target_dim]);
+            }
+            let source_dim = self.source_num_gens(gen_degree);
+            if source_dim > 0
+                && (gen_degree < self.0.min_degree() || gen_degree >= self.0.next_degree())
+            {
+                return Err(PyValueError::new_err(format!(
+                    "the homomorphism's outputs are not defined on the source generators in degree \
+                     {gen_degree}; define them (add_generators_from_rows / extend_by_zero) first"
+                )));
+            }
+            Ok(self.0.hom_k(t))
         }
 
         pub fn __repr__(&self) -> String {

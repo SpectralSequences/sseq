@@ -149,7 +149,7 @@ EXAMPLES = [
     {
         "name": "unstable_suspension.py",
         "args": ["S_2", "", "6", "3"],
-        "xfail": "UnstableFreeModuleHomomorphism.hom_k not bound",
+        "xfail": None,
     },
     {
         "name": "bruner.py",

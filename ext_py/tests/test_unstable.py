@@ -309,6 +309,54 @@ def test_unstable_extend_step_raw_suspension_runs():
     assert out[0] == 1
 
 
+def test_unstable_hom_k_suspension_matrix():
+    # After building and seeding the suspension hom (exactly as
+    # examples/unstable_suspension.py does), get_map(s).hom_k(t) must return a
+    # list-of-lists of ints whose outer length is the target generator count in
+    # degree t, and uncomputed/out-of-range degrees must read empty (never
+    # panic across FFI).
+    max = _ns(6, 3)
+    min_degree = _st(0, 0)
+    suspension_shift = _st(0, 1)
+
+    res_a = _suspension_resolution("S_2", 0, max)
+    res_b = ext.UnstableResolution(
+        ext.ChainComplex.ccdz(_suspension_module("S_2", 1))
+    )
+    res_b.compute_through_stem(max + suspension_shift)
+
+    hom = ext.UnstableResolutionHomomorphism(
+        "suspension", res_b, res_a, suspension_shift
+    )
+    prime = res_b.prime()
+    hom.extend_step_raw(
+        min_degree + suspension_shift,
+        [fp.FpVector.from_slice(prime, [1])],
+    )
+    hom.extend_all()
+
+    # s=0: target is res_a's module S_2; degree t = 1 (= suspension_shift.t).
+    m = hom.get_map(0)
+    t = suspension_shift.t
+    target = m.target()
+    expected_rows = target.number_of_gens_in_degree(t)
+    mat = m.hom_k(t)
+    assert isinstance(mat, list)
+    assert len(mat) == expected_rows
+    for row in mat:
+        assert isinstance(row, list)
+        assert all(isinstance(x, int) for x in row)
+
+    # A degree just above the computed range has no target generators and reads
+    # as an empty matrix, never a panic. (Avoid a wildly large degree: hom_k
+    # ensures the module basis up to t first, so probing e.g. 10_000 would force
+    # a huge basis computation.)
+    above_range = target.max_computed_degree() + 5
+    assert m.hom_k(above_range) == []
+    # A negative degree is cheap (no basis computation) and also empty.
+    assert m.hom_k(-5) == []
+
+
 def test_unstable_extend_step_raw_extra_images_none_runs():
     # extra_images=None is the zero-map seed and must also run without panic.
     max = _ns(4, 2)
