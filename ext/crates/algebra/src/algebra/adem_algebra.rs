@@ -1319,23 +1319,28 @@ impl AdemAlgebra {
         result
     }
 
-    pub fn beps_pn(&self, e: u32, x: u32) -> (i32, usize) {
+    /// Return the degree and index of $\beta^e P^x$, or `None` if the element is not present.
+    pub fn try_beps_pn(&self, e: u32, x: u32) -> Option<(i32, usize)> {
         if x == 0 && e == 1 {
-            return (1, 0);
+            return Some((1, 0));
         } else if x == 0 {
-            return (0, 0);
+            return Some((0, 0));
         }
 
         let p = self.prime();
         let q = if self.generic { 2 * p - 2 } else { 1 };
         let degree = (x * q + e) as i32;
-        let index = self.basis_element_to_index(&AdemBasisElement {
+        self.try_basis_element_to_index(&AdemBasisElement {
             degree,
             bocksteins: e,
             ps: vec![x],
             p_or_sq: self.prime() != 2,
-        });
-        (degree, index)
+        })
+        .map(|index| (degree, index))
+    }
+
+    pub fn beps_pn(&self, e: u32, x: u32) -> (i32, usize) {
+        self.try_beps_pn(e, x).unwrap()
     }
 }
 
@@ -1470,6 +1475,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn try_beps_pn_adem() {
+        let p = ValidPrime::new(2);
+        let algebra = AdemAlgebra::new(p, false);
+        algebra.compute_basis(32);
+
+        // For valid inputs the non-panicking variant agrees with `beps_pn`.
+        for x in 0..=32 {
+            assert_eq!(algebra.try_beps_pn(0, x), Some(algebra.beps_pn(0, x)));
+            assert!(algebra.try_beps_pn(0, x).is_some());
+        }
+        // Hard-coded special cases (x == 0).
+        assert_eq!(algebra.try_beps_pn(0, 0), Some((0, 0)));
+        assert_eq!(algebra.try_beps_pn(1, 0), Some((1, 0)));
+
+        // At p = 2 every Sq^x is admissible, so once its degree is computed the
+        // lookup always succeeds: the unrestricted Adem algebra has no genuine
+        // `None` case to exhibit here (cf. the profiled Milnor test).
     }
 
     use crate::module::ModuleFailedRelationError;
