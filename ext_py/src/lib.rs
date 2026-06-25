@@ -2256,6 +2256,106 @@ mod ext_py {
         num_chain_maps: usize,
     }
 
+    impl FiniteAugmentedChainComplex {
+        /// Wrap an upstream `FACC` (e.g. the result of a yoneda computation,
+        /// after its `FDModule` modules have been erased to `RsSteenrodModule`)
+        /// in the bound pyclass. Takes ownership of the `Arc`-able value.
+        ///
+        /// `num_chain_maps` is the number of augmentation maps, which for a
+        /// `FiniteChainComplex::augment` is exactly the number of modules; the
+        /// bounded-complex `max_s()` returns `modules.len()` (see upstream
+        /// `FiniteChainComplex::max_s`), so it is the correct
+        /// `chain_map(s)`-guard bound.
+        pub(crate) fn from_rust(inner: FACC) -> Self {
+            use ext::chain_complex::BoundedChainComplex;
+            let num_chain_maps = inner.max_s() as usize;
+            FiniteAugmentedChainComplex {
+                inner: Arc::new(inner),
+                num_chain_maps,
+            }
+        }
+    }
+
+    /// Compute a Yoneda representative of an Ext class.
+    ///
+    /// Given a (standard-backend) `resolution`, a bidegree `b`, and an Ext class
+    /// `class` (a `list[int]` of length `number_of_gens_in_bidegree(b)`, the
+    /// coordinates of the class in the generator basis at `b`), this returns a
+    /// `FiniteAugmentedChainComplex` — a quasi-isomorphic finite quotient of the
+    /// resolution that the cohomology class factors through, i.e. the geometric
+    /// Yoneda representative (see upstream `ext::yoneda::yoneda_representative_element`
+    /// and `examples/yoneda.rs`).
+    ///
+    /// **Standard backend only.** Yoneda operates on a
+    /// `resolution::Resolution<CCC>` (its modules are `FreeModule`s over the
+    /// `SteenrodAlgebra` and its target is a `CCC`); a Nassau-backed `Resolution`
+    /// resolves over the concrete `MilnorAlgebra` and a different complex type, so
+    /// it is rejected with a `ValueError`, mirroring `ResolutionHomomorphism` /
+    /// `SecondaryResolution` / `chain_complex()`.
+    ///
+    /// Raises:
+    /// * `ValueError` if `resolution` is Nassau-backed;
+    /// * `ValueError` if `b` has a negative `s` or `t`;
+    /// * `ValueError` if any `class[i] >= p` (the prime), since each entry is
+    ///   written into an `FpVector` over `p`;
+    /// * `ValueError` if upstream `try_yoneda_representative_element` reports an
+    ///   error: the bidegree is uncomputed, `len(class)` does not match the
+    ///   generator count, or an internal sanity check (Euler characteristic /
+    ///   lift round-trip) fails. These are surfaced as a `Result` rather than
+    ///   panicking across the FFI boundary.
+    ///
+    /// The returned complex's modules are independently-owned `FDModule`s (erased
+    /// to `SteenrodModule`); only its augmentation `target()` shares an `Arc` with
+    /// the input resolution's target complex (treat that as a read-only live view).
+    #[pyfunction]
+    pub fn yoneda_representative_element(
+        resolution: &Resolution,
+        b: sseq_py::Bidegree,
+        class: Vec<u32>,
+    ) -> PyResult<FiniteAugmentedChainComplex> {
+        // Backend: standard only (Nassau resolves over a different algebra/complex).
+        let res = match &resolution.0 {
+            AnyResolution::Standard(r) => Arc::clone(r),
+            AnyResolution::Nassau(_) => {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "yoneda_representative_element requires the standard backend; the resolution \
+                     is Nassau-backed (over the concrete MilnorAlgebra and a different complex \
+                     type). Construct the Resolution with algorithm='standard'.",
+                ));
+            }
+        };
+
+        let bd = b.0;
+        if bd.s() < 0 || bd.t() < 0 {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "invalid bidegree {bd}: require s >= 0 and t >= 0"
+            )));
+        }
+
+        // Each entry is written into an FpVector over the prime; reject out-of-range.
+        let p = res.prime().as_u32();
+        for (i, &v) in class.iter().enumerate() {
+            if v >= p {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "class[{i}] = {v} is out of range for prime p = {p}; entries must be in [0, p)"
+                )));
+            }
+        }
+
+        // `try_yoneda_representative_element` validates the remaining
+        // preconditions (the bidegree is computed, `class` has one coordinate per
+        // generator) and surfaces its internal sanity checks (Euler characteristic
+        // / lift round-trip) as an error rather than panicking.
+        let result = ext::yoneda::try_yoneda_representative_element(res, bd, &class)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+
+        // The yoneda result's modules are `FDModule`s; erase them to the dynamic
+        // `SteenrodModule` the bound `FiniteAugmentedChainComplex` (a `FACC`) holds.
+        // This mirrors `utils.rs`'s `yoneda.map(|m| steenrod_module::erase(m.clone()))`.
+        let erased = result.map(|m| algebra::module::steenrod_module::erase(m.clone()));
+        Ok(FiniteAugmentedChainComplex::from_rust(erased))
+    }
+
     #[pymethods]
     impl FiniteAugmentedChainComplex {
         /// Build an augmented finite chain complex from an explicit list of

@@ -76,8 +76,6 @@ KNOWN_UNBOUND = {
     "TensorChainComplex",
     # --- Unstable machinery (not yet bound) ---
     "UnstableResolution",
-    # --- Yoneda products (not yet bound) ---
-    "yoneda_representative_element",
     # --- Misc constants / helpers (not yet bound) ---
     # secondary_*: lambda-algebra bidegree constant is not bound.
     "LAMBDA_BIDEGREE",
