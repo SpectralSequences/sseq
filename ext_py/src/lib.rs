@@ -2001,6 +2001,29 @@ mod ext_py {
             Ok(())
         }
 
+        /// Build a fresh `Arc<RsExtAlgebra>` sharing this algebra's resolution
+        /// and unit `Arc`s. The per-generator product-map cache is per-instance
+        /// (an interior `DashMap`), so the clone starts empty; the
+        /// mathematically meaningful state — the resolution of `M` and the unit
+        /// `k`, and hence `is_unit` (recomputed by `RsExtAlgebra::new` via
+        /// `Arc::ptr_eq`) — is shared. Used to hand an `Arc`-held `ExtAlgebra` to
+        /// `SecondaryExtAlgebra::new` (which needs `Arc<ExtAlgebra<CC>>`).
+        pub(crate) fn inner_arc(&self) -> Arc<RsExtAlgebra> {
+            Arc::new(RsExtAlgebra::new(
+                Arc::clone(self.0.resolution()),
+                Arc::clone(self.0.unit()),
+            ))
+        }
+
+        /// Wrap an `&RsExtAlgebra` into the bound `ExtAlgebra` pyclass, sharing
+        /// its resolution/unit `Arc`s (used by `SecondaryExtAlgebra.ext_algebra`).
+        pub(crate) fn from_rust_ref(alg: &RsExtAlgebra) -> ExtAlgebra {
+            ExtAlgebra(RsExtAlgebra::new(
+                Arc::clone(alg.resolution()),
+                Arc::clone(alg.unit()),
+            ))
+        }
+
         /// Reject the addition `a + b` overflowing `i32` (the product lands at
         /// `x.degree() + y.degree()`, whose coordinates index modules/`FpVector`s).
         fn checked_target(a: RsBidegree, b: RsBidegree) -> PyResult<()> {
@@ -2044,6 +2067,27 @@ mod ext_py {
                 )));
             }
             Ok(ExtAlgebra(RsExtAlgebra::new(r, u)))
+        }
+
+        /// Build an `ExtAlgebra` for resolution-*intrinsic* operations that do
+        /// not involve products (notably the secondary `d2` differential), using
+        /// the resolution itself in place of a unit — upstream
+        /// `ExtAlgebra::without_unit(resolution)` = `new(resolution, resolution)`,
+        /// so `is_unit()` is `True`.
+        ///
+        /// This avoids the unit-resolution setup that `from_resolution` performs
+        /// (and any associated prompt). The product methods (`multiply` etc.) are
+        /// only meaningful here when `M == k`; for products with `M != k`, build
+        /// with `ExtAlgebra(resolution, unit)` instead. This is the constructor
+        /// the secondary (`d2`) layer uses to build an `ExtAlgebra` without a
+        /// unit (`SecondaryExtAlgebra`).
+        ///
+        /// Standard-backend only (a Nassau-backed `Resolution` raises
+        /// `ValueError`, as for `ExtAlgebra(...)`).
+        #[staticmethod]
+        pub fn without_unit(resolution: &Resolution) -> PyResult<Self> {
+            let r = ResolutionHomomorphism::standard_arc(resolution, "resolution")?;
+            Ok(ExtAlgebra(RsExtAlgebra::without_unit(r)))
         }
 
         /// The prime as a plain `int`.
@@ -3479,6 +3523,317 @@ mod ext_py {
         /// The directory used to persist the lift, or `None` if held in memory.
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
+        }
+    }
+
+    /// Run a `SecondaryExtAlgebra` *query/compute* (`d2`/`survives`/`page_data`/
+    /// `secondary_multiply_into`) under `catch_unwind`, translating any residual
+    /// upstream panic into a `ValueError` (the established `catch_unwind` ->
+    /// `ValueError` backstop; cf. `catch_ext_algebra_panic` /
+    /// `catch_secondary_lift_panic`).
+    ///
+    /// The methods below pre-check what they can (`extend_all` was called,
+    /// non-negative bidegrees, well-formed elements). This wrapper is the
+    /// defence-in-depth net for the upstream indexing the pre-checks cannot
+    /// reach without redoing the computation: `d2`'s `homotopy(b.s()+2).hom_k`
+    /// `OnceBiVec`/matrix indexing, `page_data`'s `sseq.page_data(b)` (`data[b]`)
+    /// indexing on an uncomputed bidegree (and the `d[d.len()-1]` underflow),
+    /// and the `from_class`+`extend`+`hom_k` plumbing `secondary_multiply_into`
+    /// drives.
+    ///
+    /// `AssertUnwindSafe` is sound for the same reason as
+    /// `catch_secondary_lift_panic`/`catch_ext_algebra_panic`: a panic only
+    /// leaves the `Arc`-shared, interior-mutable, append-only `OnceVec`/
+    /// `OnceBiVec`/`DashMap`/`Mutex<Option>` tables in a valid-but-partial
+    /// (memory-safe) state — no broken invariant for a later observer.
+    fn catch_secondary_compute_panic<T, F: FnOnce() -> T>(f: F) -> PyResult<T> {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+        match catch_unwind(AssertUnwindSafe(f)) {
+            Ok(v) => Ok(v),
+            Err(payload) => {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_owned())
+                    .or_else(|| payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_owned());
+                Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "secondary computation panicked (an out-of-range or unresolved bidegree, or \
+                     unrealizable input, that slipped past the pre-checks); underlying panic: \
+                     {detail}"
+                )))
+            }
+        }
+    }
+
+    /// A single secondary product `x · y` in $\Mod_{C\lambda^2}$, where `y` is an
+    /// $E_3$-surviving class — the bound, read-only (`frozen`) view of the
+    /// upstream `ext::ext_algebra::SecondaryProduct`. Produced by
+    /// [`SecondaryExtAlgebra.secondary_multiply_into`]; never constructed
+    /// directly from Python.
+    #[pyclass(frozen)]
+    pub struct SecondaryProduct {
+        source: ::sseq::coordinates::BidegreeElement,
+        ext_part: ::fp::vector::FpVector,
+        lambda_part: ::fp::vector::FpVector,
+    }
+
+    impl SecondaryProduct {
+        /// Wrap an owned upstream `SecondaryProduct` into the bound pyclass.
+        pub(crate) fn from_rust(p: ext::ext_algebra::SecondaryProduct) -> Self {
+            SecondaryProduct {
+                source: p.source,
+                ext_part: p.ext_part,
+                lambda_part: p.lambda_part,
+            }
+        }
+    }
+
+    #[pymethods]
+    impl SecondaryProduct {
+        /// The multiplicand: an $E_3$-surviving generator of the unit at the
+        /// queried bidegree `b` (a `sseq_py.BidegreeElement`).
+        #[getter]
+        pub fn source(&self) -> sseq_py::BidegreeElement {
+            sseq_py::BidegreeElement(self.source.clone())
+        }
+
+        /// The $\Ext$ part of the product, in bidegree `b + x.degree()` (an
+        /// `fp_py.FpVector`).
+        #[getter]
+        pub fn ext_part(&self) -> fp_py::PyFpVector {
+            fp_py::PyFpVector::from_rust(self.ext_part.clone())
+        }
+
+        /// The $\lambda$ part of the product, in bidegree
+        /// `b + x.degree() + LAMBDA_BIDEGREE`, already reduced by the image of
+        /// $d_2$ (an `fp_py.FpVector`).
+        #[getter]
+        pub fn lambda_part(&self) -> fp_py::PyFpVector {
+            fp_py::PyFpVector::from_rust(self.lambda_part.clone())
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "SecondaryProduct(source={}, ext_part_dim={}, lambda_part_dim={})",
+                self.source,
+                self.ext_part.len(),
+                self.lambda_part.len()
+            )
+        }
+    }
+
+    /// The concrete (standard-backend) `SecondaryExtAlgebra` monomorphisation.
+    /// As with `RsExtAlgebra`/`RsSecRes`, only the standard backend is reachable:
+    /// it is built from a bound `ExtAlgebra` (standard-only). `CCC::Algebra`
+    /// (`= SteenrodAlgebra`) implements `PairAlgebra` — the same bound the
+    /// already-bound `SecondaryResolution<Resolution<CCC>>` (`RsSecRes`) requires
+    /// — so this monomorphisation type-checks.
+    type RsSecondaryExtAlgebra =
+        ext::ext_algebra::SecondaryExtAlgebra<ext::resolution::Resolution<CCC>>;
+
+    /// The secondary ($d_2$) layer over an [`ExtAlgebra`]: the secondary
+    /// differential `d2` (with the survival check `survives`), the $E_3$-page
+    /// data (`page_data`/`unit_page_data`), and the $\Mod_{C\lambda^2}$ secondary
+    /// product (`secondary_multiply_into`). Standard-backend only (it wraps a
+    /// `SecondaryResolution`, which rejects Nassau — see `SecondaryResolution`).
+    ///
+    /// Construction is cheap; call [`extend_all`](Self::extend_all) (which
+    /// computes the secondary resolutions and $E_3$ pages) before any query.
+    /// Querying before `extend_all` raises `ValueError "call extend_all() first"`
+    /// rather than letting the upstream `.expect()`/`OnceBiVec` index panic.
+    ///
+    /// Held by value with an interior `extended` flag (an `AtomicBool` set by
+    /// `extend_all`): every upstream method takes `&self` (the secondary
+    /// resolutions' homotopy tables and the $E_3$-page `Mutex<Option>` are
+    /// interior-mutable), so a `frozen` pyclass works directly.
+    #[pyclass(frozen)]
+    pub struct SecondaryExtAlgebra {
+        inner: RsSecondaryExtAlgebra,
+        extended: std::sync::atomic::AtomicBool,
+    }
+
+    impl SecondaryExtAlgebra {
+        /// Require that [`extend_all`](Self::extend_all) has completed, so the
+        /// $E_3$-page `Mutex<Option>`s are populated and the secondary
+        /// resolutions' homotopy `OnceBiVec`s are filled. Mirrors the upstream
+        /// `.expect("call extend_all() first")` as a pre-check (a clean
+        /// `ValueError`, never a panic). Also gates `d2`/`survives`, whose
+        /// `homotopy(b.s()+2)` index would hit an empty `OnceBiVec` otherwise.
+        fn require_extended(&self) -> PyResult<()> {
+            if !self.extended.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "call extend_all() first",
+                ));
+            }
+            Ok(())
+        }
+
+        /// Validate that `x` is a well-formed, computed element of $\Ext(M, k)$
+        /// (the resolution side): non-negative bidegree, the bidegree resolved,
+        /// the coordinate vector over the algebra's prime and of length equal to
+        /// the number of generators there. `d2`/`survives`/`secondary_multiply_into`
+        /// index `x.vec()` against the generator count at its bidegree, so an
+        /// over-long vector would otherwise index out of range. Reuses the
+        /// `ExtAlgebra` element guard.
+        fn check_res_element(&self, x: &::sseq::coordinates::BidegreeElement) -> PyResult<()> {
+            let alg = self.inner.ext_algebra();
+            ExtAlgebra::check_element("resolution", alg.resolution(), x, alg.prime().as_u32())
+        }
+    }
+
+    #[pymethods]
+    impl SecondaryExtAlgebra {
+        /// Build the secondary layer over a bound `ExtAlgebra` (standard-backend;
+        /// typically built with `ExtAlgebra.without_unit(res)` or
+        /// `ExtAlgebra(res, res)` for the $d_2$ of the sphere). Construction is
+        /// cheap — call [`extend_all`](Self::extend_all) to actually compute.
+        ///
+        /// Shares the `ExtAlgebra`'s resolution/unit `Arc`s (see
+        /// `ExtAlgebra.inner_arc`); the secondary resolutions are built over
+        /// exactly those resolutions.
+        #[new]
+        pub fn new(alg: &ExtAlgebra) -> Self {
+            SecondaryExtAlgebra {
+                inner: RsSecondaryExtAlgebra::new(alg.inner_arc()),
+                extended: std::sync::atomic::AtomicBool::new(false),
+            }
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.inner.ext_algebra().prime().as_u32()
+        }
+
+        /// The primary `ExtAlgebra` this is built on (shares the resolution/unit
+        /// `Arc`s; the per-generator product cache is fresh — see
+        /// `ExtAlgebra.inner_arc`).
+        pub fn ext_algebra(&self) -> ExtAlgebra {
+            ExtAlgebra::from_rust_ref(self.inner.ext_algebra())
+        }
+
+        /// Extend the secondary resolutions as far as the underlying resolutions
+        /// allow, then compute the $E_3$ pages. Must be called before `d2`,
+        /// `survives`, `page_data`, `unit_page_data`, or `secondary_multiply_into`.
+        ///
+        /// A topologically invalid / non-realizable module can trip the inherent
+        /// upstream lift-validity `assert!` ("secondary: Failed to lift …"),
+        /// which is mathematical and cannot be pre-checked without performing the
+        /// computation; it is contained (`catch_unwind` -> `ValueError`) so it
+        /// never crosses the FFI boundary as a `PanicException`. On a clean run
+        /// the interior `extended` flag is set, enabling the queries.
+        pub fn extend_all(&self) -> PyResult<()> {
+            catch_secondary_lift_panic(|| self.inner.extend_all())?;
+            self.extended
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+
+        /// Sharding entry point: compute only the secondary resolution data for
+        /// filtration `s` (mirrors the upstream `compute_partial`). Returns
+        /// before any $E_3$ page is built, so it does *not* enable the queries —
+        /// call [`extend_all`](Self::extend_all) for that. Requires `s >= 0`
+        /// (`ValueError` otherwise).
+        ///
+        /// A non-realizable input can trip the lift-validity `assert!`; contained
+        /// as in [`extend_all`](Self::extend_all).
+        pub fn compute_partial(&self, s: i32) -> PyResult<()> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid filtration s = {s}: require s >= 0"
+                )));
+            }
+            catch_secondary_lift_panic(|| self.inner.compute_partial(s))
+        }
+
+        /// The secondary differential $d_2(x)$, a class in bidegree
+        /// `(n - 1, s + 2)` (a `sseq_py.BidegreeElement`), or `None` if the
+        /// target bidegree has not been computed (so $d_2$ is unknown). A
+        /// computed-but-zero differential is a zero class, not `None`.
+        ///
+        /// Requires `extend_all()` first (`ValueError` otherwise). `x` must be a
+        /// well-formed, computed element of $\Ext(M, k)$ (negative bidegree,
+        /// uncomputed bidegree, prime mismatch, or wrong coordinate count raise
+        /// `ValueError`).
+        pub fn d2(
+            &self,
+            x: &sseq_py::BidegreeElement,
+        ) -> PyResult<Option<sseq_py::BidegreeElement>> {
+            self.require_extended()?;
+            self.check_res_element(&x.0)?;
+            let out = catch_secondary_compute_panic(|| self.inner.d2(&x.0))?;
+            Ok(out.map(sseq_py::BidegreeElement))
+        }
+
+        /// Whether `x` is a $d_2$-cycle (a permanent class through $E_3$): `True`
+        /// if `d2(x)` is the zero class, `False` if nonzero, `None` if the $d_2$
+        /// target is uncomputed. Same guards as [`d2`](Self::d2).
+        pub fn survives(&self, x: &sseq_py::BidegreeElement) -> PyResult<Option<bool>> {
+            self.require_extended()?;
+            self.check_res_element(&x.0)?;
+            catch_secondary_compute_panic(|| self.inner.survives(&x.0))
+        }
+
+        /// The $E_3$-page subquotient of $\Ext(M, k)$ at bidegree `b` (an
+        /// `fp_py.Subquotient`). Requires `extend_all()` first (`ValueError`
+        /// otherwise). Negative `s`/`t` raises `ValueError`; an uncomputed
+        /// bidegree raises `ValueError` (it would index an undefined spectral-
+        /// sequence cell).
+        pub fn page_data(&self, b: sseq_py::Bidegree) -> PyResult<fp_py::PySubquotient> {
+            self.require_extended()?;
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            let sq = catch_secondary_compute_panic(|| self.inner.page_data(b.0))?;
+            Ok(fp_py::PySubquotient::from_rust(sq))
+        }
+
+        /// The $E_3$-page subquotient of the unit $\Ext(k, k)$ at bidegree `b`.
+        /// Guarded as [`page_data`](Self::page_data).
+        pub fn unit_page_data(&self, b: sseq_py::Bidegree) -> PyResult<fp_py::PySubquotient> {
+            self.require_extended()?;
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            let sq = catch_secondary_compute_panic(|| self.inner.unit_page_data(b.0))?;
+            Ok(fp_py::PySubquotient::from_rust(sq))
+        }
+
+        /// The secondary product of `x` with every $E_3$-surviving class of the
+        /// unit at bidegree `b`, computed in $\Mod_{C\lambda^2}$: one
+        /// `SecondaryProduct` per surviving generator at `b` (empty list if none
+        /// survive). The $\lambda$ part is already reduced by the image of $d_2$.
+        ///
+        /// Requires `extend_all()` first (`ValueError` otherwise), and both
+        /// resolutions computed far enough. `x` must be a well-formed, computed
+        /// element of $\Ext(M, k)$; `b` must be non-negative (otherwise
+        /// `ValueError`). The product machinery (`from_class` + `extend` +
+        /// `hom_k`) is run under `catch_unwind`, so an out-of-range/unresolved
+        /// query surfaces as `ValueError` rather than a panic.
+        pub fn secondary_multiply_into(
+            &self,
+            x: &sseq_py::BidegreeElement,
+            b: sseq_py::Bidegree,
+        ) -> PyResult<Vec<SecondaryProduct>> {
+            self.require_extended()?;
+            self.check_res_element(&x.0)?;
+            if b.0.s() < 0 || b.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    b.0
+                )));
+            }
+            let products =
+                catch_secondary_compute_panic(|| self.inner.secondary_multiply_into(&x.0, b.0))?;
+            Ok(products
+                .into_iter()
+                .map(SecondaryProduct::from_rust)
+                .collect())
         }
     }
 
