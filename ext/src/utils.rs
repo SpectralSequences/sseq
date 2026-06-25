@@ -53,7 +53,10 @@ pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
                 .with_context(|| format!("Cannot parse shift value ({x}) as an integer"))?,
         };
         if let Some(spec_shift) = module.get_mut("shift") {
-            *spec_shift = Value::from(spec_shift.as_i64().unwrap() + shift);
+            let existing = spec_shift
+                .as_i64()
+                .with_context(|| format!("Module shift field is not an integer: {spec_shift}"))?;
+            *spec_shift = Value::from(existing + shift);
         } else {
             module["shift"] = Value::from(shift);
         }
@@ -274,8 +277,34 @@ where
 /// Given the name of a module file (without the `.json` extension), find a json file with this
 /// name, and return the parsed json object. The search path for this json file is described
 /// [here](../index.html#module-specification).
-pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
-    let current_dir = std::env::current_dir().context("Failed to read current directory")?;
+/// Error returned by [`load_module_json`].
+///
+/// Separates a missing module file from one that is present but cannot be read or parsed, so
+/// callers (e.g. the Python bindings) can map `NotFound` to `FileNotFoundError` and `Read` to a
+/// generic runtime error.
+#[derive(Debug)]
+pub enum LoadModuleError {
+    /// No module file with this name exists in any search path.
+    NotFound(String),
+    /// A module file was found but could not be read or parsed.
+    Read(anyhow::Error),
+}
+
+impl std::fmt::Display for LoadModuleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound(name) => write!(f, "Module file '{name}' not found"),
+            Self::Read(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for LoadModuleError {}
+
+pub fn load_module_json(name: &str) -> Result<Value, LoadModuleError> {
+    let current_dir = std::env::current_dir().map_err(|e| {
+        LoadModuleError::Read(anyhow::Error::new(e).context("Failed to read current directory"))
+    })?;
     let relative_dir = current_dir.join("steenrod_modules");
 
     for path in &[
@@ -287,11 +316,15 @@ pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
         path.push(name);
         path.set_extension("json");
         if let Ok(s) = std::fs::read_to_string(&path) {
-            return serde_json::from_str(&s)
-                .with_context(|| format!("Failed to load module json at {path:?}"));
+            return serde_json::from_str(&s).map_err(|e| {
+                LoadModuleError::Read(
+                    anyhow::Error::new(e)
+                        .context(format!("Failed to load module json at {path:?}")),
+                )
+            });
         }
     }
-    Err(anyhow!("Module file '{}' not found", name))
+    Err(LoadModuleError::NotFound(name.to_string()))
 }
 
 /// Given an `n: usize`, return a UTF-8 character that best depicts this number. If `n < 9`, then
