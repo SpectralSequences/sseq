@@ -44,7 +44,7 @@ def query_unstable_module(load_quasi_inverse):
 
     save_dir = query.optional("Module save directory", str)
 
-    resolution = ext.UnstableResolution.new_with_save(cc, save_dir)
+    resolution = ext.UnstableResolution(cc, save_dir=save_dir)
     resolution.load_quasi_inverse = load_quasi_inverse and resolution.save_dir() is None
 
     return resolution

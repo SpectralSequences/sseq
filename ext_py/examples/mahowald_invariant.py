@@ -36,7 +36,7 @@ class MahowaldInvariant:
 
         def f2_vec_to_sum(v):
             elt = sseq.BidegreeElement(
-                sseq.Bidegree.s_t(self.g.s(), output_t), v
+                sseq.Bidegree.s_t(self.g.s, output_t), v
             )
             return elt.to_basis_string()
 
@@ -101,13 +101,13 @@ class PKData:
             minus_one_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(b)
             p_k_gens = self.resolution.number_of_gens_in_bidegree(b_p_k)
             if bottom_s_2_gens > 0 and minus_one_s_2_gens > 0 and p_k_gens > 0:
-                bottom_cell_map = self.bottom_cell.get_map(b_bottom.s())
+                bottom_cell_map = self.bottom_cell.get_map(b_bottom.s)
                 matrix = [[0] * p_k_gens for _ in range(bottom_s_2_gens)]
                 for p_k_gen in range(p_k_gens):
-                    output = bottom_cell_map.output(b_p_k.t(), p_k_gen)
+                    output = bottom_cell_map.output(b_p_k.t, p_k_gen)
                     for s_2_gen, row in enumerate(matrix):
                         index = bottom_cell_map.target().operation_generator_to_index(
-                            0, 0, b_bottom.t(), s_2_gen
+                            0, 0, b_bottom.t, s_2_gen
                         )
                         row[p_k_gen] = output.entry(index)
 
@@ -139,7 +139,7 @@ class PKData:
                             )
                             yield MahowaldInvariant(
                                 g,
-                                b_bottom.t(),
+                                b_bottom.t,
                                 invariant,
                                 list(indeterminacy_basis),
                             )

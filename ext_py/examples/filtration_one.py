@@ -21,8 +21,9 @@ def main():
             products = resolution.filtration_one_product(1 << i, 0, b)
             for idx, row in enumerate(products):
                 g = sseq.BidegreeGenerator(b, idx)
-                if not row.is_empty():
-                    print(f"h_{i} x_{g} = {list(row)}")
+                if not row:
+                    continue
+                print(f"h_{i} x_{g} = {list(row)}")
             i += 1
 
 

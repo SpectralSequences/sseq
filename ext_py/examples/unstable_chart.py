@@ -68,15 +68,15 @@ def main():
 
     products = module.algebra().default_filtration_one_products()
 
-    for shift_t in range(0, max.n() - module.min_degree() + 3):
+    for shift_t in range(0, max.n - module.min_degree() + 3):
         shift = sseq.Bidegree.s_t(0, shift_t)
         # NOTE: depends on ext.SuspensionModule, ext.ChainComplex.ccdz and
         # ext.UnstableResolution.new_with_save (API_PROPOSAL §7.1, §7.3, §7.5).
-        res = ext.UnstableResolution.new_with_save(
+        res = ext.UnstableResolution(
             ext.ChainComplex.ccdz(
-                algebra.SuspensionModule(module, shift.t())
+                algebra.SuspensionModule(module, shift.t)
             ),
-            save_dir(shift.t()),
+            save_dir=save_dir(shift.t),
         )
 
         res.compute_through_stem(max + shift)
@@ -91,7 +91,7 @@ def main():
 
         def header(g, shift_t=shift_t):
             return g.text(
-                sseq.Bidegree.x_y(1, max.s() - 1),
+                sseq.Bidegree.x_y(1, max.s - 1),
                 disp_template.replace("%", f"{shift_t}"),
                 sseq.Orientation.Right,
             )

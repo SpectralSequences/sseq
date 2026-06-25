@@ -28,7 +28,7 @@ def main():
     # NOTE: depends on ext.yoneda_representative_element (API_PROPOSAL §7.5).
     yoneda = ext.yoneda_representative_element(resolution, b, class_)
 
-    for s in range(0, b.s() + 1):
+    for s in range(0, b.s + 1):
         print(
             f"Dimension of {s}th module is {yoneda.module(s).total_dimension()}"
         )

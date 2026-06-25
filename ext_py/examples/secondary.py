@@ -29,13 +29,13 @@ def main():
 
     # Iterate through the target of the d2.
     for b in lift.underlying().iter_nonzero_stem():
-        if b.s() < 3:
+        if b.s < 3:
             continue
-        if b.t() - 1 > resolution.module(b.s() - 2).max_computed_degree():
+        if b.t - 1 > resolution.module(b.s - 2).max_computed_degree():
             continue
 
-        homotopy = lift.homotopy(b.s())
-        m = homotopy.homotopies.hom_k(b.t() - 1)
+        homotopy = lift.homotopy(b.s)
+        m = homotopy.homotopies.hom_k(b.t - 1)
 
         for i, entry in enumerate(m):
             source_gen = sseq.BidegreeGenerator(b - d2_shift, i)

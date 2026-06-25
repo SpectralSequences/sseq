@@ -30,11 +30,11 @@ class HomCochainComplex:
         return self.modules[0].min_degree()
 
     def compute_through_stem(self, max):
-        for s in range(len(self.modules), max.s() + 1):
+        for s in range(len(self.modules), max.s + 1):
             self.modules.append(
                 algebra.HomModule(self.source.module(s), self.target)
             )
-        for s in range(len(self.differentials), max.s()):
+        for s in range(len(self.differentials), max.s):
             self.differentials.append(
                 algebra.HomPullback(
                     self.modules[s],
@@ -43,17 +43,17 @@ class HomCochainComplex:
                 )
             )
         for s, module in enumerate(self.modules):
-            module.compute_basis(max.n() + s + 1)
+            module.compute_basis(max.n + s + 1)
         for s, d in enumerate(self.differentials):
-            d.compute_auxiliary_data_through_degree(max.n() + s + 1)
+            d.compute_auxiliary_data_through_degree(max.n + s + 1)
 
     def homology_dimension(self, b):
-        if b.s() == 0:
-            return self.differentials[b.s()].kernel(b.t()).dimension()
+        if b.s == 0:
+            return self.differentials[b.s].kernel(b.t).dimension()
         # NOTE: depends on Subquotient.from_parts (not yet in API_PROPOSAL §4.4)
         return fp.Subquotient.from_parts(
-            self.differentials[b.s()].kernel(b.t()),
-            self.differentials[b.s() - 1].image(b.t()),
+            self.differentials[b.s].kernel(b.t),
+            self.differentials[b.s - 1].image(b.t),
         ).dimension()
 
 
@@ -69,15 +69,15 @@ def main():
     )
 
     res.compute_through_stem(max + sseq.Bidegree.n_s(module.max_degree(), 1))
-    res.algebra().compute_basis(max.t() + module.max_degree() + 2)
+    res.algebra().compute_basis(max.t + module.max_degree() + 2)
 
     hom_cc = HomCochainComplex(res, module)
     hom_cc.compute_through_stem(max)
 
     # FreeChainComplex::graded_dimension_string
     result = ""
-    for s in range(max.s(), -1, -1):
-        for n in range(hom_cc.min_degree(), max.n() + 1):
+    for s in range(max.s, -1, -1):
+        for n in range(hom_cc.min_degree(), max.n + 1):
             b = sseq.Bidegree.n_s(n, s)
             result += ext.unicode_num(hom_cc.homology_dimension(b))
             result += " "

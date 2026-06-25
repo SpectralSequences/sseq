@@ -47,19 +47,19 @@ def main():
     hom.extend_all()
 
     for b in res.iter_nonzero_stem():
-        doubled_b = sseq.Bidegree.s_t(b.s(), 2 * b.t())
+        doubled_b = sseq.Bidegree.s_t(b.s, 2 * b.t)
         if not res.has_computed_bidegree(doubled_b):
             continue
 
         source_num_gens = res.number_of_gens_in_bidegree(doubled_b)
-        module = res.module(b.s())
-        offset = module.generator_offset(b.t(), b.t(), 0)
-        map = hom.get_map(b.s())
+        module = res.module(b.s)
+        offset = module.generator_offset(b.t, b.t, 0)
+        map = hom.get_map(b.s)
 
         for i in range(res.number_of_gens_in_bidegree(b)):
             g = sseq.BidegreeGenerator(b, i)
             entries = [
-                str(map.output(doubled_b.t(), j).entry(offset + i))
+                str(map.output(doubled_b.t, j).entry(offset + i))
                 for j in range(source_num_gens)
             ]
             print(f"Sq^0 x_{g} = [{', '.join(entries)}]")

@@ -114,8 +114,8 @@ def main():
     b_lambda = b_data.lambda_part
 
     shift = sseq.Bidegree.s_t(
-        (a.underlying().shift + b.underlying().shift).s(),
-        (a.shift() + b.shift()).t(),
+        (a.underlying().shift + b.underlying().shift).s,
+        (a.shift() + b.shift()).t,
     )
 
     # Extend resolutions
@@ -148,15 +148,15 @@ def main():
     b_shift = b.underlying().shift
 
     chain_homotopy = ext.ChainHomotopy(a.underlying(), b.underlying())
-    chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift).s())
+    chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift).s)
 
     # Compute first homotopy
     v = a.product_nullhomotopy(a_lambda, res_sseq, b_shift, b_class.as_slice())
-    homotopy = chain_homotopy.homotopy(b_shift.s() + a.underlying().shift.s() - 1)
+    homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying().shift.s - 1)
     htpy_source = a.shift() + b_shift
-    homotopy.extend_by_zero(htpy_source.t() - 1)
+    homotopy.extend_by_zero(htpy_source.t - 1)
     homotopy.add_generators_from_rows(
-        htpy_source.t(),
+        htpy_source.t,
         [fp.FpVector.from_slice(p, [x]) for x in v],
     )
 
@@ -232,7 +232,7 @@ def main():
 
         m0 = fp.Matrix.from_vec(
             p,
-            b.underlying().get_map(c.s() + b.underlying().shift.s()).hom_k(c.t()),
+            b.underlying().get_map(c.s + b.underlying().shift.s).hom_k(c.t),
         )
         for g, out in zip(target_page_data.subspace_gens(), product_matrix.iter_mut()):
             out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens).add(g, 1)
@@ -262,7 +262,7 @@ def main():
         # Now add the lambda multiples
         m = fp.Matrix.from_vec(
             p,
-            b.underlying().get_map(b_shift.s() + c.s() + 1).hom_k(c.t() + 1),
+            b.underlying().get_map(b_shift.s + c.s + 1).hom_k(c.t + 1),
         )
 
         count = 0
@@ -283,21 +283,21 @@ def main():
         if e3_kernel.dimension() == 0:
             continue
 
-        m0 = chain_homotopy.homotopy(source.s()).hom_k(c.t())
+        m0 = chain_homotopy.homotopy(source.s).hom_k(c.t)
         mt = fp.Matrix.from_vec(
-            p, chain_homotopy.homotopy(source.s() + 1).hom_k(c.t() + 1)
+            p, chain_homotopy.homotopy(source.s + 1).hom_k(c.t + 1)
         )
         m1 = fp.Matrix.from_vec(
-            p, ch_lift.homotopies()[source.s() + 1].homotopies.hom_k(c.t())
+            p, ch_lift.homotopies()[source.s + 1].homotopies.hom_k(c.t)
         )
         mp = fp.Matrix.from_vec(
             p,
             resolution.filtration_one_product(
-                1, h_0, sseq.Bidegree.s_t(source.s(), c.t() + shift.t())
+                1, h_0, sseq.Bidegree.s_t(source.s, c.t + shift.t)
             ),
         )
-        ma = a.underlying().get_map(source.s()).hom_k(c.t() + b_shift.t())
-        mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t())
+        ma = a.underlying().get_map(source.s).hom_k(c.t + b_shift.t)
+        mb = b.underlying().get_map(c.s + b_shift.s).hom_k(c.t)
 
         for g in e3_kernel.iter():
             # Print name
@@ -361,10 +361,10 @@ def main():
                 if extra == 0:
                     continue
                 for gen_idx in range(source_lambda_num_gens):
-                    mm = a.underlying().get_map((source + ext.LAMBDA_BIDEGREE).s())
-                    dx = mm.output((source + ext.LAMBDA_BIDEGREE).t(), gen_idx)
-                    idx = unit.module((c + shift).s()).operation_generator_to_index(
-                        1, h_0, (c + shift).t(), i
+                    mm = a.underlying().get_map((source + ext.LAMBDA_BIDEGREE).s)
+                    dx = mm.output((source + ext.LAMBDA_BIDEGREE).t, gen_idx)
+                    idx = unit.module((c + shift).s).operation_generator_to_index(
+                        1, h_0, (c + shift).t, i
                     )
                     scratch1.add_basis_element(gen_idx, dx.entry(idx))
             print(f" + λ{scratch1}")

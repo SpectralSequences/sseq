@@ -63,24 +63,24 @@ def main():
 
     # NOTE: depends on ext.SuspensionModule, ext.ChainComplex.ccdz and
     # ext.UnstableResolution.new_with_save (API_PROPOSAL §5.3, §7.1, §7.2).
-    res_b = ext.UnstableResolution.new_with_save(
+    res_b = ext.UnstableResolution(
         ext.ChainComplex.ccdz(algebra.SuspensionModule(module, 0)),
-        save_dir(0),
+        save_dir=save_dir(0),
     )
     res_b.compute_through_stem(max)
 
-    for n in range(min_degree.n(), max.n() + 1):
-        for s in range(0, max.s() + 1):
+    for n in range(min_degree.n, max.n + 1):
+        for s in range(0, max.s + 1):
             b = sseq.Bidegree.n_s(n, s)
             source_num_gens = res_b.number_of_gens_in_bidegree(b)
             print(f"{n} {s} 0: {source_num_gens}")
 
-    for shift_t in range(1, (max - min_degree).n() + 3):
+    for shift_t in range(1, (max - min_degree).n + 3):
         shift = sseq.Bidegree.s_t(0, shift_t)
         res_a = res_b
-        res_b = ext.UnstableResolution.new_with_save(
+        res_b = ext.UnstableResolution(
             ext.ChainComplex.ccdz(algebra.SuspensionModule(module, shift_t)),
-            save_dir(shift_t),
+            save_dir=save_dir(shift_t),
         )
 
         res_b.compute_through_stem(max + shift)
@@ -103,10 +103,10 @@ def main():
         )
         hom.extend_all()
 
-        for n in range(2 * ((min_degree + shift).n() - 1), (max + shift).n() + 1):
-            if n < (min_degree + shift).n():
+        for n in range(2 * ((min_degree + shift).n - 1), (max + shift).n + 1):
+            if n < (min_degree + shift).n:
                 continue
-            for s in range(0, max.s() + 1):
+            for s in range(0, max.s + 1):
                 source = sseq.Bidegree.n_s(n, s)
                 target = source - suspension_shift
                 source_num_gens = res_b.number_of_gens_in_bidegree(source)
@@ -114,7 +114,7 @@ def main():
                 if source_num_gens == 0 or target_num_gens == 0:
                     m = ""
                 else:
-                    mat = hom.get_map(target.s()).hom_k(target.t())
+                    mat = hom.get_map(target.s).hom_k(target.t)
                     is_identity = source_num_gens == target_num_gens and all(
                         all(
                             (z == 1 if col == row else z == 0)

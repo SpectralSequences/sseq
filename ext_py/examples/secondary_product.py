@@ -50,7 +50,7 @@ def main():
     res_lift.extend_all()
 
     # Check that class survives to E3.
-    m = res_lift.homotopy(shift.s() + 2).homotopies.hom_k(shift.t())
+    m = res_lift.homotopy(shift.s + 2).homotopies.hom_k(shift.t)
     assert len(m) == len(v)
     total = [0] * len(m[0])
     for x, d2 in zip(v, m):
@@ -105,7 +105,7 @@ def main():
 
         # First print the products with non-surviving classes
         if target_num_gens > 0:
-            hom_k = hom.get_map((b + shift).s()).hom_k(b.t())
+            hom_k = hom.get_map((b + shift).s).hom_k(b.t)
             for i in page_data.complement_pivots():
                 g = sseq.BidegreeGenerator(b, i)
                 print(f"{name} λ x_{g} = λ {list(hom_k[i])}")

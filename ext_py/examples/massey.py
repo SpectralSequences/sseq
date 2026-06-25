@@ -45,7 +45,7 @@ def main():
     b_hom = ext.ResolutionHomomorphism.from_class("", unit, unit, b, b_class)
     b_hom.extend_through_stem(shift)
 
-    offset_a = unit.module(a.s()).generator_offset(a.t(), a.t(), 0)
+    offset_a = unit.module(a.s).generator_offset(a.t, a.t, 0)
     for c in resolution.iter_nonzero_stem():
         if not resolution.has_computed_bidegree(c + shift):
             continue
@@ -75,9 +75,9 @@ def main():
             homotopy = ext.ChainHomotopy(hom, b_hom)
             homotopy.extend(tot)
 
-            last = homotopy.homotopy(tot.s())
+            last = homotopy.homotopy(tot.s)
             for i in range(target_num_gens):
-                output = last.output(tot.t(), i)
+                output = last.output(tot.t, i)
                 for k, v in enumerate(a_class):
                     if v != 0:
                         answers[idx][i] += v * output.entry(offset_a + k)
