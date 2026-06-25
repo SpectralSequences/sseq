@@ -1,3 +1,5 @@
+use std::panic::AssertUnwindSafe;
+
 use js_sys::Function;
 use wasm_bindgen::prelude::*;
 
@@ -22,14 +24,20 @@ impl Sender {
 
 #[wasm_bindgen]
 pub struct Resolution {
-    r: ResolutionManager,
+    // The manager holds `Arc`/`RwLock`/`DashMap` and so is not `RefUnwindSafe`.
+    // With `panic=unwind`, wasm-bindgen wraps every exported method in
+    // `catch_unwind` and therefore requires the exported struct to be
+    // `RefUnwindSafe`. A panic that escapes a method tears down this whole
+    // instance, so there are no surviving broken invariants to guard against;
+    // assert unwind safety to satisfy the bound.
+    r: AssertUnwindSafe<ResolutionManager>,
 }
 
 #[wasm_bindgen]
 impl Resolution {
     pub fn new(f: Function) -> Self {
         Self {
-            r: ResolutionManager::new(Sender::new(f)),
+            r: AssertUnwindSafe(ResolutionManager::new(Sender::new(f))),
         }
     }
 
@@ -45,14 +53,15 @@ impl Resolution {
 
 #[wasm_bindgen]
 pub struct Sseq {
-    s: SseqManager,
+    // See the note on `Resolution::r` for why this is `AssertUnwindSafe`.
+    s: AssertUnwindSafe<SseqManager>,
 }
 
 #[wasm_bindgen]
 impl Sseq {
     pub fn new(f: Function) -> Self {
         Self {
-            s: SseqManager::new(Sender::new(f)),
+            s: AssertUnwindSafe(SseqManager::new(Sender::new(f))),
         }
     }
 

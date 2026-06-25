@@ -13,6 +13,10 @@
       rustToolchain = fenixPkgs.combine [
         super.defaultPackages.rustToolchain.${system}
         fenixPkgs.targets.wasm32-unknown-unknown.latest.toolchain
+        # rust-src is needed for `-Z build-std`, which we use to rebuild the
+        # standard library with `panic=unwind` for the wasm target (the
+        # prebuilt std ships as `panic=abort`).
+        fenixPkgs.complete.rust-src
       ];
 
       pythonEnv = pkgs.python3.withPackages (ps: [
@@ -29,6 +33,9 @@
 
           pythonEnv
           pkgs.openssl
+          # wabt provides wasm-objdump, used by `make test-wasm-unwind` to
+          # assert the wasm is actually built with unwinding support.
+          pkgs.wabt
         ]
         ++ super.defaultPackages.devTools.${system};
 
@@ -44,6 +51,7 @@
         cargo install wasm-bindgen-cli --debug
         make lint-wasm
         make wasm
+        make test-wasm-unwind
 
         make serve-wasm &
         (sleep 1 && make selenium)
