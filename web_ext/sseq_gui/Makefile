@@ -5,14 +5,20 @@ WASM_OUT = dist/
 WASM_FILE = $(WASM_OUT)/$(NAME)_wasm_bg.wasm
 EXT = ../../ext/
 
-EXT_SRC = $(EXT)/Cargo.toml $(shell find $(EXT)/src/) $(wildcard $(EXT)/crates/*/Cargo.tml) $(shell find $(EXT)/crates/*/src/)
-
-# The prebuilt std for wasm32-unknown-unknown is compiled with `panic=abort`,
-# so `-C panic=unwind` alone is silently ignored. To get real unwinding we must
-# rebuild std with `-Z build-std` (nightly only) and enable the wasm
-# exception-handling proposal.
+# Building with `panic=unwind` lets Rust panics unwind into JS exceptions
+# instead of aborting the whole wasm module. The prebuilt std for
+# wasm32-unknown-unknown is compiled with `panic=abort`, so `-C panic=unwind`
+# alone is silently ignored: we must rebuild std with `-Z build-std` (nightly
+# only) and enable the wasm exception-handling proposal.
+#
+# This is opt-in via `WASM_UNWIND=1` so the default build still works on
+# stable/beta (panic=abort). CI builds stable/beta with panic=abort and the
+# deployed build with `WASM_UNWIND=1` on nightly.
+ifdef WASM_UNWIND
 WASM_RUSTFLAGS = -C panic=unwind -C target-feature=+exception-handling
 WASM_BUILD_STD = -Z build-std=std,panic_unwind
+WASM_OPT_FLAGS = --enable-exception-handling
+endif
 
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
@@ -30,23 +36,32 @@ setup-wasm:
 	# rust-src is required by `-Z build-std` (see the WASM_BUILD_STD note above).
 	rustup component add rust-src
 
-$(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC)
+# Always defer to cargo to decide whether a rebuild is needed: it fingerprints
+# RUSTFLAGS and the build-std setting, so it correctly rebuilds when toggling
+# between panic=abort and panic=unwind (which `make`'s timestamp check cannot
+# detect, as the sources are unchanged).
+$(WASM_LIB): FORCE
 	RUSTFLAGS="$$RUSTFLAGS $(WASM_RUSTFLAGS)" \
 		cargo build --lib --target $(WASM_TARGET) --release $(WASM_BUILD_STD)
 
+FORCE:
+
 $(WASM_FILE): $(WASM_LIB)
 	wasm-bindgen --no-typescript --target no-modules --out-dir $(WASM_OUT) --out-name $(NAME)_wasm $(WASM_LIB)
-	wasm-opt -O3 --enable-exception-handling $(WASM_FILE) -o $(WASM_FILE) || true
+	wasm-opt -O3 $(WASM_OPT_FLAGS) $(WASM_FILE) -o $(WASM_FILE) || true
 
 # Assert that the wasm is actually built with unwinding support: a wasm module
 # using the exception-handling proposal contains a `Tag` section. If unwinding
 # silently regressed to `panic=abort` (e.g. build-std got dropped), this fails.
-test-wasm-unwind: $(WASM_LIB)
+# Forces a WASM_UNWIND=1 build of the lib so the check is meaningful regardless
+# of how it was invoked.
+test-wasm-unwind:
+	$(MAKE) WASM_UNWIND=1 $(WASM_LIB)
 	wasm-objdump -h $(WASM_LIB) | grep -qi '^ *Tag ' \
 		|| { echo "ERROR: $(WASM_LIB) has no Tag section; panic=unwind is not in effect"; exit 1; }
 	@echo "OK: wasm built with exception-handling (panic=unwind)"
 
-.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update test-wasm-unwind
+.PHONY: wasm serve-wasm clean-wasm clean dummy test selenium selenium-update test-wasm-unwind FORCE
 
 wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard $(EXT)/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version

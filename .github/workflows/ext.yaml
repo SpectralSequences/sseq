@@ -124,6 +124,9 @@ jobs:
       - name: Lint sseq_gui tests
         run: make -C web_ext/sseq_gui lint-selenium
 
+  # Build the wasm webserver with the default `panic=abort` configuration on
+  # stable/beta. This is the compatibility build; the deployed artifact is
+  # produced by the `webserver-deploy` job below with `panic=unwind`.
   webserver:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
@@ -134,7 +137,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["stable", "beta", "nightly"]
+        toolchain: ["stable", "beta"]
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
@@ -176,6 +179,59 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: webserver-${{ matrix.toolchain }}
+          path: web_ext/sseq_gui/dist/
+
+  # Build the wasm webserver that actually gets deployed, on nightly with
+  # `panic=unwind` (via WASM_UNWIND=1). This is deploy-critical, so unlike the
+  # other nightly jobs it is not allowed to fail.
+  webserver-deploy:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
+      RUSTUP_TOOLCHAIN: nightly
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rustup
+        uses: dtolnay/rust-toolchain@v1
+        id: rustup
+        with:
+          toolchain: nightly
+          targets: wasm32-unknown-unknown
+          # rust-src is required by `-Z build-std` (used by WASM_UNWIND=1).
+          components: clippy, rustfmt, rust-src
+
+      - name: Cache files
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: wasm-unwind-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Install wasm-opt and wasm-objdump
+        run: sudo apt-get install -y binaryen wabt
+
+      - name: Setup build environment
+        run: make -C web_ext/sseq_gui setup-wasm
+
+      - name: Build wasm (panic=unwind)
+        run: make -C web_ext/sseq_gui wasm WASM_UNWIND=1
+
+      - name: Verify wasm unwinding
+        run: make -C web_ext/sseq_gui test-wasm-unwind
+
+      - name: Benchmark wasm size
+        run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
+
+      - name: Upload webserver
+        uses: actions/upload-artifact@v4
+        with:
+          name: webserver-nightly
           path: web_ext/sseq_gui/dist/
 
   selenium:
@@ -355,15 +411,16 @@ jobs:
           path: ext/target/doc/
 
   deploy:
-    needs: [test, lint, webserver, calculator, docs, selenium]
+    needs: [test, lint, webserver, webserver-deploy, calculator, docs, selenium]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
 
     steps:
       - name: Download webserver
+        # Deploy the nightly build, which is compiled with panic=unwind.
         uses: actions/download-artifact@v4
         with:
-          name: webserver-stable
+          name: webserver-nightly
 
       - name: Download calculator
         uses: actions/download-artifact@v4
