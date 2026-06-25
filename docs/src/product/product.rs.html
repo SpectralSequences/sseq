@@ -40,26 +40,26 @@
 <a href=#15 id=15 data-nosnippet>15</a>    ext::utils::init_logging()<span class="question-mark">?</span>;
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a>    <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);
-<a href=#18 id=18 data-nosnippet>18</a>    <span class="kw">let </span>alg = ExtAlgebra::from_resolution(resolution)<span class="question-mark">?</span>;
+<a href=#18 id=18 data-nosnippet>18</a>    <span class="kw">let </span>e2 = ExtAlgebra::from_resolution(resolution)<span class="question-mark">?</span>;
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">let </span>shift = Bidegree::n_s(
 <a href=#21 id=21 data-nosnippet>21</a>        query::raw(<span class="string">"n of Ext class"</span>, str::parse),
 <a href=#22 id=22 data-nosnippet>22</a>        query::raw(<span class="string">"s of Ext class"</span>, str::parse),
 <a href=#23 id=23 data-nosnippet>23</a>    );
 <a href=#24 id=24 data-nosnippet>24</a>
-<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">let </span>dim = alg.dimension(shift);
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">let </span>dim = e2.dimension(shift);
 <a href=#26 id=26 data-nosnippet>26</a>    <span class="kw">if </span>dim == <span class="number">0 </span>{
 <a href=#27 id=27 data-nosnippet>27</a>        <span class="macro">panic!</span>(<span class="string">"No classes in bidegree {shift}"</span>);
 <a href=#28 id=28 data-nosnippet>28</a>    }
 <a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span>v: Vec&lt;u32&gt; = query::vector(<span class="string">"Input Ext class"</span>, dim);
-<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">let </span>x = alg.element(shift, <span class="kw-2">&amp;</span>v);
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">let </span>x = e2.element(shift, <span class="kw-2">&amp;</span>v);
 <a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">for </span>b <span class="kw">in </span>alg.unit().iter_nonzero_stem() {
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">for </span>b <span class="kw">in </span>e2.unit().iter_nonzero_stem() {
 <a href=#33 id=33 data-nosnippet>33</a>        <span class="comment">// `None` means `b + shift` is out of the computed range, so skip it.
-<a href=#34 id=34 data-nosnippet>34</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(rows) = alg.multiply_into(<span class="kw-2">&amp;</span>x, b) <span class="kw">else </span>{
+<a href=#34 id=34 data-nosnippet>34</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(rows) = e2.multiply_into(<span class="kw-2">&amp;</span>x, b) <span class="kw">else </span>{
 <a href=#35 id=35 data-nosnippet>35</a>            <span class="kw">continue</span>;
 <a href=#36 id=36 data-nosnippet>36</a>        };
-<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">for </span>(g, row) <span class="kw">in </span>alg.unit_basis(b).into_iter().zip(rows.iter()) {
+<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">for </span>(g, row) <span class="kw">in </span>e2.unit_basis(b).into_iter().zip(rows.iter()) {
 <a href=#38 id=38 data-nosnippet>38</a>            <span class="kw">let </span>coords: Vec&lt;u32&gt; = row.iter().collect();
 <a href=#39 id=39 data-nosnippet>39</a>            <span class="kw">if </span>coords.iter().any(|<span class="kw-2">&amp;</span>c| c != <span class="number">0</span>) {
 <a href=#40 id=40 data-nosnippet>40</a>                <span class="macro">println!</span>(<span class="string">"x · x_{g} = {coords:?}"</span>);
