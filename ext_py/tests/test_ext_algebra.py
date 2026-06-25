@@ -26,10 +26,11 @@ All bad prime/degree/index inputs are pre-checked and raise
 import pytest
 
 import ext
-from ext import sseq
+from ext import fp, sseq
 
 Bidegree = sseq.Bidegree
 BidegreeGenerator = sseq.BidegreeGenerator
+BidegreeElement = sseq.BidegreeElement
 
 
 def s2_algebra(n=8, s=8):
@@ -237,19 +238,86 @@ def test_element_wrong_length_rejected():
 
 
 def test_element_uncomputed_bidegree_rejected():
+    # `ExtAlgebra.element` pre-rejects an uncomputed bidegree at *construction*.
+    # The analogous rejection inside `multiply`'s own operand validation (when an
+    # operand bidegree is uncomputed) is covered separately by
+    # `test_multiply_uncomputed_operand_rejected`, which builds the operand
+    # directly via `sseq.BidegreeElement` to bypass this construction guard.
     alg = s2_algebra(2, 2)
     with pytest.raises(ValueError):
         alg.element(Bidegree.n_s(500, 500), [])
 
 
-def test_multiply_invalid_operand_rejected():
+def test_multiply_uncomputed_operand_rejected():
+    # Exercise `multiply`'s OWN operand validation (`check_res_element` /
+    # `check_unit_element`), not `ExtAlgebra.element`'s construction guard. We
+    # build a structurally-valid `BidegreeElement` directly at a well-formed but
+    # UNCOMPUTED bidegree (bypassing `ExtAlgebra.element`, which would pre-reject
+    # it), then feed it to `multiply` in each operand position.
     alg = s2_algebra(8, 8)
-    # An operand at an uncomputed bidegree is rejected (ValueError), not a panic.
-    bad = alg.unit_element  # build a valid element first, then a bad one
     h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))
-    # Construct a deliberately malformed left operand at a far bidegree.
-    with pytest.raises(ValueError):
-        far = alg.element(Bidegree.n_s(0, 1), [1])  # valid
-        # Multiply against a unit element built at an uncomputed bidegree.
-        bad_unit = bad(Bidegree.n_s(900, 900), [])  # raises here (uncomputed)
-        alg.multiply(far, bad_unit)
+    # (n=500, s=500) is well-formed (s, t >= 0) but far outside the computed
+    # range; the empty p=2 vector makes a structurally-valid element there.
+    uncomputed = BidegreeElement(Bidegree.n_s(500, 500), fp.FpVector(2, 0))
+
+    # Left operand (resolution side): hits `check_res_element`'s uncomputed guard.
+    with pytest.raises(ValueError, match="not computed at the element's bidegree"):
+        alg.multiply(uncomputed, h0)
+    # Right operand (unit side): hits `check_unit_element`'s uncomputed guard.
+    with pytest.raises(ValueError, match="not computed at the element's bidegree"):
+        alg.multiply(h0, uncomputed)
+
+
+def test_multiply_into_degree_overflow_rejected():
+    # The i32-overflow guard (`checked_target` on `x.degree() + y.degree()`) is
+    # reachable only through `multiply_into`: its target `b` argument is NOT
+    # validated as computed (only s, t >= 0 then the overflow check), so a
+    # near-`i32::MAX` `b` makes the degree sum overflow. Through
+    # `multiply`/`try_multiply` the guard is SHADOWED by the operand
+    # uncomputed-bidegree check (both operands must be at computed -- hence small
+    # -- bidegrees, whose sum cannot overflow); see
+    # `test_multiply_near_imax_operand_shadowed_by_uncomputed_guard`.
+    alg = s2_algebra(8, 8)
+    h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))  # valid, computed at (0, 1)
+    imax = 2**31 - 1
+    # b.t() = i32::MAX, plus h0.t() = 1, overflows i32 -> ValueError, not a panic.
+    with pytest.raises(ValueError, match="overflows i32"):
+        alg.multiply_into(h0, Bidegree.s_t(imax, imax))
+
+
+def test_multiply_near_imax_operand_shadowed_by_uncomputed_guard():
+    # Through `multiply`, a near-`i32::MAX` operand is rejected by the operand
+    # uncomputed-bidegree guard BEFORE the overflow guard can fire (the overflow
+    # guard is exercised directly via `multiply_into` above). Documents that the
+    # overflow path is unreachable from `multiply`/`try_multiply` from Python.
+    alg = s2_algebra(8, 8)
+    h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))
+    imax = 2**31 - 1
+    big = BidegreeElement(Bidegree.s_t(imax, imax), fp.FpVector(2, 0))
+    with pytest.raises(ValueError, match="not computed at the element's bidegree"):
+        alg.multiply(big, h0)
+
+
+def test_multiply_cross_prime_operand_rejected():
+    # `check_element`'s per-element prime check: an operand whose underlying
+    # FpVector is over a different prime than the algebra (p=3 vs p=2) is rejected
+    # with ValueError, not a panic. The bidegree (0, 1) IS computed, so the prime
+    # check (which precedes the uncomputed-bidegree check) is what fires.
+    alg = s2_algebra(8, 8)
+    h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))
+    over_p3 = BidegreeElement(Bidegree.n_s(0, 1), fp.FpVector(3, 1))
+
+    # Left operand (resolution side).
+    with pytest.raises(ValueError, match="over prime 3 but the ExtAlgebra is over prime 2"):
+        alg.multiply(over_p3, h0)
+    # Right operand (unit side).
+    with pytest.raises(ValueError, match="over prime 3 but the ExtAlgebra is over prime 2"):
+        alg.multiply(h0, over_p3)
+
+
+# NIT: the `check_unit_augmentation` guard (unit resolution's augmentation must
+# be 1-dimensional in degree 0) is not given a dedicated raising-test: over `S_2`
+# the unit is always a valid 1-dimensional unit, so this guard is exercised only
+# indirectly via the product path (every successful `multiply`/`multiply_into` on
+# S_2 passes it). A dedicated raising-test would require a non-standard unit
+# module whose degree-0 augmentation is not 1-dimensional.
