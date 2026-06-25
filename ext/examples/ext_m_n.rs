@@ -11,11 +11,7 @@ fn main() -> anyhow::Result<()> {
     eprintln!("This script computes Ext(M, N)");
     let res = ext::utils::query_module_only("Module M", None, false)?;
     let module_spec = query::raw("Module N", ext::utils::parse_module_name);
-    #[cfg(not(feature = "nassau"))]
     let module = algebra::module::steenrod_module::from_json(res.algebra(), &module_spec)?;
-
-    #[cfg(feature = "nassau")]
-    let module = algebra::module::FDModule::from_json(res.algebra(), &module_spec)?;
 
     let max = Bidegree::n_s(
         query::raw("Max n", str::parse),

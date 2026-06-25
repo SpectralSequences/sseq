@@ -1,5 +1,3 @@
-//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
-//! particular, this contains the core logic that compute minimal resolutions.
 use std::sync::{Arc, Mutex, mpsc};
 
 use algebra::{
@@ -26,7 +24,7 @@ use crate::{
     utils::parallel::ParallelGuard,
 };
 
-/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
+/// In [`MuClassicalResolution::compute_through_stem`] and [`MuClassicalResolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
 /// explicit struct instead of a tuple to avoid an infinite type problem.
 struct SenderData {
@@ -72,12 +70,9 @@ impl SenderData {
 /// number if needs be, but up to the 140th stem we only see at most 8 new generators.
 const MAX_NEW_GENS: usize = 10;
 
-pub type Resolution<CC> = MuResolution<false, CC>;
-pub type UnstableResolution<CC> = MuResolution<true, CC>;
-
-/// A minimal resolution of a chain complex. The functions [`MuResolution::compute_through_stem`] and
-/// [`MuResolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
-pub struct MuResolution<const U: bool, CC: ChainComplex>
+/// A minimal resolution of a chain complex. The functions [`MuClassicalResolution::compute_through_stem`] and
+/// [`MuClassicalResolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
+pub struct MuClassicalResolution<const U: bool, CC: ChainComplex>
 where
     CC::Algebra: MuAlgebra<U>,
 {
@@ -112,15 +107,10 @@ where
     pub load_quasi_inverse: bool,
 }
 
-impl<const U: bool, CC: ChainComplex> MuResolution<U, CC>
+impl<const U: bool, CC: ChainComplex> MuClassicalResolution<U, CC>
 where
     CC::Algebra: MuAlgebra<U>,
 {
-    pub fn new(complex: Arc<CC>) -> Self {
-        // It doesn't error if the save file is None
-        Self::new_with_save(complex, None).unwrap()
-    }
-
     pub fn new_with_save(
         complex: Arc<CC>,
         save_dir: impl Into<SaveDirectory>,
@@ -892,7 +882,7 @@ where
     }
 }
 
-impl<const U: bool, CC: ChainComplex> ChainComplex for MuResolution<U, CC>
+impl<const U: bool, CC: ChainComplex> ChainComplex for MuClassicalResolution<U, CC>
 where
     CC::Algebra: MuAlgebra<U>,
 {
@@ -962,7 +952,7 @@ where
     }
 }
 
-impl<const U: bool, CC: ChainComplex> AugmentedChainComplex for MuResolution<U, CC>
+impl<const U: bool, CC: ChainComplex> AugmentedChainComplex for MuClassicalResolution<U, CC>
 where
     CC::Algebra: MuAlgebra<U>,
 {
@@ -980,48 +970,50 @@ where
 
 #[cfg(test)]
 mod tests {
-    use expect_test::expect;
+    // use expect_test::expect;
 
-    use super::*;
-    use crate::{chain_complex::FreeChainComplex, utils::construct_standard};
+    // use super::*;
+    // use crate::{chain_complex::FreeChainComplex, utils::construct_standard};
 
     #[test]
     fn test_restart_stem() {
-        let res = construct_standard::<false, _, _>("S_2", None).unwrap();
-        res.compute_through_stem(Bidegree::n_s(14, 8));
-        res.compute_through_bidegree(Bidegree::s_t(5, 19));
+        todo!()
+        // let res = construct_standard::<false, _, _>("S_2", None).unwrap();
+        // res.compute_through_stem(Bidegree::n_s(14, 8));
+        // res.compute_through_bidegree(Bidegree::s_t(5, 19));
 
-        expect![[r#"
-            ·                             
-            ·                     ·       
-            ·                   · ·     · 
-            ·                 ·   ·     · 
-            ·             ·   ·         · · 
-            ·     ·       · · ·         · ·   
-            ·   · ·     · · ·           · · ·   
-            · ·   ·       ·               ·       
-            ·                                       
-        "#]]
-        .assert_eq(&res.graded_dimension_string());
+        // expect![[r#"
+        //     ·
+        //     ·                     ·
+        //     ·                   · ·     ·
+        //     ·                 ·   ·     ·
+        //     ·             ·   ·         · ·
+        //     ·     ·       · · ·         · ·
+        //     ·   · ·     · · ·           · · ·
+        //     · ·   ·       ·               ·
+        //     ·
+        // "#]]
+        // .assert_eq(&res.graded_dimension_string());
     }
 
     #[test]
     fn test_apply_quasi_inverse() {
-        let tempdir = tempfile::TempDir::new().unwrap();
+        todo!()
+        // let tempdir = tempfile::TempDir::new().unwrap();
 
-        let mut res =
-            construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-        res.load_quasi_inverse = false;
+        // let mut res =
+        //     construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
+        // res.load_quasi_inverse = false;
 
-        let b = Bidegree::s_t(8, 8);
-        res.compute_through_bidegree(b);
+        // let b = Bidegree::s_t(8, 8);
+        // res.compute_through_bidegree(b);
 
-        assert!(res.differential(8).quasi_inverse(8).is_none());
+        // assert!(res.differential(8).quasi_inverse(8).is_none());
 
-        let v = FpVector::new(res.prime(), res.module(7).dimension(8));
-        let mut w = FpVector::new(res.prime(), res.module(8).dimension(8));
+        // let v = FpVector::new(res.prime(), res.module(7).dimension(8));
+        // let mut w = FpVector::new(res.prime(), res.module(8).dimension(8));
 
-        assert!(res.apply_quasi_inverse(&mut [w.as_slice_mut()], b, &[v.as_slice()]));
-        assert!(w.is_zero());
+        // assert!(res.apply_quasi_inverse(&mut [w.as_slice_mut()], b, &[v.as_slice()]));
+        // assert!(w.is_zero());
     }
 }

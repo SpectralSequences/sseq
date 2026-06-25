@@ -36,9 +36,6 @@ use ext::{
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
-#[cfg(feature = "nassau")]
-type FreeModule = FM<MilnorAlgebra>;
-#[cfg(not(feature = "nassau"))]
 type FreeModule = FM<algebra::SteenrodAlgebra>;
 
 type FreeModuleHomomorphism = FMH<FreeModule>;
@@ -134,10 +131,6 @@ fn get_element(
 
 /// Create a new `FiniteChainComplex` with `num_s` many non-zero modules.
 fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
-    #[cfg(feature = "nassau")]
-    let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO, false));
-
-    #[cfg(not(feature = "nassau"))]
     let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(algebra::SteenrodAlgebra::MilnorAlgebra(
         MilnorAlgebra::new(TWO, false),
     ));
@@ -234,12 +227,6 @@ fn main() -> anyhow::Result<()> {
     let save_dir = query::optional("Save directory", |x| {
         core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
     });
-
-    #[cfg(feature = "nassau")]
-    assert!(
-        save_dir.is_some(),
-        "A save directory is required for comparison between Bruner and Nassau resolutions."
-    );
 
     let resolution = ext::utils::construct("S_2@milnor", save_dir).unwrap();
 

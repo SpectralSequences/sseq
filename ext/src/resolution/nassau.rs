@@ -1,16 +1,10 @@
 //! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 //!
-//! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
-//! using Nassau's algorithm. It aims to provide an API similar to
+//! The main export is the [`Resolution`] object, which is a resolution at the prime 2 using
+//! Nassau's algorithm. It aims to provide an API similar to
 //! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 //! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
 //! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-//!
-//! To make use of this resolution in the example scripts, enable the `nassau` feature. This will
-//! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this
-//! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;
-//! the feature changes the return type of the function. While this is an incorrect use of features,
-//! we find that this the easiest way to make all scripts support both types of resolutions.
 
 use std::{
     fmt::Display,
@@ -22,11 +16,10 @@ use algebra::{
     Algebra, combinatorics,
     milnor_algebra::{MilnorAlgebra, PPartEntry},
     module::{
-        FreeModule, GeneratorData, Module, ZeroModule,
+        FDModule, FreeModule, GeneratorData, Module,
         homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
     },
 };
-use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
@@ -62,7 +55,6 @@ impl SenderData {
     }
 
     pub(crate) fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
-        tracing::info!(%b, "retrying");
         sender
             .send(Self {
                 b,
@@ -388,25 +380,22 @@ enum Magic {
     Fix = -3,
 }
 
-/// A resolution of `S_2` using Nassau's algorithm.
-///
-/// This aims to have an API similar to that of
-/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
-/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
+type FDMM = FDModule<MilnorAlgebra>;
+
+/// A resolution of a finite-dimensional module using Nassau's algorithm
+pub struct NassauResolution {
     lock: Mutex<()>,
     name: String,
     max_degree: i32,
     modules: OnceBiVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
     differentials: OnceBiVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
-    target: Arc<FiniteChainComplex<M>>,
-    chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
+    target: Arc<FiniteChainComplex<FDMM>>,
+    chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<FDMM>>>,
     save_dir: SaveDirectory,
 }
 
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
+impl NassauResolution {
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -415,18 +404,16 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.name = name;
     }
 
-    pub fn new(module: Arc<M>) -> Self {
+    pub fn new(module: Arc<FDMM>) -> Self {
         Self::new_with_save(module, None).unwrap()
     }
 
     pub fn new_with_save(
-        module: Arc<M>,
+        module: Arc<FDMM>,
         save_dir: impl Into<SaveDirectory>,
     ) -> anyhow::Result<Self> {
         let save_dir = save_dir.into();
-        let max_degree = module
-            .max_degree()
-            .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
+        let max_degree = module.max_degree().unwrap();
         let target = Arc::new(FiniteChainComplex::ccdz(module));
 
         if let Some(p) = save_dir.write() {
@@ -495,7 +482,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
     }
 
-    #[tracing::instrument(skip_all, fields(throughput))]
+    #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
     fn write_qi(
         f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
@@ -993,7 +980,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 }
 
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
+impl ChainComplex for NassauResolution {
     type Algebra = MilnorAlgebra;
     type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
     type Module = FreeModule<Self::Algebra>;
@@ -1224,9 +1211,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
     }
 }
 
-impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolution<M> {
-    type ChainMap = FreeModuleHomomorphism<M>;
-    type TargetComplex = FiniteChainComplex<M, FullModuleHomomorphism<M, M>>;
+impl AugmentedChainComplex for NassauResolution {
+    type ChainMap = FreeModuleHomomorphism<FDMM>;
+    type TargetComplex = FiniteChainComplex<FDMM, FullModuleHomomorphism<FDMM, FDMM>>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target)
@@ -1239,28 +1226,29 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
 
 #[cfg(test)]
 mod tests {
-    use expect_test::expect;
+    // use expect_test::expect;
 
     use super::*;
 
     #[test]
     fn test_restart_stem() {
-        let res = crate::utils::construct_nassau("S_2", None).unwrap();
-        res.compute_through_stem(Bidegree::n_s(14, 8));
-        res.compute_through_bidegree(Bidegree::s_t(5, 19));
+        todo!()
+        // let res = crate::utils::construct_standard("S_2", None).unwrap();
+        // res.compute_through_stem(Bidegree::n_s(14, 8));
+        // res.compute_through_bidegree(Bidegree::s_t(5, 19));
 
-        expect![[r#"
-            ·                             
-            ·                     ·       
-            ·                   · ·     · 
-            ·                 ·   ·     · 
-            ·             ·   ·         · · 
-            ·     ·       · · ·         · ·   
-            ·   · ·     · · ·           · · ·   
-            · ·   ·       ·               ·       
-            ·                                       
-        "#]]
-        .assert_eq(&res.graded_dimension_string());
+        // expect![[r#"
+        //     ·
+        //     ·                     ·
+        //     ·                   · ·     ·
+        //     ·                 ·   ·     ·
+        //     ·             ·   ·         · ·
+        //     ·     ·       · · ·         · ·
+        //     ·   · ·     · · ·           · · ·
+        //     · ·   ·       ·               ·
+        //     ·
+        // "#]]
+        // .assert_eq(&res.graded_dimension_string());
     }
 
     #[test]

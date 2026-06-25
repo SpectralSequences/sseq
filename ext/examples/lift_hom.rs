@@ -42,7 +42,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::module::Module;
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -61,30 +61,25 @@ fn main() -> anyhow::Result<()> {
     );
 
     let source_name = source.name();
-    let target = query::with_default("Target module", source_name, |s| {
-        if s == source_name {
-            Ok(Arc::clone(&source))
-        } else if cfg!(feature = "nassau") {
-            Err(anyhow!("Can only resolve S_2 with nassau"))
-        } else {
-            let config: utils::Config = s.try_into()?;
-            let save_dir = query::optional("Target save directory", |x| {
-                Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-            });
+    let target: Arc<utils::QueryModuleResolution> =
+        query::with_default("Target module", source_name, |s| -> anyhow::Result<_> {
+            if s == source_name {
+                Ok(Arc::clone(&source))
+            } else {
+                let config: utils::Config = s.try_into()?;
+                let save_dir = query::optional("Target save directory", |x| {
+                    Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+                });
 
-            let mut target = utils::construct(config, save_dir)
-                .context("Failed to load module from save file")
-                .unwrap();
+                let mut target = utils::construct(config, save_dir)
+                    .context("Failed to load module from save file")
+                    .unwrap();
 
-            target.set_name(s.to_owned());
+                target.set_name(s.to_owned());
 
-            #[cfg(feature = "nassau")]
-            unreachable!();
-
-            #[cfg(not(feature = "nassau"))]
-            Ok(Arc::new(target))
-        }
-    });
+                Ok(Arc::new(target))
+            }
+        });
 
     assert_eq!(source.prime(), target.prime());
     let p = source.prime();

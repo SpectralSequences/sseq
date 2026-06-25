@@ -160,9 +160,6 @@
 //!   $\mathrm{tmf}$ modules.
 //! - `logging`: Print timing information of the computations to stderr. Note that this has no
 //!   effect unless the `RUST_LOG` environment variable is set appropriately.
-//! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
-//!   minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
-//!   at the prime 2 can be resolved.
 
 #![allow(clippy::upper_case_acronyms)]
 #![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
@@ -180,7 +177,6 @@ use algebra::module::SteenrodModule;
 use crate::chain_complex::FiniteChainComplex;
 pub type CCC = FiniteChainComplex<SteenrodModule>;
 
-pub mod nassau;
 pub mod secondary;
 pub mod utils;
 
