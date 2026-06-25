@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["chain_complex","nassau","resolution","resolution_homomorphism","save","secondary","utils","yoneda"],"type":["CCC"]};
+window.SIDEBAR_ITEMS = {"mod":["chain_complex","ext_algebra","nassau","resolution","resolution_homomorphism","save","secondary","utils","yoneda"],"type":["CCC"]};
