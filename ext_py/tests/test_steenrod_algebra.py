@@ -270,6 +270,34 @@ def test_from_json_constructs_known_algebra():
     assert fallback.algebra_type() == algebra.AlgebraType.Milnor
 
 
+def test_from_json_accepts_string_algebra_type():
+    spec = {"p": 2}
+
+    # Plain strings are accepted, case-insensitively, as an alternative to the
+    # AlgebraType enum.
+    for s in ("adem", "ADEM", "Adem"):
+        a = algebra.SteenrodAlgebra.from_json(spec, s)
+        assert a.algebra_type() == algebra.AlgebraType.Adem
+
+    for s in ("milnor", "MILNOR", "Milnor"):
+        m = algebra.SteenrodAlgebra.from_json(spec, s)
+        assert m.algebra_type() == algebra.AlgebraType.Milnor
+
+    # The enum still works exactly as before.
+    enum_adem = algebra.SteenrodAlgebra.from_json(spec, algebra.AlgebraType.Adem)
+    assert enum_adem.algebra_type() == algebra.AlgebraType.Adem
+
+
+def test_from_json_rejects_invalid_algebra_string():
+    with pytest.raises(ValueError):
+        algebra.SteenrodAlgebra.from_json({"p": 2}, "foo")
+
+
+def test_from_json_rejects_non_string_non_enum_algebra_type():
+    with pytest.raises(TypeError):
+        algebra.SteenrodAlgebra.from_json({"p": 2}, 42)
+
+
 def test_from_json_bad_prime_raises():
     # Upstream returns an opaque anyhow::Error for a bad prime, which the
     # binding maps to RuntimeError (documented behavior); the Python value

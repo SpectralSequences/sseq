@@ -157,6 +157,67 @@ def test_fdmodule_build():
     assert sm.algebra().prime() == 2
 
 
+# --- FDModuleBuilder algebra-argument acceptance --------------------------
+
+
+@pytest.mark.parametrize(
+    "make_alg, expected_type",
+    [
+        # The union SteenrodAlgebra, in both bases.
+        (lambda: algebra.SteenrodAlgebra.adem(2), algebra.AlgebraType.Adem),
+        (lambda: algebra.SteenrodAlgebra.milnor(2), algebra.AlgebraType.Milnor),
+        # The concrete variant pyclasses: these used to be rejected (the
+        # constructor only accepted SteenrodAlgebra), and are reconstructed into
+        # the matching SteenrodAlgebra variant.
+        (lambda: algebra.AdemAlgebra(2, False), algebra.AlgebraType.Adem),
+        (lambda: algebra.MilnorAlgebra(2, False), algebra.AlgebraType.Milnor),
+    ],
+)
+def test_fdmodule_accepts_all_algebra_types(make_alg, expected_type):
+    alg = make_alg()
+    m = algebra.FDModuleBuilder(alg, "C2", [1, 1])
+    # Building C2 with Sq1 x0 = x1 must work regardless of how the algebra was
+    # supplied: the reconstructed algebra has identical prime/basis indexing.
+    m.set_action(1, 0, 0, 0, [1])
+    assert m.prime() == 2
+    # The builder's algebra is the matching SteenrodAlgebra variant.
+    assert m.algebra().algebra_type() == expected_type
+    sm = m.build()
+    res = fp.FpVector(2, sm.dimension(1))
+    sm.act_on_basis(res, 1, 1, 0, 0, 0)
+    assert res[0] == 1
+
+
+def test_fdmodule_accepts_milnor_algebra_with_profile():
+    # A profile-restricted MilnorAlgebra is accepted and reconstructed as Milnor.
+    alg = algebra.MilnorAlgebra(2, False)
+    m = algebra.FDModuleBuilder(alg, "", [1, 1])
+    assert m.algebra().algebra_type() == algebra.AlgebraType.Milnor
+
+
+def test_fdmodule_rejects_non_algebra_argument():
+    with pytest.raises(TypeError):
+        algebra.FDModuleBuilder("not an algebra", "", [1])
+    with pytest.raises(TypeError):
+        algebra.FDModuleBuilder(2, "", [1])
+
+
+def test_fdmodule_to_json():
+    # to_json mirrors upstream FiniteDimensionalModule::to_json: name/type/gens/
+    # actions, and NOT the prime p (the caller adds that separately).
+    m = algebra.FDModuleBuilder(milnor(2), "C2", [1, 1])
+    m.set_action(1, 0, 0, 0, [1])
+    j = m.to_json()
+    assert j["name"] == "C2"
+    assert j["type"] == "finite dimensional module"
+    assert j["gens"] == {"x0_0": 0, "x1_0": 1}
+    assert j["actions"] == ["Sq1 x0_0 = x1_0"]
+    assert "p" not in j
+    # Still available after build() (it is a read-only query).
+    m.build()
+    assert m.to_json()["name"] == "C2"
+
+
 # --- steenrod_module_from_json --------------------------------------------
 
 

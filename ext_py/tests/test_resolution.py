@@ -264,3 +264,17 @@ def test_name_is_method_returning_str():
     r = resolve("standard")
     assert isinstance(r.name(), str)
     assert not hasattr(r, "set_name")
+
+
+@pytest.mark.parametrize("algorithm", ["standard", "nassau"])
+def test_algebra_returns_steenrod_algebra(algorithm):
+    # algebra() yields a SteenrodAlgebra on both backends: the standard backend
+    # shares its union algebra directly; the Nassau backend (which resolves over
+    # a bare MilnorAlgebra) rebuilds the equivalent Milnor variant.
+    r = resolve(algorithm)
+    alg = r.algebra()
+    assert isinstance(alg, ext.algebra.SteenrodAlgebra)
+    assert alg.prime() == 2
+    assert alg.algebra_type() == ext.algebra.AlgebraType.Milnor
+    # The accessor an example relies on (chart.py) must work off it.
+    assert alg.default_filtration_one_products()

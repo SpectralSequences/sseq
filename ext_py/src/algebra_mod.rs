@@ -399,6 +399,52 @@ pub mod algebra_py {
         }
     }
 
+    /// A function-argument wrapper around [`AlgebraType`] that accepts either an
+    /// `AlgebraType` enum value or a case-insensitive string `"adem"`/`"milnor"`
+    /// from Python. Any other string raises `ValueError`; any non-string,
+    /// non-`AlgebraType` value raises `TypeError`. Use this in binding
+    /// signatures (instead of `AlgebraType`) wherever the proposal calls for an
+    /// algebra-type argument, then convert with `.0`/`.into()`.
+    pub(crate) struct AlgebraTypeArg(pub(crate) AlgebraType);
+
+    impl<'a, 'py> FromPyObject<'a, 'py> for AlgebraTypeArg {
+        type Error = PyErr;
+
+        fn extract(obj: pyo3::Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+            // Prefer an actual `AlgebraType` enum value, preserving the exact
+            // previous behaviour when one is passed.
+            if let Ok(ty) = obj.extract::<AlgebraType>() {
+                return Ok(AlgebraTypeArg(ty));
+            }
+            // Otherwise accept a case-insensitive string spelling.
+            if let Ok(s) = obj.extract::<String>() {
+                return match s.to_ascii_lowercase().as_str() {
+                    "adem" => Ok(AlgebraTypeArg(AlgebraType::Adem)),
+                    "milnor" => Ok(AlgebraTypeArg(AlgebraType::Milnor)),
+                    other => Err(PyValueError::new_err(format!(
+                        "invalid algebra type {other:?}; expected \"adem\" or \"milnor\" \
+                         (case-insensitive), or an AlgebraType enum value"
+                    ))),
+                };
+            }
+            Err(pyo3::exceptions::PyTypeError::new_err(
+                "expected an AlgebraType or a string (\"adem\" or \"milnor\")",
+            ))
+        }
+    }
+
+    impl From<AlgebraTypeArg> for AlgebraType {
+        fn from(value: AlgebraTypeArg) -> Self {
+            value.0
+        }
+    }
+
+    impl From<AlgebraTypeArg> for ::algebra::AlgebraType {
+        fn from(value: AlgebraTypeArg) -> Self {
+            value.0.into()
+        }
+    }
+
     /// A basis element of the Milnor algebra: a product of exterior generators
     /// `Q_k` (encoded as the bitmask `q_part`) and a polynomial part `P(p_part)`.
     #[pyclass(name = "MilnorBasisElement", skip_from_py_object)]
@@ -561,9 +607,29 @@ pub mod algebra_py {
     }
 
     #[pyclass]
-    pub struct MilnorAlgebra(::algebra::MilnorAlgebra);
+    pub struct MilnorAlgebra(::algebra::MilnorAlgebra, bool);
 
     impl MilnorAlgebra {
+        /// Reconstruct an `Arc<SteenrodAlgebra>` of the Milnor variant matching
+        /// this algebra's prime, profile and `unstable` flag. The concrete
+        /// `::algebra::MilnorAlgebra` is neither `Clone` nor `Arc`-shared, so a
+        /// `SteenrodAlgebra` view cannot borrow it; we rebuild an equal algebra
+        /// (same prime/profile/unstable => identical basis indexing). Used to let
+        /// module builders accept a `MilnorAlgebra` directly.
+        pub(crate) fn to_steenrod(&self) -> Arc<::algebra::SteenrodAlgebra> {
+            // `MilnorProfile` is not `Clone`, so rebuild it field-by-field
+            // (q_part is `Copy`, p_part is a `Vec`), as `profile()` does.
+            let profile = self.0.profile();
+            let profile = ::algebra::milnor_algebra::MilnorProfile {
+                truncated: profile.truncated,
+                q_part: profile.q_part,
+                p_part: profile.p_part.clone(),
+            };
+            Arc::new(::algebra::SteenrodAlgebra::MilnorAlgebra(
+                ::algebra::MilnorAlgebra::new_with_profile(self.0.prime(), profile, self.1),
+            ))
+        }
+
         /// Lazily compute book-keeping up to `degree`. The Milnor algebra is
         /// infinite-dimensional and its internal `OnceVec` tables panic when
         /// indexed past the computed range, so every degree-indexed Python
@@ -605,10 +671,10 @@ pub mod algebra_py {
         #[new]
         #[pyo3(signature = (p, unstable_enabled = false))]
         pub fn new(p: u32, unstable_enabled: bool) -> PyResult<Self> {
-            Ok(MilnorAlgebra(::algebra::MilnorAlgebra::new(
-                valid_prime(p)?,
+            Ok(MilnorAlgebra(
+                ::algebra::MilnorAlgebra::new(valid_prime(p)?, unstable_enabled),
                 unstable_enabled,
-            )))
+            ))
         }
 
         /// Construct a Milnor algebra restricted to the given profile. Raises
@@ -626,11 +692,10 @@ pub mod algebra_py {
             if !profile.is_valid() {
                 return Err(PyValueError::new_err("invalid Milnor profile"));
             }
-            Ok(MilnorAlgebra(::algebra::MilnorAlgebra::new_with_profile(
-                p,
-                profile,
+            Ok(MilnorAlgebra(
+                ::algebra::MilnorAlgebra::new_with_profile(p, profile, unstable_enabled),
                 unstable_enabled,
-            )))
+            ))
         }
 
         // --- Algebra trait surface --------------------------------------------
@@ -1159,9 +1224,19 @@ pub mod algebra_py {
     }
 
     #[pyclass]
-    pub struct AdemAlgebra(::algebra::AdemAlgebra);
+    pub struct AdemAlgebra(::algebra::AdemAlgebra, bool);
 
     impl AdemAlgebra {
+        /// Reconstruct an `Arc<SteenrodAlgebra>` of the Adem variant matching
+        /// this algebra's prime and `unstable` flag (the `generic` flag is
+        /// derived from the prime upstream). See `MilnorAlgebra::to_steenrod` for
+        /// why an equal algebra is rebuilt rather than shared.
+        pub(crate) fn to_steenrod(&self) -> Arc<::algebra::SteenrodAlgebra> {
+            Arc::new(::algebra::SteenrodAlgebra::AdemAlgebra(
+                ::algebra::AdemAlgebra::new(self.0.prime(), self.1),
+            ))
+        }
+
         /// Lazily compute book-keeping up to `degree`. Like `MilnorAlgebra`,
         /// the Adem algebra is infinite-dimensional and its internal `OnceVec`
         /// tables panic when indexed past the computed range, so every
@@ -1202,10 +1277,10 @@ pub mod algebra_py {
         pub fn new(p: u32, unstable_enabled: bool) -> PyResult<Self> {
             // `generic` is not a constructor flag upstream: it is derived as
             // `p != 2`.
-            Ok(AdemAlgebra(::algebra::AdemAlgebra::new(
-                valid_prime(p)?,
+            Ok(AdemAlgebra(
+                ::algebra::AdemAlgebra::new(valid_prime(p)?, unstable_enabled),
                 unstable_enabled,
-            )))
+            ))
         }
 
         // --- Algebra trait surface --------------------------------------------
@@ -1569,6 +1644,25 @@ pub mod algebra_py {
             SteenrodAlgebra(algebra)
         }
 
+        /// Build the union `SteenrodAlgebra` of the Milnor variant from a
+        /// concrete `::algebra::MilnorAlgebra`'s prime + profile. Used to expose
+        /// the algebra of a Nassau-backed resolution (which resolves over a bare
+        /// `MilnorAlgebra`, not the union) as a `SteenrodAlgebra`. The concrete
+        /// algebra is neither `Clone` nor `Arc`-shareable as a union, so an equal
+        /// algebra is rebuilt (same prime/profile => identical basis indexing).
+        /// Nassau is the stable mod-2 sphere, so `unstable = false`.
+        pub(crate) fn from_milnor(algebra: &::algebra::MilnorAlgebra) -> Self {
+            let profile = algebra.profile();
+            let profile = ::algebra::milnor_algebra::MilnorProfile {
+                truncated: profile.truncated,
+                q_part: profile.q_part,
+                p_part: profile.p_part.clone(),
+            };
+            SteenrodAlgebra(Arc::new(::algebra::SteenrodAlgebra::MilnorAlgebra(
+                ::algebra::MilnorAlgebra::new_with_profile(algebra.prime(), profile, false),
+            )))
+        }
+
         /// A cheap clone of the shared algebra handle, for feeding module
         /// constructors that take `Arc<SteenrodAlgebra>` upstream.
         pub(crate) fn arc(&self) -> Arc<::algebra::SteenrodAlgebra> {
@@ -1626,7 +1720,7 @@ pub mod algebra_py {
         #[pyo3(signature = (value, ty, unstable = false))]
         pub fn from_json(
             value: &Bound<'_, PyAny>,
-            ty: AlgebraType,
+            ty: AlgebraTypeArg,
             unstable: bool,
         ) -> PyResult<Self> {
             let json = py_to_json(value)?;
@@ -2607,6 +2701,29 @@ pub mod algebra_py {
         }
     }
 
+    /// Coerce a Python algebra argument into an `Arc<SteenrodAlgebra>`,
+    /// accepting any of the bound algebra pyclasses: a [`SteenrodAlgebra`]
+    /// (shared directly), or a concrete [`AdemAlgebra`]/[`MilnorAlgebra`]
+    /// (reconstructed into the matching `SteenrodAlgebra` variant via
+    /// `to_steenrod`). Raises `TypeError` for anything else. This is what lets
+    /// module builders such as `FDModuleBuilder` accept either the union algebra
+    /// or one of its concrete variants.
+    fn algebra_arg_to_steenrod(
+        algebra: &Bound<'_, PyAny>,
+    ) -> PyResult<Arc<::algebra::SteenrodAlgebra>> {
+        if let Ok(a) = algebra.extract::<PyRef<'_, SteenrodAlgebra>>() {
+            Ok(a.arc())
+        } else if let Ok(a) = algebra.extract::<PyRef<'_, AdemAlgebra>>() {
+            Ok(a.to_steenrod())
+        } else if let Ok(a) = algebra.extract::<PyRef<'_, MilnorAlgebra>>() {
+            Ok(a.to_steenrod())
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err(
+                "expected a SteenrodAlgebra, AdemAlgebra or MilnorAlgebra",
+            ))
+        }
+    }
+
     /// A mutable builder for a finite-dimensional module over the Steenrod
     /// algebra. The graded dimensions are given as a `list[int]` starting at
     /// `min_degree`. Populate the actions with
@@ -2659,16 +2776,17 @@ pub mod algebra_py {
         #[new]
         #[pyo3(signature = (algebra, name, graded_dims, min_degree = 0))]
         pub fn new(
-            algebra: PyRef<'_, SteenrodAlgebra>,
+            algebra: &Bound<'_, PyAny>,
             name: String,
             graded_dims: Vec<usize>,
             min_degree: i32,
-        ) -> Self {
+        ) -> PyResult<Self> {
+            let alg = algebra_arg_to_steenrod(algebra)?;
             let graded_dimension = ::bivec::BiVec::from_vec(min_degree, graded_dims);
-            FDModuleBuilder {
-                inner: Arc::new(FDModuleInner::new(algebra.arc(), name, graded_dimension)),
+            Ok(FDModuleBuilder {
+                inner: Arc::new(FDModuleInner::new(alg, name, graded_dimension)),
                 built: false,
-            }
+            })
         }
 
         // --- flattened Module method set --------------------------------------
@@ -2964,6 +3082,18 @@ pub mod algebra_py {
             self.built = true;
             // `Arc<FDModuleInner>` unsizes directly to `Arc<dyn Module>`.
             SteenrodModule(Arc::clone(&self.inner) as RsSteenrodModule)
+        }
+
+        /// Serialize the module to a JSON `dict` (mirroring upstream
+        /// `FiniteDimensionalModule::to_json`): the `name` (if non-empty),
+        /// `type` (`"finite dimensional module"`), `gens` (name -> degree) and
+        /// `actions`. The prime `p` is intentionally NOT included, matching
+        /// upstream, whose caller writes it separately. This is a read-only query
+        /// and stays available before and after `build()`.
+        pub fn to_json(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+            let mut value = serde_json::Value::Object(serde_json::Map::new());
+            self.inner.to_json(&mut value);
+            json_to_py(py, &value)
         }
 
         pub fn __repr__(&self) -> String {

@@ -142,7 +142,7 @@ mod ext_py {
 
     #[pyfunction]
     pub fn query_module(
-        algebra_type: Option<algebra_py::AlgebraType>,
+        algebra_type: Option<algebra_py::AlgebraTypeArg>,
         save: bool,
     ) -> PyResult<Resolution> {
         ext::utils::query_module(algebra_type.map(algebra::AlgebraType::from), save)
@@ -153,7 +153,7 @@ mod ext_py {
     #[pyfunction]
     pub fn query_module_only(
         prompt: &str,
-        algebra: Option<algebra_py::AlgebraType>,
+        algebra: Option<algebra_py::AlgebraTypeArg>,
         load_quasi_inverse: bool,
     ) -> PyResult<Resolution> {
         ext::utils::query_module_only(
@@ -953,6 +953,21 @@ mod ext_py {
         pub fn name(&self) -> String {
             dispatch!(&self.0, r => r.name().to_string())
         }
+
+        /// The resolution's Steenrod algebra as a `SteenrodAlgebra`.
+        ///
+        /// The standard backend resolves over the union `SteenrodAlgebra`
+        /// directly, so its shared `Arc` is wrapped without copying. The Nassau
+        /// backend resolves over a concrete `MilnorAlgebra` (not the union); that
+        /// is rebuilt into the equivalent `SteenrodAlgebra::Milnor` variant (same
+        /// prime/profile, so identical basis indexing). See
+        /// `SteenrodAlgebra::from_milnor`.
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            match &self.0 {
+                AnyResolution::Standard(r) => algebra_py::SteenrodAlgebra::from_arc(r.algebra()),
+                AnyResolution::Nassau(r) => algebra_py::SteenrodAlgebra::from_milnor(&r.algebra()),
+            }
+        }
     }
 
     /// The lazy iterator returned by [`Resolution::iter_stem`] /
@@ -1092,14 +1107,50 @@ mod ext_py {
 
     #[pymethods]
     impl UnstableResolution {
-        /// Construct an unstable resolution of the module specification `spec`
-        /// (the unstable analogue of `Resolution(spec)`), optionally backed by an
-        /// on-disk save directory. Equivalent to the [`construct_unstable`]
-        /// pyfunction; see it for the full description. There is no `algorithm`
-        /// argument because the unstable family is general-algorithm only.
+        /// Construct an unstable resolution, optionally backed by an on-disk save
+        /// directory. The unstable analogue of `Resolution(spec)`; there is no
+        /// `algorithm` argument because the unstable family is general-algorithm
+        /// only.
+        ///
+        /// The first argument is either:
+        ///  - a module-specification **string** (e.g. `"S_2"`, `"Cnu@adem"`),
+        ///    resolved exactly as the [`construct_unstable`] pyfunction does
+        ///    (Steenrod-algebra basis via an `@adem`/`@milnor` suffix, default
+        ///    Milnor); or
+        ///  - a [`ChainComplex`] to resolve directly (the by-complex constructor,
+        ///    mirroring upstream `MuResolution::new_with_save(complex, save_dir)`).
+        ///    This is how `examples/resolve_unstable.py` &c. resolve a
+        ///    `ChainComplex.ccdz(module)` they built themselves.
+        ///
+        /// `save_dir` behaves exactly as in [`construct_unstable`]: an existing
+        /// path that is not a directory is a `ValueError`. A bad spec string is a
+        /// `ValueError`; an internal/IO construction failure is a `RuntimeError`.
         #[new]
         #[pyo3(signature = (spec, save_dir=None))]
-        pub fn new(spec: &str, save_dir: Option<String>) -> PyResult<Self> {
+        pub fn new(spec: &Bound<'_, PyAny>, save_dir: Option<String>) -> PyResult<Self> {
+            // By-complex constructor: resolve a caller-supplied ChainComplex.
+            if let Ok(cc) = spec.extract::<PyRef<'_, ChainComplex>>() {
+                let save_dir = save_dir.map(PathBuf::from);
+                if let Some(p) = &save_dir {
+                    if p.exists() && !p.is_dir() {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "save_dir {p:?} exists and is not a directory"
+                        )));
+                    }
+                }
+                let res = RsUnstableResolution::new_with_save(cc.0.clone(), save_dir)
+                    .map_err(|e: anyhow::Error| {
+                        pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
+                    })?;
+                return Ok(UnstableResolution(Arc::new(res)));
+            }
+            // By-spec constructor: parse a module-specification string.
+            let spec: &str = spec.extract().map_err(|_| {
+                pyo3::exceptions::PyTypeError::new_err(
+                    "UnstableResolution() expects a module-spec string or a ChainComplex \
+                     as its first argument",
+                )
+            })?;
             let config: Config = spec.try_into().map_err(|e: anyhow::Error| {
                 pyo3::exceptions::PyValueError::new_err(e.to_string())
             })?;
@@ -1204,9 +1255,14 @@ mod ext_py {
         /// analogue of `Resolution.to_sseq`, i.e. `to_sseq` on the unstable free
         /// chain complex). Panic-free over the resolved range: upstream only
         /// queries bidegrees yielded by `iter_stem`, all in range.
-        pub fn to_unstable_sseq(&self) -> sseq_py::Sseq {
+        pub fn to_sseq(&self) -> sseq_py::Sseq {
             let p = self.0.prime();
             sseq_py::Sseq::from_rust(self.0.to_sseq(), p)
+        }
+
+        /// Backwards-compatible alias for [`to_sseq`](Self::to_sseq).
+        pub fn to_unstable_sseq(&self) -> sseq_py::Sseq {
+            self.to_sseq()
         }
 
         /// A string representation of `d(g)` for the generator `g = (s, t, idx)`.
@@ -3865,11 +3921,26 @@ mod ext_py {
         /// The "concentrated chain complex, degreewise zero differential" of a
         /// single module: the one-term complex `C_0 = module`, `C_s = 0`
         /// otherwise. This is the simplest way to obtain a `ChainComplex` from a
-        /// `SteenrodModule` (then `compute_through_bidegree`, `module`, ...).
+        /// module (then `compute_through_bidegree`, `module`, ...).
+        ///
+        /// `module` may be a [`SteenrodModule`] or a [`SuspensionModule`] (the
+        /// latter is boxed into a `SteenrodModule` first, exactly as its
+        /// `into_steenrod_module()` does); this lets the unstable examples feed a
+        /// `SuspensionModule(module, shift)` straight in.
         #[staticmethod]
-        pub fn ccdz(module: PyRef<'_, algebra_py::SteenrodModule>) -> Self {
-            let m = module.as_rust().clone();
-            ChainComplex(Arc::new(CCC::ccdz(Arc::new(m))))
+        pub fn ccdz(module: &Bound<'_, PyAny>) -> PyResult<Self> {
+            let m = if let Ok(sm) = module.extract::<PyRef<'_, algebra_py::SteenrodModule>>() {
+                sm.as_rust().clone()
+            } else if let Ok(susp) =
+                module.extract::<PyRef<'_, algebra_py::SuspensionModule>>()
+            {
+                susp.into_steenrod_module().as_rust().clone()
+            } else {
+                return Err(pyo3::exceptions::PyTypeError::new_err(
+                    "ChainComplex.ccdz expects a SteenrodModule or a SuspensionModule",
+                ));
+            };
+            Ok(ChainComplex(Arc::new(CCC::ccdz(Arc::new(m)))))
         }
 
         /// Build a finite chain complex from an explicit list of `modules`
