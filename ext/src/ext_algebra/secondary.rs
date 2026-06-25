@@ -147,10 +147,9 @@ where
         Some(BidegreeElement::new(target, out))
     }
 
-    /// Whether `x` is a $d_2$-cycle (a permanent class through $E_3$). Treats an uncomputed $d_2$
-    /// target as "survives" (there is nothing for it to hit).
-    pub fn survives(&self, x: &BidegreeElement) -> bool {
-        self.d2(x).is_none_or(|d| d.vec().is_zero())
+    /// Whether `x` is a $d_2$-cycle (a permanent class through $E_3$).
+    pub fn survives(&self, x: &BidegreeElement) -> Option<bool> {
+        self.d2(x).map(|d| d.vec().is_zero())
     }
 
     /// The $E_3$-page subquotient of $\Ext(M, k)$ at bidegree `b`.
@@ -284,9 +283,15 @@ mod tests {
         // h_0, h_1, h_2 are permanent cycles.
         for (n, s) in [(0, 1), (1, 1), (3, 1)] {
             let h = e2.generator(BidegreeGenerator::new(Bidegree::n_s(n, s), 0));
-            assert!(sec_e2.survives(&h), "h at (n={n}, s={s}) should survive d2");
+            let h_survives = sec_e2
+                .survives(&h)
+                .unwrap_or_else(|| panic!("h at (n={n}, s={s}) should have a computed d2"));
+            assert!(h_survives, "h at (n={n}, s={s}) should survive d2");
+            let h_d2 = sec_e2
+                .d2(&h)
+                .unwrap_or_else(|| panic!("h at (n={n}, s={s}) should have a computed d2"));
             assert!(
-                sec_e2.d2(&h).is_none_or(|d| d.vec().is_zero()),
+                h_d2.vec().is_zero(),
                 "d2 of a permanent class should vanish"
             );
         }
@@ -297,6 +302,7 @@ mod tests {
         assert_eq!(d.degree(), Bidegree::n_s(14, 3));
         assert_eq!(e2.dimension(Bidegree::n_s(14, 3)), 1);
         assert!(!d.vec().is_zero(), "d2(h4) = h0 h3^2 should be nonzero");
-        assert!(!sec_e2.survives(&h4), "h4 should not survive d2");
+        let h4_survives = sec_e2.survives(&h4).expect("h4 should have a computed d2");
+        assert!(!h4_survives, "h4 should not survive d2");
     }
 }

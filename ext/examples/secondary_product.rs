@@ -63,7 +63,10 @@ fn main() -> anyhow::Result<()> {
     sec_e2.extend_all();
 
     // Check that the class survives to E3 (supports no d2).
-    assert!(sec_e2.survives(&x), "Class supports a non-zero d2");
+    let x_survives = sec_e2
+        .survives(&x)
+        .expect("Class differential is not computed");
+    assert!(x_survives, "Class supports a non-zero d2");
 
     let lift = sec_e2.secondary_product_lift(&x);
 
