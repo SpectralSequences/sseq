@@ -19,15 +19,16 @@ mod ext_py {
             homomorphism::{
                 FullModuleHomomorphism as RsFullModuleHomomorphism, ModuleHomomorphism,
             },
-            FDModule, Module, SteenrodModule as RsSteenrodModule,
+            steenrod_module, FDModule, Module, SteenrodModule as RsSteenrodModule,
         },
         Algebra,
     };
     use ext::{
         chain_complex::{
-            AugmentedChainComplex, ChainComplex as RsChainComplex,
+            AugmentedChainComplex, BoundedChainComplex, ChainComplex as RsChainComplex,
             ChainHomotopy as RsChainHomotopy,
-            FiniteAugmentedChainComplex as RsFiniteAugmentedChainComplex, FreeChainComplex,
+            FiniteAugmentedChainComplex as RsFiniteAugmentedChainComplex,
+            FiniteChainComplex as RsFiniteChainComplex, FreeChainComplex,
         },
         resolution_homomorphism::ResolutionHomomorphism as RsResolutionHomomorphism,
         secondary::SecondaryLift,
@@ -173,9 +174,13 @@ mod ext_py {
     ///
     /// Every failure upstream returns `anyhow::Err` (unknown module name,
     /// unterminated/`non-integer` shift, missing bundled file); the path is a
-    /// bad *argument*, so all are mapped to `ValueError`. The upstream code is
-    /// pure parsing plus a `std::fs::read_to_string`; it does not panic, so no
-    /// `catch_unwind` is required.
+    /// bad *argument*, so all are mapped to `ValueError`.
+    ///
+    /// The one previously-panicking path — a `[k]` shift suffix applied to a
+    /// module JSON whose existing `"shift"` field is not an integer (upstream did
+    /// `spec_shift.as_i64().unwrap()`) — now returns `anyhow::Err` with context
+    /// instead of panicking, so the call is a plain `Result` mapped via `map_err`
+    /// (no `catch_unwind` needed).
     #[pyfunction]
     pub fn parse_module_name(py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let value = ext::utils::parse_module_name(name)
@@ -225,27 +230,72 @@ mod ext_py {
         ext::secondary::LAMBDA_BIDEGREE.into()
     }
 
+    /// Compile-time guard documenting that `ext::utils::QueryModuleResolution`
+    /// (the type upstream `get_unit`/`construct` traffic in) is *exactly*
+    /// `Resolution<CCC>`, the inner type of [`AnyResolution::Standard`]. This
+    /// identity holds ONLY because `ext` depends on `ext` WITHOUT the `nassau`
+    /// feature; if `ext/nassau` is ever enabled, `QueryModuleResolution` flips to
+    /// `nassau::Resolution<FDModule<MilnorAlgebra>>` and the coercion below fails
+    /// to COMPILE (a loud, type-level error — never silent unsoundness). The
+    /// `get_unit` binding relies on this identity to return its constructed unit
+    /// as an `AnyResolution::Standard`.
+    #[allow(dead_code)]
+    fn assert_query_module_is_standard(
+        r: ext::utils::QueryModuleResolution,
+    ) -> ext::resolution::Resolution<CCC> {
+        r
+    }
+
     /// Given a resolution, return `(is_unit, unit_resolution)`: a flag for
     /// whether the input already resolves the unit, and a resolution of the unit
     /// (the input itself when `is_unit` is true).
     ///
     /// Mirrors
-    /// `ext::utils::get_unit(Arc<QueryModuleResolution>) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)>`.
+    /// `ext::utils::get_unit(Arc<QueryModuleResolution>) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)>`,
+    /// **but with the interactive prompt removed**. Upstream's non-unit branch
+    /// calls `query::optional("Unit save directory", …)` to obtain a save
+    /// directory before constructing the unit resolution; `query::*` consumes
+    /// process argv, blocks on stdin, and can `std::process::exit(1)`. None of
+    /// that is permissible across the FFI boundary (the project invariant: all
+    /// interactive I/O lives in the Python layer), so this binding NEVER calls
+    /// `ext::utils::get_unit`. Instead it:
+    ///   * computes the same `is_unit` predicate locally
+    ///     (`target().max_s() == 1 && target().module(0).is_unit()` — cheap,
+    ///     non-panicking reads), and
+    ///   * when the input is NOT the unit, replicates upstream's non-unit
+    ///     construction *non-interactively*, threading the Python-provided
+    ///     `save_dir` (mirroring `construct`/`construct_unstable`) in place of the
+    ///     prompted directory: it builds the one-dimensional `FDModule` "unit"
+    ///     over the resolution's own algebra, wraps it in `FiniteChainComplex::ccdz`,
+    ///     and calls `Resolution::new_with_save` exactly as upstream's
+    ///     `#[cfg(not(feature = "nassau"))]` arm does.
+    ///
     /// `ext` builds `ext` without the `nassau` feature, so
-    /// `QueryModuleResolution = Resolution<CCC>`, which is exactly the inner type
-    /// of [`AnyResolution::Standard`]; a Nassau-backed input therefore cannot be
-    /// passed and is rejected with `ValueError` (mirroring `chain_complex()` /
+    /// `QueryModuleResolution = Resolution<CCC>` (see the feature-fragility note
+    /// on [`assert_query_module_is_standard`]), which is exactly the inner type of
+    /// [`AnyResolution::Standard`]; a Nassau-backed input cannot be passed and is
+    /// rejected with `ValueError` (mirroring `chain_complex()` /
     /// `ResolutionHomomorphism`'s standard-only precedent).
     ///
-    /// The `is_unit` check reads `target().max_s()` and `module(0).is_unit()`
-    /// (cheap, non-panicking reads). NOTE: when the input is NOT the unit,
-    /// upstream `get_unit` interactively prompts (`query::optional`) for a unit
-    /// save directory and then constructs a fresh unit resolution; that prompt is
-    /// upstream behavior, so callers in a non-interactive context should only
-    /// pass a unit resolution (e.g. `S_2`, the typical `massey.py` input).
-    /// Construction failures (IO on the save directory) map to `RuntimeError`.
+    /// # Arguments
+    ///  - `resolution`: the (standard-backend) resolution to find the unit of.
+    ///  - `save_dir`: optional filesystem path for the freshly-constructed unit
+    ///    resolution, used ONLY on the non-unit path (when `is_unit` is true the
+    ///    input is returned as-is, a cheap shared-`Arc` with no construction and
+    ///    no save dir). Behaves exactly as in [`construct`]: an existing path that
+    ///    is not a directory is a `ValueError`; a non-existent path is created by
+    ///    upstream `Resolution::new_with_save`.
+    ///
+    /// Error taxonomy: Nassau backend or save_dir-is-a-file -> `ValueError`;
+    /// a genuine IO failure creating the unit resolution -> `RuntimeError`.
+    /// Nothing panics, consumes argv, reads stdin, or exits across the FFI
+    /// boundary.
     #[pyfunction]
-    pub fn get_unit(resolution: &Resolution) -> PyResult<(bool, Resolution)> {
+    #[pyo3(signature = (resolution, save_dir=None))]
+    pub fn get_unit(
+        resolution: &Resolution,
+        save_dir: Option<String>,
+    ) -> PyResult<(bool, Resolution)> {
         let arc =
             match &resolution.0 {
                 AnyResolution::Standard(r) => Arc::clone(r),
@@ -254,9 +304,42 @@ mod ext_py {
                      resolves over the concrete MilnorAlgebra and has no get_unit analogue here",
                 )),
             };
-        let (is_unit, unit) = ext::utils::get_unit(arc)
+
+        // Same predicate as upstream `ext::utils::get_unit`.
+        let target = arc.target();
+        let is_unit = target.max_s() == 1 && target.module(0).is_unit();
+
+        if is_unit {
+            // Cheap shared-Arc path: the input already resolves the unit. No
+            // construction, no save_dir, no prompt.
+            return Ok((true, Resolution(AnyResolution::Standard(arc))));
+        }
+
+        // Non-unit path: replicate upstream's `#[cfg(not(feature = "nassau"))]`
+        // unit construction NON-interactively, using the Python-provided
+        // `save_dir` in place of upstream's `query::optional(...)` prompt. No
+        // `query::*` (and hence no argv/stdin/process::exit) is reachable.
+        let save_dir = save_dir.map(PathBuf::from);
+        if let Some(p) = &save_dir {
+            // Mirror `construct`'s save_dir-is-a-file pre-check.
+            if p.exists() && !p.is_dir() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "save_dir {p:?} exists and is not a directory"
+                )));
+            }
+        }
+
+        let algebra = arc.algebra();
+        let module = FDModule::new(
+            algebra,
+            String::from("unit"),
+            bivec::BiVec::from_vec(0, vec![1]),
+        );
+        let cc = RsFiniteChainComplex::ccdz(Arc::new(steenrod_module::erase(module)));
+        let unit = ext::resolution::Resolution::new_with_save(Arc::new(cc), save_dir)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-        Ok((is_unit, Resolution(AnyResolution::Standard(unit))))
+
+        Ok((false, Resolution(AnyResolution::Standard(Arc::new(unit)))))
     }
 
     /// Construct a [`Resolution`] of the module `spec`, optionally backed by an on-disk save

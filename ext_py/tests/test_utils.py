@@ -205,11 +205,58 @@ def test_load_module_json_unknown_name_raises():
         ext.load_module_json("definitely_not_a_module")
 
 
+def test_load_module_json_malformed_raises_runtime_error(tmp_path, monkeypatch):
+    # A present-but-malformed module file is a genuine parse failure (NOT a bad
+    # name), so it maps to RuntimeError rather than ValueError. We isolate this
+    # in tmp_path (chdir) so nothing pollutes the repo / real cwd: upstream
+    # searches the current directory first for `<name>.json`.
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "broken_module.json").write_text("{ this is not valid json ]")
+    with pytest.raises(RuntimeError):
+        ext.load_module_json("broken_module")
+
+
 def test_get_unit_round_trip():
     res = ext.construct("S_2", algorithm="standard")
     res.compute_through_stem(_bidegree(8, 4))
     is_unit, unit = ext.get_unit(res)
-    # S_2 IS the unit, so upstream returns (True, the same resolution).
+    # S_2 IS the unit, so it returns (True, the same resolution) via the cheap
+    # shared-Arc path -- no construction, no save_dir, no prompt.
     assert is_unit is True
     assert isinstance(unit, ext.Resolution)
     assert unit.prime() == 2
+
+
+def test_get_unit_nonunit_builds_unit_noninteractively(tmp_path):
+    # A shifted sphere S_2[2] is NOT the unit (its module sits in degree 2).
+    # The binding must NOT fall through to upstream's interactive
+    # `query::optional` (which would consume argv / block on stdin / exit). With
+    # NO argv fed and NO stdin available, this must return PROMPTLY (no hang),
+    # building a fresh unit resolution from the Python-provided save_dir.
+    res = ext.construct("S_2[2]", algorithm="standard")
+    is_unit, unit = ext.get_unit(res, save_dir=str(tmp_path))
+    assert is_unit is False
+    assert isinstance(unit, ext.Resolution)
+    assert unit.prime() == 2
+    # The constructed unit IS usable and IS the unit.
+    unit.compute_through_stem(_bidegree(4, 4))
+    is_unit2, _ = ext.get_unit(unit)
+    assert is_unit2 is True
+
+
+def test_get_unit_nonunit_no_save_dir(tmp_path):
+    # The save_dir is optional on the non-unit path too (None -> in-memory unit).
+    res = ext.construct("S_2[2]", algorithm="standard")
+    is_unit, unit = ext.get_unit(res)
+    assert is_unit is False
+    assert unit.prime() == 2
+
+
+def test_get_unit_nonunit_save_dir_is_file_raises(tmp_path):
+    # save_dir that is an existing FILE -> ValueError (mirrors construct), never
+    # a panic and never interactive I/O.
+    bad = tmp_path / "not_a_dir"
+    bad.write_text("x")
+    res = ext.construct("S_2[2]", algorithm="standard")
+    with pytest.raises(ValueError):
+        ext.get_unit(res, save_dir=str(bad))
