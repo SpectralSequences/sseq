@@ -75,7 +75,21 @@ fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative_element<CC>(cc: Arc<CC>, b: Bidegree, class: &[u32]) -> Yoneda<CC>
+/// Fallible variant of [`yoneda_representative_element`]: this holds the actual computation.
+///
+/// It validates the cheaply-checkable preconditions up front and returns an error instead of
+/// panicking when they are violated, namely:
+///  - the bidegree `b` must have been computed in `cc`, and
+///  - the length of `class` must match the number of generators of `cc` in bidegree `b`.
+///
+/// The internal Euler-characteristic / lift sanity checks (mathematical invariants that can only be
+/// verified after replaying the computation) are likewise surfaced as errors rather than panicking.
+/// [`yoneda_representative_element`] is `try_yoneda_representative_element(..).unwrap()`.
+pub fn try_yoneda_representative_element<CC>(
+    cc: Arc<CC>,
+    b: Bidegree,
+    class: &[u32],
+) -> anyhow::Result<Yoneda<CC>>
 where
     CC: FreeChainComplex
         + AugmentedChainComplex<
@@ -86,6 +100,19 @@ where
     CC::TargetComplex: BoundedChainComplex,
     CC::Algebra: GeneratedAlgebra,
 {
+    if !cc.has_computed_bidegree(b) {
+        return Err(anyhow::anyhow!(
+            "cannot compute Yoneda representative: bidegree {b} has not been computed"
+        ));
+    }
+    let num_gens = cc.number_of_gens_in_bidegree(b);
+    if class.len() != num_gens {
+        return Err(anyhow::anyhow!(
+            "class length {} does not match the number of generators {num_gens} in bidegree {b}",
+            class.len()
+        ));
+    }
+
     let p = cc.prime();
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
@@ -107,11 +134,11 @@ where
     let module = cc.target().module(0);
 
     for t in cc.min_degree()..=b.t() {
-        assert_eq!(
-            yoneda.euler_characteristic(t),
-            module.dimension(t) as isize,
-            "Incorrect Euler characteristic at t = {t}",
-        );
+        let euler = yoneda.euler_characteristic(t);
+        let dim = module.dimension(t) as isize;
+        if euler != dim {
+            anyhow::bail!("Incorrect Euler characteristic at t = {t}: {euler} != {dim}");
+        }
     }
 
     let f = ResolutionHomomorphism::from_module_homomorphism(
@@ -124,12 +151,38 @@ where
     f.extend_through_stem(b);
     let final_map = f.get_map(b.s());
     for (i, &v) in class.iter().enumerate() {
-        assert_eq!(final_map.output(b.t(), i).len(), 1);
-        assert_eq!(final_map.output(b.t(), i).entry(0), v);
+        let out = final_map.output(b.t(), i);
+        if out.len() != 1 {
+            anyhow::bail!(
+                "lift verification failed: output at index {i} has length {}, expected 1",
+                out.len()
+            );
+        }
+        if out.entry(0) != v {
+            anyhow::bail!(
+                "lift verification failed: output at index {i} is {}, expected {v}",
+                out.entry(0)
+            );
+        }
     }
 
     drop(f);
-    Arc::try_unwrap(yoneda).unwrap_or_else(|_| unreachable!())
+    Ok(Arc::try_unwrap(yoneda).unwrap_or_else(|_| unreachable!()))
+}
+
+pub fn yoneda_representative_element<CC>(cc: Arc<CC>, b: Bidegree, class: &[u32]) -> Yoneda<CC>
+where
+    CC: FreeChainComplex
+        + AugmentedChainComplex<
+            ChainMap = FreeModuleHomomorphism<
+                <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+            >,
+        >,
+    CC::TargetComplex: BoundedChainComplex,
+    CC::Algebra: GeneratedAlgebra,
+{
+    try_yoneda_representative_element(cc, b, class)
+        .expect("yoneda_representative_element: invalid bidegree or class length")
 }
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through

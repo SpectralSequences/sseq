@@ -463,99 +463,126 @@ impl<const N: usize, P: SseqProfile<N>> Sseq<N, P> {
 /// Bigraded-specific methods (charting support).
 impl<P: SseqProfile<2>> Sseq<2, P> {
     /// This shifts the sseq horizontally so that the minimum x is 0.
-    pub fn write_to_graph<'a, T: crate::charting::Backend>(
+    /// Fallible variant of [`Self::write_to_graph`]: this holds the actual drawing logic.
+    ///
+    /// [`Self::write_to_graph`] requires the spectral sequence to have already been shifted so that
+    /// its minimum `y`-coordinate is `0`. This variant checks that precondition up front and
+    /// returns `Err(String)` instead of panicking; when it holds, the inner `Result<(), T::Error>`
+    /// carries any backend error. [`Self::write_to_graph`] is `try_write_to_graph(..).unwrap()`.
+    #[allow(clippy::type_complexity)]
+    pub fn try_write_to_graph<'a, T: crate::charting::Backend>(
         &self,
         mut g: T,
         r: i32,
         differentials: bool,
         products: impl Iterator<Item = &'a (String, Product<2>)> + Clone,
         header: impl FnOnce(&mut T) -> Result<(), T::Error>,
-    ) -> Result<(), T::Error> {
+    ) -> Result<Result<(), T::Error>, String> {
         let min = self.min();
-        assert_eq!(min.y(), 0);
+        if min.y() != 0 {
+            return Err(format!(
+                "write_to_graph requires the minimum y-coordinate to be 0, found {}; shift the \
+                 spectral sequence first",
+                min.y()
+            ));
+        }
 
-        let max = self.max();
+        Ok((move || {
+            let max = self.max();
 
-        g.init(max - min)?;
-        header(&mut g)?;
+            g.init(max - min)?;
+            header(&mut g)?;
 
-        for b in self.iter_degrees() {
-            let shifted_b = b - min;
+            for b in self.iter_degrees() {
+                let shifted_b = b - min;
 
-            let bd = self.page_data(b).get_max(r);
-            if bd.is_empty() {
-                continue;
-            }
-
-            g.node(shifted_b, bd.dimension())?;
-
-            // Now add the products hitting this bidegree
-            for (name, prod) in products.clone() {
-                let source_b = b - prod.b;
-                let shifted_source = source_b - min;
-
-                if !self.defined(source_b) {
+                let bd = self.page_data(b).get_max(r);
+                if bd.is_empty() {
                     continue;
                 }
 
-                let source_data = self.page_data(source_b).get_max(r);
-                if source_data.is_empty() {
-                    continue;
+                g.node(shifted_b, bd.dimension())?;
+
+                // Now add the products hitting this bidegree
+                for (name, prod) in products.clone() {
+                    let source_b = b - prod.b;
+                    let shifted_source = source_b - min;
+
+                    if !self.defined(source_b) {
+                        continue;
+                    }
+
+                    let source_data = self.page_data(source_b).get_max(r);
+                    if source_data.is_empty() {
+                        continue;
+                    }
+
+                    // For unstable charts this is None in low degrees.
+                    if let Some(matrix) = prod.matrices.get(source_b) {
+                        let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
+                        g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
+                    }
                 }
 
-                // For unstable charts this is None in low degrees.
-                if let Some(matrix) = prod.matrices.get(source_b) {
-                    let matrix = Subquotient::reduce_matrix(matrix, source_data, bd);
-                    g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
-                }
-            }
+                // Finally add the differentials
+                if differentials {
+                    let target_b = P::profile(r, b);
+                    let shifted_target = target_b - min;
 
-            // Finally add the differentials
-            if differentials {
-                let target_b = P::profile(r, b);
-                let shifted_target = target_b - min;
+                    if target_b.x() < 0 {
+                        continue;
+                    }
+                    let d = self.differentials(b);
+                    if d.len() <= r {
+                        continue;
+                    }
+                    let d = &d[r];
+                    let target_data = self.page_data(target_b).get_max(r);
 
-                if target_b.x() < 0 {
-                    continue;
-                }
-                let d = self.differentials(b);
-                if d.len() <= r {
-                    continue;
-                }
-                let d = &d[r];
-                let target_data = self.page_data(target_b).get_max(r);
+                    let pairs = d
+                        .get_source_target_pairs()
+                        .into_iter()
+                        .map(|(mut s, mut t)| {
+                            (
+                                bd.reduce(s.as_slice_mut()),
+                                target_data.reduce(t.as_slice_mut()),
+                            )
+                        });
 
-                let pairs = d
-                    .get_source_target_pairs()
-                    .into_iter()
-                    .map(|(mut s, mut t)| {
-                        (
-                            bd.reduce(s.as_slice_mut()),
-                            target_data.reduce(t.as_slice_mut()),
-                        )
-                    });
-
-                for (source, target) in pairs {
-                    for (i, v) in source.into_iter().enumerate() {
-                        if v == 0 {
-                            continue;
-                        }
-                        for (j, &v) in target.iter().enumerate() {
+                    for (source, target) in pairs {
+                        for (i, v) in source.into_iter().enumerate() {
                             if v == 0 {
                                 continue;
                             }
-                            g.structline(
-                                BidegreeGenerator::new(shifted_b, i),
-                                BidegreeGenerator::new(shifted_target, j),
-                                Some(&format!("d{r}")),
-                            )?;
+                            for (j, &v) in target.iter().enumerate() {
+                                if v == 0 {
+                                    continue;
+                                }
+                                g.structline(
+                                    BidegreeGenerator::new(shifted_b, i),
+                                    BidegreeGenerator::new(shifted_target, j),
+                                    Some(&format!("d{r}")),
+                                )?;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Ok(())
+            Ok(())
+        })())
+    }
+
+    pub fn write_to_graph<'a, T: crate::charting::Backend>(
+        &self,
+        g: T,
+        r: i32,
+        differentials: bool,
+        products: impl Iterator<Item = &'a (String, Product<2>)> + Clone,
+        header: impl FnOnce(&mut T) -> Result<(), T::Error>,
+    ) -> Result<(), T::Error> {
+        self.try_write_to_graph(g, r, differentials, products, header)
+            .expect("write_to_graph requires the minimum y-coordinate to be 0")
     }
 }
 
@@ -908,5 +935,46 @@ mod tests {
 
         "#]],
         );
+    }
+
+    #[test]
+    fn test_try_write_to_graph_precondition() {
+        use crate::charting::TikzBackend;
+
+        let p = ValidPrime::new(2);
+        let no_products = std::iter::empty::<&(String, Product<2>)>();
+
+        // VALID case: a sseq whose minimum y-coordinate is 0 satisfies the precondition,
+        // so `try_write_to_graph` returns `Ok(..)` and delegates to `write_to_graph`.
+        let mut good = Sseq::<2, Adams>::new(p);
+        good.set_dimension(Bidegree::x_y(0, 0), 1);
+        good.set_dimension(Bidegree::x_y(1, 0), 1);
+        assert_eq!(good.min().y(), 0);
+        let result = good.try_write_to_graph(
+            TikzBackend::new(Vec::<u8>::new()),
+            Adams::MIN_R,
+            true,
+            no_products.clone(),
+            |_| Ok(()),
+        );
+        assert!(result.is_ok(), "min y == 0 should not error");
+        // The inner backend result should also be Ok for this simple chart.
+        assert!(result.unwrap().is_ok());
+
+        // INVALID case: a sseq whose minimum y-coordinate is nonzero violates the
+        // precondition. The original `write_to_graph` would panic via `assert_eq!`; the
+        // fallible variant must instead return `Err(String)`.
+        let mut bad = Sseq::<2, Adams>::new(p);
+        bad.set_dimension(Bidegree::x_y(0, 1), 1);
+        assert_ne!(bad.min().y(), 0);
+        let err = bad.try_write_to_graph(
+            TikzBackend::new(Vec::<u8>::new()),
+            Adams::MIN_R,
+            true,
+            no_products,
+            |_| Ok(()),
+        );
+        assert!(err.is_err(), "nonzero min y should error, not panic");
+        assert!(err.unwrap_err().contains("minimum y-coordinate"));
     }
 }
