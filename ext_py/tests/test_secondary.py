@@ -182,6 +182,75 @@ def test_secondary_chain_homotopy_rejects_bad_lambda_shift():
         )
 
 
+def test_secondary_chain_homotopy_rejects_lambda_source_target_mismatch():
+    # left_lambda with the CORRECT shift ((1,1)+LAMBDA(1,1) = (2,2)) but built
+    # over a *different* resolution than underlying.left(): only the source/
+    # target Arc::ptr_eq branch can reject (distinct from the shift-mismatch
+    # branch exercised above).
+    r = sphere(8)
+    r2 = sphere(8)
+    res_lift = ext.SecondaryResolution(r)
+    left = h0(r, "a")
+    right = h0(r, "b")
+    left_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, left)
+    right_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, right)
+    ch = ext.ChainHomotopy(left, right)
+    bad_lambda = ext.ResolutionHomomorphism.from_class(
+        "al", r2, r2, Bidegree.s_t(2, 2), [1]
+    )
+    with pytest.raises(ValueError):
+        ext.SecondaryChainHomotopy(
+            left_sec, right_sec, ch, left_lambda=bad_lambda
+        )
+
+
+def test_secondary_chain_homotopy_rejects_bad_right_lambda():
+    # right_lambda with the wrong shift -> ValueError (exercises the right_lambda
+    # reject branch, the mirror of the left_lambda guard).
+    r = sphere(8)
+    res_lift = ext.SecondaryResolution(r)
+    left = h0(r, "a")
+    right = h0(r, "b")
+    left_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, left)
+    right_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, right)
+    ch = ext.ChainHomotopy(left, right)
+    bad_right_lambda = ext.ResolutionHomomorphism.from_class(
+        "br", r, r, Bidegree.s_t(3, 3), [1]
+    )
+    with pytest.raises(ValueError):
+        ext.SecondaryChainHomotopy(
+            left_sec, right_sec, ch, right_lambda=bad_right_lambda
+        )
+
+
+def test_secondary_chain_homotopy_accepts_valid_lambdas():
+    # Exercise the left_lambda AND right_lambda Some(..) *acceptance* paths:
+    # lambdas with the correct source/target identity and shift ((2,2))
+    # construct cleanly.
+    r = sphere(8)
+    res_lift = ext.SecondaryResolution(r)
+    left = h0(r, "a")
+    right = h0(r, "b")
+    left_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, left)
+    right_sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, right)
+    ch = ext.ChainHomotopy(left, right)
+    left_lambda = ext.ResolutionHomomorphism.from_class(
+        "al", r, r, Bidegree.s_t(2, 2), [1]
+    )
+    right_lambda = ext.ResolutionHomomorphism.from_class(
+        "bl", r, r, Bidegree.s_t(2, 2), [1]
+    )
+    sec_ch = ext.SecondaryChainHomotopy(
+        left_sec,
+        right_sec,
+        ch,
+        left_lambda=left_lambda,
+        right_lambda=right_lambda,
+    )
+    assert sec_ch.prime() == 2
+    assert isinstance(sec_ch.underlying(), ext.ChainHomotopy)
+
+
 # --- backend rejection (Nassau) --------------------------------------------
 
 

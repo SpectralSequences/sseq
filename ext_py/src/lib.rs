@@ -1215,10 +1215,9 @@ mod ext_py {
     /// two `ResolutionHomomorphism`s `left` and `right` for which
     /// `left.target()` is the *same* resolution object as `right.source()`.
     ///
-    /// Held by value (a `frozen` pyclass): every method takes `&self` and the
-    /// homotopy table is interior-mutable (`OnceBiVec`). The `num_chain` count
-    /// is not needed (the homotopy table's populated range is queried upstream
-    /// via `defined_range`).
+    /// Every method takes `&self` and the homotopy table is interior-mutable
+    /// (`OnceBiVec`). The `num_chain` count is not needed (the homotopy table's
+    /// populated range is queried upstream via `defined_range`).
     ///
     /// Only the standard backend is supported (see `RsCH`); the input
     /// `ResolutionHomomorphism`s already enforce this, so no extra backend check
@@ -1479,6 +1478,42 @@ mod ext_py {
         }
     }
 
+    /// Run a secondary `extend_all` under `catch_unwind`, translating an
+    /// inherent upstream panic into a `ValueError`.
+    ///
+    /// The secondary lift's only remaining panic (after the pre-flight coverage
+    /// guards) is the mathematical lift-validity `assert!` in upstream
+    /// `compute_homotopy_step` — "secondary: Failed to lift …": it fires on a
+    /// topologically invalid / non-realizable module (e.g. the cofiber of `h4`)
+    /// and cannot be pre-checked without performing the computation. Per the
+    /// project policy of containing a panic *only* when upstream offers no
+    /// non-panicking path (matching the `from_json`/`from_string` bindings in
+    /// `algebra_mod`), we catch it here and surface a `ValueError` rather than
+    /// let a `PanicException` (a `BaseException`, uncaught by `except Exception`)
+    /// cross the FFI boundary.
+    ///
+    /// `AssertUnwindSafe` is sound: `f` only appends to the `Arc`-shared,
+    /// interior-mutable, append-only `OnceVec`/`OnceBiVec` homotopy tables, so a
+    /// panic mid-`extend` leaves them in a valid-but-partial (memory-safe) state
+    /// — there is no broken invariant for a later observer to witness.
+    fn catch_secondary_lift_panic<F: FnOnce()>(f: F) -> PyResult<()> {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+        match catch_unwind(AssertUnwindSafe(f)) {
+            Ok(()) => Ok(()),
+            Err(payload) => {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_owned())
+                    .or_else(|| payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_owned());
+                Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "secondary computation failed to lift (input may not be a \
+                     valid/realizable module); underlying panic: {detail}"
+                )))
+            }
+        }
+    }
+
     /// The concrete (standard-backend) `SecondaryResolution` monomorphisation.
     type RsSecRes = ext::secondary::SecondaryResolution<ext::resolution::Resolution<ext::CCC>>;
 
@@ -1514,8 +1549,16 @@ mod ext_py {
             }
         }
 
-        pub fn extend_all(&self) {
-            self.0.extend_all()
+        /// Compute the secondary homotopies as far as the underlying resolution
+        /// is resolved (the upstream `SecondaryLift::extend_all`).
+        ///
+        /// A topologically invalid / non-realizable module can trip the inherent
+        /// upstream lift-validity `assert!` ("secondary: Failed to lift …"),
+        /// which is mathematical and cannot be pre-checked without performing the
+        /// computation. We contain it (`catch_unwind` -> `ValueError`) so it
+        /// never crosses the FFI boundary as a `PanicException`.
+        pub fn extend_all(&self) -> PyResult<()> {
+            catch_secondary_lift_panic(|| self.0.extend_all())
         }
 
         pub fn underlying(&self) -> Resolution {
@@ -1730,13 +1773,13 @@ mod ext_py {
         /// `extend_all`-ed far enough first (see the guard); otherwise a clean
         /// `ValueError` is raised rather than indexing an unpopulated
         /// `OnceBiVec`. A topologically invalid input can still trip the
-        /// inherent upstream lift-validity `assert!` (a caught `PanicException`,
-        /// memory-safe): that condition is mathematical and cannot be
-        /// pre-checked without performing the computation.
+        /// inherent upstream lift-validity `assert!`; that condition is
+        /// mathematical and cannot be pre-checked without performing the
+        /// computation, so it is contained (`catch_unwind` -> `ValueError`)
+        /// rather than crossing the FFI boundary as a `PanicException`.
         pub fn extend_all(&self) -> PyResult<()> {
             self.check_extend_all()?;
-            self.inner.extend_all();
-            Ok(())
+            catch_secondary_lift_panic(|| self.inner.extend_all())
         }
     }
 
