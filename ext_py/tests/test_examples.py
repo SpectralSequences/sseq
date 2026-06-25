@@ -63,8 +63,8 @@ KNOWN_UNBOUND = {
     # construct dispatcher is exposed).
     "construct_standard",
     # ResolutionHomomorphism and friends: lifting/secondary machinery.
-    # (ResolutionHomomorphism, SecondaryResolutionHomomorphism are now bound.)
-    "UnstableResolutionHomomorphism",
+    # (ResolutionHomomorphism, SecondaryResolutionHomomorphism,
+    # UnstableResolutionHomomorphism are now bound.)
     # --- Chain complex types (not yet bound) ---
     "DoubleChainComplex",
     "TensorChainComplex",

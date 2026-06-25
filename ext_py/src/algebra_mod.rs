@@ -12,19 +12,21 @@ pub mod algebra_py {
             FullModuleHomomorphism as RsFullModuleHomomorphism,
             GenericZeroHomomorphism as RsGenericZeroHomomorphism, HomPullback as RsHomPullback,
             IdentityHomomorphism, ModuleHomomorphism,
+            MuFreeModuleHomomorphism as RsMuFreeModuleHomomorphism,
             QuotientHomomorphism as RsQuotientHomomorphism,
             QuotientHomomorphismSource as RsQuotientHomomorphismSource, ZeroHomomorphism,
         },
         steenrod_module, FDModule as RsFDModule, FPModule as RsFPModule,
         FreeModule as RsFreeModule, HomModule as RsHomModule, Module,
-        OperationGeneratorPair as RsOperationGeneratorPair, QuotientModule as RsQuotientModule,
-        RealProjectiveSpace as RsRealProjectiveSpace, SteenrodModule as RsSteenrodModule,
-        SuspensionModule as RsSuspensionModule, TensorModule as RsTensorModule,
+        MuFreeModule as RsMuFreeModule, OperationGeneratorPair as RsOperationGeneratorPair,
+        QuotientModule as RsQuotientModule, RealProjectiveSpace as RsRealProjectiveSpace,
+        SteenrodModule as RsSteenrodModule, SuspensionModule as RsSuspensionModule,
+        TensorModule as RsTensorModule,
     };
     // Imported on its own line (not folded into the multi-item `module` import
     // above) so that later commits extending that import block do not conflict.
     use ::algebra::module::ActError;
-    use ::algebra::{Algebra, Bialgebra, Field as RsField, GeneratedAlgebra};
+    use ::algebra::{Algebra, Bialgebra, Field as RsField, GeneratedAlgebra, UnstableAlgebra};
     use ::fp::prime::{self, Prime};
     use pyo3::basic::CompareOp;
     use pyo3::exceptions::{PyIndexError, PyRuntimeError, PyValueError};
@@ -108,6 +110,27 @@ pub mod algebra_py {
     /// homomorphism can be shared into a `HomPullback`; all of its mutators take
     /// `&self` via interior mutability, so the `Arc` needs no `get_mut`.
     type FreeModuleHomToFreeInner = RsFreeModuleHomomorphism<FreeModuleInner>;
+    /// The *unstable* (`U = true`) free module `MuFreeModule<true,
+    /// SteenrodAlgebra>`. This is a *distinct type* from `FreeModuleInner =
+    /// MuFreeModule<false, SteenrodAlgebra>` (the bound `FreeModule` pyclass's
+    /// inner type): the const-generic `U` flag selects the unstable basis
+    /// (`dimension_unstable`) tables, so the two cannot be unified. It is the
+    /// module type of every `UnstableResolution`/`UnstableResolutionHomomorphism`
+    /// (see `ext_py::UnstableResolution`), and is exposed read-only by the
+    /// `UnstableFreeModule` pyclass below. Crucially its `Algebra` is still the
+    /// `SteenrodAlgebra` union, so it implements `Module<Algebra =
+    /// RsSteenrodAlgebra>` and can reuse the algebra-generic `module_*` guard
+    /// helpers via `&*self.0 as &DynModule`.
+    type UnstableFreeModuleInner = RsMuFreeModule<true, RsSteenrodAlgebra>;
+    /// The *unstable* free → free module homomorphism `MuFreeModuleHomomorphism<
+    /// true, MuFreeModule<true, SteenrodAlgebra>>`, returned by
+    /// `UnstableResolutionHomomorphism::get_map`. As with the module above, this
+    /// is a distinct monomorphisation from `FreeModuleHomToFreeInner` (the `U =
+    /// false` stable variant the bound `FreeModuleHomomorphismToFree` wraps), so
+    /// it needs its own `UnstableFreeModuleHomomorphism` pyclass. Both its
+    /// `Source` and `Target` are `UnstableFreeModuleInner`.
+    type UnstableFreeModuleHomToFreeInner =
+        RsMuFreeModuleHomomorphism<true, UnstableFreeModuleInner>;
     /// A `FullModuleHomomorphism` whose *source* and *target* are both the
     /// boxed dynamic module `RsSteenrodModule` (`Arc<dyn Module>`). Upstream
     /// `FullModuleHomomorphism<S, T>` records the matrix of the map in every
@@ -6668,6 +6691,269 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!(
                 "FreeModuleHomomorphismToFree(source={}, target={}, degree_shift={})",
+                self.0.source(),
+                self.0.target(),
+                self.0.degree_shift()
+            )
+        }
+    }
+
+    /// A read-only view of an *unstable* free module `MuFreeModule<true,
+    /// SteenrodAlgebra>` — the module type of an `UnstableResolution` and of the
+    /// source/target of an `UnstableFreeModuleHomomorphism`. It is a *distinct
+    /// type* from the bound `FreeModule` pyclass (whose inner module is the
+    /// stable `U = false` variant), so it gets its own pyclass.
+    ///
+    /// Handed out by `ext_py::UnstableResolution.module(s)` and
+    /// `UnstableFreeModuleHomomorphism.source()`/`.target()`, always sharing the
+    /// underlying `Arc` (a live view, never a copy). It is query-only: there is
+    /// no Python constructor (a populated unstable free module is only ever
+    /// produced by resolving an `UnstableResolution`, whose algebra was built
+    /// with `unstable = true`), so a handed-out `UnstableFreeModule` can never
+    /// desync the resolution that produced it.
+    ///
+    /// Every degree-indexed accessor is guarded so an uncomputed degree or
+    /// out-of-range index reads as empty / raises `ValueError`/`IndexError`
+    /// rather than tripping an upstream `OnceVec` assertion across the FFI
+    /// boundary.
+    #[pyclass(name = "UnstableFreeModule")]
+    pub struct UnstableFreeModule(Arc<UnstableFreeModuleInner>);
+
+    impl UnstableFreeModule {
+        /// Borrow the inner unstable module as the algebra-generic
+        /// `&DynModule`. Sound because `MuFreeModule<true, SteenrodAlgebra>`
+        /// implements `Module<Algebra = RsSteenrodAlgebra>`, so it reuses the
+        /// same `module_*` guard helpers as every stable module pyclass.
+        fn as_dyn(&self) -> &DynModule {
+            &*self.0
+        }
+
+        /// Wrap an existing `Arc<MuFreeModule<true, SteenrodAlgebra>>`, sharing
+        /// the `Arc` (cheap refcount bump). Used by `ext_py::UnstableResolution`
+        /// and `UnstableResolutionHomomorphism` to hand back the unstable
+        /// modules they hold behind an `Arc` without cloning.
+        pub(crate) fn from_arc(module: Arc<UnstableFreeModuleInner>) -> Self {
+            UnstableFreeModule(module)
+        }
+
+        /// Number of generators in `degree`, reading 0 (never panicking) for any
+        /// degree outside the populated `num_gens` range (mirrors
+        /// `FreeModule::num_gens_safe`).
+        fn num_gens_safe(&self, degree: i32) -> usize {
+            if degree < self.0.min_degree() || degree > self.0.max_computed_degree() {
+                return 0;
+            }
+            self.0.number_of_gens_in_degree(degree)
+        }
+    }
+
+    #[pymethods]
+    impl UnstableFreeModule {
+        /// The Steenrod algebra the module is built over (an unstable-flagged
+        /// `SteenrodAlgebra`; shares the `Arc`).
+        pub fn algebra(&self) -> SteenrodAlgebra {
+            SteenrodAlgebra::from_arc(self.0.algebra())
+        }
+
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        pub fn max_computed_degree(&self) -> i32 {
+            self.0.max_computed_degree()
+        }
+
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        pub fn compute_basis(&self, degree: i32) {
+            module_ensure(self.as_dyn(), degree);
+        }
+
+        pub fn dimension(&self, degree: i32) -> usize {
+            module_dimension(self.as_dyn(), degree)
+        }
+
+        /// The number of generators in `degree`. Returns 0 for degrees that have
+        /// no generators added yet (rather than panicking on the upstream
+        /// `num_gens[degree]` index assertion).
+        pub fn number_of_gens_in_degree(&self, degree: i32) -> usize {
+            self.num_gens_safe(degree)
+        }
+
+        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+            module_basis_element_to_string(self.as_dyn(), degree, idx)
+        }
+
+        /// The basis index of `op * gen`, where `op = (op_degree, op_index)` and
+        /// `gen = (gen_degree, gen_index)`.
+        ///
+        /// UNSTABLE-SPECIFIC guard: unlike the stable `FreeModule`, the number of
+        /// admissible operations on a generator of internal degree `gen_degree`
+        /// in operation degree `op_degree` is `algebra.dimension_unstable(
+        /// op_degree, gen_degree)` (the unstable basis is a *subset* of the
+        /// stable one, cut down by the excess/instability condition), NOT
+        /// `algebra.dimension(op_degree)`. Upstream
+        /// `MuFreeModule::operation_generator_to_index` does NOT range-check
+        /// `op_index` (it merely adds it to a generator offset), so an
+        /// `op_index >= dimension_unstable(..)` would index past the generator's
+        /// block and read a neighbouring generator's basis element (or panic on
+        /// the `generator_to_index` `OnceVec`). We therefore validate `op_index`
+        /// against `dimension_unstable(op_degree, gen_degree)` here — the live
+        /// `if U` bound that is gated *off* for the stable `FreeModule` binding
+        /// (which checks `dimension(op_degree)` instead).
+        pub fn operation_generator_to_index(
+            &self,
+            op_degree: i32,
+            op_index: usize,
+            gen_degree: i32,
+            gen_index: usize,
+        ) -> PyResult<usize> {
+            non_negative_degree(op_degree)?;
+            if gen_degree < self.0.min_degree() {
+                return Err(PyValueError::new_err(format!(
+                    "generator degree {gen_degree} is below min_degree {}",
+                    self.0.min_degree()
+                )));
+            }
+            if gen_index >= self.num_gens_safe(gen_degree) {
+                return Err(PyIndexError::new_err(format!(
+                    "generator index {gen_index} out of range in degree {gen_degree}"
+                )));
+            }
+            let output_degree = op_degree
+                .checked_add(gen_degree)
+                .ok_or_else(|| PyValueError::new_err("degree overflows i32"))?;
+            module_ensure(self.as_dyn(), output_degree);
+            let algebra = self.0.algebra();
+            algebra.compute_basis(op_degree);
+            let dim = UnstableAlgebra::dimension_unstable(&*algebra, op_degree, gen_degree);
+            if op_index >= dim {
+                return Err(PyIndexError::new_err(format!(
+                    "operation index {op_index} out of range for op_degree {op_degree} on a \
+                     generator of degree {gen_degree} (unstable algebra dimension {dim})"
+                )));
+            }
+            Ok(self
+                .0
+                .operation_generator_to_index(op_degree, op_index, gen_degree, gen_index))
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!("UnstableFreeModule({})", self.0)
+        }
+    }
+
+    /// The chain map on a single source module of an
+    /// `ext_py::UnstableResolutionHomomorphism`: an *unstable* free → free
+    /// homomorphism `MuFreeModuleHomomorphism<true, MuFreeModule<true,
+    /// SteenrodAlgebra>>`. It is the unstable analogue of
+    /// `FreeModuleHomomorphismToFree`, and a distinct type from it (the stable
+    /// variant is `U = false`), so it gets its own pyclass.
+    ///
+    /// Returned by `UnstableResolutionHomomorphism.get_map(s)`, always sharing
+    /// the homomorphism's internal `Arc` — a *live read-only view*. It exposes
+    /// only safe read accessors (`source`/`target`/`degree_shift`/`min_degree`/
+    /// `prime`/`next_degree`/`output`): the mutating surface
+    /// (`add_generators_from_rows`/`extend_by_zero`/`set_*`) is intentionally
+    /// NOT bound here, since this object only ever views a resolution
+    /// homomorphism's map (whose state is owned/maintained by the
+    /// `extend*`/`from_class` machinery); exposing mutators would let Python
+    /// logically corrupt the chain map.
+    #[pyclass(name = "UnstableFreeModuleHomomorphism")]
+    pub struct UnstableFreeModuleHomomorphism(Arc<UnstableFreeModuleHomToFreeInner>);
+
+    impl UnstableFreeModuleHomomorphism {
+        /// Wrap an existing `Arc<MuFreeModuleHomomorphism<true, ...>>`, sharing
+        /// the same homomorphism. Used by
+        /// `UnstableResolutionHomomorphism.get_map`, whose upstream `get_map(s)`
+        /// returns exactly this `Arc`.
+        pub(crate) fn from_arc(inner: Arc<UnstableFreeModuleHomToFreeInner>) -> Self {
+            UnstableFreeModuleHomomorphism(inner)
+        }
+
+        /// Number of generators of the (unstable) source in `degree`, reading 0
+        /// outside the populated generator range.
+        fn source_num_gens(&self, degree: i32) -> usize {
+            let s = self.0.source();
+            if degree < s.min_degree() || degree > s.max_computed_degree() {
+                return 0;
+            }
+            s.number_of_gens_in_degree(degree)
+        }
+    }
+
+    #[pymethods]
+    impl UnstableFreeModuleHomomorphism {
+        /// The source unstable `FreeModule` (shares state via `Arc`).
+        pub fn source(&self) -> UnstableFreeModule {
+            UnstableFreeModule::from_arc(self.0.source())
+        }
+
+        /// The target unstable `FreeModule` (shares state via `Arc`).
+        pub fn target(&self) -> UnstableFreeModule {
+            UnstableFreeModule::from_arc(self.0.target())
+        }
+
+        /// The degree shift: `output_degree = input_degree - degree_shift`.
+        pub fn degree_shift(&self) -> i32 {
+            self.0.degree_shift()
+        }
+
+        /// The smallest input degree the homomorphism is defined on.
+        pub fn min_degree(&self) -> i32 {
+            self.0.min_degree()
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The first input degree whose outputs on generators have *not* yet
+        /// been defined (the length of the `outputs` table).
+        pub fn next_degree(&self) -> i32 {
+            self.0.next_degree()
+        }
+
+        /// The image of the generator `(generator_degree, generator_index)`, a
+        /// vector of length `target.dimension(generator_degree - degree_shift)`.
+        /// Guarded exactly like `FreeModuleHomomorphismToFree.output`: an
+        /// undefined generator degree or out-of-range index raises
+        /// `ValueError`/`IndexError` rather than panicking.
+        pub fn output(
+            &self,
+            generator_degree: i32,
+            generator_index: usize,
+        ) -> PyResult<crate::fp_py::PyFpVector> {
+            if generator_degree < self.0.min_degree() {
+                return Err(PyIndexError::new_err(format!(
+                    "generator degree {generator_degree} is below min_degree {}",
+                    self.0.min_degree()
+                )));
+            }
+            if generator_degree >= self.0.next_degree() {
+                return Err(PyValueError::new_err(format!(
+                    "outputs are only defined through degree {} (extend the homomorphism first)",
+                    self.0.next_degree() - 1
+                )));
+            }
+            let num_gens = self.source_num_gens(generator_degree);
+            if generator_index >= num_gens {
+                return Err(PyIndexError::new_err(format!(
+                    "generator index {generator_index} out of range in degree {generator_degree} \
+                     ({num_gens} generators)"
+                )));
+            }
+            Ok(crate::fp_py::PyFpVector::from_rust(
+                self.0.output(generator_degree, generator_index).clone(),
+            ))
+        }
+
+        pub fn __repr__(&self) -> String {
+            format!(
+                "UnstableFreeModuleHomomorphism(source={}, target={}, degree_shift={})",
                 self.0.source(),
                 self.0.target(),
                 self.0.degree_shift()

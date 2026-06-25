@@ -30,7 +30,10 @@ mod ext_py {
             FiniteAugmentedChainComplex as RsFiniteAugmentedChainComplex,
             FiniteChainComplex as RsFiniteChainComplex, FreeChainComplex,
         },
-        resolution_homomorphism::ResolutionHomomorphism as RsResolutionHomomorphism,
+        resolution_homomorphism::{
+            ResolutionHomomorphism as RsResolutionHomomorphism,
+            UnstableResolutionHomomorphism as RsUnstableResolutionHomomorphism,
+        },
         secondary::SecondaryLift,
         utils::Config,
         CCC,
@@ -1049,9 +1052,9 @@ mod ext_py {
     ///  - `module(s)`: the unstable resolution's modules are
     ///    `MuFreeModule<true, SteenrodAlgebra>`, a *different* type from the
     ///    bound `algebra_py.FreeModule` pyclass's inner
-    ///    `FreeModule<SteenrodAlgebra> = MuFreeModule<false, _>`. The pyclass
-    ///    cannot represent it, so `module()` is omitted (mirroring how Nassau's
-    ///    `module()` was rejected).
+    ///    `FreeModule<SteenrodAlgebra> = MuFreeModule<false, _>`. This is now
+    ///    bound via a dedicated read-only `algebra_py.UnstableFreeModule`
+    ///    pyclass (see `module()` below).
     ///  - `new_with_save(chain_complex)`: upstream's by-complex constructor is
     ///    NOT bound because it cannot be made panic-safe at the FFI boundary. An
     ///    unstable resolution requires its algebra to have been built with
@@ -1170,6 +1173,27 @@ mod ext_py {
                 )));
             }
             Ok(self.num_gens_at(b.0))
+        }
+
+        /// The `s`-th free module of the unstable resolution, as a bound
+        /// `algebra_py.UnstableFreeModule` sharing the underlying `Arc` (a live
+        /// read-only view). This closes the prior `module()` deferral: the
+        /// unstable resolution's modules are `MuFreeModule<true, SteenrodAlgebra>`,
+        /// which the stable `algebra_py.FreeModule` pyclass cannot represent, so a
+        /// dedicated `UnstableFreeModule` pyclass is returned instead.
+        ///
+        /// Raises `IndexError` for `s` outside the defined range
+        /// `[0, next_homological_degree)` (the internal `modules` `OnceBiVec`
+        /// would otherwise panic). Resolve the resolution further to define more
+        /// modules.
+        pub fn module(&self, s: i32) -> PyResult<algebra_py::UnstableFreeModule> {
+            if s < 0 || s >= self.0.next_homological_degree() {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no module at homological degree s = {s}; defined range is [0, {})",
+                    self.0.next_homological_degree()
+                )));
+            }
+            Ok(algebra_py::UnstableFreeModule::from_arc(self.0.module(s)))
         }
 
         pub fn graded_dimension_string(&self) -> String {
@@ -1790,6 +1814,419 @@ mod ext_py {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "target not resolved at homological degree s = {} (g.s)",
                     gen.s()
+                )));
+            }
+            let tgt_gens = self.target_num_gens(gen.degree());
+            if gen.idx() >= tgt_gens {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "generator index {} out of range at target bidegree (s={}, t={}) ({tgt_gens} \
+                     generator(s), or the bidegree is uncomputed)",
+                    gen.idx(),
+                    gen.s(),
+                    gen.t()
+                )));
+            }
+            self.0.act(result.as_rust_mut().as_slice_mut(), coef, gen);
+            Ok(())
+        }
+    }
+
+    /// The concrete *unstable* (`U = true`) resolution homomorphism bound here:
+    /// a chain map between two `UnstableResolution`s of the default complex
+    /// `CCC`. Both source and target are
+    /// `ext::resolution::UnstableResolution<CCC> = MuResolution<true, CCC>` (the
+    /// single concrete type the bound `UnstableResolution` pyclass holds — the
+    /// unstable family is general-algorithm only, so there is no
+    /// `AnyResolution`-style backend union and no Nassau rejection needed).
+    ///
+    /// Its `get_map(s)` returns an *unstable* free → free homomorphism
+    /// `Arc<MuFreeModuleHomomorphism<true, MuFreeModule<true, SteenrodAlgebra>>>`,
+    /// represented by the bound `algebra_py.UnstableFreeModuleHomomorphism`
+    /// pyclass (NOT the stable `FreeModuleHomomorphismToFree`, whose inner type
+    /// is the `U = false` variant).
+    type RsUnstableResHom =
+        RsUnstableResolutionHomomorphism<RsUnstableResolution, RsUnstableResolution>;
+
+    /// A lifted chain map between two unstable resolutions — the unstable
+    /// analogue of [`ResolutionHomomorphism`]. Mirrors the stable binding member
+    /// for member (`new`/`from_class`/`get_map`/`extend*`/`act`/`name`/`shift`/
+    /// `source`/`target`/`prime`/`algebra`/`next_homological_degree`/`save_dir`)
+    /// with the unstable module/dimension where the math differs.
+    ///
+    /// Held behind an `Arc` like the stable one; every method takes `&self` and
+    /// the internal `maps` table is interior-mutable (`OnceBiVec`).
+    ///
+    /// Note: `get_map(s)` returns an `algebra_py.UnstableFreeModuleHomomorphism`
+    /// that shares the internal `Arc` of this homomorphism's `s`-th map — a live
+    /// read-only view (its mutators are not bound, so it cannot corrupt the
+    /// chain map).
+    #[pyclass(frozen)]
+    pub struct UnstableResolutionHomomorphism(Arc<RsUnstableResHom>);
+
+    impl UnstableResolutionHomomorphism {
+        /// Number of generators of the target resolution at bidegree `b`,
+        /// returning 0 (never panicking) outside the computed range. Mirrors
+        /// `ResolutionHomomorphism::target_num_gens`.
+        fn target_num_gens(&self, b: RsBidegree) -> usize {
+            if b.s() < 0 || b.t() < 0 || b.s() >= self.0.target.next_homological_degree() {
+                return 0;
+            }
+            let m = self.0.target.module(b.s());
+            if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+                0
+            } else {
+                m.number_of_gens_in_degree(b.t())
+            }
+        }
+
+        /// Pre-flight guard for the `extend*` family, identical in shape to
+        /// `ResolutionHomomorphism::check_extend_range`: it verifies the whole
+        /// touched grid `{(s, t) : shift_s <= s <= max_s, min_t <= t <= t_max(s)}`
+        /// is resolved in *both* the source and the shifted target, raising
+        /// `ValueError` rather than letting an upstream `assert!`
+        /// (`has_computed_bidegree` in `extend_step_raw`) panic across FFI.
+        fn check_extend_range(&self, max_s: i32, t_max: impl Fn(i32) -> i32) -> PyResult<()> {
+            let shift = self.0.shift;
+            if max_s < shift.s() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target homological degree s = {max_s} is below the homomorphism's shift \
+                     s = {} (nothing to extend)",
+                    shift.s()
+                )));
+            }
+            if max_s >= self.0.source.next_homological_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source not resolved through homological degree s = {max_s} (next homological \
+                     degree is {}); resolve the source further first",
+                    self.0.source.next_homological_degree()
+                )));
+            }
+            if max_s - shift.s() >= self.0.target.next_homological_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target not resolved through homological degree s = {} (next homological \
+                     degree is {}); resolve the target further first",
+                    max_s - shift.s(),
+                    self.0.target.next_homological_degree()
+                )));
+            }
+            let min_t = self.0.source.min_degree();
+            for s in shift.s()..=max_s {
+                let hi = t_max(s);
+                for t in min_t..=hi {
+                    let input = RsBidegree::s_t(s, t);
+                    if !self.0.source.has_computed_bidegree(input) {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "source not computed at bidegree (s={s}, t={t}), which is required to \
+                             extend the homomorphism over this range; resolve the source further"
+                        )));
+                    }
+                    if !self.0.target.has_computed_bidegree(input - shift) {
+                        let o = input - shift;
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "target not computed at bidegree (s={}, t={}), which is required to \
+                             extend the homomorphism over this range; resolve the target further",
+                            o.s(),
+                            o.t()
+                        )));
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[pymethods]
+    impl UnstableResolutionHomomorphism {
+        /// Construct an (initially empty) unstable resolution homomorphism
+        /// `source -> target` of the given bidegree `shift` and `name`. Mirrors
+        /// `ResolutionHomomorphism.__init__`: both resolutions must share the
+        /// same prime, and `shift` must be non-negative in both `s` and `t`.
+        #[new]
+        pub fn new(
+            name: String,
+            source: &UnstableResolution,
+            target: &UnstableResolution,
+            shift: sseq_py::Bidegree,
+        ) -> PyResult<Self> {
+            let s = Arc::clone(&source.0);
+            let t = Arc::clone(&target.0);
+            if s.prime().as_u32() != t.prime().as_u32() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source and target resolutions are over different primes ({} != {})",
+                    s.prime().as_u32(),
+                    t.prime().as_u32()
+                )));
+            }
+            if shift.0.s() < 0 || shift.0.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid shift {}: require s >= 0 and t >= 0",
+                    shift.0
+                )));
+            }
+            Ok(UnstableResolutionHomomorphism(Arc::new(
+                RsUnstableResHom::new(name, s, t, shift.0),
+            )))
+        }
+
+        /// Build the unstable resolution homomorphism representing
+        /// multiplication by the unstable `Ext` class `class` at bidegree
+        /// `shift` in `source`. Mirrors `ResolutionHomomorphism.from_class` and
+        /// ports all of its guards (same prime; `shift` non-negative; `source`
+        /// computed at `shift` with `len(class)` matching its generator count;
+        /// `target` computed at `(0, 0)` with a 1-dimensional augmentation).
+        #[staticmethod]
+        pub fn from_class(
+            name: String,
+            source: &UnstableResolution,
+            target: &UnstableResolution,
+            shift: sseq_py::Bidegree,
+            class: Vec<u32>,
+        ) -> PyResult<Self> {
+            let s = Arc::clone(&source.0);
+            let t = Arc::clone(&target.0);
+            if s.prime().as_u32() != t.prime().as_u32() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source and target resolutions are over different primes ({} != {})",
+                    s.prime().as_u32(),
+                    t.prime().as_u32()
+                )));
+            }
+            let b = shift.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid shift {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            if !s.has_computed_bidegree(b) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source not computed at the class bidegree (s={}, t={}); resolve it there first",
+                    b.s(),
+                    b.t()
+                )));
+            }
+            let num_gens = s.module(b.s()).number_of_gens_in_degree(b.t());
+            if class.len() != num_gens {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "class has length {} but the source has {num_gens} generator(s) at bidegree \
+                     (s={}, t={})",
+                    class.len(),
+                    b.s(),
+                    b.t()
+                )));
+            }
+            let zero = RsBidegree::s_t(0, 0);
+            if !t.has_computed_bidegree(zero) {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "target not computed at bidegree (0, 0); resolve it through (0, 0) first",
+                ));
+            }
+            let aug_dim = t.target().module(0).dimension(0);
+            if aug_dim != 1 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "from_class requires the target's augmentation to be 1-dimensional in degree 0 \
+                     (a unit/sphere resolution); got dimension {aug_dim}"
+                )));
+            }
+            Ok(UnstableResolutionHomomorphism(Arc::new(
+                RsUnstableResHom::from_class(name, s, t, b, &class),
+            )))
+        }
+
+        /// The homomorphism's name (used in tracing/logging).
+        pub fn name(&self) -> String {
+            self.0.name().to_string()
+        }
+
+        /// The Steenrod algebra the (source) resolution is built over (an
+        /// unstable-flagged `SteenrodAlgebra`).
+        pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
+            algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
+        }
+
+        /// The prime as a plain `int`.
+        pub fn prime(&self) -> u32 {
+            self.0.source.prime().as_u32()
+        }
+
+        /// The shift bidegree of the homomorphism.
+        pub fn shift(&self) -> sseq_py::Bidegree {
+            sseq_py::Bidegree(self.0.shift)
+        }
+
+        /// The source unstable resolution (shares the underlying `Arc`).
+        pub fn source(&self) -> UnstableResolution {
+            UnstableResolution(Arc::clone(&self.0.source))
+        }
+
+        /// The target unstable resolution (shares the underlying `Arc`).
+        pub fn target(&self) -> UnstableResolution {
+            UnstableResolution(Arc::clone(&self.0.target))
+        }
+
+        /// The first homological degree `s` at which the chain map is not yet
+        /// defined (the length of the internal `maps` table).
+        pub fn next_homological_degree(&self) -> i32 {
+            self.0.next_homological_degree()
+        }
+
+        /// The directory used to persist the chain map, or `None` if held purely
+        /// in memory (the default).
+        pub fn save_dir(&self) -> Option<String> {
+            self.0.save_dir().read().map(|p| p.display().to_string())
+        }
+
+        /// The chain map on the `s`-th source module, as a bound
+        /// `algebra_py.UnstableFreeModuleHomomorphism` sharing its `Arc`.
+        ///
+        /// Raises `IndexError` for `s` outside the defined range
+        /// `[shift.s, next_homological_degree)`. Extend the homomorphism first
+        /// to define more maps.
+        ///
+        /// WARNING: the returned homomorphism is a *live shared view* of this
+        /// resolution homomorphism's internal map (the same `Arc`); treat it as
+        /// read-only.
+        pub fn get_map(&self, s: i32) -> PyResult<algebra_py::UnstableFreeModuleHomomorphism> {
+            if s < self.0.shift.s() || s >= self.0.next_homological_degree() {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no map defined at homological degree s = {s}; defined range is [{}, {})",
+                    self.0.shift.s(),
+                    self.0.next_homological_degree()
+                )));
+            }
+            Ok(algebra_py::UnstableFreeModuleHomomorphism::from_arc(
+                self.0.get_map(s),
+            ))
+        }
+
+        /// Extend the chain map so it is defined on every bidegree `(s, t)` with
+        /// `s <= max.s` and `t <= max.t`, lifting by exactness. Guards the
+        /// touched range as the stable `extend` does.
+        pub fn extend(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            self.check_extend_range(b.s(), |_s| b.t())?;
+            self.0.extend(b);
+            Ok(())
+        }
+
+        /// Extend the chain map through the stem `max`. Guards the touched range
+        /// as `extend` does.
+        pub fn extend_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
+            let b = max.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            let n = b.n();
+            self.check_extend_range(b.s(), |s| n + s)?;
+            self.0.extend_through_stem(b);
+            Ok(())
+        }
+
+        /// Extend the chain map as far as the source and target are already
+        /// resolved. Guards the degenerate empty-range case (mirrors the stable
+        /// `extend_all`).
+        pub fn extend_all(&self) -> PyResult<()> {
+            let shift = self.0.shift;
+            if self.0.source.next_homological_degree() <= shift.s()
+                || self.0.target.next_homological_degree() <= 0
+            {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "nothing to extend: resolve the source past the shift's homological degree \
+                     and the target past s = 0 first",
+                ));
+            }
+            self.0.extend_all();
+            Ok(())
+        }
+
+        /// Apply the dual map `Hom(f, k)` to the target-resolution generator
+        /// `g`, accumulating `coef` times the result into `result` (a bound
+        /// `fp.FpVector`). Ports every guard from the stable
+        /// `ResolutionHomomorphism.act`.
+        ///
+        /// Note on the unstable `op_idx`/`dimension_unstable` concern: upstream
+        /// `act` calls `target_module.operation_generator_to_index(0, 0, g.t(),
+        /// g.idx())` with operation degree AND index both fixed at 0 (the
+        /// identity operation). `dimension_unstable(0, g.t())` is always >= 1, so
+        /// `op_idx = 0` is always in range — the unstable-specific `op_idx`
+        /// bound (live in `UnstableFreeModule.operation_generator_to_index`) is
+        /// not a reachable footgun *here*; the relevant guard is that `g` is a
+        /// valid target generator (its `idx` in range, the target computed at
+        /// `g.degree()`), exactly as in the stable binding.
+        pub fn act(
+            &self,
+            mut result: PyRefMut<'_, fp_py::PyFpVector>,
+            coef: u32,
+            g: sseq_py::BidegreeGenerator,
+        ) -> PyResult<()> {
+            let gen = g.0;
+            if gen.s() < 0 || gen.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid generator {gen}: require s >= 0 and t >= 0"
+                )));
+            }
+            let shift = self.0.shift;
+            let src_s = gen.s().checked_add(shift.s()).ok_or_else(|| {
+                pyo3::exceptions::PyValueError::new_err("source s = g.s + shift.s overflows i32")
+            })?;
+            let src_t = gen.t().checked_add(shift.t()).ok_or_else(|| {
+                pyo3::exceptions::PyValueError::new_err("source t = g.t + shift.t overflows i32")
+            })?;
+            let source_b = RsBidegree::s_t(src_s, src_t);
+            if src_s >= self.0.next_homological_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "the homomorphism is not defined at homological degree s = {src_s} (= g.s + \
+                     shift.s); extend it first"
+                )));
+            }
+            if !self.0.source.has_computed_bidegree(source_b) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source not computed at bidegree (s={src_s}, t={src_t}) = g.degree() + shift"
+                )));
+            }
+            let map = self.0.get_map(src_s);
+            if src_t >= map.next_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "the homomorphism is not extended through (s={src_s}, t={src_t}); extend it \
+                     further first"
+                )));
+            }
+            let p = self.0.source.prime().as_u32();
+            if result.as_rust().prime().as_u32() != p {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "result vector prime {} != homomorphism prime {p}",
+                    result.as_rust().prime().as_u32()
+                )));
+            }
+            let expected = map.source().number_of_gens_in_degree(src_t);
+            if result.as_rust().len() != expected {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "result vector has length {} but the source has {expected} generator(s) at \
+                     bidegree (s={src_s}, t={src_t})",
+                    result.as_rust().len()
+                )));
+            }
+            if gen.s() >= self.0.target.next_homological_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target not resolved at homological degree s = {} (g.s)",
+                    gen.s()
+                )));
+            }
+            // The target's module basis must be computed through g.t() so that
+            // `operation_generator_to_index(0, 0, g.t(), g.idx())` does not index
+            // an unbuilt `generator_to_index` row; `has_computed_bidegree`
+            // ensures the module is resolved (and its basis built) there.
+            if !self.0.target.has_computed_bidegree(gen.degree()) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target not computed at bidegree (s={}, t={}) = g.degree()",
+                    gen.s(),
+                    gen.t()
                 )));
             }
             let tgt_gens = self.target_num_gens(gen.degree());
