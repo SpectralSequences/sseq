@@ -160,6 +160,24 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
+    /// Non-panicking variant of [`Self::basis_element_to_string`]. Returns `None`
+    /// when `degree` is negative or `idx` is out of range for that degree, instead
+    /// of panicking. Computes the basis up to `degree` first.
+    ///
+    /// These are the usual failure conditions. An implementation of
+    /// [`Self::basis_element_to_string`] that can fail for other reasons should override both
+    /// that method and this one, keeping them consistent.
+    fn try_basis_element_to_string(&self, degree: i32, idx: usize) -> Option<String> {
+        if degree < 0 {
+            return None;
+        }
+        self.compute_basis(degree);
+        if idx >= self.dimension(degree) {
+            return None;
+        }
+        Some(self.basis_element_to_string(degree, idx))
+    }
+
     /// Converts a string to a basis element. This must be a one-sided inverse inverse to
     /// both basis_element_to_string and generator_to_string (if [`GeneratedAlgebra`] is
     /// implemented).
