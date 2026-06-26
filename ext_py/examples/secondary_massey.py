@@ -179,8 +179,16 @@ def main():
         # NOTE: depends on Subquotient accessors subspace_dimension / subspace_gens /
         # quotient_dimension / quotient_pivots / reduce_by_quotient (API_PROPOSAL §4 lists a
         # "full Subquotient pyclass" but does not enumerate these methods)
-        d = ss.page_data(b)
-        return d[min(3, len(d) - 1)]
+        #
+        # Sseq.page_data(b, r) returns the E_r page subquotient (r indexed by page
+        # number, starting at MIN_R = 2). We want the E3 page (r = 3), falling back
+        # to the last computed page when d2 was the final differential.
+        for r in (3, 2):
+            try:
+                return ss.page_data(b, r)
+            except IndexError:
+                continue
+        raise IndexError(f"no computed page data at bidegree {b}")
 
     scratch1 = fp.FpVector(p, 0)
 

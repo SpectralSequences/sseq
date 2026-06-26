@@ -134,12 +134,11 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "SteenrodAlgebra.p_tilde is now bound and succeeds. The "
-                 "remaining blocker is a different API mismatch: Sseq.page_data() "
-                 "requires a positional argument 'r' (called at "
-                 "secondary_massey.py:182 as ss.page_data(b), i.e. without a page "
-                 "number). Reconciling page_data's signature requires a separate "
-                 "change.",
+        "xfail": "Sseq.page_data now receives its page-index argument and "
+                 "succeeds. The remaining blocker is a different API mismatch: "
+                 "'fp.Matrix' object has no attribute 'iter_mut' (called at "
+                 "secondary_massey.py:247). Binding Matrix.iter_mut requires a "
+                 "separate change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {
