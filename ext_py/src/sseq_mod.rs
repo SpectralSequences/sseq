@@ -121,6 +121,12 @@ pub mod sseq_py {
             Bidegree(RsBidegree::x_y(x, y))
         }
 
+        /// The zero bidegree `(s=0, t=0)`.
+        #[staticmethod]
+        pub fn zero() -> Self {
+            Bidegree(RsBidegree::zero())
+        }
+
         #[getter]
         pub fn n(&self) -> i32 {
             self.0.n()

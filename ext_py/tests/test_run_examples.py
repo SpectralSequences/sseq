@@ -97,9 +97,10 @@ EXAMPLES = [
     {
         "name": "sq0.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "DoubleChainComplex now bound; next blocker is sseq.Bidegree.zero() "
-        "(AttributeError: type object 'sseq.Bidegree' has no attribute 'zero'), "
-        "followed by ResolutionHomomorphism not accepting a DoubleChainComplex target",
+        "xfail": "sseq.Bidegree.zero() now bound; next blocker is "
+        "ResolutionHomomorphism rejecting a DoubleChainComplex target "
+        "(TypeError: 'DoubleChainComplex' object is not an instance of 'Resolution' "
+        "while processing 'target')",
     },
     {
         "name": "steenrod.py",

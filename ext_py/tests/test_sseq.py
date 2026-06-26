@@ -44,6 +44,13 @@ def test_sseq_profile_default_is_adams():
     assert isinstance(default, sseq.Adams)
 
 
+def test_bidegree_zero():
+    z = Bidegree.zero()
+    assert z.s == 0
+    assert z.t == 0
+    assert z == Bidegree.s_t(0, 0)
+
+
 # --------------------------------------------------------------------------
 # Sseq: construction and dimensions
 # --------------------------------------------------------------------------
