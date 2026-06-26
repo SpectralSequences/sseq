@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["secondary"],"struct":["ExtAlgebra"]};
+window.SIDEBAR_ITEMS = {"mod":["massey","secondary"],"struct":["ExtAlgebra"]};
