@@ -74,9 +74,8 @@ EXAMPLES = [
     },
     {
         "name": "lift_hom.py",
-        "args": ["S_2", "", "4", "2", "S_2", "prod", "0", "0"],
-        "xfail": "needs interactive Ext-class vector input (query.vector) "
-        "not supplied via argv",
+        "args": ["S_2", "", "4", "2", "", "prod", "0", "0", "[1]"],
+        "xfail": None,
     },
     # --- Nassau (default) backend lacks methods the example needs ---
     {
