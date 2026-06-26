@@ -19,7 +19,7 @@ def make_qi():
 
 def test_import_and_construction():
     qi = make_qi()
-    assert qi.prime() == 2
+    assert qi.prime == 2
     assert qi.image_dimension() == 4
     assert qi.source_dimension() == 4
     assert qi.target_dimension() == 6
@@ -144,7 +144,7 @@ def test_compute_quasi_inverse_from_matrix():
     padded_cols, m = fp.Matrix.augmented_from_vec(3, rows)
     m.row_reduce()
     qi = m.compute_quasi_inverse(len(rows[0]), padded_cols)
-    assert qi.prime() == 3
+    assert qi.prime == 3
     assert qi.source_dimension() == 3
     assert qi.preimage().to_vec() == [[0, 1, 0], [0, 2, 2]]
 

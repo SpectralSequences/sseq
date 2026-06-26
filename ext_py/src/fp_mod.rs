@@ -928,6 +928,7 @@ pub mod fp_py {
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -1051,6 +1052,7 @@ pub mod fp_py {
 
     #[pymethods]
     impl PyFpSlice {
+        #[getter]
         pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
             self.with_slice(py, |s| s.prime().as_u32())
         }
@@ -1114,6 +1116,7 @@ pub mod fp_py {
 
     #[pymethods]
     impl PyFpSliceMut {
+        #[getter]
         pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
             self.with_slice(py, |s| s.prime().as_u32())
         }
@@ -1350,6 +1353,7 @@ pub mod fp_py {
 
     #[pymethods]
     impl PyMatrixSliceMut {
+        #[getter]
         pub fn prime(&self, py: Python<'_>) -> PyResult<u32> {
             self.with_slice_mut(py, |s| s.prime().as_u32())
         }
@@ -1555,6 +1559,7 @@ pub mod fp_py {
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -1869,6 +1874,7 @@ pub mod fp_py {
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2134,6 +2140,7 @@ pub mod fp_py {
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2260,6 +2267,7 @@ pub mod fp_py {
             )))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2421,6 +2429,7 @@ pub mod fp_py {
             )))
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.linear_part().prime().as_u32()
         }
@@ -2556,6 +2565,7 @@ pub mod fp_py {
                     )))
                 }
 
+                #[getter]
                 fn prime(&self) -> PyResult<u32> {
                     Ok(self.0.get()?.prime().as_u32())
                 }

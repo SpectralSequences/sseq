@@ -5,8 +5,8 @@ from ext import algebra, fp
 
 def test_construction_valid_and_invalid_prime():
     ev = algebra.SteenrodEvaluator(2)
-    assert ev.prime() == 2
-    assert algebra.SteenrodEvaluator(3).prime() == 3
+    assert ev.prime == 2
+    assert algebra.SteenrodEvaluator(3).prime == 3
 
     # A non-prime must raise ValueError, never panic.
     with pytest.raises(ValueError):

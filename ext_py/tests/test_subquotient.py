@@ -5,8 +5,8 @@ from ext import fp
 
 def test_construction_and_queries():
     sq = fp.Subquotient(3, 5)
-    assert sq.prime() == 3
-    assert isinstance(sq.prime(), int)
+    assert sq.prime == 3
+    assert isinstance(sq.prime, int)
     assert sq.ambient_dimension() == 5
     assert sq.dimension() == 0
     assert len(sq) == 0

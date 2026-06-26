@@ -18,7 +18,7 @@ def main():
 
     is_unit, unit = ext.get_unit(resolution)
 
-    p = resolution.prime()
+    p = resolution.prime
 
     name = query.raw("Name of product", str)
 
@@ -75,8 +75,8 @@ def main():
     hom_lift.extend_all()
 
     # Compute E3 page
-    res_sseq = res_lift.e3_page()
-    unit_sseq = res_sseq if is_unit else unit_lift.e3_page()
+    res_sseq = res_lift.e3_page
+    unit_sseq = res_sseq if is_unit else unit_lift.e3_page
 
     def get_page_data(ss, b):
         # NOTE: depends on Subquotient methods complement_pivots / subspace_gens /

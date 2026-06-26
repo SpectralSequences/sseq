@@ -13,7 +13,7 @@ from ext import sseq
 def main():
     resolution = query.query_resolution()
     resolution.compute_through_stem(query.query_n_s())
-    assert resolution.prime() == 2
+    assert resolution.prime == 2
 
     for b in resolution.iter_stem():
         i = 0

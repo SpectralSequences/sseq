@@ -11,7 +11,7 @@ def test_import_both_classes():
 def test_construction_and_queries():
     m = fp.AugmentedMatrix2(3, 2, [2, 2])
     # Prime is passed/queried as a plain int.
-    assert m.prime() == 3
+    assert m.prime == 3
     assert m.rows() == 2
     assert m.segments() == 2
     assert m.is_zero()
@@ -112,12 +112,12 @@ def test_augmented_matrix2_compute_image_and_quasi_inverse():
 
     image = m.compute_image()
     assert isinstance(image, fp.Subspace)
-    assert image.prime() == 2
+    assert image.prime == 2
     assert image.dimension() == 2
 
     qi = m.compute_quasi_inverse()
     assert isinstance(qi, fp.QuasiInverse)
-    assert qi.prime() == 2
+    assert qi.prime == 2
     assert qi.source_dimension() == 2
     # A is the identity, so its quasi-inverse preimage is the identity too.
     assert qi.preimage().to_vec() == [[1, 0], [0, 1]]
@@ -138,13 +138,13 @@ def test_augmented_matrix3_compute_kernel_and_quasi_inverses():
 
     kernel = m.compute_kernel()
     assert isinstance(kernel, fp.Subspace)
-    assert kernel.prime() == 3
+    assert kernel.prime == 3
 
     a, b = m.compute_quasi_inverses()
     assert isinstance(a, fp.QuasiInverse)
     assert isinstance(b, fp.QuasiInverse)
-    assert a.prime() == 3
-    assert b.prime() == 3
+    assert a.prime == 3
+    assert b.prime == 3
     # A = I is full-rank 2->2, so its quasi-inverse maps F3^2 -> F3^2.
     assert a.source_dimension() == 2
     assert a.target_dimension() == 2

@@ -40,7 +40,7 @@ def _unstable_s2(spec="S_2", n=8, s=4):
 
 def test_unstable_resolution_basic_invariants():
     r = _unstable_s2()
-    assert r.prime() == 2
+    assert r.prime == 2
     assert r.min_degree() == 0
     assert r.next_homological_degree() > 0
     # The unit: exactly one generator at (0, 0).
@@ -134,7 +134,7 @@ def test_unstable_to_sseq_returns_sseq():
     r = _unstable_s2()
     ss = r.to_unstable_sseq()
     assert isinstance(ss, sseq.Sseq)
-    assert ss.prime() == 2
+    assert ss.prime == 2
 
 
 def test_unstable_filtration_one_products():
@@ -291,7 +291,7 @@ def test_unstable_extend_step_raw_suspension_runs():
     hom = ext.UnstableResolutionHomomorphism(
         "suspension", res_b, res_a, suspension_shift
     )
-    prime = res_b.prime()
+    prime = res_b.prime
     rng = hom.extend_step_raw(
         min_degree + suspension_shift,
         [fp.FpVector.from_slice(prime, [1])],
@@ -328,7 +328,7 @@ def test_unstable_hom_k_suspension_matrix():
     hom = ext.UnstableResolutionHomomorphism(
         "suspension", res_b, res_a, suspension_shift
     )
-    prime = res_b.prime()
+    prime = res_b.prime
     hom.extend_step_raw(
         min_degree + suspension_shift,
         [fp.FpVector.from_slice(prime, [1])],

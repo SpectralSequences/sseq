@@ -8,7 +8,7 @@ def test_fp_vector_slice_queries_and_to_owned():
 
     s = v.slice(1, 4)
 
-    assert s.prime() == 5
+    assert s.prime == 5
     assert len(s) == 3
     assert not s.is_empty()
     assert s.entry(1) == 2
@@ -80,7 +80,7 @@ def test_stale_slice_handles_raise_python_exception_after_parent_shrink():
     v.set_scratch_vector_size(2)
 
     with pytest.raises(IndexError):
-        s.prime()
+        s.prime
     with pytest.raises(IndexError):
         s[0]
     with pytest.raises(IndexError):
@@ -97,7 +97,7 @@ def test_fp_slice_mut_updates_parent_and_as_slice():
     v = fp.FpVector.from_slice(5, [1, 2, 3, 4, 0])
     s = v.slice_mut(1, 4)
 
-    assert s.prime() == 5
+    assert s.prime == 5
     assert len(s) == 3
     assert s[0] == 2
     assert s[-1] == 4
@@ -274,7 +274,7 @@ def test_fp_slice_mut_to_owned():
 
     owned = s.to_owned()
     assert isinstance(owned, fp.FpVector)
-    assert owned.prime() == 5
+    assert owned.prime == 5
     assert repr(owned) == "FpVector(5, [2, 3, 4])"
 
     # to_owned is a copy: mutating the source does not change the owned vector.

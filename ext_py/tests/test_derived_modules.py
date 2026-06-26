@@ -34,8 +34,8 @@ def test_tensor_module_dimensions():
     alg = milnor(2)
     t = algebra.TensorModule(make_c2(alg), make_c2(alg))
     t.compute_basis(4)
-    assert isinstance(t.prime(), int)
-    assert t.prime() == 2
+    assert isinstance(t.prime, int)
+    assert t.prime == 2
     assert t.min_degree() == 0
     # C2 (x) C2: convolution of [1, 1] with [1, 1] = [1, 2, 1].
     assert t.dimension(0) == 1
@@ -197,7 +197,7 @@ def test_tensor_module_into_steenrod_module_roundtrip():
     t = algebra.TensorModule(make_c2(alg), make_c2(alg))
     t.compute_basis(4)
     boxed = t.into_steenrod_module()
-    assert boxed.prime() == t.prime()
+    assert boxed.prime == t.prime
     assert boxed.dimension(1) == t.dimension(1)
     assert boxed.total_dimension() == t.total_dimension()
 
@@ -221,8 +221,8 @@ def test_suspension_module_shifts_degrees():
     s = algebra.SuspensionModule(make_c2(alg), 3)
     s.compute_basis(8)
     assert s.shift() == 3
-    assert isinstance(s.prime(), int)
-    assert s.prime() == 2
+    assert isinstance(s.prime, int)
+    assert s.prime == 2
     assert s.min_degree() == 3
     assert s.dimension(0) == 0
     assert s.dimension(3) == 1
@@ -267,8 +267,8 @@ def test_suspension_module_negative_shift():
 def test_zero_module_is_empty():
     z = algebra.ZeroModule(milnor(2), 0)
     z.compute_basis(8)
-    assert isinstance(z.prime(), int)
-    assert z.prime() == 2
+    assert isinstance(z.prime, int)
+    assert z.prime == 2
     assert z.min_degree() == 0
     for d in range(-2, 9):
         assert z.dimension(d) == 0
@@ -293,8 +293,8 @@ def test_zero_module_default_min_degree():
 def test_rp_dimensions():
     rp = algebra.RealProjectiveSpace(adem(2), 1, 4)
     rp.compute_basis(6)
-    assert isinstance(rp.prime(), int)
-    assert rp.prime() == 2
+    assert isinstance(rp.prime, int)
+    assert rp.prime == 2
     assert rp.min_degree() == 1
     assert rp.min == 1
     assert rp.max == 4

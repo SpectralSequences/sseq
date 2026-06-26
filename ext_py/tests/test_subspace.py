@@ -5,7 +5,7 @@ from ext import fp
 
 def test_subspace_construction_and_queries():
     s = fp.Subspace(3, 3)
-    assert s.prime() == 3
+    assert s.prime == 3
     assert s.ambient_dimension() == 3
     assert s.dimension() == 0
     assert len(s) == 0

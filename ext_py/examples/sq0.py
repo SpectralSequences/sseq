@@ -19,7 +19,7 @@ def main():
     res = query.query_resolution()
     res.compute_through_stem(query.query_n_s())
     assert (
-        res.prime() == 2
+        res.prime == 2
         and res.target().max_s() == 1
         and res.target().module(0).is_unit()
     ), "Sq^0 can only be computed for the sphere at the prime 2"
@@ -42,7 +42,7 @@ def main():
     # call passes an optional list of output FpVectors for the first step.
     hom.extend_step_raw(
         sseq.Bidegree.zero(),
-        [fp.FpVector.from_slice(res.prime(), [1])],
+        [fp.FpVector.from_slice(res.prime, [1])],
     )
     hom.extend_all()
 

@@ -45,8 +45,8 @@ def c2_differential(alg):
 def test_construct_and_invariants():
     alg = milnor(2)
     hom = c2_differential(alg)
-    assert isinstance(hom.prime(), int)
-    assert hom.prime() == 2
+    assert isinstance(hom.prime, int)
+    assert hom.prime == 2
     assert hom.degree_shift() == 0
     assert hom.min_degree() == 0
     assert hom.next_degree() == 1
@@ -63,7 +63,7 @@ def test_source_and_target_types_and_state():
     assert source.number_of_gens_in_degree(0) == 1
     assert target.dimension(0) == 1
     assert target.dimension(1) == 1
-    assert source.prime() == target.prime() == 2
+    assert source.prime == target.prime == 2
 
 
 def test_construct_requires_same_algebra():
@@ -557,7 +557,7 @@ def test_source_handle_reflects_underlying_state():
 
     s1 = hom.source()
     s2 = hom.source()
-    assert s1.prime() == source.prime() == 2
+    assert s1.prime == source.prime == 2
     assert s1.number_of_gens_in_degree(0) == source.number_of_gens_in_degree(0) == 1
     assert s1.max_computed_degree() == source.max_computed_degree()
     assert s2.number_of_gens_in_degree(0) == 1

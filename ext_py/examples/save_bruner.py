@@ -18,7 +18,7 @@ def main():
     resolution = query.query_resolution(alg=AlgebraType.Milnor, algorithm="standard")
     resolution.compute_through_stem(query.query_n_s())
 
-    assert resolution.prime() == 2
+    assert resolution.prime == 2
     # Rust views the resolution's SteenrodAlgebra as a &MilnorAlgebra via try_into.
     # No such conversion is bound; we use the resolution's algebra directly, which
     # is the Milnor algebra and exposes dimension / basis_element_from_index.

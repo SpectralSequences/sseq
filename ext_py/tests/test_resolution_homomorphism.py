@@ -50,17 +50,17 @@ def test_new_accessors_roundtrip():
     r = s2_rect(4)
     hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
     assert hom.name() == "f"
-    assert hom.prime() == 2
+    assert hom.prime == 2
     assert hom.shift().s == 1
     assert hom.shift().t == 1
     # source()/target() share the underlying resolution.
-    assert hom.source().prime() == 2
-    assert hom.target().prime() == 2
+    assert hom.source().prime == 2
+    assert hom.target().prime == 2
     assert hom.source().graded_dimension_string() == r.graded_dimension_string()
     # A freshly constructed hom defines no maps yet.
     assert hom.next_homological_degree() == 1  # = shift.s
     assert hom.save_dir() is None
-    assert hom.algebra().prime() == 2
+    assert hom.algebra().prime == 2
 
 
 # --- known value: from_class([1]) at (0,0) is the identity chain map ------
@@ -92,7 +92,7 @@ def test_get_map_is_free_to_free_homomorphism():
     m = hom.get_map(1)
     # source = r.module(1), target = r.module(0) (output_s = input_s - shift.s = 1).
     assert m.degree_shift() == 0
-    assert m.prime() == 2
+    assert m.prime == 2
 
 
 # --- extend_all -----------------------------------------------------------

@@ -28,7 +28,7 @@ def main():
 
     resolution = query.query_resolution("Module", None)
     module = resolution.target().module(0)
-    p = resolution.prime()
+    p = resolution.prime
 
     if resolution.target().max_s() != 1 or not module.is_unit() or p != 2:
         raise AssertionError("Can only run Steenrod on the sphere")

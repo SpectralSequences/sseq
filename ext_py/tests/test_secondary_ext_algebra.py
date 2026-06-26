@@ -62,11 +62,11 @@ def gen(alg, n, s):
 
 def test_construct_and_prime():
     alg, sec = build(4, 4)
-    assert sec.prime() == 2
+    assert sec.prime == 2
     # ext_algebra() returns the bound ExtAlgebra (sharing resolutions).
     e = sec.ext_algebra()
     assert isinstance(e, ext.ExtAlgebra)
-    assert e.prime() == 2
+    assert e.prime == 2
     assert e.is_unit() is True
 
 
@@ -295,7 +295,7 @@ def test_ext_algebra_shares_instance():
     # bidegree as the algebra passed to the constructor.
     alg, sec = build(8, 6)
     e = sec.ext_algebra()
-    assert e.prime() == alg.prime()
+    assert e.prime == alg.prime
     assert e.is_unit() == alg.is_unit()
     b = Bidegree.n_s(0, 1)
     assert e.dimension(b) == alg.dimension(b)

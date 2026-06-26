@@ -45,18 +45,18 @@ def test_h0_representative_structure():
     r = standard_s2()
     y = ext.yoneda_representative_element(r, H0, [1])
     assert isinstance(y, ext.FiniteAugmentedChainComplex)
-    assert y.prime() == 2
+    assert y.prime == 2
     # s_max = b.s() = 1, so modules C_0, C_1 => max_s() = modules.len() = 2.
     assert y.max_s() == 2
     # The augmentation target is the original S_2 complex: 1-dimensional in
     # internal degree 0.
     target = y.target()
-    assert target.prime() == 2
+    assert target.prime == 2
     assert target.module(0).dimension(0) == 1
     # The bottom cell C_0 is a point in internal degree 0.
     assert y.module(0).dimension(0) == 1
     # The s=0 augmentation chain map is defined.
-    assert y.chain_map(0).prime() == 2
+    assert y.chain_map(0).prime == 2
 
 
 def test_chain_map_index_out_of_range_raises_index_error():

@@ -42,8 +42,8 @@ def test_zero_construct_and_invariants():
     alg = milnor(2)
     m = c2_module(alg)
     hom = algebra.FullModuleHomomorphism(m, m, 0)
-    assert isinstance(hom.prime(), int)
-    assert hom.prime() == 2
+    assert isinstance(hom.prime, int)
+    assert hom.prime == 2
     assert hom.degree_shift() == 0
     assert hom.min_degree() == 0
     assert repr(hom).startswith("FullModuleHomomorphism(")
@@ -60,7 +60,7 @@ def test_source_and_target_types_and_state():
     assert source.dimension(0) == 1
     assert source.dimension(1) == 1
     assert target.dimension(1) == 1
-    assert source.prime() == target.prime() == 2
+    assert source.prime == target.prime == 2
 
 
 def test_construct_requires_same_algebra():

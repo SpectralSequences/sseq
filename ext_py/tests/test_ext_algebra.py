@@ -50,15 +50,15 @@ def s2_algebra(n=8, s=8):
 
 def test_construct_and_prime():
     alg = s2_algebra(4, 4)
-    assert alg.prime() == 2
+    assert alg.prime == 2
     assert alg.is_unit() is True
 
 
 def test_resolution_and_unit_share_object():
     alg = s2_algebra(4, 4)
     # M == k: the resolution and unit are the same object, both prime 2.
-    assert alg.resolution().prime() == 2
-    assert alg.unit().prime() == 2
+    assert alg.resolution().prime == 2
+    assert alg.unit().prime == 2
 
 
 def test_separate_unit_is_not_unit():
@@ -69,7 +69,7 @@ def test_separate_unit_is_not_unit():
     alg = ext.ExtAlgebra(r, u)
     alg.compute_through_stem(Bidegree.n_s(4, 4))
     assert alg.is_unit() is False
-    assert alg.prime() == 2
+    assert alg.prime == 2
 
 
 # --- dimension / basis structural invariants ------------------------------

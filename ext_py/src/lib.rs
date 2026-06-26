@@ -757,6 +757,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             dispatch!(&self.0, r => r.prime().as_u32())
         }
@@ -1298,6 +1299,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -1832,6 +1834,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.source.prime().as_u32()
         }
@@ -2394,6 +2397,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2895,6 +2899,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.source.prime().as_u32()
         }
@@ -3359,6 +3364,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -3714,6 +3720,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -3874,6 +3881,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4084,6 +4092,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.ext_algebra().prime().as_u32()
         }
@@ -4386,6 +4395,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4803,6 +4813,7 @@ mod ext_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }

@@ -17,11 +17,11 @@ VARIANTS = ["adem", "milnor"]
 
 def test_construction_and_variant():
     adem = algebra.SteenrodAlgebra.adem(2)
-    assert adem.prime() == 2
+    assert adem.prime == 2
     assert adem.algebra_type() == algebra.AlgebraType.Adem
 
     milnor = algebra.SteenrodAlgebra.milnor(3)
-    assert milnor.prime() == 3
+    assert milnor.prime == 3
     assert milnor.algebra_type() == algebra.AlgebraType.Milnor
 
 
@@ -35,7 +35,7 @@ def test_invalid_prime_raises():
 
 def test_prime_is_plain_int():
     a = algebra.SteenrodAlgebra.milnor(2)
-    p = a.prime()
+    p = a.prime
     assert isinstance(p, int)
     assert p == 2
 
@@ -250,16 +250,16 @@ def test_coproduct_milnor_odd_prime_raises():
 def test_from_json_constructs_known_algebra():
     spec = {"p": 2}
     adem = algebra.SteenrodAlgebra.from_json(spec, algebra.AlgebraType.Adem, False)
-    assert adem.prime() == 2
+    assert adem.prime == 2
     assert adem.algebra_type() == algebra.AlgebraType.Adem
 
     milnor = algebra.SteenrodAlgebra.from_json(spec, algebra.AlgebraType.Milnor, False)
-    assert milnor.prime() == 2
+    assert milnor.prime == 2
     assert milnor.algebra_type() == algebra.AlgebraType.Milnor
 
     # from_json defaults unstable to False.
     again = algebra.SteenrodAlgebra.from_json(spec, algebra.AlgebraType.Adem)
-    assert again.prime() == 2
+    assert again.prime == 2
 
     # The "algebra" allow-list is respected by the underlying constructor; a
     # spec listing only milnor falls back to milnor even if adem is requested.

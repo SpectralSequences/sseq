@@ -30,8 +30,8 @@ def main():
 
     target = query.with_default("Target module", source_name, parse_target)
 
-    assert source.prime() == target.prime()
-    p = source.prime()
+    assert source.prime == target.prime
+    p = source.prime
 
     name = query.raw("Name of product", str)
 

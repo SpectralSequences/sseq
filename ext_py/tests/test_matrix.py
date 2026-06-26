@@ -5,7 +5,7 @@ from ext import fp
 
 def test_matrix_construction_and_queries():
     m = fp.Matrix(7, 2, 3)
-    assert m.prime() == 7
+    assert m.prime == 7
     assert m.rows() == 2
     assert m.columns() == 3
     assert m.is_zero()
@@ -57,7 +57,7 @@ def test_matrix_augmented_from_vec():
 
 def test_prime_is_int():
     m = fp.Matrix(5, 1, 1)
-    assert isinstance(m.prime(), int)
+    assert isinstance(m.prime, int)
 
 
 def test_invalid_prime_and_dims():
@@ -72,7 +72,7 @@ def test_invalid_prime_and_dims():
 def test_row_access_and_getitem():
     m = fp.Matrix.from_vec(5, [[1, 2, 3], [4, 0, 1]])
     row = m.row(1)
-    assert row.prime() == 5
+    assert row.prime == 5
     assert len(row) == 3
     assert row.entry(0) == 4
     assert row[2] == 1
@@ -81,7 +81,7 @@ def test_row_access_and_getitem():
     assert row.first_nonzero() == (0, 4)
     assert list(row.iter()) == [4, 0, 1]
     assert row.iter_nonzero() == [(0, 4), (2, 1)]
-    assert m[0].to_owned().prime() == 5
+    assert m[0].to_owned().prime == 5
     assert list(m[0].iter()) == [1, 2, 3]
 
     with pytest.raises(IndexError):
@@ -231,7 +231,7 @@ def test_row_mut_to_owned_and_slice_mut():
     m = fp.Matrix.from_vec(5, [[1, 2, 3, 4]])
     rm = m.row_mut(0)
     owned = rm.to_owned()
-    assert owned.prime() == 5
+    assert owned.prime == 5
     sub = rm.slice_mut(0, 2)
     sub.scale(2)
     assert m.to_vec()[0] == [2, 4, 3, 4]
@@ -317,7 +317,7 @@ def test_compute_kernel_dimensions_and_membership():
     padded_cols, m = fp.Matrix.augmented_from_vec(3, _KI_ROWS)
     m.row_reduce()
     ker = m.compute_kernel(padded_cols)
-    assert ker.prime() == 3
+    assert ker.prime == 3
     # The kernel here is the left null space (combinations of the 3 rows that
     # vanish), so it is ambient-dimension 3 and one-dimensional.
     assert ker.ambient_dimension() == len(_KI_ROWS)
@@ -343,7 +343,7 @@ def test_compute_image_dimensions_and_membership():
     padded_cols, m = fp.Matrix.augmented_from_vec(3, _KI_ROWS)
     m.row_reduce()
     img = m.compute_image(len(_KI_ROWS[0]), padded_cols)
-    assert img.prime() == 3
+    assert img.prime == 3
     assert img.ambient_dimension() == len(_KI_ROWS[0])
     # Image of a rank-3 map into a 5-dim target has dimension 3... but the
     # doc example restricts to the target block; the image basis matches the

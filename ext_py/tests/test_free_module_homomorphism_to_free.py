@@ -53,8 +53,8 @@ def free_to_free_id(alg):
 
 def test_construct_and_invariants():
     hom = free_to_free_id(milnor(2))
-    assert isinstance(hom.prime(), int)
-    assert hom.prime() == 2
+    assert isinstance(hom.prime, int)
+    assert hom.prime == 2
     assert hom.degree_shift() == 0
     assert hom.min_degree() == 0
     assert hom.next_degree() == 1
@@ -69,7 +69,7 @@ def test_source_and_target_are_both_free_modules():
     assert isinstance(target, algebra.FreeModule)
     assert source.number_of_gens_in_degree(0) == 1
     assert target.number_of_gens_in_degree(0) == 1
-    assert source.prime() == target.prime() == 2
+    assert source.prime == target.prime == 2
 
 
 def test_construct_requires_same_algebra():

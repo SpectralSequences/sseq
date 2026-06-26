@@ -12,8 +12,8 @@ from ext import algebra, fp
 
 
 def test_construction_valid_and_invalid_prime():
-    assert algebra.Field(2).prime() == 2
-    assert algebra.Field(3).prime() == 3
+    assert algebra.Field(2).prime == 2
+    assert algebra.Field(3).prime == 3
 
     # A non-prime must raise ValueError, never panic.
     for bad in (4, 0, 1):
@@ -22,7 +22,7 @@ def test_construction_valid_and_invalid_prime():
 
 
 def test_prime_is_plain_int():
-    p = algebra.Field(2).prime()
+    p = algebra.Field(2).prime
     assert isinstance(p, int)
     assert p == 2
 
@@ -171,7 +171,7 @@ def test_hom_module_algebra_returns_ground_field():
     field = hom.algebra()
     # The Hom space is a module over the ground field, not the Steenrod algebra.
     assert isinstance(field, algebra.Field)
-    assert field.prime() == hom.prime() == 2
+    assert field.prime == hom.prime == 2
     assert field.dimension(0) == 1
     assert field.dimension(1) == 0
 
@@ -182,7 +182,7 @@ def test_hom_module_algebra_prime_matches_at_odd_prime():
     x = algebra.FDModuleBuilder(alg, "pt", [1]).build()
     hom = algebra.HomModule(source, x)
     field = hom.algebra()
-    assert field.prime() == 3
+    assert field.prime == 3
     assert field.dimension(0) == 1
 
 

@@ -17,7 +17,7 @@ def main():
     lift = ext.SecondaryResolution(resolution)
     lift.extend_all()
 
-    ss = lift.e3_page()
+    ss = lift.e3_page
     products = [
         (name, resolution.filtration_one_products(op_deg, op_idx))
         for (name, op_deg, op_idx) in resolution.algebra().default_filtration_one_products()

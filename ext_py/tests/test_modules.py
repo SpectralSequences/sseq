@@ -33,8 +33,8 @@ def make_c2_fdmodule():
 
 def test_fdmodule_basic_invariants():
     m = make_c2_fdmodule()
-    assert isinstance(m.prime(), int)
-    assert m.prime() == 2
+    assert isinstance(m.prime, int)
+    assert m.prime == 2
     assert m.min_degree() == 0
     assert m.dimension(0) == 1
     assert m.dimension(1) == 1
@@ -150,11 +150,11 @@ def test_fdmodule_build():
     m = make_c2_fdmodule()
     sm = m.build()
     assert isinstance(sm, algebra.SteenrodModule)
-    assert sm.prime() == m.prime()
+    assert sm.prime == m.prime
     assert sm.dimension(0) == m.dimension(0)
     assert sm.dimension(1) == m.dimension(1)
     # The algebra accessor returns a SteenrodAlgebra at the same prime.
-    assert sm.algebra().prime() == 2
+    assert sm.algebra().prime == 2
 
 
 # --- FDModuleBuilder algebra-argument acceptance --------------------------
@@ -179,7 +179,7 @@ def test_fdmodule_accepts_all_algebra_types(make_alg, expected_type):
     # Building C2 with Sq1 x0 = x1 must work regardless of how the algebra was
     # supplied: the reconstructed algebra has identical prime/basis indexing.
     m.set_action(1, 0, 0, 0, [1])
-    assert m.prime() == 2
+    assert m.prime == 2
     # The builder's algebra is the matching SteenrodAlgebra variant.
     assert m.algebra().algebra_type() == expected_type
     sm = m.build()
@@ -224,7 +224,7 @@ def test_fdmodule_to_json():
 def test_steenrod_module_from_json_c2():
     sm = algebra.steenrod_module_from_json(milnor(2), C2_JSON)
     assert isinstance(sm, algebra.SteenrodModule)
-    assert sm.prime() == 2
+    assert sm.prime == 2
     assert sm.min_degree() == 0
     assert sm.dimension(0) == 1
     assert sm.dimension(1) == 1
@@ -264,7 +264,7 @@ def make_free(gen_degrees=(0,)):
 
 def test_freemodule_basic_invariants():
     m = make_free()
-    assert m.prime() == 2
+    assert m.prime == 2
     assert m.min_degree() == 0
     assert m.number_of_gens_in_degree(0) == 1
     # dimension(t) tracks the algebra dimension for a single degree-0 generator.
@@ -317,7 +317,7 @@ def test_freemodule_into_steenrod_module():
     m = make_free()
     sm = m.into_steenrod_module()
     assert isinstance(sm, algebra.SteenrodModule)
-    assert sm.prime() == m.prime()
+    assert sm.prime == m.prime
     assert sm.dimension(1) == m.dimension(1)
 
 

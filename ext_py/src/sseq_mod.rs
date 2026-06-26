@@ -726,6 +726,7 @@ pub mod sseq_py {
         }
 
         /// The prime of the underlying field.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -945,6 +946,7 @@ pub mod sseq_py {
         }
 
         /// The prime of the underlying field.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.1.as_u32()
         }

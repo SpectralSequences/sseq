@@ -701,6 +701,7 @@ pub mod algebra_py {
         // --- Algebra trait surface --------------------------------------------
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -1286,6 +1287,7 @@ pub mod algebra_py {
         // --- Algebra trait surface --------------------------------------------
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -1788,6 +1790,7 @@ pub mod algebra_py {
         // --- Algebra trait surface --------------------------------------------
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2144,6 +2147,7 @@ pub mod algebra_py {
         // --- Algebra trait surface --------------------------------------------
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2581,6 +2585,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -2864,6 +2869,7 @@ pub mod algebra_py {
             self.inner.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -3224,6 +3230,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -3546,6 +3553,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -3756,6 +3764,7 @@ pub mod algebra_py {
             self.inner.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -3922,6 +3931,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4098,6 +4108,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4326,6 +4337,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4686,6 +4698,7 @@ pub mod algebra_py {
             self.0.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -4951,6 +4964,7 @@ pub mod algebra_py {
             self.inner.max_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -5217,6 +5231,7 @@ pub mod algebra_py {
             }
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -5729,6 +5744,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -6360,6 +6376,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -6950,6 +6967,7 @@ pub mod algebra_py {
             self.0.max_computed_degree()
         }
 
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -7105,6 +7123,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -7498,6 +7517,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -7804,6 +7824,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -8109,6 +8130,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -8385,6 +8407,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.prime().as_u32()
         }
@@ -8772,6 +8795,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.inner.prime().as_u32()
         }
@@ -9458,6 +9482,7 @@ pub mod algebra_py {
         }
 
         /// The prime as a plain `int`.
+        #[getter]
         pub fn prime(&self) -> u32 {
             self.0.adem.prime().as_u32()
         }

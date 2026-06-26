@@ -234,7 +234,7 @@ def test_module_standard_shares_arc():
     m0 = r.module(0)
     # C_0 is free on one generator in degree 0.
     assert m0.dimension(0) == 1
-    assert m0.prime() == 2
+    assert m0.prime == 2
     # Negative / out-of-range s -> ValueError.
     with pytest.raises(ValueError):
         r.module(-1)
@@ -354,7 +354,7 @@ def test_algebra_returns_steenrod_algebra(algorithm):
     r = resolve(algorithm)
     alg = r.algebra()
     assert isinstance(alg, ext.algebra.SteenrodAlgebra)
-    assert alg.prime() == 2
+    assert alg.prime == 2
     assert alg.algebra_type() == ext.algebra.AlgebraType.Milnor
     # The accessor an example relies on (chart.py) must work off it.
     assert alg.default_filtration_one_products()

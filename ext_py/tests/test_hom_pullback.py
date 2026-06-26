@@ -73,8 +73,8 @@ def identity_pullback(alg):
 
 def test_construct_and_invariants():
     pb, source, target, _f0, _f1, _d, _x = identity_pullback(milnor(2))
-    assert isinstance(pb.prime(), int)
-    assert pb.prime() == 2
+    assert isinstance(pb.prime, int)
+    assert pb.prime == 2
     assert pb.degree_shift() == 0
     # Hom(F<g deg 0>, C2).min_degree() = 0 - C2.max_degree()(=1) = -1.
     assert pb.min_degree() == -1

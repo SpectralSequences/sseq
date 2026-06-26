@@ -51,7 +51,7 @@ def test_sseq_profile_default_is_adams():
 
 def test_sseq_valid_and_invalid_prime():
     s = sseq.Sseq(2)
-    assert s.prime() == 2
+    assert s.prime == 2
     with pytest.raises(ValueError):
         sseq.Sseq(4)
     with pytest.raises(ValueError):
@@ -257,7 +257,7 @@ def test_multiply():
 
 def test_differential_round_trip():
     d = sseq.Differential(2, 2, 1)
-    assert d.prime() == 2
+    assert d.prime == 2
     assert d.source_dim == 2
     assert d.target_dim == 1
 

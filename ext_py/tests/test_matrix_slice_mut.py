@@ -18,7 +18,7 @@ def test_slice_mut_construction_and_queries():
     m = make_matrix([[1, 2, 3, 4], [0, 1, 2, 3], [4, 3, 2, 1]])
     rect = m.slice_mut(0, 2, 1, 3)
     # prime returned as a plain int.
-    assert rect.prime() == 5
+    assert rect.prime == 5
     assert rect.rows() == 2
     assert rect.columns() == 2
     assert repr(rect) == "MatrixSliceMut(5, 2x2)"

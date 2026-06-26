@@ -26,8 +26,8 @@ def a_mod_sq1(alg):
 def test_fp_module_construct_and_dimensions():
     alg = milnor(2)
     m = a_mod_sq1(alg)
-    assert isinstance(m.prime(), int)
-    assert m.prime() == 2
+    assert isinstance(m.prime, int)
+    assert m.prime == 2
     assert m.min_degree() == 0
     # x0 survives, Sq1 x0 killed, Sq2 x0 survives.
     assert m.dimension(0) == 1
@@ -66,7 +66,7 @@ def test_fp_module_into_steenrod_module_round_trip():
     m = a_mod_sq1(alg)
     boxed = m.into_steenrod_module()
     assert isinstance(boxed, algebra.SteenrodModule)
-    assert boxed.prime() == m.prime()
+    assert boxed.prime == m.prime
     assert boxed.dimension(0) == m.dimension(0)
     assert boxed.dimension(2) == m.dimension(2)
 
@@ -100,7 +100,7 @@ def test_free_module_has_no_mutators():
 def test_fp_module_builder_build_and_mutation_after_build_raises():
     alg = milnor(2)
     b = algebra.FPModuleBuilder(alg, "M", 0)
-    assert b.prime() == 2
+    assert b.prime == 2
     assert b.min_degree() == 0
     b.add_generators(0, ["x0"])
     m = b.build()
@@ -170,7 +170,7 @@ def test_fp_module_from_json():
     alg = milnor(2)
     m = algebra.FPModule.from_json(alg, A_MOD_SQ1_SQ2)
     assert isinstance(m, algebra.FPModule)
-    assert m.prime() == 2
+    assert m.prime == 2
     assert m.min_degree() == 0
     assert m.dimension(0) == 1
     # Both Sq1 x0 and Sq2 x0 are killed.

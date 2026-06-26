@@ -16,7 +16,7 @@ def test_construction_and_queries():
     aff = fp.AffineSubspace(offset, linear)
 
     # Prime is passed/queried as a plain int.
-    assert aff.prime() == 2
+    assert aff.prime == 2
     assert aff.ambient_dimension() == 3
     assert aff.dimension() == 2
     assert repr(aff) == "AffineSubspace([1, 0, 0] + {[0, 1, 0], [0, 0, 1]})"

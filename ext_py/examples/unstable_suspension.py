@@ -99,7 +99,7 @@ def main():
         # (API_PROPOSAL §7.3 lists extend_step; sq0.py relies on the same hook).
         hom.extend_step_raw(
             min_degree + shift,
-            [fp.FpVector.from_slice(module.prime(), [1])],
+            [fp.FpVector.from_slice(module.prime, [1])],
         )
         hom.extend_all()
 

@@ -49,9 +49,9 @@ def ccdz_c2():
 
 def test_ccdz_basic_invariants():
     cc = ccdz_c2()
-    assert cc.prime() == 2
+    assert cc.prime == 2
     assert cc.min_degree() == 0
-    assert cc.algebra().prime() == 2
+    assert cc.algebra().prime == 2
     # next_homological_degree is i32::MAX for a FiniteChainComplex.
     assert cc.next_homological_degree() == 2147483647
     assert cc.save_dir() is None
@@ -71,7 +71,7 @@ def test_ccdz_modules_and_differential():
     # differential is the (zero) boundary; shares the algebra.
     d0 = cc.differential(0)
     assert isinstance(d0, algebra.FullModuleHomomorphism)
-    assert d0.prime() == 2
+    assert d0.prime == 2
 
 
 def test_ccdz_has_computed_bidegree():
@@ -98,18 +98,18 @@ def test_new_valid_two_term_complex():
     m1 = point(alg, 1)
     d = algebra.FullModuleHomomorphism(m1, m0)  # C_1 -> C_0
     cc = ext.ChainComplex.new([m0, m1], [d])
-    assert cc.prime() == 2
+    assert cc.prime == 2
     assert cc.module(0).dimension(0) == 1
     assert cc.module(1).dimension(1) == 1
     # differential(1): C_1 -> C_0 is defined.
-    assert cc.differential(1).prime() == 2
+    assert cc.differential(1).prime == 2
 
 
 def test_new_single_module_no_differentials():
     # The ccdz case: one module, zero differentials, is valid.
     alg = algebra.SteenrodAlgebra.milnor(2)
     cc = ext.ChainComplex.new([point(alg)], [])
-    assert cc.prime() == 2
+    assert cc.prime == 2
     assert cc.module(0).dimension(0) == 1
 
 
@@ -154,7 +154,7 @@ def test_differential_large_s_is_valid():
     cc = ccdz_c2()
     d = cc.differential(1000)
     assert isinstance(d, algebra.FullModuleHomomorphism)
-    assert d.prime() == 2
+    assert d.prime == 2
 
 
 # --- iter_stem (lazy, infinite for a FiniteChainComplex) -------------------
@@ -233,7 +233,7 @@ def test_resolution_chain_complex_accessor():
     r.compute_through_stem(sseq.Bidegree.n_s(8, 4))
     cc = r.chain_complex()
     assert isinstance(cc, ext.ChainComplex)
-    assert cc.prime() == 2
+    assert cc.prime == 2
     assert cc.min_degree() == 0
     # The complex resolved is the sphere: C_0 is the unit module (dim 1 in deg 0).
     assert cc.module(0).dimension(0) == 1
@@ -250,7 +250,7 @@ def test_resolution_to_sseq_returns_sseq():
     r.compute_through_stem(sseq.Bidegree.n_s(8, 4))
     ss = r.to_sseq()
     assert isinstance(ss, sseq.Sseq)
-    assert ss.prime() == 2
+    assert ss.prime == 2
 
 
 def test_resolution_nassau_to_sseq_returns_sseq():
@@ -258,7 +258,7 @@ def test_resolution_nassau_to_sseq_returns_sseq():
     r.compute_through_stem(sseq.Bidegree.n_s(4, 2))
     ss = r.to_sseq()
     assert isinstance(ss, sseq.Sseq)
-    assert ss.prime() == 2
+    assert ss.prime == 2
 
 
 def test_chain_complex_has_no_free_chain_complex_methods():
@@ -287,17 +287,17 @@ def test_facc_valid_one_module():
     target = ext.ChainComplex.ccdz(d0)
     aug = algebra.FullModuleHomomorphism(c0, d0)  # C_0 -> D_0
     facc = ext.FiniteAugmentedChainComplex([c0], [], target, [aug])
-    assert facc.prime() == 2
+    assert facc.prime == 2
     assert facc.min_degree() == 0
-    assert facc.algebra().prime() == 2
+    assert facc.algebra().prime == 2
     assert facc.max_s() == 1
     assert facc.module(0).dimension(0) == 1
     # target() shares the Arc and reports the same prime.
     assert isinstance(facc.target(), ext.ChainComplex)
-    assert facc.target().prime() == 2
+    assert facc.target().prime == 2
     # chain_map(0) is the augmentation.
     assert isinstance(facc.chain_map(0), algebra.FullModuleHomomorphism)
-    assert facc.chain_map(0).prime() == 2
+    assert facc.chain_map(0).prime == 2
 
 
 def test_facc_valid_two_module():
@@ -311,8 +311,8 @@ def test_facc_valid_two_module():
     facc = ext.FiniteAugmentedChainComplex([c0, c1], [diff], target, [aug0, aug1])
     assert facc.max_s() == 2
     assert facc.module(1).dimension(1) == 1
-    assert facc.differential(1).prime() == 2
-    assert facc.chain_map(1).prime() == 2
+    assert facc.differential(1).prime == 2
+    assert facc.chain_map(1).prime == 2
 
 
 def test_facc_chain_map_out_of_range_raises_index_error():

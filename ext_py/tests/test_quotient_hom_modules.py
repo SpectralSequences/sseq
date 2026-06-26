@@ -34,8 +34,8 @@ def test_quotient_module_basic_dimensions():
     alg = milnor(2)
     q = algebra.QuotientModule(make_c2(alg), 1)
     q.compute_basis(2)
-    assert isinstance(q.prime(), int)
-    assert q.prime() == 2
+    assert isinstance(q.prime, int)
+    assert q.prime == 2
     assert q.min_degree() == 0
     assert q.truncation == 1
     # Nothing quotiented yet: same dims as C2 ([1, 1]).
@@ -190,7 +190,7 @@ def test_quotient_module_free_inner_uncomputed_algebra_no_panic():
     b.add_generators(0, ["x0"])
     f = b.build().generators()
     q = algebra.QuotientModule(f.into_steenrod_module(), 20)
-    assert q.prime() == 2
+    assert q.prime == 2
     assert q.truncation == 20
     assert q.min_degree() == 0
     # F<x0> over A: dim in degree t equals the algebra dimension in t.
@@ -220,7 +220,7 @@ def test_quotient_module_into_steenrod_module_roundtrip_and_locks():
     q = algebra.QuotientModule(make_c2(alg), 1)
     q.compute_basis(2)
     boxed = q.into_steenrod_module()
-    assert boxed.prime() == q.prime()
+    assert boxed.prime == q.prime
     assert boxed.dimension(0) == q.dimension(0)
     assert boxed.dimension(1) == q.dimension(1)
     # After boxing the Arc is shared, so mutation now raises RuntimeError.
@@ -245,8 +245,8 @@ def test_hom_module_dimensions():
     source = free_one_gen(alg)
     target = make_c2(alg)
     hom = algebra.HomModule(source, target)
-    assert isinstance(hom.prime(), int)
-    assert hom.prime() == 2
+    assert isinstance(hom.prime, int)
+    assert hom.prime == 2
     # min_degree = source.min_degree() - target.max_degree() = 0 - 1.
     assert hom.min_degree() == -1
     hom.compute_basis(0)

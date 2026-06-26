@@ -245,7 +245,7 @@ def test_get_unit_round_trip():
     # shared-Arc path -- no construction, no save_dir, no prompt.
     assert is_unit is True
     assert isinstance(unit, ext.Resolution)
-    assert unit.prime() == 2
+    assert unit.prime == 2
 
 
 def test_get_unit_nonunit_builds_unit_noninteractively(tmp_path):
@@ -258,7 +258,7 @@ def test_get_unit_nonunit_builds_unit_noninteractively(tmp_path):
     is_unit, unit = ext.get_unit(res, save_dir=str(tmp_path))
     assert is_unit is False
     assert isinstance(unit, ext.Resolution)
-    assert unit.prime() == 2
+    assert unit.prime == 2
     # The constructed unit IS usable and IS the unit.
     unit.compute_through_stem(_bidegree(4, 4))
     is_unit2, _ = ext.get_unit(unit)
@@ -270,7 +270,7 @@ def test_get_unit_nonunit_no_save_dir(tmp_path):
     res = ext.Resolution.construct("S_2[2]", algorithm="standard")
     is_unit, unit = ext.get_unit(res)
     assert is_unit is False
-    assert unit.prime() == 2
+    assert unit.prime == 2
 
 
 def test_get_unit_nonunit_save_dir_is_file_raises(tmp_path):

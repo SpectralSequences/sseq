@@ -21,7 +21,7 @@ class HomData:
 
 
 def get_hom(name, source, target):
-    p = source.prime()
+    p = source.prime
 
     shift = sseq.Bidegree.n_s(
         query.raw(f"n of {name}", int),
@@ -99,7 +99,7 @@ def main():
 
     is_unit, unit = ext.get_unit(resolution)
 
-    p = resolution.prime()
+    p = resolution.prime
 
     res_lift = ext.SecondaryResolution(resolution)
     unit_lift = res_lift if is_unit else ext.SecondaryResolution(unit)
@@ -144,8 +144,8 @@ def main():
     if b_lambda is not None:
         b_lambda.extend_all()
 
-    res_sseq = res_lift.e3_page()
-    unit_sseq = res_sseq if is_unit else res_lift.e3_page()
+    res_sseq = res_lift.e3_page
+    unit_sseq = res_sseq if is_unit else res_lift.e3_page
 
     b_shift = b.underlying().shift
 

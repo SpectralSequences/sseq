@@ -61,16 +61,16 @@ def test_new_accessors_roundtrip():
     r = us2_rect(4)
     hom = ext.UnstableResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
     assert hom.name() == "f"
-    assert hom.prime() == 2
+    assert hom.prime == 2
     assert hom.shift().s == 1
     assert hom.shift().t == 1
-    assert hom.source().prime() == 2
-    assert hom.target().prime() == 2
+    assert hom.source().prime == 2
+    assert hom.target().prime == 2
     assert hom.source().graded_dimension_string() == r.graded_dimension_string()
     # A freshly constructed hom defines no maps yet (next_hom_degree == shift.s).
     assert hom.next_homological_degree() == 1
     assert hom.save_dir() is None
-    assert hom.algebra().prime() == 2
+    assert hom.algebra().prime == 2
 
 
 # --- known value: from_class([1]) at (0,0) is the identity chain map ------
@@ -121,11 +121,11 @@ def test_get_map_is_unstable_free_to_free():
     hom = identity_hom(r, 4)
     m = hom.get_map(0)
     assert m.degree_shift() == 0
-    assert m.prime() == 2
+    assert m.prime == 2
     # source()/target() are unstable free modules sharing the resolution's Arc.
     assert isinstance(m.source(), algebra.UnstableFreeModule)
     assert isinstance(m.target(), algebra.UnstableFreeModule)
-    assert m.source().prime() == 2
+    assert m.source().prime == 2
     assert m.next_degree() > 0
     # s=0 map is the identity on the unit: output(0,0) == [1].
     assert list(m.output(0, 0)) == [1]
@@ -340,7 +340,7 @@ def test_unstable_resolution_module_accessor_and_guards():
     r = us2_rect(4)
     m = r.module(0)
     assert isinstance(m, algebra.UnstableFreeModule)
-    assert m.prime() == 2
+    assert m.prime == 2
     assert m.min_degree() == 0
     assert m.number_of_gens_in_degree(0) == 1
     assert m.dimension(0) == 1

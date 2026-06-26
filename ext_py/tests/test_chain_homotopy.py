@@ -53,7 +53,7 @@ def homotopy(max_st=8, ext_deg=6):
 
 def test_construction_and_accessors():
     ch = homotopy()
-    assert ch.prime() == 2
+    assert ch.prime == 2
     # shift = left.shift + right.shift = (1,1) + (1,1) = (2,2).
     assert ch.shift().s == 2
     assert ch.shift().t == 2
@@ -97,8 +97,8 @@ def test_extend_and_homotopy_shapes():
     tgt_res = ch.right().target()  # the resolution U (= D)
     for s in range(1, 5):
         h = ch.homotopy(s)
-        assert h.source().prime() == 2
-        assert h.target().prime() == 2
+        assert h.source().prime == 2
+        assert h.target().prime == 2
         # degree_shift == shift.t (raises internal degree by 2).
         assert h.degree_shift() == shift.t
         # h.source() is left.source.module(s); h.target() is
@@ -136,7 +136,7 @@ def test_extend_all_succeeds_when_maps_fully_extended():
     # The homotopy is now defined on [shift.s - 1, ...]; homotopy(1..) work.
     h = ch.homotopy(2)
     assert h.degree_shift() == 2
-    assert h.source().prime() == 2
+    assert h.source().prime == 2
 
 
 # --- guards: no panics across the FFI boundary -----------------------------

@@ -46,8 +46,8 @@ def test_quotient_hom_construct_and_invariants():
     alg = milnor(2)
     _m, f, q = identity_and_quotient(alg)
     qh = algebra.QuotientHomomorphism(f, q, q)
-    assert isinstance(qh.prime(), int)
-    assert qh.prime() == 2
+    assert isinstance(qh.prime, int)
+    assert qh.prime == 2
     assert qh.degree_shift() == 0
     assert qh.min_degree() == 0
     assert repr(qh).startswith("QuotientHomomorphism(")
@@ -210,7 +210,7 @@ def test_quotient_hom_source_construct_and_types():
     alg = milnor(2)
     _m, f, q = identity_and_quotient(alg)
     qhs = algebra.QuotientHomomorphismSource(f, q)
-    assert qhs.prime() == 2
+    assert qhs.prime == 2
     assert qhs.degree_shift() == 0
     assert qhs.min_degree() == 0
     assert repr(qhs).startswith("QuotientHomomorphismSource(")
@@ -272,7 +272,7 @@ def test_generic_zero_construct_and_invariants():
     alg = milnor(2)
     m = c2_module(alg)
     z = algebra.GenericZeroHomomorphism(m, m, 0)
-    assert z.prime() == 2
+    assert z.prime == 2
     assert z.degree_shift() == 0
     assert z.min_degree() == 0
     assert repr(z).startswith("GenericZeroHomomorphism(")

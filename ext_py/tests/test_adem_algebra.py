@@ -11,8 +11,8 @@ def make_algebra(p=2, degree=8):
 
 def test_construction_valid_and_invalid_prime():
     a = algebra.AdemAlgebra(2)
-    assert a.prime() == 2
-    assert algebra.AdemAlgebra(3).prime() == 3
+    assert a.prime == 2
+    assert algebra.AdemAlgebra(3).prime == 3
 
     # A non-prime must raise ValueError, never panic.
     for bad in (4, 0, 1):
@@ -22,7 +22,7 @@ def test_construction_valid_and_invalid_prime():
 
 def test_prime_is_plain_int():
     a = algebra.AdemAlgebra(2)
-    p = a.prime()
+    p = a.prime
     assert isinstance(p, int)
     assert p == 2
 

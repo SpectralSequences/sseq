@@ -118,7 +118,7 @@ EXAMPLES = [
     {
         "name": "d2_charts.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SecondaryResolution.e3_page() is not bound",
+        "xfail": "SecondaryResolution.e3_page (property) is not bound",
     },
     {
         "name": "secondary_product.py",
@@ -134,7 +134,7 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "0", "1", "[1]",
                  "0", "1", "b", "0", "1", "[1]"],
-        "xfail": "SecondaryResolution.prime() is not bound",
+        "xfail": "SecondaryResolution.prime (property) is not bound",
     },
     # --- Unbound bindings (aspirational API) ---
     {
