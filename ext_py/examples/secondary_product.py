@@ -82,8 +82,16 @@ def main():
         # NOTE: depends on Subquotient methods complement_pivots / subspace_gens /
         # subspace_dimension on Subquotient (API_PROPOSAL §4, listed as "full Subquotient
         # pyclass … add_gen, …" but these accessors are not enumerated)
-        d = ss.page_data(b)
-        return d[min(3, len(d) - 1)]
+        #
+        # Sseq.page_data(b, r) returns the E_r page subquotient (r indexed by page
+        # number, starting at MIN_R = 2). We want the E3 page (r = 3), falling back
+        # to the last computed page when d2 was the final differential.
+        for r in (3, 2):
+            try:
+                return ss.page_data(b, r)
+            except IndexError:
+                continue
+        raise IndexError(f"no computed page data at bidegree {b}")
 
     name = hom_lift.name()
     # Iterate through the multiplicand

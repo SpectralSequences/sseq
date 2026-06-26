@@ -123,7 +123,7 @@ EXAMPLES = [
     {
         "name": "secondary_product.py",
         "args": ["S_2", "", "8", "4", "prod", "0", "1", "[1]"],
-        "xfail": "Sseq.page_data(b) requires a second positional 'r' (page index) argument",
+        "xfail": "'ext.SecondaryResolutionHomomorphism' object has no attribute 'hom_k'",
     },
     {
         "name": "massey.py",
