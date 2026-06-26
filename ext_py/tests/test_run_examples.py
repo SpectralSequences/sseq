@@ -75,7 +75,7 @@ EXAMPLES = [
     {
         "name": "lift_hom.py",
         "args": ["S_2", "", "4", "2", "S_2", "prod", "0", "0"],
-        "xfail": "Resolution has no set_name()",
+        "xfail": "Resolution.target() not bound",
     },
     # --- Nassau (default) backend lacks methods the example needs ---
     {

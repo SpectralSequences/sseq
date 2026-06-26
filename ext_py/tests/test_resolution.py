@@ -338,12 +338,22 @@ def test_callback_unsupported_on_nassau():
         r.compute_through_bidegree_with_callback(sseq.Bidegree.s_t(2, 2), lambda b: None)
 
 
-def test_name_is_method_returning_str():
-    # `name` is bound as a method (not a getter); `set_name` is intentionally
-    # not bound (frozen, Arc-shared resolution has no exclusive &mut).
+def test_name_is_property_returning_str():
+    # `name` is bound as a getter (property), reading the wrapper-level override
+    # if set, else the underlying resolution's upstream name.
     r = resolve("standard")
-    assert isinstance(r.name(), str)
-    assert not hasattr(r, "set_name")
+    assert isinstance(r.name, str)
+
+
+def test_set_name_overrides_name():
+    # `set_name` sets a wrapper-level override returned by `name`. This works on
+    # the frozen, Arc-shared pyclass via interior mutability (a Mutex), without
+    # mutating the shared upstream resolution.
+    r = resolve("standard")
+    default = r.name
+    assert isinstance(default, str)
+    r.set_name("custom-name")
+    assert r.name == "custom-name"
 
 
 @pytest.mark.parametrize("algorithm", ["standard", "nassau"])

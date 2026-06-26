@@ -177,7 +177,7 @@ mod ext_py {
         save: bool,
     ) -> PyResult<Resolution> {
         ext::utils::query_module(algebra_type.map(algebra::AlgebraType::from), save)
-            .map(|res| Resolution(AnyResolution::Standard(Arc::new(res))))
+            .map(|res| Resolution(AnyResolution::Standard(Arc::new(res)), std::sync::Mutex::new(None)))
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
@@ -192,7 +192,7 @@ mod ext_py {
             algebra.map(algebra::AlgebraType::from),
             load_quasi_inverse,
         )
-        .map(|res| Resolution(AnyResolution::Standard(Arc::new(res))))
+        .map(|res| Resolution(AnyResolution::Standard(Arc::new(res)), std::sync::Mutex::new(None)))
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
@@ -346,7 +346,7 @@ mod ext_py {
         if is_unit {
             // Cheap shared-Arc path: the input already resolves the unit. No
             // construction, no save_dir, no prompt.
-            return Ok((true, Resolution(AnyResolution::Standard(arc))));
+            return Ok((true, Resolution(AnyResolution::Standard(arc), std::sync::Mutex::new(None))));
         }
 
         // Non-unit path: replicate upstream's `#[cfg(not(feature = "nassau"))]`
@@ -373,7 +373,7 @@ mod ext_py {
         let unit = ext::resolution::Resolution::new_with_save(Arc::new(cc), save_dir)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-        Ok((false, Resolution(AnyResolution::Standard(Arc::new(unit)))))
+        Ok((false, Resolution(AnyResolution::Standard(Arc::new(unit)), std::sync::Mutex::new(None))))
     }
 
     /// Construct a [`Resolution`] of the module `spec`, optionally backed by an on-disk save
@@ -534,7 +534,7 @@ mod ext_py {
     }
 
     #[pyclass(frozen)]
-    pub struct Resolution(AnyResolution);
+    pub struct Resolution(AnyResolution, std::sync::Mutex<Option<String>>);
 
     impl Resolution {
         /// Number of generators of the resolution at bidegree `b`, returning 0
@@ -577,7 +577,7 @@ mod ext_py {
             algorithm: Option<&str>,
         ) -> PyResult<Resolution> {
             let config = py_to_config(spec)?;
-            build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
+            build(config, save_dir.map(PathBuf::from), algorithm).map(|r| Resolution(r, std::sync::Mutex::new(None)))
         }
 
         /// Construct a resolution of the given module specification, dispatching to Nassau's
@@ -597,7 +597,7 @@ mod ext_py {
             let config: Config = spec.try_into().map_err(|e: anyhow::Error| {
                 pyo3::exceptions::PyValueError::new_err(e.to_string())
             })?;
-            build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
+            build(config, save_dir.map(PathBuf::from), algorithm).map(|r| Resolution(r, std::sync::Mutex::new(None)))
         }
 
         /// Resolve through the given target bidegree.
@@ -1037,12 +1037,24 @@ mod ext_py {
         /// The resolution's name (used in tracing/logging). Both backends store a
         /// plain `String` name.
         ///
-        /// The companion `set_name` is intentionally **not** bound: it takes
-        /// `&mut self` upstream, but the `Resolution` pyclass is `frozen` and
-        /// wraps the resolution in a (shareable) `Arc`, so no exclusive `&mut`
-        /// reference is obtainable to mutate the name in place.
+        /// Returns the wrapper-level override set via [`set_name`] if present,
+        /// otherwise the underlying resolution's upstream name. Exposed as a
+        /// property (the example reads `resolution.name` without parens).
+        #[getter]
         pub fn name(&self) -> String {
-            dispatch!(&self.0, r => r.name().to_string())
+            if let Some(n) = &*self.1.lock().unwrap() {
+                n.clone()
+            } else {
+                dispatch!(&self.0, r => r.name().to_string())
+            }
+        }
+
+        /// Set a display name for this resolution. The `Resolution` pyclass is
+        /// frozen and shares its underlying resolution via an `Arc`, so this sets
+        /// a wrapper-level override (returned by `name`) rather than mutating the
+        /// shared upstream resolution.
+        pub fn set_name(&self, name: String) {
+            *self.1.lock().unwrap() = Some(name);
         }
 
         /// The resolution's Steenrod algebra as a `SteenrodAlgebra`.
@@ -1721,12 +1733,12 @@ mod ext_py {
 
         /// The source resolution (shares the underlying `Arc`).
         pub fn source(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(&self.0.source)))
+            Resolution(AnyResolution::Standard(Arc::clone(&self.0.source)), std::sync::Mutex::new(None))
         }
 
         /// The target resolution (shares the underlying `Arc`).
         pub fn target(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(&self.0.target)))
+            Resolution(AnyResolution::Standard(Arc::clone(&self.0.target)), std::sync::Mutex::new(None))
         }
 
         /// The first homological degree `s` at which the chain map is not yet
@@ -2336,12 +2348,12 @@ mod ext_py {
 
         /// The resolution of `M` (shares the underlying `Arc`).
         pub fn resolution(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(self.0.resolution())))
+            Resolution(AnyResolution::Standard(Arc::clone(self.0.resolution())), std::sync::Mutex::new(None))
         }
 
         /// The resolution of the unit `k` (shares the underlying `Arc`).
         pub fn unit(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(self.0.unit())))
+            Resolution(AnyResolution::Standard(Arc::clone(self.0.unit())), std::sync::Mutex::new(None))
         }
 
         /// Ensure both the resolution and the unit are computed through the given
@@ -3457,7 +3469,7 @@ mod ext_py {
         }
 
         pub fn underlying(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())))
+            Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())), std::sync::Mutex::new(None))
         }
 
         /// The prime as a plain `int` (mirrors the `prime` getter on the other
@@ -3751,13 +3763,13 @@ mod ext_py {
         /// The source resolution (the *underlying* resolution of the source
         /// secondary resolution; shares its `Arc`).
         pub fn source(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(self.inner.source()))
+            Resolution(AnyResolution::Standard(self.inner.source()), std::sync::Mutex::new(None))
         }
 
         /// The target resolution (the *underlying* resolution of the target
         /// secondary resolution; shares its `Arc`).
         pub fn target(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(self.inner.target()))
+            Resolution(AnyResolution::Standard(self.inner.target()), std::sync::Mutex::new(None))
         }
 
         /// The underlying `ResolutionHomomorphism` (shares its `Arc`; a live
@@ -4132,12 +4144,12 @@ mod ext_py {
 
         /// The source resolution (`left`'s source; shares its `Arc`).
         pub fn source(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(self.0.source()))
+            Resolution(AnyResolution::Standard(self.0.source()), std::sync::Mutex::new(None))
         }
 
         /// The target resolution (`right`'s target; shares its `Arc`).
         pub fn target(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(self.0.target()))
+            Resolution(AnyResolution::Standard(self.0.target()), std::sync::Mutex::new(None))
         }
 
         /// The underlying `ChainHomotopy` (shares its `Arc`; a live shared view).

@@ -27,7 +27,7 @@ def main():
         # NOTE: depends on TikzBackend.EXT and Resolution.name() (API_PROPOSAL §6.3, §7.4).
         suffix = sseq.TikzBackend.EXT
         backend = sseq.TikzBackend(
-            open(f"{path}_{resolution.name()}.{suffix}", "w")
+            open(f"{path}_{resolution.name}.{suffix}", "w")
         )
         ss.write_to_graph(backend, page, diff, products[:prod], lambda _: None)
 
