@@ -539,30 +539,13 @@ mod ext_py {
         /// Number of generators of the resolution at bidegree `b`, returning 0
         /// (never panicking) for any bidegree outside the computed range.
         ///
-        /// Upstream `FreeChainComplex::number_of_gens_in_bidegree` is
-        /// `self.module(b.s()).number_of_gens_in_degree(b.t())`, and BOTH
-        /// indexing steps panic out of range: `module(s)` indexes the resolution's
-        /// `modules` `OnceBiVec` (panicking for `s >= next_homological_degree()`),
-        /// and `number_of_gens_in_degree(t)` indexes the module's `num_gens`
-        /// `OnceBiVec` (panicking for `t > max_computed_degree()`). This mirrors
-        /// the `algebra_py.FreeModule::num_gens_safe` guard: clamp both axes to
-        /// the populated range and read 0 outside it.
+        /// Delegates to the upstream
+        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`], the
+        /// out-of-range-tolerant sibling of `number_of_gens_in_bidegree`
+        /// (it returns `None` outside the computed range instead of
+        /// panicking); we map that `None` to 0 here.
         fn num_gens_at(&self, b: RsBidegree) -> usize {
-            if b.s() < 0 {
-                return 0;
-            }
-            dispatch!(&self.0, r => {
-                if b.s() >= r.next_homological_degree() {
-                    0
-                } else {
-                    let m = r.module(b.s());
-                    if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
-                        0
-                    } else {
-                        m.number_of_gens_in_degree(b.t())
-                    }
-                }
-            })
+            dispatch!(&self.0, r => r.try_number_of_gens_in_bidegree(b)).unwrap_or(0)
         }
     }
 
@@ -1198,19 +1181,11 @@ mod ext_py {
     impl UnstableResolution {
         /// Number of generators of the unstable resolution at bidegree `b`,
         /// returning 0 (never panicking) for any bidegree outside the computed
-        /// range. Mirrors `Resolution::num_gens_at`: both indexing steps
-        /// (`module(s)` and `number_of_gens_in_degree(t)`) panic out of range,
-        /// so both axes are clamped to the populated range.
+        /// range. Delegates to the upstream
+        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`], which clamps
+        /// both axes to the populated range.
         fn num_gens_at(&self, b: RsBidegree) -> usize {
-            if b.s() < 0 || b.t() < 0 || b.s() >= self.0.next_homological_degree() {
-                return 0;
-            }
-            let m = self.0.module(b.s());
-            if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
-                0
-            } else {
-                m.number_of_gens_in_degree(b.t())
-            }
+            self.0.try_number_of_gens_in_bidegree(b).unwrap_or(0)
         }
     }
 
@@ -1585,18 +1560,11 @@ mod ext_py {
         }
 
         /// Number of generators of the target resolution at bidegree `b`,
-        /// returning 0 (never panicking) outside the computed range. Mirrors
-        /// `Resolution::num_gens_at`.
+        /// returning 0 (never panicking) outside the computed range. Delegates
+        /// to the upstream
+        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`].
         fn target_num_gens(&self, b: RsBidegree) -> usize {
-            if b.s() < 0 || b.t() < 0 || b.s() >= self.0.target.next_homological_degree() {
-                return 0;
-            }
-            let m = self.0.target.module(b.s());
-            if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
-                0
-            } else {
-                m.number_of_gens_in_degree(b.t())
-            }
+            self.0.target.try_number_of_gens_in_bidegree(b).unwrap_or(0)
         }
 
         /// Pre-flight guard for the `extend*` family. `extend_profile` first
@@ -2207,19 +2175,12 @@ mod ext_py {
     pub struct ExtAlgebra(Arc<RsExtAlgebra>);
 
     /// Number of generators of a resolution at bidegree `b`, returning 0 (never
-    /// panicking) outside the computed range. Mirrors `Resolution::num_gens_at`
-    /// (upstream `ExtAlgebra::dimension` is `resolution.number_of_gens_in_bidegree(b)`,
+    /// panicking) outside the computed range. Delegates to the upstream
+    /// [`FreeChainComplex::try_number_of_gens_in_bidegree`] (upstream
+    /// `ExtAlgebra::dimension` is `resolution.number_of_gens_in_bidegree(b)`,
     /// whose two `OnceBiVec` indexings both panic out of range).
     fn ext_algebra_num_gens(r: &ext::resolution::Resolution<CCC>, b: RsBidegree) -> usize {
-        if b.s() < 0 || b.t() < 0 || b.s() >= r.next_homological_degree() {
-            return 0;
-        }
-        let m = r.module(b.s());
-        if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
-            0
-        } else {
-            m.number_of_gens_in_degree(b.t())
-        }
+        r.try_number_of_gens_in_bidegree(b).unwrap_or(0)
     }
 
     /// Run an `ExtAlgebra` product computation under `catch_unwind`, translating
@@ -2725,18 +2686,11 @@ mod ext_py {
 
     impl UnstableResolutionHomomorphism {
         /// Number of generators of the target resolution at bidegree `b`,
-        /// returning 0 (never panicking) outside the computed range. Mirrors
-        /// `ResolutionHomomorphism::target_num_gens`.
+        /// returning 0 (never panicking) outside the computed range. Delegates
+        /// to the upstream
+        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`].
         fn target_num_gens(&self, b: RsBidegree) -> usize {
-            if b.s() < 0 || b.t() < 0 || b.s() >= self.0.target.next_homological_degree() {
-                return 0;
-            }
-            let m = self.0.target.module(b.s());
-            if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
-                0
-            } else {
-                m.number_of_gens_in_degree(b.t())
-            }
+            self.0.target.try_number_of_gens_in_bidegree(b).unwrap_or(0)
         }
 
         /// Pre-flight guard for the `extend*` family, identical in shape to

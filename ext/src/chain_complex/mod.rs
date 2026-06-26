@@ -163,6 +163,25 @@ where
         self.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
+    /// Like [`number_of_gens_in_bidegree`](Self::number_of_gens_in_bidegree), but returns `None`
+    /// for any bidegree outside the currently computed range instead of panicking.
+    ///
+    /// `number_of_gens_in_bidegree` panics out of range on either axis: `module(b.s())` indexes the
+    /// homological degrees (panicking unless `0 <= b.s() < next_homological_degree()`), and the
+    /// module's `number_of_gens_in_degree(b.t())` indexes its computed degrees (panicking for
+    /// `b.t() > max_computed_degree()`; it returns 0 below `min_degree()`). `None` distinguishes
+    /// "not computed" from a computed bidegree that genuinely has 0 generators (`Some(0)`).
+    fn try_number_of_gens_in_bidegree(&self, b: Bidegree) -> Option<usize> {
+        if b.s() < 0 || b.s() >= self.next_homological_degree() {
+            return None;
+        }
+        let m = self.module(b.s());
+        if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+            return None;
+        }
+        Some(m.number_of_gens_in_degree(b.t()))
+    }
+
     /// Iterate through all nonzero bidegrees in increasing order of stem.
     fn iter_nonzero_stem(&self) -> impl Iterator<Item = Bidegree> + '_ {
         self.iter_stem()
