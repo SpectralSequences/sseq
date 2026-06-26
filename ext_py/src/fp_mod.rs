@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 #[pyo3(name = "fp")]
 pub mod fp_py {
     use fp::field::{
-        element::FieldElement as RustFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
+        DivError, DynFieldElement, Field, Fp as RustFp, SmallFq as RustSmallFq,
     };
     use fp::matrix::{
         AffineSubspace as RustAffineSubspace, AugmentedMatrix as RustAugmentedMatrix,
@@ -27,8 +27,6 @@ pub mod fp_py {
 
     type DynFp = RustFp<prime::ValidPrime>;
     type DynSmallFq = RustSmallFq<prime::ValidPrime>;
-    type DynFpElement = RustFieldElement<DynFp>;
-    type DynSmallFqElement = RustFieldElement<DynSmallFq>;
 
     #[pyclass(name = "Fp", frozen, from_py_object)]
     #[derive(Clone, Copy)]
@@ -38,15 +36,9 @@ pub mod fp_py {
     #[derive(Clone, Copy)]
     struct PySmallFq(DynSmallFq);
 
-    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-    enum FieldElementKind {
-        Fp(DynFpElement),
-        SmallFq(DynSmallFqElement),
-    }
-
     #[pyclass(name = "FieldElement", frozen, from_py_object)]
     #[derive(Clone, Copy)]
-    struct PyFieldElement(FieldElementKind);
+    struct PyFieldElement(DynFieldElement);
 
     #[pyclass(name = "FpVector")]
     pub struct PyFpVector(RustFpVector);
@@ -530,24 +522,27 @@ pub mod fp_py {
         }
     }
 
-    impl FieldElementKind {
-        fn field_repr(self) -> String {
-            match self {
-                Self::Fp(x) => format!("Fp({})", x.field().characteristic().as_u32()),
-                Self::SmallFq(x) => {
-                    let f = x.field();
-                    format!("SmallFq({}, {})", f.characteristic().as_u32(), f.degree())
-                }
+    /// Python `repr` of the field an erased element lives in (e.g. `Fp(2)` or
+    /// `SmallFq(2, 3)`), matching the `__repr__` of the `Fp`/`SmallFq` classes.
+    /// Used to build the mismatched-field error message.
+    fn field_repr(x: DynFieldElement) -> String {
+        match x {
+            DynFieldElement::Fp(x) => format!("Fp({})", x.field().characteristic().as_u32()),
+            DynFieldElement::SmallFq(x) => {
+                let f = x.field();
+                format!("SmallFq({}, {})", f.characteristic().as_u32(), f.degree())
             }
         }
+    }
 
-        fn mismatched_field_error(lhs: Self, rhs: Self) -> PyErr {
-            PyValueError::new_err(format!(
-                "cannot combine elements from {} and {}",
-                lhs.field_repr(),
-                rhs.field_repr()
-            ))
-        }
+    /// The `ValueError` raised when a binary field operation is given operands
+    /// from two different fields (upstream signals this as `None`/`MismatchedField`).
+    fn mismatched_field_error(lhs: DynFieldElement, rhs: DynFieldElement) -> PyErr {
+        PyValueError::new_err(format!(
+            "cannot combine elements from {} and {}",
+            field_repr(lhs),
+            field_repr(rhs)
+        ))
     }
 
     impl PyFpSlice {
@@ -776,15 +771,15 @@ pub mod fp_py {
         }
 
         pub fn zero(&self) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::Fp(self.0.zero()))
+            PyFieldElement(DynFieldElement::Fp(self.0.zero()))
         }
 
         pub fn one(&self) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::Fp(self.0.one()))
+            PyFieldElement(DynFieldElement::Fp(self.0.one()))
         }
 
         pub fn element(&self, value: u32) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::Fp(self.0.element(value)))
+            PyFieldElement(DynFieldElement::Fp(self.0.element(value)))
         }
 
         pub fn __repr__(&self) -> String {
@@ -807,7 +802,7 @@ pub mod fp_py {
         }
 
         pub fn a(&self) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::SmallFq(self.0.a()))
+            PyFieldElement(DynFieldElement::SmallFq(self.0.a()))
         }
 
         pub fn q(&self) -> u32 {
@@ -815,11 +810,11 @@ pub mod fp_py {
         }
 
         pub fn zero(&self) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::SmallFq(self.0.zero()))
+            PyFieldElement(DynFieldElement::SmallFq(self.0.zero()))
         }
 
         pub fn one(&self) -> PyFieldElement {
-            PyFieldElement(FieldElementKind::SmallFq(self.0.one()))
+            PyFieldElement(DynFieldElement::SmallFq(self.0.one()))
         }
 
         pub fn __repr__(&self) -> String {
@@ -829,111 +824,65 @@ pub mod fp_py {
 
     eq_hash_pymethods!(PyFieldElement, {
         pub fn inv(&self) -> Option<Self> {
-            match self.0 {
-                FieldElementKind::Fp(x) => x.inv().map(|x| Self(FieldElementKind::Fp(x))),
-                FieldElementKind::SmallFq(x) => x.inv().map(|x| Self(FieldElementKind::SmallFq(x))),
-            }
+            self.0.inv().map(Self)
         }
 
         pub fn frobenius(&self) -> Self {
-            match self.0 {
-                FieldElementKind::Fp(x) => Self(FieldElementKind::Fp(x.frobenius())),
-                FieldElementKind::SmallFq(x) => Self(FieldElementKind::SmallFq(x.frobenius())),
-            }
+            Self(self.0.frobenius())
         }
 
         pub fn field<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
             match self.0 {
-                FieldElementKind::Fp(x) => {
+                DynFieldElement::Fp(x) => {
                     Py::new(py, PyFp(x.field())).map(|x| x.into_bound(py).into_any())
                 }
-                FieldElementKind::SmallFq(x) => {
+                DynFieldElement::SmallFq(x) => {
                     Py::new(py, PySmallFq(x.field())).map(|x| x.into_bound(py).into_any())
                 }
             }
         }
 
         pub fn __add__(&self, rhs: Self) -> PyResult<Self> {
-            match (self.0, rhs.0) {
-                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => {
-                    Ok(Self(FieldElementKind::Fp(a + b)))
-                }
-                (FieldElementKind::SmallFq(a), FieldElementKind::SmallFq(b))
-                    if a.field() == b.field() =>
-                {
-                    Ok(Self(FieldElementKind::SmallFq(a + b)))
-                }
-                (a, b) => Err(FieldElementKind::mismatched_field_error(a, b)),
-            }
+            (self.0 + rhs.0)
+                .map(Self)
+                .ok_or_else(|| mismatched_field_error(self.0, rhs.0))
         }
 
         pub fn __sub__(&self, rhs: Self) -> PyResult<Self> {
-            match (self.0, rhs.0) {
-                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => {
-                    Ok(Self(FieldElementKind::Fp(a - b)))
-                }
-                (FieldElementKind::SmallFq(a), FieldElementKind::SmallFq(b))
-                    if a.field() == b.field() =>
-                {
-                    Ok(Self(FieldElementKind::SmallFq(a - b)))
-                }
-                (a, b) => Err(FieldElementKind::mismatched_field_error(a, b)),
-            }
+            (self.0 - rhs.0)
+                .map(Self)
+                .ok_or_else(|| mismatched_field_error(self.0, rhs.0))
         }
 
         pub fn __mul__(&self, rhs: Self) -> PyResult<Self> {
-            match (self.0, rhs.0) {
-                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => {
-                    Ok(Self(FieldElementKind::Fp(a * b)))
-                }
-                (FieldElementKind::SmallFq(a), FieldElementKind::SmallFq(b))
-                    if a.field() == b.field() =>
-                {
-                    Ok(Self(FieldElementKind::SmallFq(a * b)))
-                }
-                (a, b) => Err(FieldElementKind::mismatched_field_error(a, b)),
-            }
+            (self.0 * rhs.0)
+                .map(Self)
+                .ok_or_else(|| mismatched_field_error(self.0, rhs.0))
         }
 
         pub fn __truediv__(&self, rhs: Self) -> PyResult<Self> {
-            match (self.0, rhs.0) {
-                (FieldElementKind::Fp(a), FieldElementKind::Fp(b)) if a.field() == b.field() => (a
-                    / b)
-                    .map(|x| Self(FieldElementKind::Fp(x)))
-                    .ok_or_else(|| PyZeroDivisionError::new_err("division by zero")),
-                (FieldElementKind::SmallFq(a), FieldElementKind::SmallFq(b))
-                    if a.field() == b.field() =>
-                {
-                    (a / b)
-                        .map(|x| Self(FieldElementKind::SmallFq(x)))
-                        .ok_or_else(|| PyZeroDivisionError::new_err("division by zero"))
-                }
-                (a, b) => Err(FieldElementKind::mismatched_field_error(a, b)),
-            }
+            self.0.try_div(rhs.0).map(Self).map_err(|e| match e {
+                DivError::MismatchedField => mismatched_field_error(self.0, rhs.0),
+                DivError::DivisionByZero => PyZeroDivisionError::new_err("division by zero"),
+            })
         }
 
         pub fn __neg__(&self) -> Self {
-            match self.0 {
-                FieldElementKind::Fp(x) => Self(FieldElementKind::Fp(-x)),
-                FieldElementKind::SmallFq(x) => Self(FieldElementKind::SmallFq(-x)),
-            }
+            Self(-self.0)
         }
 
         pub fn __int__(&self) -> PyResult<u32> {
-            match self.0 {
-                FieldElementKind::Fp(x) => Ok(*x),
-                FieldElementKind::SmallFq(_) => Err(PyValueError::new_err(
-                    "SmallFq elements do not have a canonical integer value",
-                )),
-            }
+            self.0.try_as_u32().ok_or_else(|| {
+                PyValueError::new_err("SmallFq elements do not have a canonical integer value")
+            })
         }
 
         pub fn __repr__(&self) -> String {
             match self.0 {
-                FieldElementKind::Fp(x) => {
+                DynFieldElement::Fp(x) => {
                     format!("FieldElement(Fp({}), {x})", x.field().characteristic())
                 }
-                FieldElementKind::SmallFq(x) => {
+                DynFieldElement::SmallFq(x) => {
                     let f = x.field();
                     format!(
                         "FieldElement(SmallFq({}, {}), {x})",
@@ -943,7 +892,6 @@ pub mod fp_py {
                 }
             }
         }
-
     });
 
     impl PyFpVector {
