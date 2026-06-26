@@ -172,13 +172,61 @@ def test_known_values_agree_across_backends():
 
 def test_number_of_gens_guards():
     r = resolve("standard")
-    # Negative s/t -> clean ValueError, never a panic.
+    # Negative s -> clean ValueError, never a panic.
+    with pytest.raises(ValueError):
+        r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(-1, 0))
+    # Negative t is legitimate (modules with negative min_degree have generators
+    # in negative internal degrees). For S_2 (min_degree 0) a negative t is below
+    # min_degree, so it clamps to 0 rather than raising.
+    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(0, -1)) == 0
+    # Far outside the computed range -> 0, never a panic.
+    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(100, 200)) == 0
+
+
+# --- negative internal degree t (RP_{-k}) ----------------------------------
+#
+# Stunted projective spaces RP_{-k}^inf have their bottom cell in internal
+# degree t = -k, so their resolutions carry generators in NEGATIVE internal
+# degree. The stable Resolution query methods must accept negative t (while
+# still rejecting negative homological degree s).
+
+
+def _rp_resolution(k):
+    cfg = {"p": 2, "type": "real projective space", "min": -k}
+    r = ext.Resolution.construct(
+        (cfg, algebra.AlgebraType.Milnor), None, "standard"
+    )
+    r.compute_through_stem(sseq.Bidegree.n_s(3, 2))
+    return r
+
+
+def test_rp_has_computed_bidegree_negative_t_no_raise():
+    k = 3
+    r = _rp_resolution(k)
+    # The bottom class lives at (s, t) = (0, -k); querying a negative t must
+    # return a bool, not raise.
+    result = r.has_computed_bidegree(sseq.Bidegree.s_t(0, -k))
+    assert isinstance(result, bool)
+    assert result is True
+
+
+def test_rp_number_of_gens_negative_t():
+    k = 3
+    r = _rp_resolution(k)
+    # The bottom generator sits at (0, -k); there is at least one generator.
+    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(0, -k)) >= 1
+    # A t below min_degree (-k) clamps to 0 rather than raising.
+    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(0, -k - 5)) == 0
+
+
+def test_rp_negative_s_still_rejected():
+    k = 3
+    r = _rp_resolution(k)
+    # Negative homological degree is still invalid, regardless of t.
     with pytest.raises(ValueError):
         r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(-1, 0))
     with pytest.raises(ValueError):
-        r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(0, -1))
-    # Far outside the computed range -> 0, never a panic.
-    assert r.number_of_gens_in_bidegree(sseq.Bidegree.s_t(100, 200)) == 0
+        r.has_computed_bidegree(sseq.Bidegree.s_t(-1, 0))
 
 
 def test_module_standard_shares_arc():

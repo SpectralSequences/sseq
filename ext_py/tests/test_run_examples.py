@@ -159,8 +159,8 @@ EXAMPLES = [
     {
         "name": "mahowald_invariant.py",
         "args": ["", "", "8"],
-        "xfail": "Resolution.has_computed_bidegree rejects negative-t bidegree "
-        "((-1, 0)): 'invalid bidegree: require s >= 0 and t >= 0'",
+        "xfail": "fp.Matrix has no compute_kernel/compute_image binding "
+        "(AttributeError); negative-t Resolution queries now work",
     },
 ]
 

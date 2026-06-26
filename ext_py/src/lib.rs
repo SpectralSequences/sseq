@@ -518,7 +518,7 @@ mod ext_py {
         /// the `algebra_py.FreeModule::num_gens_safe` guard: clamp both axes to
         /// the populated range and read 0 outside it.
         fn num_gens_at(&self, b: RsBidegree) -> usize {
-            if b.s() < 0 || b.t() < 0 {
+            if b.s() < 0 {
                 return 0;
             }
             dispatch!(&self.0, r => {
@@ -773,12 +773,14 @@ mod ext_py {
         }
 
         /// Whether the resolution has been computed at bidegree `b`. Negative
-        /// `s`/`t` is rejected with a `ValueError` rather than wrapping to a huge
-        /// `usize`.
+        /// `s` is rejected with a `ValueError` rather than wrapping to a huge
+        /// `usize`; a negative internal degree `t` is legitimate (modules with
+        /// negative `min_degree`, e.g. `RP_{-k}`, have generators in negative
+        /// `t`) and simply returns `false` when out of the computed range.
         pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
-            if b.0.s() < 0 || b.0.t() < 0 {
+            if b.0.s() < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    "invalid bidegree {}: require s >= 0",
                     b.0
                 )));
             }
@@ -787,14 +789,17 @@ mod ext_py {
 
         /// The number of generators of the resolution at bidegree `b` (the
         /// dimension of `Ext` there). Returns 0 for any uncomputed or
-        /// out-of-range bidegree; raises `ValueError` for negative `s`/`t`.
+        /// out-of-range bidegree (including `t < min_degree`); raises
+        /// `ValueError` for negative `s`. A negative internal degree `t` is
+        /// legitimate (modules with negative `min_degree`, e.g. `RP_{-k}`, have
+        /// generators in negative `t`).
         ///
         /// Both backends' modules' generator tables (`OnceBiVec`s) panic when
         /// indexed out of range, so this is guarded; see `num_gens_at`.
         pub fn number_of_gens_in_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
-            if b.0.s() < 0 || b.0.t() < 0 {
+            if b.0.s() < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
+                    "invalid bidegree {}: require s >= 0",
                     b.0
                 )));
             }
