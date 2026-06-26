@@ -815,14 +815,14 @@ mod ext_py {
             }
             match &self.0 {
                 AnyResolution::Standard(r) => {
-                    if s >= r.next_homological_degree() {
-                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    let m = r.try_module(s).ok_or_else(|| {
+                        pyo3::exceptions::PyValueError::new_err(format!(
                             "module index s = {s} is beyond the resolved range (next homological \
                              degree is {}); compute_through_bidegree / compute_through_stem first",
                             r.next_homological_degree()
-                        )));
-                    }
-                    Ok(algebra_py::FreeModule::from_arc(r.module(s)))
+                        ))
+                    })?;
+                    Ok(algebra_py::FreeModule::from_arc(m))
                 }
                 AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
                     "module() is only available on the standard backend; Nassau resolves over the \
@@ -862,17 +862,15 @@ mod ext_py {
             }
             match &self.0 {
                 AnyResolution::Standard(r) => {
-                    if s >= r.next_homological_degree() {
-                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    let d = r.try_differential(s).ok_or_else(|| {
+                        pyo3::exceptions::PyValueError::new_err(format!(
                             "differential index s = {s} is beyond the resolved range (next \
                              homological degree is {}); compute_through_bidegree / \
                              compute_through_stem first",
                             r.next_homological_degree()
-                        )));
-                    }
-                    Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(
-                        r.differential(s),
-                    ))
+                        ))
+                    })?;
+                    Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(d))
                 }
                 AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
                     "differential() is only available on the standard backend; Nassau resolves \
@@ -1274,13 +1272,13 @@ mod ext_py {
         /// would otherwise panic). Resolve the resolution further to define more
         /// modules.
         pub fn module(&self, s: i32) -> PyResult<algebra_py::UnstableFreeModule> {
-            if s < 0 || s >= self.0.next_homological_degree() {
-                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            let m = self.0.try_module(s).ok_or_else(|| {
+                pyo3::exceptions::PyIndexError::new_err(format!(
                     "no module at homological degree s = {s}; defined range is [0, {})",
                     self.0.next_homological_degree()
-                )));
-            }
-            Ok(algebra_py::UnstableFreeModule::from_arc(self.0.module(s)))
+                ))
+            })?;
+            Ok(algebra_py::UnstableFreeModule::from_arc(m))
         }
 
         pub fn graded_dimension_string(&self) -> String {
@@ -1760,16 +1758,14 @@ mod ext_py {
         /// (`add_generators_from_rows`, `set_quasi_inverse`, `extend_by_zero`, …)
         /// is memory-safe but may logically corrupt the chain map.
         pub fn get_map(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
-            if s < self.0.shift.s() || s >= self.0.next_homological_degree() {
-                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            let map = self.0.try_get_map(s).ok_or_else(|| {
+                pyo3::exceptions::PyIndexError::new_err(format!(
                     "no map defined at homological degree s = {s}; defined range is [{}, {})",
                     self.0.shift.s(),
                     self.0.next_homological_degree()
-                )));
-            }
-            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(
-                self.0.get_map(s),
-            ))
+                ))
+            })?;
+            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(map))
         }
 
         /// Extend the chain map so it is defined on every bidegree `(s, t)` with
@@ -2826,16 +2822,14 @@ mod ext_py {
         /// resolution homomorphism's internal map (the same `Arc`); treat it as
         /// read-only.
         pub fn get_map(&self, s: i32) -> PyResult<algebra_py::UnstableFreeModuleHomomorphism> {
-            if s < self.0.shift.s() || s >= self.0.next_homological_degree() {
-                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            let map = self.0.try_get_map(s).ok_or_else(|| {
+                pyo3::exceptions::PyIndexError::new_err(format!(
                     "no map defined at homological degree s = {s}; defined range is [{}, {})",
                     self.0.shift.s(),
                     self.0.next_homological_degree()
-                )));
-            }
-            Ok(algebra_py::UnstableFreeModuleHomomorphism::from_arc(
-                self.0.get_map(s),
-            ))
+                ))
+            })?;
+            Ok(algebra_py::UnstableFreeModuleHomomorphism::from_arc(map))
         }
 
         /// Extend the chain map so it is defined on every bidegree `(s, t)` with
@@ -3324,17 +3318,15 @@ mod ext_py {
         /// read-only; calling its mutating methods is memory-safe but may
         /// logically corrupt the homotopy.
         pub fn homotopy(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
-            let range = self.0.defined_range();
-            if s < range.start || s >= range.end {
-                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            let h = self.0.try_homotopy(s).ok_or_else(|| {
+                let range = self.0.defined_range();
+                pyo3::exceptions::PyIndexError::new_err(format!(
                     "no homotopy defined at homological degree s = {s}; defined range is [{}, {}) \
                      (extend the homotopy first)",
                     range.start, range.end
-                )));
-            }
-            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(
-                self.0.homotopy(s),
-            ))
+                ))
+            })?;
+            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(h))
         }
 
         /// Allocate the internal homotopy table so `homotopy(s)` is defined for
@@ -5244,16 +5236,14 @@ mod ext_py {
         /// `[0, len(chain_maps))` (upstream `chain_map` indexes a `Vec` and would
         /// otherwise panic).
         pub fn chain_map(&self, s: i32) -> PyResult<algebra_py::FullModuleHomomorphism> {
-            if s < 0 || s as usize >= self.num_chain_maps {
-                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+            let map = self.inner.try_chain_map(s).ok_or_else(|| {
+                pyo3::exceptions::PyIndexError::new_err(format!(
                     "no augmentation chain map at homological degree s = {s}; defined range is \
                      [0, {})",
                     self.num_chain_maps
-                )));
-            }
-            Ok(algebra_py::FullModuleHomomorphism::from_rust(
-                (*self.inner.chain_map(s)).clone(),
-            ))
+                ))
+            })?;
+            Ok(algebra_py::FullModuleHomomorphism::from_rust((*map).clone()))
         }
 
         /// The maximum homological degree `s` with `C_s != 0` (the bounded-complex

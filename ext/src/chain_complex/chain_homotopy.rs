@@ -280,6 +280,21 @@ impl<
         Arc::clone(&self.homotopies[source_s])
     }
 
+    /// Like [`homotopy`](Self::homotopy), but returns `None` for any homological degree outside the
+    /// currently defined range (see [`defined_range`](Self::defined_range)) instead of panicking.
+    ///
+    /// [`homotopy`](Self::homotopy) indexes the internal `homotopies` `OnceBiVec` and panics out of
+    /// range; this is the non-panicking sibling used to guard such an access (e.g. from the Python
+    /// bindings).
+    pub fn try_homotopy(&self, source_s: i32) -> Option<Arc<FreeModuleHomomorphism<U::Module>>> {
+        let range = self.defined_range();
+        if source_s < range.start || source_s >= range.end {
+            None
+        } else {
+            Some(self.homotopy(source_s))
+        }
+    }
+
     /// The range of homological degrees `s` for which [`Self::homotopy`] is
     /// currently defined (i.e. the populated range of the internal homotopy
     /// table). Used by external callers (e.g. the Python bindings) to guard

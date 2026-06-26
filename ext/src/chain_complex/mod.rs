@@ -257,6 +257,34 @@ pub trait ChainComplex: Send + Sync {
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
 
+    /// Like [`module`](Self::module), but returns `None` for any homological degree outside the
+    /// defined range `[0, next_homological_degree())` instead of panicking.
+    ///
+    /// The resolution backends index their internal module table (an `OnceBiVec`) here, panicking
+    /// unless `0 <= s < next_homological_degree()`; this is the non-panicking sibling used to guard
+    /// such an access (e.g. from the Python bindings).
+    fn try_module(&self, s: i32) -> Option<Arc<Self::Module>> {
+        if s < 0 || s >= self.next_homological_degree() {
+            None
+        } else {
+            Some(self.module(s))
+        }
+    }
+
+    /// Like [`differential`](Self::differential), but returns `None` for any homological degree
+    /// outside the defined range `[0, next_homological_degree())` instead of panicking.
+    ///
+    /// The resolution backends index their internal differential table (an `OnceVec`) here,
+    /// panicking unless `0 <= s < next_homological_degree()`; this is the non-panicking sibling used
+    /// to guard such an access.
+    fn try_differential(&self, s: i32) -> Option<Arc<Self::Homomorphism>> {
+        if s < 0 || s >= self.next_homological_degree() {
+            None
+        } else {
+            Some(self.differential(s))
+        }
+    }
+
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
@@ -414,6 +442,24 @@ pub trait AugmentedChainComplex: ChainComplex {
 
     fn target(&self) -> Arc<Self::TargetComplex>;
     fn chain_map(&self, s: i32) -> Arc<Self::ChainMap>;
+
+    /// Like [`chain_map`](Self::chain_map), but returns `None` for any homological degree outside
+    /// the bounded range `[0, max_s())` instead of panicking.
+    ///
+    /// [`chain_map`](Self::chain_map) indexes the internal `chain_maps` `Vec` and panics out of
+    /// range; for a complex augmented from a [`FiniteChainComplex`] there is one chain map per
+    /// module, so `max_s()` (the number of nonzero modules) is the defined upper bound. This is the
+    /// non-panicking sibling used to guard such an access.
+    fn try_chain_map(&self, s: i32) -> Option<Arc<Self::ChainMap>>
+    where
+        Self: BoundedChainComplex,
+    {
+        if s < 0 || s >= self.max_s() {
+            None
+        } else {
+            Some(self.chain_map(s))
+        }
+    }
 }
 
 /// A bounded chain complex is a chain complex C for which C_s = 0 for all s >= max_s
