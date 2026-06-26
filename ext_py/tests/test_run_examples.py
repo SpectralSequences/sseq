@@ -113,12 +113,12 @@ EXAMPLES = [
     {
         "name": "secondary.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SecondaryResolution.homotopy() is not bound",
+        "xfail": None,
     },
     {
         "name": "d2_charts.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SecondaryResolution.e3_page (property) is not bound",
+        "xfail": None,
     },
     {
         "name": "secondary_product.py",
@@ -134,7 +134,7 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "0", "1", "[1]",
                  "0", "1", "b", "0", "1", "[1]"],
-        "xfail": "SecondaryResolution.prime (property) is not bound",
+        "xfail": "ResolutionHomomorphism.source is a method, not the bound resolution (no number_of_gens_in_bidegree)",
     },
     # --- Unbound bindings (aspirational API) ---
     {

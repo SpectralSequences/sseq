@@ -3560,6 +3560,120 @@ mod ext_py {
         pub fn underlying(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())))
         }
+
+        /// The prime as a plain `int` (mirrors the `prime` getter on the other
+        /// secondary pyclasses).
+        #[getter]
+        pub fn prime(&self) -> u32 {
+            self.0.prime().as_u32()
+        }
+
+        /// The $E_3$-page of the resolution (the $E_2$-page of the underlying
+        /// resolution with the secondary $d_2$ differentials added), as a bound
+        /// `sseq_py.Sseq`.
+        ///
+        /// Call `extend_all()` first so the secondary homotopies are populated;
+        /// upstream `e3_page` indexes `homotopy(b.s() + 2)` for every computed
+        /// bidegree, so we run it under `catch_unwind` (-> `ValueError`) rather
+        /// than let an unpopulated `OnceBiVec` index cross the FFI boundary.
+        #[getter]
+        pub fn e3_page(&self) -> PyResult<sseq_py::Sseq> {
+            let p = self.0.prime();
+            let sseq = catch_secondary_compute_panic(|| self.0.e3_page())?;
+            Ok(sseq_py::Sseq::from_rust(sseq, p))
+        }
+
+        /// The secondary homotopy at homological degree `s` (a bound
+        /// `SecondaryHomotopy`), a live shared view of this resolution's internal
+        /// homotopy datum (shares the `Arc`).
+        ///
+        /// Raises `IndexError` for `s` outside the populated range of the
+        /// internal homotopy table (`[min_degree, len)` of `homotopies()`), which
+        /// would otherwise panic on the `OnceBiVec` index. Call `extend_all`
+        /// first.
+        pub fn homotopy(&self, s: i32) -> PyResult<SecondaryHomotopy> {
+            let homotopies = self.0.homotopies();
+            if s < homotopies.min_degree() || s >= homotopies.len() {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no secondary homotopy defined at homological degree s = {s}; defined range is \
+                     [{}, {}) (extend the secondary resolution first)",
+                    homotopies.min_degree(),
+                    homotopies.len()
+                )));
+            }
+            Ok(SecondaryHomotopy {
+                res: Arc::clone(&self.0),
+                s,
+            })
+        }
+    }
+
+    /// A single secondary homotopy `h_s` of a [`SecondaryResolution`] — the bound
+    /// view of the upstream `ext::secondary::SecondaryHomotopy` held at
+    /// homological degree `s`. Produced by [`SecondaryResolution.homotopy`];
+    /// never constructed directly from Python.
+    ///
+    /// Holds the parent secondary resolution's `Arc` together with the
+    /// homological degree `s`, so it stays a live shared view (the upstream
+    /// `homotopy(s)` hands back a borrow into the resolution's interior-mutable
+    /// `OnceBiVec`, which cannot be held across the FFI boundary; re-deriving it
+    /// from the `Arc` + `s` on each access is the safe equivalent). `s` was range
+    /// -checked at construction.
+    #[pyclass(frozen)]
+    pub struct SecondaryHomotopy {
+        res: Arc<RsSecRes>,
+        s: i32,
+    }
+
+    #[pymethods]
+    impl SecondaryHomotopy {
+        /// The homological degree `s` this homotopy sits at.
+        #[getter]
+        pub fn s(&self) -> i32 {
+            self.s
+        }
+
+        /// The homotopy's underlying free-module map (`homotopies` field of the
+        /// upstream `SecondaryHomotopy`), as a bound `SecondaryHomotopyMap`
+        /// exposing `hom_k`. A live shared view (shares the parent `Arc` + `s`).
+        #[getter]
+        pub fn homotopies(&self) -> SecondaryHomotopyMap {
+            SecondaryHomotopyMap {
+                res: Arc::clone(&self.res),
+                s: self.s,
+            }
+        }
+    }
+
+    /// The free-module homomorphism underlying a [`SecondaryHomotopy`] (the
+    /// `homotopies` field of the upstream `SecondaryHomotopy`). It exposes only
+    /// `hom_k` (the dual map on generators), which is what the secondary
+    /// examples read off a `d_2`.
+    ///
+    /// Like [`SecondaryHomotopy`], it holds the parent secondary resolution's
+    /// `Arc` and the homological degree `s` rather than a borrow: the upstream
+    /// map lives by value inside the resolution's interior-mutable `OnceBiVec`,
+    /// so it is re-derived from the `Arc` + `s` on each access. `s` was range
+    /// -checked when the parent `SecondaryHomotopy` was constructed.
+    #[pyclass(frozen)]
+    pub struct SecondaryHomotopyMap {
+        res: Arc<RsSecRes>,
+        s: i32,
+    }
+
+    #[pymethods]
+    impl SecondaryHomotopyMap {
+        /// The dual map on generators in source degree `t`: the matrix of the
+        /// secondary homotopy `h_s` (rows indexed by the target's generators in
+        /// degree `t`, columns by the source's generators in `t + degree_shift`).
+        /// Returns an empty list when the target has no generators in degree `t`.
+        ///
+        /// Upstream `hom_k` indexes the source/target free modules' generator
+        /// `OnceBiVec`s, which panic above the computed range, so it is run under
+        /// `catch_unwind` (-> `ValueError`) as the defence-in-depth backstop.
+        pub fn hom_k(&self, t: i32) -> PyResult<Vec<Vec<u32>>> {
+            catch_secondary_compute_panic(|| self.res.homotopy(self.s).homotopies.hom_k(t))
+        }
     }
 
     /// The concrete (standard→standard) `SecondaryResolutionHomomorphism`
