@@ -1,11 +1,15 @@
 //! Primary Massey products in $\Ext$.
 //!
-//! [`ExtAlgebra::massey`] computes a triple Massey product $\langle a, b, c\rangle$, and
-//! [`ExtAlgebra::massey_family`] computes $\langle a, b, -\rangle$ for fixed $a, b$ and every valid
-//! third factor at once (the optimized form). Both wrap [`ChainHomotopy`]: for each candidate `c`
-//! we lift the multiplication map, build the null-homotopy of the composite with `b`, and read off
-//! the bracket by pairing with `a`. The valid `c` (those with `b · c = 0`) are exactly the kernel
-//! of multiplication by `b`.
+//! [`ExtAlgebra::massey`] computes a single triple Massey product $\langle a, b, c\rangle$, while
+//! [`ExtAlgebra::massey_iter_c`] and [`ExtAlgebra::massey_iter_a`] sweep a whole family at once: the
+//! former fixes $a, b$ and ranges over every valid third factor $\langle a, b, -\rangle$, the latter
+//! fixes $b, c$ and ranges over every valid first factor $\langle -, b, c\rangle$. The two
+//! directions differ in which null-homotopy is reused — see their docs for when to prefer each.
+//!
+//! All three wrap [`ChainHomotopy`]: we lift the multiplication maps, build the null-homotopy of
+//! the composite (`b ∘ c` or `a ∘ b`), and read off the bracket by pairing against the remaining
+//! factor. The valid factors (those whose product with `b` vanishes) are exactly the kernel of
+//! multiplication by `b`.
 //!
 //! The result is an [`AffineSubspace`]: a coset representative (the offset) together with the
 //! indeterminacy $a \cdot \Ext + \Ext \cdot c$ (the linear part). Both terms of the indeterminacy
