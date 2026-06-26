@@ -6,10 +6,26 @@ const promise = wasm_bindgen("./sseq_gui_wasm_bg.wasm").catch(console.error).the
     self.resolution = Resolution.new(m => self.postMessage(m));
 });
 
+function reportPanic(err) {
+    const message =
+        err && err.stack ? err.stack : `${err}`;
+    self.postMessage(
+        JSON.stringify({
+            recipients: [],
+            sseq: 'Main',
+            action: { Error: { message: `Panic in resolution worker:\n${message}` } },
+        }),
+    );
+}
+
 self.onmessage = ev => {
     if (!self.resolution) {
         promise.then(() => self.onmessage(ev));
         return;
     }
-    self.resolution.run(ev.data);
+    try {
+        self.resolution.run(ev.data);
+    } catch (err) {
+        reportPanic(err);
+    }
 }
