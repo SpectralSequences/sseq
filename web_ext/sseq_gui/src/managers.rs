@@ -96,8 +96,7 @@ impl ResolutionManager {
             &action.algebra_name,
             SseqChoice::Main,
             self.sender.clone(),
-        )
-        .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
+        )?;
         self.process_bundle(resolution)
     }
 
@@ -109,8 +108,7 @@ impl ResolutionManager {
             &action.algebra_name,
             SseqChoice::Main,
             self.sender.clone(),
-        )
-        .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
+        )?;
         self.process_bundle(resolution)
     }
 
