@@ -1641,6 +1641,29 @@ pub mod fp_py {
             })
         }
 
+        /// Return mutable `FpSliceMut` handles for every row of the matrix,
+        /// one per row `i in 0..rows`. Each handle is an index-based
+        /// `SliceParent::MatrixRow` back-reference (built exactly like
+        /// `row_mut`), not a live Rust borrow, so all handles can coexist while
+        /// the iterator is consumed. Mutating any handle writes through to this
+        /// matrix. A zero-row matrix yields an empty list.
+        pub fn iter_mut(slf: PyRef<'_, Self>) -> PyResult<Vec<PyFpSliceMut>> {
+            let py = slf.py();
+            let rows = slf.0.rows();
+            let end = slf.0.columns();
+            let parent = slf.into_pyobject(py)?.unbind();
+            Ok((0..rows)
+                .map(|row| PyFpSliceMut {
+                    parent: SliceParent::MatrixRow {
+                        matrix: MatrixParent::Matrix(parent.clone_ref(py)),
+                        row,
+                    },
+                    start: 0,
+                    end,
+                })
+                .collect())
+        }
+
         pub fn set_to_zero(&mut self) {
             self.0.set_to_zero()
         }

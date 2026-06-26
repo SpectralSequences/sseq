@@ -134,11 +134,14 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "Sseq.page_data now receives its page-index argument and "
-                 "succeeds. The remaining blocker is a different API mismatch: "
-                 "'fp.Matrix' object has no attribute 'iter_mut' (called at "
-                 "secondary_massey.py:247). Binding Matrix.iter_mut requires a "
-                 "separate change.",
+        "xfail": "Matrix.iter_mut is now bound, so the script advances past "
+                 "secondary_massey.py:247. The remaining blocker is a different "
+                 "API mismatch at secondary_massey.py:248: "
+                 "out.slice_mut(...).add(g, 1) raises TypeError: 'FpVector' "
+                 "object is not an instance of 'FpSlice' (slice methods such as "
+                 "FpSliceMut.add only accept an FpSlice, but subspace_gens() "
+                 "yields FpVector). Accepting FpVector operands is a separate "
+                 "change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {

@@ -115,6 +115,18 @@ def test_row_mut_add_slice():
     assert m.to_vec()[0] == [3, 4, 0]
 
 
+def test_iter_mut_writes_through_and_counts_rows():
+    m = fp.Matrix.from_vec(5, [[1, 2, 3], [4, 0, 1]])
+    rows = list(m.iter_mut())
+    assert len(rows) == m.rows() == 2
+    assert type(rows[0]) is type(m.row_mut(0))
+    for i, out in enumerate(rows):
+        out.set_entry(i, 3)
+    assert m.to_vec() == [[3, 2, 3], [4, 3, 1]]
+    # A zero-row matrix yields an empty iterator.
+    assert list(fp.Matrix(5, 0, 3).iter_mut()) == []
+
+
 def test_mutators():
     m = fp.Matrix.from_vec(5, [[1, 2], [3, 4]])
     m.swap_rows(0, 1)
