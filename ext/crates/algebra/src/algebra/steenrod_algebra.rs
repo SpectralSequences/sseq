@@ -10,8 +10,8 @@ use serde_json::Value;
 
 use crate::{
     algebra::{
-        AdemAlgebra, Algebra, Bialgebra, DecomposeError, GeneratedAlgebra, MilnorAlgebra,
-        UnstableAlgebra,
+        AdemAlgebra, Algebra, Bialgebra, CoproductError, DecomposeError, GeneratedAlgebra,
+        MilnorAlgebra, UnstableAlgebra,
     },
     pair_algebra::PairAlgebra,
 };

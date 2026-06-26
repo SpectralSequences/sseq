@@ -27,7 +27,8 @@ pub mod algebra_py {
     // above) so that later commits extending that import block do not conflict.
     use ::algebra::module::ActError;
     use ::algebra::{
-        Algebra, Bialgebra, DecomposeError, Field as RsField, GeneratedAlgebra, UnstableAlgebra,
+        Algebra, Bialgebra, CoproductError, DecomposeError, Field as RsField, GeneratedAlgebra,
+        UnstableAlgebra,
     };
     use ::fp::prime::{self, Prime};
     use pyo3::basic::CompareOp;
@@ -240,6 +241,21 @@ pub mod algebra_py {
             Err(PyValueError::new_err(format!(
                 "result has length {len} but the target degree has dimension {dim}"
             )))
+        }
+    }
+
+    /// Map a [`CoproductError`] from [`Bialgebra::try_coproduct`] to the Python
+    /// exception type matching what the hand-rolled coproduct guards used to
+    /// raise: `OutOfRange` -> `IndexError` (kept for completeness; the callers'
+    /// degree/index pre-checks make it unreachable), every other variant ->
+    /// `ValueError`. The messages are reproduced verbatim from
+    /// `CoproductError`'s `Display`.
+    fn coproduct_error(e: CoproductError) -> PyErr {
+        match e {
+            CoproductError::OutOfRange => PyIndexError::new_err(e.to_string()),
+            CoproductError::OddPrimeUnsupported
+            | CoproductError::IndivisibleDegree { .. }
+            | CoproductError::NonzeroIndex => PyValueError::new_err(e.to_string()),
         }
     }
 
@@ -1009,22 +1025,20 @@ pub mod algebra_py {
 
         // --- Bialgebra trait surface ------------------------------------------
 
-        /// Compute a coproduct. Only supported at `p = 2` upstream; raises
-        /// `ValueError` at odd primes rather than panicking on the assertion.
+        /// Compute a coproduct. Only supported at `p = 2` upstream;
+        /// [`Bialgebra::try_coproduct`] reports the odd-prime case as
+        /// `OddPrimeUnsupported`, which we map to `ValueError` rather than
+        /// panicking on the assertion. The degree/index pre-checks below give
+        /// detailed messages and make `OutOfRange` unreachable.
         pub fn coproduct(
             &self,
             degree: i32,
             idx: usize,
         ) -> PyResult<Vec<(i32, usize, i32, usize)>> {
-            if self.0.prime().as_u32() != 2 {
-                return Err(PyValueError::new_err(
-                    "coproduct is only supported at p = 2",
-                ));
-            }
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
-            Ok(self.0.coproduct(degree, idx))
+            self.0.try_coproduct(degree, idx).map_err(coproduct_error)
         }
 
         // --- Milnor-specific methods ------------------------------------------
@@ -1289,10 +1303,12 @@ pub mod algebra_py {
 
         // --- Bialgebra trait surface ------------------------------------------
 
-        /// Compute a coproduct. Raises `ValueError` for inputs that would trip
-        /// an upstream assertion: a non-`q`-divisible degree in the generic
-        /// case, or a nonzero index in the `p = 2` case (adem_algebra.rs
-        /// ~1398/1409).
+        /// Compute a coproduct. [`Bialgebra::try_coproduct`] reports the inputs
+        /// that would trip an upstream assertion — a non-`q`-divisible degree in
+        /// the generic case (`IndivisibleDegree`), or a nonzero index in the
+        /// `p = 2` case (`NonzeroIndex`) — which we map to `ValueError`. The
+        /// degree/index pre-checks below give detailed messages and make
+        /// `OutOfRange` unreachable.
         pub fn coproduct(
             &self,
             degree: i32,
@@ -1301,21 +1317,7 @@ pub mod algebra_py {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
-            if self.0.generic() {
-                if degree != 1 {
-                    let q = 2 * self.0.prime().as_u32() - 2;
-                    if (degree as u32) % q != 0 {
-                        return Err(PyValueError::new_err(format!(
-                            "coproduct expects a degree divisible by {q}, got {degree}"
-                        )));
-                    }
-                }
-            } else if idx != 0 {
-                return Err(PyValueError::new_err(
-                    "at p = 2 the coproduct expects index 0",
-                ));
-            }
-            Ok(self.0.coproduct(degree, idx))
+            self.0.try_coproduct(degree, idx).map_err(coproduct_error)
         }
 
         // --- Adem-specific methods --------------------------------------------
@@ -1509,10 +1511,13 @@ pub mod algebra_py {
 
         // --- Bialgebra trait surface ------------------------------------------
 
-        /// Compute a coproduct. The underlying assertions differ by variant, so
-        /// we apply the same guards the concrete bindings use: Milnor only
-        /// supports `p = 2`; generic Adem expects a degree divisible by
-        /// `q = 2p - 2` (except degree 1), and `p = 2` Adem expects index 0.
+        /// Compute a coproduct. The underlying assertions differ by variant, but
+        /// [`Bialgebra::try_coproduct`] is `enum_dispatch`'d onto
+        /// `SteenrodAlgebra` and already applies the correct per-variant guard
+        /// (Milnor `p = 2`; generic Adem `q`-divisibility; `p = 2` Adem index 0),
+        /// so we delegate to it directly and map its error to the matching
+        /// Python exception. The degree/index pre-checks below give detailed
+        /// messages and make `OutOfRange` unreachable.
         pub fn coproduct(
             &self,
             degree: i32,
@@ -1521,32 +1526,7 @@ pub mod algebra_py {
             non_negative_degree(degree)?;
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
-            match self.0.as_ref() {
-                ::algebra::SteenrodAlgebra::MilnorAlgebra(_) => {
-                    if self.0.prime().as_u32() != 2 {
-                        return Err(PyValueError::new_err(
-                            "coproduct is only supported at p = 2",
-                        ));
-                    }
-                }
-                ::algebra::SteenrodAlgebra::AdemAlgebra(a) => {
-                    if a.generic() {
-                        if degree != 1 {
-                            let q = 2 * self.0.prime().as_u32() - 2;
-                            if (degree as u32) % q != 0 {
-                                return Err(PyValueError::new_err(format!(
-                                    "coproduct expects a degree divisible by {q}, got {degree}"
-                                )));
-                            }
-                        }
-                    } else if idx != 0 {
-                        return Err(PyValueError::new_err(
-                            "at p = 2 the coproduct expects index 0",
-                        ));
-                    }
-                }
-            }
-            Ok(self.0.coproduct(degree, idx))
+            self.0.try_coproduct(degree, idx).map_err(coproduct_error)
         }
     });
 

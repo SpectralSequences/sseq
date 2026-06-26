@@ -8,7 +8,7 @@ mod algebra_trait;
 pub use algebra_trait::{Algebra, DecomposeError, GeneratedAlgebra, MuAlgebra, UnstableAlgebra};
 
 mod bialgebra_trait;
-pub use bialgebra_trait::Bialgebra;
+pub use bialgebra_trait::{Bialgebra, CoproductError};
 
 pub mod combinatorics;
 

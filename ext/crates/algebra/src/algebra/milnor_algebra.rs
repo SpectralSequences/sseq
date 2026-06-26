@@ -9,7 +9,9 @@ use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
+use crate::algebra::{
+    Algebra, Bialgebra, CoproductError, GeneratedAlgebra, UnstableAlgebra, combinatorics,
+};
 
 fn q_part_default() -> u32 {
     !0
@@ -1722,6 +1724,26 @@ impl MilnorAlgebra {
 }
 
 impl Bialgebra for MilnorAlgebra {
+    fn try_coproduct(
+        &self,
+        op_deg: i32,
+        op_idx: usize,
+    ) -> Result<Vec<(i32, usize, i32, usize)>, CoproductError> {
+        // Guards the `assert_eq!(self.prime(), 2, ...)` below and the out-of-range
+        // `basis_element_from_index` lookup, so `coproduct` never panics.
+        if self.prime() != 2 {
+            return Err(CoproductError::OddPrimeUnsupported);
+        }
+        if op_deg < 0 {
+            return Err(CoproductError::OutOfRange);
+        }
+        self.compute_basis(op_deg);
+        if op_idx >= self.dimension(op_deg) {
+            return Err(CoproductError::OutOfRange);
+        }
+        Ok(self.coproduct(op_deg, op_idx))
+    }
+
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {

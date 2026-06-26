@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
 use crate::algebra::{
-    Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+    Algebra, Bialgebra, CoproductError, GeneratedAlgebra, UnstableAlgebra,
     combinatorics::{self, MAX_XI_TAU},
 };
 
@@ -1389,6 +1389,34 @@ impl Bialgebra for AdemAlgebra {
                 .map(|i| (*i as i32, 0))
                 .collect::<Vec<_>>()
         }
+    }
+
+    fn try_coproduct(
+        &self,
+        op_deg: i32,
+        op_idx: usize,
+    ) -> Result<Vec<(i32, usize, i32, usize)>, CoproductError> {
+        // Guards the `assert_eq!(op_deg % q, 0)` (generic) and `assert_eq!(op_idx, 0)`
+        // (p = 2) preconditions below, plus the out-of-range basis lookup, so
+        // `coproduct` never panics.
+        if op_deg < 0 {
+            return Err(CoproductError::OutOfRange);
+        }
+        self.compute_basis(op_deg);
+        if op_idx >= self.dimension(op_deg) {
+            return Err(CoproductError::OutOfRange);
+        }
+        if self.generic {
+            if op_deg != 1 {
+                let q = self.prime() * 2 - 2;
+                if (op_deg as u32) % q != 0 {
+                    return Err(CoproductError::IndivisibleDegree { q, degree: op_deg });
+                }
+            }
+        } else if op_idx != 0 {
+            return Err(CoproductError::NonzeroIndex);
+        }
+        Ok(self.coproduct(op_deg, op_idx))
     }
 
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
