@@ -1507,6 +1507,55 @@ mod ext_py {
         ext::resolution::Resolution<CCC>,
     >;
 
+    /// A resolution homomorphism whose *target* is the doubled chain complex of
+    /// a standard-backend resolution (rather than another resolution). This is
+    /// the instantiation used by the `sq0` example to realise the action of
+    /// `Sq^0` on `Ext`: the source is a standard `Resolution<CCC>` and the
+    /// target is `DoubleChainComplex<Resolution<CCC>>` (see [`super::double`]).
+    ///
+    /// Its `get_map(s)` returns an `Arc<FreeModuleHomomorphism<DoubleModule<…>>>`
+    /// (the target modules are `DoubleModule`s, not free), so it is exposed via
+    /// the dedicated [`FreeModuleHomomorphismToDouble`] pyclass rather than the
+    /// `FreeModuleHomomorphismToFree` used by the resolution→resolution variant.
+    type RsResHomToDouble = RsResolutionHomomorphism<
+        ext::resolution::Resolution<CCC>,
+        super::double::DoubleChainComplex<ext::resolution::Resolution<CCC>>,
+    >;
+
+    /// The concrete `FreeModuleHomomorphism` returned by
+    /// `RsResHomToDouble::get_map(s)`: a map from the source resolution's free
+    /// module into the doubled target module `DoubleModule<FreeModule>`.
+    type RsFMHToDouble = ::algebra::module::homomorphism::FreeModuleHomomorphism<
+        super::double::DoubleModule<::algebra::module::FreeModule<::algebra::SteenrodAlgebra>>,
+    >;
+
+    /// A monomorphized union of the resolution-homomorphism target backends.
+    ///
+    /// A `ResolutionHomomorphism` is generic over its target chain complex
+    /// `CC2`. The bound pyclass supports two concrete targets: another standard
+    /// resolution (`ToRes`, the original behaviour) and the doubled chain
+    /// complex of a resolution (`ToDouble`, used by `sq0`). The two are distinct
+    /// concrete types, so we erase the difference with this enum and dispatch
+    /// with the [`reshom_dispatch!`] macro for the methods whose upstream
+    /// signature is identical across both targets.
+    enum AnyResHom {
+        ToRes(Arc<RsResHom>),
+        ToDouble(Arc<RsResHomToDouble>),
+    }
+
+    /// Dispatch a `match` over both `AnyResHom` variants, binding the inner
+    /// `Arc` to `$r` in each arm. Works for every method whose upstream
+    /// signature is identical across the two target types (i.e. those defined on
+    /// `MuResolutionHomomorphism` under only a `CC2: ChainComplex` bound).
+    macro_rules! reshom_dispatch {
+        ($self:expr, $r:ident => $body:expr) => {
+            match &$self.0 {
+                AnyResHom::ToRes($r) => $body,
+                AnyResHom::ToDouble($r) => $body,
+            }
+        };
+    }
+
     /// A lifted chain map between two (standard-backend) resolutions — i.e. a
     /// map of `Ext` modules realised on the level of free resolutions. Used to
     /// represent multiplication by an `Ext` class (`from_class`), and as a
@@ -1531,7 +1580,7 @@ mod ext_py {
     /// `examples/massey.rs` usage. Every method takes `&self` and the inner
     /// state is interior-mutable (`OnceBiVec`), so the `Arc` adds no friction.
     #[pyclass(frozen)]
-    pub struct ResolutionHomomorphism(Arc<RsResHom>);
+    pub struct ResolutionHomomorphism(AnyResHom);
 
     impl ResolutionHomomorphism {
         /// Extract the Standard-backend `Arc` from a bound `Resolution`, or
@@ -1551,12 +1600,27 @@ mod ext_py {
             }
         }
 
-        /// Number of generators of the target resolution at bidegree `b`,
+        /// The `ToRes` inner `Arc`, or a `ValueError` for a `ToDouble`
+        /// homomorphism. Used by methods that only exist for a resolution
+        /// target (`act`), whose upstream bounds require `CC2` to be a
+        /// `FreeChainComplex`/`AugmentedChainComplex`.
+        fn to_res(&self, what: &str) -> PyResult<&Arc<RsResHom>> {
+            match &self.0 {
+                AnyResHom::ToRes(r) => Ok(r),
+                AnyResHom::ToDouble(_) => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "{what} is only supported for a resolution→resolution homomorphism, not one \
+                     with a DoubleChainComplex target"
+                ))),
+            }
+        }
+
+        /// Number of generators of the (resolution) target at bidegree `b`,
         /// returning 0 (never panicking) outside the computed range. Delegates
         /// to the upstream
-        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`].
-        fn target_num_gens(&self, b: RsBidegree) -> usize {
-            self.0.target.try_number_of_gens_in_bidegree(b).unwrap_or(0)
+        /// [`FreeChainComplex::try_number_of_gens_in_bidegree`]. Only meaningful
+        /// for a `ToRes` target (a `DoubleChainComplex` is not free).
+        fn target_num_gens(inner: &RsResHom, b: RsBidegree) -> usize {
+            inner.target.try_number_of_gens_in_bidegree(b).unwrap_or(0)
         }
 
         /// Pre-flight guard for the `extend*` family. `extend_profile` first
@@ -1571,52 +1635,54 @@ mod ext_py {
         /// verify that whole grid is resolved up front, raising `ValueError`
         /// rather than letting an upstream `assert!` panic across FFI.
         fn check_extend_range(&self, max_s: i32, t_max: impl Fn(i32) -> i32) -> PyResult<()> {
-            let shift = self.0.shift;
-            if max_s < shift.s() {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "target homological degree s = {max_s} is below the homomorphism's shift \
-                     s = {} (nothing to extend)",
-                    shift.s()
-                )));
-            }
-            if max_s >= self.0.source.next_homological_degree() {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "source not resolved through homological degree s = {max_s} (next homological \
-                     degree is {}); resolve the source further first",
-                    self.0.source.next_homological_degree()
-                )));
-            }
-            if max_s - shift.s() >= self.0.target.next_homological_degree() {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "target not resolved through homological degree s = {} (next homological \
-                     degree is {}); resolve the target further first",
-                    max_s - shift.s(),
-                    self.0.target.next_homological_degree()
-                )));
-            }
-            let min_t = self.0.source.min_degree();
-            for s in shift.s()..=max_s {
-                let hi = t_max(s);
-                for t in min_t..=hi {
-                    let input = RsBidegree::s_t(s, t);
-                    if !self.0.source.has_computed_bidegree(input) {
-                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                            "source not computed at bidegree (s={s}, t={t}), which is required to \
-                             extend the homomorphism over this range; resolve the source further"
-                        )));
-                    }
-                    if !self.0.target.has_computed_bidegree(input - shift) {
-                        let o = input - shift;
-                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                            "target not computed at bidegree (s={}, t={}), which is required to \
-                             extend the homomorphism over this range; resolve the target further",
-                            o.s(),
-                            o.t()
-                        )));
+            reshom_dispatch!(self, inner => {
+                let shift = inner.shift;
+                if max_s < shift.s() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "target homological degree s = {max_s} is below the homomorphism's shift \
+                         s = {} (nothing to extend)",
+                        shift.s()
+                    )));
+                }
+                if max_s >= inner.source.next_homological_degree() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "source not resolved through homological degree s = {max_s} (next homological \
+                         degree is {}); resolve the source further first",
+                        inner.source.next_homological_degree()
+                    )));
+                }
+                if max_s - shift.s() >= inner.target.next_homological_degree() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "target not resolved through homological degree s = {} (next homological \
+                         degree is {}); resolve the target further first",
+                        max_s - shift.s(),
+                        inner.target.next_homological_degree()
+                    )));
+                }
+                let min_t = inner.source.min_degree();
+                for s in shift.s()..=max_s {
+                    let hi = t_max(s);
+                    for t in min_t..=hi {
+                        let input = RsBidegree::s_t(s, t);
+                        if !inner.source.has_computed_bidegree(input) {
+                            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                                "source not computed at bidegree (s={s}, t={t}), which is required to \
+                                 extend the homomorphism over this range; resolve the source further"
+                            )));
+                        }
+                        if !inner.target.has_computed_bidegree(input - shift) {
+                            let o = input - shift;
+                            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                                "target not computed at bidegree (s={}, t={}), which is required to \
+                                 extend the homomorphism over this range; resolve the target further",
+                                o.s(),
+                                o.t()
+                            )));
+                        }
                     }
                 }
-            }
-            Ok(())
+                Ok(())
+            })
         }
     }
 
@@ -1644,27 +1710,47 @@ mod ext_py {
         pub fn new(
             name: String,
             source: &Resolution,
-            target: &Resolution,
+            target: &Bound<'_, PyAny>,
             shift: sseq_py::Bidegree,
         ) -> PyResult<Self> {
             let s = Self::standard_arc(source, "source")?;
-            let t = Self::standard_arc(target, "target")?;
-            if s.prime().as_u32() != t.prime().as_u32() {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "source and target resolutions are over different primes ({} != {})",
-                    s.prime().as_u32(),
-                    t.prime().as_u32()
-                )));
-            }
             if shift.0.s() < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "invalid shift {}: require s >= 0 (t may be negative, e.g. for a map out of RP_{{-k}})",
                     shift.0
                 )));
             }
-            Ok(ResolutionHomomorphism(Arc::new(RsResHom::new(
-                name, s, t, shift.0,
-            ))))
+            // The target may be either another (standard) Resolution or the
+            // DoubleChainComplex of one. Both share the source's algebra.
+            if let Ok(target_res) = target.extract::<PyRef<'_, Resolution>>() {
+                let t = Self::standard_arc(&target_res, "target")?;
+                if s.prime().as_u32() != t.prime().as_u32() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "source and target resolutions are over different primes ({} != {})",
+                        s.prime().as_u32(),
+                        t.prime().as_u32()
+                    )));
+                }
+                Ok(ResolutionHomomorphism(AnyResHom::ToRes(Arc::new(
+                    RsResHom::new(name, s, t, shift.0),
+                ))))
+            } else if let Ok(target_double) = target.extract::<PyRef<'_, DoubleChainComplex>>() {
+                let t = Arc::clone(&target_double.0);
+                if s.prime().as_u32() != t.prime().as_u32() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "source and target are over different primes ({} != {})",
+                        s.prime().as_u32(),
+                        t.prime().as_u32()
+                    )));
+                }
+                Ok(ResolutionHomomorphism(AnyResHom::ToDouble(Arc::new(
+                    RsResHomToDouble::new(name, s, t, shift.0),
+                ))))
+            } else {
+                Err(pyo3::exceptions::PyTypeError::new_err(
+                    "target must be a Resolution or DoubleChainComplex",
+                ))
+            }
         }
 
         /// Build the resolution homomorphism representing (multiplication by)
@@ -1748,8 +1834,8 @@ mod ext_py {
                      (a unit/sphere resolution); got dimension {aug_dim}"
                 )));
             }
-            Ok(ResolutionHomomorphism(Arc::new(RsResHom::from_class(
-                name, s, t, b, &class,
+            Ok(ResolutionHomomorphism(AnyResHom::ToRes(Arc::new(
+                RsResHom::from_class(name, s, t, b, &class),
             ))))
         }
 
@@ -1758,48 +1844,65 @@ mod ext_py {
         /// `set_name` is not bound: the upstream `name` field is private and has
         /// no `&self` setter (and this pyclass is `frozen`).
         pub fn name(&self) -> String {
-            self.0.name().to_string()
+            reshom_dispatch!(self, r => r.name().to_string())
         }
 
         /// The Steenrod algebra the (source) resolution is built over.
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
-            algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
+            reshom_dispatch!(self, r => algebra_py::SteenrodAlgebra::from_arc(r.algebra()))
         }
 
         /// The prime as a plain `int`.
         #[getter]
         pub fn prime(&self) -> u32 {
-            self.0.source.prime().as_u32()
+            reshom_dispatch!(self, r => r.source.prime().as_u32())
         }
 
         /// The shift bidegree of the homomorphism (`f` sends `source.module(s)`
         /// into `target.module(s - shift.s)` and raises internal degree by
         /// `shift.t`).
         pub fn shift(&self) -> sseq_py::Bidegree {
-            sseq_py::Bidegree(self.0.shift)
+            reshom_dispatch!(self, r => sseq_py::Bidegree(r.shift))
         }
 
         /// The source resolution (shares the underlying `Arc`).
         pub fn source(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(&self.0.source)), std::sync::Mutex::new(None))
+            reshom_dispatch!(self, r => Resolution(
+                AnyResolution::Standard(Arc::clone(&r.source)),
+                std::sync::Mutex::new(None),
+            ))
         }
 
-        /// The target resolution (shares the underlying `Arc`).
-        pub fn target(&self) -> Resolution {
-            Resolution(AnyResolution::Standard(Arc::clone(&self.0.target)), std::sync::Mutex::new(None))
+        /// The target of the homomorphism (shares the underlying `Arc`): a
+        /// `Resolution` for a resolution→resolution map, or a
+        /// `DoubleChainComplex` for a resolution→double map.
+        pub fn target(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+            match &self.0 {
+                AnyResHom::ToRes(r) => Ok(Py::new(
+                    py,
+                    Resolution(
+                        AnyResolution::Standard(Arc::clone(&r.target)),
+                        std::sync::Mutex::new(None),
+                    ),
+                )?
+                .into_any()),
+                AnyResHom::ToDouble(r) => {
+                    Ok(Py::new(py, DoubleChainComplex(Arc::clone(&r.target)))?.into_any())
+                }
+            }
         }
 
         /// The first homological degree `s` at which the chain map is not yet
         /// defined (the length of the internal `maps` table).
         pub fn next_homological_degree(&self) -> i32 {
-            self.0.next_homological_degree()
+            reshom_dispatch!(self, r => r.next_homological_degree())
         }
 
         /// The directory used to persist the chain map, or `None` if it is held
         /// purely in memory (the default — only set when the source resolution
         /// has a save directory and the homomorphism has a non-empty name).
         pub fn save_dir(&self) -> Option<String> {
-            self.0.save_dir().read().map(|p| p.display().to_string())
+            reshom_dispatch!(self, r => r.save_dir().read().map(|p| p.display().to_string()))
         }
 
         /// The chain map on the `s`-th source module, as a bound
@@ -1817,15 +1920,28 @@ mod ext_py {
         /// Treat it as read-only: calling its mutating methods
         /// (`add_generators_from_rows`, `set_quasi_inverse`, `extend_by_zero`, …)
         /// is memory-safe but may logically corrupt the chain map.
-        pub fn get_map(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
-            let map = self.0.try_get_map(s).ok_or_else(|| {
+        pub fn get_map(&self, py: Python<'_>, s: i32) -> PyResult<Py<PyAny>> {
+            let (shift_s, next) =
+                reshom_dispatch!(self, r => (r.shift.s(), r.next_homological_degree()));
+            let index_err = || {
                 pyo3::exceptions::PyIndexError::new_err(format!(
-                    "no map defined at homological degree s = {s}; defined range is [{}, {})",
-                    self.0.shift.s(),
-                    self.0.next_homological_degree()
+                    "no map defined at homological degree s = {s}; defined range is [{shift_s}, \
+                     {next})"
                 ))
-            })?;
-            Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(map))
+            };
+            match &self.0 {
+                AnyResHom::ToRes(r) => {
+                    let map = r.try_get_map(s).ok_or_else(index_err)?;
+                    Ok(
+                        Py::new(py, algebra_py::FreeModuleHomomorphismToFree::from_arc(map))?
+                            .into_any(),
+                    )
+                }
+                AnyResHom::ToDouble(r) => {
+                    let map = r.try_get_map(s).ok_or_else(index_err)?;
+                    Ok(Py::new(py, FreeModuleHomomorphismToDouble(map))?.into_any())
+                }
+            }
         }
 
         /// Extend the chain map so it is defined on every bidegree `(s, t)` with
@@ -1843,7 +1959,7 @@ mod ext_py {
             let b = max.0;
             require_nonneg!(b, "target bidegree");
             self.check_extend_range(b.s(), |_s| b.t())?;
-            self.0.extend(b);
+            reshom_dispatch!(self, r => r.extend(b));
             Ok(())
         }
 
@@ -1855,7 +1971,7 @@ mod ext_py {
             require_nonneg!(b, "target bidegree");
             let n = b.n();
             self.check_extend_range(b.s(), |s| n + s)?;
-            self.0.extend_through_stem(b);
+            reshom_dispatch!(self, r => r.extend_through_stem(b));
             Ok(())
         }
 
@@ -1868,16 +1984,18 @@ mod ext_py {
         /// upstream would index `maps[-1]`/an empty module and panic, so we
         /// raise `ValueError` instead.
         pub fn extend_all(&self) -> PyResult<()> {
-            let shift = self.0.shift;
-            if self.0.source.next_homological_degree() <= shift.s()
-                || self.0.target.next_homological_degree() <= 0
-            {
-                return Err(pyo3::exceptions::PyValueError::new_err(
-                    "nothing to extend: resolve the source past the shift's homological degree \
-                     and the target past s = 0 first",
-                ));
-            }
-            self.0.extend_all();
+            reshom_dispatch!(self, r => {
+                let shift = r.shift;
+                if r.source.next_homological_degree() <= shift.s()
+                    || r.target.next_homological_degree() <= 0
+                {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "nothing to extend: resolve the source past the shift's homological degree \
+                         and the target past s = 0 first",
+                    ));
+                }
+                r.extend_all();
+            });
             Ok(())
         }
 
@@ -1911,49 +2029,51 @@ mod ext_py {
         ) -> PyResult<(i32, i32)> {
             let b = input.0;
             require_nonneg!(b, "input bidegree");
-            let shift = self.0.shift;
-            if b.s() < shift.s() {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "input homological degree s = {} is below the homomorphism's shift \
-                     s = {} (the map cannot lower homological degree)",
-                    b.s(),
-                    shift.s()
-                )));
-            }
-            if !self.0.source.has_computed_bidegree(b) {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "source not computed at bidegree (s={}, t={}); resolve it there first",
-                    b.s(),
-                    b.t()
-                )));
-            }
-            let output = b - shift;
-            if !self.0.target.has_computed_bidegree(output) {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "target not computed at bidegree (s={}, t={}) = input - shift; resolve \
-                     it there first",
-                    output.s(),
-                    output.t()
-                )));
-            }
             let extra: Option<Vec<::fp::vector::FpVector>> =
                 extra_images.map(|v| v.iter().map(|x| x.as_rust().clone()).collect());
-            use std::panic::{catch_unwind, AssertUnwindSafe};
-            match catch_unwind(AssertUnwindSafe(|| self.0.extend_step_raw(b, extra))) {
-                Ok(range) => Ok((range.start, range.end)),
-                Err(payload) => {
-                    let detail = payload
-                        .downcast_ref::<&str>()
-                        .map(|s| (*s).to_owned())
-                        .or_else(|| payload.downcast_ref::<String>().cloned())
-                        .unwrap_or_else(|| "unknown panic".to_owned());
-                    Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
-                        "extend_step_raw panicked (likely an extra_images row whose length \
-                         does not match the target dimension, or a non-None extra_images on \
-                         an already-defined degree); underlying panic: {detail}"
-                    )))
+            reshom_dispatch!(self, r => {
+                let shift = r.shift;
+                if b.s() < shift.s() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "input homological degree s = {} is below the homomorphism's shift \
+                         s = {} (the map cannot lower homological degree)",
+                        b.s(),
+                        shift.s()
+                    )));
                 }
-            }
+                if !r.source.has_computed_bidegree(b) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "source not computed at bidegree (s={}, t={}); resolve it there first",
+                        b.s(),
+                        b.t()
+                    )));
+                }
+                let output = b - shift;
+                if !r.target.has_computed_bidegree(output) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "target not computed at bidegree (s={}, t={}) = input - shift; resolve \
+                         it there first",
+                        output.s(),
+                        output.t()
+                    )));
+                }
+                use std::panic::{catch_unwind, AssertUnwindSafe};
+                match catch_unwind(AssertUnwindSafe(|| r.extend_step_raw(b, extra))) {
+                    Ok(range) => Ok((range.start, range.end)),
+                    Err(payload) => {
+                        let detail = payload
+                            .downcast_ref::<&str>()
+                            .map(|s| (*s).to_owned())
+                            .or_else(|| payload.downcast_ref::<String>().cloned())
+                            .unwrap_or_else(|| "unknown panic".to_owned());
+                        Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+                            "extend_step_raw panicked (likely an extra_images row whose length \
+                             does not match the target dimension, or a non-None extra_images on \
+                             an already-defined degree); underlying panic: {detail}"
+                        )))
+                    }
+                }
+            })
         }
 
         /// Manually define the chain map on the single bidegree `input`, the
@@ -1986,9 +2106,13 @@ mod ext_py {
             input: sseq_py::Bidegree,
             extra_images: Option<PyRef<'_, fp_py::PyMatrix>>,
         ) -> PyResult<(i32, i32)> {
+            // `extend_step` lifts through the target's augmentation, which upstream
+            // gates on `CC2: AugmentedChainComplex` — satisfied only by a
+            // resolution target, not a DoubleChainComplex.
+            let r = self.to_res("extend_step")?;
             let b = input.0;
             require_nonneg!(b, "input bidegree");
-            let shift = self.0.shift;
+            let shift = r.shift;
             if b.s() < shift.s() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "input homological degree s = {} is below the homomorphism's shift \
@@ -1997,7 +2121,7 @@ mod ext_py {
                     shift.s()
                 )));
             }
-            if !self.0.source.has_computed_bidegree(b) {
+            if !r.source.has_computed_bidegree(b) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "source not computed at bidegree (s={}, t={}); resolve it there first",
                     b.s(),
@@ -2005,7 +2129,7 @@ mod ext_py {
                 )));
             }
             let output = b - shift;
-            if !self.0.target.has_computed_bidegree(output) {
+            if !r.target.has_computed_bidegree(output) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "target not computed at bidegree (s={}, t={}) = input - shift; resolve \
                      it there first",
@@ -2015,8 +2139,7 @@ mod ext_py {
             }
             use std::panic::{catch_unwind, AssertUnwindSafe};
             match catch_unwind(AssertUnwindSafe(|| {
-                self.0
-                    .extend_step(b, extra_images.as_ref().map(|m| m.as_rust()))
+                r.extend_step(b, extra_images.as_ref().map(|m| m.as_rust()))
             })) {
                 Ok(range) => Ok((range.start, range.end)),
                 Err(payload) => {
@@ -2059,9 +2182,10 @@ mod ext_py {
             coef: u32,
             g: sseq_py::BidegreeGenerator,
         ) -> PyResult<()> {
+            let inner = self.to_res("act")?;
             let gen = g.0;
             require_nonneg!(gen, "generator");
-            let shift = self.0.shift;
+            let shift = inner.shift;
             let src_s = gen.s().checked_add(shift.s()).ok_or_else(|| {
                 pyo3::exceptions::PyValueError::new_err("source s = g.s + shift.s overflows i32")
             })?;
@@ -2070,18 +2194,18 @@ mod ext_py {
             })?;
             let source_b = RsBidegree::s_t(src_s, src_t);
             // The map at source_b.s() must exist and be extended through source_b.t().
-            if src_s >= self.0.next_homological_degree() {
+            if src_s >= inner.next_homological_degree() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "the homomorphism is not defined at homological degree s = {src_s} (= g.s + \
                      shift.s); extend it first"
                 )));
             }
-            if !self.0.source.has_computed_bidegree(source_b) {
+            if !inner.source.has_computed_bidegree(source_b) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "source not computed at bidegree (s={src_s}, t={src_t}) = g.degree() + shift"
                 )));
             }
-            let map = self.0.get_map(src_s);
+            let map = inner.get_map(src_s);
             if src_t >= map.next_degree() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "the homomorphism is not extended through (s={src_s}, t={src_t}); extend it \
@@ -2090,16 +2214,16 @@ mod ext_py {
             }
             // result must match the source prime and the number of source
             // generators at source_b.
-            let p = self.0.source.prime().as_u32();
+            let p = inner.source.prime().as_u32();
             let expected = map.source().number_of_gens_in_degree(src_t);
             // g must be a valid generator of the target at g.degree().
-            if gen.s() >= self.0.target.next_homological_degree() {
+            if gen.s() >= inner.target.next_homological_degree() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "target not resolved at homological degree s = {} (g.s)",
                     gen.s()
                 )));
             }
-            let tgt_gens = self.target_num_gens(gen.degree());
+            let tgt_gens = Self::target_num_gens(inner, gen.degree());
             if gen.idx() >= tgt_gens {
                 return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                     "generator index {} out of range at target bidegree (s={}, t={}) ({tgt_gens} \
@@ -2123,7 +2247,7 @@ mod ext_py {
                         slice.as_slice().len()
                     )));
                 }
-                self.0.act(slice, coef, gen);
+                inner.act(slice, coef, gen);
                 Ok(())
             })
         }
@@ -3273,15 +3397,17 @@ mod ext_py {
             left: &ResolutionHomomorphism,
             right: &ResolutionHomomorphism,
         ) -> PyResult<Self> {
-            if !Arc::ptr_eq(&left.0.target, &right.0.source) {
+            let left = left.to_res("left")?;
+            let right = right.to_res("right")?;
+            if !Arc::ptr_eq(&left.target, &right.source) {
                 return Err(pyo3::exceptions::PyValueError::new_err(
                     "ChainHomotopy requires left.target() to be the same resolution object as \
                      right.source(); pass the same Resolution handle to both ResolutionHomomorphisms",
                 ));
             }
             Ok(ChainHomotopy(Arc::new(RsCH::new(
-                Arc::clone(&left.0),
-                Arc::clone(&right.0),
+                Arc::clone(left),
+                Arc::clone(right),
             ))))
         }
 
@@ -3298,12 +3424,12 @@ mod ext_py {
 
         /// The left homomorphism `S -> T` (shares the underlying `Arc`).
         pub fn left(&self) -> ResolutionHomomorphism {
-            ResolutionHomomorphism(self.0.left())
+            ResolutionHomomorphism(AnyResHom::ToRes(self.0.left()))
         }
 
         /// The right homomorphism `T -> U` (shares the underlying `Arc`).
         pub fn right(&self) -> ResolutionHomomorphism {
-            ResolutionHomomorphism(self.0.right())
+            ResolutionHomomorphism(AnyResHom::ToRes(self.0.right()))
         }
 
         /// Lift the maps so the chain homotopy is defined on every source
@@ -3761,14 +3887,15 @@ mod ext_py {
             target: &SecondaryResolution,
             underlying: &ResolutionHomomorphism,
         ) -> PyResult<Self> {
-            if !Arc::ptr_eq(&underlying.0.source, &source.0.underlying()) {
+            let underlying = underlying.to_res("underlying")?;
+            if !Arc::ptr_eq(&underlying.source, &source.0.underlying()) {
                 return Err(pyo3::exceptions::PyValueError::new_err(
                     "SecondaryResolutionHomomorphism requires the underlying homomorphism's source \
                      to be the same resolution object as the source SecondaryResolution's \
                      underlying resolution; build the homomorphism from source.underlying()",
                 ));
             }
-            if !Arc::ptr_eq(&underlying.0.target, &target.0.underlying()) {
+            if !Arc::ptr_eq(&underlying.target, &target.0.underlying()) {
                 return Err(pyo3::exceptions::PyValueError::new_err(
                     "SecondaryResolutionHomomorphism requires the underlying homomorphism's target \
                      to be the same resolution object as the target SecondaryResolution's \
@@ -3779,7 +3906,7 @@ mod ext_py {
                 inner: Arc::new(RsSecResHom::new(
                     Arc::clone(&source.0),
                     Arc::clone(&target.0),
-                    Arc::clone(&underlying.0),
+                    Arc::clone(underlying),
                 )),
                 source: Arc::clone(&source.0),
                 target: Arc::clone(&target.0),
@@ -3823,7 +3950,7 @@ mod ext_py {
         /// The underlying `ResolutionHomomorphism` (shares its `Arc`; a live
         /// shared view — extending it is visible here and vice versa).
         pub fn underlying(&self) -> ResolutionHomomorphism {
-            ResolutionHomomorphism(self.inner.underlying())
+            ResolutionHomomorphism(AnyResHom::ToRes(self.inner.underlying()))
         }
 
         /// The directory used to persist the lift, or `None` if held in memory
@@ -3998,7 +4125,10 @@ mod ext_py {
                 scratch.push(::fp::vector::FpVector::new(p, len));
             }
 
-            let lambda = lambda_part.map(|l| l.0.as_ref());
+            let lambda = lambda_part
+                .map(|l| l.to_res("lambda_part"))
+                .transpose()?
+                .map(|a| a.as_ref());
 
             catch_secondary_compute_panic(|| {
                 self.inner.hom_k_with(
@@ -4059,7 +4189,10 @@ mod ext_py {
                 )));
             }
 
-            let lambda = lambda_part.map(|l| l.0.as_ref());
+            let lambda = lambda_part
+                .map(|l| l.to_res("lambda_part"))
+                .transpose()?
+                .map(|a| a.as_ref());
 
             let result = catch_secondary_compute_panic(|| {
                 self.inner.product_nullhomotopy(
@@ -4114,6 +4247,12 @@ mod ext_py {
             left_lambda: Option<&ResolutionHomomorphism>,
             right_lambda: Option<&ResolutionHomomorphism>,
         ) -> PyResult<Self> {
+            let left_lambda = left_lambda
+                .map(|l| l.to_res("left_lambda"))
+                .transpose()?;
+            let right_lambda = right_lambda
+                .map(|l| l.to_res("right_lambda"))
+                .transpose()?;
             let u_left = underlying.0.left();
             let u_right = underlying.0.right();
             if !Arc::ptr_eq(&u_left, &left.inner.underlying()) {
@@ -4130,37 +4269,37 @@ mod ext_py {
             }
             let lambda = ext::secondary::LAMBDA_BIDEGREE;
             if let Some(ll) = left_lambda {
-                if !Arc::ptr_eq(&ll.0.source, &u_left.source)
-                    || !Arc::ptr_eq(&ll.0.target, &u_left.target)
+                if !Arc::ptr_eq(&ll.source, &u_left.source)
+                    || !Arc::ptr_eq(&ll.target, &u_left.target)
                 {
                     return Err(pyo3::exceptions::PyValueError::new_err(
                         "left_lambda must have the same source/target resolutions as \
                          underlying.left()",
                     ));
                 }
-                if ll.0.shift != u_left.shift + lambda {
+                if ll.shift != u_left.shift + lambda {
                     return Err(pyo3::exceptions::PyValueError::new_err(format!(
                         "left_lambda shift {} must equal underlying.left().shift + LAMBDA_BIDEGREE \
                          ({})",
-                        ll.0.shift,
+                        ll.shift,
                         u_left.shift + lambda
                     )));
                 }
             }
             if let Some(rl) = right_lambda {
-                if !Arc::ptr_eq(&rl.0.source, &u_right.source)
-                    || !Arc::ptr_eq(&rl.0.target, &u_right.target)
+                if !Arc::ptr_eq(&rl.source, &u_right.source)
+                    || !Arc::ptr_eq(&rl.target, &u_right.target)
                 {
                     return Err(pyo3::exceptions::PyValueError::new_err(
                         "right_lambda must have the same source/target resolutions as \
                          underlying.right()",
                     ));
                 }
-                if rl.0.shift != u_right.shift + lambda {
+                if rl.shift != u_right.shift + lambda {
                     return Err(pyo3::exceptions::PyValueError::new_err(format!(
                         "right_lambda shift {} must equal underlying.right().shift + \
                          LAMBDA_BIDEGREE ({})",
-                        rl.0.shift,
+                        rl.shift,
                         u_right.shift + lambda
                     )));
                 }
@@ -4168,8 +4307,8 @@ mod ext_py {
             Ok(SecondaryChainHomotopy(Arc::new(RsSecCH::new(
                 Arc::clone(&left.inner),
                 Arc::clone(&right.inner),
-                left_lambda.map(|x| Arc::clone(&x.0)),
-                right_lambda.map(|x| Arc::clone(&x.0)),
+                left_lambda.map(Arc::clone),
+                right_lambda.map(Arc::clone),
                 Arc::clone(&underlying.0),
             ))))
         }
@@ -4717,6 +4856,59 @@ mod ext_py {
             let b = require_nonneg!(b.0, "target bidegree");
             self.0.compute_through_bidegree(b);
             Ok(())
+        }
+    }
+
+    /// The chain map on the `s`-th source module of a resolution→double
+    /// `ResolutionHomomorphism` (returned by its `get_map(s)`): a
+    /// `FreeModuleHomomorphism` whose source is the resolution's free module and
+    /// whose target is the *doubled* module `DoubleModule<FreeModule>`.
+    ///
+    /// Because the target is a `DoubleModule` (not a `FreeModule`), this cannot
+    /// reuse the `FreeModuleHomomorphismToFree` pyclass. Only the read-only
+    /// `output(degree, idx)` accessor needed by the `sq0` computation is exposed.
+    /// The wrapped `Arc` is shared live with the homomorphism it came from; treat
+    /// it as read-only.
+    #[pyclass(frozen)]
+    pub struct FreeModuleHomomorphismToDouble(Arc<RsFMHToDouble>);
+
+    #[pymethods]
+    impl FreeModuleHomomorphismToDouble {
+        /// The image of the generator `(generator_degree, generator_index)`, a
+        /// bound `fp.FpVector` of length `target.dimension(generator_degree -
+        /// degree_shift)`.
+        ///
+        /// Mirrors `FreeModuleHomomorphismToFree.output`: raises `IndexError`
+        /// below `min_degree`, `ValueError` if the outputs are not yet defined
+        /// through `generator_degree`, and `IndexError` for an out-of-range
+        /// generator index — rather than panicking across the FFI boundary.
+        pub fn output(
+            &self,
+            generator_degree: i32,
+            generator_index: usize,
+        ) -> PyResult<fp_py::PyFpVector> {
+            if generator_degree < self.0.min_degree() {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "generator degree {generator_degree} is below min_degree {}",
+                    self.0.min_degree()
+                )));
+            }
+            if generator_degree >= self.0.next_degree() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "outputs are only defined through degree {} (extend the homomorphism first)",
+                    self.0.next_degree() - 1
+                )));
+            }
+            let num_gens = self.0.source().number_of_gens_in_degree(generator_degree);
+            if generator_index >= num_gens {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "generator index {generator_index} out of range in degree {generator_degree} \
+                     ({num_gens} generators)"
+                )));
+            }
+            Ok(fp_py::PyFpVector::from_rust(
+                self.0.output(generator_degree, generator_index).clone(),
+            ))
         }
     }
 

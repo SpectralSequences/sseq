@@ -364,3 +364,65 @@ def test_extend_all_unresolved_errors():
     hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(0, 0))
     with pytest.raises(ValueError):
         hom.extend_all()
+
+
+# --- DoubleChainComplex target (the sq0 use case) -------------------------
+
+
+def test_double_target_sq0_action():
+    """A ResolutionHomomorphism into a DoubleChainComplex realises Sq^0 on
+    Ext(S_2). Mirrors examples/sq0.py: seed the (0,0) step with [1], extend by
+    exactness, and read the action off get_map(s).output(...)."""
+    r = s2_rect(8)
+    doubled = ext.DoubleChainComplex(r)
+    doubled.compute_through_bidegree(
+        Bidegree.s_t(r.next_homological_degree() - 1, 0)
+    )
+
+    hom = ext.ResolutionHomomorphism("Sq^0", r, doubled, Bidegree.zero())
+    # target() hands back the DoubleChainComplex (shared Arc), not a Resolution.
+    assert isinstance(hom.target(), ext.DoubleChainComplex)
+    assert hom.name() == "Sq^0"
+    assert hom.prime == 2
+
+    hom.extend_step_raw(Bidegree.zero(), [FpVector.from_slice(r.prime, [1])])
+    hom.extend_all()
+
+    # Sq^0 fixes the generators on the 0- and 1-lines of Ext(S_2): for a
+    # generator x_(n, s) the action lands on the doubled bidegree (s, 2t).
+    results = {}
+    for b in r.iter_nonzero_stem():
+        doubled_b = Bidegree.s_t(b.s, 2 * b.t)
+        if not r.has_computed_bidegree(doubled_b):
+            continue
+        source_num_gens = r.number_of_gens_in_bidegree(doubled_b)
+        module = r.module(b.s)
+        offset = module.generator_offset(b.t, b.t, 0)
+        m = hom.get_map(b.s)
+        for i in range(r.number_of_gens_in_bidegree(b)):
+            g = BidegreeGenerator(b, i)
+            row = [m.output(doubled_b.t, j).entry(offset + i) for j in range(source_num_gens)]
+            results[(b.n, b.s, i)] = row
+
+    # Known values (cf. ext/examples/sq0.rs): Sq^0 is the identity on the
+    # bottom cells and the h-towers it reaches in this range.
+    assert results[(0, 0, 0)] == [1]
+    assert results[(1, 1, 0)] == [1]
+    assert results[(3, 1, 0)] == [1]
+
+
+def test_double_target_extend_step_only_for_resolution():
+    """extend_step (the augmentation-lifting variant) needs an AugmentedChainComplex
+    target, so it is rejected for a DoubleChainComplex target."""
+    r = s2_rect(4)
+    doubled = ext.DoubleChainComplex(r)
+    doubled.compute_through_bidegree(Bidegree.s_t(r.next_homological_degree() - 1, 0))
+    hom = ext.ResolutionHomomorphism("Sq^0", r, doubled, Bidegree.zero())
+    with pytest.raises(ValueError):
+        hom.extend_step(Bidegree.zero(), None)
+
+
+def test_target_must_be_resolution_or_double():
+    r = s2_rect(2)
+    with pytest.raises(TypeError):
+        ext.ResolutionHomomorphism("f", r, 42, Bidegree.zero())

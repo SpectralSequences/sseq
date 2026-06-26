@@ -12,7 +12,8 @@
 
 use double_algebra::DoubleAlgebra;
 pub use double_chain_complex::DoubleChainComplex;
-use double_module::{DoubleModule, DoubleModuleHomomorphism};
+pub use double_module::DoubleModule;
+use double_module::DoubleModuleHomomorphism;
 use sseq::coordinates::Bidegree;
 
 /// Divide by 2 and round towards -infty
