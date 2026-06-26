@@ -4188,6 +4188,161 @@ mod ext_py {
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
         }
+
+        /// Compute the secondary chain homotopies as far as the underlying chain
+        /// homotopy and the source/target secondary resolutions are computed (the
+        /// upstream `SecondaryLift::extend_all`).
+        ///
+        /// As with [`SecondaryResolution::extend_all`], a topologically invalid /
+        /// non-realizable input can trip the inherent upstream lift-validity
+        /// `assert!`; that condition is mathematical and cannot be pre-checked
+        /// without performing the computation, so it is contained (`catch_unwind`
+        /// -> `ValueError`) rather than crossing the FFI boundary as a
+        /// `PanicException`.
+        pub fn extend_all(&self) -> PyResult<()> {
+            catch_secondary_lift_panic(|| self.0.extend_all())
+        }
+
+        /// Sharding entry point: compute only the secondary chain-homotopy data
+        /// for filtration `s` (mirrors the upstream `compute_partial`). Requires
+        /// `s >= 0` (`ValueError` otherwise); does *not* fully populate the lift —
+        /// call [`extend_all`](Self::extend_all) for that.
+        ///
+        /// A non-realizable input can trip the lift-validity `assert!`; contained
+        /// (`catch_unwind` -> `ValueError`) as in [`extend_all`](Self::extend_all).
+        pub fn compute_partial(&self, s: i32) -> PyResult<()> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid filtration s = {s}: require s >= 0"
+                )));
+            }
+            catch_secondary_lift_panic(|| self.0.compute_partial(s))
+        }
+
+        /// The secondary chain homotopies (the upstream
+        /// `SecondaryLift::homotopies` `OnceBiVec`), as a bound, `s`-indexable
+        /// `SecondaryChainHomotopyList` (a live shared view sharing this lift's
+        /// `Arc`). Index it by absolute homological degree `s` to obtain a
+        /// `SecondaryHomotopy`-style entry whose `homotopies` map exposes `hom_k`.
+        ///
+        /// Call `extend_all()` (or the relevant `compute_partial`) first to
+        /// populate the homotopy table.
+        pub fn homotopies(&self) -> SecondaryChainHomotopyList {
+            SecondaryChainHomotopyList(Arc::clone(&self.0))
+        }
+    }
+
+    /// The `s`-indexable view of a [`SecondaryChainHomotopy`]'s secondary
+    /// homotopies (the upstream `SecondaryLift::homotopies` `OnceBiVec`). Produced
+    /// by [`SecondaryChainHomotopy.homotopies`]; never constructed directly from
+    /// Python.
+    ///
+    /// Holds the parent chain homotopy's `Arc` so it stays a live shared view.
+    /// `__getitem__(s)` is by *absolute* homological degree (matching the
+    /// upstream `homotopies()[s]` `OnceBiVec` indexing), raising `IndexError`
+    /// outside the populated `[min_degree, len)` range rather than panicking.
+    #[pyclass(frozen)]
+    pub struct SecondaryChainHomotopyList(Arc<RsSecCH>);
+
+    #[pymethods]
+    impl SecondaryChainHomotopyList {
+        /// The secondary homotopy at absolute homological degree `s` (a bound
+        /// `SecondaryChainHomotopyEntry`), a live shared view (shares the `Arc`).
+        ///
+        /// Raises `IndexError` for `s` outside the populated range of the internal
+        /// homotopy table (`[min_degree, len)`), which would otherwise panic on
+        /// the `OnceBiVec` index. Call `extend_all`/`compute_partial` first.
+        pub fn __getitem__(&self, s: i32) -> PyResult<SecondaryChainHomotopyEntry> {
+            let homotopies = self.0.homotopies();
+            if s < homotopies.min_degree() || s >= homotopies.len() {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "no secondary chain homotopy defined at homological degree s = {s}; defined \
+                     range is [{}, {}) (extend the secondary chain homotopy first)",
+                    homotopies.min_degree(),
+                    homotopies.len()
+                )));
+            }
+            Ok(SecondaryChainHomotopyEntry {
+                ch: Arc::clone(&self.0),
+                s,
+            })
+        }
+
+        /// The number of populated homological degrees (the upstream `len()` of
+        /// the homotopy `OnceBiVec`, i.e. its exclusive upper index).
+        pub fn __len__(&self) -> usize {
+            let homotopies = self.0.homotopies();
+            (homotopies.len() - homotopies.min_degree()).max(0) as usize
+        }
+    }
+
+    /// A single secondary chain homotopy `h_s` of a [`SecondaryChainHomotopy`] —
+    /// the bound view of the upstream `ext::secondary::SecondaryHomotopy` held at
+    /// homological degree `s`. Produced by indexing a
+    /// [`SecondaryChainHomotopyList`]; never constructed directly from Python.
+    ///
+    /// Holds the parent chain homotopy's `Arc` together with the homological
+    /// degree `s` (range-checked at construction), so it stays a live shared view
+    /// (the upstream `homotopies()[s]` is a borrow into the lift's
+    /// interior-mutable `OnceBiVec`, which cannot be held across the FFI
+    /// boundary; re-deriving it from the `Arc` + `s` on each access is the safe
+    /// equivalent). Mirrors [`SecondaryHomotopy`] for the chain-homotopy lift.
+    #[pyclass(frozen)]
+    pub struct SecondaryChainHomotopyEntry {
+        ch: Arc<RsSecCH>,
+        s: i32,
+    }
+
+    #[pymethods]
+    impl SecondaryChainHomotopyEntry {
+        /// The homological degree `s` this homotopy sits at.
+        #[getter]
+        pub fn s(&self) -> i32 {
+            self.s
+        }
+
+        /// The homotopy's underlying free-module map (`homotopies` field of the
+        /// upstream `SecondaryHomotopy`), as a bound `SecondaryChainHomotopyMap`
+        /// exposing `hom_k`. A live shared view (shares the parent `Arc` + `s`).
+        #[getter]
+        pub fn homotopies(&self) -> SecondaryChainHomotopyMap {
+            SecondaryChainHomotopyMap {
+                ch: Arc::clone(&self.ch),
+                s: self.s,
+            }
+        }
+    }
+
+    /// The free-module homomorphism underlying a [`SecondaryChainHomotopyEntry`]
+    /// (the `homotopies` field of the upstream `SecondaryHomotopy`). It exposes
+    /// only `hom_k` (the dual map on generators), which is what the secondary
+    /// Massey-product example reads off. Mirrors [`SecondaryHomotopyMap`] for the
+    /// chain-homotopy lift.
+    ///
+    /// Holds the parent chain homotopy's `Arc` and the homological degree `s`
+    /// rather than a borrow: the upstream map lives by value inside the lift's
+    /// interior-mutable `OnceBiVec`, so it is re-derived from the `Arc` + `s` on
+    /// each access. `s` was range-checked when the parent entry was constructed.
+    #[pyclass(frozen)]
+    pub struct SecondaryChainHomotopyMap {
+        ch: Arc<RsSecCH>,
+        s: i32,
+    }
+
+    #[pymethods]
+    impl SecondaryChainHomotopyMap {
+        /// The dual map on generators in source degree `t`: the matrix of the
+        /// secondary chain homotopy `h_s` (rows indexed by the target's
+        /// generators in degree `t`, columns by the source's generators in
+        /// `t + degree_shift`). Returns an empty list when the target has no
+        /// generators in degree `t`.
+        ///
+        /// Upstream `hom_k` indexes the source/target free modules' generator
+        /// `OnceBiVec`s, which panic above the computed range, so it is run under
+        /// `catch_unwind` (-> `ValueError`) as the defence-in-depth backstop.
+        pub fn hom_k(&self, t: i32) -> PyResult<Vec<Vec<u32>>> {
+            catch_secondary_compute_panic(|| self.ch.homotopies()[self.s].homotopies.hom_k(t))
+        }
     }
 
     /// Run a `SecondaryExtAlgebra` *query/compute* (`d2`/`survives`/`page_data`/

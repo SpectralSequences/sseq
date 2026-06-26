@@ -134,15 +134,12 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "Args now choose a defined Massey product: a=h_0 at (n=0,s=1), "
-                 "b=h_1 at (n=1,s=1), so a*b = h_0*h_1 = 0 and the "
-                 "product_nullhomotopy precondition (ext secondary.rs:1132) "
-                 "passes. The remaining blocker is an unbound API: "
-                 "SecondaryChainHomotopy exposes no extend_all/compute_partial/"
-                 "homotopies (ext_py/src/lib.rs:4179-4297), but the example calls "
-                 "ch_lift.extend_all() (secondary_massey.py:176) and "
-                 "ch_lift.homotopies() (line 293). Binding the secondary "
-                 "chain-homotopy computation requires a Rust change.",
+        "xfail": "SecondaryChainHomotopy.extend_all/compute_partial/homotopies "
+                 "are now bound and succeed. The remaining blocker is a different "
+                 "unbound API: 'algebra.SteenrodAlgebra' object has no attribute "
+                 "'p_tilde' (called at secondary_massey.py:187, "
+                 "ch_lift.algebra().p_tilde()). Binding SteenrodAlgebra.p_tilde "
+                 "requires a separate Rust change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {
