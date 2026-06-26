@@ -1471,6 +1471,15 @@ pub mod algebra_py {
             }
         }
 
+        /// The index of the degree-1 indecomposable classifying the element `p`
+        /// in the secondary (pair-algebra) machinery, as a plain `int`. Forwards
+        /// to the upstream `PairAlgebra::p_tilde`, which the `SteenrodAlgebra`
+        /// union dispatches to its Adem/Milnor variant.
+        pub fn p_tilde(&self) -> usize {
+            use ::algebra::pair_algebra::PairAlgebra;
+            self.0.p_tilde()
+        }
+
         /// The `MilnorBasisElement` at `(degree, idx)`. Only the Milnor variant
         /// has Milnor basis elements (with a `p_part`); the Adem variant raises
         /// `ValueError`. Mirrors the concrete `MilnorAlgebra` binding.

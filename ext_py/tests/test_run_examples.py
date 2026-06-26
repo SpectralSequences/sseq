@@ -134,12 +134,12 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "SecondaryChainHomotopy.extend_all/compute_partial/homotopies "
-                 "are now bound and succeed. The remaining blocker is a different "
-                 "unbound API: 'algebra.SteenrodAlgebra' object has no attribute "
-                 "'p_tilde' (called at secondary_massey.py:187, "
-                 "ch_lift.algebra().p_tilde()). Binding SteenrodAlgebra.p_tilde "
-                 "requires a separate Rust change.",
+        "xfail": "SteenrodAlgebra.p_tilde is now bound and succeeds. The "
+                 "remaining blocker is a different API mismatch: Sseq.page_data() "
+                 "requires a positional argument 'r' (called at "
+                 "secondary_massey.py:182 as ss.page_data(b), i.e. without a page "
+                 "number). Reconciling page_data's signature requires a separate "
+                 "change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {

@@ -41,6 +41,14 @@ def test_prime_is_plain_int():
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
+def test_p_tilde_is_plain_int(variant):
+    a = make(variant, 2, 8)
+    pt = a.p_tilde()
+    assert isinstance(pt, int)
+    assert pt >= 0
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
 def test_compute_basis_and_dimension(variant):
     a = make(variant, 2, 8)
     assert a.dimension(0) == 1
