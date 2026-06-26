@@ -87,7 +87,7 @@ EXAMPLES = [
     {
         "name": "save_bruner.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SteenrodAlgebra.basis_element_from_index() is not bound",
+        "xfail": None,
     },
     {
         "name": "ext_m_n.py",

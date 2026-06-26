@@ -1764,6 +1764,27 @@ pub mod algebra_py {
             }
         }
 
+        /// The `MilnorBasisElement` at `(degree, idx)`. Only the Milnor variant
+        /// has Milnor basis elements (with a `p_part`); the Adem variant raises
+        /// `ValueError`. Mirrors the concrete `MilnorAlgebra` binding.
+        pub fn basis_element_from_index(
+            &self,
+            degree: i32,
+            idx: usize,
+        ) -> PyResult<MilnorBasisElement> {
+            non_negative_degree(degree)?;
+            self.ensure_basis(degree);
+            self.checked_basis_index(degree, idx)?;
+            match self.0.as_ref() {
+                ::algebra::SteenrodAlgebra::MilnorAlgebra(a) => Ok(MilnorBasisElement(
+                    a.basis_element_from_index(degree, idx).clone(),
+                )),
+                ::algebra::SteenrodAlgebra::AdemAlgebra(_) => Err(PyValueError::new_err(
+                    "basis_element_from_index is only supported for the Milnor variant",
+                )),
+            }
+        }
+
         // --- Algebra trait surface --------------------------------------------
 
         /// The prime as a plain `int` (`ValidPrime` is never exposed).
