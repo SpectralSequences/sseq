@@ -29,7 +29,7 @@ def main():
 
     hom = ext.ResolutionHomomorphism(name, resolution, unit, shift)
 
-    matrix = fp.Matrix(p, hom.source.number_of_gens_in_bidegree(shift), 1)
+    matrix = fp.Matrix(p, hom.source().number_of_gens_in_bidegree(shift), 1)
 
     if matrix.rows() == 0 or matrix.columns() == 0:
         raise AssertionError("No classes in this bidegree")

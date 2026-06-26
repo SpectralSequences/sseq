@@ -193,7 +193,7 @@ def main():
 
     # Now print the results
     print("sseq_basis | bruner_basis")
-    for b in hom.target.iter_stem():
+    for b in hom.target().iter_stem():
         matrix = hom.get_map(b.s).hom_k(b.t)
 
         for i, row in enumerate(matrix):

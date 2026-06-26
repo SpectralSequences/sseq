@@ -37,7 +37,7 @@ def get_hom(name, source, target):
     )
 
     num_gens = source.underlying().number_of_gens_in_bidegree(shift)
-    num_lambda_gens = hom.source.number_of_gens_in_bidegree(shift + ext.LAMBDA_BIDEGREE)
+    num_lambda_gens = hom.source().number_of_gens_in_bidegree(shift + ext.LAMBDA_BIDEGREE)
 
     class_ = fp.FpVector(p, num_gens + num_lambda_gens)
 

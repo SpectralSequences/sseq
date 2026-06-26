@@ -52,7 +52,7 @@ def main():
         input = output + shift
         matrix = fp.Matrix(
             p,
-            hom.source.number_of_gens_in_bidegree(input),
+            hom.source().number_of_gens_in_bidegree(input),
             target_module.dimension(output.t),
         )
 
@@ -69,11 +69,11 @@ def main():
 
     hom.extend_all()
 
-    for b2 in hom.target.iter_stem():
+    for b2 in hom.target().iter_stem():
         shifted_b2 = b2 + shift
         if (
-            shifted_b2.s >= hom.source.next_homological_degree()
-            or shifted_b2.t > hom.source.module(shifted_b2.s).max_computed_degree()
+            shifted_b2.s >= hom.source().next_homological_degree()
+            or shifted_b2.t > hom.source().module(shifted_b2.s).max_computed_degree()
         ):
             continue
         matrix = hom.get_map(shifted_b2.s).hom_k(b2.t)

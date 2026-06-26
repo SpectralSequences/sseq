@@ -123,7 +123,7 @@ EXAMPLES = [
     {
         "name": "secondary_product.py",
         "args": ["S_2", "", "8", "4", "prod", "0", "1", "[1]"],
-        "xfail": "ResolutionHomomorphism.source is a method, not the bound resolution (no number_of_gens_in_bidegree)",
+        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
     },
     {
         "name": "massey.py",
@@ -132,9 +132,9 @@ EXAMPLES = [
     },
     {
         "name": "secondary_massey.py",
-        "args": ["S_2", "", "8", "4", "0", "1", "a", "0", "1", "[1]",
-                 "0", "1", "b", "0", "1", "[1]"],
-        "xfail": "ResolutionHomomorphism.source is a method, not the bound resolution (no number_of_gens_in_bidegree)",
+        "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]",
+                 "0", "1", "b", "[1]"],
+        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
     },
     # --- Unbound bindings (aspirational API) ---
     {
