@@ -93,7 +93,8 @@ def main():
         file=sys.stderr,
     )
 
-    resolution = query.query_module(algebra.AlgebraType.Milnor)
+    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor)
+    resolution.compute_through_stem(query.query_n_s())
 
     is_unit, unit = ext.get_unit(resolution)
 

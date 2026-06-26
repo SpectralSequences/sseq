@@ -9,7 +9,7 @@ from ext import sseq
 
 
 def main():
-    res = query.query_module_only("Module")
+    res = query.query_resolution("Module")
 
     max_bidegree = sseq.Bidegree.n_s(
         query.with_default("Max n", "30", int),

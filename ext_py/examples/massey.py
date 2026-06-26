@@ -12,7 +12,8 @@ from ext import fp, sseq
 
 
 def main():
-    resolution = query.query_module()
+    resolution = query.query_resolution()
+    resolution.compute_through_stem(query.query_n_s())
     p = resolution.prime()
 
     is_unit, unit = ext.get_unit(resolution)

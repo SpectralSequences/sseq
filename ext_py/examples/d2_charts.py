@@ -10,7 +10,8 @@ from ext import algebra, sseq
 
 
 def main():
-    resolution = query.query_module(algebra.AlgebraType.Milnor)
+    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor)
+    resolution.compute_through_stem(query.query_n_s())
 
     lift = ext.SecondaryResolution(resolution)
     lift.extend_all()

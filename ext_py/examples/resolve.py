@@ -9,7 +9,7 @@ from ext import sseq
 
 
 def main():
-    res = query.query_module_only("Module")
+    res = query.query_resolution("Module")
 
     t = query.with_default("Max t", "30", int)
     s = query.with_default("Max s", "15", int)

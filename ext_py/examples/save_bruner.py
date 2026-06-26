@@ -14,7 +14,8 @@ from ext.algebra import AlgebraType
 
 
 def main():
-    resolution = query.query_module(alg=AlgebraType.Milnor)
+    resolution = query.query_resolution(alg=AlgebraType.Milnor)
+    resolution.compute_through_stem(query.query_n_s())
 
     assert resolution.prime() == 2
     # Rust views the resolution's SteenrodAlgebra as a &MilnorAlgebra via try_into.

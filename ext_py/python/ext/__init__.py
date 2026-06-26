@@ -12,13 +12,13 @@ Import-surface contract (all of these must keep working):
   - ``from ext import sseq`` / ``fp`` / ``algebra`` (as attributes)
   - ``from ext.algebra import <name>`` (etc.)
   - ``import ext.ext`` (the compiled submodule, dotted path)
-  - ``ext.Resolution.construct`` / ``ext.query_module`` / ``ext.query_module_only``
+  - ``ext.Resolution.construct`` / ``ext.query_resolution`` / ``ext.query_n_s``
 
-Note the deliberate name overlap: ``ext.query_module`` / ``query_module_only``
-are the interactive *pure-Python* helpers (defined in ``ext.utils``), which
-shadow the lower-level *Rust* pyfunctions of the same name that remain reachable
-as ``ext.ext.query_module`` / ``query_module_only``. They are NOT the same
-object; prefer the package-level (Python) ones.
+The interactive *pure-Python* helpers ``ext.query_resolution`` (build a
+resolution) and ``ext.query_n_s`` (prompt a target ``(n, s)`` bidegree) are
+defined in ``ext.utils``. The lower-level *Rust* pyfunctions ``query_module`` /
+``query_module_only`` remain reachable as ``ext.ext.query_module`` /
+``query_module_only`` for anyone who needs them.
 """
 
 # 1) Re-export every compiled symbol (top-level functions/classes AND the
@@ -53,15 +53,14 @@ if hasattr(_ext, "__all__"):
     __all__ = list(_ext.__all__)
 
 # 4) Layer the pure-Python I/O utilities ON TOP of the compiled symbols. This is
-#    done AFTER ``from .ext import *`` so the Python ``query_module`` /
-#    ``query_module_only`` INTENTIONALLY SHADOW the compiled (Rust) pyfunctions
-#    of the same name: all interactive I/O lives in Python, while the Rust
-#    pyfunctions remain bound under ``ext.ext.query_module*`` for anyone
-#    who needs them. ``construct`` is the Rust pyfunction (no Python override).
+#    done AFTER ``from .ext import *``. The interactive I/O helpers
+#    ``query_resolution`` / ``query_n_s`` live in Python, while the Rust
+#    pyfunctions ``query_module`` / ``query_module_only`` remain bound under
+#    ``ext.ext.query_module*`` for anyone who needs them.
 from .utils import (  # noqa: E402
     LAMBDA_BIDEGREE,
-    query_module,
-    query_module_only,
+    query_n_s,
+    query_resolution,
     query_unstable_module,
     query_unstable_module_only,
     unicode_num,
@@ -81,11 +80,10 @@ from ._query import (  # noqa: E402,F401
 # downstream code exposes them, and they take precedence over the shadowed
 # compiled names).
 for _name in (
-    "query_module",
-    "query_module_only",
+    "query_resolution",
+    "query_n_s",
     "query_unstable_module",
     "query_unstable_module_only",
-    "construct",
     "construct_unstable",
     "unicode_num",
     "LAMBDA_BIDEGREE",

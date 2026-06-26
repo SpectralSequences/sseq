@@ -76,8 +76,9 @@ def _algebra_suffix(alg):
     return s
 
 
-def query_module_only(prompt="Module", alg=None, save_dir=None, algorithm=None):
-    """Mirror of ``ext::utils::query_module_only``.
+def query_resolution(prompt="Module", alg=None, save_dir=None, algorithm=None):
+    """Build a :class:`ext.Resolution` from interactive input (formerly
+    ``query_module_only``).
 
     Prompt for a module spec (default ``S_2``); prompt for an optional save
     directory IN PYTHON unless ``save_dir`` is supplied by the caller; then build
@@ -106,18 +107,17 @@ def query_module_only(prompt="Module", alg=None, save_dir=None, algorithm=None):
     return _ext.Resolution.construct(spec, save_dir, algorithm)
 
 
-def query_module(alg=None, save_dir=None, algorithm=None):
-    """Mirror of ``ext::utils::query_module``.
+def query_n_s():
+    """Prompt for ``Max n`` (default 30) and ``Max s`` (default 7) and return the
+    target :class:`ext.sseq.Bidegree` (``n_s``).
 
-    Build a module via :func:`query_module_only`, then prompt for ``Max n``
-    (default 30) and ``Max s`` (default 7), honor the ``SECONDARY_JOB``
-    environment hook (capping ``max_s``), resolve through that stem, and return
-    the resolution.
+    Honors the ``SECONDARY_JOB`` environment hook (capping ``max_s``). This does
+    NOT build or resolve anything: pair it with :func:`query_resolution` and call
+    ``compute_through_stem`` yourself, e.g.::
 
-    ``algorithm`` selects the resolution TYPE (``None``/``"auto"``/``"nassau"``/
-    ``"standard"``); it is forwarded to :func:`query_module_only`.
+        res = query_resolution()
+        res.compute_through_stem(query_n_s())
     """
-    resolution = query_module_only("Module", alg, save_dir, algorithm)
     max_n = _query.with_default("Max n", "30", int)
     max_s = _query.with_default("Max s", "7", int)
 
@@ -128,8 +128,7 @@ def query_module(alg=None, save_dir=None, algorithm=None):
             raise ValueError("SECONDARY_JOB is larger than max_s")
         max_s = min(s + 1, max_s)
 
-    resolution.compute_through_stem(_ext.sseq.Bidegree.n_s(max_n, max_s))
-    return resolution
+    return _ext.sseq.Bidegree.n_s(max_n, max_s)
 
 
 def query_unstable_module_only(prompt="Module", alg=None, save_dir=None):

@@ -12,7 +12,7 @@ from ext import fp, sseq
 
 
 def main():
-    source = query.query_module_only("Source module")
+    source = query.query_resolution("Source module")
     b = sseq.Bidegree.n_s(
         query.with_default("Max source n", "30", int),
         query.with_default("Max source s", "7", int),

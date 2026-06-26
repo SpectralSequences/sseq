@@ -11,7 +11,8 @@ from ext import sseq
 
 
 def main():
-    resolution = query.query_module()
+    resolution = query.query_resolution()
+    resolution.compute_through_stem(query.query_n_s())
 
     ss = resolution.to_sseq()
     products = [

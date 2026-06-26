@@ -9,7 +9,8 @@ from ext import sseq
 
 
 def main():
-    resolution = query.query_module()
+    resolution = query.query_resolution()
+    resolution.compute_through_stem(query.query_n_s())
 
     for b in resolution.iter_stem():
         for i in range(resolution.number_of_gens_in_bidegree(b)):

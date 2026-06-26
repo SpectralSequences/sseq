@@ -1,7 +1,8 @@
 """Tests for the pure-Python I/O util layer (``ext._query`` / ``ext.utils``)
 and the ``ext.Resolution.construct`` staticmethod with ``save_dir`` support.
 
-The interactive ``query_module*`` helpers consume a module-level argument stream
+The interactive ``query_resolution`` / ``query_n_s`` helpers consume a
+module-level argument stream
 (``ext._query._args``, built from ``sys.argv[1:]`` at import). We drive them
 deterministically by monkeypatching that stream via the ``_reset_args`` hook,
 which feeds a fixed answer sequence in the same left-to-right order the Rust
@@ -31,68 +32,67 @@ def _bidegree(n, s):
     return ext.sseq.Bidegree.n_s(n, s)
 
 
-# --- query_module_only / query_module (Python I/O) -----------------------
+# --- query_resolution / query_n_s (Python I/O) ---------------------------
 
 
-def test_query_module_only_builds_sphere(feed):
+def test_query_resolution_builds_sphere(feed):
     # Answers: module spec, then (empty) save directory.
     feed(["S_2", ""])
-    res = ext.query_module_only("Module")
+    res = ext.query_resolution("Module")
     res.compute_through_bidegree(ext.sseq.Bidegree.s_t(0, 0))
     assert res.number_of_gens_in_bidegree(ext.sseq.Bidegree.s_t(0, 0)) == 1
 
 
-def test_query_module_only_algorithm_selects_resolution_type(feed):
+def test_query_resolution_algorithm_selects_resolution_type(feed):
     # The `algorithm` argument is forwarded to Resolution.construct and selects
     # the resolution TYPE. "standard" yields the standard backend, on which
     # standard-only methods like module() work (Nassau cannot provide them).
     feed(["S_2", ""])
-    res = ext.query_module_only("Module", algorithm="standard")
+    res = ext.query_resolution("Module", algorithm="standard")
     res.compute_through_bidegree(ext.sseq.Bidegree.s_t(0, 0))
     # module() is standard-backend-only; it must succeed here.
     assert res.module(0).dimension(0) == 1
 
 
-def test_query_module_algorithm_forwarded(feed):
-    feed(["S_2", "", "4", "2"])
-    res = ext.query_module(algorithm="standard")
-    # Standard backend exposes module(); confirm it is the standard backend.
-    assert res.module(0).dimension(0) == 1
-
-
-def test_query_module_only_explicit_save_dir_skips_prompt(feed, tmp_path):
+def test_query_resolution_explicit_save_dir_skips_prompt(feed, tmp_path):
     # Only the module spec is consumed; save_dir is supplied, so NO save-dir
     # prompt is read (if it were, the stream would be exhausted -> EOF exit).
     feed(["S_2"])
-    res = ext.query_module_only("Module", save_dir=str(tmp_path))
+    res = ext.query_resolution("Module", save_dir=str(tmp_path))
     res.compute_through_bidegree(ext.sseq.Bidegree.s_t(0, 0))
     assert res.number_of_gens_in_bidegree(ext.sseq.Bidegree.s_t(0, 0)) == 1
 
 
-def test_query_module_resolves_through_stem(feed):
-    # module spec, save dir (empty), Max n, Max s.
+def test_query_n_s_returns_bidegree_and_caller_resolves(feed):
+    # query_n_s returns the target (n, s) Bidegree; the caller resolves.
     feed(["S_2", "", "8", "4"])
-    res = ext.query_module()
+    res = ext.query_resolution()
+    target = ext.query_n_s()
+    assert (target.n, target.s) == (8, 4)
+    res.compute_through_stem(target)
     # Standard low-dimensional Ext of the sphere.
     assert res.number_of_gens_in_bidegree(_bidegree(0, 0)) == 1
     assert res.number_of_gens_in_bidegree(_bidegree(0, 1)) == 1  # h_0 at (1,1)
     assert res.number_of_gens_in_bidegree(_bidegree(1, 1)) == 1  # h_1 at (1,2)
 
 
-def test_query_module_secondary_job_caps_max_s(feed, monkeypatch):
+def test_query_n_s_secondary_job_caps_max_s(feed, monkeypatch):
     monkeypatch.setenv("SECONDARY_JOB", "2")
     feed(["S_2", "", "8", "7"])
-    res = ext.query_module()
-    # max_s is capped to min(2+1, 7) = 3, so s=4 must be unresolved -> 0.
+    res = ext.query_resolution()
+    # max_s is capped to min(2+1, 7) = 3.
+    target = ext.query_n_s()
+    assert target.s == 3
+    res.compute_through_stem(target)
     assert res.number_of_gens_in_bidegree(_bidegree(0, 0)) == 1
     assert res.number_of_gens_in_bidegree(_bidegree(0, 5)) == 0
 
 
-def test_query_module_secondary_job_too_large_raises(feed, monkeypatch):
+def test_query_n_s_secondary_job_too_large_raises(feed, monkeypatch):
     monkeypatch.setenv("SECONDARY_JOB", "10")
-    feed(["S_2", "", "8", "7"])
+    feed(["8", "7"])
     with pytest.raises(ValueError):
-        ext.query_module()
+        ext.query_n_s()
 
 
 # --- construct + save_dir round-trip -------------------------------------
@@ -146,10 +146,11 @@ def test_import_surface_intact():
 
     assert _compiled is _e.ext
 
-    # The Python utils shadow the Rust pyfunctions at package level...
-    assert _e.query_module.__module__ == "ext.utils"
-    assert _e.query_module_only.__module__ == "ext.utils"
-    # ...while the Rust pyfunctions remain reachable on the compiled submodule.
+    # The Python utils I/O helpers live at package level...
+    assert _e.query_resolution.__module__ == "ext.utils"
+    assert _e.query_n_s.__module__ == "ext.utils"
+    # ...while the lower-level Rust pyfunctions remain reachable on the compiled
+    # submodule under their original names.
     assert callable(_compiled.query_module)
     assert callable(_compiled.query_module_only)
     # construct is the compiled (Rust) staticmethod on Resolution, not a

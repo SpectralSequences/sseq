@@ -15,9 +15,9 @@ from ext import fp, sseq
 
 
 def main():
-    # query.query_module mirrors `utils::query_module(None, true)`; the shim
-    # ignores the `load_quasi_inverse` flag, which is fine here.
-    res = query.query_module(None)
+    # Build the resolution and resolve it through the queried (n, s) stem.
+    res = query.query_resolution()
+    res.compute_through_stem(query.query_n_s())
     assert (
         res.prime() == 2
         and res.target().max_s() == 1

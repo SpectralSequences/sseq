@@ -10,9 +10,7 @@ from ext import sseq
 
 
 def main():
-    # query.query_module_only mirrors `utils::query_module_only("Module", None,
-    # false)`; the shim ignores the `load_quasi_inverse` flag, which is fine.
-    resolution = query.query_module_only("Module")
+    resolution = query.query_resolution("Module")
 
     b = sseq.Bidegree.n_s(
         query.raw("n of Ext class", int),
