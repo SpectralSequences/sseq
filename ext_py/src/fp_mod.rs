@@ -2715,6 +2715,31 @@ pub mod fp_py {
                     })
                 }
 
+                /// Return a mutable `FpSliceMut` over the whole of row `i`
+                /// (all columns, across every segment). Mutations write through
+                /// to this augmented matrix. Mirrors `Matrix.row_mut`: it reuses
+                /// the matrix-row `SliceParent` variant with this augmented
+                /// matrix as parent, bounds-checks `i` against the row count
+                /// (raising `IndexError`), and revalidates against the inner
+                /// matrix's current dimensions on use. Upstream
+                /// `AugmentedMatrix::row_mut` forwards to the inner matrix's row.
+                fn row_mut(slf: PyRef<'_, Self>, i: usize) -> PyResult<PyFpSliceMut> {
+                    let end = {
+                        let m = slf.0.get()?;
+                        checked_row(i, m.rows())?;
+                        m.columns()
+                    };
+                    let py = slf.py();
+                    Ok(PyFpSliceMut {
+                        parent: SliceParent::MatrixRow {
+                            matrix: MatrixParent::$variant(slf.into_pyobject(py)?.unbind()),
+                            row: i,
+                        },
+                        start: 0,
+                        end,
+                    })
+                }
+
                 /// Compute the kernel of the augmented matrix (which must be row
                 /// reduced), returning an owned `Subspace`. Available for all
                 /// arities. Raises `ValueError` if the matrix has not been row

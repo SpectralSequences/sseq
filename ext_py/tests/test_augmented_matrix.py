@@ -72,6 +72,19 @@ def test_row_segment_returns_owned_fpvector():
     assert seg[1] == 0
 
 
+def test_row_mut_writes_through_to_parent():
+    m = fp.AugmentedMatrix2(2, 2, [2, 2])
+    rm = m.row_mut(0)
+    assert isinstance(rm, fp.FpSliceMut)
+    assert len(rm) == m.columns()
+    rm.set_entry(0, 1)
+    rm.slice_mut(2, 4).set_entry(1, 1)
+    assert m.to_vec()[0][0] == 1
+    assert m.to_vec()[0][3] == 1
+    with pytest.raises(IndexError):
+        m.row_mut(2)
+
+
 def test_into_matrix_returns_matrix_and_consumes():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     m.add_identity(1, 1)

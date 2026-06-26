@@ -128,7 +128,7 @@ EXAMPLES = [
     {
         "name": "massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "[1]", "0", "1", "[1]"],
-        "xfail": "AugmentedMatrix2 object has no attribute 'row_mut'",
+        "xfail": None,
     },
     {
         "name": "secondary_massey.py",
