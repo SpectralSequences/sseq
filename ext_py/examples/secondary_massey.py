@@ -116,7 +116,7 @@ def main():
     b_lambda = b_data.lambda_part
 
     shift = sseq.Bidegree.s_t(
-        (a.underlying().shift + b.underlying().shift).s,
+        (a.underlying().shift() + b.underlying().shift()).s,
         (a.shift() + b.shift()).t,
     )
 
@@ -126,7 +126,7 @@ def main():
             resolution.module(0).max_computed_degree(),
             resolution.next_homological_degree() - 1,
         )
-        unit.compute_through_stem(res_max - a.underlying().shift)
+        unit.compute_through_stem(res_max - a.underlying().shift())
 
     if is_unit:
         res_lift.extend_all()
@@ -147,14 +147,14 @@ def main():
     res_sseq = res_lift.e3_page
     unit_sseq = res_sseq if is_unit else res_lift.e3_page
 
-    b_shift = b.underlying().shift
+    b_shift = b.underlying().shift()
 
     chain_homotopy = ext.ChainHomotopy(a.underlying(), b.underlying())
-    chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift).s)
+    chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift()).s)
 
     # Compute first homotopy
     v = a.product_nullhomotopy(a_lambda, res_sseq, b_shift, b_class.as_slice())
-    homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying().shift.s - 1)
+    homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying().shift().s - 1)
     htpy_source = a.shift() + b_shift
     homotopy.extend_by_zero(htpy_source.t - 1)
     homotopy.add_generators_from_rows(
@@ -234,7 +234,7 @@ def main():
 
         m0 = fp.Matrix.from_vec(
             p,
-            b.underlying().get_map(c.s + b.underlying().shift.s).hom_k(c.t),
+            b.underlying().get_map(c.s + b.underlying().shift().s).hom_k(c.t),
         )
         for g, out in zip(target_page_data.subspace_gens(), product_matrix.iter_mut()):
             out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens).add(g, 1)

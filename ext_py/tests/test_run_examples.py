@@ -132,10 +132,12 @@ EXAMPLES = [
     },
     {
         "name": "secondary_massey.py",
-        "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]",
-                 "0", "1", "b", "[1]"],
-        "xfail": "advances past extend_step into the λ-part input branch (now reached) "
-                 "that the recorded args do not cover: query.vector parse error",
+        "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
+                 "0", "1", "b", "[1]", ""],
+        "xfail": "ChainHomotopy.initialize_homotopies is not bound; the secondary "
+                 "Massey product needs it to allocate the homotopy table so the "
+                 "non-zero bottom homotopy can be set manually (extend/extend_all "
+                 "default it to zero)",
     },
     # --- Unbound bindings (aspirational API) ---
     {
