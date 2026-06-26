@@ -3998,6 +3998,59 @@ mod ext_py {
 
             Ok(())
         }
+
+        /// Find the class whose `d₂` hits the λ part of the (null) product
+        /// (upstream `SecondaryResolutionHomomorphism::product_nullhomotopy`).
+        ///
+        /// Given an element `class` (an `FpVector`/`FpSlice` over the target's
+        /// generators at bidegree `b`, spanning its Ext and λ parts) whose
+        /// product with this homomorphism is null, this returns the `FpVector`
+        /// over the source's generators at `shift + b - (1, 0)` whose `d₂`
+        /// witnesses the nullity — the datum used to seed the first homotopy of
+        /// the secondary Massey product. `lambda_part` is the optional λ-part of
+        /// this class's lift (the same `ResolutionHomomorphism` passed to
+        /// `hom_k_with`); `sseq` is the source's spectral sequence, whose `d₂`
+        /// quasi-inverse is applied to recover the result.
+        ///
+        /// `class` is cloned into an owned vector for the duration of the call
+        /// and must share this homomorphism's prime. Upstream indexes the
+        /// source/target free modules' generator `OnceBiVec`s, the underlying
+        /// homomorphism's `hom_k` matrix, and the `sseq` differentials, all of
+        /// which panic outside the computed range, so the computation runs under
+        /// `catch_unwind` (-> `ValueError`) as the defence-in-depth backstop.
+        pub fn product_nullhomotopy(
+            &self,
+            py: Python<'_>,
+            lambda_part: Option<&ResolutionHomomorphism>,
+            sseq: &sseq_py::Sseq,
+            b: &sseq_py::Bidegree,
+            class: Bound<'_, PyAny>,
+        ) -> PyResult<fp_py::PyFpVector> {
+            let p = self.inner.prime();
+
+            let class_vec = fp_py::extract_input_owned(py, &class)?;
+            if class_vec.prime() != p {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "product_nullhomotopy class vector has prime {} but this homomorphism is over \
+                     prime {}",
+                    class_vec.prime(),
+                    p
+                )));
+            }
+
+            let lambda = lambda_part.map(|l| l.0.as_ref());
+
+            let result = catch_secondary_compute_panic(|| {
+                self.inner.product_nullhomotopy(
+                    lambda,
+                    sseq.as_rust(),
+                    b.0,
+                    class_vec.as_slice(),
+                )
+            })?;
+
+            Ok(fp_py::PyFpVector::from_rust(result))
+        }
     }
 
     /// The secondary (`Mod_{Cλ²}`) lift of a `ChainHomotopy`: the datum used to

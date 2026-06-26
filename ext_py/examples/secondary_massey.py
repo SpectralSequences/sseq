@@ -153,7 +153,7 @@ def main():
     chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift()).s)
 
     # Compute first homotopy
-    v = a.product_nullhomotopy(a_lambda, res_sseq, b_shift, b_class.as_slice())
+    v = a.product_nullhomotopy(a_lambda, res_sseq, b_shift, b_class)
     homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying().shift().s - 1)
     htpy_source = a.shift() + b_shift
     homotopy.extend_by_zero(htpy_source.t - 1)

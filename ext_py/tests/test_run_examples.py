@@ -134,11 +134,14 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "0", "1", "b", "[1]", ""],
-        "xfail": "'ext.SecondaryResolutionHomomorphism' object has no attribute "
-                 "'product_nullhomotopy' (secondary_massey.py:156): "
-                 "ChainHomotopy.initialize_homotopies is now bound, but computing "
-                 "the first homotopy needs SecondaryResolutionHomomorphism."
-                 "product_nullhomotopy, which is not yet bound",
+        "xfail": "SecondaryResolutionHomomorphism.product_nullhomotopy is now "
+                 "bound and is reached (secondary_massey.py:156), but with these "
+                 "args the upstream mathematical precondition fails: ext "
+                 "secondary.rs:1132 'assertion failed: prod_value.slice(0, "
+                 "lower_num_gens).is_zero()' (the product must be null for the "
+                 "Massey product to be defined; a=h_0, b=h_0 gives a non-null "
+                 "product h_0^2). Surfaced as ValueError via "
+                 "catch_secondary_compute_panic.",
     },
     # --- Unbound bindings (aspirational API) ---
     {
