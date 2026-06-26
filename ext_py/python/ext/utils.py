@@ -3,12 +3,12 @@
 These mirror ``ext::utils::query_module`` / ``query_module_only`` (see
 ``ext/src/utils.rs``): they prompt (via :mod:`ext._query`) for a module spec
 and an optional save directory, then build a :class:`ext.Resolution` via the
-compiled :func:`ext.construct` pyfunction. All interactive I/O lives here in
-Python; the Rust ``construct`` does no prompting.
+compiled :meth:`ext.Resolution.construct` pyfunction. All interactive I/O lives here in
+Python; the Rust ``Resolution.construct`` does no prompting.
 
 Algebra vs. algorithm reconciliation
 -------------------------------------
-The compiled ``construct(spec, save_dir=None, algorithm=None)`` takes an
+The compiled ``Resolution.construct(spec, save_dir=None, algorithm=None)`` takes an
 ``algorithm`` string selecting the resolution ALGORITHM (``"auto"`` / ``"nassau"``
 / ``"standard"``), NOT the Steenrod-algebra basis. The algebra basis (Adem vs
 Milnor) is instead selected by an ``@adem`` / ``@milnor`` suffix on the spec
@@ -81,7 +81,7 @@ def query_module_only(prompt="Module", alg=None, save_dir=None):
 
     Prompt for a module spec (default ``S_2``); prompt for an optional save
     directory IN PYTHON unless ``save_dir`` is supplied by the caller; then build
-    and return a :class:`ext.Resolution` via :func:`ext.construct`.
+    and return a :class:`ext.Resolution` via :meth:`ext.Resolution.construct`.
 
     ``algebra`` (a string or ``algebra.AlgebraType``), when given and the spec
     does not already carry an ``@`` suffix, is appended as ``@<algebra>`` so the
@@ -96,7 +96,7 @@ def query_module_only(prompt="Module", alg=None, save_dir=None):
     if save_dir is None:
         save_dir = _query.optional(f"{prompt} save directory", str)
 
-    return _ext.construct(spec, save_dir)
+    return _ext.Resolution.construct(spec, save_dir)
 
 
 def query_module(alg=None, save_dir=None):

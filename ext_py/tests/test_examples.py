@@ -58,9 +58,10 @@ KNOWN_UNBOUND = {
     # massey.py: Massey product computer is not bound.
     "MasseyProductComputer",
     # --- Resolution / construction entry points ---
-    # construct: now bound (top-level ext.construct pyfunction); removed from
-    # the allowlist. construct_standard remains unbound (only the high-level
-    # construct dispatcher is exposed).
+    # construct: now bound as the ext.Resolution.construct staticmethod (no
+    # longer a top-level pyfunction); removed from the allowlist.
+    # construct_standard remains unbound (the algorithm="standard" argument to
+    # Resolution.construct selects the standard algorithm instead).
     "construct_standard",
     # ResolutionHomomorphism and friends: lifting/secondary machinery.
     # (ResolutionHomomorphism, SecondaryResolutionHomomorphism,

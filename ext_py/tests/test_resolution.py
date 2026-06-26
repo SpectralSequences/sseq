@@ -78,7 +78,7 @@ def test_nassau_on_ineligible_spec_raises_valueerror():
 
 # --- construct() spec forms ------------------------------------------------
 #
-# `ext.construct(spec, save_dir, algorithm)` accepts the same `spec` forms the
+# `ext.Resolution.construct(spec, save_dir, algorithm)` accepts the same `spec` forms the
 # upstream `Config` does: a string, or a `(spec, algebra)` tuple where `spec` is
 # a string or a module-JSON dict and `algebra` is an `AlgebraType`/"adem"/"milnor".
 
@@ -86,7 +86,7 @@ def test_nassau_on_ineligible_spec_raises_valueerror():
 def test_construct_dict_tuple_spec():
     # (module-JSON dict, AlgebraType) tuple, forced standard backend.
     cfg = {"p": 2, "type": "real projective space", "min": -3}
-    r = ext.construct((cfg, algebra.AlgebraType.Milnor), None, "standard")
+    r = ext.Resolution.construct((cfg, algebra.AlgebraType.Milnor), None, "standard")
     r.compute_through_stem(sseq.Bidegree.n_s(3, 2))
     assert isinstance(r, ext.Resolution)
     assert len(r.graded_dimension_string()) > 0
@@ -94,9 +94,9 @@ def test_construct_dict_tuple_spec():
 
 def test_construct_str_tuple_spec():
     # (module-name string, "milnor") tuple agrees with the bare-string form.
-    r = ext.construct(("S_2", "milnor"), None, "standard")
+    r = ext.Resolution.construct(("S_2", "milnor"), None, "standard")
     r.compute_through_stem(SMALL)
-    plain = ext.construct("S_2@milnor", None, "standard")
+    plain = ext.Resolution.construct("S_2@milnor", None, "standard")
     plain.compute_through_stem(SMALL)
     assert r.graded_dimension_string() == plain.graded_dimension_string()
 
@@ -105,7 +105,7 @@ def test_construct_bare_dict_rejected():
     # A bare dict (no algebra) is not a valid Config; reject it cleanly.
     cfg = {"p": 2, "type": "real projective space", "min": -3}
     with pytest.raises((TypeError, ValueError)):
-        ext.construct(cfg, None, "standard")
+        ext.Resolution.construct(cfg, None, "standard")
 
 
 # --- compute_through_stem guard --------------------------------------------

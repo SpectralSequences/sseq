@@ -8,7 +8,7 @@ import os
 import sys
 
 import _query as query
-from ext import algebra, construct, fp, sseq
+from ext import Resolution, algebra, fp, sseq
 from ext.algebra import MilnorAlgebra, MilnorBasisElement, SteenrodAlgebra
 # NOTE: depends on FreeModule, FreeModuleHomomorphism (algebra, API_PROPOSAL §5.3/§5.4),
 # FiniteChainComplex (ext top level, API_PROPOSAL §7.1), ResolutionHomomorphism
@@ -178,7 +178,7 @@ def main():
 
     save_dir = query.optional("Save directory", str)
 
-    resolution = construct("S_2@milnor", save_dir)
+    resolution = Resolution.construct("S_2@milnor", save_dir)
 
     resolution.compute_through_stem(max)
 

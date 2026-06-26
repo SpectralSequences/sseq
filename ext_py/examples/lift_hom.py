@@ -24,7 +24,7 @@ def main():
         if s == source_name:
             return source
         save_dir = query.optional("Target save directory", str)
-        target = ext.construct(s, save_dir)
+        target = ext.Resolution.construct(s, save_dir)
         target.set_name(s)
         return target
 

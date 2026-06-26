@@ -12,7 +12,7 @@ Import-surface contract (all of these must keep working):
   - ``from ext import sseq`` / ``fp`` / ``algebra`` (as attributes)
   - ``from ext.algebra import <name>`` (etc.)
   - ``import ext.ext`` (the compiled submodule, dotted path)
-  - ``ext.construct`` / ``ext.query_module`` / ``ext.query_module_only``
+  - ``ext.Resolution.construct`` / ``ext.query_module`` / ``ext.query_module_only``
 
 Note the deliberate name overlap: ``ext.query_module`` / ``query_module_only``
 are the interactive *pure-Python* helpers (defined in ``ext.utils``), which

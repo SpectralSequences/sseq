@@ -408,17 +408,6 @@ mod ext_py {
         ))
     }
 
-    #[pyfunction]
-    #[pyo3(signature = (spec, save_dir=None, algorithm=None))]
-    pub fn construct(
-        spec: &Bound<'_, PyAny>,
-        save_dir: Option<String>,
-        algorithm: Option<&str>,
-    ) -> PyResult<Resolution> {
-        let config = py_to_config(spec)?;
-        build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
-    }
-
     /// The concrete unstable resolution type bound here: an `U = true`
     /// [`MuResolution`] over the default complex `CCC`
     /// (`UnstableResolution<CCC> = MuResolution<true, CCC>`). The unstable family
@@ -549,6 +538,34 @@ mod ext_py {
 
     #[pymethods]
     impl Resolution {
+        /// Construct a [`Resolution`] of the module `spec`, optionally backed by an on-disk save
+        /// directory, without any interactive prompting (all I/O lives in the Python layer).
+        ///
+        /// This is the non-interactive primitive the pure-Python `query_module*` helpers call
+        /// after prompting for the spec and (optionally) the save directory.
+        ///
+        /// `spec` accepts the same forms the upstream [`Config`] does (see [`py_to_config`]): a
+        /// string such as `"S_2"`/`"S_2@milnor"`, or a 2-tuple `(spec, algebra)` where `spec` is a
+        /// module-name string or a module-JSON `dict` and `algebra` is an `algebra.AlgebraType`
+        /// or the string `"adem"`/`"milnor"`.
+        ///
+        /// `save_dir` is an optional on-disk save directory; `algorithm` is `None`/`"auto"`
+        /// (try Nassau, fall back to the general algorithm), `"nassau"`, or `"standard"`, and
+        /// selects the resolution *algorithm* (NOT the algebra basis).
+        ///
+        /// Error taxonomy matches [`build`]: bad spec/eligibility/unknown-algorithm -> `ValueError`,
+        /// genuine internal/IO failures -> `RuntimeError`. Nothing panics across FFI.
+        #[staticmethod]
+        #[pyo3(signature = (spec, save_dir=None, algorithm=None))]
+        pub fn construct(
+            spec: &Bound<'_, PyAny>,
+            save_dir: Option<String>,
+            algorithm: Option<&str>,
+        ) -> PyResult<Resolution> {
+            let config = py_to_config(spec)?;
+            build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
+        }
+
         /// Construct a resolution of the given module specification, dispatching to Nassau's
         /// algorithm or the general algorithm at runtime.
         ///

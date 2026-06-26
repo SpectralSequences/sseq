@@ -15,7 +15,7 @@ TWO = 2
 
 def resolve_s_2(s_2_path, k_max):
     # `utils::construct(..., "standard")` (the algorithm string selects the resolution type).
-    s_2_resolution = ext.construct("S_2", s_2_path, "standard")
+    s_2_resolution = ext.Resolution.construct("S_2", s_2_path, "standard")
     # See the Rust source for the bidegree bounds; resolve S_2 far enough to
     # detect Mahowald invariants of all classes of interest.
     s_2_resolution.compute_through_stem(
@@ -64,7 +64,7 @@ class PKData:
         if p_k_path is not None:
             p_k_path = os.path.join(p_k_path, f"RP_{-k}_inf")
         # `utils::construct((p_k_config, AlgebraType::Milnor), ..., "standard")`.
-        self.resolution = ext.construct(
+        self.resolution = ext.Resolution.construct(
             (p_k_config, algebra.AlgebraType.Milnor), p_k_path, "standard"
         )
         # RP_-k_inf won't detect Mahowald invariants of classes in the k-stem and

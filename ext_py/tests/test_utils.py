@@ -1,5 +1,5 @@
 """Tests for the pure-Python I/O util layer (``ext._query`` / ``ext.utils``)
-and the ``ext.construct`` pyfunction with ``save_dir`` support.
+and the ``ext.Resolution.construct`` staticmethod with ``save_dir`` support.
 
 The interactive ``query_module*`` helpers consume a module-level argument stream
 (``ext._query._args``, built from ``sys.argv[1:]`` at import). We drive them
@@ -82,7 +82,7 @@ def test_query_module_secondary_job_too_large_raises(feed, monkeypatch):
 
 def test_construct_save_dir_round_trip(tmp_path):
     save = str(tmp_path)
-    r1 = ext.construct("S_2", save_dir=save)
+    r1 = ext.Resolution.construct("S_2", save_dir=save)
     r1.compute_through_stem(_bidegree(8, 4))
     chart1 = r1.graded_dimension_string()
 
@@ -91,7 +91,7 @@ def test_construct_save_dir_round_trip(tmp_path):
     assert any(p.is_file() for p in written), "expected save files under tmp_path"
 
     # A fresh construct from the SAME directory loads the saved data.
-    r2 = ext.construct("S_2", save_dir=save)
+    r2 = ext.Resolution.construct("S_2", save_dir=save)
     r2.compute_through_stem(_bidegree(8, 4))
     assert r2.graded_dimension_string() == chart1
 
@@ -101,18 +101,18 @@ def test_construct_save_dir_round_trip(tmp_path):
 
 def test_construct_bad_spec_raises_value_error():
     with pytest.raises(ValueError):
-        ext.construct("definitely_not_a_module")
+        ext.Resolution.construct("definitely_not_a_module")
 
 
 def test_construct_nassau_eligible_module():
-    r = ext.construct("S_2", algorithm="nassau")
+    r = ext.Resolution.construct("S_2", algorithm="nassau")
     r.compute_through_bidegree(ext.sseq.Bidegree.s_t(0, 0))
     assert r.number_of_gens_in_bidegree(ext.sseq.Bidegree.s_t(0, 0)) == 1
 
 
 def test_construct_bad_algorithm_raises_value_error():
     with pytest.raises(ValueError):
-        ext.construct("S_2", algorithm="bogus")
+        ext.Resolution.construct("S_2", algorithm="bogus")
 
 
 # --- import-surface regression -------------------------------------------
@@ -134,8 +134,10 @@ def test_import_surface_intact():
     # ...while the Rust pyfunctions remain reachable on the compiled submodule.
     assert callable(_compiled.query_module)
     assert callable(_compiled.query_module_only)
-    # construct is the compiled (Rust) pyfunction.
-    assert callable(_e.construct)
+    # construct is the compiled (Rust) staticmethod on Resolution, not a
+    # top-level function.
+    assert not hasattr(_e, "construct")
+    assert callable(_e.Resolution.construct)
 
 
 def test_query_primitives_exposed():
@@ -217,7 +219,7 @@ def test_load_module_json_malformed_raises_runtime_error(tmp_path, monkeypatch):
 
 
 def test_get_unit_round_trip():
-    res = ext.construct("S_2", algorithm="standard")
+    res = ext.Resolution.construct("S_2", algorithm="standard")
     res.compute_through_stem(_bidegree(8, 4))
     is_unit, unit = ext.get_unit(res)
     # S_2 IS the unit, so it returns (True, the same resolution) via the cheap
@@ -233,7 +235,7 @@ def test_get_unit_nonunit_builds_unit_noninteractively(tmp_path):
     # `query::optional` (which would consume argv / block on stdin / exit). With
     # NO argv fed and NO stdin available, this must return PROMPTLY (no hang),
     # building a fresh unit resolution from the Python-provided save_dir.
-    res = ext.construct("S_2[2]", algorithm="standard")
+    res = ext.Resolution.construct("S_2[2]", algorithm="standard")
     is_unit, unit = ext.get_unit(res, save_dir=str(tmp_path))
     assert is_unit is False
     assert isinstance(unit, ext.Resolution)
@@ -246,7 +248,7 @@ def test_get_unit_nonunit_builds_unit_noninteractively(tmp_path):
 
 def test_get_unit_nonunit_no_save_dir(tmp_path):
     # The save_dir is optional on the non-unit path too (None -> in-memory unit).
-    res = ext.construct("S_2[2]", algorithm="standard")
+    res = ext.Resolution.construct("S_2[2]", algorithm="standard")
     is_unit, unit = ext.get_unit(res)
     assert is_unit is False
     assert unit.prime() == 2
@@ -257,6 +259,6 @@ def test_get_unit_nonunit_save_dir_is_file_raises(tmp_path):
     # a panic and never interactive I/O.
     bad = tmp_path / "not_a_dir"
     bad.write_text("x")
-    res = ext.construct("S_2[2]", algorithm="standard")
+    res = ext.Resolution.construct("S_2[2]", algorithm="standard")
     with pytest.raises(ValueError):
         ext.get_unit(res, save_dir=str(bad))

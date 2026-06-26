@@ -96,7 +96,7 @@ def test_unstable_vs_stable_s3_charts_differ():
     # genuine apples-to-apples per-bidegree contrast rather than a coordinate
     # artifact.
     rng = _ns(10, 6)
-    stable = ext.construct("S_2[3]", algorithm="standard")
+    stable = ext.Resolution.construct("S_2[3]", algorithm="standard")
     stable.compute_through_stem(rng)
     unstable = ext.construct_unstable("S_2[3]")
     unstable.compute_through_stem(rng)
