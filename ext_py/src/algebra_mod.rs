@@ -26,7 +26,9 @@ pub mod algebra_py {
     // Imported on its own line (not folded into the multi-item `module` import
     // above) so that later commits extending that import block do not conflict.
     use ::algebra::module::ActError;
-    use ::algebra::{Algebra, Bialgebra, Field as RsField, GeneratedAlgebra, UnstableAlgebra};
+    use ::algebra::{
+        Algebra, Bialgebra, DecomposeError, Field as RsField, GeneratedAlgebra, UnstableAlgebra,
+    };
     use ::fp::prime::{self, Prime};
     use pyo3::basic::CompareOp;
     use pyo3::exceptions::{PyIndexError, PyRuntimeError, PyValueError};
@@ -900,24 +902,28 @@ pub mod algebra_py {
                 /// Decompose a non-generator basis element into a sum of products
                 /// of generators. Decomposition is only defined for
                 /// non-generators: the unit and the algebra generators are
-                /// indecomposable, and upstream panics (out-of-bounds index or
-                /// integer underflow) on exactly those elements. The
-                /// generators-based guard below rejects them up front with a
-                /// `ValueError` instead.
+                /// indecomposable. Upstream's
+                /// [`GeneratedAlgebra::try_decompose_basis_element`] reports the
+                /// two failure modes separately, which we map to the matching
+                /// Python exceptions: `Indecomposable` -> `ValueError`,
+                /// `OutOfRange` -> `IndexError`.
                 pub fn decompose_basis_element(
                     &self,
                     degree: i32,
                     idx: usize,
                 ) -> PyResult<Vec<(u32, (i32, usize), (i32, usize))>> {
+                    // The degree/index guards below produce detailed messages and
+                    // make `OutOfRange` unreachable, so the only failure upstream
+                    // reports here is `Indecomposable`.
                     non_negative_degree(degree)?;
                     self.ensure_basis(degree);
                     self.checked_basis_index(degree, idx)?;
-                    if degree == 0 || self.0.generators(degree).contains(&idx) {
-                        return Err(PyValueError::new_err(
-                            "the unit and algebra generators are indecomposable",
-                        ));
-                    }
-                    Ok(self.0.decompose_basis_element(degree, idx))
+                    self.0
+                        .try_decompose_basis_element(degree, idx)
+                        .map_err(|e| match e {
+                            DecomposeError::Indecomposable => PyValueError::new_err(e.to_string()),
+                            DecomposeError::OutOfRange => PyIndexError::new_err(e.to_string()),
+                        })
                 }
 
                 pub fn generating_relations(

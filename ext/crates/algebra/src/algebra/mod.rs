@@ -5,7 +5,7 @@ pub mod adem_algebra;
 pub use adem_algebra::AdemAlgebra;
 
 mod algebra_trait;
-pub use algebra_trait::{Algebra, GeneratedAlgebra, MuAlgebra, UnstableAlgebra};
+pub use algebra_trait::{Algebra, DecomposeError, GeneratedAlgebra, MuAlgebra, UnstableAlgebra};
 
 mod bialgebra_trait;
 pub use bialgebra_trait::Bialgebra;

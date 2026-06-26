@@ -494,6 +494,29 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
     }
 }
 
+/// Why [`GeneratedAlgebra::try_decompose_basis_element`] could not decompose a basis element.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecomposeError {
+    /// `degree` is negative, or `idx` is not a valid basis index in that degree.
+    OutOfRange,
+    /// The basis element exists but has no decomposition: the degree-0 unit, or an
+    /// algebra generator.
+    Indecomposable,
+}
+
+impl std::fmt::Display for DecomposeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OutOfRange => f.write_str("basis element index out of range"),
+            Self::Indecomposable => {
+                f.write_str("the unit and algebra generators are indecomposable")
+            }
+        }
+    }
+}
+
+impl std::error::Error for DecomposeError {}
+
 /// An [`Algebra`] equipped with a distinguished presentation.
 ///
 /// These data can be used to specify finite modules as the actions of the distinguished generators.
@@ -541,6 +564,33 @@ pub trait GeneratedAlgebra: Algebra {
         degree: i32,
         idx: usize,
     ) -> Vec<(u32, (i32, usize), (i32, usize))>;
+
+    /// Non-panicking variant of [`Self::decompose_basis_element`], distinguishing the two
+    /// reasons it can fail: [`DecomposeError::OutOfRange`] when `degree`/`idx` do not name a
+    /// basis element, and [`DecomposeError::Indecomposable`] when they name the degree-0 unit
+    /// or an algebra generator. Computes the basis up to `degree` first.
+    ///
+    /// These are exactly the inputs for which [`Self::decompose_basis_element`] is invalid and
+    /// would panic, so the delegation below never reaches the panicking path. An implementation
+    /// of [`Self::decompose_basis_element`] that can fail for other reasons should override both
+    /// that method and this one, keeping them consistent.
+    fn try_decompose_basis_element(
+        &self,
+        degree: i32,
+        idx: usize,
+    ) -> Result<Vec<(u32, (i32, usize), (i32, usize))>, DecomposeError> {
+        if degree < 0 {
+            return Err(DecomposeError::OutOfRange);
+        }
+        self.compute_basis(degree);
+        if idx >= self.dimension(degree) {
+            return Err(DecomposeError::OutOfRange);
+        }
+        if degree == 0 || self.generators(degree).contains(&idx) {
+            return Err(DecomposeError::Indecomposable);
+        }
+        Ok(self.decompose_basis_element(degree, idx))
+    }
 
     /// Returns relations that the algebra wants checked to ensure the consistency of module.
     ///
