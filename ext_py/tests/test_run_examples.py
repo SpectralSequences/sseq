@@ -92,8 +92,7 @@ EXAMPLES = [
     {
         "name": "ext_m_n.py",
         "args": ["S_2", "", "S_2", "6", "3"],
-        "xfail": "HomPullback rejects HomModules built from the same target N "
-        "(source.target()/target.target() are distinct Arcs)",
+        "xfail": None,
     },
     {
         "name": "sq0.py",

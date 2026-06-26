@@ -30,11 +30,23 @@ class HomCochainComplex:
         return self.modules[0].min_degree()
 
     def compute_through_stem(self, max):
-        for s in range(len(self.modules), max.s + 1):
-            self.modules.append(
-                algebra.HomModule(self.source.module(s), self.target)
-            )
-        for s in range(len(self.differentials), max.s):
+        # OnceBiVec::extend(new_max) is inclusive (`self[new_max]` defined), so
+        # Rust builds modules through index max.s + 1 and differentials through
+        # index max.s.
+        for s in range(len(self.modules), max.s + 2):
+            if s == 0:
+                # First term fixes the target-N Arc shared by the whole chain.
+                self.modules.append(
+                    algebra.HomModule(self.source.module(0), self.target)
+                )
+            else:
+                # Extend from the immediately-preceding HomModule so every term
+                # shares the identical target-N Arc (required by HomPullback's
+                # `source.target() == target.target()` Arc::ptr_eq assert).
+                self.modules.append(
+                    self.modules[s - 1].with_source(self.source.module(s))
+                )
+        for s in range(len(self.differentials), max.s + 1):
             self.differentials.append(
                 algebra.HomPullback(
                     self.modules[s],
