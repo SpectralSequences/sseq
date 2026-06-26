@@ -920,6 +920,58 @@ impl Matrix {
         Subspace::from_matrix(kernel)
     }
 
+    /// Whether the pivot vector has been sized to match the columns, i.e. the
+    /// matrix has been through [`Self::initialize_pivots`] (as
+    /// [`Self::row_reduce`] does). The `compute_*` methods below read the
+    /// pivots — directly and via [`Self::find_first_row_in_block`] — and would
+    /// slice the empty pivot vector out of bounds if called on a matrix that
+    /// has never been row reduced. This is the precondition the `try_compute_*`
+    /// variants check before delegating.
+    fn pivots_initialized(&self) -> bool {
+        self.pivots().len() == self.columns()
+    }
+
+    /// Non-panicking variant of [`Self::compute_quasi_inverse`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_quasi_inverse`
+    /// would slice `pivots` out of bounds and panic. Otherwise returns `Some`
+    /// of the same result.
+    pub fn try_compute_quasi_inverse(
+        &self,
+        last_target_col: usize,
+        first_source_col: usize,
+    ) -> Option<QuasiInverse> {
+        self.pivots_initialized()
+            .then(|| self.compute_quasi_inverse(last_target_col, first_source_col))
+    }
+
+    /// Non-panicking variant of [`Self::compute_image`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_image` would
+    /// slice `pivots` out of bounds and panic. Otherwise returns `Some` of the
+    /// same result.
+    pub fn try_compute_image(
+        &self,
+        last_target_col: usize,
+        first_source_col: usize,
+    ) -> Option<Subspace> {
+        self.pivots_initialized()
+            .then(|| self.compute_image(last_target_col, first_source_col))
+    }
+
+    /// Non-panicking variant of [`Self::compute_kernel`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_kernel` would
+    /// slice `pivots` out of bounds and panic. Otherwise returns `Some` of the
+    /// same result.
+    pub fn try_compute_kernel(&self, first_source_column: usize) -> Option<Subspace> {
+        self.pivots_initialized()
+            .then(|| self.compute_kernel(first_source_column))
+    }
+
     pub fn extend_column_dimension(&mut self, columns: usize) {
         if columns > self.columns {
             self.extend_column_capacity(columns);
@@ -1372,6 +1424,12 @@ impl<const N: usize> AugmentedMatrix<N> {
         self.inner.compute_kernel(self.start[N - 1])
     }
 
+    /// Non-panicking variant of [`Self::compute_kernel`]. Returns `None` when
+    /// the matrix has not been row reduced (see [`Matrix::try_compute_kernel`]).
+    pub fn try_compute_kernel(&self) -> Option<Subspace> {
+        self.inner.try_compute_kernel(self.start[N - 1])
+    }
+
     pub fn extend_column_dimension(&mut self, columns: usize) {
         if columns > self.columns {
             self.end[N - 1] += columns - self.columns;
@@ -1399,8 +1457,22 @@ impl AugmentedMatrix<2> {
         self.inner.compute_image(self.end[0], self.start[1])
     }
 
+    /// Non-panicking variant of [`Self::compute_image`]. Returns `None` when
+    /// the matrix has not been row reduced (see [`Matrix::try_compute_image`]).
+    pub fn try_compute_image(&self) -> Option<Subspace> {
+        self.inner.try_compute_image(self.end[0], self.start[1])
+    }
+
     pub fn compute_quasi_inverse(&self) -> QuasiInverse {
         self.inner.compute_quasi_inverse(self.end[0], self.start[1])
+    }
+
+    /// Non-panicking variant of [`Self::compute_quasi_inverse`]. Returns `None`
+    /// when the matrix has not been row reduced (see
+    /// [`Matrix::try_compute_quasi_inverse`]).
+    pub fn try_compute_quasi_inverse(&self) -> Option<QuasiInverse> {
+        self.inner
+            .try_compute_quasi_inverse(self.end[0], self.start[1])
     }
 }
 
@@ -1424,6 +1496,21 @@ impl AugmentedMatrix<3> {
     ///
     /// This takes ownership of the matrix since it heavily modifies the matrix. This is not
     /// strictly necessary but is fine in most applications.
+    /// Non-panicking variant of [`Self::compute_quasi_inverses`].
+    ///
+    /// `compute_quasi_inverses` consumes the matrix and slices its pivots, so it
+    /// would panic if called before row reduction. This variant checks that the
+    /// pivots are initialized first; if they are not, it returns the matrix back
+    /// unconsumed as `Err(self)` so the caller can recover (e.g. row reduce and
+    /// retry). Otherwise it returns `Ok` of the same result.
+    pub fn try_compute_quasi_inverses(self) -> Result<(QuasiInverse, QuasiInverse), Self> {
+        if self.pivots_initialized() {
+            Ok(self.compute_quasi_inverses())
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn compute_quasi_inverses(mut self) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
         let stride = self.stride;

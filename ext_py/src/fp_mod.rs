@@ -500,6 +500,13 @@ pub mod fp_py {
         pub(crate) fn take(&mut self) -> PyResult<T> {
             self.value.take().ok_or_else(|| consumed_error(self.label))
         }
+
+        /// Put a value back after a [`Self::take`] whose consuming operation
+        /// bailed out and returned the value unconsumed, so the wrapper is
+        /// observably unchanged.
+        pub(crate) fn restore(&mut self, value: T) {
+            self.value = Some(value);
+        }
     }
 
     fn checked_equal_len(lhs: usize, rhs: usize) -> PyResult<()> {
@@ -689,33 +696,17 @@ pub mod fp_py {
         }
     }
 
-    /// Guard that a matrix has had its pivots initialized (via `row_reduce`)
-    /// before a `compute_*` method reads them.
+    /// The error raised when a `compute_*` method is called on a matrix that has
+    /// not been row reduced.
     ///
-    /// Upstream's `compute_kernel`/`compute_image`/`compute_quasi_inverse(s)`
-    /// funnel through `Matrix::find_first_row_in_block`, which slices
-    /// `pivots[first_source_col..]`. `pivots` is an empty `Vec` until row
-    /// reduction (`row_reduce` calls `initialize_pivots`, which resizes it to
-    /// `columns`), so with a positive `first_source_col` the slice range would
-    /// be out of bounds and panic across the PyO3 boundary.
-    ///
-    /// The only two reachable pivot states in the upstream API are "empty"
-    /// (never initialized) or "length == columns" (initialized by
-    /// `initialize_pivots`/`row_reduce`/`extend_column_dimension`); there is no
-    /// partial-pivots state. We therefore use `pivots().len() == columns()` as
-    /// the exact "initialized" invariant. We deliberately raise an explicit
-    /// error rather than silently row-reducing, since auto-reduction would
-    /// mutate the matrix and change observable state. Note this guards only the
-    /// panic: an `initialize_pivots`-only matrix passes the check but is not a
-    /// true rref, so callers are still responsible for having row reduced.
-    fn ensure_pivots_initialized(pivots_len: usize, columns: usize) -> PyResult<()> {
-        if pivots_len == columns {
-            Ok(())
-        } else {
-            Err(PyValueError::new_err(
-                "matrix must be row-reduced before compute_*",
-            ))
-        }
+    /// Upstream's `try_compute_kernel`/`try_compute_image`/
+    /// `try_compute_quasi_inverse(s)` return `None`/`Err` exactly in this state
+    /// (their pivot vector is uninitialized), where the panicking `compute_*`
+    /// counterparts would slice `pivots` out of bounds across the PyO3 boundary.
+    /// We map that to an explicit `ValueError` rather than auto-row-reducing,
+    /// since auto-reduction would mutate the matrix and change observable state.
+    fn not_row_reduced_error() -> PyErr {
+        PyValueError::new_err("matrix must be row-reduced before compute_*")
     }
 
     /// The value-equality field types (`PyFp`, `PySmallFq`, `PyFieldElement`)
@@ -1813,7 +1804,6 @@ pub mod fp_py {
             first_source_col: usize,
         ) -> PyResult<PyQuasiInverse> {
             let columns = self.0.columns();
-            ensure_pivots_initialized(self.0.pivots().len(), columns)?;
             if last_target_col > columns {
                 return Err(PyIndexError::new_err(format!(
                     "last_target_col {last_target_col} out of range for matrix with {columns} columns"
@@ -1824,10 +1814,10 @@ pub mod fp_py {
                     "first_source_col {first_source_col} out of range for matrix with {columns} columns"
                 )));
             }
-            Ok(PyQuasiInverse(
-                self.0
-                    .compute_quasi_inverse(last_target_col, first_source_col),
-            ))
+            self.0
+                .try_compute_quasi_inverse(last_target_col, first_source_col)
+                .map(PyQuasiInverse)
+                .ok_or_else(not_row_reduced_error)
         }
 
         /// Compute the kernel of a row-reduced matrix.
@@ -1837,13 +1827,15 @@ pub mod fp_py {
         /// matrix is expected to already be row reduced.
         pub fn compute_kernel(&self, first_source_column: usize) -> PyResult<PySubspace> {
             let columns = self.0.columns();
-            ensure_pivots_initialized(self.0.pivots().len(), columns)?;
             if first_source_column > columns {
                 return Err(PyIndexError::new_err(format!(
                     "first_source_column {first_source_column} out of range for matrix with {columns} columns"
                 )));
             }
-            Ok(PySubspace(self.0.compute_kernel(first_source_column)))
+            self.0
+                .try_compute_kernel(first_source_column)
+                .map(PySubspace)
+                .ok_or_else(not_row_reduced_error)
         }
 
         /// Compute the image of a row-reduced matrix.
@@ -1857,7 +1849,6 @@ pub mod fp_py {
             first_source_col: usize,
         ) -> PyResult<PySubspace> {
             let columns = self.0.columns();
-            ensure_pivots_initialized(self.0.pivots().len(), columns)?;
             if last_target_col > columns {
                 return Err(PyIndexError::new_err(format!(
                     "last_target_col {last_target_col} out of range for matrix with {columns} columns"
@@ -1868,9 +1859,10 @@ pub mod fp_py {
                     "first_source_col {first_source_col} out of range for matrix with {columns} columns"
                 )));
             }
-            Ok(PySubspace(
-                self.0.compute_image(last_target_col, first_source_col),
-            ))
+            self.0
+                .try_compute_image(last_target_col, first_source_col)
+                .map(PySubspace)
+                .ok_or_else(not_row_reduced_error)
         }
 
         pub fn __len__(&self) -> usize {
@@ -2789,9 +2781,11 @@ pub mod fp_py {
                 /// arities. Raises `ValueError` if the matrix has not been row
                 /// reduced (its pivots are uninitialized), instead of panicking.
                 fn compute_kernel(&self) -> PyResult<PySubspace> {
-                    let m = self.0.get()?;
-                    ensure_pivots_initialized(m.pivots().len(), m.columns())?;
-                    Ok(PySubspace(m.compute_kernel()))
+                    self.0
+                        .get()?
+                        .try_compute_kernel()
+                        .map(PySubspace)
+                        .ok_or_else(not_row_reduced_error)
                 }
 
                 /// Return the inner `Matrix` as an owned `Matrix`, **consuming**
@@ -2827,9 +2821,11 @@ pub mod fp_py {
         /// row reduced), returning an owned `Subspace`. Raises `ValueError` if
         /// the matrix has not been row reduced, instead of panicking.
         fn compute_image(&self) -> PyResult<PySubspace> {
-            let m = self.0.get()?;
-            ensure_pivots_initialized(m.pivots().len(), m.columns())?;
-            Ok(PySubspace(m.compute_image()))
+            self.0
+                .get()?
+                .try_compute_image()
+                .map(PySubspace)
+                .ok_or_else(not_row_reduced_error)
         }
 
         /// Compute the quasi-inverse of the augmented matrix `[A | I]` (which
@@ -2837,9 +2833,11 @@ pub mod fp_py {
         /// `ValueError` if the matrix has not been row reduced, instead of
         /// panicking.
         fn compute_quasi_inverse(&self) -> PyResult<PyQuasiInverse> {
-            let m = self.0.get()?;
-            ensure_pivots_initialized(m.pivots().len(), m.columns())?;
-            Ok(PyQuasiInverse(m.compute_quasi_inverse()))
+            self.0
+                .get()?
+                .try_compute_quasi_inverse()
+                .map(PyQuasiInverse)
+                .ok_or_else(not_row_reduced_error)
         }
     });
 
@@ -2856,12 +2854,17 @@ pub mod fp_py {
         /// Raises `ValueError` (without consuming) if the matrix has not been
         /// row reduced (its pivots are uninitialized), instead of panicking.
         fn compute_quasi_inverses(&mut self) -> PyResult<(PyQuasiInverse, PyQuasiInverse)> {
-            {
-                let m = self.0.get()?;
-                ensure_pivots_initialized(m.pivots().len(), m.columns())?;
+            match self.0.take()?.try_compute_quasi_inverses() {
+                Ok((a, b)) => Ok((PyQuasiInverse(a), PyQuasiInverse(b))),
+                Err(m) => {
+                    // Upstream reported the matrix is not row reduced and handed
+                    // it back unconsumed; restore it so this call leaves the
+                    // augmented matrix observably unchanged, matching the old
+                    // pre-check-before-`take` behavior.
+                    self.0.restore(m);
+                    Err(not_row_reduced_error())
+                }
             }
-            let (a, b) = self.0.take()?.compute_quasi_inverses();
-            Ok((PyQuasiInverse(a), PyQuasiInverse(b)))
         }
     });
 
