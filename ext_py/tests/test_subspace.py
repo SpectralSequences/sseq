@@ -98,6 +98,27 @@ def test_iter_returns_basis_vectors():
     assert [list(v) for v in basis] == [[1, 0, 0], [0, 1, 2]]
 
 
+def test_basis_matches_iter():
+    m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
+    s = fp.Subspace.from_matrix(m)
+    assert [list(v) for v in s.basis()] == [[1, 0, 0], [0, 1, 2]]
+    assert [list(v) for v in s.basis()] == [list(v) for v in s.iter()]
+
+
+def test_contains_accepts_slice():
+    m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
+    s = fp.Subspace.from_matrix(m)
+    v = fp.FpVector.from_slice(3, [1, 0, 0])
+    # An owned FpVector and an FpSlice over it behave identically.
+    assert s.contains(v)
+    assert s.contains(v.slice(0, 3))
+    w = fp.FpVector.from_slice(3, [0, 0, 1])
+    assert not s.contains(w.slice(0, 3))
+    # Slice of the wrong ambient dimension is rejected.
+    with pytest.raises(ValueError):
+        s.contains(w.slice(0, 2))
+
+
 def test_iter_all_vectors():
     m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
     s = fp.Subspace.from_matrix(m)

@@ -2000,9 +2000,12 @@ mod ext_py {
         ///  - `result` over the same prime and of length equal to the number of
         ///    source generators at `g.degree() + shift`;
         ///  - `g` a valid generator of the target at `g.degree()`.
+        ///
+        /// `result` may be a bound `fp.FpVector` or `fp.FpSliceMut`.
         pub fn act(
             &self,
-            mut result: PyRefMut<'_, fp_py::PyFpVector>,
+            py: Python<'_>,
+            result: &Bound<'_, PyAny>,
             coef: u32,
             g: sseq_py::BidegreeGenerator,
         ) -> PyResult<()> {
@@ -2042,20 +2045,7 @@ mod ext_py {
             // result must match the source prime and the number of source
             // generators at source_b.
             let p = self.0.source.prime().as_u32();
-            if result.as_rust().prime().as_u32() != p {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "result vector prime {} != homomorphism prime {p}",
-                    result.as_rust().prime().as_u32()
-                )));
-            }
             let expected = map.source().number_of_gens_in_degree(src_t);
-            if result.as_rust().len() != expected {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "result vector has length {} but the source has {expected} generator(s) at \
-                     bidegree (s={src_s}, t={src_t})",
-                    result.as_rust().len()
-                )));
-            }
             // g must be a valid generator of the target at g.degree().
             if gen.s() >= self.0.target.next_homological_degree() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -2073,8 +2063,23 @@ mod ext_py {
                     gen.t()
                 )));
             }
-            self.0.act(result.as_rust_mut().as_slice_mut(), coef, gen);
-            Ok(())
+            fp_py::with_target_slice_mut(py, result, |slice| {
+                if slice.prime().as_u32() != p {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "result vector prime {} != homomorphism prime {p}",
+                        slice.prime().as_u32()
+                    )));
+                }
+                if slice.as_slice().len() != expected {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "result vector has length {} but the source has {expected} generator(s) at \
+                         bidegree (s={src_s}, t={src_t})",
+                        slice.as_slice().len()
+                    )));
+                }
+                self.0.act(slice, coef, gen);
+                Ok(())
+            })
         }
     }
 

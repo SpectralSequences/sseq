@@ -159,8 +159,7 @@ EXAMPLES = [
     {
         "name": "mahowald_invariant.py",
         "args": ["", "", "8"],
-        "xfail": "fp.Matrix has no compute_kernel/compute_image binding "
-        "(AttributeError); negative-t Resolution queries now work",
+        "xfail": None,
     },
 ]
 

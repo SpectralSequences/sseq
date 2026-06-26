@@ -301,3 +301,82 @@ def test_interacting_mutable_slices_over_same_parent():
     a.scale(2)
 
     assert m.to_vec() == [[0, 4], [3, 0]]
+
+
+# --- compute_kernel / compute_image ----------------------------------------
+
+# Example from the Rust `compute_kernel`/`compute_image` docs at p = 3.
+_KI_ROWS = [
+    [1, 2, 1, 1, 0],
+    [1, 0, 2, 1, 1],
+    [2, 2, 0, 2, 1],
+]
+
+
+def test_compute_kernel_dimensions_and_membership():
+    padded_cols, m = fp.Matrix.augmented_from_vec(3, _KI_ROWS)
+    m.row_reduce()
+    ker = m.compute_kernel(padded_cols)
+    assert ker.prime() == 3
+    # The kernel here is the left null space (combinations of the 3 rows that
+    # vanish), so it is ambient-dimension 3 and one-dimensional.
+    assert ker.ambient_dimension() == len(_KI_ROWS)
+    assert ker.dimension() == 1
+    basis = ker.basis()
+    assert len(basis) == 1
+    # Kernel basis row from the upstream doc example.
+    assert list(basis[0]) == [1, 1, 2]
+    # Verify each kernel row r satisfies sum_i r[i] * row_i == 0.
+    orig = _KI_ROWS
+    ncols = len(orig[0])
+    for row in basis:
+        product = fp.FpVector.new(3, ncols)
+        for i in range(len(orig)):
+            c = row.entry(i)
+            if c:
+                for j in range(ncols):
+                    product.set_entry(j, (product.entry(j) + c * orig[i][j]) % 3)
+        assert product.is_zero()
+
+
+def test_compute_image_dimensions_and_membership():
+    padded_cols, m = fp.Matrix.augmented_from_vec(3, _KI_ROWS)
+    m.row_reduce()
+    img = m.compute_image(len(_KI_ROWS[0]), padded_cols)
+    assert img.prime() == 3
+    assert img.ambient_dimension() == len(_KI_ROWS[0])
+    # Image of a rank-3 map into a 5-dim target has dimension 3... but the
+    # doc example restricts to the target block; the image basis matches the
+    # upstream doc rows.
+    rows = [list(r) for r in img.basis()]
+    assert [1, 0, 2, 1, 1] in rows
+    assert [0, 1, 1, 0, 1] in rows
+    # The recorded image rows are members of the image subspace.
+    for r in img.basis():
+        assert img.contains(r)
+
+
+def test_compute_kernel_out_of_range():
+    _, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    m.row_reduce()
+    with pytest.raises(IndexError):
+        m.compute_kernel(999)
+
+
+def test_compute_image_out_of_range():
+    _, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    m.row_reduce()
+    with pytest.raises(IndexError):
+        m.compute_image(999, 999)
+
+
+def test_compute_kernel_requires_row_reduce():
+    padded_cols, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    with pytest.raises(ValueError):
+        m.compute_kernel(padded_cols)
+
+
+def test_compute_image_requires_row_reduce():
+    padded_cols, m = fp.Matrix.augmented_from_vec(3, [[1, 0, 1], [0, 1, 1]])
+    with pytest.raises(ValueError):
+        m.compute_image(2, padded_cols)

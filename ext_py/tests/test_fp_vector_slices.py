@@ -29,6 +29,16 @@ def test_fp_vector_slice_queries_and_to_owned():
     assert repr(owned) == "FpVector(5, [1, 2, 0])"
 
 
+def test_fp_vector_to_owned_is_independent_clone():
+    v = fp.FpVector.from_slice(5, [0, 1, 7, 0, 4])
+    owned = v.to_owned()
+    assert isinstance(owned, fp.FpVector)
+    assert list(owned) == list(v)
+    # Mutating the source does not affect the clone.
+    v.set_entry(0, 3)
+    assert owned[0] == 0
+
+
 def test_fp_vector_slice_range_and_index_errors():
     v = fp.FpVector(3, 4)
     s = v.slice(1, 3)

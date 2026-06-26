@@ -899,6 +899,14 @@ pub mod fp_py {
             Ok(Self(RustFpVector::new(valid_prime(p)?, len)))
         }
 
+        /// Construct a new zero vector of length `len` over `F_p`. Static-method
+        /// alias for the constructor, allowing `FpVector.new(p, len)`.
+        #[staticmethod]
+        #[pyo3(name = "new")]
+        pub fn new_static(p: u32, len: usize) -> PyResult<Self> {
+            Self::new(p, len)
+        }
+
         #[staticmethod]
         pub fn new_with_capacity(p: u32, len: usize, capacity: usize) -> PyResult<Self> {
             Ok(Self(RustFpVector::new_with_capacity(
@@ -1027,6 +1035,13 @@ pub mod fp_py {
                 entries: slf.0.iter().collect(),
                 index: 0,
             }
+        }
+
+        /// Return an owned clone of this vector. Mirrors `FpSlice.to_owned`,
+        /// allowing `.to_owned()` to be used uniformly on both vectors and
+        /// slices.
+        pub fn to_owned(&self) -> PyFpVector {
+            Self(self.0.clone())
         }
 
         pub fn __repr__(&self) -> String {
@@ -1756,6 +1771,49 @@ pub mod fp_py {
             ))
         }
 
+        /// Compute the kernel of a row-reduced matrix.
+        ///
+        /// `first_source_column` is the first column of the source part (the
+        /// padded column count, e.g. as returned by `augmented_from_vec`). The
+        /// matrix is expected to already be row reduced.
+        pub fn compute_kernel(&self, first_source_column: usize) -> PyResult<PySubspace> {
+            let columns = self.0.columns();
+            ensure_pivots_initialized(self.0.pivots().len(), columns)?;
+            if first_source_column > columns {
+                return Err(PyIndexError::new_err(format!(
+                    "first_source_column {first_source_column} out of range for matrix with {columns} columns"
+                )));
+            }
+            Ok(PySubspace(self.0.compute_kernel(first_source_column)))
+        }
+
+        /// Compute the image of a row-reduced matrix.
+        ///
+        /// `last_target_col` is the last column of the target part, and
+        /// `first_source_col` is the first column of the source part. The
+        /// matrix is expected to already be row reduced.
+        pub fn compute_image(
+            &self,
+            last_target_col: usize,
+            first_source_col: usize,
+        ) -> PyResult<PySubspace> {
+            let columns = self.0.columns();
+            ensure_pivots_initialized(self.0.pivots().len(), columns)?;
+            if last_target_col > columns {
+                return Err(PyIndexError::new_err(format!(
+                    "last_target_col {last_target_col} out of range for matrix with {columns} columns"
+                )));
+            }
+            if first_source_col > columns {
+                return Err(PyIndexError::new_err(format!(
+                    "first_source_col {first_source_col} out of range for matrix with {columns} columns"
+                )));
+            }
+            Ok(PySubspace(
+                self.0.compute_image(last_target_col, first_source_col),
+            ))
+        }
+
         pub fn __len__(&self) -> usize {
             self.0.rows()
         }
@@ -1823,9 +1881,14 @@ pub mod fp_py {
             self.0.ambient_dimension()
         }
 
-        pub fn contains(&self, vector: &PyFpVector) -> PyResult<bool> {
-            self.check_compatible(&vector.0)?;
-            Ok(self.0.contains(vector.0.as_slice()))
+        /// Test whether `vector` (an `FpVector` or `FpSlice`) lies in this
+        /// subspace.
+        pub fn contains(&self, py: Python<'_>, vector: &Bound<'_, PyAny>) -> PyResult<bool> {
+            with_input_slice(py, vector, |slice| {
+                checked_same_prime(self.0.prime().as_u32(), slice.prime().as_u32())?;
+                checked_equal_len(slice.len(), self.0.ambient_dimension())?;
+                Ok(self.0.contains(slice))
+            })
         }
 
         pub fn contains_space(&self, other: &Self) -> PyResult<bool> {
@@ -1860,6 +1923,12 @@ pub mod fp_py {
                 .collect()
         }
 
+        /// Return the basis of the subspace as a list of owned `FpVector`s.
+        /// Mirrors upstream `Subspace::basis`.
+        pub fn basis(&self) -> Vec<PyFpVector> {
+            self.iter()
+        }
+
         /// Return a lazy iterator over every vector in the subspace.
         pub fn iter_all_vectors(&self) -> PySubspaceVectorIterator {
             let p = u128::from(self.0.prime().as_u32());
@@ -1892,8 +1961,8 @@ pub mod fp_py {
             self.0.dimension()
         }
 
-        pub fn __contains__(&self, vector: &PyFpVector) -> PyResult<bool> {
-            self.contains(vector)
+        pub fn __contains__(&self, py: Python<'_>, vector: &Bound<'_, PyAny>) -> PyResult<bool> {
+            self.contains(py, vector)
         }
 
         pub fn __repr__(&self) -> String {
