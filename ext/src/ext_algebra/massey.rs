@@ -1,15 +1,15 @@
 //! Primary Massey products in $\Ext$.
 //!
 //! [`ExtAlgebra::massey`] computes a single triple Massey product $\langle a, b, c\rangle$, while
-//! [`ExtAlgebra::massey_iter_c`] and [`ExtAlgebra::massey_iter_a`] sweep a whole family at once: the
-//! former fixes $a, b$ and ranges over every valid third factor $\langle a, b, -\rangle$, the latter
-//! fixes $b, c$ and ranges over every valid first factor $\langle -, b, c\rangle$. The two
-//! directions differ in which null-homotopy is reused — see their docs for when to prefer each.
+//! [`ExtAlgebra::massey_iter_c`] and [`ExtAlgebra::massey_iter_a`] sweep a whole family at once:
+//! the former fixes $a, b$ and ranges over every valid third factor $\langle a, b, -\rangle$, the
+//! latter fixes $b, c$ and ranges over every valid first factor $\langle -, b, c\rangle$. The two
+//! directions differ in whether the `b ∘ c` null-homotopy is rebuilt per `c` or reused for fixed
+//! `b, c`.
 //!
 //! All three wrap [`ChainHomotopy`]: we lift the multiplication maps, build the null-homotopy of
-//! the composite (`b ∘ c` or `a ∘ b`), and read off the bracket by pairing against the remaining
-//! factor. The valid factors (those whose product with `b` vanishes) are exactly the kernel of
-//! multiplication by `b`.
+//! the composite `b ∘ c`, and read off the bracket by pairing against the first factor. The valid
+//! choices of `a` and `c` are the kernel of multiplication by `b`.
 //!
 //! The result is an [`AffineSubspace`]: a coset representative (the offset) together with the
 //! indeterminacy $a \cdot \Ext + \Ext \cdot c$ (the linear part). Both terms of the indeterminacy
@@ -30,25 +30,21 @@ use crate::{
     resolution_homomorphism::ResolutionHomomorphism,
 };
 
-/// The result of a Massey product computation: a coset, given by a representative together with
-/// the indeterminacy subspace.
-#[derive(Debug, Clone)]
+/// The result of a Massey product computation
 pub struct MasseyResult {
-    /// The bidegree of the bracket, `a.degree() + b.degree() + c.degree() - (1, 0)`.
+    /// The bidegree of the bracket, `a.degree() + b.degree() + c.degree() - Bidegree::s_t(1, 0)`.
     pub degree: Bidegree,
-    /// The bracket as a coset: a representative (the offset) modulo the indeterminacy
-    /// $a \cdot \Ext + \Ext \cdot c$ (the linear part).
+    /// The value of the bracket as a coset.
     pub coset: AffineSubspace,
 }
 
 impl MasseyResult {
-    /// A representative of the Massey product, as an element of the bracket's bidegree.
+    /// Returns a representative element of the Massey product.
     pub fn representative(&self) -> BidegreeElement {
         BidegreeElement::new(self.degree, self.coset.offset().clone())
     }
 
-    /// Whether `0` lies in the Massey product, i.e. the representative lies in the indeterminacy.
-    /// Such brackets carry no information and are typically omitted from output.
+    /// Whether the Massey product contains zero.
     pub fn contains_zero(&self) -> bool {
         self.coset.contains_zero()
     }
@@ -64,8 +60,8 @@ where
         a.degree() + b.degree() - Bidegree::s_t(1, 0)
     }
 
-    /// The multiplication-by-`b` chain map (in the unit), extended far enough for brackets landing
-    /// at `shift`.
+    /// The multiplication-by-`b` chain self-map of the unit, extended far enough for brackets
+    /// landing at `shift`.
     fn massey_b_hom(
         &self,
         b: &BidegreeElement,
@@ -161,8 +157,8 @@ where
         Some((answers, kernel, tot))
     }
 
-    /// The bracket representative coordinates for a third factor with coordinates `row`: the
-    /// per-generator bracket values `answers` contracted against `row` (a matrix-vector product).
+    /// Compute a representative of a Massey product evaluated at `row` using the data returned by
+    /// [`massey_at`](Self::massey_at).
     fn massey_representative(&self, answers: &Matrix, row: FpSlice) -> FpVector {
         let mut v = FpVector::new(self.prime(), answers.columns());
         answers.apply(v.as_slice_mut(), 1, row);
@@ -189,11 +185,6 @@ where
 
     /// The indeterminacy $a \cdot \Ext^{|b| + |c| - (1,0)} + \Ext^{|a| + |b| - (1,0)} \cdot c$ at
     /// the bracket bidegree `tot`, as a subspace of $\Ext(M, k)$ at `tot`.
-    ///
-    /// Both terms are the $\Ext(k, k)$-module action on $\Ext(M, k)$, so this is valid for any `M`,
-    /// not just `M == k`. The first term ranges `a` over $\Ext(M, k)$ in the complementary degree;
-    /// the second ranges over $\Ext(k, k)$. Products are computed up to sign (as elsewhere), which
-    /// does not affect the spanned subspace.
     fn massey_indeterminacy(
         &self,
         a: &BidegreeElement,
@@ -218,18 +209,17 @@ where
     }
 
     /// Compute the family of Massey products $\langle a, b, -\rangle$ for fixed `a` and `b` and
-    /// every valid third factor `c` (those with `b · c = 0`), across all computed bidegrees.
+    /// every valid third factor `c` across all computed bidegrees.
     ///
-    /// `a` and `b` are taken in $\Ext(k, k)$; the third factor ranges over $\Ext(M, k)$. The
-    /// caller must have resolved `M` and the unit far enough. This assumes `a · b = 0` (so that the
-    /// bracket is defined); it is not verified.
+    /// `a` and `b` are taken in $\Ext(k, k)$; the third factor ranges over $\Ext(M, k)$. The caller
+    /// must have resolved `M` and the unit far enough. This assumes `a · b = 0` so that the bracket
+    /// is defined; it is not verified.
     ///
-    /// Brackets that contain `0` (the representative lies in the indeterminacy) carry no
-    /// information and are omitted.
+    /// Brackets that contain `0` are omitted.
     ///
-    /// This iterates over the third factor, building a fresh null-homotopy of `b ∘ c` per `c`. Each
-    /// is cheap when `a` is small, since it is only read at filtration `a.s`. To vary the *first*
-    /// factor with `b, c` fixed instead, use [`massey_iter_a`](Self::massey_iter_a).
+    /// This iterates over the third factor, building a fresh null-homotopy of `b ∘ c` per `c`. To
+    /// vary the *first* factor with `b, c` fixed instead, use
+    /// [`massey_iter_a`](Self::massey_iter_a).
     pub fn massey_iter_c(
         &self,
         a: &BidegreeElement,
@@ -261,24 +251,16 @@ where
     }
 
     /// Compute the family of Massey products $\langle -, b, c\rangle$ for fixed `b` and `c` and
-    /// every valid first factor `a` (those with `a · b = 0`), across all computed bidegrees.
-    ///
-    /// The null-homotopy of `b ∘ c` depends only on `b` and `c`, so it is built **once** and
-    /// re-read at each first factor's filtration. This is the right direction when you want to vary
-    /// the first factor: it avoids rebuilding a homotopy per factor (which is what looping
-    /// [`massey_iter_c`](Self::massey_iter_c) over `a` would do). It works for any `M`, unlike the
-    /// symmetric "fix the `a ∘ b` homotopy" idea, which would land on the conventionally-zero bottom
-    /// homotopy.
+    /// every valid first factor `a` across all computed bidegrees.
     ///
     /// Note the homotopy is read at the *first factor's* filtration, so the cost grows with how far
     /// out the first factor ranges (and `f_b` must be extended over that range). For the dual
     /// pattern — fixed small `a, b`, sweeping a large third factor —
     /// [`massey_iter_c`](Self::massey_iter_c) is faster, since it reads at the small fixed `a.s`.
     ///
-    /// `b` is taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$; the first factor ranges over
-    /// $\Ext(k, k)$. The caller must have resolved `M` and the unit far enough. This assumes
-    /// `b · c = 0` (so that the bracket is defined); it is not verified. Brackets that contain `0`
-    /// are omitted.
+    /// `b` is taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$; the first factor ranges over $\Ext(k,
+    /// k)$. The caller must have resolved `M` and the unit far enough. This assumes `b · c = 0` so
+    /// that the bracket is defined; it is not verified. Brackets that contain `0` are omitted.
     pub fn massey_iter_a(
         &self,
         b: &BidegreeElement,
@@ -368,8 +350,8 @@ where
 
     /// Compute the triple Massey product $\langle a, b, c\rangle$.
     ///
-    /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if
-    /// `b · c != 0` (so the bracket is undefined). This assumes `a · b = 0`; it is not verified.
+    /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if `b · c !=
+    /// 0`. This assumes `a · b = 0`; it is not verified.
     pub fn massey(
         &self,
         a: &BidegreeElement,
@@ -385,7 +367,6 @@ where
 
         let (answers, kernel, tot) = self.massey_at(a, b, &b_hom, shift, offset_a, c.degree())?;
 
-        // The bracket is defined exactly when b · c = 0, i.e. c lies in the kernel of (· b).
         let mut reduced = c.vec().to_owned();
         kernel.reduce(reduced.as_slice_mut());
         if !reduced.is_zero() {
