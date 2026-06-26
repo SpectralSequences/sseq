@@ -364,8 +364,8 @@ where
 
     /// Compute the triple Massey product $\langle a, b, c\rangle$.
     ///
-    /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if `b · c !=
-    /// 0`. This assumes `a · b = 0`; it is not verified.
+    /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if `a · b !=
+    /// 0` or `b · c != 0`.
     pub fn massey(
         &self,
         a: &BidegreeElement,
@@ -378,6 +378,24 @@ where
                 .module(a.degree().s())
                 .generator_offset(a.degree().t(), a.degree().t(), 0);
         let b_hom = self.massey_b_hom(b, shift);
+
+        // The bracket is defined only when `a · b = 0`. Compute `b · a` (equal to `a · b` up to
+        // sign, so the same vanishing condition) via the multiplication-by-`b` self-map of the
+        // unit, `b_hom`. The product lands at `a.degree() + b.degree()`, one filtration above
+        // `shift`, so `b_hom` must be extended one step further than `massey_b_hom` built it.
+        let ab_deg = a.degree() + b.degree();
+        b_hom.extend_through_stem(ab_deg);
+        let mut ab = FpVector::new(self.prime(), self.unit().number_of_gens_in_bidegree(ab_deg));
+        for (j, coef) in a.vec().iter_nonzero() {
+            b_hom.act(
+                ab.as_slice_mut(),
+                coef,
+                BidegreeGenerator::new(a.degree(), j),
+            );
+        }
+        if !ab.is_zero() {
+            return None;
+        }
 
         let MasseyComputeDatum {
             answers,
@@ -435,6 +453,12 @@ mod tests {
         assert!(
             alg.massey(&h0, &h1, &h1).is_none(),
             "<h0, h1, h1> should be undefined since h1^2 != 0"
+        );
+
+        // <h0, h0, h1> is undefined: h0 · h0 = h0^2 != 0, so the bracket's a · b = 0 fails.
+        assert!(
+            alg.massey(&h0, &h0, &h1).is_none(),
+            "<h0, h0, h1> should be undefined since h0^2 != 0"
         );
     }
 
