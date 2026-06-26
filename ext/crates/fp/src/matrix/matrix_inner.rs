@@ -352,6 +352,11 @@ impl Matrix {
     /// assert_eq!(Matrix::from_vec(TWO, &matrix_vec).to_vec(), matrix_vec);
     /// ```
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
+        // A matrix with zero columns has `stride == 0`, and `itertools::chunks`
+        // panics on a chunk size of 0. Such a matrix is `rows` empty rows.
+        if self.columns() == 0 {
+            return (0..self.rows()).map(|_| Vec::new()).collect();
+        }
         self.data
             .iter()
             .chunks(self.stride)
@@ -1715,6 +1720,13 @@ mod tests {
             }
             assert_eq!(m.pivots(), &goal_pivots)
         }
+    }
+
+    #[test]
+    fn test_to_vec_zero_columns() {
+        // A matrix with zero columns is `rows` empty rows, not zero rows.
+        let m = Matrix::new(ValidPrime::new(2), 3, 0);
+        assert_eq!(m.to_vec(), vec![Vec::<u32>::new(); 3]);
     }
 
     proptest! {
