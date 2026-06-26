@@ -10,6 +10,38 @@ use crate::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
+/// Why [`QuasiInverse::try_new`] rejected an `(image, preimage)` pair as inconsistent.
+///
+/// [`QuasiInverse::apply`] (and [`QuasiInverse::stream_quasi_inverse`]) consume one row of
+/// `preimage`, addressed by a running counter, for every non-negative pivot in `image`. The
+/// variants below name the two ways that walk could index `preimage` out of bounds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuasiInverseError {
+    /// A non-negative pivot is not a valid row index into `preimage`, i.e. it is `>= rows`.
+    PivotOutOfRange { pivot: isize, rows: usize },
+    /// `image` has more non-negative pivots than `preimage` has rows.
+    TooManyPivots { nonneg: usize, rows: usize },
+}
+
+impl std::fmt::Display for QuasiInverseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PivotOutOfRange { pivot, rows } => write!(
+                f,
+                "inconsistent QuasiInverse: pivot {pivot} is out of range for a preimage with \
+                 {rows} rows"
+            ),
+            Self::TooManyPivots { nonneg, rows } => write!(
+                f,
+                "inconsistent QuasiInverse: image has {nonneg} non-negative pivots but preimage \
+                 only has {rows} rows"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for QuasiInverseError {}
+
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
 /// for all x in the image (recall our matrices act on the right).
 ///
@@ -25,8 +57,43 @@ pub struct QuasiInverse {
 }
 
 impl QuasiInverse {
+    /// Construct a `QuasiInverse` without validating that `image` and `preimage` are consistent.
+    ///
+    /// This is the fast path for trusted internal callers that build `image`/`preimage` together
+    /// (e.g. row reduction), where the invariant holds by construction. Callers handling
+    /// untrusted data (such as the Python bindings) should use [`Self::try_new`] instead.
     pub fn new(image: Option<Vec<isize>>, preimage: Matrix) -> Self {
         Self { image, preimage }
+    }
+
+    /// Construct a `QuasiInverse`, validating that `image` is consistent with `preimage`.
+    ///
+    /// When `image` is `Some`, [`Self::apply`] walks the pivots and consumes one row of
+    /// `preimage` per non-negative pivot, so a `QuasiInverse` is only safe to `apply` when every
+    /// non-negative pivot is a valid `preimage` row index and there are no more non-negative
+    /// pivots than `preimage` has rows. This checks exactly those conditions, returning the
+    /// matching [`QuasiInverseError`] otherwise. When `image` is `None` the image is the standard
+    /// basis and no validation is needed.
+    pub fn try_new(
+        image: Option<Vec<isize>>,
+        preimage: Matrix,
+    ) -> Result<Self, QuasiInverseError> {
+        if let Some(pivots) = image.as_ref() {
+            let rows = preimage.rows();
+            let mut nonneg = 0usize;
+            for &pivot in pivots {
+                if pivot >= 0 {
+                    nonneg += 1;
+                    if (pivot as usize) >= rows {
+                        return Err(QuasiInverseError::PivotOutOfRange { pivot, rows });
+                    }
+                }
+            }
+            if nonneg > rows {
+                return Err(QuasiInverseError::TooManyPivots { nonneg, rows });
+            }
+        }
+        Ok(Self { image, preimage })
     }
 
     pub fn image_dimension(&self) -> usize {

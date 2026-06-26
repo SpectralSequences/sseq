@@ -17,6 +17,6 @@ pub mod arbitrary {
 // pub use basis::Basis;
 pub use affine::AffineSubspace;
 pub use matrix_inner::{AugmentedMatrix, Matrix, MatrixSliceMut};
-pub use quasi_inverse::QuasiInverse;
+pub use quasi_inverse::{QuasiInverse, QuasiInverseError};
 pub use subquotient::Subquotient;
 pub use subspace::Subspace;

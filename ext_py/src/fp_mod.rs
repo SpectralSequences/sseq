@@ -2127,44 +2127,26 @@ pub mod fp_py {
         /// `apply` (and `stream_quasi_inverse`) walk `image` and, for every
         /// non-negative pivot entry, consume one row of `preimage` (the rows are
         /// addressed by a running counter that increments once per non-negative
-        /// pivot). Upstream `QuasiInverse::new` performs no validation, so without
-        /// the checks below a Python caller could supply an `image` whose count of
-        /// non-negative pivots exceeds `preimage.rows()`, causing `apply` to index
-        /// `preimage.row(row)` out of bounds and panic across the PyO3 boundary.
+        /// pivot). Without validation a Python caller could supply an `image` whose
+        /// count of non-negative pivots exceeds `preimage.rows()`, causing `apply`
+        /// to index `preimage.row(row)` out of bounds and panic across the PyO3
+        /// boundary.
         ///
-        /// We therefore require, when `image` is `Some`:
-        ///  * the number of non-negative pivot entries is `<= preimage.rows()`
-        ///    (this is the exact invariant that makes `apply` safe), and
-        ///  * every non-negative pivot is a valid `preimage` row index, i.e. in
-        ///    `0..preimage.rows()` (pivots are row indices into `preimage`).
-        ///
-        /// When `image` is `None` the image is the standard basis (identity) and
-        /// no pivot validation is needed; that path is always safe.
+        /// We therefore delegate to upstream
+        /// [`QuasiInverse::try_new`](RustQuasiInverse::try_new), which validates
+        /// (when `image` is `Some`) that every non-negative pivot is a valid
+        /// `preimage` row index and that there are no more non-negative pivots than
+        /// `preimage` has rows. Both [`QuasiInverseError`](fp::matrix::QuasiInverseError)
+        /// variants map to the same `ValueError` taxonomy this constructor used to
+        /// raise by hand. When
+        /// `image` is `None` the image is the standard basis (identity) and no
+        /// validation is needed; that path is always safe.
         #[new]
         #[pyo3(signature = (image, preimage))]
         pub fn new(image: Option<Vec<isize>>, preimage: &PyMatrix) -> PyResult<Self> {
-            if let Some(pivots) = image.as_ref() {
-                let rows = preimage.0.rows();
-                let mut nonneg = 0usize;
-                for &p in pivots {
-                    if p >= 0 {
-                        nonneg += 1;
-                        if (p as usize) >= rows {
-                            return Err(PyValueError::new_err(format!(
-                                "inconsistent QuasiInverse: pivot {p} is out of range for a \
-                                 preimage with {rows} rows"
-                            )));
-                        }
-                    }
-                }
-                if nonneg > rows {
-                    return Err(PyValueError::new_err(format!(
-                        "inconsistent QuasiInverse: image has {nonneg} non-negative pivots but \
-                         preimage only has {rows} rows"
-                    )));
-                }
-            }
-            Ok(Self(RustQuasiInverse::new(image, preimage.0.clone())))
+            RustQuasiInverse::try_new(image, preimage.0.clone())
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e.to_string()))
         }
 
         /// Deserialize a `QuasiInverse` from bytes produced by [`Self::to_bytes`].
