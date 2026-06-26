@@ -163,6 +163,20 @@ def test_reduce_by_quotient():
     assert list(v) == [0, 1, 0]
 
 
+def test_reduce_by_quotient_slice_mut():
+    sq = fp.Subquotient(3, 3)
+    sq.quotient(fp.FpVector.from_slice(3, [1, 0, 0]))
+    # Full-row slice: reduction must write through to the matrix.
+    m = fp.Matrix.from_vec(3, [[1, 1, 0]])
+    sq.reduce_by_quotient(m.row_mut(0))
+    assert list(m.row(0)) == [0, 1, 0]
+    # Sub-range slice: only the targeted columns are reduced in place.
+    m2 = fp.Matrix.from_vec(3, [[2, 1, 1, 0]])
+    row = m2.row_mut(0)
+    sq.reduce_by_quotient(row.slice_mut(1, 4))
+    assert list(m2.row(0)) == [2, 0, 1, 0]
+
+
 def test_reduce_matrix():
     source = fp.Subquotient.new_full(3, 2)
     target = fp.Subquotient.new_full(3, 2)

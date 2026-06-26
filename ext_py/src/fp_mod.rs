@@ -2423,10 +2423,20 @@ pub mod fp_py {
         }
 
         /// Project `vector` in place onto the complement of the quotient part.
-        pub fn reduce_by_quotient(&self, vector: &mut PyFpVector) -> PyResult<()> {
-            self.check_compatible(&vector.0)?;
-            self.0.reduce_by_quotient(vector.0.as_slice_mut());
-            Ok(())
+        ///
+        /// Accepts either an `FpVector` or an `FpSliceMut`; the reduction is
+        /// written through to the underlying storage in both cases.
+        pub fn reduce_by_quotient(
+            &self,
+            py: Python<'_>,
+            vector: &Bound<'_, PyAny>,
+        ) -> PyResult<()> {
+            with_target_slice_mut(py, vector, |slice| {
+                checked_same_prime(self.0.prime().as_u32(), slice.as_slice().prime().as_u32())?;
+                checked_equal_len(slice.as_slice().len(), self.0.ambient_dimension())?;
+                self.0.reduce_by_quotient(slice);
+                Ok(())
+            })
         }
 
         /// Add `vector` to the quotient part of the subquotient.
