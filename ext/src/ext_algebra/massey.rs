@@ -50,6 +50,12 @@ impl MasseyResult {
     }
 }
 
+struct MasseyComputeDatum {
+    answers: Matrix,
+    kernel: Subspace,
+    tot: Bidegree,
+}
+
 impl<CC> ExtAlgebra<CC>
 where
     CC: FreeChainComplex + AugmentedChainComplex,
@@ -91,7 +97,7 @@ where
         shift: Bidegree,
         offset_a: usize,
         c_deg: Bidegree,
-    ) -> Option<(Matrix, Subspace, Bidegree)> {
+    ) -> Option<MasseyComputeDatum> {
         let p = self.prime();
         let resolution = self.resolution();
         let unit = self.unit();
@@ -154,7 +160,11 @@ where
         product.row_reduce();
         let kernel = product.compute_kernel();
 
-        Some((answers, kernel, tot))
+        Some(MasseyComputeDatum {
+            answers,
+            kernel,
+            tot,
+        })
     }
 
     /// Compute a representative of a Massey product evaluated at `row` using the data returned by
@@ -234,7 +244,11 @@ where
 
         let mut results = Vec::new();
         for c_deg in self.resolution().iter_nonzero_stem() {
-            let Some((answers, kernel, tot)) = self.massey_at(a, b, &b_hom, shift, offset_a, c_deg)
+            let Some(MasseyComputeDatum {
+                answers,
+                kernel,
+                tot,
+            }) = self.massey_at(a, b, &b_hom, shift, offset_a, c_deg)
             else {
                 continue;
             };
@@ -365,7 +379,11 @@ where
                 .generator_offset(a.degree().t(), a.degree().t(), 0);
         let b_hom = self.massey_b_hom(b, shift);
 
-        let (answers, kernel, tot) = self.massey_at(a, b, &b_hom, shift, offset_a, c.degree())?;
+        let MasseyComputeDatum {
+            answers,
+            kernel,
+            tot,
+        } = self.massey_at(a, b, &b_hom, shift, offset_a, c.degree())?;
 
         let mut reduced = c.vec().to_owned();
         kernel.reduce(reduced.as_slice_mut());
