@@ -134,10 +134,11 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "0", "1", "b", "[1]", ""],
-        "xfail": "ChainHomotopy.initialize_homotopies is not bound; the secondary "
-                 "Massey product needs it to allocate the homotopy table so the "
-                 "non-zero bottom homotopy can be set manually (extend/extend_all "
-                 "default it to zero)",
+        "xfail": "'ext.SecondaryResolutionHomomorphism' object has no attribute "
+                 "'product_nullhomotopy' (secondary_massey.py:156): "
+                 "ChainHomotopy.initialize_homotopies is now bound, but computing "
+                 "the first homotopy needs SecondaryResolutionHomomorphism."
+                 "product_nullhomotopy, which is not yet bound",
     },
     # --- Unbound bindings (aspirational API) ---
     {

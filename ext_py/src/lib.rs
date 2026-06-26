@@ -3448,6 +3448,49 @@ mod ext_py {
                 self.0.homotopy(s),
             ))
         }
+
+        /// Allocate the internal homotopy table so `homotopy(s)` is defined for
+        /// every `s` up to *but excluding* `max_source_s`, *without* lifting any
+        /// maps. This lets a caller populate a non-zero bottom homotopy manually
+        /// before `extend`/`extend_all` (which otherwise default the bottom-most
+        /// homotopy to zero) — the setup needed for secondary Massey products.
+        ///
+        /// Upstream `initialize_homotopies` builds, for each newly added `s` in
+        /// `[defined_range().end, max_source_s)`, a `FreeModuleHomomorphism`
+        /// from `left.source.module(s)` to `right.target.module(s + 1 - shift.s)`;
+        /// indexing a not-yet-created module would panic. We pre-check (via
+        /// `next_homological_degree`, as `extend_all` does) that both resolutions
+        /// are resolved far enough and raise a clean `ValueError` otherwise. If
+        /// `max_source_s` does not exceed the currently defined range this is a
+        /// no-op (matching upstream `OnceBiVec::extend`).
+        pub fn initialize_homotopies(&self, max_source_s: i32) -> PyResult<()> {
+            let left = self.0.left();
+            let right = self.0.right();
+            let shift = self.0.shift();
+            let start = self.0.defined_range().end;
+            for s in start..max_source_s {
+                if s >= left.source.next_homological_degree() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "the left source resolution has no module at homological degree s = {s} \
+                         (next homological degree {}); resolve it further before initializing \
+                         the homotopy table up to max_source_s = {max_source_s}",
+                        left.source.next_homological_degree()
+                    )));
+                }
+                let tgt_s = s + 1 - shift.s();
+                if tgt_s >= right.target.next_homological_degree() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "the right target resolution has no module at homological degree s = \
+                         {tgt_s} (= {s} + 1 - shift.s; next homological degree {}); resolve it \
+                         further before initializing the homotopy table up to max_source_s = \
+                         {max_source_s}",
+                        right.target.next_homological_degree()
+                    )));
+                }
+            }
+            self.0.initialize_homotopies(max_source_s);
+            Ok(())
+        }
     }
 
     /// Run a secondary `extend_all` under `catch_unwind`, translating an

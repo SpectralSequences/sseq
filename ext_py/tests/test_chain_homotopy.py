@@ -127,6 +127,41 @@ def test_extend_and_homotopy_shapes():
         assert differ, f"source/target modules must differ at s={s}"
 
 
+def test_initialize_homotopies_allocates_table_without_lifting():
+    # `initialize_homotopies(max_source_s)` allocates the homotopy table so that
+    # `homotopy(s)` is defined for s in [shift.s - 1, max_source_s) WITHOUT
+    # lifting any maps (the maps were never extended here). This is the setup a
+    # secondary Massey product uses to install a non-zero bottom homotopy by
+    # hand before extending.
+    ch = homotopy(max_st=8, ext_deg=6)
+    shift = ch.shift()  # (2, 2)
+    # Nothing allocated yet.
+    with pytest.raises(IndexError):
+        ch.homotopy(shift.s - 1)
+    ch.initialize_homotopies(5)
+    # Defined on [shift.s - 1, 5) == [1, 5); each h_s is C_s -> C_{s+1-shift.s}.
+    for s in range(shift.s - 1, 5):
+        h = ch.homotopy(s)
+        assert h.degree_shift() == shift.t
+        assert h.source().prime == 2
+    with pytest.raises(IndexError):
+        ch.homotopy(5)
+    # Idempotent / no-op when not growing the range.
+    ch.initialize_homotopies(3)
+    with pytest.raises(IndexError):
+        ch.homotopy(5)
+
+
+def test_initialize_homotopies_beyond_resolved_range_raises_value_error():
+    # max_source_s reaching past the resolutions' computed homological degree
+    # would make upstream index a not-yet-created module and panic; the binding
+    # must reject it with a clean ValueError instead.
+    ch = homotopy(max_st=8, ext_deg=6)
+    # The resolutions are computed through s = 8 (next homological degree 9).
+    with pytest.raises(ValueError):
+        ch.initialize_homotopies(20)
+
+
 def test_extend_all_succeeds_when_maps_fully_extended():
     r = sphere(5)
     left = h0_mult(r, "a", 5)
