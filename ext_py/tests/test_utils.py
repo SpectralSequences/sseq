@@ -42,6 +42,24 @@ def test_query_module_only_builds_sphere(feed):
     assert res.number_of_gens_in_bidegree(ext.sseq.Bidegree.s_t(0, 0)) == 1
 
 
+def test_query_module_only_algorithm_selects_resolution_type(feed):
+    # The `algorithm` argument is forwarded to Resolution.construct and selects
+    # the resolution TYPE. "standard" yields the standard backend, on which
+    # standard-only methods like module() work (Nassau cannot provide them).
+    feed(["S_2", ""])
+    res = ext.query_module_only("Module", algorithm="standard")
+    res.compute_through_bidegree(ext.sseq.Bidegree.s_t(0, 0))
+    # module() is standard-backend-only; it must succeed here.
+    assert res.module(0).dimension(0) == 1
+
+
+def test_query_module_algorithm_forwarded(feed):
+    feed(["S_2", "", "4", "2"])
+    res = ext.query_module(algorithm="standard")
+    # Standard backend exposes module(); confirm it is the standard backend.
+    assert res.module(0).dimension(0) == 1
+
+
 def test_query_module_only_explicit_save_dir_skips_prompt(feed, tmp_path):
     # Only the module spec is consumed; save_dir is supplied, so NO save-dir
     # prompt is read (if it were, the stream would be exhausted -> EOF exit).

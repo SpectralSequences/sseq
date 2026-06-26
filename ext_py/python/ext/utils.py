@@ -76,7 +76,7 @@ def _algebra_suffix(alg):
     return s
 
 
-def query_module_only(prompt="Module", alg=None, save_dir=None):
+def query_module_only(prompt="Module", alg=None, save_dir=None, algorithm=None):
     """Mirror of ``ext::utils::query_module_only``.
 
     Prompt for a module spec (default ``S_2``); prompt for an optional save
@@ -87,6 +87,13 @@ def query_module_only(prompt="Module", alg=None, save_dir=None):
     does not already carry an ``@`` suffix, is appended as ``@<algebra>`` so the
     chosen basis is honored. See the module docstring for why this is not passed
     as ``construct``'s ``algorithm`` argument.
+
+    ``algorithm`` selects the resolution TYPE (the algorithm): ``None``/``"auto"``
+    (try Nassau, fall back to the standard algorithm), ``"nassau"``, or
+    ``"standard"``. It is forwarded to :meth:`ext.Resolution.construct`. Use
+    ``"standard"`` when you need standard-backend-only features (e.g.
+    ``module``/``target``, ``get_unit``, ``SecondaryResolution``,
+    ``yoneda_representative_element``), which the Nassau backend cannot provide.
     """
     spec = _query.with_default(prompt, "S_2", str)
 
@@ -96,18 +103,21 @@ def query_module_only(prompt="Module", alg=None, save_dir=None):
     if save_dir is None:
         save_dir = _query.optional(f"{prompt} save directory", str)
 
-    return _ext.Resolution.construct(spec, save_dir)
+    return _ext.Resolution.construct(spec, save_dir, algorithm)
 
 
-def query_module(alg=None, save_dir=None):
+def query_module(alg=None, save_dir=None, algorithm=None):
     """Mirror of ``ext::utils::query_module``.
 
     Build a module via :func:`query_module_only`, then prompt for ``Max n``
     (default 30) and ``Max s`` (default 7), honor the ``SECONDARY_JOB``
     environment hook (capping ``max_s``), resolve through that stem, and return
     the resolution.
+
+    ``algorithm`` selects the resolution TYPE (``None``/``"auto"``/``"nassau"``/
+    ``"standard"``); it is forwarded to :func:`query_module_only`.
     """
-    resolution = query_module_only("Module", alg, save_dir)
+    resolution = query_module_only("Module", alg, save_dir, algorithm)
     max_n = _query.with_default("Max n", "30", int)
     max_s = _query.with_default("Max s", "7", int)
 
