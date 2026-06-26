@@ -19,6 +19,7 @@
 //! The secondary differential ($d_2$) and the $\Mod_{C\lambda^2}$ secondary product live in the
 //! [`secondary`] submodule ([`SecondaryExtAlgebra`]).
 
+pub mod massey;
 pub mod secondary;
 
 use std::sync::Arc;
@@ -154,6 +155,13 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     pub fn unit_element(&self, b: Bidegree, coords: &[u32]) -> BidegreeElement {
         assert_eq!(self.unit_dimension(b), coords.len());
         BidegreeElement::new(b, FpVector::from_slice(self.prime(), coords))
+    }
+
+    /// A single generator of $\Ext(k, k)$ as a class.
+    pub fn unit_generator(&self, g: BidegreeGenerator) -> BidegreeElement {
+        let ambient = self.unit_dimension(g.degree());
+        assert!(ambient > g.idx());
+        g.into_element(self.prime(), ambient)
     }
 }
 

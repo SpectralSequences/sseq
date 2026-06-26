@@ -34,6 +34,14 @@ impl AffineSubspace {
         Self::new(offset, linear_part)
     }
 
+    /// Whether the origin lies in this coset, equivalently whether it is a linear subspace.
+    ///
+    /// The offset is kept reduced modulo the linear part (see [`AffineSubspace::new`]), so this
+    /// holds exactly when the stored offset is zero.
+    pub fn contains_zero(&self) -> bool {
+        self.offset.is_zero()
+    }
+
     pub fn contains(&self, vector: FpSlice) -> bool {
         let mut vector = vector.to_owned();
         vector.add(&self.offset, vector.prime() - 1);
