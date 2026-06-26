@@ -137,6 +137,27 @@ def test_secondary_over_nassau_backend_raises_valueerror():
         ext.SecondaryResolution(r)
 
 
+# --- DoubleChainComplex (port of sq0.rs `mod double`) ----------------------
+
+
+def test_double_chain_complex_construct_and_compute():
+    # The doubled chain complex of a standard-backend resolution constructs and
+    # computes through a bidegree without error.
+    r = resolve("standard")
+    d = ext.DoubleChainComplex(r)
+    d.compute_through_bidegree(
+        sseq.Bidegree.s_t(r.next_homological_degree() - 1, 0)
+    )
+
+
+def test_double_chain_complex_over_nassau_backend_raises_valueerror():
+    # Only the standard backend is bound; Nassau resolves over a distinct
+    # concrete algebra and is rejected up front.
+    r = ext.Resolution("S_2", "nassau")
+    with pytest.raises(ValueError):
+        ext.DoubleChainComplex(r)
+
+
 # --- FreeChainComplex method set (§7.2) ------------------------------------
 #
 # Known low-dimensional Ext of the sphere S_2 over the mod-2 Steenrod algebra,

@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod algebra_mod;
+mod double;
 mod fp_mod;
 mod sseq_mod;
 
@@ -4660,6 +4661,62 @@ mod ext_py {
                 .into_iter()
                 .map(SecondaryProduct::from_rust)
                 .collect())
+        }
+    }
+
+    /// The concrete `DoubleChainComplex` type bound here: the "doubled" chain
+    /// complex of a standard-backend resolution (`Resolution<CCC>`, the inner
+    /// type of [`AnyResolution::Standard`]). See [`super::double`] for the port
+    /// of the upstream `sq0.rs` `mod double` machinery.
+    ///
+    /// Only the standard backend is bound: the Nassau algorithm resolves over
+    /// the concrete `MilnorAlgebra` (a distinct associated `Algebra` type), so
+    /// its doubled complex would be a *different* concrete type. A Nassau-backed
+    /// resolution is rejected with a `ValueError`, mirroring the standard-only
+    /// precedent set by `Resolution.module` / `ResolutionHomomorphism`.
+    type RsDoubleChainComplex = super::double::DoubleChainComplex<ext::resolution::Resolution<CCC>>;
+
+    /// The "doubled" chain complex of a (standard-backend) [`Resolution`]: a
+    /// chain complex whose modules halve Steenrod operations degree-wise. This
+    /// is the binding of the inline `mod double` machinery from the upstream
+    /// `ext/examples/sq0.rs`, used to compute the action of `Sq^0` on `Ext`.
+    ///
+    /// Held behind an `Arc` (interior-mutable `OnceBiVec`s), so a `frozen`
+    /// pyclass works directly and the same `Arc` can be shared.
+    #[pyclass(frozen)]
+    pub struct DoubleChainComplex(Arc<RsDoubleChainComplex>);
+
+    #[pymethods]
+    impl DoubleChainComplex {
+        /// Construct the doubled chain complex of `resolution`.
+        ///
+        /// Only the standard backend is supported; a Nassau-backed resolution is
+        /// rejected with a `ValueError` (see [`RsDoubleChainComplex`]).
+        #[new]
+        pub fn new(resolution: &Resolution) -> PyResult<Self> {
+            let arc = match &resolution.0 {
+                AnyResolution::Standard(r) => Arc::clone(r),
+                AnyResolution::Nassau(_) => {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "DoubleChainComplex requires a standard-backend resolution; the given \
+                         resolution is Nassau-backed (over the concrete MilnorAlgebra). Construct \
+                         it with algorithm='standard'.",
+                    ));
+                }
+            };
+            Ok(DoubleChainComplex(Arc::new(
+                super::double::DoubleChainComplex::new(arc),
+            )))
+        }
+
+        /// Compute the doubled chain complex through the given target bidegree
+        /// (which delegates to the underlying resolution at the halved internal
+        /// degree). Validates `s >= 0`/`t >= 0`, raising `ValueError` rather
+        /// than risking an internal panic (cf. `Resolution.compute_through_bidegree`).
+        pub fn compute_through_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<()> {
+            let b = require_nonneg!(b.0, "target bidegree");
+            self.0.compute_through_bidegree(b);
+            Ok(())
         }
     }
 

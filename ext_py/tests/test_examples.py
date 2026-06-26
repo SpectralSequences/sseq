@@ -67,7 +67,7 @@ KNOWN_UNBOUND = {
     # (ResolutionHomomorphism, SecondaryResolutionHomomorphism,
     # UnstableResolutionHomomorphism are now bound.)
     # --- Chain complex types (not yet bound) ---
-    "DoubleChainComplex",
+    # (DoubleChainComplex is now bound — see ext_py/src/double.rs.)
     "TensorChainComplex",
     # bruner.py imports `from ext import FiniteChainComplex`; that name was
     # never bound. The bound finite-complex types are ChainComplex (CCC) and
