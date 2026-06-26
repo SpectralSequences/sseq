@@ -546,15 +546,10 @@ pub mod algebra_py {
     pub struct MilnorProfile(::algebra::milnor_algebra::MilnorProfile);
 
     impl MilnorProfile {
-        /// `MilnorProfile` upstream is intentionally not `Clone`; reconstruct a
-        /// fresh copy from its public fields when we need to hand one to the
-        /// algebra constructor or return one to Python.
+        /// A fresh copy of the inner profile, for handing to an algebra
+        /// constructor or returning one to Python.
         fn to_rust(&self) -> ::algebra::milnor_algebra::MilnorProfile {
-            ::algebra::milnor_algebra::MilnorProfile {
-                truncated: self.0.truncated,
-                q_part: self.0.q_part,
-                p_part: self.0.p_part.clone(),
-            }
+            self.0.clone()
         }
     }
 
@@ -978,14 +973,7 @@ pub mod algebra_py {
         /// (same prime/profile/unstable => identical basis indexing). Used to let
         /// module builders accept a `MilnorAlgebra` directly.
         pub(crate) fn to_steenrod(&self) -> Arc<::algebra::SteenrodAlgebra> {
-            // `MilnorProfile` is not `Clone`, so rebuild it field-by-field
-            // (q_part is `Copy`, p_part is a `Vec`), as `profile()` does.
-            let profile = self.0.profile();
-            let profile = ::algebra::milnor_algebra::MilnorProfile {
-                truncated: profile.truncated,
-                q_part: profile.q_part,
-                p_part: profile.p_part.clone(),
-            };
+            let profile = self.0.profile().clone();
             Arc::new(::algebra::SteenrodAlgebra::MilnorAlgebra(
                 ::algebra::MilnorAlgebra::new_with_profile(self.0.prime(), profile, self.1),
             ))
@@ -1052,12 +1040,7 @@ pub mod algebra_py {
         }
 
         pub fn profile(&self) -> MilnorProfile {
-            let profile = self.0.profile();
-            MilnorProfile(::algebra::milnor_algebra::MilnorProfile {
-                truncated: profile.truncated,
-                q_part: profile.q_part,
-                p_part: profile.p_part.clone(),
-            })
+            MilnorProfile(self.0.profile().clone())
         }
 
         pub fn basis_element_from_index(
@@ -1400,12 +1383,7 @@ pub mod algebra_py {
         /// algebra is rebuilt (same prime/profile => identical basis indexing).
         /// Nassau is the stable mod-2 sphere, so `unstable = false`.
         pub(crate) fn from_milnor(algebra: &::algebra::MilnorAlgebra) -> Self {
-            let profile = algebra.profile();
-            let profile = ::algebra::milnor_algebra::MilnorProfile {
-                truncated: profile.truncated,
-                q_part: profile.q_part,
-                p_part: profile.p_part.clone(),
-            };
+            let profile = algebra.profile().clone();
             SteenrodAlgebra(Arc::new(::algebra::SteenrodAlgebra::MilnorAlgebra(
                 ::algebra::MilnorAlgebra::new_with_profile(algebra.prime(), profile, false),
             )))

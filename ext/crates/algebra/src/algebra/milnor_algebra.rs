@@ -17,7 +17,7 @@ fn q_part_default() -> u32 {
     !0
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MilnorProfile {
     /// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity.
     pub truncated: bool,
