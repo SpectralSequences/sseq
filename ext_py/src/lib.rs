@@ -365,16 +365,57 @@ mod ext_py {
     ///
     /// Error taxonomy matches [`build`]: bad spec/eligibility/unknown-algorithm -> `ValueError`,
     /// genuine internal/IO failures -> `RuntimeError`. Nothing panics across FFI.
+    ///
+    /// # `spec` forms
+    ///
+    /// `spec` accepts the same forms the upstream [`Config`] does via its `TryFrom` impls:
+    ///  - a **string** such as `"S_2"` or `"S_2@milnor"` (the `@`-suffix selects the algebra
+    ///    basis, defaulting to Milnor);
+    ///  - a **2-tuple** `(spec, algebra)` where `spec` is either a module-name string OR a
+    ///    module-JSON `dict` (as produced by [`parse_module_name`]/[`load_module_json`]), and
+    ///    `algebra` is an `algebra.AlgebraType` enum value or the string `"adem"`/`"milnor"`.
+    ///
+    /// A bare `dict` (with no accompanying algebra) is NOT a valid `Config` upstream and is
+    /// rejected with a `TypeError` asking the caller to pass `(dict, algebra)`.
+    ///
+    /// `algorithm` chooses the resolution *algorithm* (`"auto"`/`"nassau"`/`"standard"`), NOT the
+    /// algebra basis (which is the `@`-suffix or the tuple's second element).
+    fn py_to_config(spec: &Bound<'_, PyAny>) -> PyResult<Config> {
+        // String form: "S_2", "S_2@milnor", ...
+        if let Ok(s) = spec.extract::<String>() {
+            return Config::try_from(s.as_str()).map_err(|e: anyhow::Error| {
+                pyo3::exceptions::PyValueError::new_err(e.to_string())
+            });
+        }
+        // 2-tuple form: (spec, algebra), where spec is a string or a module-JSON dict.
+        if let Ok((module_obj, alg_obj)) =
+            spec.extract::<(Bound<'_, PyAny>, Bound<'_, PyAny>)>()
+        {
+            let alg: ::algebra::AlgebraType =
+                alg_obj.extract::<algebra_py::AlgebraTypeArg>()?.into();
+            if let Ok(s) = module_obj.extract::<String>() {
+                return Config::try_from((s.as_str(), alg)).map_err(|e: anyhow::Error| {
+                    pyo3::exceptions::PyValueError::new_err(e.to_string())
+                });
+            }
+            let module_json = algebra_py::py_to_json(&module_obj)?;
+            return Config::try_from((module_json, alg))
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{e:?}")));
+        }
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "construct() spec must be a string, or a (spec, algebra) tuple where spec is a string \
+             or a module-JSON dict and algebra is an AlgebraType or 'adem'/'milnor'",
+        ))
+    }
+
     #[pyfunction]
     #[pyo3(signature = (spec, save_dir=None, algorithm=None))]
     pub fn construct(
-        spec: &str,
+        spec: &Bound<'_, PyAny>,
         save_dir: Option<String>,
         algorithm: Option<&str>,
     ) -> PyResult<Resolution> {
-        let config: Config = spec
-            .try_into()
-            .map_err(|e: anyhow::Error| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let config = py_to_config(spec)?;
         build(config, save_dir.map(PathBuf::from), algorithm).map(Resolution)
     }
 

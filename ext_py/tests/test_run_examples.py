@@ -158,8 +158,9 @@ EXAMPLES = [
     },
     {
         "name": "mahowald_invariant.py",
-        "args": ["", "", "3"],
-        "xfail": "ext.construct_standard not bound",
+        "args": ["", "", "8"],
+        "xfail": "ResolutionHomomorphism.from_class rejects negative-t shift "
+        "(s_t(0, -k)): 'invalid shift: require s >= 0 and t >= 0'",
     },
 ]
 
