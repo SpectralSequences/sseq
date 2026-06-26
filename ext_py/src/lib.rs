@@ -2037,6 +2037,88 @@ mod ext_py {
             }
         }
 
+        /// Manually define the chain map on the single bidegree `input`, the
+        /// higher-level companion of `extend_step_raw`. Rather than taking the
+        /// images already lifted into the target resolution, `extra_images` is
+        /// an `fp.Matrix` whose `k`-th row is the image of the `k`-th source
+        /// generator (with `d(g) = 0`) in the target's *augmentation*; upstream
+        /// `extend_step` lifts those rows through the target's quasi-inverse for
+        /// you before delegating to `extend_step_raw`. Pass `None` to define the
+        /// step on zero generators. Follow with `extend_all` to fill in the rest
+        /// by exactness.
+        ///
+        /// Returns the half-open range `(start, end)` of internal degrees the
+        /// step touched (the upstream `Range<i32>`) as a 2-tuple.
+        ///
+        /// Guards the upstream debug `assert!`s the same way `extend_step_raw`
+        /// does so they raise a clean `ValueError` rather than panicking across
+        /// FFI:
+        ///  - `input` non-negative in both `s` and `t`;
+        ///  - `input.s >= shift.s` (the map cannot lower homological degree);
+        ///  - the source computed at `input`, and the target computed at
+        ///    `input - shift` (`has_computed_bidegree`).
+        /// As defence-in-depth the upstream call is wrapped in `catch_unwind`,
+        /// mapping any residual panic (e.g. an `extra_images` whose row count or
+        /// width does not match the source/target dimensions) to a
+        /// `RuntimeError`.
+        #[pyo3(signature = (input, extra_images=None))]
+        pub fn extend_step(
+            &self,
+            input: sseq_py::Bidegree,
+            extra_images: Option<PyRef<'_, fp_py::PyMatrix>>,
+        ) -> PyResult<(i32, i32)> {
+            let b = input.0;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "invalid input bidegree {b}: require s >= 0 and t >= 0"
+                )));
+            }
+            let shift = self.0.shift;
+            if b.s() < shift.s() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "input homological degree s = {} is below the homomorphism's shift \
+                     s = {} (the map cannot lower homological degree)",
+                    b.s(),
+                    shift.s()
+                )));
+            }
+            if !self.0.source.has_computed_bidegree(b) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "source not computed at bidegree (s={}, t={}); resolve it there first",
+                    b.s(),
+                    b.t()
+                )));
+            }
+            let output = b - shift;
+            if !self.0.target.has_computed_bidegree(output) {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "target not computed at bidegree (s={}, t={}) = input - shift; resolve \
+                     it there first",
+                    output.s(),
+                    output.t()
+                )));
+            }
+            use std::panic::{catch_unwind, AssertUnwindSafe};
+            match catch_unwind(AssertUnwindSafe(|| {
+                self.0
+                    .extend_step(b, extra_images.as_ref().map(|m| m.as_rust()))
+            })) {
+                Ok(range) => Ok((range.start, range.end)),
+                Err(payload) => {
+                    let detail = payload
+                        .downcast_ref::<&str>()
+                        .map(|s| (*s).to_owned())
+                        .or_else(|| payload.downcast_ref::<String>().cloned())
+                        .unwrap_or_else(|| "unknown panic".to_owned());
+                    Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+                        "extend_step panicked (likely an extra_images matrix whose row count or \
+                         width does not match the source/target dimensions); underlying panic: \
+                         {detail}"
+                    )))
+                }
+            }
+        }
+
         /// Apply the dual map `Hom(f, k)` to the target-resolution generator
         /// `g`, accumulating `coef` times the result into `result` (a bound
         /// `fp.FpVector`). This is how a `ResolutionHomomorphism` acts on `Ext`:

@@ -123,18 +123,19 @@ EXAMPLES = [
     {
         "name": "secondary_product.py",
         "args": ["S_2", "", "8", "4", "prod", "0", "1", "[1]"],
-        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
+        "xfail": "Sseq.page_data(b) requires a second positional 'r' (page index) argument",
     },
     {
         "name": "massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "[1]", "0", "1", "[1]"],
-        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
+        "xfail": "AugmentedMatrix2 object has no attribute 'row_mut'",
     },
     {
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]",
                  "0", "1", "b", "[1]"],
-        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
+        "xfail": "advances past extend_step into the λ-part input branch (now reached) "
+                 "that the recorded args do not cover: query.vector parse error",
     },
     # --- Unbound bindings (aspirational API) ---
     {
