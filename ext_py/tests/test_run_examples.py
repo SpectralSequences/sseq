@@ -134,14 +134,12 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "FpSliceMut.add (and siblings) now accept an FpVector operand, "
-                 "so the script advances past secondary_massey.py:248. The "
-                 "remaining blocker is a different binding gap at "
-                 "secondary_massey.py:249: g.iter_nonzero() raises "
-                 "AttributeError: 'fp.FpVector' object has no attribute "
-                 "'iter_nonzero' (subspace_gens() yields FpVector, but "
-                 "iter_nonzero is currently only bound on FpSlice). Binding "
-                 "FpVector.iter_nonzero is a separate change.",
+        "xfail": "FpVector.iter_nonzero is now bound, so the script advances "
+                 "past secondary_massey.py:249. The remaining blocker is a "
+                 "different binding gap at secondary_massey.py:262: "
+                 "AttributeError: 'ext.SecondaryResolutionHomomorphism' object "
+                 "has no attribute 'hom_k_with'. Binding hom_k_with is a "
+                 "separate change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {

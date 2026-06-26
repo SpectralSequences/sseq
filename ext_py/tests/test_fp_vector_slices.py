@@ -29,6 +29,13 @@ def test_fp_vector_slice_queries_and_to_owned():
     assert repr(owned) == "FpVector(5, [1, 2, 0])"
 
 
+def test_fp_vector_iter_nonzero():
+    v = fp.FpVector.from_slice(5, [0, 1, 7, 0, 4])
+    assert v.iter_nonzero() == [(1, 1), (2, 2), (4, 4)]
+    # Matches the full-vector slice.
+    assert v.iter_nonzero() == v.slice(0, len(v)).iter_nonzero()
+
+
 def test_fp_vector_to_owned_is_independent_clone():
     v = fp.FpVector.from_slice(5, [0, 1, 7, 0, 4])
     owned = v.to_owned()

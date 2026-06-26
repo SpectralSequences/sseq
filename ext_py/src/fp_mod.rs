@@ -1039,6 +1039,10 @@ pub mod fp_py {
             self.0.first_nonzero()
         }
 
+        pub fn iter_nonzero(&self) -> Vec<(usize, u32)> {
+            self.0.as_slice().iter_nonzero().collect()
+        }
+
         pub fn slice(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSlice> {
             checked_range(start, end, slf.0.len())?;
             let py = slf.py();
