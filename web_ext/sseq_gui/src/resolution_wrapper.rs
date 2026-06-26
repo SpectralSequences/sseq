@@ -4,6 +4,7 @@ use algebra::{
     Algebra,
     module::{FreeModule, Module, homomorphism::FreeModuleHomomorphism},
 };
+use anyhow::{Context, anyhow};
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
     resolution::Resolution as ResolutionInner,
@@ -70,8 +71,11 @@ impl Resolution<ext::CCC> {
         algebra_name: &str,
         sseq: crate::actions::SseqChoice,
         sender: crate::Sender,
-    ) -> Option<Self> {
-        let inner = Arc::new(ext::utils::construct((json.clone(), algebra_name), None).ok()?);
+    ) -> anyhow::Result<Self> {
+        let inner = Arc::new(
+            ext::utils::construct((json.clone(), algebra_name), None)
+                .context("Failed to construct resolution from module json")?,
+        );
         let algebra = inner.algebra();
 
         let mut result = Self {
@@ -90,28 +94,52 @@ impl Resolution<ext::CCC> {
 
         // Add products
         if !json["products"].is_null() {
-            for prod in json["products"].as_array()? {
+            for prod in json["products"]
+                .as_array()
+                .ok_or_else(|| anyhow!("`products` field is not an array"))?
+            {
                 let prod_deg = Bidegree::s_t(
-                    prod["hom_deg"].as_i64()? as i32,
-                    prod["int_deg"].as_i64()? as i32,
+                    prod["hom_deg"]
+                        .as_i64()
+                        .ok_or_else(|| anyhow!("product `hom_deg` is not an integer"))?
+                        as i32,
+                    prod["int_deg"]
+                        .as_i64()
+                        .ok_or_else(|| anyhow!("product `int_deg` is not an integer"))?
+                        as i32,
                 );
-                let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).ok()?;
-                let name = prod["name"].as_str()?;
+                let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"])
+                    .context("Failed to parse product `class`")?;
+                let name = prod["name"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("product `name` is not a string"))?;
 
                 result.add_product(prod_deg, class, name);
             }
         }
 
         if !json["self_maps"].is_null() {
-            for self_map in json["self_maps"].as_array()? {
+            for self_map in json["self_maps"]
+                .as_array()
+                .ok_or_else(|| anyhow!("`self_maps` field is not an array"))?
+            {
                 let self_map_deg = Bidegree::s_t(
-                    self_map["hom_deg"].as_i64()? as i32,
-                    self_map["int_deg"].as_i64()? as i32,
+                    self_map["hom_deg"]
+                        .as_i64()
+                        .ok_or_else(|| anyhow!("self map `hom_deg` is not an integer"))?
+                        as i32,
+                    self_map["int_deg"]
+                        .as_i64()
+                        .ok_or_else(|| anyhow!("self map `int_deg` is not an integer"))?
+                        as i32,
                 );
-                let name = self_map["name"].as_str()?;
+                let name = self_map["name"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("self map `name` is not a string"))?;
 
                 let json_map_data: Vec<Vec<u32>> =
-                    <Vec<Vec<u32>>>::deserialize(&self_map["map_data"]).ok()?;
+                    <Vec<Vec<u32>>>::deserialize(&self_map["map_data"])
+                        .context("Failed to parse self map `map_data`")?;
 
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
@@ -127,7 +155,7 @@ impl Resolution<ext::CCC> {
             }
         }
 
-        Some(result)
+        Ok(result)
     }
 }
 
