@@ -163,6 +163,31 @@ pub mod fp_py {
                 _ => false,
             }
         }
+
+        /// Whether `self` is backed by the same Python object as the bound
+        /// `FpVector` `other`. Used to detect aliasing when an `FpVector` is
+        /// supplied directly as an operand (rather than via an `FpSlice`),
+        /// mirroring [`same_object`]'s role for slice operands.
+        fn same_vector(&self, py: Python<'_>, other: &Bound<'_, PyFpVector>) -> bool {
+            match self {
+                Self::Vector(v) => v.bind(py).is(other),
+                _ => false,
+            }
+        }
+    }
+
+    /// Length of a slice-like operand argument (`FpVector` or `FpSlice`),
+    /// computed without retaining a borrow. Used for pre-borrow dimension
+    /// checks by the `FpSliceMut` operand-taking methods, which accept either
+    /// an `FpVector` or an `FpSlice`.
+    fn slice_like_len(operand: &Bound<'_, PyAny>) -> PyResult<usize> {
+        if let Ok(slice) = operand.extract::<PyRef<'_, PyFpSlice>>() {
+            Ok(slice.span())
+        } else if let Ok(vector) = operand.extract::<PyRef<'_, PyFpVector>>() {
+            Ok(vector.0.len())
+        } else {
+            Err(PyValueError::new_err("expected an FpVector or FpSlice"))
+        }
     }
 
     /// Run `f` on the reconstructed immutable slice for `parent[start..end]`,
@@ -590,18 +615,47 @@ pub mod fp_py {
             }
         }
 
+        /// Like [`with_operand`], but accepts an operand that is either an
+        /// `FpSlice` or a (full) `FpVector`. An `FpSlice` is routed through
+        /// [`with_operand`] (preserving its clone-on-alias handling). An
+        /// `FpVector` is borrowed transiently and viewed via its full-vector
+        /// slice, falling back to an owned copy only when it shares its backing
+        /// Python object with the target (genuine aliasing), matching the
+        /// `FpSlice` path's behavior.
+        fn with_operand_any<R>(
+            &self,
+            py: Python<'_>,
+            operand: &Bound<'_, PyAny>,
+            f: impl FnOnce(RustFpSlice<'_>) -> PyResult<R>,
+        ) -> PyResult<R> {
+            if let Ok(slice) = operand.extract::<PyRef<'_, PyFpSlice>>() {
+                self.with_operand(py, &slice, f)
+            } else if let Ok(vector) = operand.cast::<PyFpVector>() {
+                if self.parent.same_vector(py, vector) {
+                    let owned = vector.try_borrow().map_err(borrow_error)?.0.clone();
+                    f(owned.as_slice())
+                } else {
+                    let vector = vector.try_borrow().map_err(borrow_error)?;
+                    f(vector.0.as_slice())
+                }
+            } else {
+                Err(PyValueError::new_err("expected an FpVector or FpSlice"))
+            }
+        }
+
         /// Shared "sandwich" for single-operand binary ops: borrow `other`
-        /// (via `with_operand`), then borrow `self` mutably (via
-        /// `with_slice_mut`), verify the primes match, and run `f` with the
-        /// mutable target and the operand slice. Methods with extra pre-checks
-        /// (length/offset/mask/span) keep those in front of this call.
+        /// (an `FpSlice` or full `FpVector`, via `with_operand_any`), then
+        /// borrow `self` mutably (via `with_slice_mut`), verify the primes
+        /// match, and run `f` with the mutable target and the operand slice.
+        /// Methods with extra pre-checks (length/offset/mask/span) keep those
+        /// in front of this call.
         fn with_binary_op<R>(
             &self,
             py: Python<'_>,
-            other: &PyFpSlice,
+            other: &Bound<'_, PyAny>,
             f: impl FnOnce(RustFpSliceMut<'_>, RustFpSlice<'_>) -> R,
         ) -> PyResult<R> {
-            self.with_operand(py, other, |o| {
+            self.with_operand_any(py, other, |o| {
                 self.with_slice_mut(py, |t| {
                     checked_same_prime(t.prime().as_u32(), o.prime().as_u32())?;
                     Ok(f(t, o))
@@ -1178,8 +1232,8 @@ pub mod fp_py {
             self.with_slice_mut(py, |mut s| s.scale(c))
         }
 
-        pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
-            checked_equal_len(self.span(), other.span())?;
+        pub fn add(&self, py: Python<'_>, other: &Bound<'_, PyAny>, c: u32) -> PyResult<()> {
+            checked_equal_len(self.span(), slice_like_len(other)?)?;
             self.with_binary_op(py, other, |mut target, other_slice| {
                 target.add(other_slice, c);
             })
@@ -1188,11 +1242,11 @@ pub mod fp_py {
         pub fn add_offset(
             &self,
             py: Python<'_>,
-            other: &PyFpSlice,
+            other: &Bound<'_, PyAny>,
             c: u32,
             offset: usize,
         ) -> PyResult<()> {
-            checked_equal_len(self.span(), other.span())?;
+            checked_equal_len(self.span(), slice_like_len(other)?)?;
             checked_range(offset, self.span(), self.span())?;
             self.with_binary_op(py, other, |mut target, other_slice| {
                 target.add_offset(other_slice, c, offset);
@@ -1202,15 +1256,15 @@ pub mod fp_py {
         pub fn add_masked(
             &self,
             py: Python<'_>,
-            other: &PyFpSlice,
+            other: &Bound<'_, PyAny>,
             c: u32,
             mask: Vec<usize>,
         ) -> PyResult<()> {
             checked_equal_len(self.span(), mask.len())?;
-            if let Some(&index) = mask.iter().find(|&&index| index >= other.span()) {
+            let other_len = slice_like_len(other)?;
+            if let Some(&index) = mask.iter().find(|&&index| index >= other_len) {
                 return Err(PyIndexError::new_err(format!(
-                    "mask index {index} out of range for vector of length {}",
-                    other.span()
+                    "mask index {index} out of range for vector of length {other_len}"
                 )));
             }
             self.with_binary_op(py, other, |mut target, other_slice| {
@@ -1221,20 +1275,20 @@ pub mod fp_py {
         pub fn add_unmasked(
             &self,
             py: Python<'_>,
-            other: &PyFpSlice,
+            other: &Bound<'_, PyAny>,
             c: u32,
             mask: Vec<usize>,
         ) -> PyResult<()> {
-            if other.span() > mask.len() {
+            let other_len = slice_like_len(other)?;
+            if other_len > mask.len() {
                 return Err(PyValueError::new_err(format!(
-                    "mask length {} shorter than source length {}",
+                    "mask length {} shorter than source length {other_len}",
                     mask.len(),
-                    other.span()
                 )));
             }
             if let Some(&index) = mask
                 .iter()
-                .take(other.span())
+                .take(other_len)
                 .find(|&&index| index >= self.span())
             {
                 return Err(PyIndexError::new_err(format!(
@@ -1247,8 +1301,8 @@ pub mod fp_py {
             })
         }
 
-        pub fn assign(&self, py: Python<'_>, other: &PyFpSlice) -> PyResult<()> {
-            checked_equal_len(self.span(), other.span())?;
+        pub fn assign(&self, py: Python<'_>, other: &Bound<'_, PyAny>) -> PyResult<()> {
+            checked_equal_len(self.span(), slice_like_len(other)?)?;
             self.with_binary_op(py, other, |mut target, other_slice| {
                 target.assign(other_slice);
             })
@@ -1259,12 +1313,11 @@ pub mod fp_py {
             py: Python<'_>,
             offset: usize,
             coeff: u32,
-            left: &PyFpSlice,
-            right: &PyFpSlice,
+            left: &Bound<'_, PyAny>,
+            right: &Bound<'_, PyAny>,
         ) -> PyResult<()> {
-            let width = left
-                .span()
-                .checked_mul(right.span())
+            let width = slice_like_len(left)?
+                .checked_mul(slice_like_len(right)?)
                 .and_then(|width| offset.checked_add(width))
                 .ok_or_else(|| PyIndexError::new_err("tensor range overflows usize"))?;
             checked_range(offset, width, self.span())?;
@@ -1272,8 +1325,8 @@ pub mod fp_py {
             // only for one that shares a backing object with the target. Two
             // shared borrows coexist fine; only the target's mutable borrow can
             // collide with an operand that aliases it.
-            self.with_operand(py, left, |left_slice| {
-                self.with_operand(py, right, |right_slice| {
+            self.with_operand_any(py, left, |left_slice| {
+                self.with_operand_any(py, right, |right_slice| {
                     self.with_slice_mut(py, |mut target| {
                         checked_same_prime(target.prime().as_u32(), left_slice.prime().as_u32())?;
                         checked_same_prime(target.prime().as_u32(), right_slice.prime().as_u32())?;

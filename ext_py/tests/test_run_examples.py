@@ -134,14 +134,14 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "Matrix.iter_mut is now bound, so the script advances past "
-                 "secondary_massey.py:247. The remaining blocker is a different "
-                 "API mismatch at secondary_massey.py:248: "
-                 "out.slice_mut(...).add(g, 1) raises TypeError: 'FpVector' "
-                 "object is not an instance of 'FpSlice' (slice methods such as "
-                 "FpSliceMut.add only accept an FpSlice, but subspace_gens() "
-                 "yields FpVector). Accepting FpVector operands is a separate "
-                 "change.",
+        "xfail": "FpSliceMut.add (and siblings) now accept an FpVector operand, "
+                 "so the script advances past secondary_massey.py:248. The "
+                 "remaining blocker is a different binding gap at "
+                 "secondary_massey.py:249: g.iter_nonzero() raises "
+                 "AttributeError: 'fp.FpVector' object has no attribute "
+                 "'iter_nonzero' (subspace_gens() yields FpVector, but "
+                 "iter_nonzero is currently only bound on FpSlice). Binding "
+                 "FpVector.iter_nonzero is a separate change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {

@@ -239,6 +239,42 @@ def test_fp_slice_mut_matrix_row_aliasing_clone_fallback():
     assert m2.to_vec() == [[4, 0, 1], [4, 0, 1]]
 
 
+def test_fp_slice_mut_accepts_fp_vector_operand():
+    # The operand-taking FpSliceMut methods accept either an FpSlice or a
+    # (full) FpVector, coercing the FpVector via its full-vector slice.
+    v = fp.FpVector.from_slice(5, [1, 0, 0, 0, 0, 0])
+    target = v.slice_mut(1, 4)
+    operand = fp.FpVector.from_slice(5, [1, 2, 3])
+
+    target.add(operand, 2)
+    assert [v[i] for i in range(len(v))] == [1, 2, 4, 1, 0, 0]
+
+    target.assign(operand)
+    assert [v[i] for i in range(len(v))] == [1, 1, 2, 3, 0, 0]
+
+    target.add_offset(operand, 1, 1)
+    assert [v[i] for i in range(len(v))] == [1, 1, 4, 1, 0, 0]
+
+    # An FpVector operand whose backing object IS the target's parent takes the
+    # clone fallback and must still be correct.
+    w = fp.FpVector.from_slice(5, [1, 2, 3])
+    w.slice_mut(0, 3).add(w, 1)
+    assert [w[i] for i in range(len(w))] == [2, 4, 1]
+
+    # add_tensor accepts FpVector operands too.
+    out = fp.FpVector(5, 6)
+    left = fp.FpVector.from_slice(5, [1, 2])
+    right = fp.FpVector.from_slice(5, [3, 4])
+    out.slice_mut(0, 6).add_tensor(1, 2, left, right)
+    assert [out[i] for i in range(6)] == [0, 1, 3, 2, 1, 0]
+
+    # A matrix row_mut accepting an FpVector operand (the secondary_massey.py
+    # pattern: out.slice_mut(...).add(g, 1) where g is an FpVector).
+    m = fp.Matrix.from_vec(5, [[1, 1, 1], [2, 2, 2]])
+    m.row_mut(0).add(fp.FpVector.from_slice(5, [3, 0, 1]), 1)
+    assert m.to_vec() == [[4, 1, 2], [2, 2, 2]]
+
+
 def test_fp_slice_mut_new_method_errors_are_python_exceptions():
     target_v = fp.FpVector(5, 3)
     target = target_v.slice_mut(0, 3)
