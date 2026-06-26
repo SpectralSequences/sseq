@@ -29,6 +29,23 @@ def test_fp_vector_slice_queries_and_to_owned():
     assert repr(owned) == "FpVector(5, [1, 2, 0])"
 
 
+def test_fp_vector_restrict_returns_subslice():
+    v = fp.FpVector.from_slice(5, [0, 1, 7, 0, 4])
+
+    r = v.restrict(1, 4)
+    assert isinstance(r, fp.FpSlice)
+    assert len(r) == 3
+    assert r.iter_nonzero() == [(0, 1), (1, 2)]
+    # Mirrors slice(start, end) for an FpVector.
+    assert r.iter_nonzero() == v.slice(1, 4).iter_nonzero()
+    assert repr(r.to_owned()) == "FpVector(5, [1, 2, 0])"
+
+    with pytest.raises(IndexError):
+        v.restrict(0, 6)
+    with pytest.raises(IndexError):
+        v.restrict(3, 2)
+
+
 def test_fp_vector_iter_nonzero():
     v = fp.FpVector.from_slice(5, [0, 1, 7, 0, 4])
     assert v.iter_nonzero() == [(1, 1), (2, 2), (4, 4)]

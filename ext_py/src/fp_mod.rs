@@ -1053,6 +1053,20 @@ pub mod fp_py {
             })
         }
 
+        /// Restrict to the sub-range of coordinates `[start, end)`, returning a
+        /// read-only `FpSlice` view. For an `FpVector` (whose coordinates start
+        /// at 0) this mirrors `slice(start, end)`; named to match the analogous
+        /// `FpSlice.restrict` method.
+        pub fn restrict(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSlice> {
+            checked_range(start, end, slf.0.len())?;
+            let py = slf.py();
+            Ok(PyFpSlice {
+                parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
+                start,
+                end,
+            })
+        }
+
         pub fn slice_mut(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSliceMut> {
             checked_range(start, end, slf.0.len())?;
             let py = slf.py();

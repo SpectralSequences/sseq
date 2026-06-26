@@ -134,13 +134,7 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "Subquotient.reduce_by_quotient now accepts an FpSliceMut, so "
-                 "the script advances past secondary_massey.py:285. The "
-                 "remaining blocker is a different binding gap at "
-                 "secondary_massey.py:315: AttributeError: 'fp.FpVector' object "
-                 "has no attribute 'restrict' when calling g.restrict(0, "
-                 "target_num_gens). FpVector has no restrict method; adding one "
-                 "is a separate change.",
+        "xfail": None,
     },
     # --- Unbound bindings (aspirational API) ---
     {
