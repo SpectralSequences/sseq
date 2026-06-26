@@ -159,8 +159,8 @@ EXAMPLES = [
     {
         "name": "mahowald_invariant.py",
         "args": ["", "", "8"],
-        "xfail": "ResolutionHomomorphism.from_class rejects negative-t shift "
-        "(s_t(0, -k)): 'invalid shift: require s >= 0 and t >= 0'",
+        "xfail": "Resolution.has_computed_bidegree rejects negative-t bidegree "
+        "((-1, 0)): 'invalid bidegree: require s >= 0 and t >= 0'",
     },
 ]
 

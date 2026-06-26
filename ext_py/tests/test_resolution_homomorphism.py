@@ -21,7 +21,7 @@ All bad degree/index/bidegree inputs are pre-checked and raise
 import pytest
 
 import ext
-from ext import fp, sseq
+from ext import algebra, fp, sseq
 
 Bidegree = sseq.Bidegree
 BidegreeGenerator = sseq.BidegreeGenerator
@@ -284,11 +284,45 @@ def test_from_class_prime_mismatch_errors():
 
 
 def test_new_negative_shift_errors():
+    # A negative homological-degree shift (shift.s < 0) is nonsensical and
+    # rejected, but a negative internal-degree shift (shift.t < 0) is legitimate
+    # (e.g. a map out of a stunted projective space RP_{-k}) and is allowed.
     r = s2_rect(4)
     with pytest.raises(ValueError):
         ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(-1, 0))
+    # shift.t < 0 is allowed.
+    hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(0, -1))
+    assert hom.shift().t == -1
+
+
+def rp_minus_k(k, max_st):
+    """A standard-backend resolution of the stunted projective space RP_{-k}^inf
+    (min_degree = -k), computed through the (max_st, max_st) rectangle."""
+    spec = ({"p": 2, "type": "real projective space", "min": -k}, algebra.AlgebraType.Milnor)
+    r = ext.Resolution.construct(spec, None, "standard")
+    r.compute_through_bidegree(Bidegree.s_t(max_st, max_st))
+    return r
+
+
+def test_from_class_negative_t_shift_rp():
+    # A map OUT OF RP_{-k} into S_2 uses the shift (s=0, t=-k); the binding must
+    # allow the negative internal degree once the source is resolved there.
+    k = 3
+    rp = rp_minus_k(k, 6)
+    s2 = s2_rect(6)
+    hom = ext.ResolutionHomomorphism.from_class(
+        "bottom_cell", rp, s2, Bidegree.s_t(0, -k), [1]
+    )
+    hom.extend_all()
+    assert hom.shift().s == 0
+    assert hom.shift().t == -k
+
+
+def test_from_class_negative_s_shift_still_rejected():
+    # Guard: a negative homological-degree shift is still rejected.
+    r = s2_rect(4)
     with pytest.raises(ValueError):
-        ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(0, -1))
+        ext.ResolutionHomomorphism.from_class("f", r, r, Bidegree.s_t(-1, 0), [1])
 
 
 def test_from_class_guards():

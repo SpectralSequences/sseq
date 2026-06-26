@@ -1639,9 +1639,11 @@ mod ext_py {
         /// in by exactness (yielding the zero map from an empty `new`).
         ///
         /// Both resolutions must be standard-backend (Nassau → `ValueError`) and
-        /// share the same prime. `shift` must be non-negative in both `s` and
-        /// `t` (a resolution homomorphism raises homological/internal degree; a
-        /// negative shift is rejected rather than risking a wrapped index).
+        /// share the same prime. Only `shift.s` must be non-negative (a negative
+        /// homological-degree shift is nonsensical and is rejected rather than
+        /// risking a wrapped index). `shift.t` may be negative, e.g. for a map
+        /// out of a stunted projective space `RP_{-k}` (whose source module has
+        /// negative `min_degree`).
         ///
         /// Note: if the `source` resolution is backed by a save directory *and*
         /// `name` is non-empty, upstream `new` creates a `products/{name}`
@@ -1664,9 +1666,9 @@ mod ext_py {
                     t.prime().as_u32()
                 )));
             }
-            if shift.0.s() < 0 || shift.0.t() < 0 {
+            if shift.0.s() < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid shift {}: require s >= 0 and t >= 0",
+                    "invalid shift {}: require s >= 0 (t may be negative, e.g. for a map out of RP_{{-k}})",
                     shift.0
                 )));
             }
@@ -1684,7 +1686,8 @@ mod ext_py {
         ///
         /// Validates (all `ValueError`/`IndexError`, never a panic):
         ///  - both resolutions standard-backend and same prime (as `new`);
-        ///  - `shift` non-negative;
+        ///  - `shift.s` non-negative (`shift.t` may be negative, e.g. a map out
+        ///    of a stunted projective space `RP_{-k}`);
         ///  - `source` computed at `shift` (else indexing its module/generator
         ///    table would panic), and `len(class)` equals the number of source
         ///    generators there (upstream `assert_eq!`);
@@ -1717,9 +1720,9 @@ mod ext_py {
                 )));
             }
             let b = shift.0;
-            if b.s() < 0 || b.t() < 0 {
+            if b.s() < 0 {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid shift {b}: require s >= 0 and t >= 0"
+                    "invalid shift {b}: require s >= 0 (t may be negative, e.g. for a map out of RP_{{-k}})"
                 )));
             }
             if !s.has_computed_bidegree(b) {
