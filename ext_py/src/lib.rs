@@ -650,6 +650,26 @@ mod ext_py {
             }
         }
 
+        /// The augmentation `target()` of this resolution: the chain complex
+        /// being resolved, as a bound `ChainComplex` (`CCC`), sharing the same
+        /// `Arc`. This is the `AugmentedChainComplex::target()` of the underlying
+        /// `ext::resolution::Resolution<CCC>`.
+        ///
+        /// Only the standard backend resolves a `CCC`; Nassau's algorithm
+        /// resolves a different (monomorphised) complex type that the
+        /// `ChainComplex` pyclass cannot represent, so it is rejected with a
+        /// `ValueError` (mirroring `chain_complex()` / `module()`).
+        pub fn target(&self) -> PyResult<ChainComplex> {
+            match &self.0 {
+                AnyResolution::Standard(r) => Ok(ChainComplex(r.target())),
+                AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
+                    "target() is only available on the standard backend; Nassau resolves a \
+                     different complex type that the ChainComplex pyclass (CCC) cannot represent. \
+                     Construct the Resolution with algorithm='standard'.",
+                )),
+            }
+        }
+
         /// Resolve through the given target bidegree (fixed `t`, as opposed to
         /// `compute_through_stem`'s fixed stem). Validates `s >= 0`/`t >= 0`,
         /// raising `ValueError` rather than risking an internal panic (cf.
@@ -4801,6 +4821,14 @@ mod ext_py {
         /// zero module past the top), so `iter_stem` is *infinite*; see there.
         pub fn next_homological_degree(&self) -> i32 {
             self.0.next_homological_degree()
+        }
+
+        /// The number of (potentially) nonzero modules: `C_s` is the zero module
+        /// for `s >= max_s()`. `CCC` is a `FiniteChainComplex`, hence bounded
+        /// (upstream `BoundedChainComplex::max_s` returns `modules.len()`).
+        pub fn max_s(&self) -> i32 {
+            use ext::chain_complex::BoundedChainComplex;
+            self.0.max_s()
         }
 
         /// The zero module (the target/source of the boundary differentials).

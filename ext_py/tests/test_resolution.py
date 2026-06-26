@@ -242,6 +242,27 @@ def test_module_standard_shares_arc():
         r.module(r.next_homological_degree())
 
 
+def test_target_standard_chain_complex():
+    # target() is the augmentation target: the chain complex being resolved.
+    # For S_2 that is the trivial complex with the base module in degree 0.
+    r = resolve("standard")
+    cc = r.target()
+    assert isinstance(cc, ext.ChainComplex)
+    assert cc.prime == 2
+    # max_s == 1: only C_0 is (potentially) nonzero for the sphere.
+    assert cc.max_s() == 1
+    m0 = cc.module(0)
+    assert m0.is_unit()
+
+
+def test_target_nassau_unsupported():
+    # Nassau resolves a monomorphised complex type the ChainComplex pyclass
+    # (CCC) cannot represent.
+    r = resolve("nassau")
+    with pytest.raises(ValueError):
+        r.target()
+
+
 def test_module_nassau_unsupported():
     # Nassau resolves over the concrete MilnorAlgebra; the FreeModule pyclass
     # (over the SteenrodAlgebra union) cannot represent its modules.

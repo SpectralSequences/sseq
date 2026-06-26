@@ -75,7 +75,8 @@ EXAMPLES = [
     {
         "name": "lift_hom.py",
         "args": ["S_2", "", "4", "2", "S_2", "prod", "0", "0"],
-        "xfail": "Resolution.target() not bound",
+        "xfail": "needs interactive Ext-class vector input (query.vector) "
+        "not supplied via argv",
     },
     # --- Nassau (default) backend lacks methods the example needs ---
     {
@@ -98,12 +99,12 @@ EXAMPLES = [
     {
         "name": "sq0.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "Resolution.target() not bound; also needs DoubleChainComplex",
+        "xfail": "needs DoubleChainComplex (ext.DoubleChainComplex not bound)",
     },
     {
         "name": "steenrod.py",
         "args": ["S_2", "", "1", "1", "[1]"],
-        "xfail": "Resolution.target() not bound; also needs TensorChainComplex",
+        "xfail": "needs TensorChainComplex (ext.TensorChainComplex not bound)",
     },
     {
         "name": "yoneda.py",

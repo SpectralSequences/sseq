@@ -26,7 +26,7 @@ from ext.algebra import FreeModuleHomomorphism
 def main():
     # ext::utils::init_logging() -> stderr only; no stdout effect.
 
-    resolution = query.query_resolution("Module", None)
+    resolution = query.query_resolution("Module", None, algorithm="standard")
     module = resolution.target().module(0)
     p = resolution.prime
 

@@ -16,7 +16,7 @@ from ext import fp, sseq
 
 def main():
     # Build the resolution and resolve it through the queried (n, s) stem.
-    res = query.query_resolution()
+    res = query.query_resolution(algorithm="standard")
     res.compute_through_stem(query.query_n_s())
     assert (
         res.prime == 2

@@ -12,7 +12,7 @@ from ext import fp, sseq
 
 
 def main():
-    source = query.query_resolution("Source module")
+    source = query.query_resolution("Source module", algorithm="standard")
     b = sseq.Bidegree.n_s(
         query.with_default("Max source n", "30", int),
         query.with_default("Max source s", "7", int),
@@ -24,7 +24,7 @@ def main():
         if s == source_name:
             return source
         save_dir = query.optional("Target save directory", str)
-        target = ext.Resolution.construct(s, save_dir)
+        target = ext.Resolution.construct(s, save_dir, "standard")
         target.set_name(s)
         return target
 
