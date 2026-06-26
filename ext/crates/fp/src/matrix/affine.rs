@@ -1,11 +1,45 @@
 use super::Subspace;
-use crate::vector::{FpSlice, FpVector};
+use crate::{
+    prime::Prime,
+    vector::{FpSlice, FpVector},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AffineSubspace {
     offset: FpVector,
     linear_part: Subspace,
 }
+
+/// Why [`AffineSubspace::try_new`] rejected an `(offset, linear_part)` pair.
+///
+/// [`AffineSubspace::new`] `assert_eq!`s that `offset.len()` matches `linear_part`'s ambient
+/// dimension and then reduces `offset` against `linear_part`, which additionally requires the two
+/// to share a prime (otherwise the reduction's vector addition panics). The variants below name
+/// those two rejection modes for callers (such as the Python bindings) handling untrusted input
+/// that must not panic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AffineSubspaceError {
+    /// `offset` and `linear_part` are defined over different primes.
+    PrimeMismatch { offset: u32, linear_part: u32 },
+    /// `offset.len()` does not match `linear_part`'s ambient dimension.
+    LengthMismatch { offset: usize, ambient: usize },
+}
+
+impl std::fmt::Display for AffineSubspaceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PrimeMismatch {
+                offset,
+                linear_part,
+            } => write!(f, "prime mismatch: {offset} != {linear_part}"),
+            Self::LengthMismatch { offset, ambient } => {
+                write!(f, "length mismatch: {offset} != {ambient}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for AffineSubspaceError {}
 
 impl AffineSubspace {
     pub fn new(mut offset: FpVector, linear_part: Subspace) -> Self {
@@ -15,6 +49,34 @@ impl AffineSubspace {
             offset,
             linear_part,
         }
+    }
+
+    /// Construct an affine subspace `offset + linear_part`, validating compatibility.
+    ///
+    /// Unlike [`Self::new`], which `assert_eq!`s on the ambient dimension (and can panic inside
+    /// the offset reduction when the operands disagree on the prime), this checks both conditions
+    /// without panicking: `offset` and `linear_part` must share a prime and `offset.len()` must
+    /// equal `linear_part`'s ambient dimension, returning the matching [`AffineSubspaceError`]
+    /// otherwise. Intended for callers handling untrusted input, such as the Python bindings.
+    pub fn try_new(
+        offset: FpVector,
+        linear_part: Subspace,
+    ) -> Result<Self, AffineSubspaceError> {
+        let offset_prime = offset.prime().as_u32();
+        let linear_prime = linear_part.prime().as_u32();
+        if offset_prime != linear_prime {
+            return Err(AffineSubspaceError::PrimeMismatch {
+                offset: offset_prime,
+                linear_part: linear_prime,
+            });
+        }
+        if offset.len() != linear_part.ambient_dimension() {
+            return Err(AffineSubspaceError::LengthMismatch {
+                offset: offset.len(),
+                ambient: linear_part.ambient_dimension(),
+            });
+        }
+        Ok(Self::new(offset, linear_part))
     }
 
     pub fn offset(&self) -> &FpVector {

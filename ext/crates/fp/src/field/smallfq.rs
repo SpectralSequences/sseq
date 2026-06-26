@@ -110,6 +110,31 @@ pub struct SmallFq<P> {
     table: ZechTable,
 }
 
+/// Why [`SmallFq::try_new`] rejected a `(p, d)` pair.
+///
+/// [`SmallFq::new`] `assert!`s that `d > 1` (prime fields should use [`Fp`]) and that the field
+/// order `q = p^d` is representable (`q < 2^16`, so the Zech-logarithm table fits). The variants
+/// below name those two rejection modes for callers (such as the Python bindings) handling
+/// untrusted input that must not panic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmallFqError {
+    /// The requested degree `d` is `<= 1`; use [`Fp`] for prime fields instead.
+    DegreeTooSmall { d: u32 },
+    /// The field order `q = p^d` is `>= 2^16` (or `p^d` overflows), too large to represent.
+    FieldTooLarge { p: u32, d: u32 },
+}
+
+impl std::fmt::Display for SmallFqError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DegreeTooSmall { .. } => write!(f, "degree must be greater than 1"),
+            Self::FieldTooLarge { .. } => write!(f, "field is too large"),
+        }
+    }
+}
+
+impl std::error::Error for SmallFqError {}
+
 impl<P: Prime> SmallFq<P> {
     pub fn new(p: P, d: u32) -> Self {
         assert!(d > 1, "Use Fp for prime fields");
@@ -121,6 +146,27 @@ impl<P: Prime> SmallFq<P> {
             q: p.pow(d),
             table: zech_logs(p, d),
         }
+    }
+
+    /// Construct a `SmallFq`, validating that `(p, d)` describes a representable extension field.
+    ///
+    /// Unlike [`Self::new`], which `assert!`s (and whose `p.pow(d)` can overflow for large `d`),
+    /// this checks the same conditions without panicking: the degree must satisfy `d > 1` and the
+    /// field order `q = p^d` must be representable (`q < 2^16`), returning the matching
+    /// [`SmallFqError`] otherwise. Intended for callers handling untrusted input, such as the
+    /// Python bindings.
+    pub fn try_new(p: P, d: u32) -> Result<Self, SmallFqError> {
+        if d <= 1 {
+            return Err(SmallFqError::DegreeTooSmall { d });
+        }
+        let too_large = d > 16
+            || p.as_u32()
+                .checked_pow(d)
+                .is_none_or(|q| q >= 1 << 16);
+        if too_large {
+            return Err(SmallFqError::FieldTooLarge { p: p.as_u32(), d });
+        }
+        Ok(Self::new(p, d))
     }
 
     /// Return the element `-1`. If `p = 2`, this is `a^0 = 1`. Otherwise, it is `a^((q - 1) / 2)`.

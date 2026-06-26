@@ -383,15 +383,18 @@ pub mod fp_py {
         }
     }
 
+    /// Build a `SmallFq` from a Python-supplied prime and degree.
+    ///
+    /// We validate the prime ourselves (upstream `SmallFq` takes an already-valid
+    /// `Prime`), then delegate the degree/field-size checks to upstream
+    /// [`SmallFq::try_new`](RustSmallFq::try_new). Both
+    /// [`SmallFqError`](fp::field::SmallFqError) variants map to the same
+    /// `ValueError` messages (`"degree must be greater than 1"` / `"field is too
+    /// large"`) this helper used to raise by hand, avoiding the panic that
+    /// `SmallFq::new` would otherwise raise across the PyO3 boundary.
     fn small_fq(p: u32, degree: u32) -> PyResult<DynSmallFq> {
         let p = valid_prime(p)?;
-        if degree <= 1 {
-            return Err(PyValueError::new_err("degree must be greater than 1"));
-        }
-        if degree > 16 || p.as_u32().checked_pow(degree).is_none_or(|q| q >= 1 << 16) {
-            return Err(PyValueError::new_err("field is too large"));
-        }
-        Ok(DynSmallFq::new(p, degree))
+        DynSmallFq::try_new(p, degree).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     fn py_hash<T: Hash>(value: &T) -> isize {
@@ -2438,16 +2441,18 @@ pub mod fp_py {
         ///
         /// Upstream `AffineSubspace::new` `assert_eq!`s that the offset length
         /// matches the linear part's ambient dimension and reduces the offset
-        /// against the linear part (which requires a shared prime), so we
-        /// pre-check both here to raise `ValueError` instead of panicking.
+        /// against the linear part (which requires a shared prime), so we delegate
+        /// to upstream
+        /// [`AffineSubspace::try_new`](RustAffineSubspace::try_new) instead, which
+        /// validates both without panicking across the PyO3 boundary. Both
+        /// [`AffineSubspaceError`](fp::matrix::AffineSubspaceError) variants map to
+        /// the same `ValueError` messages (`"prime mismatch: ..."` /
+        /// `"length mismatch: ..."`) this constructor used to raise by hand.
         #[new]
         pub fn new(offset: &PyFpVector, linear_part: &PySubspace) -> PyResult<Self> {
-            checked_same_prime(offset.0.prime().as_u32(), linear_part.0.prime().as_u32())?;
-            checked_equal_len(offset.0.len(), linear_part.0.ambient_dimension())?;
-            Ok(Self(RustAffineSubspace::new(
-                offset.0.clone(),
-                linear_part.0.clone(),
-            )))
+            RustAffineSubspace::try_new(offset.0.clone(), linear_part.0.clone())
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e.to_string()))
         }
 
         #[getter]
