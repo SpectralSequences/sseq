@@ -259,7 +259,7 @@ def _suspension_module(spec="S_2", shift_t=0):
     alg = algebra.SteenrodAlgebra.from_json(
         module_json, algebra.AlgebraType.Milnor, True
     )
-    module = algebra.steenrod_module_from_json(alg, module_json)
+    module = algebra.SteenrodModule.from_spec(module_json, alg)
     return algebra.SuspensionModule(module, shift_t)
 
 

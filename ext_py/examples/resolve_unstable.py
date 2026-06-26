@@ -36,7 +36,7 @@ def query_unstable_module(load_quasi_inverse):
 
     module_json, algebra_type = query.raw("Module", parse_spec)
     alg = algebra.SteenrodAlgebra.from_json(module_json, algebra_type, True)
-    module = algebra.steenrod_module_from_json(alg, module_json)
+    module = algebra.SteenrodModule.from_spec(module_json, alg)
 
     # NOTE: depends on ext.ChainComplex.ccdz and
     # ext.UnstableResolution.new_with_save (API_PROPOSAL §7.1, §7.2).

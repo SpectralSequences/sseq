@@ -218,11 +218,11 @@ def test_fdmodule_to_json():
     assert m.to_json()["name"] == "C2"
 
 
-# --- steenrod_module_from_json --------------------------------------------
+# --- from_spec ------------------------------------------------------------
 
 
-def test_steenrod_module_from_json_c2():
-    sm = algebra.steenrod_module_from_json(milnor(2), C2_JSON)
+def test_from_spec_c2():
+    sm = algebra.SteenrodModule.from_spec(C2_JSON, milnor(2))
     assert isinstance(sm, algebra.SteenrodModule)
     assert sm.prime == 2
     assert sm.min_degree() == 0
@@ -232,19 +232,47 @@ def test_steenrod_module_from_json_c2():
     assert sm.basis_element_to_string(0, 0) == "x0"
 
 
-def test_steenrod_module_from_json_action_known_value():
-    sm = algebra.steenrod_module_from_json(milnor(2), C2_JSON)
+def test_from_spec_action_known_value():
+    sm = algebra.SteenrodModule.from_spec(C2_JSON, milnor(2))
     # Sq1 . x0 = x1.
     res = fp.FpVector(2, sm.dimension(1))
     sm.act_on_basis(res, 1, 1, 0, 0, 0)
     assert res[0] == 1
 
 
-def test_steenrod_module_from_json_bad_spec_raises():
+def test_from_spec_bad_spec_raises():
     with pytest.raises(ValueError):
-        algebra.steenrod_module_from_json(milnor(2), {"p": 2})  # missing type
+        algebra.SteenrodModule.from_spec({"p": 2}, milnor(2))  # missing type
     with pytest.raises(ValueError):
-        algebra.steenrod_module_from_json(milnor(2), {"p": 2, "type": "bogus"})
+        algebra.SteenrodModule.from_spec({"p": 2, "type": "bogus"}, milnor(2))
+
+
+@pytest.mark.parametrize("name", ["milnor", "adem"])
+def test_from_spec_string_algebra(name):
+    sm = algebra.SteenrodModule.from_spec(C2_JSON, name)
+    assert isinstance(sm, algebra.SteenrodModule)
+    assert sm.prime == 2
+    assert sm.dimension(0) == 1
+    assert sm.dimension(1) == 1
+
+
+def test_from_spec_string_algebra_case_insensitive():
+    sm = algebra.SteenrodModule.from_spec(C2_JSON, "Milnor")
+    assert isinstance(sm, algebra.SteenrodModule)
+    assert sm.prime == 2
+    assert sm.dimension(0) == 1
+    assert sm.dimension(1) == 1
+
+
+def test_from_spec_string_algebra_unknown_raises():
+    with pytest.raises(ValueError):
+        algebra.SteenrodModule.from_spec(C2_JSON, "foo")
+
+
+def test_from_spec_string_algebra_missing_prime_raises():
+    spec = {k: v for k, v in C2_JSON.items() if k != "p"}
+    with pytest.raises(ValueError):
+        algebra.SteenrodModule.from_spec(spec, "milnor")
 
 
 # --- FreeModule -----------------------------------------------------------
@@ -470,7 +498,7 @@ def test_fdmodulebuilder_present_fdmodule_absent():
 def test_module_from_json_prime_mismatch():
     # Passing a p=3 algebra to a p=2 spec must error, not panic.
     with pytest.raises((ValueError, RuntimeError)):
-        algebra.steenrod_module_from_json(milnor(3), C2_JSON)
+        algebra.SteenrodModule.from_spec(C2_JSON, milnor(3))
 
 
 # --- FDModuleBuilder.from_tensor_module -----------------------------------
@@ -483,8 +511,8 @@ def make_c2_tensor_c2():
     (checked via Arc::ptr_eq), so both are built from a single `alg`.
     """
     alg = algebra.SteenrodAlgebra.adem(2)
-    left = algebra.steenrod_module_from_json(alg, C2_JSON)
-    right = algebra.steenrod_module_from_json(alg, C2_JSON)
+    left = algebra.SteenrodModule.from_spec(C2_JSON, alg)
+    right = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     return algebra.TensorModule(left, right)
 
 

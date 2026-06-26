@@ -41,7 +41,7 @@ def query_unstable_module_only():
 
     module_json, algebra_type = query.raw("Module", parse_spec)
     alg = algebra.SteenrodAlgebra.from_json(module_json, algebra_type, True)
-    return algebra.steenrod_module_from_json(alg, module_json)
+    return algebra.SteenrodModule.from_spec(module_json, alg)
 
 
 def main():

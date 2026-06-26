@@ -17,7 +17,7 @@ def milnor(p=2):
 
 
 def c2_module(alg):
-    return algebra.steenrod_module_from_json(alg, C2_JSON)
+    return algebra.SteenrodModule.from_spec(C2_JSON, alg)
 
 
 def identity_and_quotient(alg):

@@ -25,8 +25,8 @@ def main():
 
     alg = algebra.SteenrodAlgebra.adem(p)
 
-    left_module = algebra.steenrod_module_from_json(alg, left)
-    right_module = algebra.steenrod_module_from_json(alg, right)
+    left_module = algebra.SteenrodModule.from_spec(left, alg)
+    right_module = algebra.SteenrodModule.from_spec(right, alg)
 
     tensor_module = algebra.TensorModule(left_module, right_module)
 

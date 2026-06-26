@@ -31,7 +31,7 @@ def free_module_one_generator(alg):
 def c2_differential(alg):
     """f: F -> C2 with F = <g> in degree 0 and f(g) = x0."""
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     row = fp.FpVector(2, target.dimension(0))
     row[0] = 1
@@ -70,7 +70,7 @@ def test_construct_requires_same_algebra():
     a1 = milnor(2)
     a2 = milnor(2)  # distinct algebra object
     source = free_module_one_generator(a1)
-    target = algebra.steenrod_module_from_json(a2, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, a2)
     with pytest.raises(ValueError):
         algebra.FreeModuleHomomorphism(source, target, 0)
 
@@ -217,7 +217,7 @@ def test_add_generators_from_rows_non_consecutive_raises():
 def test_add_generators_from_rows_wrong_count_raises():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     # Degree 0 has exactly one generator; supplying two rows is an error.
     r1 = fp.FpVector(2, 1)
@@ -229,7 +229,7 @@ def test_add_generators_from_rows_wrong_count_raises():
 def test_add_generators_from_matrix_rows():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     matrix = fp.Matrix.from_vec(2, [[1]])
     hom.add_generators_from_matrix_rows(0, matrix)
@@ -294,7 +294,7 @@ def free_module_gen_in_degree(alg, gen_degree):
 def c2_differential_shift(alg):
     """f: F -> C2 with degree_shift = 1, F = <g> in degree 1 and f(g) = x0."""
     source = free_module_gen_in_degree(alg, 1)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 1)
     # The output on g lands in target.dimension(1 - degree_shift) = dim(0) = 1.
     row = fp.FpVector(2, target.dimension(0))
@@ -432,7 +432,7 @@ def test_extend_by_zero_past_max_computed_degree_raises():
 def test_add_generators_from_matrix_rows_wrong_row_count_raises():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     # Degree 0 has 1 generator; a matrix with 0 rows is too few.
     empty = fp.Matrix(2, 0, 1)
@@ -443,7 +443,7 @@ def test_add_generators_from_matrix_rows_wrong_row_count_raises():
 def test_add_generators_from_matrix_rows_wrong_column_dim_raises():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     # target.dimension(0) = 1, so a 3-column matrix has the wrong width.
     wide = fp.Matrix.from_vec(2, [[0, 0, 0]])
@@ -454,7 +454,7 @@ def test_add_generators_from_matrix_rows_wrong_column_dim_raises():
 def test_add_generators_from_rows_wrong_length_raises():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     # target.dimension(0) = 1, so a length-3 row is the wrong length.
     bad_len = fp.FpVector(2, 3)
@@ -465,7 +465,7 @@ def test_add_generators_from_rows_wrong_length_raises():
 def test_add_generators_from_rows_wrong_prime_raises():
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
     bad_prime = fp.FpVector(3, 1)
     with pytest.raises(ValueError):
@@ -552,7 +552,7 @@ def test_source_handle_reflects_underlying_state():
     # that repeated calls agree.
     alg = milnor(2)
     source = free_module_one_generator(alg)
-    target = algebra.steenrod_module_from_json(alg, C2_JSON)
+    target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
 
     s1 = hom.source()

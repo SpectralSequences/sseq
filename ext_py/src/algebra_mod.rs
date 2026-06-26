@@ -2568,6 +2568,70 @@ pub mod algebra_py {
 
     #[pymethods]
     impl SteenrodModule {
+        /// Build a `SteenrodModule` from a module-spec `dict` (the JSON the
+        /// crate reads from a module file) over the given `algebra`, with the
+        /// spec first and the algebra second. `algebra` may be a
+        /// `SteenrodAlgebra`, `AdemAlgebra` or `MilnorAlgebra` instance, OR the
+        /// string `"milnor"`/`"adem"` (case-insensitive); for a string the
+        /// algebra is constructed at the prime read from the spec's `"p"`
+        /// field, so the spec must carry a `"p"` (otherwise `ValueError`).
+        ///
+        /// Mirrors `::algebra::module::steenrod_module::from_json`. Two panic
+        /// hazards are guarded: a spec prime that disagrees with the supplied
+        /// algebra's prime is rejected up front (for the pyclass case), and the
+        /// upstream call is wrapped in `catch_unwind` so a malformed spec
+        /// surfaces as a `ValueError`. All failures map to `ValueError`; a
+        /// non-string, non-algebra argument raises `TypeError`.
+        #[staticmethod]
+        pub fn from_spec(
+            module_spec: &Bound<'_, PyAny>,
+            algebra: &Bound<'_, PyAny>,
+        ) -> PyResult<Self> {
+            use std::panic::{catch_unwind, AssertUnwindSafe};
+            let json = py_to_json(module_spec)?;
+            let arc = if let Ok(name) = algebra.extract::<String>() {
+                // String algebra: take the prime from the spec and build the
+                // matching variant at that prime.
+                let spec_p = json["p"].as_u64().ok_or_else(|| {
+                    PyValueError::new_err(
+                        "a string algebra requires a \"p\" field in the module spec",
+                    )
+                })?;
+                let p = valid_prime(spec_p as u32)?;
+                match name.to_ascii_lowercase().as_str() {
+                    "adem" => Arc::new(::algebra::SteenrodAlgebra::AdemAlgebra(
+                        ::algebra::AdemAlgebra::new(p, false),
+                    )),
+                    "milnor" => Arc::new(::algebra::SteenrodAlgebra::MilnorAlgebra(
+                        ::algebra::MilnorAlgebra::new(p, false),
+                    )),
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "unknown algebra {other:?} (expected \"milnor\" or \"adem\")"
+                        )))
+                    }
+                }
+            } else {
+                let arc = algebra_arg_to_steenrod(algebra)?;
+                if let Some(spec_p) = json["p"].as_u64() {
+                    let algebra_p = arc.prime().as_u32() as u64;
+                    if spec_p != algebra_p {
+                        return Err(PyValueError::new_err(format!(
+                            "module spec is over p = {spec_p} but the algebra is over p = {algebra_p}"
+                        )));
+                    }
+                }
+                arc
+            };
+            match catch_unwind(AssertUnwindSafe(|| steenrod_module::from_json(arc, &json))) {
+                Ok(Ok(module)) => Ok(SteenrodModule(module)),
+                Ok(Err(e)) => Err(PyValueError::new_err(e.to_string())),
+                Err(_) => Err(PyValueError::new_err(
+                    "failed to build module from JSON (malformed spec)",
+                )),
+            }
+        }
+
         pub fn algebra(&self) -> SteenrodAlgebra {
             SteenrodAlgebra::from_arc(self.0.algebra())
         }
@@ -5127,7 +5191,7 @@ pub mod algebra_py {
         /// the generators (`"gens"`) and the `<prefix>_relations` list. All
         /// failures map to `ValueError`.
         ///
-        /// Two panic hazards are guarded, exactly as `steenrod_module_from_json`.
+        /// Two panic hazards are guarded, exactly as `SteenrodModule.from_spec`.
         /// First, upstream does not check the spec's prime against `algebra`; a
         /// mismatch (or wrong-prefix relations) makes the relation parser
         /// compute the wrong degree and index out of bounds, so we reject a
@@ -5532,50 +5596,6 @@ pub mod algebra_py {
                 "BlockStructure(total_dimension={})",
                 self.inner.total_dimension()
             )
-        }
-    }
-
-    /// Build a `SteenrodModule` from a module-spec `dict` (the JSON the crate
-    /// reads from a module file) over the given `algebra`. Mirrors
-    /// `::algebra::module::steenrod_module::from_json`, which dispatches on the
-    /// spec's `"type"` field (finite dimensional / finitely presented / real
-    /// projective space). Upstream returns an `anyhow::Error` for every failure
-    /// (unknown/missing type, malformed spec, parse error) without
-    /// distinguishing them, so all `from_json` failures map to `ValueError`.
-    /// (Type conversion of the Python value, in `py_to_json`, also raises
-    /// `ValueError`.)
-    ///
-    /// Two panic hazards are guarded explicitly. First, upstream `from_json`
-    /// does *not* check the spec's prime against the supplied algebra: a
-    /// mismatch makes the action parser compute the wrong output degree and
-    /// index `actions` out of bounds (finite_dimensional_module.rs ~396), so we
-    /// reject a `p` that disagrees with `algebra.prime()` up front. Second, we
-    /// still wrap the upstream call in `catch_unwind` (as the `from_string`
-    /// bindings do) so that any remaining internal `unwrap`/index panic on a
-    /// malformed spec surfaces as a `ValueError` rather than aborting across the
-    /// FFI boundary.
-    #[pyfunction]
-    pub fn steenrod_module_from_json(
-        algebra: PyRef<'_, SteenrodAlgebra>,
-        value: &Bound<'_, PyAny>,
-    ) -> PyResult<SteenrodModule> {
-        use std::panic::{catch_unwind, AssertUnwindSafe};
-        let json = py_to_json(value)?;
-        if let Some(spec_p) = json["p"].as_u64() {
-            let algebra_p = algebra.prime() as u64;
-            if spec_p != algebra_p {
-                return Err(PyValueError::new_err(format!(
-                    "module spec is over p = {spec_p} but the algebra is over p = {algebra_p}"
-                )));
-            }
-        }
-        let arc = algebra.arc();
-        match catch_unwind(AssertUnwindSafe(|| steenrod_module::from_json(arc, &json))) {
-            Ok(Ok(module)) => Ok(SteenrodModule(module)),
-            Ok(Err(e)) => Err(PyValueError::new_err(e.to_string())),
-            Err(_) => Err(PyValueError::new_err(
-                "failed to build module from JSON (malformed spec)",
-            )),
         }
     }
 
