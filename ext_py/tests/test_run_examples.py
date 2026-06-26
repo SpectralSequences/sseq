@@ -133,15 +133,16 @@ EXAMPLES = [
     {
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
-                 "0", "1", "b", "[1]", ""],
-        "xfail": "SecondaryResolutionHomomorphism.product_nullhomotopy is now "
-                 "bound and is reached (secondary_massey.py:156), but with these "
-                 "args the upstream mathematical precondition fails: ext "
-                 "secondary.rs:1132 'assertion failed: prod_value.slice(0, "
-                 "lower_num_gens).is_zero()' (the product must be null for the "
-                 "Massey product to be defined; a=h_0, b=h_0 gives a non-null "
-                 "product h_0^2). Surfaced as ValueError via "
-                 "catch_secondary_compute_panic.",
+                 "1", "1", "b", "[1]", ""],
+        "xfail": "Args now choose a defined Massey product: a=h_0 at (n=0,s=1), "
+                 "b=h_1 at (n=1,s=1), so a*b = h_0*h_1 = 0 and the "
+                 "product_nullhomotopy precondition (ext secondary.rs:1132) "
+                 "passes. The remaining blocker is an unbound API: "
+                 "SecondaryChainHomotopy exposes no extend_all/compute_partial/"
+                 "homotopies (ext_py/src/lib.rs:4179-4297), but the example calls "
+                 "ch_lift.extend_all() (secondary_massey.py:176) and "
+                 "ch_lift.homotopies() (line 293). Binding the secondary "
+                 "chain-homotopy computation requires a Rust change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {

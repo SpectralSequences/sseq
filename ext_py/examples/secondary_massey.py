@@ -165,7 +165,7 @@ def main():
     chain_homotopy.extend_all()
 
     ch_lift = ext.SecondaryChainHomotopy(
-        a, b, a_lambda, b_lambda, chain_homotopy
+        a, b, chain_homotopy, a_lambda, b_lambda
     )
 
     secondary_job = os.environ.get("SECONDARY_JOB")
