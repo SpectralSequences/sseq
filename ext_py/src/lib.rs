@@ -3974,6 +3974,93 @@ mod ext_py {
             self.check_extend_all()?;
             catch_secondary_lift_panic(|| self.inner.extend_all())
         }
+
+        /// Compute the induced map on $\Mod_{C\lambda^2}$ homotopy groups
+        /// (upstream `SecondaryResolutionHomomorphism::hom_k`).
+        ///
+        /// For each input class in source bidegree `b` (an `FpVector`/`FpSlice`
+        /// over the source's generators at `b`), the corresponding output is the
+        /// image, written into the matching `outputs` entry (an `FpVector` or
+        /// `FpSliceMut`). Each output spans the total dimension of
+        /// `(b.s + shift.s - 1, b.t + shift.t - 1)` (its Ext part, the first
+        /// chunk) and `(… + LAMBDA_BIDEGREE)` (its λ part, the second chunk); see
+        /// the upstream docs. `sseq` records the `d₂` differentials and is used to
+        /// reduce the λ part by the image of `d₂`.
+        ///
+        /// `inputs` and `outputs` must be the same length. Each output's length
+        /// determines the span upstream writes into; outputs are *accumulated*
+        /// into (matching upstream, which adds into the provided slices), so pass
+        /// freshly-zeroed vectors for a plain image. All vectors must share this
+        /// homomorphism's prime.
+        ///
+        /// Upstream indexes the source/target free modules' generator `OnceBiVec`s
+        /// and the `sseq` page data, which panic outside the computed range, so the
+        /// computation runs under `catch_unwind` (-> `ValueError`) as the
+        /// defence-in-depth backstop.
+        pub fn hom_k(
+            &self,
+            py: Python<'_>,
+            sseq: &sseq_py::Sseq,
+            b: &sseq_py::Bidegree,
+            inputs: Vec<Bound<'_, PyAny>>,
+            outputs: Vec<Bound<'_, PyAny>>,
+        ) -> PyResult<()> {
+            if inputs.len() != outputs.len() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "hom_k expects matching numbers of inputs and outputs (got {} inputs and {} \
+                     outputs)",
+                    inputs.len(),
+                    outputs.len()
+                )));
+            }
+
+            let p = self.inner.prime();
+
+            // Own the inputs (cloning the backing vector / slice), so we can hold
+            // their slices for the duration of the upstream call without juggling
+            // simultaneous Python borrows.
+            let input_vecs: Vec<::fp::vector::FpVector> = inputs
+                .iter()
+                .map(|o| fp_py::extract_input_owned(py, o))
+                .collect::<PyResult<_>>()?;
+
+            // Allocate a zeroed scratch output per `outputs` entry, sized to the
+            // entry's current span (and prime-checked). Upstream accumulates into
+            // these; we add the result back into the real Python targets afterwards
+            // (so the two distinct mutable borrows never overlap).
+            let mut scratch: Vec<::fp::vector::FpVector> = Vec::with_capacity(outputs.len());
+            for o in &outputs {
+                let len = fp_py::with_target_slice_mut(py, o, |s| {
+                    if s.as_slice().prime() != p {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "hom_k output vector has prime {} but this homomorphism is over prime {}",
+                            s.as_slice().prime(),
+                            p
+                        )));
+                    }
+                    Ok(s.as_slice().len())
+                })?;
+                scratch.push(::fp::vector::FpVector::new(p, len));
+            }
+
+            catch_secondary_compute_panic(|| {
+                self.inner.hom_k(
+                    Some(sseq.as_rust()),
+                    b.0,
+                    input_vecs.iter().map(|v| v.as_slice()),
+                    scratch.iter_mut().map(|v| v.as_slice_mut()),
+                )
+            })?;
+
+            for (o, s) in outputs.iter().zip(scratch.iter()) {
+                fp_py::with_target_slice_mut(py, o, |mut tgt| {
+                    tgt.add(s.as_slice(), 1);
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        }
     }
 
     /// The secondary (`Mod_{Cλ²}`) lift of a `ChainHomotopy`: the datum used to

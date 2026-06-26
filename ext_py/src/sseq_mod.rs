@@ -873,6 +873,13 @@ pub mod sseq_py {
             Sseq(sseq, p)
         }
 
+        /// Borrow the underlying upstream `Sseq<2, Adams>`. Exposed `pub(crate)`
+        /// so sibling binding modules (e.g. the secondary lift's `hom_k`) can
+        /// pass it to upstream APIs that take `&Sseq<2, Adams>`.
+        pub(crate) fn as_rust(&self) -> &RsSseq {
+            &self.0
+        }
+
         /// Guard that bidegree `b` has been defined, returning `IndexError`
         /// otherwise (the upstream `data[b]` indexing would panic).
         fn require_defined(&self, b: &Bidegree) -> PyResult<()> {

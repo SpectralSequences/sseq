@@ -123,7 +123,7 @@ EXAMPLES = [
     {
         "name": "secondary_product.py",
         "args": ["S_2", "", "8", "4", "prod", "0", "1", "[1]"],
-        "xfail": "'ext.SecondaryResolutionHomomorphism' object has no attribute 'hom_k'",
+        "xfail": None,
     },
     {
         "name": "massey.py",

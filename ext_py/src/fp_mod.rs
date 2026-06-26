@@ -977,6 +977,18 @@ pub mod fp_py {
             })
         }
 
+        /// A mutable `FpSliceMut` spanning the whole vector (mirrors upstream
+        /// `FpVector::as_slice_mut`); equivalent to `slice_mut(0, len())`.
+        pub fn as_slice_mut(slf: PyRef<'_, Self>) -> PyResult<PyFpSliceMut> {
+            let end = slf.0.len();
+            let py = slf.py();
+            Ok(PyFpSliceMut {
+                parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
+                start: 0,
+                end,
+            })
+        }
+
         pub fn set_entry(&mut self, index: usize, value: u32) -> PyResult<()> {
             self.0.set_entry(checked_index(index, self.0.len())?, value);
             Ok(())
