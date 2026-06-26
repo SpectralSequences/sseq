@@ -188,6 +188,24 @@ where
             .filter(move |&b| self.number_of_gens_in_bidegree(b) > 0)
     }
 
+    /// Like [`iter_nonzero_stem`](Self::iter_nonzero_stem), but the returned iterator owns a
+    /// shared handle (`Arc`) to the chain complex instead of borrowing it.
+    ///
+    /// This is the owning analogue of [`iter_nonzero_stem`]: it walks the same bidegrees as
+    /// [`iter_stem_owned`](ChainComplex::iter_stem_owned) and keeps only those with a nonzero
+    /// number of generators. The filter uses
+    /// [`try_number_of_gens_in_bidegree`](Self::try_number_of_gens_in_bidegree) (mapping the
+    /// out-of-range `None` to 0); every bidegree the stem walk yields is in the computed range,
+    /// so this matches `number_of_gens_in_bidegree(b) > 0` exactly.
+    fn iter_nonzero_stem_owned(self: Arc<Self>) -> impl Iterator<Item = Bidegree>
+    where
+        Self: Sized,
+    {
+        let cc = Arc::clone(&self);
+        self.iter_stem_owned()
+            .filter(move |&b| cc.try_number_of_gens_in_bidegree(b).unwrap_or(0) > 0)
+    }
+
     /// Get a string representation of d(gen), where d is the differential of the resolution.
     fn boundary_string(&self, g: BidegreeGenerator) -> String {
         let d = self.differential(g.s());
@@ -248,6 +266,26 @@ pub trait ChainComplex: Send + Sync {
         }
     }
 
+    /// Like [`iter_stem`](Self::iter_stem), but the returned iterator owns a shared handle
+    /// (`Arc`) to the chain complex instead of borrowing it.
+    ///
+    /// This yields exactly the same bidegrees, in the same order, with the same bounds as
+    /// [`iter_stem`] (both delegate to the shared [`stem_step`] cursor logic). Because the
+    /// iterator does not borrow `self`, it is `'static` (when `Self: 'static`) and can be stored
+    /// in long-lived owners such as FFI handles.
+    fn iter_stem_owned(self: Arc<Self>) -> OwnedStemIterator<Self>
+    where
+        Self: Sized,
+    {
+        let current = Bidegree::n_s(self.min_degree(), 0);
+        let max_s = self.next_homological_degree();
+        OwnedStemIterator {
+            cc: self,
+            current,
+            max_s,
+        }
+    }
+
     /// Apply the quasi-inverse of the (s, t)th differential to the list of inputs and results.
     /// This defaults to applying `self.differentials(s).quasi_inverse(t)`, but in some cases
     /// the quasi-inverse might be stored separately on disk.
@@ -297,6 +335,41 @@ pub trait ChainComplex: Send + Sync {
     }
 }
 
+/// Advance a stem-walk cursor by one step, shared by [`StemIterator`] (borrowing) and
+/// [`OwnedStemIterator`] (owning) so the two stay in lockstep.
+///
+/// `cc` is the chain complex being walked, `current` the mutable cursor (next bidegree to
+/// consider), and `max_s` the exclusive homological-degree bound (`next_homological_degree()` at
+/// the time the iterator was created). Returns the next defined bidegree in increasing order of
+/// stem, or `None` once the walk is exhausted.
+fn stem_step<CC: ChainComplex + ?Sized>(
+    cc: &CC,
+    current: &mut Bidegree,
+    max_s: i32,
+) -> Option<Bidegree> {
+    loop {
+        if max_s == 0 {
+            return None;
+        }
+        let cur = *current;
+
+        if cur.s() == max_s {
+            *current = Bidegree::n_s(cur.n() + 1, 0);
+            continue;
+        }
+        if cur.t() > cc.module(cur.s()).max_computed_degree() {
+            if cur.s() == 0 {
+                return None;
+            } else {
+                *current = Bidegree::n_s(cur.n() + 1, 0);
+                continue;
+            }
+        }
+        *current = cur + Bidegree::n_s(0, 1);
+        return Some(cur);
+    }
+}
+
 /// An iterator returned by [`ChainComplex::iter_stem`]
 pub struct StemIterator<'a, CC: ?Sized> {
     cc: &'a CC,
@@ -308,25 +381,25 @@ impl<CC: ChainComplex + ?Sized> Iterator for StemIterator<'_, CC> {
     type Item = Bidegree;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.max_s == 0 {
-            return None;
-        }
-        let cur = self.current;
+        stem_step(self.cc, &mut self.current, self.max_s)
+    }
+}
 
-        if cur.s() == self.max_s {
-            self.current = Bidegree::n_s(cur.n() + 1, 0);
-            return self.next();
-        }
-        if cur.t() > self.cc.module(cur.s()).max_computed_degree() {
-            if cur.s() == 0 {
-                return None;
-            } else {
-                self.current = Bidegree::n_s(cur.n() + 1, 0);
-                return self.next();
-            }
-        }
-        self.current = cur + Bidegree::n_s(0, 1);
-        Some(cur)
+/// The owning analogue of [`StemIterator`], returned by [`ChainComplex::iter_stem_owned`]. It
+/// holds a shared handle (`Arc`) to the chain complex rather than a borrow, so it can outlive any
+/// particular reference and be stored in long-lived owners. It yields the same bidegrees, in the
+/// same order, as [`StemIterator`] (both delegate to [`stem_step`]).
+pub struct OwnedStemIterator<CC: ?Sized> {
+    cc: Arc<CC>,
+    current: Bidegree,
+    max_s: i32,
+}
+
+impl<CC: ChainComplex + ?Sized> Iterator for OwnedStemIterator<CC> {
+    type Item = Bidegree;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        stem_step(&*self.cc, &mut self.current, self.max_s)
     }
 }
 

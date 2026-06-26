@@ -29,6 +29,7 @@ mod ext_py {
             ChainHomotopy as RsChainHomotopy,
             FiniteAugmentedChainComplex as RsFiniteAugmentedChainComplex,
             FiniteChainComplex as RsFiniteChainComplex, FreeChainComplex,
+            OwnedStemIterator as RsOwnedStemIterator,
         },
         resolution_homomorphism::{
             ResolutionHomomorphism as RsResolutionHomomorphism,
@@ -1063,54 +1064,31 @@ mod ext_py {
     }
 
     /// The lazy iterator returned by [`Resolution::iter_stem`] /
-    /// [`Resolution::iter_nonzero_stem`]. Holds an owned `AnyResolution` (a
-    /// cloned `Arc`) and dispatches over both backends, re-implementing the
-    /// upstream `chain_complex::StemIterator` walk so it can live in a
-    /// `#[pyclass]` without borrowing the resolution. When `nonzero` is set it
-    /// additionally skips bidegrees with no generators.
+    /// [`Resolution::iter_nonzero_stem`]. Wraps the upstream owning stem walk
+    /// ([`FreeChainComplex::iter_stem_owned`] /
+    /// [`FreeChainComplex::iter_nonzero_stem_owned`]), which holds its own
+    /// shared `Arc` handle to the resolution so it can live in a `#[pyclass]`
+    /// without borrowing it. The two backends (`Nassau`/`Standard`) are distinct
+    /// concrete types, so the per-backend owning iterators are erased behind a
+    /// `Box<dyn Iterator>` here (the upstream `dispatch!` union cannot be named
+    /// as a single iterator type). When `nonzero` is set the nonzero-filtering
+    /// owning variant is used.
     #[pyclass]
     pub struct ResolutionStemIterator {
-        res: AnyResolution,
-        current: RsBidegree,
-        max_s: i32,
-        nonzero: bool,
+        iter: Box<dyn Iterator<Item = RsBidegree> + Send + Sync>,
     }
 
     impl ResolutionStemIterator {
         fn new(res: AnyResolution, nonzero: bool) -> Self {
-            let min_degree = dispatch!(&res, r => r.min_degree());
-            let max_s = dispatch!(&res, r => r.next_homological_degree());
-            ResolutionStemIterator {
-                res,
-                current: RsBidegree::n_s(min_degree, 0),
-                max_s,
-                nonzero,
-            }
-        }
-
-        /// The raw (unfiltered) stem walk, mirroring upstream `StemIterator`.
-        fn raw_next(&mut self) -> Option<RsBidegree> {
-            loop {
-                if self.max_s == 0 {
-                    return None;
+            let iter: Box<dyn Iterator<Item = RsBidegree> + Send + Sync> = dispatch!(&res, r => {
+                let arc = Arc::clone(r);
+                if nonzero {
+                    Box::new(arc.iter_nonzero_stem_owned())
+                } else {
+                    Box::new(arc.iter_stem_owned())
                 }
-                let cur = self.current;
-                if cur.s() == self.max_s {
-                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                    continue;
-                }
-                let max_deg = dispatch!(&self.res, r => r.module(cur.s()).max_computed_degree());
-                if cur.t() > max_deg {
-                    if cur.s() == 0 {
-                        return None;
-                    } else {
-                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                        continue;
-                    }
-                }
-                self.current = cur + RsBidegree::n_s(0, 1);
-                return Some(cur);
-            }
+            });
+            ResolutionStemIterator { iter }
         }
     }
 
@@ -1121,16 +1099,7 @@ mod ext_py {
         }
 
         fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
-            loop {
-                let b = self.raw_next()?;
-                if !self.nonzero {
-                    return Some(sseq_py::Bidegree(b));
-                }
-                let n = dispatch!(&self.res, r => r.number_of_gens_in_bidegree(b));
-                if n > 0 {
-                    return Some(sseq_py::Bidegree(b));
-                }
-            }
+            self.iter.next().map(sseq_py::Bidegree)
         }
     }
 
@@ -1425,53 +1394,26 @@ mod ext_py {
     }
 
     /// The lazy iterator returned by [`UnstableResolution::iter_stem`] /
-    /// [`UnstableResolution::iter_nonzero_stem`]. Mirrors
-    /// `ResolutionStemIterator` over the single concrete unstable resolution
-    /// type (no backend dispatch), re-implementing the upstream stem walk so it
-    /// can live in a `#[pyclass]` without borrowing the resolution.
+    /// [`UnstableResolution::iter_nonzero_stem`]. Wraps the upstream owning stem
+    /// walk ([`FreeChainComplex::iter_stem_owned`] /
+    /// [`FreeChainComplex::iter_nonzero_stem_owned`]) over the single concrete
+    /// unstable resolution type (no backend dispatch). As in
+    /// `ResolutionStemIterator`, the (`nonzero`) filtered owning variant has an
+    /// unnameable iterator type, so both modes are erased behind a
+    /// `Box<dyn Iterator>`.
     #[pyclass]
     pub struct UnstableResolutionStemIterator {
-        res: Arc<RsUnstableResolution>,
-        current: RsBidegree,
-        max_s: i32,
-        nonzero: bool,
+        iter: Box<dyn Iterator<Item = RsBidegree> + Send + Sync>,
     }
 
     impl UnstableResolutionStemIterator {
         fn new(res: Arc<RsUnstableResolution>, nonzero: bool) -> Self {
-            let min_degree = res.min_degree();
-            let max_s = res.next_homological_degree();
-            UnstableResolutionStemIterator {
-                res,
-                current: RsBidegree::n_s(min_degree, 0),
-                max_s,
-                nonzero,
-            }
-        }
-
-        /// The raw (unfiltered) stem walk, mirroring upstream `StemIterator`.
-        fn raw_next(&mut self) -> Option<RsBidegree> {
-            loop {
-                if self.max_s == 0 {
-                    return None;
-                }
-                let cur = self.current;
-                if cur.s() == self.max_s {
-                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                    continue;
-                }
-                let max_deg = self.res.module(cur.s()).max_computed_degree();
-                if cur.t() > max_deg {
-                    if cur.s() == 0 {
-                        return None;
-                    } else {
-                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                        continue;
-                    }
-                }
-                self.current = cur + RsBidegree::n_s(0, 1);
-                return Some(cur);
-            }
+            let iter: Box<dyn Iterator<Item = RsBidegree> + Send + Sync> = if nonzero {
+                Box::new(res.iter_nonzero_stem_owned())
+            } else {
+                Box::new(res.iter_stem_owned())
+            };
+            UnstableResolutionStemIterator { iter }
         }
     }
 
@@ -1482,15 +1424,7 @@ mod ext_py {
         }
 
         fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
-            loop {
-                let b = self.raw_next()?;
-                if !self.nonzero {
-                    return Some(sseq_py::Bidegree(b));
-                }
-                if self.res.number_of_gens_in_bidegree(b) > 0 {
-                    return Some(sseq_py::Bidegree(b));
-                }
-            }
+            self.iter.next().map(sseq_py::Bidegree)
         }
     }
 
@@ -4932,9 +4866,7 @@ mod ext_py {
         /// `StemIterator` before calling `pop`.
         pub fn iter_stem(&self) -> StemIterator {
             StemIterator {
-                cc: Arc::clone(&self.0),
-                current: RsBidegree::n_s(self.0.min_degree(), 0),
-                max_s: self.0.next_homological_degree(),
+                iter: Arc::clone(&self.0).iter_stem_owned(),
             }
         }
 
@@ -4945,14 +4877,14 @@ mod ext_py {
         }
     }
 
-    /// The lazy iterator returned by [`ChainComplex::iter_stem`]. Re-implements
-    /// the upstream `chain_complex::StemIterator` over an owned `Arc<CCC>` so it
-    /// can live in a `#[pyclass]` without a borrow of the complex.
+    /// The lazy iterator returned by [`ChainComplex::iter_stem`]. Wraps the
+    /// upstream owning stem walk ([`ChainComplex::iter_stem_owned`]), which holds
+    /// its own `Arc<CCC>` handle so it can live in a `#[pyclass]` without a
+    /// borrow of the complex. The single concrete `CCC` type lets us store the
+    /// owning iterator directly (no boxing).
     #[pyclass]
     pub struct StemIterator {
-        cc: Arc<CCC>,
-        current: RsBidegree,
-        max_s: i32,
+        iter: RsOwnedStemIterator<CCC>,
     }
 
     #[pymethods]
@@ -4962,26 +4894,7 @@ mod ext_py {
         }
 
         fn __next__(&mut self) -> Option<sseq_py::Bidegree> {
-            loop {
-                if self.max_s == 0 {
-                    return None;
-                }
-                let cur = self.current;
-                if cur.s() == self.max_s {
-                    self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                    continue;
-                }
-                if cur.t() > self.cc.module(cur.s()).max_computed_degree() {
-                    if cur.s() == 0 {
-                        return None;
-                    } else {
-                        self.current = RsBidegree::n_s(cur.n() + 1, 0);
-                        continue;
-                    }
-                }
-                self.current = cur + RsBidegree::n_s(0, 1);
-                return Some(sseq_py::Bidegree(cur));
-            }
+            self.iter.next().map(sseq_py::Bidegree)
         }
     }
 
