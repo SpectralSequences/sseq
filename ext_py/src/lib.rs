@@ -3999,6 +3999,87 @@ mod ext_py {
             Ok(())
         }
 
+        /// As [`hom_k`](Self::hom_k), but additionally incorporates the optional
+        /// λ-part `lambda_part` of the source classes' lifts
+        /// (upstream `SecondaryResolutionHomomorphism::hom_k_with`).
+        ///
+        /// `hom_k` is exactly `hom_k_with(None, …)`. The extra leading
+        /// `lambda_part` is the same optional `ResolutionHomomorphism` (the
+        /// non-standard-lift λ-part) that `product_nullhomotopy` accepts; when
+        /// present its `hom_k` matrix is added into the λ part of the result.
+        /// All other arguments and marshalling match `hom_k`: `inputs`/`outputs`
+        /// are cloned/zeroed slices of matching length, outputs are accumulated
+        /// into, and prime/range guards apply.
+        pub fn hom_k_with(
+            &self,
+            py: Python<'_>,
+            lambda_part: Option<&ResolutionHomomorphism>,
+            sseq: &sseq_py::Sseq,
+            b: &sseq_py::Bidegree,
+            inputs: Vec<Bound<'_, PyAny>>,
+            outputs: Vec<Bound<'_, PyAny>>,
+        ) -> PyResult<()> {
+            if inputs.len() != outputs.len() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "hom_k_with expects matching numbers of inputs and outputs (got {} inputs and \
+                     {} outputs)",
+                    inputs.len(),
+                    outputs.len()
+                )));
+            }
+
+            let p = self.inner.prime();
+
+            // Own the inputs (cloning the backing vector / slice), so we can hold
+            // their slices for the duration of the upstream call without juggling
+            // simultaneous Python borrows.
+            let input_vecs: Vec<::fp::vector::FpVector> = inputs
+                .iter()
+                .map(|o| fp_py::extract_input_owned(py, o))
+                .collect::<PyResult<_>>()?;
+
+            // Allocate a zeroed scratch output per `outputs` entry, sized to the
+            // entry's current span (and prime-checked). Upstream accumulates into
+            // these; we add the result back into the real Python targets afterwards
+            // (so the two distinct mutable borrows never overlap).
+            let mut scratch: Vec<::fp::vector::FpVector> = Vec::with_capacity(outputs.len());
+            for o in &outputs {
+                let len = fp_py::with_target_slice_mut(py, o, |s| {
+                    if s.as_slice().prime() != p {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "hom_k_with output vector has prime {} but this homomorphism is over \
+                             prime {}",
+                            s.as_slice().prime(),
+                            p
+                        )));
+                    }
+                    Ok(s.as_slice().len())
+                })?;
+                scratch.push(::fp::vector::FpVector::new(p, len));
+            }
+
+            let lambda = lambda_part.map(|l| l.0.as_ref());
+
+            catch_secondary_compute_panic(|| {
+                self.inner.hom_k_with(
+                    lambda,
+                    Some(sseq.as_rust()),
+                    b.0,
+                    input_vecs.iter().map(|v| v.as_slice()),
+                    scratch.iter_mut().map(|v| v.as_slice_mut()),
+                )
+            })?;
+
+            for (o, s) in outputs.iter().zip(scratch.iter()) {
+                fp_py::with_target_slice_mut(py, o, |mut tgt| {
+                    tgt.add(s.as_slice(), 1);
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        }
+
         /// Find the class whose `d₂` hits the λ part of the (null) product
         /// (upstream `SecondaryResolutionHomomorphism::product_nullhomotopy`).
         ///

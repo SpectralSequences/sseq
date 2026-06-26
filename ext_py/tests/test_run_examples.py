@@ -134,12 +134,14 @@ EXAMPLES = [
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "[1]", "",
                  "1", "1", "b", "[1]", ""],
-        "xfail": "FpVector.iter_nonzero is now bound, so the script advances "
-                 "past secondary_massey.py:249. The remaining blocker is a "
-                 "different binding gap at secondary_massey.py:262: "
-                 "AttributeError: 'ext.SecondaryResolutionHomomorphism' object "
-                 "has no attribute 'hom_k_with'. Binding hom_k_with is a "
-                 "separate change.",
+        "xfail": "SecondaryResolutionHomomorphism.hom_k_with is now bound, so "
+                 "the script advances past secondary_massey.py:262. The "
+                 "remaining blocker is a different binding gap at "
+                 "secondary_massey.py:285: TypeError: 'FpSliceMut' object is not "
+                 "an instance of 'FpVector' when calling "
+                 "Subquotient.reduce_by_quotient with an FpSliceMut argument "
+                 "(reduce_by_quotient only accepts FpVector). Accepting "
+                 "FpSliceMut there is a separate change.",
     },
     # --- Unbound bindings (aspirational API) ---
     {
