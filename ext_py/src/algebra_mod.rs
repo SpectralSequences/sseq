@@ -2544,6 +2544,263 @@ pub mod algebra_py {
         }
     }
 
+    /// Emit the entire `#[pymethods]` block for a module pyclass: the class's
+    /// own (unique) methods passed through `$extra`, followed by the shared
+    /// "flattened `Module` method set" that every concrete module pyclass
+    /// exposes (forwarding to the `module_*` free helpers, or to the `Module`
+    /// trait directly).
+    ///
+    /// This crate does not enable PyO3's `multiple-pymethods` feature, so each
+    /// class may have only one `#[pymethods]` block, and PyO3's `#[pymethods]`
+    /// proc-macro additionally rejects `macro_rules!` invocations *inside* the
+    /// block. We therefore follow the same pattern as `augmented_matrix_pyclass!`
+    /// (in `fp_mod.rs`): this macro emits the whole `#[pymethods]` block,
+    /// splicing each class's unique methods in through the `$extra` token block.
+    ///
+    /// The only per-class variation in the shared set is the accessor turning
+    /// `self` into the `&DynModule` it dispatches through; every participating
+    /// class provides that as an inherent `as_dyn(&self) -> &DynModule`, so the
+    /// macro can call `self.as_dyn()` uniformly. (`HomModule` is *not* built with
+    /// this macro: its `algebra()` is the ground `Field` and several methods add
+    /// overflow guards around its own `ensure`.)
+    macro_rules! module_pymethods {
+        ($Ty:ident, { $($extra:tt)* }) => {
+            #[pymethods]
+            impl $Ty {
+                $($extra)*
+
+                // --- flattened Module method set ------------------------------
+
+                pub fn algebra(&self) -> SteenrodAlgebra {
+                    SteenrodAlgebra::from_arc(self.as_dyn().algebra())
+                }
+
+                pub fn min_degree(&self) -> i32 {
+                    self.as_dyn().min_degree()
+                }
+
+                pub fn max_computed_degree(&self) -> i32 {
+                    self.as_dyn().max_computed_degree()
+                }
+
+                pub fn max_degree(&self) -> Option<i32> {
+                    self.as_dyn().max_degree()
+                }
+
+                /// The prime as a plain `int` (`ValidPrime` is never exposed).
+                #[getter]
+                pub fn prime(&self) -> u32 {
+                    self.as_dyn().prime().as_u32()
+                }
+
+                pub fn compute_basis(&self, degree: i32) {
+                    module_ensure(self.as_dyn(), degree);
+                }
+
+                pub fn dimension(&self, degree: i32) -> usize {
+                    module_dimension(self.as_dyn(), degree)
+                }
+
+                pub fn total_dimension(&self) -> PyResult<usize> {
+                    module_total_dimension(self.as_dyn())
+                }
+
+                pub fn is_unit(&self) -> bool {
+                    self.as_dyn().is_unit()
+                }
+
+                pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+                    module_basis_element_to_string(self.as_dyn(), degree, idx)
+                }
+
+                pub fn element_to_string(
+                    &self,
+                    py: Python<'_>,
+                    degree: i32,
+                    element: &Bound<'_, PyAny>,
+                ) -> PyResult<String> {
+                    module_element_to_string(self.as_dyn(), py, degree, element)
+                }
+
+                #[allow(clippy::too_many_arguments)]
+                pub fn act_on_basis(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    op_degree: i32,
+                    op_index: usize,
+                    mod_degree: i32,
+                    mod_index: usize,
+                ) -> PyResult<()> {
+                    module_act_on_basis(
+                        self.as_dyn(),
+                        py,
+                        result,
+                        coeff,
+                        op_degree,
+                        op_index,
+                        mod_degree,
+                        mod_index,
+                    )
+                }
+
+                #[allow(clippy::too_many_arguments)]
+                pub fn act(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    op_degree: i32,
+                    op_index: usize,
+                    input_degree: i32,
+                    input: &Bound<'_, PyAny>,
+                ) -> PyResult<()> {
+                    module_act(
+                        self.as_dyn(),
+                        py,
+                        result,
+                        coeff,
+                        op_degree,
+                        op_index,
+                        input_degree,
+                        input,
+                    )
+                }
+
+                #[allow(clippy::too_many_arguments)]
+                pub fn act_by_element(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    op_degree: i32,
+                    op: &Bound<'_, PyAny>,
+                    input_degree: i32,
+                    input: &Bound<'_, PyAny>,
+                ) -> PyResult<()> {
+                    module_act_by_element(
+                        self.as_dyn(),
+                        py,
+                        result,
+                        coeff,
+                        op_degree,
+                        op,
+                        input_degree,
+                        input,
+                    )
+                }
+            }
+        };
+    }
+
+    /// Emit the entire `#[pymethods]` block for a module-homomorphism pyclass:
+    /// the class's own (unique) methods passed through `$extra`, followed by the
+    /// shared "flattened `ModuleHomomorphism` method set" that every participating
+    /// homomorphism pyclass exposes identically (forwarding to the inner upstream
+    /// homomorphism `self.0`).
+    ///
+    /// This is the homomorphism sibling of `module_pymethods!` above and follows
+    /// the same pattern for the same reason: the crate does not enable PyO3's
+    /// `multiple-pymethods` feature, so each class may have only one
+    /// `#[pymethods]` block and a `macro_rules!` call cannot appear *inside* one.
+    /// The macro therefore emits the whole block, splicing each class's unique
+    /// methods in through the `$extra` token block.
+    ///
+    /// Only the methods whose *bodies* are byte-identical across every
+    /// participating class live in the shared set here: `degree_shift`,
+    /// `min_degree`, `prime`, `kernel`, `image`, `quasi_inverse` and
+    /// `apply_quasi_inverse`. Every class accesses its inner upstream
+    /// homomorphism uniformly as `self.0`. The remaining `ModuleHomomorphism`
+    /// surface (`source`/`target`, which return different pyclass types and wrap
+    /// differently per class, and `apply`/`apply_to_basis_element`/
+    /// `get_partial_matrix`/`compute_auxiliary_data_through_degree`, whose guard
+    /// logic genuinely differs — e.g. the free-module variants' generator-output
+    /// coverage checks, the no-auxiliary-data variants' no-op bodies) is passed
+    /// through `$extra` per class. `HomPullback` (which stores its inner state in
+    /// named fields and routes through `ensure_apply`) and the read-only
+    /// `UnstableFreeModuleHomomorphism` (which exposes none of the shared set) are
+    /// *not* built with this macro.
+    macro_rules! module_hom_pymethods {
+        ($Ty:ident, { $($extra:tt)* }) => {
+            #[pymethods]
+            impl $Ty {
+                $($extra)*
+
+                // --- flattened ModuleHomomorphism method set ------------------
+
+                /// The degree shift: `output_degree = input_degree - degree_shift`.
+                pub fn degree_shift(&self) -> i32 {
+                    self.0.degree_shift()
+                }
+
+                /// The smallest input degree the homomorphism is defined on.
+                pub fn min_degree(&self) -> i32 {
+                    self.0.min_degree()
+                }
+
+                /// The prime as a plain `int` (`ValidPrime` is never exposed).
+                #[getter]
+                pub fn prime(&self) -> u32 {
+                    self.0.prime().as_u32()
+                }
+
+                /// The kernel of the homomorphism in `degree`, if it has been
+                /// computed. Returns `None` otherwise (never panics).
+                pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+                    self.0
+                        .kernel(degree)
+                        .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+                }
+
+                /// The image of the homomorphism in `degree`, if it has been
+                /// computed. Returns `None` otherwise (never panics).
+                pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
+                    self.0
+                        .image(degree)
+                        .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
+                }
+
+                /// The quasi-inverse of the homomorphism in `degree`, if it has
+                /// been computed. Returns `None` otherwise (never panics).
+                pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
+                    self.0
+                        .quasi_inverse(degree)
+                        .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
+                }
+
+                /// Apply the quasi-inverse at `degree` to `input`, adding the
+                /// result into `result`. Returns `True` if the quasi-inverse was
+                /// available (and applied), `False` otherwise.
+                pub fn apply_quasi_inverse(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    degree: i32,
+                    input: &Bound<'_, PyAny>,
+                ) -> PyResult<bool> {
+                    let p = self.0.prime().as_u32();
+                    let Some(qi) = self.0.quasi_inverse(degree) else {
+                        return Ok(false);
+                    };
+                    let source_dim = qi.source_dimension();
+                    let target_dim = qi.target_dimension();
+                    crate::fp_py::with_input_slice(py, input, |in_slice| {
+                        checked_same_prime(in_slice.prime().as_u32(), p)?;
+                        checked_equal_len(in_slice.len(), target_dim)?;
+                        crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                            checked_same_prime(res.prime().as_u32(), p)?;
+                            checked_equal_len(res.as_slice().len(), source_dim)?;
+                            qi.apply(res.copy(), 1, in_slice);
+                            Ok(())
+                        })
+                    })?;
+                    Ok(true)
+                }
+            }
+        };
+    }
+
     /// The boxed (`Arc`'d) dynamic module accepted downstream by chain complexes
     /// and resolutions. Wraps `::algebra::module::SteenrodModule`, i.e.
     /// `Arc<dyn Module<Algebra = SteenrodAlgebra>>`. This is the type
@@ -2564,10 +2821,13 @@ pub mod algebra_py {
         pub(crate) fn as_rust(&self) -> &RsSteenrodModule {
             &self.0
         }
+
+        fn as_dyn(&self) -> &DynModule {
+            &*self.0
+        }
     }
 
-    #[pymethods]
-    impl SteenrodModule {
+    module_pymethods!(SteenrodModule, {
         /// Build a `SteenrodModule` from a module-spec `dict` (the JSON the
         /// crate reads from a module file) over the given `algebra`, with the
         /// spec first and the algebra second. `algebra` may be a
@@ -2632,123 +2892,10 @@ pub mod algebra_py {
             }
         }
 
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(&*self.0, degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(&*self.0, degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(&*self.0)
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(&*self.0, degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(&*self.0, py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                &*self.0, py, result, coeff, op_degree, op_index, mod_degree, mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                &*self.0,
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                &*self.0,
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
-        }
-
         pub fn __repr__(&self) -> String {
             format!("SteenrodModule({})", self.0)
         }
-    }
+    });
 
     /// A pair `(operation, generator)` indexing a basis element of a
     /// `FreeModule`: the basis element is `operation * generator`. Mirrors
@@ -2857,8 +3004,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FDModuleBuilder {
+    module_pymethods!(FDModuleBuilder, {
         /// Build an in-progress finite-dimensional module with `graded_dims[i]`
         /// generators in degree `min_degree + i`. All actions are initialised to
         /// zero; use `add_generator`/`set_action`/`extend_actions` to populate
@@ -2913,127 +3059,6 @@ pub mod algebra_py {
         pub fn set_name(&mut self, name: String) -> PyResult<()> {
             self.inner_mut()?.name = name;
             Ok(())
-        }
-
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.inner.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.inner.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.inner.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.inner.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.inner.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.inner.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
         }
 
         // --- FDModuleBuilder-specific (thin) ----------------------------------
@@ -3226,7 +3251,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("FDModuleBuilder({})", self.inner)
         }
-    }
+    });
 
     /// A free module over the Steenrod algebra, determined by its list of
     /// generators (added in increasing degree).
@@ -3264,8 +3289,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FreeModule {
+    module_pymethods!(FreeModule, {
         #[new]
         #[pyo3(signature = (algebra, name, min_degree = 0))]
         pub fn new(algebra: PyRef<'_, SteenrodAlgebra>, name: String, min_degree: i32) -> Self {
@@ -3274,127 +3298,6 @@ pub mod algebra_py {
                 name,
                 min_degree,
             )))
-        }
-
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
         }
 
         // --- FreeModule-specific (thin) ---------------------------------------
@@ -3540,7 +3443,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("FreeModule({})", self.0)
         }
-    }
+    });
 
     // =========================================================================
     // Derived / standalone modules (§5.3)
@@ -3567,8 +3470,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl TensorModule {
+    module_pymethods!(TensorModule, {
         /// Build `left (x) right`. Both factors must be built from the *same*
         /// `SteenrodAlgebra` Python object: the same-algebra check uses
         /// `Arc::ptr_eq` (there is no cheap structural equality on
@@ -3597,127 +3499,6 @@ pub mod algebra_py {
                 Arc::new(Arc::clone(&left.0)),
                 Arc::new(Arc::clone(&right.0)),
             ))))
-        }
-
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
         }
 
         // --- TensorModule-specific (thin) -------------------------------------
@@ -3778,7 +3559,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("TensorModule({})", self.0)
         }
-    }
+    });
 
     /// A degree shift of a module: `SuspensionModule(inner, shift)` is `inner`
     /// with every degree raised by `shift`. The inner module is passed as a
@@ -3797,8 +3578,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl SuspensionModule {
+    module_pymethods!(SuspensionModule, {
         #[new]
         pub fn new(inner: PyRef<'_, SteenrodModule>, shift: i32) -> Self {
             SuspensionModule {
@@ -3808,127 +3588,6 @@ pub mod algebra_py {
                 )),
                 shift,
             }
-        }
-
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.inner.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.inner.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.inner.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.inner.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.inner.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.inner.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
         }
 
         // --- SuspensionModule-specific (thin) ---------------------------------
@@ -3948,7 +3607,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("SuspensionModule({})", self.inner)
         }
-    }
+    });
 
     /// The zero module over the Steenrod algebra with the given `min_degree`
     /// (an empty finite-dimensional module). Dimension 0 in every degree.
@@ -3961,8 +3620,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl ZeroModule {
+    module_pymethods!(ZeroModule, {
         /// Build the zero module. Mirrors upstream
         /// `FDModule::zero_module(algebra, min_degree)`, i.e. an `FDModule` with
         /// an empty graded dimension starting at `min_degree`.
@@ -3977,127 +3635,6 @@ pub mod algebra_py {
             )))
         }
 
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
-        }
-
         /// Box this module into a `SteenrodModule` for downstream use. Shares
         /// state with this `ZeroModule` via an `Arc`.
         pub fn into_steenrod_module(&self) -> SteenrodModule {
@@ -4107,7 +3644,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("ZeroModule({})", self.0)
         }
-    }
+    });
 
     /// The real projective space module
     /// `RP_min^max` over the Steenrod algebra at `p = 2`. `max = None` gives
@@ -4122,8 +3659,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl RealProjectiveSpace {
+    module_pymethods!(RealProjectiveSpace, {
         /// Build `RP_min^max`. Raises `ValueError` for a non-`p = 2` algebra or
         /// `max < min` (upstream `new` asserts both).
         #[new]
@@ -4154,127 +3690,6 @@ pub mod algebra_py {
             ))))
         }
 
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
-        }
-
         // --- RealProjectiveSpace-specific (thin) ------------------------------
 
         #[getter]
@@ -4301,7 +3716,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("RealProjectiveSpace({})", self.0)
         }
-    }
+    });
 
     /// A quotient `module / W` of a module over the Steenrod algebra, truncated
     /// above `truncation`: every degree `> truncation` is quotiented to zero,
@@ -4354,8 +3769,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl QuotientModule {
+    module_pymethods!(QuotientModule, {
         /// Build the quotient of `module` truncated above `truncation`. Raises
         /// `ValueError` if `truncation` is below `min_degree - 1` (upstream
         /// builds `BiVec`s spanning `[min_degree, truncation]` and would
@@ -4381,127 +3795,6 @@ pub mod algebra_py {
                 Arc::new(Arc::clone(&module.0)),
                 truncation,
             ))))
-        }
-
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.0.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.0.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.0.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.0.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
         }
 
         // --- QuotientModule-specific (thin) -----------------------------------
@@ -4640,7 +3933,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("QuotientModule({})", self.0)
         }
-    }
+    });
 
     /// The Hom module `Hom(source, target)` over the Steenrod algebra, where
     /// `source` is a `FreeModule` and `target` is a *bounded* module. This is
@@ -5008,129 +4301,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FPModule {
-        // --- flattened Module method set --------------------------------------
-
-        pub fn algebra(&self) -> SteenrodAlgebra {
-            SteenrodAlgebra::from_arc(self.inner.algebra())
-        }
-
-        pub fn min_degree(&self) -> i32 {
-            self.inner.min_degree()
-        }
-
-        pub fn max_computed_degree(&self) -> i32 {
-            self.inner.max_computed_degree()
-        }
-
-        pub fn max_degree(&self) -> Option<i32> {
-            self.inner.max_degree()
-        }
-
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.inner.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            module_ensure(self.as_dyn(), degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            module_dimension(self.as_dyn(), degree)
-        }
-
-        pub fn total_dimension(&self) -> PyResult<usize> {
-            module_total_dimension(self.as_dyn())
-        }
-
-        pub fn is_unit(&self) -> bool {
-            self.inner.is_unit()
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            module_basis_element_to_string(self.as_dyn(), degree, idx)
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            module_element_to_string(self.as_dyn(), py, degree, element)
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_on_basis(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> PyResult<()> {
-            module_act_on_basis(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                mod_degree,
-                mod_index,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op_index,
-                input_degree,
-                input,
-            )
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        pub fn act_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            op_degree: i32,
-            op: &Bound<'_, PyAny>,
-            input_degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            module_act_by_element(
-                self.as_dyn(),
-                py,
-                result,
-                coeff,
-                op_degree,
-                op,
-                input_degree,
-                input,
-            )
-        }
-
+    module_pymethods!(FPModule, {
         // --- FPModule-specific (thin) -----------------------------------------
 
         /// The underlying generators `FreeModule` (shares state via an `Arc`).
@@ -5237,7 +4408,7 @@ pub mod algebra_py {
         pub fn __repr__(&self) -> String {
             format!("FPModule({})", self.inner)
         }
-    }
+    });
 
     /// A mutable builder for a finitely presented module. Add generators (in
     /// consecutive degrees starting at `min_degree`) and then relations, then
@@ -5707,8 +4878,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FreeModuleHomomorphism {
+    module_hom_pymethods!(FreeModuleHomomorphism, {
         /// Build the zero homomorphism `source -> target` with the given
         /// `degree_shift` (`output_degree = input_degree - degree_shift`). The
         /// outputs on generators are all unset; populate them with
@@ -5750,23 +4920,6 @@ pub mod algebra_py {
         /// `Arc`).
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
-        }
-
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on,
-        /// `max(source.min_degree(), target.min_degree() + degree_shift)`.
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
         }
 
         /// Apply the homomorphism to the basis element `input_idx` in
@@ -5851,30 +5004,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel of the homomorphism in `degree`, if it has been computed
-        /// (via `compute_auxiliary_data_through_degree` or `set_kernel`).
-        /// Returns `None` otherwise (never panics).
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image of the homomorphism in `degree`, if it has been computed.
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse of the homomorphism in `degree`, if it has been
-        /// computed.
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// Compute (and cache) the image, kernel and quasi-inverse at every
         /// input degree up to `degree`. Requires the outputs on generators to be
         /// defined through `degree` (otherwise raises `ValueError`); also raises
@@ -5940,37 +5069,6 @@ pub mod algebra_py {
             Ok(crate::fp_py::PyMatrix::from_rust(
                 self.0.get_partial_matrix(degree, &inputs),
             ))
-        }
-
-        /// Apply the quasi-inverse at `degree` to `input`, adding the result
-        /// into `result`. Returns `True` if the quasi-inverse was available (and
-        /// applied), `False` otherwise. `input` has length
-        /// `target.dimension(degree - degree_shift)` and `result` has length
-        /// `source.dimension(degree)`.
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
         }
 
         // --- FreeModuleHomomorphism-specific methods --------------------------
@@ -6237,7 +5335,7 @@ pub mod algebra_py {
                 self.0.degree_shift()
             )
         }
-    }
+    });
 
     /// A `FreeModuleHomomorphism` whose target is itself a concrete `FreeModule`
     /// (the free → free variant), i.e. a map `F -> G` between two free modules
@@ -6340,8 +5438,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FreeModuleHomomorphismToFree {
+    module_hom_pymethods!(FreeModuleHomomorphismToFree, {
         /// Build the zero homomorphism `source -> target` (both `FreeModule`s)
         /// with the given `degree_shift` (`output_degree = input_degree -
         /// degree_shift`). The outputs on generators are all unset; populate them
@@ -6382,23 +5479,6 @@ pub mod algebra_py {
         /// The target `FreeModule` (shares state via `Arc`).
         pub fn target(&self) -> FreeModule {
             FreeModule(self.0.target())
-        }
-
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on,
-        /// `max(source.min_degree(), target.min_degree() + degree_shift)`.
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
         }
 
         /// Apply the homomorphism to the basis element `input_idx` in
@@ -6480,30 +5560,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel of the homomorphism in `degree`, if it has been computed
-        /// (via `compute_auxiliary_data_through_degree` or `set_kernel`).
-        /// Returns `None` otherwise (never panics).
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image of the homomorphism in `degree`, if it has been computed.
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse of the homomorphism in `degree`, if it has been
-        /// computed.
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// Compute (and cache) the image, kernel and quasi-inverse at every
         /// input degree up to `degree`. Requires the outputs on generators to be
         /// defined through `degree` (otherwise raises `ValueError`); also raises
@@ -6572,35 +5628,6 @@ pub mod algebra_py {
             Ok(crate::fp_py::PyMatrix::from_rust(
                 self.0.get_partial_matrix(degree, &inputs),
             ))
-        }
-
-        /// Apply the quasi-inverse at `degree` to `input`, adding the result
-        /// into `result`. Returns `True` if the quasi-inverse was available (and
-        /// applied), `False` otherwise.
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
         }
 
         // --- FreeModuleHomomorphism-specific methods --------------------------
@@ -6920,7 +5947,7 @@ pub mod algebra_py {
                 self.0.degree_shift()
             )
         }
-    }
+    });
 
     /// A read-only view of an *unstable* free module `MuFreeModule<true,
     /// SteenrodAlgebra>` — the module type of an `UnstableResolution` and of the
@@ -7368,8 +6395,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl FullModuleHomomorphism {
+    module_hom_pymethods!(FullModuleHomomorphism, {
         /// Build the zero homomorphism `source -> target` with the given
         /// `degree_shift` (every recorded matrix is absent, i.e. zero). The
         /// factors must be built over the *same* algebra object.
@@ -7525,23 +6551,6 @@ pub mod algebra_py {
             SteenrodModule((*self.0.target()).clone())
         }
 
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on
-        /// (`source.min_degree()`).
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
         /// Apply the homomorphism to the basis element `input_idx` in
         /// `input_degree`, adding `coeff` times its image into `result` (a
         /// vector of length `target.dimension(input_degree - degree_shift)`).
@@ -7617,30 +6626,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel of the homomorphism in `degree`, if it has been computed
-        /// (via `compute_auxiliary_data_through_degree`). Returns `None`
-        /// otherwise (never panics).
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image of the homomorphism in `degree`, if it has been computed.
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse of the homomorphism in `degree`, if it has been
-        /// computed.
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// Compute (and cache) the image, kernel and quasi-inverse at every
         /// input degree up to `degree`. Upstream clamps the work to the range of
         /// recorded matrices, so degrees beyond the recorded matrices are a
@@ -7696,37 +6681,6 @@ pub mod algebra_py {
             ))
         }
 
-        /// Apply the quasi-inverse at `degree` to `input`, adding the result
-        /// into `result`. Returns `True` if the quasi-inverse was available (and
-        /// applied), `False` otherwise. `input` has length
-        /// `target.dimension(degree - degree_shift)` and `result` has length
-        /// `source.dimension(degree)`.
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
-        }
-
         pub fn __repr__(&self) -> String {
             format!(
                 "FullModuleHomomorphism(degree_shift={}, min_degree={}, prime={})",
@@ -7735,7 +6689,7 @@ pub mod algebra_py {
                 self.0.prime().as_u32()
             )
         }
-    }
+    });
 
     /// The homomorphism induced on quotient modules by an underlying
     /// `FullModuleHomomorphism` `f`: given quotients `s` of `f.source()` and `t`
@@ -7792,8 +6746,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl QuotientHomomorphism {
+    module_hom_pymethods!(QuotientHomomorphism, {
         /// Build the induced map `source -> target` from the underlying
         /// `FullModuleHomomorphism` `f`. `source` must be a quotient of
         /// `f.source()` and `target` a quotient of `f.target()` (checked by
@@ -7831,22 +6784,6 @@ pub mod algebra_py {
         /// The (quotient) target module (shares state via `Arc`).
         pub fn target(&self) -> QuotientModule {
             QuotientModule(self.0.target())
-        }
-
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on.
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
         }
 
         /// Apply the homomorphism to the basis element `input_idx` in
@@ -7932,28 +6869,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel in `degree`. Always `None`: this homomorphism stores no
-        /// auxiliary data upstream.
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image in `degree`. Always `None` (see `kernel`).
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// No-op upstream (this homomorphism stores no auxiliary data); bound for
         /// surface uniformity. Still validates the output degree against `i32`
         /// overflow.
@@ -8021,35 +6936,6 @@ pub mod algebra_py {
             ))
         }
 
-        /// Apply the quasi-inverse at `degree` to `input`. Always returns `False`
-        /// (no quasi-inverse is ever stored) and therefore does NOT validate
-        /// `input`/`result` (no prime/length/index/aliasing checks run).
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
-        }
-
         pub fn __repr__(&self) -> String {
             format!(
                 "QuotientHomomorphism(degree_shift={}, min_degree={}, prime={})",
@@ -8058,7 +6944,7 @@ pub mod algebra_py {
                 self.0.prime().as_u32()
             )
         }
-    }
+    });
 
     /// The source-side quotient map `s -> f.target()` induced by a
     /// `FullModuleHomomorphism` `f` and a quotient `s` of `f.source()`: it sends
@@ -8106,8 +6992,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl QuotientHomomorphismSource {
+    module_hom_pymethods!(QuotientHomomorphismSource, {
         /// Build the source-side quotient map from the underlying
         /// `FullModuleHomomorphism` `f` and a quotient `source` of `f.source()`
         /// (checked by `Arc` identity; otherwise raises `ValueError`).
@@ -8137,22 +7022,6 @@ pub mod algebra_py {
         /// via `Arc`).
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
-        }
-
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on.
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
         }
 
         /// Apply the homomorphism to the basis element `input_idx` in
@@ -8229,27 +7098,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel in `degree`. Always `None` (no auxiliary data upstream).
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image in `degree`. Always `None` (see `kernel`).
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// No-op upstream (no auxiliary data); validates output-degree overflow.
         pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
             let output_degree = self.output_degree(degree)?;
@@ -8296,35 +7144,6 @@ pub mod algebra_py {
             ))
         }
 
-        /// Apply the quasi-inverse at `degree`. Always returns `False` (no
-        /// quasi-inverse is ever stored) and therefore does NOT validate
-        /// `input`/`result` (no prime/length/index/aliasing checks run).
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
-        }
-
         pub fn __repr__(&self) -> String {
             format!(
                 "QuotientHomomorphismSource(degree_shift={}, min_degree={}, prime={})",
@@ -8333,7 +7152,7 @@ pub mod algebra_py {
                 self.0.prime().as_u32()
             )
         }
-    }
+    });
 
     /// The generic zero homomorphism `source -> target` with a given
     /// `degree_shift`: it maps every element to `0`. Both source and target are
@@ -8376,8 +7195,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pymethods]
-    impl GenericZeroHomomorphism {
+    module_hom_pymethods!(GenericZeroHomomorphism, {
         /// Build the zero homomorphism `source -> target` with the given
         /// `degree_shift`. The factors must be built over the *same* algebra
         /// object (checked by prime and `Arc` identity); otherwise raises
@@ -8414,22 +7232,6 @@ pub mod algebra_py {
         /// The target module (shares state via `Arc`).
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
-        }
-
-        /// The degree shift: `output_degree = input_degree - degree_shift`.
-        pub fn degree_shift(&self) -> i32 {
-            self.0.degree_shift()
-        }
-
-        /// The smallest input degree the homomorphism is defined on.
-        pub fn min_degree(&self) -> i32 {
-            self.0.min_degree()
-        }
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
         }
 
         /// Apply the homomorphism to the basis element `input_idx` in
@@ -8506,27 +7308,6 @@ pub mod algebra_py {
             })
         }
 
-        /// The kernel in `degree`. Always `None` (no auxiliary data upstream).
-        pub fn kernel(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .kernel(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The image in `degree`. Always `None` (see `kernel`).
-        pub fn image(&self, degree: i32) -> Option<crate::fp_py::PySubspace> {
-            self.0
-                .image(degree)
-                .map(|s| crate::fp_py::PySubspace::from_rust(s.clone()))
-        }
-
-        /// The quasi-inverse in `degree`. Always `None` (see `kernel`).
-        pub fn quasi_inverse(&self, degree: i32) -> Option<crate::fp_py::PyQuasiInverse> {
-            self.0
-                .quasi_inverse(degree)
-                .map(|qi| crate::fp_py::PyQuasiInverse::from_rust(qi.clone()))
-        }
-
         /// No-op upstream (no auxiliary data); validates output-degree overflow.
         pub fn compute_auxiliary_data_through_degree(&self, degree: i32) -> PyResult<()> {
             let output_degree = self.output_degree(degree)?;
@@ -8582,35 +7363,6 @@ pub mod algebra_py {
             ))
         }
 
-        /// Apply the quasi-inverse at `degree`. Always returns `False` (no
-        /// quasi-inverse is ever stored) and therefore does NOT validate
-        /// `input`/`result` (no prime/length/index/aliasing checks run).
-        pub fn apply_quasi_inverse(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            degree: i32,
-            input: &Bound<'_, PyAny>,
-        ) -> PyResult<bool> {
-            let p = self.0.prime().as_u32();
-            let Some(qi) = self.0.quasi_inverse(degree) else {
-                return Ok(false);
-            };
-            let source_dim = qi.source_dimension();
-            let target_dim = qi.target_dimension();
-            crate::fp_py::with_input_slice(py, input, |in_slice| {
-                checked_same_prime(in_slice.prime().as_u32(), p)?;
-                checked_equal_len(in_slice.len(), target_dim)?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_equal_len(res.as_slice().len(), source_dim)?;
-                    qi.apply(res.copy(), 1, in_slice);
-                    Ok(())
-                })
-            })?;
-            Ok(true)
-        }
-
         pub fn __repr__(&self) -> String {
             format!(
                 "GenericZeroHomomorphism(degree_shift={}, min_degree={}, prime={})",
@@ -8619,7 +7371,7 @@ pub mod algebra_py {
                 self.0.prime().as_u32()
             )
         }
-    }
+    });
 
     /// The induced pullback map `Hom(B, X) -> Hom(A, X)` of a free → free map
     /// `map: A -> B`, where `A`, `B` are `FreeModule`s and `X` is a (boxed)

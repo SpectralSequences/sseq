@@ -425,6 +425,25 @@ pub mod fp_py {
         PyRuntimeError::new_err(err.to_string())
     }
 
+    /// Map any stringifiable error (e.g. `std::io::Error` from
+    /// (de)serialization) into the `RuntimeError` used uniformly across the
+    /// `to_bytes`/`from_bytes` methods.
+    fn io_err(e: impl ToString) -> PyErr {
+        PyRuntimeError::new_err(e.to_string())
+    }
+
+    /// Run a `to_bytes`-style writer into a fresh buffer and wrap the result as
+    /// `PyBytes`, mapping I/O errors through [`io_err`]. Collapses the repeated
+    /// `to_bytes` method bodies.
+    fn serialize_to_pybytes<'py>(
+        py: Python<'py>,
+        f: impl FnOnce(&mut Vec<u8>) -> std::io::Result<()>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let mut buffer = Vec::new();
+        f(&mut buffer).map_err(io_err)?;
+        Ok(PyBytes::new(py, &buffer))
+    }
+
     /// Uniform error for using a value that has been moved out (consumed) by a
     /// consuming method. Mirrors `borrow_error` for the move-and-invalidate
     /// pyclasses (e.g. the augmented matrices).
@@ -571,6 +590,25 @@ pub mod fp_py {
                 operand.with_slice(py, f)?
             }
         }
+
+        /// Shared "sandwich" for single-operand binary ops: borrow `other`
+        /// (via `with_operand`), then borrow `self` mutably (via
+        /// `with_slice_mut`), verify the primes match, and run `f` with the
+        /// mutable target and the operand slice. Methods with extra pre-checks
+        /// (length/offset/mask/span) keep those in front of this call.
+        fn with_binary_op<R>(
+            &self,
+            py: Python<'_>,
+            other: &PyFpSlice,
+            f: impl FnOnce(RustFpSliceMut<'_>, RustFpSlice<'_>) -> R,
+        ) -> PyResult<R> {
+            self.with_operand(py, other, |o| {
+                self.with_slice_mut(py, |t| {
+                    checked_same_prime(t.prime().as_u32(), o.prime().as_u32())?;
+                    Ok(f(t, o))
+                })?
+            })
+        }
     }
 
     fn checked_row(row: usize, rows: usize) -> PyResult<usize> {
@@ -632,8 +670,45 @@ pub mod fp_py {
         }
     }
 
-    #[pymethods]
-    impl PyFp {
+    /// The value-equality field types (`PyFp`, `PySmallFq`, `PyFieldElement`)
+    /// all expose byte-identical `__richcmp__`/`__hash__` methods: equality only
+    /// compares against another instance of the same class (`PyRef<Self>`) on
+    /// the wrapped value, `Eq`/`Ne` are the only supported operators, and hashes
+    /// go through the shared `py_hash` helper.
+    ///
+    /// This crate does not enable PyO3's `multiple-pymethods` feature, so each
+    /// class may have only one `#[pymethods]` block, and PyO3's `#[pymethods]`
+    /// proc-macro additionally rejects `macro_rules!` invocations *inside* the
+    /// block (it cannot collect methods it cannot see). We therefore follow the
+    /// same pattern as `augmented_matrix_pyclass!` below: this macro emits the
+    /// entire `#[pymethods]` block, splicing each class's unique methods in
+    /// through the `$extra` token block and appending the shared
+    /// `__richcmp__`/`__hash__` definitions.
+    macro_rules! eq_hash_pymethods {
+        ($ty:ident, { $($extra:tt)* }) => {
+            #[pymethods]
+            impl $ty {
+                $($extra)*
+
+                pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
+                    let eq = other
+                        .extract::<PyRef<Self>>()
+                        .is_ok_and(|other| self.0 == other.0);
+                    match op {
+                        CompareOp::Eq => eq,
+                        CompareOp::Ne => !eq,
+                        _ => false,
+                    }
+                }
+
+                pub fn __hash__(&self) -> isize {
+                    py_hash(&self.0)
+                }
+            }
+        };
+    }
+
+    eq_hash_pymethods!(PyFp, {
         #[new]
         pub fn new(p: u32) -> PyResult<Self> {
             Ok(Self(DynFp::new(valid_prime(p)?)))
@@ -662,25 +737,9 @@ pub mod fp_py {
         pub fn __repr__(&self) -> String {
             format!("Fp({})", self.characteristic())
         }
+    });
 
-        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
-            let eq = other
-                .extract::<PyRef<Self>>()
-                .is_ok_and(|other| self.0 == other.0);
-            match op {
-                CompareOp::Eq => eq,
-                CompareOp::Ne => !eq,
-                _ => false,
-            }
-        }
-
-        pub fn __hash__(&self) -> isize {
-            py_hash(&self.0)
-        }
-    }
-
-    #[pymethods]
-    impl PySmallFq {
+    eq_hash_pymethods!(PySmallFq, {
         #[new]
         pub fn new(p: u32, degree: u32) -> PyResult<Self> {
             Ok(Self(small_fq(p, degree)?))
@@ -713,25 +772,9 @@ pub mod fp_py {
         pub fn __repr__(&self) -> String {
             format!("SmallFq({}, {})", self.p(), self.degree())
         }
+    });
 
-        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
-            let eq = other
-                .extract::<PyRef<Self>>()
-                .is_ok_and(|other| self.0 == other.0);
-            match op {
-                CompareOp::Eq => eq,
-                CompareOp::Ne => !eq,
-                _ => false,
-            }
-        }
-
-        pub fn __hash__(&self) -> isize {
-            py_hash(&self.0)
-        }
-    }
-
-    #[pymethods]
-    impl PyFieldElement {
+    eq_hash_pymethods!(PyFieldElement, {
         pub fn inv(&self) -> Option<Self> {
             match self.0 {
                 FieldElementKind::Fp(x) => x.inv().map(|x| Self(FieldElementKind::Fp(x))),
@@ -848,21 +891,7 @@ pub mod fp_py {
             }
         }
 
-        pub fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp) -> bool {
-            let eq = other
-                .extract::<PyRef<Self>>()
-                .is_ok_and(|other| self.0 == other.0);
-            match op {
-                CompareOp::Eq => eq,
-                CompareOp::Ne => !eq,
-                _ => false,
-            }
-        }
-
-        pub fn __hash__(&self) -> isize {
-            py_hash(&self.0)
-        }
-    }
+    });
 
     impl PyFpVector {
         /// Wrap an owned upstream `FpVector` into the bound pyclass. Exposed
@@ -925,7 +954,7 @@ pub mod fp_py {
         pub fn from_bytes(p: u32, len: usize, data: &[u8]) -> PyResult<Self> {
             RustFpVector::from_bytes(valid_prime(p)?, len, &mut Cursor::new(data))
                 .map(Self)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(io_err)
         }
 
         #[getter]
@@ -1017,17 +1046,13 @@ pub mod fp_py {
         }
 
         pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-            let mut buffer = Vec::new();
-            self.0
-                .to_bytes(&mut buffer)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-            Ok(PyBytes::new(py, &buffer))
+            serialize_to_pybytes(py, |buffer| self.0.to_bytes(buffer))
         }
 
         pub fn update_from_bytes(&mut self, data: &[u8]) -> PyResult<()> {
             self.0
                 .update_from_bytes(&mut Cursor::new(data))
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(io_err)
         }
 
         pub fn __len__(&self) -> usize {
@@ -1156,12 +1181,8 @@ pub mod fp_py {
 
         pub fn add(&self, py: Python<'_>, other: &PyFpSlice, c: u32) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
-            self.with_operand(py, other, |other_slice| {
-                self.with_slice_mut(py, |mut target| {
-                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
-                    target.add(other_slice, c);
-                    Ok(())
-                })?
+            self.with_binary_op(py, other, |mut target, other_slice| {
+                target.add(other_slice, c);
             })
         }
 
@@ -1174,12 +1195,8 @@ pub mod fp_py {
         ) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
             checked_range(offset, self.span(), self.span())?;
-            self.with_operand(py, other, |other_slice| {
-                self.with_slice_mut(py, |mut target| {
-                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
-                    target.add_offset(other_slice, c, offset);
-                    Ok(())
-                })?
+            self.with_binary_op(py, other, |mut target, other_slice| {
+                target.add_offset(other_slice, c, offset);
             })
         }
 
@@ -1197,12 +1214,8 @@ pub mod fp_py {
                     other.span()
                 )));
             }
-            self.with_operand(py, other, |other_slice| {
-                self.with_slice_mut(py, |mut target| {
-                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
-                    target.add_masked(other_slice, c, &mask);
-                    Ok(())
-                })?
+            self.with_binary_op(py, other, |mut target, other_slice| {
+                target.add_masked(other_slice, c, &mask);
             })
         }
 
@@ -1230,23 +1243,15 @@ pub mod fp_py {
                     self.span()
                 )));
             }
-            self.with_operand(py, other, |other_slice| {
-                self.with_slice_mut(py, |mut target| {
-                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
-                    target.add_unmasked(other_slice, c, &mask);
-                    Ok(())
-                })?
+            self.with_binary_op(py, other, |mut target, other_slice| {
+                target.add_unmasked(other_slice, c, &mask);
             })
         }
 
         pub fn assign(&self, py: Python<'_>, other: &PyFpSlice) -> PyResult<()> {
             checked_equal_len(self.span(), other.span())?;
-            self.with_operand(py, other, |other_slice| {
-                self.with_slice_mut(py, |mut target| {
-                    checked_same_prime(target.prime().as_u32(), other_slice.prime().as_u32())?;
-                    target.assign(other_slice);
-                    Ok(())
-                })?
+            self.with_binary_op(py, other, |mut target, other_slice| {
+                target.assign(other_slice);
             })
         }
 
@@ -1568,7 +1573,7 @@ pub mod fp_py {
         pub fn from_bytes(p: u32, rows: usize, columns: usize, data: &[u8]) -> PyResult<Self> {
             RustMatrix::from_bytes(valid_prime(p)?, rows, columns, &mut Cursor::new(data))
                 .map(Self)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(io_err)
         }
 
         #[getter]
@@ -1606,11 +1611,7 @@ pub mod fp_py {
         }
 
         pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-            let mut buffer = Vec::new();
-            self.0
-                .to_bytes(&mut buffer)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-            Ok(PyBytes::new(py, &buffer))
+            serialize_to_pybytes(py, |buffer| self.0.to_bytes(buffer))
         }
 
         pub fn row(slf: PyRef<'_, Self>, row: usize) -> PyResult<PyFpSlice> {
@@ -1883,7 +1884,7 @@ pub mod fp_py {
         pub fn from_bytes(p: u32, data: &[u8]) -> PyResult<Self> {
             RustSubspace::from_bytes(valid_prime(p)?, &mut Cursor::new(data))
                 .map(Self)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(io_err)
         }
 
         #[getter]
@@ -1968,11 +1969,7 @@ pub mod fp_py {
         }
 
         pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-            let mut buffer = Vec::new();
-            self.0
-                .to_bytes(&mut buffer)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-            Ok(PyBytes::new(py, &buffer))
+            serialize_to_pybytes(py, |buffer| self.0.to_bytes(buffer))
         }
 
         pub fn __len__(&self) -> usize {
@@ -2149,7 +2146,7 @@ pub mod fp_py {
         pub fn from_bytes(p: u32, data: &[u8]) -> PyResult<Self> {
             RustQuasiInverse::from_bytes(valid_prime(p)?, &mut Cursor::new(data))
                 .map(Self)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(io_err)
         }
 
         #[getter]
@@ -2222,11 +2219,7 @@ pub mod fp_py {
         /// pivot list `[0, 1, 2, ...]` (matching upstream), so it does not survive
         /// a round-trip as `None`; see [`Self::from_bytes`].
         pub fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-            let mut buffer = Vec::new();
-            self.0
-                .to_bytes(&mut buffer)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-            Ok(PyBytes::new(py, &buffer))
+            serialize_to_pybytes(py, |buffer| self.0.to_bytes(buffer))
         }
 
         pub fn __repr__(&self) -> String {

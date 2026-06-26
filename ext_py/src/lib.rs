@@ -68,6 +68,38 @@ mod ext_py {
         };
     }
 
+    /// Validate that a bidegree-like value is non-negative, returning it on success.
+    ///
+    /// Factors out the repeated negative-bidegree guard: it evaluates `$b` once, and if
+    /// `s < 0` (and, in the two-axis form, `t < 0`) it `return`s an `Err(PyValueError)`
+    /// whose message is `"invalid {what} {b}: require s >= 0 and t >= 0"` (the s-only arm
+    /// drops the `and t >= 0`); otherwise the macro evaluates to `$b`. `$what` is a string
+    /// literal naming the value (e.g. `"target bidegree"`, `"input bidegree"`, `"generator"`,
+    /// `"bidegree"`, `"shift"`). The message is byte-for-byte identical to the hand-written
+    /// guards it replaces, so the error text seen from Python is unchanged.
+    macro_rules! require_nonneg {
+        ($b:expr, $what:literal) => {{
+            let b = $b;
+            if b.s() < 0 || b.t() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    concat!("invalid ", $what, " {}: require s >= 0 and t >= 0"),
+                    b
+                )));
+            }
+            b
+        }};
+        ($b:expr, $what:literal, s_only) => {{
+            let b = $b;
+            if b.s() < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    concat!("invalid ", $what, " {}: require s >= 0"),
+                    b
+                )));
+            }
+            b
+        }};
+    }
+
     /// Build a resolution, choosing Nassau's special algorithm or the general one at runtime.
     ///
     /// `algorithm` may be `None`/`"auto"` (try Nassau, fall back to the general algorithm),
@@ -595,11 +627,7 @@ mod ext_py {
         /// instead of panicking across the FFI boundary.
         pub fn compute_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             dispatch!(&self.0, r => r.compute_through_stem(b));
             Ok(())
         }
@@ -646,11 +674,7 @@ mod ext_py {
         /// `compute_through_stem`).
         pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             dispatch!(&self.0, r => r.compute_through_bidegree(b));
             Ok(())
         }
@@ -684,11 +708,7 @@ mod ext_py {
             callback: Py<PyAny>,
         ) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             let r = match &self.0 {
                 AnyResolution::Standard(r) => r,
                 AnyResolution::Nassau(_) => {
@@ -726,11 +746,7 @@ mod ext_py {
             callback: Py<PyAny>,
         ) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             let r = match &self.0 {
                 AnyResolution::Standard(r) => r,
                 AnyResolution::Nassau(_) => {
@@ -779,12 +795,7 @@ mod ext_py {
         /// negative `min_degree`, e.g. `RP_{-k}`, have generators in negative
         /// `t`) and simply returns `false` when out of the computed range.
         pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
-            if b.0.s() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree", s_only);
             Ok(dispatch!(&self.0, r => r.has_computed_bidegree(b.0)))
         }
 
@@ -798,12 +809,7 @@ mod ext_py {
         /// Both backends' modules' generator tables (`OnceBiVec`s) panic when
         /// indexed out of range, so this is guarded; see `num_gens_at`.
         pub fn number_of_gens_in_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
-            if b.0.s() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree", s_only);
             Ok(self.num_gens_at(b.0))
         }
 
@@ -985,12 +991,7 @@ mod ext_py {
                     "op_deg must be non-negative",
                 ));
             }
-            if source.0.s() < 0 || source.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid source bidegree {}: require s >= 0 and t >= 0",
-                    source.0
-                )));
-            }
+            require_nonneg!(source.0, "source bidegree");
             // Reject a source whose target degree `source.t() + op_deg` overflows
             // i32 before it can be used to index any module/FpVector.
             if source.0.t().checked_add(op_deg).is_none() {
@@ -1023,11 +1024,7 @@ mod ext_py {
         /// table).
         pub fn boundary_string(&self, g: sseq_py::BidegreeGenerator) -> PyResult<String> {
             let gen = g.0;
-            if gen.s() < 0 || gen.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid generator {gen}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(gen, "generator");
             let ngens = self.num_gens_at(gen.degree());
             if gen.idx() >= ngens {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -1276,11 +1273,7 @@ mod ext_py {
         /// as the stable path), raising `ValueError` rather than panicking.
         pub fn compute_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.0.compute_through_stem(b);
             Ok(())
         }
@@ -1289,11 +1282,7 @@ mod ext_py {
         /// `s >= 0`/`t >= 0`, raising `ValueError` rather than panicking.
         pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.0.compute_through_bidegree(b);
             Ok(())
         }
@@ -1317,12 +1306,7 @@ mod ext_py {
         /// Whether the resolution has been computed at bidegree `b`. Negative
         /// `s`/`t` is rejected with a `ValueError`.
         pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(self.0.has_computed_bidegree(b.0))
         }
 
@@ -1332,12 +1316,7 @@ mod ext_py {
         /// Guarded like the stable `number_of_gens_in_bidegree`; see
         /// `num_gens_at`.
         pub fn number_of_gens_in_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(self.num_gens_at(b.0))
         }
 
@@ -1431,11 +1410,7 @@ mod ext_py {
         /// exceeds the generator count there (upstream would otherwise panic).
         pub fn boundary_string(&self, g: sseq_py::BidegreeGenerator) -> PyResult<String> {
             let gen = g.0;
-            if gen.s() < 0 || gen.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid generator {gen}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(gen, "generator");
             let ngens = self.num_gens_at(gen.degree());
             if gen.idx() >= ngens {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -1910,11 +1885,7 @@ mod ext_py {
         /// the whole strip is rejected rather than risking an upstream panic.
         pub fn extend(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.check_extend_range(b.s(), |_s| b.t())?;
             self.0.extend(b);
             Ok(())
@@ -1925,11 +1896,7 @@ mod ext_py {
         /// `extend` does.
         pub fn extend_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             let n = b.n();
             self.check_extend_range(b.s(), |s| n + s)?;
             self.0.extend_through_stem(b);
@@ -1987,11 +1954,7 @@ mod ext_py {
             extra_images: Option<Vec<PyRef<'_, fp_py::PyFpVector>>>,
         ) -> PyResult<(i32, i32)> {
             let b = input.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid input bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "input bidegree");
             let shift = self.0.shift;
             if b.s() < shift.s() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -2068,11 +2031,7 @@ mod ext_py {
             extra_images: Option<PyRef<'_, fp_py::PyMatrix>>,
         ) -> PyResult<(i32, i32)> {
             let b = input.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid input bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "input bidegree");
             let shift = self.0.shift;
             if b.s() < shift.s() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -2145,11 +2104,7 @@ mod ext_py {
             g: sseq_py::BidegreeGenerator,
         ) -> PyResult<()> {
             let gen = g.0;
-            if gen.s() < 0 || gen.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid generator {gen}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(gen, "generator");
             let shift = self.0.shift;
             let src_s = gen.s().checked_add(shift.s()).ok_or_else(|| {
                 pyo3::exceptions::PyValueError::new_err("source s = g.s + shift.s overflows i32")
@@ -2505,11 +2460,7 @@ mod ext_py {
         /// panics on a negative target; cf. `Resolution.compute_through_stem`).
         pub fn compute_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.0.compute_through_stem(b);
             Ok(())
         }
@@ -2518,11 +2469,7 @@ mod ext_py {
         /// bidegree. Negative `s`/`t` is rejected with `ValueError`.
         pub fn compute_through_bidegree(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.0.compute_through_bidegree(b);
             Ok(())
         }
@@ -2533,24 +2480,14 @@ mod ext_py {
         /// (Upstream `ExtAlgebra::dimension` indexes two `OnceBiVec`s and panics
         /// out of range; this is the guarded analogue.)
         pub fn dimension(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(ext_algebra_num_gens(self.0.resolution(), b.0))
         }
 
         /// The dimension of $\Ext^{s,t}(k, k)$ at bidegree `b` (the
         /// multiplicand/"scalar" side). Guarded as [`dimension`].
         pub fn unit_dimension(&self, b: sseq_py::Bidegree) -> PyResult<usize> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(ext_algebra_num_gens(self.0.unit(), b.0))
         }
 
@@ -2589,11 +2526,7 @@ mod ext_py {
             g: sseq_py::BidegreeGenerator,
         ) -> PyResult<sseq_py::BidegreeElement> {
             let gen = g.0;
-            if gen.s() < 0 || gen.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid generator {gen}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(gen, "generator");
             let dim = ext_algebra_num_gens(self.0.resolution(), gen.degree());
             if gen.idx() >= dim {
                 return Err(pyo3::exceptions::PyIndexError::new_err(format!(
@@ -2656,11 +2589,7 @@ mod ext_py {
         ) -> PyResult<Option<Vec<Vec<u32>>>> {
             self.check_res_element(&x.0)?;
             let bb = b.0;
-            if bb.s() < 0 || bb.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {bb}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(bb, "bidegree");
             Self::checked_target(bb, x.0.degree())?;
             if !x.0.vec().is_zero() {
                 self.check_unit_augmentation()?;
@@ -2737,11 +2666,7 @@ mod ext_py {
             coords: Vec<u32>,
             which: &str,
         ) -> PyResult<sseq_py::BidegreeElement> {
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "bidegree");
             if !r.has_computed_bidegree(b) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "{which} not computed at bidegree (s={}, t={}); resolve it there first",
@@ -2894,12 +2819,7 @@ mod ext_py {
                     t.prime().as_u32()
                 )));
             }
-            if shift.0.s() < 0 || shift.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid shift {}: require s >= 0 and t >= 0",
-                    shift.0
-                )));
-            }
+            require_nonneg!(shift.0, "shift");
             Ok(UnstableResolutionHomomorphism(Arc::new(
                 RsUnstableResHom::new(name, s, t, shift.0),
             )))
@@ -2929,11 +2849,7 @@ mod ext_py {
                 )));
             }
             let b = shift.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid shift {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "shift");
             if !s.has_computed_bidegree(b) {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "source not computed at the class bidegree (s={}, t={}); resolve it there first",
@@ -3041,11 +2957,7 @@ mod ext_py {
         /// touched range as the stable `extend` does.
         pub fn extend(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             self.check_extend_range(b.s(), |_s| b.t())?;
             self.0.extend(b);
             Ok(())
@@ -3055,11 +2967,7 @@ mod ext_py {
         /// as `extend` does.
         pub fn extend_through_stem(&self, max: sseq_py::Bidegree) -> PyResult<()> {
             let b = max.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "target bidegree");
             let n = b.n();
             self.check_extend_range(b.s(), |s| n + s)?;
             self.0.extend_through_stem(b);
@@ -3113,11 +3021,7 @@ mod ext_py {
             extra_images: Option<Vec<PyRef<'_, fp_py::PyFpVector>>>,
         ) -> PyResult<(i32, i32)> {
             let b = input.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid input bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "input bidegree");
             let shift = self.0.shift;
             if b.s() < shift.s() {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -3184,11 +3088,7 @@ mod ext_py {
             g: sseq_py::BidegreeGenerator,
         ) -> PyResult<()> {
             let gen = g.0;
-            if gen.s() < 0 || gen.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid generator {gen}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(gen, "generator");
             let shift = self.0.shift;
             let src_s = gen.s().checked_add(shift.s()).ok_or_else(|| {
                 pyo3::exceptions::PyValueError::new_err("source s = g.s + shift.s overflows i32")
@@ -3474,11 +3374,7 @@ mod ext_py {
         /// raised. Negative `max_source` is rejected.
         pub fn extend(&self, max_source: sseq_py::Bidegree) -> PyResult<()> {
             let b = max_source.0;
-            if b.s() < 0 || b.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid max_source bidegree {b}: require s >= 0 and t >= 0"
-                )));
-            }
+            require_nonneg!(b, "max_source bidegree");
             // Upstream profile (exclusive): max_s = b.s() + 1, t_max(s) =
             // b.t() - b.s() + s + 1. Inclusive form below.
             self.check_extend_range(b.s(), |s| b.t() - b.s() + s)?;
@@ -4456,12 +4352,7 @@ mod ext_py {
         /// sequence cell).
         pub fn page_data(&self, b: sseq_py::Bidegree) -> PyResult<fp_py::PySubquotient> {
             self.require_extended()?;
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             let sq = catch_secondary_compute_panic(|| self.inner.page_data(b.0))?;
             Ok(fp_py::PySubquotient::from_rust(sq))
         }
@@ -4470,12 +4361,7 @@ mod ext_py {
         /// Guarded as [`page_data`](Self::page_data).
         pub fn unit_page_data(&self, b: sseq_py::Bidegree) -> PyResult<fp_py::PySubquotient> {
             self.require_extended()?;
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             let sq = catch_secondary_compute_panic(|| self.inner.unit_page_data(b.0))?;
             Ok(fp_py::PySubquotient::from_rust(sq))
         }
@@ -4498,12 +4384,7 @@ mod ext_py {
         ) -> PyResult<Vec<SecondaryProduct>> {
             self.require_extended()?;
             self.check_res_element(&x.0)?;
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             let products =
                 catch_secondary_compute_panic(|| self.inner.secondary_multiply_into(&x.0, b.0))?;
             Ok(products
@@ -4740,12 +4621,7 @@ mod ext_py {
         /// `s`/`t` is rejected with a `ValueError` rather than wrapping to a
         /// huge `usize`.
         pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(self.0.has_computed_bidegree(b.0))
         }
 
@@ -4753,12 +4629,7 @@ mod ext_py {
         /// `Resolution.compute_through_stem`, a negative `s`/`t` is rejected with
         /// a `ValueError` rather than risking an internal panic.
         pub fn compute_through_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<()> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "target bidegree");
             self.0.compute_through_bidegree(b.0);
             Ok(())
         }
@@ -4936,11 +4807,7 @@ mod ext_py {
         };
 
         let bd = b.0;
-        if bd.s() < 0 || bd.t() < 0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "invalid bidegree {bd}: require s >= 0 and t >= 0"
-            )));
-        }
+        require_nonneg!(bd, "bidegree");
 
         // Each entry is written into an FpVector over the prime; reject out-of-range.
         let p = res.prime().as_u32();
@@ -5155,24 +5022,14 @@ mod ext_py {
         /// Whether the complex has been computed at bidegree `b`. Negative
         /// `s`/`t` is rejected with a `ValueError`.
         pub fn has_computed_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<bool> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "bidegree");
             Ok(self.inner.has_computed_bidegree(b.0))
         }
 
         /// Ensure every bidegree `<= b` has been computed. Negative `s`/`t` is
         /// rejected with a `ValueError`.
         pub fn compute_through_bidegree(&self, b: sseq_py::Bidegree) -> PyResult<()> {
-            if b.0.s() < 0 || b.0.t() < 0 {
-                return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                    "invalid target bidegree {}: require s >= 0 and t >= 0",
-                    b.0
-                )));
-            }
+            require_nonneg!(b.0, "target bidegree");
             self.inner.compute_through_bidegree(b.0);
             Ok(())
         }
