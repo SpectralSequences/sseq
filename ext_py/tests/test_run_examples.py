@@ -87,12 +87,13 @@ EXAMPLES = [
     {
         "name": "save_bruner.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "Resolution.differential() is not bound",
+        "xfail": "SteenrodAlgebra.basis_element_from_index() is not bound",
     },
     {
         "name": "ext_m_n.py",
         "args": ["S_2", "", "S_2", "6", "3"],
-        "xfail": "Resolution.differential() is not bound",
+        "xfail": "HomPullback rejects HomModules built from the same target N "
+        "(source.target()/target.target() are distinct Arcs)",
     },
     {
         "name": "sq0.py",

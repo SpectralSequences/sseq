@@ -844,6 +844,56 @@ mod ext_py {
             }
         }
 
+        /// The chain-complex differential `d_s: R_s -> R_{s-1}` out of
+        /// homological degree `s`, as a bound `algebra_py.FreeModuleHomomorphismToFree`
+        /// sharing its `Arc`.
+        ///
+        /// Like `module()`, only the standard backend is supported. Its
+        /// differentials are `FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>`
+        /// (free module -> free module over the `SteenrodAlgebra`), exactly the
+        /// inner type the `FreeModuleHomomorphismToFree` pyclass wraps. Nassau's
+        /// differentials are over the concrete `MilnorAlgebra` (a distinct,
+        /// non-interconvertible type parameter), so the pyclass cannot represent
+        /// them; `differential()` rejects the Nassau backend with a `ValueError`,
+        /// matching `module()`.
+        ///
+        /// Raises `ValueError` for negative `s` or `s` beyond the resolved range
+        /// (`>= next_homological_degree()`); indexing the differentials `OnceVec`
+        /// there would otherwise panic.
+        ///
+        /// WARNING: the returned homomorphism is a *live shared view* of this
+        /// resolution's internal differential (the same `Arc`), not a copy. Treat
+        /// it as read-only; calling its mutating methods is memory-safe but may
+        /// logically corrupt the resolution.
+        pub fn differential(&self, s: i32) -> PyResult<algebra_py::FreeModuleHomomorphismToFree> {
+            if s < 0 {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "homological degree s must be non-negative",
+                ));
+            }
+            match &self.0 {
+                AnyResolution::Standard(r) => {
+                    if s >= r.next_homological_degree() {
+                        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                            "differential index s = {s} is beyond the resolved range (next \
+                             homological degree is {}); compute_through_bidegree / \
+                             compute_through_stem first",
+                            r.next_homological_degree()
+                        )));
+                    }
+                    Ok(algebra_py::FreeModuleHomomorphismToFree::from_arc(
+                        r.differential(s),
+                    ))
+                }
+                AnyResolution::Nassau(_) => Err(pyo3::exceptions::PyValueError::new_err(
+                    "differential() is only available on the standard backend; Nassau resolves \
+                     over the concrete MilnorAlgebra, whose FreeModuleHomomorphism the \
+                     algebra_py.FreeModuleHomomorphismToFree pyclass (over the SteenrodAlgebra \
+                     union) cannot represent. Construct the Resolution with algorithm='standard'.",
+                )),
+            }
+        }
+
         /// The full filtration-one product (e.g. `h_0`, `h_1`, ...) given by the
         /// algebra operation of degree `op_deg` and index `op_idx`, as a bound
         /// `sseq_py.Product` over the range resolved so far.
