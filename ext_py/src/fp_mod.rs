@@ -433,8 +433,7 @@ pub mod fp_py {
     }
 
     /// Run a `to_bytes`-style writer into a fresh buffer and wrap the result as
-    /// `PyBytes`, mapping I/O errors through [`io_err`]. Collapses the repeated
-    /// `to_bytes` method bodies.
+    /// `PyBytes`, mapping I/O errors through [`io_err`].
     fn serialize_to_pybytes<'py>(
         py: Python<'py>,
         f: impl FnOnce(&mut Vec<u8>) -> std::io::Result<()>,

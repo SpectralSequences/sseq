@@ -68,15 +68,13 @@ mod ext_py {
         };
     }
 
-    /// Validate that a bidegree-like value is non-negative, returning it on success.
+    /// Validate that a bidegree-like value is non-negative, evaluating to `$b`.
     ///
-    /// Factors out the repeated negative-bidegree guard: it evaluates `$b` once, and if
-    /// `s < 0` (and, in the two-axis form, `t < 0`) it `return`s an `Err(PyValueError)`
-    /// whose message is `"invalid {what} {b}: require s >= 0 and t >= 0"` (the s-only arm
-    /// drops the `and t >= 0`); otherwise the macro evaluates to `$b`. `$what` is a string
-    /// literal naming the value (e.g. `"target bidegree"`, `"input bidegree"`, `"generator"`,
-    /// `"bidegree"`, `"shift"`). The message is byte-for-byte identical to the hand-written
-    /// guards it replaces, so the error text seen from Python is unchanged.
+    /// Factors out the repeated negative-bidegree guard. On failure it `return`s an
+    /// `Err(PyValueError)` from the *caller* (the s-only arm checks `s` only and drops
+    /// `and t >= 0` from the message). `$what` is a string literal naming the value
+    /// (e.g. `"target bidegree"`). The message is byte-for-byte identical to the
+    /// hand-written guards it replaces, so the error text seen from Python is unchanged.
     macro_rules! require_nonneg {
         ($b:expr, $what:literal) => {{
             let b = $b;

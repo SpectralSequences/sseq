@@ -606,6 +606,345 @@ pub mod algebra_py {
         }
     }
 
+    /// Emit the entire `#[pymethods]` block (plus the small inherent helper
+    /// block it depends on) for a Steenrod-style algebra pyclass: the class's
+    /// own (unique) methods passed through `$extra`, followed by the shared
+    /// "flattened `Algebra`/`GeneratedAlgebra`/`Bialgebra` method set" that
+    /// every participating algebra pyclass exposes identically (forwarding to
+    /// the inner algebra `self.0`).
+    ///
+    /// This is the algebra sibling of `module_pymethods!`/`module_hom_pymethods!`
+    /// below and follows the same pattern for the same reason: the crate does
+    /// not enable PyO3's `multiple-pymethods` feature, so each class may have
+    /// only one `#[pymethods]` block and a `macro_rules!` call cannot appear
+    /// *inside* one. The macro therefore emits the whole block, splicing each
+    /// class's unique methods in through the `$extra` token block.
+    ///
+    /// Only methods whose bodies are byte-identical across every participating
+    /// class live in the shared set; every class accesses its inner algebra
+    /// uniformly as `self.0` (`SteenrodAlgebra` stores an `Arc`, which derefs).
+    /// The genuinely-varying surface — constructors, `coproduct` (guards differ
+    /// per variant), `basis_element_from_index`, and the Milnor/Adem-specific
+    /// methods — is passed through `$extra` per class.
+    ///
+    /// The macro also emits the three inherent helpers (`ensure_basis`,
+    /// `product_target`, `checked_basis_index`) as a separate inherent `impl`
+    /// block, rather than hoisting them into generic free functions over an
+    /// `Algebra` bound, to keep the `self.0` accessor uniform: `SteenrodAlgebra`
+    /// wraps an `Arc`, so a generic free function would force a divergent
+    /// `&self.0` vs `&*self.0` call site — the very split this pattern avoids.
+    macro_rules! algebra_pymethods {
+        ($Ty:ident, { $($extra:tt)* }) => {
+            impl $Ty {
+                /// Lazily compute book-keeping up to `degree`. These algebras are
+                /// infinite-dimensional and their internal `OnceVec` tables panic
+                /// when indexed past the computed range, so every degree-indexed
+                /// Python method funnels through here first. `compute_basis` is
+                /// idempotent and cheap to re-call; this is a no-op for negative
+                /// degrees.
+                fn ensure_basis(&self, degree: i32) {
+                    if degree >= 0 {
+                        self.0.compute_basis(degree);
+                    }
+                }
+
+                /// Validate two factor degrees and compute the (basis-populated)
+                /// target degree of their product.
+                fn product_target(&self, r_degree: i32, s_degree: i32) -> PyResult<i32> {
+                    non_negative_degree(r_degree)?;
+                    non_negative_degree(s_degree)?;
+                    let target = r_degree
+                        .checked_add(s_degree)
+                        .ok_or_else(|| PyValueError::new_err("product degree overflows i32"))?;
+                    self.ensure_basis(target);
+                    Ok(target)
+                }
+
+                fn checked_basis_index(&self, degree: i32, idx: usize) -> PyResult<()> {
+                    let dim = self.0.dimension(degree);
+                    if idx < dim {
+                        Ok(())
+                    } else {
+                        Err(PyIndexError::new_err(format!(
+                            "index {idx} out of range for degree {degree} (dimension {dim})"
+                        )))
+                    }
+                }
+            }
+
+            #[pymethods]
+            impl $Ty {
+                $($extra)*
+
+                // --- shared Algebra/GeneratedAlgebra/Bialgebra surface --------
+
+                /// The prime as a plain `int` (`ValidPrime` is never exposed).
+                #[getter]
+                pub fn prime(&self) -> u32 {
+                    self.0.prime().as_u32()
+                }
+
+                pub fn compute_basis(&self, degree: i32) {
+                    self.ensure_basis(degree);
+                }
+
+                pub fn dimension(&self, degree: i32) -> usize {
+                    if degree < 0 {
+                        return 0;
+                    }
+                    self.ensure_basis(degree);
+                    self.0.dimension(degree)
+                }
+
+                pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+                    self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
+                        PyIndexError::new_err(format!(
+                            "no basis element at degree {degree} index {idx}"
+                        ))
+                    })
+                }
+
+                /// Parse a basis element, returning `(degree, index)`. Raises
+                /// `ValueError` if the string does not parse, or if it names an
+                /// element that is not present in this algebra.
+                ///
+                /// Upstream's `basis_element_from_string` is now total: a
+                /// parseable but absent/inadmissible name (e.g. `"Sq0"`) returns
+                /// `None` rather than panicking. We map that `None` to
+                /// `ValueError`.
+                pub fn basis_element_from_string(&self, elt: &str) -> PyResult<(i32, usize)> {
+                    self.0.basis_element_from_string(elt).ok_or_else(|| {
+                        PyValueError::new_err(format!(
+                            "{elt} does not name a basis element of this algebra"
+                        ))
+                    })
+                }
+
+                pub fn element_to_string(
+                    &self,
+                    py: Python<'_>,
+                    degree: i32,
+                    element: &Bound<'_, PyAny>,
+                ) -> PyResult<String> {
+                    non_negative_degree(degree)?;
+                    self.ensure_basis(degree);
+                    crate::fp_py::with_input_slice(py, element, |slice| {
+                        checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
+                        checked_equal_len(slice.len(), self.0.dimension(degree))?;
+                        Ok(self.0.element_to_string(degree, slice))
+                    })
+                }
+
+                pub fn multiply_basis_elements(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s_idx: usize,
+                ) -> PyResult<()> {
+                    let p = self.0.prime().as_u32();
+                    // Reduce the coefficient mod p before handing it to upstream,
+                    // which computes `coeff * value` before reducing and would
+                    // overflow (panicking in debug, wrapping in release) for large
+                    // `coeff`. The algebra is over F_p, so this is mathematically
+                    // equivalent.
+                    let coeff = coeff % p;
+                    let target = self.product_target(r_degree, s_degree)?;
+                    let dim = self.0.dimension(target);
+                    self.checked_basis_index(r_degree, r_idx)?;
+                    self.checked_basis_index(s_degree, s_idx)?;
+                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                        checked_same_prime(res.prime().as_u32(), p)?;
+                        checked_result_len(res.as_slice().len(), dim)?;
+                        self.0
+                            .multiply_basis_elements(res.copy(), coeff, r_degree, r_idx, s_degree, s_idx);
+                        Ok(())
+                    })
+                }
+
+                pub fn multiply_basis_element_by_element(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s: &Bound<'_, PyAny>,
+                ) -> PyResult<()> {
+                    let p = self.0.prime().as_u32();
+                    // See `multiply_basis_elements`: reduce mod p to avoid the
+                    // upstream `coeff * value` overflow.
+                    let coeff = coeff % p;
+                    let target = self.product_target(r_degree, s_degree)?;
+                    let dim = self.0.dimension(target);
+                    self.checked_basis_index(r_degree, r_idx)?;
+                    crate::fp_py::with_input_slice(py, s, |s_slice| {
+                        checked_same_prime(s_slice.prime().as_u32(), p)?;
+                        checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                        crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                            checked_same_prime(res.prime().as_u32(), p)?;
+                            checked_result_len(res.as_slice().len(), dim)?;
+                            self.0.multiply_basis_element_by_element(
+                                res.copy(),
+                                coeff,
+                                r_degree,
+                                r_idx,
+                                s_degree,
+                                s_slice,
+                            );
+                            Ok(())
+                        })
+                    })
+                }
+
+                pub fn multiply_element_by_basis_element(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: &Bound<'_, PyAny>,
+                    s_degree: i32,
+                    s_idx: usize,
+                ) -> PyResult<()> {
+                    let p = self.0.prime().as_u32();
+                    // See `multiply_basis_elements`: reduce mod p to avoid the
+                    // upstream `coeff * value` overflow.
+                    let coeff = coeff % p;
+                    let target = self.product_target(r_degree, s_degree)?;
+                    let dim = self.0.dimension(target);
+                    self.checked_basis_index(s_degree, s_idx)?;
+                    crate::fp_py::with_input_slice(py, r, |r_slice| {
+                        checked_same_prime(r_slice.prime().as_u32(), p)?;
+                        checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                        crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                            checked_same_prime(res.prime().as_u32(), p)?;
+                            checked_result_len(res.as_slice().len(), dim)?;
+                            self.0.multiply_element_by_basis_element(
+                                res.copy(),
+                                coeff,
+                                r_degree,
+                                r_slice,
+                                s_degree,
+                                s_idx,
+                            );
+                            Ok(())
+                        })
+                    })
+                }
+
+                pub fn multiply_element_by_element(
+                    &self,
+                    py: Python<'_>,
+                    result: &Bound<'_, PyAny>,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: &Bound<'_, PyAny>,
+                    s_degree: i32,
+                    s: &Bound<'_, PyAny>,
+                ) -> PyResult<()> {
+                    let p = self.0.prime().as_u32();
+                    // See `multiply_basis_elements`: reduce mod p to avoid the
+                    // upstream `coeff * value` overflow.
+                    let coeff = coeff % p;
+                    let target = self.product_target(r_degree, s_degree)?;
+                    let dim = self.0.dimension(target);
+                    crate::fp_py::with_input_slice(py, r, |r_slice| {
+                        checked_same_prime(r_slice.prime().as_u32(), p)?;
+                        checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
+                        crate::fp_py::with_input_slice(py, s, |s_slice| {
+                            checked_same_prime(s_slice.prime().as_u32(), p)?;
+                            checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
+                            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
+                                checked_same_prime(res.prime().as_u32(), p)?;
+                                checked_result_len(res.as_slice().len(), dim)?;
+                                self.0.multiply_element_by_element(
+                                    res.copy(),
+                                    coeff,
+                                    r_degree,
+                                    r_slice,
+                                    s_degree,
+                                    s_slice,
+                                );
+                                Ok(())
+                            })
+                        })
+                    })
+                }
+
+                pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+                    self.0.default_filtration_one_products()
+                }
+
+                // --- GeneratedAlgebra trait surface ---------------------------
+
+                pub fn generators(&self, degree: i32) -> PyResult<Vec<usize>> {
+                    if degree < 0 {
+                        return Ok(Vec::new());
+                    }
+                    self.ensure_basis(degree);
+                    Ok(self.0.generators(degree))
+                }
+
+                pub fn generator_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
+                    non_negative_degree(degree)?;
+                    self.ensure_basis(degree);
+                    self.checked_basis_index(degree, idx)?;
+                    Ok(self.0.generator_to_string(degree, idx))
+                }
+
+                /// Decompose a non-generator basis element into a sum of products
+                /// of generators. Decomposition is only defined for
+                /// non-generators: the unit and the algebra generators are
+                /// indecomposable, and upstream panics (out-of-bounds index or
+                /// integer underflow) on exactly those elements. The
+                /// generators-based guard below rejects them up front with a
+                /// `ValueError` instead.
+                pub fn decompose_basis_element(
+                    &self,
+                    degree: i32,
+                    idx: usize,
+                ) -> PyResult<Vec<(u32, (i32, usize), (i32, usize))>> {
+                    non_negative_degree(degree)?;
+                    self.ensure_basis(degree);
+                    self.checked_basis_index(degree, idx)?;
+                    if degree == 0 || self.0.generators(degree).contains(&idx) {
+                        return Err(PyValueError::new_err(
+                            "the unit and algebra generators are indecomposable",
+                        ));
+                    }
+                    Ok(self.0.decompose_basis_element(degree, idx))
+                }
+
+                pub fn generating_relations(
+                    &self,
+                    degree: i32,
+                ) -> PyResult<Vec<Vec<(u32, (i32, usize), (i32, usize))>>> {
+                    if degree < 0 {
+                        return Ok(Vec::new());
+                    }
+                    self.ensure_basis(degree);
+                    Ok(self.0.generating_relations(degree))
+                }
+
+                pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
+                    non_negative_degree(degree)?;
+                    self.ensure_basis(degree);
+                    self.checked_basis_index(degree, idx)?;
+                    Ok(self.0.decompose(degree, idx))
+                }
+
+                pub fn __repr__(&self) -> String {
+                    format!("{}", self.0)
+                }
+            }
+        };
+    }
+
     #[pyclass]
     pub struct MilnorAlgebra(::algebra::MilnorAlgebra, bool);
 
@@ -629,45 +968,9 @@ pub mod algebra_py {
                 ::algebra::MilnorAlgebra::new_with_profile(self.0.prime(), profile, self.1),
             ))
         }
-
-        /// Lazily compute book-keeping up to `degree`. The Milnor algebra is
-        /// infinite-dimensional and its internal `OnceVec` tables panic when
-        /// indexed past the computed range, so every degree-indexed Python
-        /// method funnels through here first. `compute_basis` is idempotent and
-        /// cheap to re-call, so this is a safe (if slightly eager) way to avoid
-        /// cross-boundary panics; it is a no-op for negative degrees.
-        fn ensure_basis(&self, degree: i32) {
-            if degree >= 0 {
-                self.0.compute_basis(degree);
-            }
-        }
-
-        /// Validate two factor degrees and compute the (basis-populated) target
-        /// degree of their product.
-        fn product_target(&self, r_degree: i32, s_degree: i32) -> PyResult<i32> {
-            non_negative_degree(r_degree)?;
-            non_negative_degree(s_degree)?;
-            let target = r_degree
-                .checked_add(s_degree)
-                .ok_or_else(|| PyValueError::new_err("product degree overflows i32"))?;
-            self.ensure_basis(target);
-            Ok(target)
-        }
-
-        fn checked_basis_index(&self, degree: i32, idx: usize) -> PyResult<()> {
-            let dim = self.0.dimension(degree);
-            if idx < dim {
-                Ok(())
-            } else {
-                Err(PyIndexError::new_err(format!(
-                    "index {idx} out of range for degree {degree} (dimension {dim})"
-                )))
-            }
-        }
     }
 
-    #[pymethods]
-    impl MilnorAlgebra {
+    algebra_pymethods!(MilnorAlgebra, {
         #[new]
         #[pyo3(signature = (p, unstable_enabled = false))]
         pub fn new(p: u32, unstable_enabled: bool) -> PyResult<Self> {
@@ -698,268 +1001,6 @@ pub mod algebra_py {
             ))
         }
 
-        // --- Algebra trait surface --------------------------------------------
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            self.ensure_basis(degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            if degree < 0 {
-                return 0;
-            }
-            self.ensure_basis(degree);
-            self.0.dimension(degree)
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
-                PyIndexError::new_err(format!(
-                    "no basis element at degree {degree} index {idx}"
-                ))
-            })
-        }
-
-        /// Parse a basis element, returning `(degree, index)`. Raises
-        /// `ValueError` if the string does not parse, or if it names an element
-        /// that is not present in this (possibly profiled) algebra.
-        ///
-        /// Upstream's `basis_element_from_string` is now total: a parseable but
-        /// absent/out-of-profile name (e.g. `"Sq0"`, `"P0"`, `"Q_5"`) returns
-        /// `None` rather than panicking. We map that `None` to `ValueError`.
-        pub fn basis_element_from_string(&self, elt: &str) -> PyResult<(i32, usize)> {
-            self.0.basis_element_from_string(elt).ok_or_else(|| {
-                PyValueError::new_err(format!(
-                    "{elt} does not name a basis element of this algebra"
-                ))
-            })
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            crate::fp_py::with_input_slice(py, element, |slice| {
-                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
-                checked_equal_len(slice.len(), self.0.dimension(degree))?;
-                Ok(self.0.element_to_string(degree, slice))
-            })
-        }
-
-        pub fn multiply_basis_elements(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // Reduce the coefficient mod p before handing it to upstream, which
-            // computes `coeff * v` (milnor_algebra.rs ~555) before reducing and
-            // would overflow (panicking in debug, wrapping in release) for large
-            // `coeff`. The algebra is over F_p, so this is mathematically
-            // equivalent.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0
-                    .multiply_basis_elements(res.copy(), coeff, r_degree, r_idx, s_degree, s_idx);
-                Ok(())
-            })
-        }
-
-        pub fn multiply_basis_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
-            // `coeff * v` overflow.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            crate::fp_py::with_input_slice(py, s, |s_slice| {
-                checked_same_prime(s_slice.prime().as_u32(), p)?;
-                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_basis_element_by_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_idx,
-                        s_degree,
-                        s_slice,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_basis_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
-            // `coeff * v` overflow.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_element_by_basis_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_slice,
-                        s_degree,
-                        s_idx,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // See `multiply_basis_elements`: reduce mod p to avoid the upstream
-            // `coeff * v` overflow.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_input_slice(py, s, |s_slice| {
-                    checked_same_prime(s_slice.prime().as_u32(), p)?;
-                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                        checked_same_prime(res.prime().as_u32(), p)?;
-                        checked_result_len(res.as_slice().len(), dim)?;
-                        self.0.multiply_element_by_element(
-                            res.copy(),
-                            coeff,
-                            r_degree,
-                            r_slice,
-                            s_degree,
-                            s_slice,
-                        );
-                        Ok(())
-                    })
-                })
-            })
-        }
-
-        pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-            self.0.default_filtration_one_products()
-        }
-
-        // --- GeneratedAlgebra trait surface -----------------------------------
-
-        pub fn generators(&self, degree: i32) -> PyResult<Vec<usize>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generators(degree))
-        }
-
-        pub fn generator_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.generator_to_string(degree, idx))
-        }
-
-        pub fn decompose_basis_element(
-            &self,
-            degree: i32,
-            idx: usize,
-        ) -> PyResult<Vec<(u32, (i32, usize), (i32, usize))>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            // Decomposition is only defined for non-generators. Upstream has two
-            // underflow panic paths, both of which hit precisely the
-            // indecomposable elements reported by `generators`:
-            //   * `decompose_basis_element_ppart` (q_part == 0) computes
-            //     `p_part[0..len - 1]`; with `len == 0` this underflows
-            //     (milnor_algebra.rs ~1607). An empty `p_part` with
-            //     `q_part == 0` can only be the degree-0 unit.
-            //   * `decompose_basis_element_qpart` (q_part != 0) computes
-            //     `prime().pow(i - 1)` with `i = q_part.trailing_zeros()`; for
-            //     `Q_0` (`q_part == 1`) `i == 0`, so `i - 1` underflows
-            //     (milnor_algebra.rs ~1533-1536). `Q_0` lives in degree 1 and
-            //     is `generators(1) == [0]`.
-            // The generators-based guard (matching the Adem branch) therefore
-            // covers both panic preconditions; it also rejects ordinary
-            // generators such as `P(p^k)`, keeping the two variants consistent.
-            if degree == 0 || self.0.generators(degree).contains(&idx) {
-                return Err(PyValueError::new_err(
-                    "the unit and algebra generators are indecomposable",
-                ));
-            }
-            Ok(self.0.decompose_basis_element(degree, idx))
-        }
-
-        pub fn generating_relations(
-            &self,
-            degree: i32,
-        ) -> PyResult<Vec<Vec<(u32, (i32, usize), (i32, usize))>>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generating_relations(degree))
-        }
-
         // --- Bialgebra trait surface ------------------------------------------
 
         /// Compute a coproduct. Only supported at `p = 2` upstream; raises
@@ -978,13 +1019,6 @@ pub mod algebra_py {
             self.ensure_basis(degree);
             self.checked_basis_index(degree, idx)?;
             Ok(self.0.coproduct(degree, idx))
-        }
-
-        pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.decompose(degree, idx))
         }
 
         // --- Milnor-specific methods ------------------------------------------
@@ -1103,11 +1137,7 @@ pub mod algebra_py {
                 Ok(())
             })
         }
-
-        pub fn __repr__(&self) -> String {
-            format!("{}", self.0)
-        }
-    }
+    });
 
     /// A Steenrod power `P^i`, or a Bockstein `b^e`. Mirrors upstream's
     /// `PorBockstein` enum (the pieces of an Adem basis element's
@@ -1237,42 +1267,9 @@ pub mod algebra_py {
                 ::algebra::AdemAlgebra::new(self.0.prime(), self.1),
             ))
         }
-
-        /// Lazily compute book-keeping up to `degree`. Like `MilnorAlgebra`,
-        /// the Adem algebra is infinite-dimensional and its internal `OnceVec`
-        /// tables panic when indexed past the computed range, so every
-        /// degree-indexed Python method funnels through here first. A no-op for
-        /// negative degrees.
-        fn ensure_basis(&self, degree: i32) {
-            if degree >= 0 {
-                self.0.compute_basis(degree);
-            }
-        }
-
-        fn product_target(&self, r_degree: i32, s_degree: i32) -> PyResult<i32> {
-            non_negative_degree(r_degree)?;
-            non_negative_degree(s_degree)?;
-            let target = r_degree
-                .checked_add(s_degree)
-                .ok_or_else(|| PyValueError::new_err("product degree overflows i32"))?;
-            self.ensure_basis(target);
-            Ok(target)
-        }
-
-        fn checked_basis_index(&self, degree: i32, idx: usize) -> PyResult<()> {
-            let dim = self.0.dimension(degree);
-            if idx < dim {
-                Ok(())
-            } else {
-                Err(PyIndexError::new_err(format!(
-                    "index {idx} out of range for degree {degree} (dimension {dim})"
-                )))
-            }
-        }
     }
 
-    #[pymethods]
-    impl AdemAlgebra {
+    algebra_pymethods!(AdemAlgebra, {
         #[new]
         #[pyo3(signature = (p, unstable_enabled = false))]
         pub fn new(p: u32, unstable_enabled: bool) -> PyResult<Self> {
@@ -1282,254 +1279,6 @@ pub mod algebra_py {
                 ::algebra::AdemAlgebra::new(valid_prime(p)?, unstable_enabled),
                 unstable_enabled,
             ))
-        }
-
-        // --- Algebra trait surface --------------------------------------------
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            self.ensure_basis(degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            if degree < 0 {
-                return 0;
-            }
-            self.ensure_basis(degree);
-            self.0.dimension(degree)
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
-                PyIndexError::new_err(format!(
-                    "no basis element at degree {degree} index {idx}"
-                ))
-            })
-        }
-
-        /// Parse a basis element, returning `(degree, index)`. Raises
-        /// `ValueError` if the string does not parse, or if it names an element
-        /// that is not present in this algebra.
-        ///
-        /// Upstream's `basis_element_from_string` is now total: a parseable but
-        /// absent/inadmissible name (e.g. `"Sq0"`, `"Sq1 Sq1"`) returns `None`
-        /// rather than panicking. We map that `None` to `ValueError`.
-        pub fn basis_element_from_string(&self, elt: &str) -> PyResult<(i32, usize)> {
-            self.0.basis_element_from_string(elt).ok_or_else(|| {
-                PyValueError::new_err(format!(
-                    "{elt} does not name a basis element of this algebra"
-                ))
-            })
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            crate::fp_py::with_input_slice(py, element, |slice| {
-                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
-                checked_equal_len(slice.len(), self.0.dimension(degree))?;
-                Ok(self.0.element_to_string(degree, slice))
-            })
-        }
-
-        pub fn multiply_basis_elements(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // Reduce the coefficient mod p before handing it to upstream, which
-            // computes `coeff * value` (e.g. adem_algebra.rs ~1161) before
-            // reducing and would overflow for large `coeff`. The algebra is
-            // over F_p, so this is mathematically equivalent.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0
-                    .multiply_basis_elements(res.copy(), coeff, r_degree, r_idx, s_degree, s_idx);
-                Ok(())
-            })
-        }
-
-        pub fn multiply_basis_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            crate::fp_py::with_input_slice(py, s, |s_slice| {
-                checked_same_prime(s_slice.prime().as_u32(), p)?;
-                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_basis_element_by_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_idx,
-                        s_degree,
-                        s_slice,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_basis_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_element_by_basis_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_slice,
-                        s_degree,
-                        s_idx,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_input_slice(py, s, |s_slice| {
-                    checked_same_prime(s_slice.prime().as_u32(), p)?;
-                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                        checked_same_prime(res.prime().as_u32(), p)?;
-                        checked_result_len(res.as_slice().len(), dim)?;
-                        self.0.multiply_element_by_element(
-                            res.copy(),
-                            coeff,
-                            r_degree,
-                            r_slice,
-                            s_degree,
-                            s_slice,
-                        );
-                        Ok(())
-                    })
-                })
-            })
-        }
-
-        pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-            self.0.default_filtration_one_products()
-        }
-
-        // --- GeneratedAlgebra trait surface -----------------------------------
-
-        pub fn generators(&self, degree: i32) -> PyResult<Vec<usize>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generators(degree))
-        }
-
-        pub fn generator_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.generator_to_string(degree, idx))
-        }
-
-        pub fn decompose_basis_element(
-            &self,
-            degree: i32,
-            idx: usize,
-        ) -> PyResult<Vec<(u32, (i32, usize), (i32, usize))>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            // Decomposition is only defined for non-generators. The degree-0
-            // unit has an empty `ps`, so upstream's `b.ps[0]` indexes out of
-            // bounds (adem_algebra.rs ~1195/1270); a generator like `Sq^2`
-            // decomposes into a factor of degree 0 whose `AdemBasisElement` is
-            // not in the basis, so `basis_element_to_index` panics. Both are
-            // indecomposable by definition, so we surface a `ValueError` rather
-            // than aborting. (Upstream's own test skips generators before
-            // calling `decompose_basis_element`.)
-            if degree == 0 || self.0.generators(degree).contains(&idx) {
-                return Err(PyValueError::new_err(
-                    "the unit and algebra generators are indecomposable",
-                ));
-            }
-            Ok(self.0.decompose_basis_element(degree, idx))
-        }
-
-        pub fn generating_relations(
-            &self,
-            degree: i32,
-        ) -> PyResult<Vec<Vec<(u32, (i32, usize), (i32, usize))>>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generating_relations(degree))
         }
 
         // --- Bialgebra trait surface ------------------------------------------
@@ -1561,13 +1310,6 @@ pub mod algebra_py {
                 ));
             }
             Ok(self.0.coproduct(degree, idx))
-        }
-
-        pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.decompose(degree, idx))
         }
 
         // --- Adem-specific methods --------------------------------------------
@@ -1622,11 +1364,7 @@ pub mod algebra_py {
                 PyValueError::new_err(format!("b^{e} P^{x} is not in the algebra"))
             })
         }
-
-        pub fn __repr__(&self) -> String {
-            format!("{}", self.0)
-        }
-    }
+    });
 
     /// The `enum_dispatch` union of the Adem and Milnor Steenrod algebras
     /// (`::algebra::SteenrodAlgebra`). A single value is *either* Adem or Milnor
@@ -1670,42 +1408,9 @@ pub mod algebra_py {
         pub(crate) fn arc(&self) -> Arc<::algebra::SteenrodAlgebra> {
             Arc::clone(&self.0)
         }
-
-        /// Lazily compute book-keeping up to `degree`. Both underlying algebras
-        /// are infinite-dimensional with `OnceVec` tables that panic when
-        /// indexed past the computed range, so every degree-indexed Python
-        /// method funnels through here first (idempotent; no-op for negative
-        /// degrees). The dispatch is identical for either variant.
-        fn ensure_basis(&self, degree: i32) {
-            if degree >= 0 {
-                self.0.compute_basis(degree);
-            }
-        }
-
-        fn product_target(&self, r_degree: i32, s_degree: i32) -> PyResult<i32> {
-            non_negative_degree(r_degree)?;
-            non_negative_degree(s_degree)?;
-            let target = r_degree
-                .checked_add(s_degree)
-                .ok_or_else(|| PyValueError::new_err("product degree overflows i32"))?;
-            self.ensure_basis(target);
-            Ok(target)
-        }
-
-        fn checked_basis_index(&self, degree: i32, idx: usize) -> PyResult<()> {
-            let dim = self.0.dimension(degree);
-            if idx < dim {
-                Ok(())
-            } else {
-                Err(PyIndexError::new_err(format!(
-                    "index {idx} out of range for degree {degree} (dimension {dim})"
-                )))
-            }
-        }
     }
 
-    #[pymethods]
-    impl SteenrodAlgebra {
+    algebra_pymethods!(SteenrodAlgebra, {
         // --- §5.2 constructors ------------------------------------------------
 
         /// Construct a `SteenrodAlgebra` from a module-spec `dict` (the JSON the
@@ -1787,254 +1492,6 @@ pub mod algebra_py {
             }
         }
 
-        // --- Algebra trait surface --------------------------------------------
-
-        /// The prime as a plain `int` (`ValidPrime` is never exposed).
-        #[getter]
-        pub fn prime(&self) -> u32 {
-            self.0.prime().as_u32()
-        }
-
-        pub fn compute_basis(&self, degree: i32) {
-            self.ensure_basis(degree);
-        }
-
-        pub fn dimension(&self, degree: i32) -> usize {
-            if degree < 0 {
-                return 0;
-            }
-            self.ensure_basis(degree);
-            self.0.dimension(degree)
-        }
-
-        pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            self.0.try_basis_element_to_string(degree, idx).ok_or_else(|| {
-                PyIndexError::new_err(format!(
-                    "no basis element at degree {degree} index {idx}"
-                ))
-            })
-        }
-
-        /// Parse a basis element, returning `(degree, index)`. Raises
-        /// `ValueError` if the string does not parse or names an element not in
-        /// this algebra.
-        ///
-        /// The union dispatches straight to the active variant's now-total
-        /// `basis_element_from_string`: a parseable but absent/inadmissible name
-        /// (e.g. `"Sq0"`) returns `None` rather than panicking. We map that
-        /// `None` to `ValueError`.
-        pub fn basis_element_from_string(&self, elt: &str) -> PyResult<(i32, usize)> {
-            self.0.basis_element_from_string(elt).ok_or_else(|| {
-                PyValueError::new_err(format!(
-                    "{elt} does not name a basis element of this algebra"
-                ))
-            })
-        }
-
-        pub fn element_to_string(
-            &self,
-            py: Python<'_>,
-            degree: i32,
-            element: &Bound<'_, PyAny>,
-        ) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            crate::fp_py::with_input_slice(py, element, |slice| {
-                checked_same_prime(slice.prime().as_u32(), self.0.prime().as_u32())?;
-                checked_equal_len(slice.len(), self.0.dimension(degree))?;
-                Ok(self.0.element_to_string(degree, slice))
-            })
-        }
-
-        pub fn multiply_basis_elements(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            // Reduce mod p before handing to upstream, which computes
-            // `coeff * value` before reducing and would overflow for large
-            // `coeff`. The algebra is over F_p, so this is equivalent.
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                checked_same_prime(res.prime().as_u32(), p)?;
-                checked_result_len(res.as_slice().len(), dim)?;
-                self.0
-                    .multiply_basis_elements(res.copy(), coeff, r_degree, r_idx, s_degree, s_idx);
-                Ok(())
-            })
-        }
-
-        pub fn multiply_basis_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r_idx: usize,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(r_degree, r_idx)?;
-            crate::fp_py::with_input_slice(py, s, |s_slice| {
-                checked_same_prime(s_slice.prime().as_u32(), p)?;
-                checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_basis_element_by_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_idx,
-                        s_degree,
-                        s_slice,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_basis_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s_idx: usize,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            self.checked_basis_index(s_degree, s_idx)?;
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                    checked_same_prime(res.prime().as_u32(), p)?;
-                    checked_result_len(res.as_slice().len(), dim)?;
-                    self.0.multiply_element_by_basis_element(
-                        res.copy(),
-                        coeff,
-                        r_degree,
-                        r_slice,
-                        s_degree,
-                        s_idx,
-                    );
-                    Ok(())
-                })
-            })
-        }
-
-        pub fn multiply_element_by_element(
-            &self,
-            py: Python<'_>,
-            result: &Bound<'_, PyAny>,
-            coeff: u32,
-            r_degree: i32,
-            r: &Bound<'_, PyAny>,
-            s_degree: i32,
-            s: &Bound<'_, PyAny>,
-        ) -> PyResult<()> {
-            let p = self.0.prime().as_u32();
-            let coeff = coeff % p;
-            let target = self.product_target(r_degree, s_degree)?;
-            let dim = self.0.dimension(target);
-            crate::fp_py::with_input_slice(py, r, |r_slice| {
-                checked_same_prime(r_slice.prime().as_u32(), p)?;
-                checked_equal_len(r_slice.len(), self.0.dimension(r_degree))?;
-                crate::fp_py::with_input_slice(py, s, |s_slice| {
-                    checked_same_prime(s_slice.prime().as_u32(), p)?;
-                    checked_equal_len(s_slice.len(), self.0.dimension(s_degree))?;
-                    crate::fp_py::with_target_slice_mut(py, result, |mut res| {
-                        checked_same_prime(res.prime().as_u32(), p)?;
-                        checked_result_len(res.as_slice().len(), dim)?;
-                        self.0.multiply_element_by_element(
-                            res.copy(),
-                            coeff,
-                            r_degree,
-                            r_slice,
-                            s_degree,
-                            s_slice,
-                        );
-                        Ok(())
-                    })
-                })
-            })
-        }
-
-        pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-            self.0.default_filtration_one_products()
-        }
-
-        // --- GeneratedAlgebra trait surface -----------------------------------
-
-        pub fn generators(&self, degree: i32) -> PyResult<Vec<usize>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generators(degree))
-        }
-
-        pub fn generator_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.generator_to_string(degree, idx))
-        }
-
-        pub fn decompose_basis_element(
-            &self,
-            degree: i32,
-            idx: usize,
-        ) -> PyResult<Vec<(u32, (i32, usize), (i32, usize))>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            // Decomposition is invalid for indecomposables. The union dispatches
-            // to the active variant's (panicking) implementation. Both variants
-            // panic on the unit and on algebra generators (Milnor underflows in
-            // `decompose_basis_element_ppart`/`_qpart` on the degree-0 unit and
-            // on `Q_0`; Adem indexes out of bounds / hits a panicking
-            // `basis_element_to_index`). In every case the panicking elements
-            // are exactly those reported by `generators`, so the same
-            // generators-based guard applies uniformly to both variants.
-            if degree == 0 || self.0.generators(degree).contains(&idx) {
-                return Err(PyValueError::new_err(
-                    "the unit and algebra generators are indecomposable",
-                ));
-            }
-            Ok(self.0.decompose_basis_element(degree, idx))
-        }
-
-        pub fn generating_relations(
-            &self,
-            degree: i32,
-        ) -> PyResult<Vec<Vec<(u32, (i32, usize), (i32, usize))>>> {
-            if degree < 0 {
-                return Ok(Vec::new());
-            }
-            self.ensure_basis(degree);
-            Ok(self.0.generating_relations(degree))
-        }
-
         // --- Bialgebra trait surface ------------------------------------------
 
         /// Compute a coproduct. The underlying assertions differ by variant, so
@@ -2076,18 +1533,7 @@ pub mod algebra_py {
             }
             Ok(self.0.coproduct(degree, idx))
         }
-
-        pub fn decompose(&self, degree: i32, idx: usize) -> PyResult<Vec<(i32, usize)>> {
-            non_negative_degree(degree)?;
-            self.ensure_basis(degree);
-            self.checked_basis_index(degree, idx)?;
-            Ok(self.0.decompose(degree, idx))
-        }
-
-        pub fn __repr__(&self) -> String {
-            format!("{}", self.0)
-        }
-    }
+    });
 
     /// The ground field $\mathbb{F}_p$ viewed as a (graded) **algebra over
     /// itself** — the *trivial* 1-dimensional algebra concentrated in degree 0,
@@ -2707,20 +2153,16 @@ pub mod algebra_py {
     /// The macro therefore emits the whole block, splicing each class's unique
     /// methods in through the `$extra` token block.
     ///
-    /// Only the methods whose *bodies* are byte-identical across every
-    /// participating class live in the shared set here: `degree_shift`,
-    /// `min_degree`, `prime`, `kernel`, `image`, `quasi_inverse` and
-    /// `apply_quasi_inverse`. Every class accesses its inner upstream
-    /// homomorphism uniformly as `self.0`. The remaining `ModuleHomomorphism`
-    /// surface (`source`/`target`, which return different pyclass types and wrap
-    /// differently per class, and `apply`/`apply_to_basis_element`/
-    /// `get_partial_matrix`/`compute_auxiliary_data_through_degree`, whose guard
-    /// logic genuinely differs — e.g. the free-module variants' generator-output
-    /// coverage checks, the no-auxiliary-data variants' no-op bodies) is passed
-    /// through `$extra` per class. `HomPullback` (which stores its inner state in
-    /// named fields and routes through `ensure_apply`) and the read-only
-    /// `UnstableFreeModuleHomomorphism` (which exposes none of the shared set) are
-    /// *not* built with this macro.
+    /// Only methods whose bodies are byte-identical across every participating
+    /// class live in the shared set: `degree_shift`, `min_degree`, `prime`,
+    /// `kernel`, `image`, `quasi_inverse` and `apply_quasi_inverse`, all
+    /// accessing the inner upstream homomorphism uniformly as `self.0`. The
+    /// remaining surface (`source`/`target`, which return different pyclass
+    /// types, and `apply`/`apply_to_basis_element`/`get_partial_matrix`/
+    /// `compute_auxiliary_data_through_degree`, whose guard logic genuinely
+    /// differs) is passed through `$extra` per class. `HomPullback` (inner state
+    /// in named fields, routed through `ensure_apply`) and the read-only
+    /// `UnstableFreeModuleHomomorphism` are *not* built with this macro.
     macro_rules! module_hom_pymethods {
         ($Ty:ident, { $($extra:tt)* }) => {
             #[pymethods]
