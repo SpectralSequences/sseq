@@ -59,6 +59,20 @@ def test_unstable_resolution_constructor_matches_pyfunction():
     assert a.graded_dimension_string() == b.graded_dimension_string()
 
 
+def test_unstable_resolution_load_quasi_inverse_option():
+    # The load_quasi_inverse keyword (default True) is accepted by both the
+    # constructor and the construct_unstable pyfunction, and either setting
+    # resolves to the same chart over a small range.
+    default = ext.UnstableResolution("S_2[5]")
+    default.compute_through_stem(_ns(6, 3))
+    no_qi = ext.UnstableResolution("S_2[5]", load_quasi_inverse=False)
+    no_qi.compute_through_stem(_ns(6, 3))
+    fn_no_qi = ext.construct_unstable("S_2[5]", load_quasi_inverse=False)
+    fn_no_qi.compute_through_stem(_ns(6, 3))
+    assert default.graded_dimension_string() == no_qi.graded_dimension_string()
+    assert default.graded_dimension_string() == fn_no_qi.graded_dimension_string()
+
+
 def _nonblank_glyphs(chart):
     # Upstream renders an all-zero bidegree as a space (unicode_num(0) == ' ')
     # and separates entries with spaces/newlines, so the count of non-whitespace

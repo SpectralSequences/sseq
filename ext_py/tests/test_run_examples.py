@@ -144,7 +144,7 @@ EXAMPLES = [
     {
         "name": "resolve_unstable.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "UnstableResolution.load_quasi_inverse is not a settable attribute",
+        "xfail": None,
     },
     {
         "name": "unstable_suspension.py",

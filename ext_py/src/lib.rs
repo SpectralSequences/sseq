@@ -470,6 +470,7 @@ mod ext_py {
     fn build_unstable(
         spec: Config,
         save_dir: Option<PathBuf>,
+        load_quasi_inverse: bool,
     ) -> PyResult<Arc<RsUnstableResolution>> {
         if let Some(p) = &save_dir {
             if p.exists() && !p.is_dir() {
@@ -479,7 +480,10 @@ mod ext_py {
             }
         }
         ext::utils::construct_standard::<true, _, _>(spec, save_dir)
-            .map(Arc::new)
+            .map(|mut res| {
+                res.load_quasi_inverse = load_quasi_inverse;
+                Arc::new(res)
+            })
             .map_err(|e: anyhow::Error| {
                 let msg = e.to_string();
                 if msg.contains("Cofiber") || msg.contains("cofiber") {
@@ -508,16 +512,23 @@ mod ext_py {
     /// that is not a directory is a `ValueError`; a non-existent path is created
     /// by upstream. Error taxonomy: bad spec -> `ValueError`, internal/IO ->
     /// `RuntimeError`. Nothing panics across FFI.
+    ///
+    /// `load_quasi_inverse` (default `true`) is forwarded to the upstream
+    /// `MuResolution::load_quasi_inverse` field on the freshly built resolution
+    /// (taken verbatim, not ANDed with `save_dir`); see
+    /// [`UnstableResolution::new`].
     #[pyfunction]
-    #[pyo3(signature = (spec, save_dir=None))]
+    #[pyo3(signature = (spec, save_dir=None, load_quasi_inverse=true))]
     pub fn construct_unstable(
         spec: &str,
         save_dir: Option<String>,
+        load_quasi_inverse: bool,
     ) -> PyResult<UnstableResolution> {
         let config: Config = spec
             .try_into()
             .map_err(|e: anyhow::Error| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        build_unstable(config, save_dir.map(PathBuf::from)).map(UnstableResolution)
+        build_unstable(config, save_dir.map(PathBuf::from), load_quasi_inverse)
+            .map(UnstableResolution)
     }
 
     impl AnyResolution {
@@ -1208,9 +1219,23 @@ mod ext_py {
         /// `save_dir` behaves exactly as in [`construct_unstable`]: an existing
         /// path that is not a directory is a `ValueError`. A bad spec string is a
         /// `ValueError`; an internal/IO construction failure is a `RuntimeError`.
+        ///
+        /// `load_quasi_inverse` (default `true`) controls whether quasi-inverses
+        /// of the differentials are retained in memory; it sets the upstream
+        /// `MuResolution::load_quasi_inverse` field on the freshly built
+        /// resolution, BEFORE it is resolved (it cannot be changed afterwards,
+        /// since the resolution is shared and frozen). Mirroring upstream, the
+        /// caller should typically pass `load_quasi_inverse and save_dir is None`,
+        /// i.e. only keep quasi-inverses in memory when there is no save file to
+        /// recompute them from. The flag is taken verbatim here (it is NOT
+        /// implicitly ANDed with the presence of `save_dir`).
         #[new]
-        #[pyo3(signature = (spec, save_dir=None))]
-        pub fn new(spec: &Bound<'_, PyAny>, save_dir: Option<String>) -> PyResult<Self> {
+        #[pyo3(signature = (spec, save_dir=None, load_quasi_inverse=true))]
+        pub fn new(
+            spec: &Bound<'_, PyAny>,
+            save_dir: Option<String>,
+            load_quasi_inverse: bool,
+        ) -> PyResult<Self> {
             // By-complex constructor: resolve a caller-supplied ChainComplex.
             if let Ok(cc) = spec.extract::<PyRef<'_, ChainComplex>>() {
                 let save_dir = save_dir.map(PathBuf::from);
@@ -1221,10 +1246,11 @@ mod ext_py {
                         )));
                     }
                 }
-                let res = RsUnstableResolution::new_with_save(cc.0.clone(), save_dir)
+                let mut res = RsUnstableResolution::new_with_save(cc.0.clone(), save_dir)
                     .map_err(|e: anyhow::Error| {
                         pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
                     })?;
+                res.load_quasi_inverse = load_quasi_inverse;
                 return Ok(UnstableResolution(Arc::new(res)));
             }
             // By-spec constructor: parse a module-specification string.
@@ -1237,7 +1263,8 @@ mod ext_py {
             let config: Config = spec.try_into().map_err(|e: anyhow::Error| {
                 pyo3::exceptions::PyValueError::new_err(e.to_string())
             })?;
-            build_unstable(config, save_dir.map(PathBuf::from)).map(UnstableResolution)
+            build_unstable(config, save_dir.map(PathBuf::from), load_quasi_inverse)
+                .map(UnstableResolution)
         }
 
         /// Resolve through the given target stem. Validates `s >= 0`/`t >= 0`
