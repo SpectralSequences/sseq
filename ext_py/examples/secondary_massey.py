@@ -93,7 +93,8 @@ def main():
         file=sys.stderr,
     )
 
-    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor)
+    # standard backend: this example uses get_unit()/SecondaryResolution, unavailable on Nassau
+    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor, algorithm="standard")
     resolution.compute_through_stem(query.query_n_s())
 
     is_unit, unit = ext.get_unit(resolution)

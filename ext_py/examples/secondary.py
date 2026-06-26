@@ -14,7 +14,8 @@ from ext import algebra, sseq
 
 
 def main():
-    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor)
+    # standard backend: this example uses SecondaryResolution, unavailable on Nassau
+    resolution = query.query_resolution(alg=algebra.AlgebraType.Milnor, algorithm="standard")
     resolution.compute_through_stem(query.query_n_s())
 
     lift = ext.SecondaryResolution(resolution)

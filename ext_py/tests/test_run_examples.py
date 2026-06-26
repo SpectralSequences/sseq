@@ -81,18 +81,18 @@ EXAMPLES = [
     {
         "name": "resolution_size.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "Resolution.module() unavailable on the Nassau backend",
+        "xfail": None,
     },
     {"name": "chart.py", "args": ["S_2", "", "8", "4"], "xfail": None},
     {
         "name": "save_bruner.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "Resolution.module() unavailable on the Nassau backend",
+        "xfail": "Resolution.differential() is not bound",
     },
     {
         "name": "ext_m_n.py",
         "args": ["S_2", "", "S_2", "6", "3"],
-        "xfail": "Resolution.module() unavailable on the Nassau backend",
+        "xfail": "Resolution.differential() is not bound",
     },
     {
         "name": "sq0.py",
@@ -107,33 +107,33 @@ EXAMPLES = [
     {
         "name": "yoneda.py",
         "args": ["S_2", "", "0", "1", "[1]"],
-        "xfail": "yoneda_representative_element requires the standard backend",
+        "xfail": None,
     },
     {
         "name": "secondary.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SecondaryResolution requires the standard backend",
+        "xfail": "SecondaryResolution.homotopy() is not bound",
     },
     {
         "name": "d2_charts.py",
         "args": ["S_2", "", "8", "4"],
-        "xfail": "SecondaryResolution requires the standard backend",
+        "xfail": "SecondaryResolution.e3_page() is not bound",
     },
     {
         "name": "secondary_product.py",
         "args": ["S_2", "", "8", "4", "prod", "0", "1", "[1]"],
-        "xfail": "get_unit() requires the standard backend",
+        "xfail": "ResolutionHomomorphism.source is a method, not the bound resolution (no number_of_gens_in_bidegree)",
     },
     {
         "name": "massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "[1]", "0", "1", "[1]"],
-        "xfail": "get_unit() requires the standard backend",
+        "xfail": "ResolutionHomomorphism.extend_step() is not bound",
     },
     {
         "name": "secondary_massey.py",
         "args": ["S_2", "", "8", "4", "0", "1", "a", "0", "1", "[1]",
                  "0", "1", "b", "0", "1", "[1]"],
-        "xfail": "get_unit() requires the standard backend",
+        "xfail": "SecondaryResolution.prime() is not bound",
     },
     # --- Unbound bindings (aspirational API) ---
     {

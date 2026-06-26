@@ -59,7 +59,8 @@ class HomCochainComplex:
 
 def main():
     print("This script computes Ext(M, N)", file=sys.stderr)
-    res = query.query_resolution("Module M")
+    # standard backend: this example uses algebra()/module(), unavailable on Nassau
+    res = query.query_resolution("Module M", algorithm="standard")
     module_spec = query.raw("Module N", ext.parse_module_name)
     module = algebra.steenrod_module_from_json(res.algebra(), module_spec)
 

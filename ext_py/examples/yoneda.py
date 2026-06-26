@@ -10,7 +10,8 @@ from ext import sseq
 
 
 def main():
-    resolution = query.query_resolution("Module")
+    # standard backend: this example uses yoneda_representative_element, unavailable on Nassau
+    resolution = query.query_resolution("Module", algorithm="standard")
 
     b = sseq.Bidegree.n_s(
         query.raw("n of Ext class", int),

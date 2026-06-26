@@ -8,7 +8,8 @@ import _query as query
 
 
 def main():
-    res = query.query_resolution()
+    # standard backend: this example uses module(), unavailable on Nassau
+    res = query.query_resolution(algorithm="standard")
     res.compute_through_stem(query.query_n_s())
 
     for s in reversed(range(res.next_homological_degree())):

@@ -14,7 +14,8 @@ from ext.algebra import AlgebraType
 
 
 def main():
-    resolution = query.query_resolution(alg=AlgebraType.Milnor)
+    # standard backend: this example uses module(), unavailable on Nassau
+    resolution = query.query_resolution(alg=AlgebraType.Milnor, algorithm="standard")
     resolution.compute_through_stem(query.query_n_s())
 
     assert resolution.prime() == 2
