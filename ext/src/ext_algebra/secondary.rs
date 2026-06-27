@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
 use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
-use sseq::coordinates::{Bidegree, BidegreeElement};
+use sseq::coordinates::{Bidegree, BidegreeElement, MultiDegree, MultiDegreeElement};
 
 use super::ExtAlgebra;
 use crate::{
@@ -53,6 +53,9 @@ where
     res_sseq: Mutex<Option<Arc<sseq::Sseq<2, sseq::Adams>>>>,
     /// $E_3$ page of the unit, filled by [`extend_all`](Self::extend_all).
     unit_sseq: Mutex<Option<Arc<sseq::Sseq<2, sseq::Adams>>>>,
+    /// Trigraded spectral sequence for $S/\lambda^2$. Coordinates are `(n, s, bock)` = (stem,
+    /// Adams filtration, Bockstein degree). Filled by [`extend_all`](Self::extend_all).
+    lambda2_sseq: Mutex<Option<Arc<sseq::Sseq<3, sseq::AdamsLambda2>>>>,
     /// Secondary lift of the multiplication map, cached per multiplier class `(degree, coords)`.
     secondary_products: DashMap<BidegreeElement, Arc<SecondaryResolutionHomomorphism<CC, CC>>>,
 }
@@ -76,6 +79,7 @@ where
             unit_lift,
             res_sseq: Mutex::new(None),
             unit_sseq: Mutex::new(None),
+            lambda2_sseq: Mutex::new(None),
             secondary_products: DashMap::new(),
         }
     }
@@ -96,6 +100,8 @@ where
             Arc::new(self.unit_lift.e3_page())
         };
         *self.unit_sseq.lock().unwrap() = Some(unit);
+
+        *self.lambda2_sseq.lock().unwrap() = Some(Arc::new(self.build_lambda2_sseq()));
     }
 
     /// Sharding entry point: compute only the secondary resolution data for filtration `s`,
@@ -289,6 +295,94 @@ where
         let d = sseq.page_data(b);
         &d[std::cmp::min(3, d.len() - 1)]
     }
+
+    /// Build the trigraded spectral sequence for $S/\lambda^2$.
+    ///
+    /// E2 has two copies of Ext at each bidegree $(n, s)$: one at Bockstein degree 0 and one at
+    /// Bockstein degree 1. The $d_2$ differential maps $(n, s, 0) \to (n-1, s+2, 1)$ using the
+    /// same hom\_k data as the Adams $d_2$. The E3 page (which equals $E_\infty$) gives
+    /// $\pi(S/\lambda^2)$.
+    fn build_lambda2_sseq(&self) -> sseq::Sseq<3, sseq::AdamsLambda2> {
+        let p = self.prime();
+        let res = self.alg.resolution();
+        let mut sseq = sseq::Sseq::new(p);
+
+        for b in res.iter_stem() {
+            let dim = res.number_of_gens_in_bidegree(b);
+            let [n, s] = b.coords();
+            sseq.set_dimension(MultiDegree::new([n, s, 0]), dim);
+            sseq.set_dimension(MultiDegree::new([n, s, 1]), dim);
+        }
+
+        let mut source_vec = FpVector::new(p, 0);
+        let mut target_vec = FpVector::new(p, 0);
+
+        for b in res.iter_stem() {
+            let target_bidegree = b + Bidegree::n_s(-1, 2);
+            if b.t() > 0 && res.has_computed_bidegree(target_bidegree) {
+                let m = self.res_lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                if m.is_empty() || m[0].is_empty() {
+                    continue;
+                }
+
+                let [n, s] = b.coords();
+                source_vec.set_scratch_vector_size(m.len());
+                target_vec.set_scratch_vector_size(m[0].len());
+
+                for (i, row) in m.into_iter().enumerate() {
+                    source_vec.set_to_zero();
+                    source_vec.set_entry(i, 1);
+                    target_vec.copy_from_slice(&row);
+
+                    let source =
+                        MultiDegreeElement::new(MultiDegree::new([n, s, 0]), source_vec);
+                    sseq.add_differential(2, &source, target_vec.as_slice());
+
+                    source_vec = source.into_vec();
+                }
+            }
+        }
+
+        let invalid: Vec<_> = sseq
+            .iter_degrees()
+            .filter(|&b| sseq.invalid(b))
+            .collect();
+        for b in invalid {
+            sseq.update_degree(b);
+        }
+
+        sseq
+    }
+
+    /// The trigraded spectral sequence for $S/\lambda^2$.
+    pub fn lambda2_sseq(&self) -> Arc<sseq::Sseq<3, sseq::AdamsLambda2>> {
+        Arc::clone(
+            self.lambda2_sseq
+                .lock()
+                .unwrap()
+                .as_ref()
+                .expect("call extend_all() first"),
+        )
+    }
+
+    /// The $E_3$-page subquotient at a trigraded degree `(n, s, bock)` of $S/\lambda^2$.
+    /// Returns `None` if the degree is not defined in the spectral sequence.
+    pub fn lambda2_page_data(&self, b: MultiDegree<3>) -> Option<Subquotient> {
+        let g = self.lambda2_sseq.lock().unwrap();
+        let sseq = g.as_ref().expect("call extend_all() first");
+        if !sseq.defined(b) {
+            return None;
+        }
+        let d = sseq.page_data(b);
+        Some(d[std::cmp::min(3, d.len() - 1)].clone())
+    }
+
+    /// The dimension of $E_3 = E_\infty$ of $S/\lambda^2$ at the trigraded degree `(n, s, bock)`.
+    /// Returns 0 if the degree is not defined.
+    pub fn lambda2_e3_dimension(&self, n: i32, s: i32, bock: i32) -> usize {
+        self.lambda2_page_data(MultiDegree::new([n, s, bock]))
+            .map_or(0, |sq| sq.dimension())
+    }
 }
 
 impl<CC: FreeChainComplex + crate::chain_complex::AugmentedChainComplex> SecondaryExtAlgebra<CC>
@@ -389,7 +483,7 @@ mod tests {
     use sseq::coordinates::BidegreeGenerator;
 
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
 
     #[test]
     fn test_sphere_d2() {
@@ -476,5 +570,72 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_lambda2_sseq() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(16, 6));
+        let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), res));
+        let sec_e2 = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        sec_e2.extend_all();
+
+        let _l2 = sec_e2.lambda2_sseq();
+
+        // Structural check: at each bidegree (n, s),
+        //   E3(n, s, 0) = ker(d2 from (n,s))  — d2-cycles at bock=0
+        //   E3(n, s, 1) = coker(d2 into (n,s)) — quotient by boundaries at bock=1
+        //
+        // d2 maps E_{(n,s)} isomorphically to B_{(n-1, s+2)}, so:
+        //   dim(Ext(n,s)) - dim(E3(n,s,0)) = dim(Ext(n-1,s+2)) - dim(E3(n-1,s+2,1))
+        for b in e2.resolution().iter_stem() {
+            let ext_dim = e2.dimension(b);
+            let [n, s] = b.coords();
+
+            // dim(E) at (n, s) = dim(Ext) - dim(ker d2) = ext_dim - dim(E3(n,s,0))
+            let e3_bock0 = sec_e2.lambda2_e3_dimension(n, s, 0);
+            let e_dim = ext_dim - e3_bock0;
+
+            // dim(B) at (n-1, s+2) = dim(im d2) = dim(Ext(n-1,s+2)) - dim(E3(n-1,s+2,1))
+            let target = b + Bidegree::n_s(-1, 2);
+            if e2.resolution().has_computed_bidegree(target) {
+                let target_ext_dim = e2.dimension(target);
+                let [tn, ts] = target.coords();
+                let e3_target_bock1 = sec_e2.lambda2_e3_dimension(tn, ts, 1);
+                let b_dim = target_ext_dim - e3_target_bock1;
+
+                assert_eq!(
+                    e_dim, b_dim,
+                    "dim(E at ({n},{s})) should equal dim(B at ({tn},{ts})): \
+                     d2: E → B is an isomorphism"
+                );
+            }
+
+            // dim(ker d2) + dim(E) = dim(Ext) always holds.
+            assert_eq!(
+                e3_bock0 + e_dim,
+                ext_dim,
+                "dim(ker d2) + dim(E) = dim(Ext) at ({n}, {s})"
+            );
+        }
+
+        // h4 at (15, 1) supports d2, so E3(15, 1, 0) should be 0.
+        assert_eq!(
+            sec_e2.lambda2_e3_dimension(15, 1, 0),
+            0,
+            "h4 should not survive in E3 at bock=0"
+        );
+
+        // d2(h4) = h0*h3^2 lands at (14, 3, 1), quotienting out one generator.
+        let ext_dim_14_3 = e2.dimension(Bidegree::n_s(14, 3));
+        assert_eq!(
+            sec_e2.lambda2_e3_dimension(14, 3, 1),
+            ext_dim_14_3 - 1,
+            "d2 image should quotient out one generator at (14, 3, 1)"
+        );
+
+        // h_0 at (0, 1) is a permanent cycle.
+        assert_eq!(sec_e2.lambda2_e3_dimension(0, 1, 0), 1);
+        assert_eq!(sec_e2.lambda2_e3_dimension(0, 1, 1), 1);
     }
 }
