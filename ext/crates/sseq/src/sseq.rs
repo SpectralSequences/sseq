@@ -39,6 +39,28 @@ impl SseqProfile<2> for Adams {
     }
 }
 
+/// Trigraded Adams profile for S/λ². Coordinates are `(n, s, b)` = (stem, Adams filtration,
+/// Bockstein degree). The d₂ differential maps `(n, s, b) → (n − 1, s + 2, b + 1)`.
+pub struct AdamsLambda2;
+
+impl SseqProfile<3> for AdamsLambda2 {
+    const MIN_R: i32 = 2;
+
+    fn profile(r: i32, b: MultiDegree<3>) -> MultiDegree<3> {
+        let [n, s, bock] = b.coords();
+        MultiDegree::new([n - 1, s + r, bock + 1])
+    }
+
+    fn profile_inverse(r: i32, b: MultiDegree<3>) -> MultiDegree<3> {
+        let [n, s, bock] = b.coords();
+        MultiDegree::new([n + 1, s - r, bock - 1])
+    }
+
+    fn differential_length(offset: MultiDegree<3>) -> i32 {
+        offset.coords()[1]
+    }
+}
+
 pub struct Product<const N: usize> {
     pub b: MultiDegree<N>,
     /// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
