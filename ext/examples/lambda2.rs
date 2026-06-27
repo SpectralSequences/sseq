@@ -20,10 +20,13 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+    ext_algebra::{
+        BZE, ExtAlgebra,
+        secondary::SecondaryExtAlgebra,
+    },
+    secondary::LAMBDA_BIDEGREE,
     utils::query_module,
 };
-use fp::matrix::Subquotient;
 use sseq::coordinates::{Bidegree, BidegreeGenerator, MultiDegree};
 
 fn main() -> anyhow::Result<()> {
@@ -85,23 +88,12 @@ where
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
     for b in e2.resolution().iter_nonzero_stem() {
-        let page = sec_e2.page_data(b);
         let dim = e2.dimension(b);
-        if dim == 0 {
-            continue;
-        }
-
         for i in 0..dim {
             let g = BidegreeGenerator::new(b, i);
-            let class_type = classify_generator(&page, i);
-
-            match class_type {
-                BZE::Z => {
-                    println!("Z  x_{g}");
-                }
-                BZE::B => {
-                    println!("B  x_{g}");
-                }
+            match sec_e2.classify(g) {
+                BZE::Z => println!("Z  x_{g}"),
+                BZE::B => println!("B  x_{g}"),
                 BZE::E => {
                     let elem = e2.generator(g);
                     if let Some(d2) = sec_e2.d2(&elem) {
@@ -114,30 +106,6 @@ where
             }
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BZE {
-    B,
-    Z,
-    E,
-}
-
-fn classify_generator(page: &Subquotient, idx: usize) -> BZE {
-    // B: in the quotient (boundary)
-    // Z: a gen (cycle, not boundary)
-    // E: in the complement (supports d2)
-
-    // Check if this generator index is a pivot of the quotient (boundary)
-    if page.zeros().pivots()[idx] >= 0 {
-        return BZE::B;
-    }
-    // Check if this generator index is in the complement (not a cycle)
-    if page.complement_pivots().any(|p| p == idx) {
-        return BZE::E;
-    }
-    // Otherwise it's a cycle that's not a boundary
-    BZE::Z
 }
 
 /// Table II: Products in Ext expressed in the standard basis.
@@ -170,12 +138,12 @@ where
 
 /// Table III: Conical basis for π(S/λ²).
 ///
-/// Lists the E3 = E∞ generators of S/λ² at each tridegree (n, s, bock).
-/// Elements of the conical basis Xπ come in four types per the paper's Condition 3.2:
-/// - x⁰_π for x ∈ B: bockstein = 0
-/// - x⁰_π for x ∈ Z: bockstein = 0
-/// - x¹_π for x ∈ Z: bockstein = 1
-/// - x¹_π for x ∈ E: bockstein = 1
+/// Lists the E3 = E∞ generators of S/λ² at each tridegree (n, s, bock), annotated with their
+/// B/Z/E type. The conical basis Xπ has four element types per Condition 3.2 of the paper:
+/// - x⁰_π for x ∈ B: (n, s, 0)
+/// - x⁰_π for x ∈ Z: (n, s, 0)
+/// - x¹_π for x ∈ Z: (n, s, 1)
+/// - x¹_π for x ∈ E: (n, s, 1)
 fn print_table_iii<CC>(e2: &ExtAlgebra<CC>, sec_e2: &SecondaryExtAlgebra<CC>)
 where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
@@ -183,15 +151,23 @@ where
 {
     for b in e2.resolution().iter_stem() {
         let [n, s] = b.coords();
+        let dim = e2.dimension(b);
+        if dim == 0 {
+            continue;
+        }
 
+        // bock=0: surviving classes are B ⨿ Z (d2-cycles).
+        // bock=1: surviving classes are Z ⨿ E (cokernel of d2).
         for bock in [0, 1] {
-            let dim = sec_e2.lambda2_e3_dimension(n, s, bock);
-            if dim > 0 {
-                if let Some(pd) = sec_e2.lambda2_page_data(MultiDegree::new([n, s, bock])) {
-                    for (idx, v) in pd.gens().enumerate() {
-                        let coords: Vec<u32> = v.iter().collect();
-                        println!("({n}, {s}, {bock})  gen {idx}  {coords:?}");
-                    }
+            let e3_dim = sec_e2.lambda2_e3_dimension(n, s, bock);
+            if e3_dim == 0 {
+                continue;
+            }
+
+            if let Some(pd) = sec_e2.lambda2_page_data(MultiDegree::new([n, s, bock])) {
+                for (idx, v) in pd.gens().enumerate() {
+                    let coords: Vec<u32> = v.iter().collect();
+                    println!("({n}, {s}, {bock})  gen {idx}  {coords:?}");
                 }
             }
         }
@@ -200,36 +176,49 @@ where
 
 /// Table IV: Products in π(S/λ²) with commutators.
 ///
-/// For each pair (α, β) of conical basis elements with both in bockstein 0,
-/// computes α · β using the secondary product and the commutator α·β - β·α.
+/// For each pair (x, y) where x ∈ Z (surviving cycle) and y runs over E3-surviving classes of
+/// the unit at each bidegree, computes the secondary product x · y. The secondary product lives
+/// in Mod_{Cλ²}: it has an Ext part and a λ part.
+///
+/// The commutator x·y − y·x = 2·x·y when both stems are odd (Proposition 6.4).
 fn print_table_iv<CC>(e2: &ExtAlgebra<CC>, sec_e2: &SecondaryExtAlgebra<CC>)
 where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
-    // Collect all surviving generators (Z classes) at bock=0 in the bigraded page.
-    let survivors: Vec<BidegreeGenerator> = e2
+    // Secondary products need s ≥ 1 for the multiplier (the secondary lift's shift is s+1,
+    // and secondary homotopies start at s=2).
+    let z_gens: Vec<BidegreeGenerator> = e2
         .resolution()
         .iter_nonzero_stem()
+        .filter(|b| b.s() >= 1)
         .flat_map(|b| {
-            let page = sec_e2.page_data(b);
             let dim = e2.dimension(b);
             (0..dim)
-                .filter(move |&i| classify_generator(&page, i) != BZE::E)
+                .filter(move |&i| sec_e2.classify(BidegreeGenerator::new(b, i)) == BZE::Z)
                 .map(move |i| BidegreeGenerator::new(b, i))
         })
         .collect();
 
-    for (idx_x, &x_gen) in survivors.iter().enumerate() {
+    for &x_gen in &z_gens {
         let x = e2.generator(x_gen);
-        // Only compute secondary products for d2-cycles (Z generators, not B).
-        let x_page = sec_e2.page_data(x_gen.degree());
-        if classify_generator(&x_page, x_gen.idx()) != BZE::Z {
-            continue;
-        }
-        for &y_gen in &survivors[idx_x..] {
-            // The secondary product x · y: iterate over the secondary multiply output.
-            for prod in sec_e2.secondary_multiply_into(&x, y_gen.degree()) {
+        let shift = x.degree();
+
+        for b in e2.unit().iter_nonzero_stem() {
+            if !e2.resolution().has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
+                continue;
+            }
+            if !e2.resolution().has_computed_bidegree(b + shift - Bidegree::s_t(1, 0)) {
+                continue;
+            }
+
+            let target_dim = e2.dimension(b + shift);
+            let lambda_dim = e2.dimension(b + shift + LAMBDA_BIDEGREE);
+            if target_dim == 0 && lambda_dim == 0 {
+                continue;
+            }
+
+            for prod in sec_e2.secondary_multiply_into(&x, b) {
                 let ext: Vec<u32> = prod.ext_part.iter().collect();
                 let lambda: Vec<u32> = prod.lambda_part.iter().collect();
                 if ext.iter().any(|&c| c != 0) || lambda.iter().any(|&c| c != 0) {

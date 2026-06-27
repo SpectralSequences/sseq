@@ -899,7 +899,9 @@ pub trait SecondaryLift: Sync + Sized {
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);
         let max = self.max().restrict(s_range.end);
-        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        if min.s() < max.s() {
+            sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        }
     }
 
     #[tracing::instrument(skip(self))]
