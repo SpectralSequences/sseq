@@ -27,7 +27,7 @@ use ext::{
     secondary::LAMBDA_BIDEGREE,
     utils::query_module,
 };
-use sseq::coordinates::{Bidegree, BidegreeGenerator, MultiDegree};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
@@ -156,19 +156,24 @@ where
             continue;
         }
 
-        // bock=0: surviving classes are B ⨿ Z (d2-cycles).
-        // bock=1: surviving classes are Z ⨿ E (cokernel of d2).
-        for bock in [0, 1] {
-            let e3_dim = sec_e2.lambda2_e3_dimension(n, s, bock);
-            if e3_dim == 0 {
-                continue;
+        for i in 0..dim {
+            let g = BidegreeGenerator::new(b, i);
+            let bze = sec_e2.classify(g);
+
+            // bock=0: B and Z survive (d2-cycles).
+            match bze {
+                BZE::B | BZE::Z => {
+                    let label = if bze == BZE::B { "B" } else { "Z" };
+                    println!("{label}  x_{g}^0  ({n}, {s}, 0)");
+                }
+                BZE::E => {}
             }
 
-            if let Some(pd) = sec_e2.lambda2_page_data(MultiDegree::new([n, s, bock])) {
-                for (idx, v) in pd.gens().enumerate() {
-                    let coords: Vec<u32> = v.iter().collect();
-                    println!("({n}, {s}, {bock})  gen {idx}  {coords:?}");
-                }
+            // bock=1: Z and E survive (cokernel of d2).
+            match bze {
+                BZE::Z => println!("Z  x_{g}^1  ({n}, {s}, 1)"),
+                BZE::E => println!("E  x_{g}^1  ({n}, {s}, 1)"),
+                BZE::B => {}
             }
         }
     }
@@ -180,7 +185,8 @@ where
 /// the unit at each bidegree, computes the secondary product x · y. The secondary product lives
 /// in Mod_{Cλ²}: it has an Ext part and a λ part.
 ///
-/// The commutator x·y − y·x = 2·x·y when both stems are odd (Proposition 6.4).
+/// The commutator [x, y] = x·y − y·x equals 2·(x·y) when both stems are odd (Proposition 6.4),
+/// and vanishes when at least one stem is even.
 fn print_table_iv<CC>(e2: &ExtAlgebra<CC>, sec_e2: &SecondaryExtAlgebra<CC>)
 where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
@@ -218,15 +224,22 @@ where
                 continue;
             }
 
+            // Proposition 6.4: [x, y] = x·y − y·x = 2·(x·y) when both stems are odd,
+            // and [x, y] = 0 when at least one stem is even.
+            let both_odd = shift.n() % 2 != 0 && b.n() % 2 != 0;
+
             for prod in sec_e2.secondary_multiply_into(&x, b) {
                 let ext: Vec<u32> = prod.ext_part.iter().collect();
                 let lambda: Vec<u32> = prod.lambda_part.iter().collect();
-                if ext.iter().any(|&c| c != 0) || lambda.iter().any(|&c| c != 0) {
-                    println!(
-                        "x_{x_gen} · [{src}] = {ext:?} + λ {lambda:?}",
-                        src = prod.source.to_basis_string(),
-                    );
+                if ext.iter().all(|&c| c == 0) && lambda.iter().all(|&c| c == 0) {
+                    continue;
                 }
+
+                let comm = if both_odd { "[x,y] = 2(x·y)" } else { "[x,y] = 0" };
+                println!(
+                    "x_{x_gen} · [{src}] = {ext:?} + λ {lambda:?}  {comm}",
+                    src = prod.source.to_basis_string(),
+                );
             }
         }
     }

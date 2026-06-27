@@ -47,13 +47,12 @@
 
 use std::sync::Arc;
 
-use algebra::module::Module;
 use ext::{
-    chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+    chain_complex::FreeChainComplex,
+    ext_algebra::{BZE, ExtAlgebra, secondary::SecondaryExtAlgebra},
     utils::query_module,
 };
-use sseq::coordinates::Bidegree;
+use sseq::coordinates::BidegreeGenerator;
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
@@ -72,24 +71,21 @@ fn main() -> anyhow::Result<()> {
     sec_e2.extend_all();
 
     let e2 = sec_e2.ext_algebra();
-    let d2_shift = Bidegree::n_s(-1, 2);
 
-    // Iterate through the target of the d2, in the same order as before.
     for b in e2.resolution().iter_nonzero_stem() {
-        if b.s() < 3 {
-            continue;
-        }
-
-        // The source of the d2 must be computed (its degree may exceed what `module(b.s() - 2)`
-        // reaches when resolving through a stem).
-        if b.t() - 1 > e2.resolution().module(b.s() - 2).max_computed_degree() {
-            continue;
-        }
-
-        for g in e2.basis(b - d2_shift) {
-            if let Some(dx) = sec_e2.d2(&e2.generator(g)) {
-                let entry: Vec<u32> = dx.vec().iter().collect();
-                println!("d_2 x_{g} = {entry:?}");
+        for i in 0..e2.dimension(b) {
+            let g = BidegreeGenerator::new(b, i);
+            match sec_e2.classify(g) {
+                BZE::Z => println!("Z  x_{g}"),
+                BZE::B => println!("B  x_{g}"),
+                BZE::E => {
+                    if let Some(dx) = sec_e2.d2(&e2.generator(g)) {
+                        let entry: Vec<u32> = dx.vec().iter().collect();
+                        println!("E  d_2 x_{g} = {entry:?}");
+                    } else {
+                        println!("E  x_{g}  d2 = (not computed)");
+                    }
+                }
             }
         }
     }

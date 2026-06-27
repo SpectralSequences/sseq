@@ -25,7 +25,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, SecondaryExtAlgebra},
+    ext_algebra::{BZE, ExtAlgebra, SecondaryExtAlgebra},
     secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };
@@ -98,22 +98,36 @@ fn main() -> anyhow::Result<()> {
 
         let page = sec_e2.unit_page_data(b);
 
-        // First the products with non-surviving classes: these are just λ times the (primary)
-        // product, read off the multiplication map.
+        // Products with non-surviving classes (E): just λ times the primary product.
         if target_num_gens > 0
             && let Some(rows) = e2.multiply_into(&x, b)
         {
-            for i in page.complement_pivots() {
+            for i in 0..e2.unit_dimension(b) {
+                if BZE::from_page_data(&page, i) != BZE::E {
+                    continue;
+                }
                 let g = BidegreeGenerator::new(b, i);
                 let entry: Vec<u32> = rows.row(i).iter().collect();
-                println!("{disp} λ x_{g} = λ {entry:?}");
+                println!("E  {disp} λ x_{g} = λ {entry:?}");
             }
         }
 
-        // Now the genuinely secondary products with surviving classes.
+        // Secondary products with surviving classes (B and Z).
         for prod in sec_e2.secondary_multiply_into(&x, b) {
+            let bze = prod
+                .source
+                .vec()
+                .iter_nonzero()
+                .next()
+                .map(|(i, _)| BZE::from_page_data(&page, i))
+                .unwrap_or(BZE::Z);
+            let label = match bze {
+                BZE::B => "B",
+                BZE::Z => "Z",
+                BZE::E => "E",
+            };
             println!(
-                "{disp} [{basis}] = {value}",
+                "{label}  {disp} [{basis}] = {value}",
                 basis = prod.source.to_basis_string(),
                 value = prod.value,
             );
