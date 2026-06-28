@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
 use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
+pub use sseq::coordinates::BZE;
 use sseq::coordinates::{
     Bidegree, BidegreeElement, BidegreeGenerator, MultiDegree, MultiDegreeElement,
 };
@@ -30,30 +31,6 @@ use crate::{
         SecondaryResolution, SecondaryResolutionHomomorphism, Weight,
     },
 };
-
-/// The classification of an Ext generator in the $d_2$-adapted B/Z/E decomposition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BZE {
-    /// Boundary: in the image of $d_2$ from another bidegree.
-    B,
-    /// Cycle mod boundary: survives to $E_3$.
-    Z,
-    /// Supports $d_2$: $d_2(x) \neq 0$.
-    E,
-}
-
-impl BZE {
-    /// Classify a standard-basis generator `idx` from its $E_3$-page subquotient.
-    pub fn from_page_data(page: &Subquotient, idx: usize) -> Self {
-        if page.zeros().pivots()[idx] >= 0 {
-            return Self::B;
-        }
-        if page.complement_pivots().any(|p| p == idx) {
-            return Self::E;
-        }
-        Self::Z
-    }
-}
 
 /// A single secondary product `x · y` in $\Mod_{C\lambda^2}$, where `y` is an $E_3$-surviving
 /// class. See [`SecondaryExtAlgebra::secondary_multiply_into`].
@@ -331,8 +308,9 @@ where
     /// At each bidegree, $\Ext = B \oplus Z \oplus E$ and $d_2$ restricts to an isomorphism
     /// $E_{(n,s)} \to B_{(n-1,s+2)}$.
     pub fn classify(&self, g: BidegreeGenerator) -> BZE {
-        let page = self.page_data(g.degree());
-        BZE::from_page_data(&page, g.idx())
+        let [n, s] = g.degree().coords();
+        self.lambda2_sseq()
+            .classify(MultiDegree::new([n, s, 0]), 3, g.idx())
     }
 
     /// Build the trigraded spectral sequence for $S/\lambda^2$.
