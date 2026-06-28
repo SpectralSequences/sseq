@@ -49,7 +49,7 @@ pub struct SecondaryProduct {
 ///
 /// Each Ext generator at bidegree $(n, s)$ contributes to the conical basis at one or both weights,
 /// determined by its Adams BZE classification (see
-/// [`adams_classify`](SecondaryExtAlgebra::adams_classify)):
+/// [`classify`](SecondaryExtAlgebra::classify)):
 /// - **B**: weight 0 only (killed at weight 1 by $d_2$ boundaries).
 /// - **Z**: both weights (permanent cycle).
 /// - **E**: weight 1 only (killed at weight 0 by supporting $d_2$).
@@ -98,9 +98,13 @@ impl fmt::Display for PiGenerator {
 
 /// An element in the $E_3 = E_\infty$ page of $\pi(S/\lambda^2)$ at a specific weight.
 ///
-/// The coordinates are in the subquotient basis of $E_3$ at the given bidegree and weight. Each
-/// coordinate corresponds to a surviving generator in the ambient Ext space, identified by
-/// [`basis_indices`](Self::basis_indices).
+/// The coordinates are in the [`Subquotient`] generator basis of $E_3$ at the given bidegree and
+/// weight: `coords()[k]` is the coefficient of the `k`-th surviving $E_3$ basis class. Each such
+/// class is named by its *leading* (pivot) ambient Ext generator, recorded in
+/// [`basis_indices`](Self::basis_indices)`[k]`. The two run in lockstep — `basis_indices` is the
+/// list of generator-subspace pivot columns, which is exactly the indexing
+/// [`Subquotient::reduce`] returns coefficients for. A class that survives as a non-unit vector is
+/// thus displayed by its leading generator, not expanded into ambient coordinates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PiElement {
     bidegree: Bidegree,
@@ -118,13 +122,14 @@ impl PiElement {
         self.weight
     }
 
-    /// Coordinates in the $E_3$ subquotient basis. `coords()[i]` is the coefficient of the
-    /// generator at ambient index [`basis_indices()`](Self::basis_indices)`[i]`.
+    /// Coordinates in the $E_3$ generator basis. `coords()[k]` is the coefficient of the `k`-th
+    /// surviving class, whose leading ambient index is [`basis_indices()`](Self::basis_indices)`[k]`.
     pub fn coords(&self) -> &[u32] {
         &self.coords
     }
 
-    /// The ambient Ext generator indices forming the $E_3$ basis.
+    /// The leading (pivot) ambient Ext generator index of each surviving $E_3$ basis class, in the
+    /// same order as [`coords`](Self::coords).
     pub fn basis_indices(&self) -> &[usize] {
         &self.basis_indices
     }
@@ -417,7 +422,7 @@ where
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
-    /// Classify a generator at bidegree `b` as B, Z, or E in the $d_2$ decomposition.
+    /// Classify a generator at bidegree `(n, s)` as B, Z, or E in the $d_2$ decomposition.
     ///
     /// - **B** (boundary): in the image of $d_2$ from another bidegree.
     /// - **Z** (cycle mod boundary): a $d_2$-cycle that is not a boundary; survives to $E_3$.
@@ -425,20 +430,12 @@ where
     ///
     /// At each bidegree, $\Ext = B \oplus Z \oplus E$ and $d_2$ restricts to an isomorphism
     /// $E_{(n,s)} \to B_{(n-1,s+2)}$.
-    pub fn classify(&self, g: BidegreeGenerator) -> BZE {
-        let [n, s] = g.degree().coords();
-        self.lambda2_sseq()
-            .classify(MultiDegree::new([n, s, 0]), 3, g.idx())
-    }
-
-    /// The full Adams BZE classification, combining both weights of the $\lambda^2$ spectral
-    /// sequence.
     ///
-    /// Unlike [`classify`](Self::classify) (which only inspects weight 0), this checks both:
-    /// - **E**: supports $d_2$ at weight 0.
-    /// - **B**: boundary of $d_2$ at weight 1.
-    /// - **Z**: permanent cycle (neither E nor B).
-    pub fn adams_classify(&self, g: BidegreeGenerator) -> BZE {
+    /// Both incoming and outgoing $d_2$ are inspected via the two weights of the $S/\lambda^2$
+    /// spectral sequence: the weight-0 copy at $(n, s, 0)$ carries the *outgoing* $d_2$ (so it
+    /// detects **E**), while the weight-1 copy at $(n, s, 1)$ receives the *incoming* $d_2$ (so it
+    /// detects **B**). Inspecting only one weight would miss either boundaries or supports.
+    pub fn classify(&self, g: BidegreeGenerator) -> BZE {
         let [n, s] = g.degree().coords();
         let l2 = self.lambda2_sseq();
 
@@ -457,8 +454,8 @@ where
 
     /// The conical basis of $\pi(S/\lambda^2)$ at bidegree `b` (Condition 3.2 of the paper).
     ///
-    /// Each Ext generator at `b` is classified by [`adams_classify`](Self::adams_classify), then
-    /// placed at the weights it contributes to:
+    /// Each Ext generator at `b` is classified by [`classify`](Self::classify), then placed at the
+    /// weights it contributes to:
     /// - **B**: weight 0 only.
     /// - **Z**: both weights.
     /// - **E**: weight 1 only.
@@ -468,7 +465,7 @@ where
 
         for i in 0..dim {
             let g = BidegreeGenerator::new(b, i);
-            let bze = self.adams_classify(g);
+            let bze = self.classify(g);
 
             if bze != BZE::E {
                 result.push(PiGenerator::new(b, Weight::Ext, bze, i));
@@ -504,8 +501,14 @@ where
 
         if let Some(sq) = self.lambda2_page_data(td) {
             let mut v = ambient_vec.to_owned();
+            // `reduce` quotients out the boundary part and returns one coefficient per generator
+            // pivot column of `sq`, in ascending column order.
             let coords = sq.reduce(v.as_slice_mut());
 
+            // The matching labels: the generator pivot columns are exactly the ambient indices that
+            // are neither a quotient (boundary) pivot nor in the complement of the cycle subspace.
+            // This is the same set `reduce` iterates, in the same order, so it lines up with
+            // `coords` entry-for-entry.
             let complement: Vec<usize> = sq.complement_pivots().collect();
             let basis_indices: Vec<usize> = (0..sq.ambient_dimension())
                 .filter(|&i| sq.zeros().pivots()[i] < 0 && !complement.contains(&i))
@@ -875,7 +878,7 @@ mod tests {
         sec_e2.extend_all();
 
         // h0 at (0, 1) is a permanent Z-cycle: appears at both weights.
-        let h0_bze = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
+        let h0_bze = sec_e2.classify(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
         assert_eq!(h0_bze, BZE::Z);
         let pi_01 = sec_e2.pi_basis(Bidegree::n_s(0, 1));
         assert_eq!(pi_01.len(), 2); // weight 0 + weight 1
@@ -885,7 +888,7 @@ mod tests {
         assert_eq!(pi_01[1].bze(), BZE::Z);
 
         // h4 at (15, 1) supports d2: classified as E, appears at weight 1 only.
-        let h4_bze = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(15, 1), 0));
+        let h4_bze = sec_e2.classify(BidegreeGenerator::new(Bidegree::n_s(15, 1), 0));
         assert_eq!(h4_bze, BZE::E);
         let pi_15_1 = sec_e2.pi_basis(Bidegree::n_s(15, 1));
         assert_eq!(pi_15_1.len(), 1);
@@ -893,7 +896,7 @@ mod tests {
         assert_eq!(pi_15_1[0].bze(), BZE::E);
 
         // h0*h3^2 at (14, 3) is a d2-boundary: classified as B, appears at weight 0 only.
-        let b14_3 = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(14, 3), 0));
+        let b14_3 = sec_e2.classify(BidegreeGenerator::new(Bidegree::n_s(14, 3), 0));
         assert_eq!(b14_3, BZE::B);
         let pi_14_3 = sec_e2.pi_basis(Bidegree::n_s(14, 3));
         assert_eq!(pi_14_3.len(), 1);

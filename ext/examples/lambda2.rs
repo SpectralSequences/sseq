@@ -17,9 +17,8 @@
 
 use std::sync::Arc;
 
-use algebra::module::Module;
 use ext::{
-    chain_complex::{ChainComplex, FreeChainComplex},
+    chain_complex::FreeChainComplex,
     ext_algebra::{BZE, ExtAlgebra, secondary::SecondaryExtAlgebra},
     secondary::LAMBDA_BIDEGREE,
     utils::query_module,
@@ -35,13 +34,13 @@ fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
     let e2 = Arc::new(ExtAlgebra::from_resolution(Arc::clone(&resolution))?);
 
-    if !e2.is_unit() {
-        let max = Bidegree::n_s(
-            resolution.module(0).max_computed_degree(),
-            resolution.next_homological_degree() - 1,
-        );
-        e2.unit().compute_through_stem(max);
-    }
+    // The tables are defined for the sphere: Table II reads multiplicands from `e2.resolution()`
+    // and feeds them to `e2.unit_generator(..)`, which is only the same basis when `M == k`. Bail
+    // early on non-unit modules rather than print products from a mismatched basis.
+    anyhow::ensure!(
+        e2.is_unit(),
+        "lambda2 only supports the unit module (e.g. S_2); got a non-unit module"
+    );
 
     let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));
 
@@ -88,7 +87,7 @@ where
         let dim = e2.dimension(b);
         for i in 0..dim {
             let g = BidegreeGenerator::new(b, i);
-            match sec_e2.adams_classify(g) {
+            match sec_e2.classify(g) {
                 BZE::Z => println!("Z  x_{g}"),
                 BZE::B => println!("B  x_{g}"),
                 BZE::E => {
@@ -179,7 +178,7 @@ where
         .flat_map(|b| {
             let dim = e2.dimension(b);
             (0..dim)
-                .filter(move |&i| sec_e2.adams_classify(BidegreeGenerator::new(b, i)) == BZE::Z)
+                .filter(move |&i| sec_e2.classify(BidegreeGenerator::new(b, i)) == BZE::Z)
                 .map(move |i| BidegreeGenerator::new(b, i))
         })
         .collect();
