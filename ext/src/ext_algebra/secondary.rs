@@ -12,7 +12,10 @@
 //! algebra is implemented here. The layer is split out from [`ExtAlgebra`] because the secondary
 //! machinery requires `CC::Algebra: PairAlgebra`, a bound the primary layer does not impose.
 
-use std::sync::{Arc, Mutex};
+use std::{
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
@@ -40,6 +43,121 @@ pub struct SecondaryProduct {
     /// The product `x · source`, a class in the secondary ($\Mod_{C\lambda^2}$) homotopy with base
     /// bidegree `b + x.degree()`. Its $\lambda$ part is already reduced by the image of $d_2$.
     pub value: SecondaryElement,
+}
+
+/// A conical basis generator of $\pi(S/\lambda^2)$.
+///
+/// Each Ext generator at bidegree $(n, s)$ contributes to the conical basis at one or both weights,
+/// determined by its Adams BZE classification (see
+/// [`adams_classify`](SecondaryExtAlgebra::adams_classify)):
+/// - **B**: weight 0 only (killed at weight 1 by $d_2$ boundaries).
+/// - **Z**: both weights (permanent cycle).
+/// - **E**: weight 1 only (killed at weight 0 by supporting $d_2$).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PiGenerator {
+    bidegree: Bidegree,
+    weight: Weight,
+    bze: BZE,
+    idx: usize,
+}
+
+impl PiGenerator {
+    pub fn new(bidegree: Bidegree, weight: Weight, bze: BZE, idx: usize) -> Self {
+        Self {
+            bidegree,
+            weight,
+            bze,
+            idx,
+        }
+    }
+
+    pub fn bidegree(&self) -> Bidegree {
+        self.bidegree
+    }
+
+    pub fn weight(&self) -> Weight {
+        self.weight
+    }
+
+    pub fn bze(&self) -> BZE {
+        self.bze
+    }
+
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+}
+
+impl fmt::Display for PiGenerator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let g = BidegreeGenerator::new(self.bidegree, self.idx);
+        let w = self.weight.as_i32();
+        write!(f, "{} x_{g}^{w}", self.bze)
+    }
+}
+
+/// An element in the $E_3 = E_\infty$ page of $\pi(S/\lambda^2)$ at a specific weight.
+///
+/// The coordinates are in the subquotient basis of $E_3$ at the given bidegree and weight. Each
+/// coordinate corresponds to a surviving generator in the ambient Ext space, identified by
+/// [`basis_indices`](Self::basis_indices).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PiElement {
+    bidegree: Bidegree,
+    weight: Weight,
+    coords: Vec<u32>,
+    basis_indices: Vec<usize>,
+}
+
+impl PiElement {
+    pub fn bidegree(&self) -> Bidegree {
+        self.bidegree
+    }
+
+    pub fn weight(&self) -> Weight {
+        self.weight
+    }
+
+    /// Coordinates in the $E_3$ subquotient basis. `coords()[i]` is the coefficient of the
+    /// generator at ambient index [`basis_indices()`](Self::basis_indices)`[i]`.
+    pub fn coords(&self) -> &[u32] {
+        &self.coords
+    }
+
+    /// The ambient Ext generator indices forming the $E_3$ basis.
+    pub fn basis_indices(&self) -> &[usize] {
+        &self.basis_indices
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.coords.iter().all(|&c| c == 0)
+    }
+}
+
+impl fmt::Display for PiElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let w = self.weight.as_i32();
+        let mut first = true;
+        for (&c, &idx) in self.coords.iter().zip(&self.basis_indices) {
+            if c == 0 {
+                continue;
+            }
+            if !first {
+                write!(f, " + ")?;
+            }
+            first = false;
+            let g = BidegreeGenerator::new(self.bidegree, idx);
+            if c == 1 {
+                write!(f, "x_{g}^{w}")?;
+            } else {
+                write!(f, "{c} x_{g}^{w}")?;
+            }
+        }
+        if first {
+            write!(f, "0")?;
+        }
+        Ok(())
+    }
 }
 
 /// The secondary layer over an [`ExtAlgebra`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
@@ -311,6 +429,102 @@ where
         let [n, s] = g.degree().coords();
         self.lambda2_sseq()
             .classify(MultiDegree::new([n, s, 0]), 3, g.idx())
+    }
+
+    /// The full Adams BZE classification, combining both weights of the $\lambda^2$ spectral
+    /// sequence.
+    ///
+    /// Unlike [`classify`](Self::classify) (which only inspects weight 0), this checks both:
+    /// - **E**: supports $d_2$ at weight 0.
+    /// - **B**: boundary of $d_2$ at weight 1.
+    /// - **Z**: permanent cycle (neither E nor B).
+    pub fn adams_classify(&self, g: BidegreeGenerator) -> BZE {
+        let [n, s] = g.degree().coords();
+        let l2 = self.lambda2_sseq();
+
+        let td0 = MultiDegree::new([n, s, 0]);
+        if l2.defined(td0) && l2.classify(td0, 3, g.idx()) == BZE::E {
+            return BZE::E;
+        }
+
+        let td1 = MultiDegree::new([n, s, 1]);
+        if l2.defined(td1) && l2.classify(td1, 3, g.idx()) == BZE::B {
+            return BZE::B;
+        }
+
+        BZE::Z
+    }
+
+    /// The conical basis of $\pi(S/\lambda^2)$ at bidegree `b` (Condition 3.2 of the paper).
+    ///
+    /// Each Ext generator at `b` is classified by [`adams_classify`](Self::adams_classify), then
+    /// placed at the weights it contributes to:
+    /// - **B**: weight 0 only.
+    /// - **Z**: both weights.
+    /// - **E**: weight 1 only.
+    pub fn pi_basis(&self, b: Bidegree) -> Vec<PiGenerator> {
+        let dim = self.alg.dimension(b);
+        let mut result = Vec::new();
+
+        for i in 0..dim {
+            let g = BidegreeGenerator::new(b, i);
+            let bze = self.adams_classify(g);
+
+            if bze != BZE::E {
+                result.push(PiGenerator::new(b, Weight::Ext, bze, i));
+            }
+            if bze != BZE::B {
+                result.push(PiGenerator::new(b, Weight::Lambda, bze, i));
+            }
+        }
+
+        result
+    }
+
+    /// Project a [`SecondaryElement`] to the $E_3$ subquotient at each weight, giving a pair of
+    /// [`PiElement`]s.
+    ///
+    /// The first element is the weight-0 projection (Ext part at `base`), the second is the
+    /// weight-1 projection ($\lambda$ part at `base + LAMBDA_BIDEGREE`).
+    pub fn to_pi(&self, elt: &SecondaryElement) -> (PiElement, PiElement) {
+        let base = elt.base();
+        let ext_pi = self.project_to_pi(base, Weight::Ext, elt.ext());
+        let lambda_pi = self.project_to_pi(base + LAMBDA_BIDEGREE, Weight::Lambda, elt.lambda());
+        (ext_pi, lambda_pi)
+    }
+
+    fn project_to_pi(
+        &self,
+        bidegree: Bidegree,
+        weight: Weight,
+        ambient_vec: fp::vector::FpSlice,
+    ) -> PiElement {
+        let [n, s] = bidegree.coords();
+        let td = MultiDegree::new([n, s, weight.as_i32()]);
+
+        if let Some(sq) = self.lambda2_page_data(td) {
+            let mut v = ambient_vec.to_owned();
+            let coords = sq.reduce(v.as_slice_mut());
+
+            let complement: Vec<usize> = sq.complement_pivots().collect();
+            let basis_indices: Vec<usize> = (0..sq.ambient_dimension())
+                .filter(|&i| sq.zeros().pivots()[i] < 0 && !complement.contains(&i))
+                .collect();
+
+            PiElement {
+                bidegree,
+                weight,
+                coords,
+                basis_indices,
+            }
+        } else {
+            PiElement {
+                bidegree,
+                weight,
+                coords: vec![],
+                basis_indices: vec![],
+            }
+        }
     }
 
     /// Build the trigraded spectral sequence for $S/\lambda^2$.
@@ -650,5 +864,56 @@ mod tests {
         // h_0 at (0, 1) is a permanent cycle.
         assert_eq!(sec_e2.lambda2_e3_dimension(0, 1, 0), 1);
         assert_eq!(sec_e2.lambda2_e3_dimension(0, 1, 1), 1);
+    }
+
+    #[test]
+    fn test_pi_types() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(16, 6));
+        let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), res));
+        let sec_e2 = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        sec_e2.extend_all();
+
+        // h0 at (0, 1) is a permanent Z-cycle: appears at both weights.
+        let h0_bze = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
+        assert_eq!(h0_bze, BZE::Z);
+        let pi_01 = sec_e2.pi_basis(Bidegree::n_s(0, 1));
+        assert_eq!(pi_01.len(), 2); // weight 0 + weight 1
+        assert_eq!(pi_01[0].weight(), Weight::Ext);
+        assert_eq!(pi_01[0].bze(), BZE::Z);
+        assert_eq!(pi_01[1].weight(), Weight::Lambda);
+        assert_eq!(pi_01[1].bze(), BZE::Z);
+
+        // h4 at (15, 1) supports d2: classified as E, appears at weight 1 only.
+        let h4_bze = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(15, 1), 0));
+        assert_eq!(h4_bze, BZE::E);
+        let pi_15_1 = sec_e2.pi_basis(Bidegree::n_s(15, 1));
+        assert_eq!(pi_15_1.len(), 1);
+        assert_eq!(pi_15_1[0].weight(), Weight::Lambda);
+        assert_eq!(pi_15_1[0].bze(), BZE::E);
+
+        // h0*h3^2 at (14, 3) is a d2-boundary: classified as B, appears at weight 0 only.
+        let b14_3 = sec_e2.adams_classify(BidegreeGenerator::new(Bidegree::n_s(14, 3), 0));
+        assert_eq!(b14_3, BZE::B);
+        let pi_14_3 = sec_e2.pi_basis(Bidegree::n_s(14, 3));
+        assert_eq!(pi_14_3.len(), 1);
+        assert_eq!(pi_14_3[0].weight(), Weight::Ext);
+        assert_eq!(pi_14_3[0].bze(), BZE::B);
+
+        // to_pi: a zero secondary element projects to zero PiElements.
+        let zero_elt = sec_e2.element(SecondaryDegree::new(Bidegree::n_s(0, 1)), &[0], &[0]);
+        let (pi_ext, pi_lambda) = sec_e2.to_pi(&zero_elt);
+        assert!(pi_ext.is_zero());
+        assert!(pi_lambda.is_zero());
+
+        // to_pi: h0 as a unit vector at weight 0 should project to a nonzero PiElement.
+        let h0_elt = sec_e2.element(SecondaryDegree::new(Bidegree::n_s(0, 1)), &[1], &[0]);
+        let (pi_ext, _pi_lambda) = sec_e2.to_pi(&h0_elt);
+        assert!(!pi_ext.is_zero());
+        assert_eq!(pi_ext.weight(), Weight::Ext);
+
+        // Display: PiGenerator and PiElement produce meaningful output.
+        assert!(!format!("{}", pi_01[0]).is_empty());
+        assert!(!format!("{pi_ext}").is_empty());
     }
 }
