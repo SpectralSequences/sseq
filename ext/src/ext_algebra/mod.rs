@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
-use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator, MultiDegree};
 
 pub use self::secondary::{BZE, SecondaryExtAlgebra, SecondaryProduct};
 pub use crate::secondary::{SecondaryDegree, SecondaryElement, SecondaryGenerator, Weight};
@@ -46,6 +46,10 @@ pub struct ExtAlgebra<CC: FreeChainComplex> {
     is_unit: bool,
     /// One multiplication map per generator of $\Ext(M, k)$, built and extended on demand.
     products: DashMap<BidegreeGenerator, Arc<ResolutionHomomorphism<CC, CC>>>,
+    /// Trigraded spectral sequence with the `AdamsLambda2` profile. Generators sit at weight 0;
+    /// weight 1 is empty, so $d_2$ has no target and the spectral sequence degenerates at $E_2$.
+    /// The secondary layer populates weight 1 and installs $d_2$ on its own copy.
+    sseq: sseq::Sseq<3, sseq::AdamsLambda2>,
 }
 
 impl ExtAlgebra<QueryModuleResolution> {
@@ -71,11 +75,13 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// Build an [`ExtAlgebra`] from an explicit `(resolution, unit)` pair.
     pub fn new(resolution: Arc<CC>, unit: Arc<CC>) -> Self {
         assert_eq!(resolution.prime(), unit.prime());
+        let sseq = Self::build_sseq(&resolution);
         Self {
             is_unit: Arc::ptr_eq(&resolution, &unit),
             resolution,
             unit,
             products: DashMap::new(),
+            sseq,
         }
     }
 
@@ -105,6 +111,24 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
     pub fn prime(&self) -> ValidPrime {
         self.resolution.prime()
+    }
+
+    /// The trigraded spectral sequence for this Ext algebra. Generators live at weight 0 only;
+    /// weight 1 is unpopulated, so $d_2$ is trivially zero and $E_2 = E_3 = E_\infty$. Every
+    /// generator classifies as Z.
+    pub fn sseq(&self) -> &sseq::Sseq<3, sseq::AdamsLambda2> {
+        &self.sseq
+    }
+
+    fn build_sseq(resolution: &CC) -> sseq::Sseq<3, sseq::AdamsLambda2> {
+        let p = resolution.prime();
+        let mut sseq = sseq::Sseq::new(p);
+        for b in resolution.iter_stem() {
+            let dim = resolution.number_of_gens_in_bidegree(b);
+            let [n, s] = b.coords();
+            sseq.set_dimension(MultiDegree::new([n, s, 0]), dim);
+        }
+        sseq
     }
 
     /// Ensure both the resolution and the unit are computed through the given bidegree.
