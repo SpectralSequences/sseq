@@ -373,8 +373,7 @@ where
                     source_vec.set_entry(i, 1);
                     target_vec.copy_from_slice(&row);
 
-                    let source =
-                        MultiDegreeElement::new(MultiDegree::new([n, s, 0]), source_vec);
+                    let source = MultiDegreeElement::new(MultiDegree::new([n, s, 0]), source_vec);
                     sseq.add_differential(2, &source, target_vec.as_slice());
 
                     source_vec = source.into_vec();
@@ -382,10 +381,7 @@ where
             }
         }
 
-        let invalid: Vec<_> = sseq
-            .iter_degrees()
-            .filter(|&b| sseq.invalid(b))
-            .collect();
+        let invalid: Vec<_> = sseq.iter_degrees().filter(|&b| sseq.invalid(b)).collect();
         for b in invalid {
             sseq.update_degree(b);
         }

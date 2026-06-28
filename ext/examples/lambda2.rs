@@ -20,10 +20,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{
-        BZE, ExtAlgebra,
-        secondary::SecondaryExtAlgebra,
-    },
+    ext_algebra::{BZE, ExtAlgebra, secondary::SecondaryExtAlgebra},
     secondary::LAMBDA_BIDEGREE,
     utils::query_module,
 };
@@ -211,10 +208,16 @@ where
         let shift = x.degree();
 
         for b in e2.unit().iter_nonzero_stem() {
-            if !e2.resolution().has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
+            if !e2
+                .resolution()
+                .has_computed_bidegree(b + shift + LAMBDA_BIDEGREE)
+            {
                 continue;
             }
-            if !e2.resolution().has_computed_bidegree(b + shift - Bidegree::s_t(1, 0)) {
+            if !e2
+                .resolution()
+                .has_computed_bidegree(b + shift - Bidegree::s_t(1, 0))
+            {
                 continue;
             }
 
@@ -235,7 +238,11 @@ where
                     continue;
                 }
 
-                let comm = if both_odd { "[x,y] = 2(x·y)" } else { "[x,y] = 0" };
+                let comm = if both_odd {
+                    "[x,y] = 2(x·y)"
+                } else {
+                    "[x,y] = 0"
+                };
                 println!(
                     "x_{x_gen} · [{src}] = {ext:?} + λ {lambda:?}  {comm}",
                     src = prod.source.to_basis_string(),
