@@ -232,9 +232,7 @@ where
             let both_odd = shift.n() % 2 != 0 && b.n() % 2 != 0;
 
             for prod in sec_e2.secondary_multiply_into(&x, b) {
-                let ext: Vec<u32> = prod.ext_part.iter().collect();
-                let lambda: Vec<u32> = prod.lambda_part.iter().collect();
-                if ext.iter().all(|&c| c == 0) && lambda.iter().all(|&c| c == 0) {
+                if prod.value.is_zero() {
                     continue;
                 }
 
@@ -244,8 +242,9 @@ where
                     "[x,y] = 0"
                 };
                 println!(
-                    "x_{x_gen} · [{src}] = {ext:?} + λ {lambda:?}  {comm}",
+                    "x_{x_gen} · [{src}] = {value}  {comm}",
                     src = prod.source.to_basis_string(),
+                    value = prod.value,
                 );
             }
         }
