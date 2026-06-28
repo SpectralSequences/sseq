@@ -47,12 +47,13 @@
 
 use std::sync::Arc;
 
+use algebra::module::Module;
 use ext::{
-    chain_complex::FreeChainComplex,
+    chain_complex::{ChainComplex, FreeChainComplex},
     ext_algebra::{BZE, ExtAlgebra, secondary::SecondaryExtAlgebra},
     utils::query_module,
 };
-use sseq::coordinates::BidegreeGenerator;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
@@ -71,10 +72,20 @@ fn main() -> anyhow::Result<()> {
     sec_e2.extend_all();
 
     let e2 = sec_e2.ext_algebra();
+    let d2_shift = Bidegree::n_s(-1, 2);
 
+    // Iterate through the target of the d2. We omit elements whose d2 target bidegree is zero.
     for b in e2.resolution().iter_nonzero_stem() {
-        for i in 0..e2.dimension(b) {
-            let g = BidegreeGenerator::new(b, i);
+        if b.s() < 3 {
+            continue;
+        }
+
+        if b.t() - 1 > e2.resolution().module(b.s() - 2).max_computed_degree() {
+            continue;
+        }
+
+        for i in 0..e2.dimension(b - d2_shift) {
+            let g = BidegreeGenerator::new(b - d2_shift, i);
             match sec_e2.classify(g) {
                 BZE::Z => println!("Z  x_{g}"),
                 BZE::B => println!("B  x_{g}"),
