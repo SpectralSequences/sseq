@@ -17,9 +17,9 @@ use std::sync::{Arc, Mutex};
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
 use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
-use sseq::coordinates::{Bidegree, BidegreeElement, MultiDegree, MultiDegreeElement};
-
-use sseq::coordinates::BidegreeGenerator;
+use sseq::coordinates::{
+    Bidegree, BidegreeElement, BidegreeGenerator, MultiDegree, MultiDegreeElement,
+};
 
 use super::ExtAlgebra;
 use crate::{
@@ -641,8 +641,8 @@ mod tests {
 
                 assert_eq!(
                     e_dim, b_dim,
-                    "dim(E at ({n},{s})) should equal dim(B at ({tn},{ts})): \
-                     d2: E → B is an isomorphism"
+                    "dim(E at ({n},{s})) should equal dim(B at ({tn},{ts})): d2: E → B is an \
+                     isomorphism"
                 );
             }
 
