@@ -88,7 +88,7 @@ where
         let dim = e2.dimension(b);
         for i in 0..dim {
             let g = BidegreeGenerator::new(b, i);
-            match sec_e2.classify(g) {
+            match sec_e2.adams_classify(g) {
                 BZE::Z => println!("Z  x_{g}"),
                 BZE::B => println!("B  x_{g}"),
                 BZE::E => {
@@ -147,31 +147,14 @@ where
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
     for b in e2.resolution().iter_stem() {
-        let [n, s] = b.coords();
-        let dim = e2.dimension(b);
-        if dim == 0 {
+        if e2.dimension(b) == 0 {
             continue;
         }
-
-        for i in 0..dim {
-            let g = BidegreeGenerator::new(b, i);
-            let bze = sec_e2.classify(g);
-
-            // bock=0: B and Z survive (d2-cycles).
-            match bze {
-                BZE::B | BZE::Z => {
-                    let label = if bze == BZE::B { "B" } else { "Z" };
-                    println!("{label}  x_{g}^0  ({n}, {s}, 0)");
-                }
-                BZE::E => {}
-            }
-
-            // bock=1: Z and E survive (cokernel of d2).
-            match bze {
-                BZE::Z => println!("Z  x_{g}^1  ({n}, {s}, 1)"),
-                BZE::E => println!("E  x_{g}^1  ({n}, {s}, 1)"),
-                BZE::B => {}
-            }
+        for g in sec_e2.pi_basis(b) {
+            let [n, s] = g.bidegree().coords();
+            let bock = g.weight().as_i32();
+            let x = BidegreeGenerator::new(g.bidegree(), g.idx());
+            println!("{}  x_{x}^{bock}  ({n}, {s}, {bock})", g.bze());
         }
     }
 }
@@ -179,8 +162,8 @@ where
 /// Table IV: Products in π(S/λ²) with commutators.
 ///
 /// For each pair (x, y) where x ∈ Z (surviving cycle) and y runs over E3-surviving classes of
-/// the unit at each bidegree, computes the secondary product x · y. The secondary product lives
-/// in Mod_{Cλ²}: it has an Ext part and a λ part.
+/// the unit at each bidegree, computes the secondary product x · y and projects to π(S/λ²) via
+/// `to_pi`. The result is expressed in the E3 subquotient at each weight.
 ///
 /// The commutator [x, y] = x·y − y·x equals 2·(x·y) when both stems are odd (Proposition 6.4),
 /// and vanishes when at least one stem is even.
@@ -189,8 +172,6 @@ where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
-    // Secondary products need s ≥ 1 for the multiplier (the secondary lift's shift is s+1,
-    // and secondary homotopies start at s=2).
     let z_gens: Vec<BidegreeGenerator> = e2
         .resolution()
         .iter_nonzero_stem()
@@ -198,7 +179,7 @@ where
         .flat_map(|b| {
             let dim = e2.dimension(b);
             (0..dim)
-                .filter(move |&i| sec_e2.classify(BidegreeGenerator::new(b, i)) == BZE::Z)
+                .filter(move |&i| sec_e2.adams_classify(BidegreeGenerator::new(b, i)) == BZE::Z)
                 .map(move |i| BidegreeGenerator::new(b, i))
         })
         .collect();
@@ -227,12 +208,11 @@ where
                 continue;
             }
 
-            // Proposition 6.4: [x, y] = x·y − y·x = 2·(x·y) when both stems are odd,
-            // and [x, y] = 0 when at least one stem is even.
             let both_odd = shift.n() % 2 != 0 && b.n() % 2 != 0;
 
             for prod in sec_e2.secondary_multiply_into(&x, b) {
-                if prod.value.is_zero() {
+                let (pi_ext, pi_lambda) = sec_e2.to_pi(&prod.value);
+                if pi_ext.is_zero() && pi_lambda.is_zero() {
                     continue;
                 }
 
@@ -241,10 +221,18 @@ where
                 } else {
                     "[x,y] = 0"
                 };
+
+                let mut parts = Vec::new();
+                if !pi_ext.is_zero() {
+                    parts.push(format!("[{pi_ext}]"));
+                }
+                if !pi_lambda.is_zero() {
+                    parts.push(format!("{pi_lambda}"));
+                }
+                let value_str = parts.join(" + ");
                 println!(
-                    "x_{x_gen} · [{src}] = {value}  {comm}",
+                    "x_{x_gen} · [{src}] = {value_str}  {comm}",
                     src = prod.source.to_basis_string(),
-                    value = prod.value,
                 );
             }
         }
