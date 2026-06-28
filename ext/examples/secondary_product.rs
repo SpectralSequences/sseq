@@ -112,19 +112,14 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        // Secondary products with surviving classes (B and Z).
+        // Secondary products with surviving classes (B and Z). The source is a whole class, so we
+        // classify it by membership in the boundary subspace rather than by its first basis index:
+        // boundaries live in `page.zeros()`, every other surviving class is a non-boundary cycle.
         for prod in sec_e2.secondary_multiply_into(&x, b) {
-            let bze = prod
-                .source
-                .vec()
-                .iter_nonzero()
-                .next()
-                .map(|(i, _)| BZE::from_page_data(&page, i))
-                .unwrap_or(BZE::Z);
-            let label = match bze {
-                BZE::B => "B",
-                BZE::Z => "Z",
-                BZE::E => "E",
+            let label = if page.zeros().contains(prod.source.vec()) {
+                "B"
+            } else {
+                "Z"
             };
             println!(
                 "{label}  {disp} [{basis}] = {value}",
