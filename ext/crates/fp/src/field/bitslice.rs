@@ -40,7 +40,9 @@ fn p_masks(p: u32, k: usize) -> [Limb; BITS_PER_LIMB + 1] {
 /// The full-width lane mask for bit `j` of `p`: all-ones if set, zero otherwise.
 #[inline(always)]
 fn pmask(p: u32, j: usize) -> Limb {
-    0u64.wrapping_sub(((p >> j) & 1) as Limb)
+    // Widen bit `j` of `p` to the limb width, then broadcast it: `1 -> !0`, `0 -> 0` via
+    // two's-complement negation.
+    Limb::from((p >> j) & 1).wrapping_neg()
 }
 
 /// `dst += c * src` (mod p) over every group, where `dst` and `src` hold the same number of
