@@ -284,3 +284,307 @@ impl<
         &self.save_dir
     }
 }
+
+// The secondary lift of a `ChainHomotopy` lives here, beside the primary object it lifts, rather
+// than in the monolithic `secondary` module. This keeps `secondary.rs` to the shared lift machinery
+// and pairs each variant with its primary for locality. The module is `pub(crate)`;
+// `SecondaryChainHomotopy` is re-exported from `crate::secondary` so the public API path is
+// unchanged.
+pub(crate) mod secondary {
+    use std::sync::Arc;
+
+    use algebra::{
+        module::{Module, homomorphism::ModuleHomomorphism},
+        pair_algebra::PairAlgebra,
+    };
+    use dashmap::DashMap;
+    use fp::vector::FpVector;
+    use once::OnceBiVec;
+    use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+
+    use super::ChainHomotopy;
+    use crate::{
+        chain_complex::FreeChainComplex,
+        resolution_homomorphism::ResolutionHomomorphism,
+        save::{SaveDirectory, SaveKind},
+        secondary::{
+            CompositeData, LAMBDA_BIDEGREE, SecondaryHomotopy, SecondaryLift,
+            SecondaryResolutionHomomorphism,
+        },
+    };
+
+    #[doc(hidden)]
+    pub struct SecondaryChainHomotopy<
+        S: FreeChainComplex,
+        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    >
+    where
+        S::Algebra: PairAlgebra,
+    {
+        underlying: Arc<ChainHomotopy<S, T, U>>,
+        left: Arc<SecondaryResolutionHomomorphism<S, T>>,
+        right: Arc<SecondaryResolutionHomomorphism<T, U>>,
+        left_lambda: Option<Arc<ResolutionHomomorphism<S, T>>>,
+        right_lambda: Option<Arc<ResolutionHomomorphism<T, U>>>,
+        homotopies: OnceBiVec<SecondaryHomotopy<S::Algebra>>,
+        intermediates: DashMap<BidegreeGenerator, FpVector>,
+    }
+
+    impl<
+        S: FreeChainComplex,
+        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    > SecondaryLift for SecondaryChainHomotopy<S, T, U>
+    where
+        S::Algebra: PairAlgebra,
+    {
+        type Algebra = S::Algebra;
+        type Source = S;
+        type Target = U;
+        type Underlying = ChainHomotopy<S, T, U>;
+
+        const HIT_GENERATOR: bool = true;
+
+        fn underlying(&self) -> Arc<Self::Underlying> {
+            Arc::clone(&self.underlying)
+        }
+
+        fn algebra(&self) -> Arc<Self::Algebra> {
+            self.left.algebra()
+        }
+
+        fn source(&self) -> Arc<Self::Source> {
+            self.left.source()
+        }
+
+        fn target(&self) -> Arc<Self::Target> {
+            self.right.target()
+        }
+
+        fn shift(&self) -> Bidegree {
+            Bidegree::s_t(
+                self.underlying.shift().s(),
+                self.left.shift().t() + self.right.shift().t(),
+            )
+        }
+
+        fn max(&self) -> BidegreeRange<'_, Self> {
+            BidegreeRange::new(
+                self,
+                std::cmp::min(
+                    self.right.secondary_target().max().s() + self.shift().s() - 1,
+                    self.left.secondary_source().max().s(),
+                ),
+                &|selff, s| {
+                    std::cmp::min(
+                        selff.left.secondary_source().max().t(s),
+                        if s == selff.shift().s() {
+                            i32::MAX
+                        } else {
+                            selff
+                                .right
+                                .secondary_target()
+                                .max()
+                                .t(s - selff.shift().s() + 1)
+                                + selff.shift().t()
+                        },
+                    )
+                },
+            )
+        }
+
+        fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<S::Algebra>> {
+            &self.homotopies
+        }
+
+        fn intermediates(&self) -> &DashMap<BidegreeGenerator, FpVector> {
+            &self.intermediates
+        }
+
+        fn save_dir(&self) -> &SaveDirectory {
+            self.underlying.save_dir()
+        }
+
+        fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
+            let p = self.prime();
+            let neg_1 = p - 1;
+            let shifted_b = g.degree() - self.shift();
+
+            let target = self.target().module(shifted_b.s() - 1);
+
+            let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
+
+            self.homotopies[g.s() - 1].act(
+                result.as_slice_mut(),
+                1,
+                g.t(),
+                self.source()
+                    .differential(g.s())
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+                false,
+            );
+
+            self.right.secondary_target().homotopies()[shifted_b.s() + 1].act(
+                result.as_slice_mut(),
+                1,
+                shifted_b.t(),
+                self.underlying
+                    .homotopy(g.s())
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+                true,
+            );
+
+            self.underlying.homotopy(g.s() - 2).apply(
+                result.as_slice_mut(),
+                neg_1,
+                g.t() - 1,
+                self.left.secondary_source().homotopies()[g.s()]
+                    .homotopies
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+            );
+
+            let left_shifted_b = g.degree() - self.left.underlying().shift;
+            self.right.homotopies()[left_shifted_b.s()].act(
+                result.as_slice_mut(),
+                neg_1,
+                left_shifted_b.t(),
+                self.left
+                    .underlying()
+                    .get_map(g.s())
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+                true,
+            );
+
+            // This is inefficient if both right_lambda and right are non-zero, but this is not needed atm
+            // and the change would not be user-facing.
+            if let Some(right_lambda) = &self.right_lambda {
+                right_lambda.get_map(left_shifted_b.s()).apply(
+                    result.as_slice_mut(),
+                    neg_1,
+                    left_shifted_b.t(),
+                    self.left
+                        .underlying()
+                        .get_map(g.s())
+                        .output(g.t(), g.idx())
+                        .as_slice(),
+                );
+            }
+
+            self.right
+                .underlying()
+                .get_map(left_shifted_b.s() - 1)
+                .apply(
+                    result.as_slice_mut(),
+                    neg_1,
+                    left_shifted_b.t() - 1,
+                    self.left.homotopies()[g.s()]
+                        .homotopies
+                        .output(g.t(), g.idx())
+                        .as_slice(),
+                );
+
+            if let Some(left_lambda) = &self.left_lambda {
+                self.right
+                    .underlying()
+                    .get_map(left_shifted_b.s() - 1)
+                    .apply(
+                        result.as_slice_mut(),
+                        neg_1,
+                        left_shifted_b.t() - 1,
+                        left_lambda.get_map(g.s()).output(g.t(), g.idx()).as_slice(),
+                    );
+            }
+            result
+        }
+
+        fn composite(&self, s: i32) -> CompositeData<S::Algebra> {
+            let p = self.prime();
+            // This is -1 mod p^2
+            let neg_1 = p * p - 1;
+
+            vec![
+                (
+                    neg_1,
+                    self.underlying.left().get_map(s),
+                    self.underlying
+                        .right()
+                        .get_map(s - self.left.underlying().shift.s()),
+                ),
+                (
+                    1,
+                    self.underlying.homotopy(s),
+                    self.target().differential(s - self.shift().s() + 1),
+                ),
+                (
+                    1,
+                    self.source().differential(s),
+                    self.underlying.homotopy(s - 1),
+                ),
+            ]
+        }
+    }
+
+    impl<
+        S: FreeChainComplex,
+        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    > SecondaryChainHomotopy<S, T, U>
+    where
+        S::Algebra: PairAlgebra,
+    {
+        pub fn new(
+            left: Arc<SecondaryResolutionHomomorphism<S, T>>,
+            right: Arc<SecondaryResolutionHomomorphism<T, U>>,
+            left_lambda: Option<Arc<ResolutionHomomorphism<S, T>>>,
+            right_lambda: Option<Arc<ResolutionHomomorphism<T, U>>>,
+            underlying: Arc<ChainHomotopy<S, T, U>>,
+        ) -> Self {
+            assert!(Arc::ptr_eq(&underlying.left(), &left.underlying()));
+            assert!(Arc::ptr_eq(&underlying.right(), &right.underlying()));
+
+            if let Some(left_lambda) = &left_lambda {
+                assert!(Arc::ptr_eq(&left_lambda.source, &underlying.left().source));
+                assert!(Arc::ptr_eq(&left_lambda.target, &underlying.left().target));
+
+                assert_eq!(left_lambda.shift, underlying.left().shift + LAMBDA_BIDEGREE);
+            }
+
+            if let Some(right_lambda) = &right_lambda {
+                assert!(Arc::ptr_eq(
+                    &right_lambda.source,
+                    &underlying.right().source
+                ));
+                assert!(Arc::ptr_eq(
+                    &right_lambda.target,
+                    &underlying.right().target
+                ));
+
+                assert_eq!(
+                    right_lambda.shift,
+                    underlying.right().shift + LAMBDA_BIDEGREE
+                );
+            }
+
+            if let Some(p) = underlying.save_dir().write() {
+                for subdir in SaveKind::secondary_data() {
+                    subdir.create_dir(p).unwrap();
+                }
+            }
+
+            Self {
+                left,
+                right,
+                left_lambda,
+                right_lambda,
+                homotopies: OnceBiVec::new(underlying.shift().s()),
+                underlying,
+                intermediates: DashMap::new(),
+            }
+        }
+    }
+}
