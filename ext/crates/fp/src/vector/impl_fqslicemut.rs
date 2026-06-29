@@ -294,6 +294,18 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         if shift == 0 {
             return;
         }
+        if self.fq().is_bitsliced() {
+            // The packed limb-move trick assumes an entry is a contiguous bitfield, which the
+            // bit-sliced layout breaks. Move entries down one at a time via gather/scatter:
+            // reading `i + shift` strictly ahead of writing `i` keeps it correct in place.
+            let new_len = self.as_slice().len() - shift;
+            for i in 0..new_len {
+                let v = self.as_slice().entry(i + shift);
+                self.set_entry(i, v);
+            }
+            *self.end_mut() -= shift;
+            return;
+        }
         if self.start() == 0 && shift.is_multiple_of(self.fq().entries_per_limb()) {
             let limb_shift = shift / self.fq().entries_per_limb();
             *self.end_mut() -= shift;
