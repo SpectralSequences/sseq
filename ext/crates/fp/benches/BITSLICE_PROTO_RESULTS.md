@@ -47,6 +47,28 @@ warm-up 0.5s, measurement 2s). `add` is `self += 2*other`; `scale` is `self *= 2
    (3, 5, 7), and the generic kernel for the large primes where packed reduction is the
    bottleneck.
 
+## Phase 0b — tightened generic kernel
+
+After replacing the prototype's fixed `[Limb; 24]` scratch + large by-value returns with
+`k`-sized reusable scratch written directly into the destination planes (and replacing
+double-and-add's doubling with a plane shift), the generic kernel improved and the
+crossover where it beats packed moved down to **p = 7** (numbers from one run, length 100k):
+
+| op    | prime | packed | generic before | generic after | after vs packed |
+|------:|------:|-------:|---------------:|--------------:|:----------------|
+| add   | 3     | 11.2 µs |  93.1 µs |  61.0 µs | 5.5× slower (use F3 circuit instead) |
+| add   | 7     | 95.4 µs | 102.4 µs |  73.4 µs | **1.30× faster** |
+| add   | 251   |  471 µs | 145.6 µs | 137.2 µs | **3.44× faster** |
+| scale | 7     | 73.8 µs |       —  |  52.9 µs | **1.40× faster** |
+| scale | 251   |  444 µs |       —  |  96.3 µs | **4.61× faster** |
+
+(The F3 specialized circuit is unchanged: add ≈ 3.8 µs / **2.9× faster** than packed,
+scale ≈ 1.8 µs / **1.6× faster**, at 100k.)
+
+So the tightened generic kernel is now faster than packed for **all `p ≥ 7`**; only the
+SWAR-tuned `p ∈ {3, 5}` still need specialized circuits to win — and F3 confirms that
+specialization does win.
+
 ## Implications for the next phases
 
 - **Specialized circuits are needed for `p = 3, 5, 7`** (not just F3) to beat the tuned

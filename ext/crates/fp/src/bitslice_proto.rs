@@ -136,24 +136,21 @@ impl BitSlicedVec {
         }
         let k = self.k;
         let p_masks = self.p_masks();
+        // Reusable scratch, sized exactly to the number of planes (no fixed MAX_K arrays).
+        let mut s = vec![0; k + 1];
+        let mut d = vec![0; k + 1];
+        let mut acc = vec![0; k];
+        let mut temp = vec![0; k];
         for g in 0..self.num_groups() {
             let base = g * k;
-            // Gather operand planes.
-            let mut a = [0; MAX_K];
-            let mut b = [0; MAX_K];
-            for j in 0..k {
-                a[j] = self.limbs[base + j];
-                b[j] = other.limbs[base + j];
-            }
-            // cb = c * b (mod p), then a += cb (mod p).
-            let cb = if c == 1 {
-                b
+            let b = &other.limbs[base..base + k];
+            if c == 1 {
+                // dst += b
+                add_mod_into(&mut self.limbs[base..base + k], b, &p_masks, &mut s, &mut d);
             } else {
-                scalar_mul(&b, c, k, &p_masks)
-            };
-            let sum = add_mod(&a, &cb, k, &p_masks);
-            for j in 0..k {
-                self.limbs[base + j] = sum[j];
+                // acc = c * b, then dst += acc
+                scalar_mul_into(&mut acc, b, c, &p_masks, &mut temp, &mut s, &mut d);
+                add_mod_into(&mut self.limbs[base..base + k], &acc, &p_masks, &mut s, &mut d);
             }
         }
     }
@@ -171,16 +168,22 @@ impl BitSlicedVec {
             return;
         }
         let p_masks = self.p_masks();
+        let mut s = vec![0; k + 1];
+        let mut d = vec![0; k + 1];
+        let mut acc = vec![0; k];
+        let mut temp = vec![0; k];
         for g in 0..self.num_groups() {
             let base = g * k;
-            let mut a = [0; MAX_K];
-            for j in 0..k {
-                a[j] = self.limbs[base + j];
-            }
-            let scaled = scalar_mul(&a, c, k, &p_masks);
-            for j in 0..k {
-                self.limbs[base + j] = scaled[j];
-            }
+            scalar_mul_into(
+                &mut acc,
+                &self.limbs[base..base + k],
+                c,
+                &p_masks,
+                &mut temp,
+                &mut s,
+                &mut d,
+            );
+            self.limbs[base..base + k].copy_from_slice(&acc);
         }
     }
 
@@ -226,17 +229,19 @@ impl BitSlicedVec {
     }
 }
 
-/// Add two reduced bit-sliced values (each `k` planes, lanes independent) mod `p`.
+/// `dst += b` (mod p), where `dst` (the augend) and `b` are each `k = dst.len()` reduced
+/// planes with independent lanes. `s`/`d` are reusable `(k+1)`-limb scratch buffers.
 ///
 /// Ripple-carry adder over the `k` planes gives a `(k+1)`-bit sum in `[0, 2p)`, then a
 /// single conditional subtraction of `p` brings each lane back into `[0, p)`.
 #[inline]
-fn add_mod(a: &[Limb], b: &[Limb], k: usize, p_masks: &[Limb; MAX_K + 1]) -> [Limb; MAX_K] {
-    // s = a + b as a (k+1)-bit number.
-    let mut s = [0; MAX_K + 1];
+fn add_mod_into(dst: &mut [Limb], b: &[Limb], p_masks: &[Limb], s: &mut [Limb], d: &mut [Limb]) {
+    let k = dst.len();
+    // s = dst + b as a (k+1)-bit number. `dst` is only written in the final select pass,
+    // so passing `dst` as `b` (in-place doubling) is sound — handled by `double_mod_into`.
     let mut carry: Limb = 0;
     for j in 0..k {
-        let aj = a[j];
+        let aj = dst[j];
         let bj = b[j];
         let axb = aj ^ bj;
         s[j] = axb ^ carry;
@@ -244,8 +249,27 @@ fn add_mod(a: &[Limb], b: &[Limb], k: usize, p_masks: &[Limb; MAX_K + 1]) -> [Li
     }
     s[k] = carry;
 
+    conditional_subtract(dst, p_masks, s, d);
+}
+
+/// `dst = 2 * dst` (mod p). Doubling is a one-position plane shift (`s = dst << 1`) followed
+/// by the conditional subtraction of `p`.
+#[inline]
+fn double_mod_into(dst: &mut [Limb], p_masks: &[Limb], s: &mut [Limb], d: &mut [Limb]) {
+    let k = dst.len();
+    s[0] = 0;
+    for j in 1..=k {
+        s[j] = dst[j - 1];
+    }
+    conditional_subtract(dst, p_masks, s, d);
+}
+
+/// Given a `(k+1)`-bit unreduced sum `s` in `[0, 2p)`, write `s mod p` into the `k` planes
+/// of `dst`. `d` is `(k+1)`-limb scratch for the trial difference `s - p`.
+#[inline]
+fn conditional_subtract(dst: &mut [Limb], p_masks: &[Limb], s: &[Limb], d: &mut [Limb]) {
+    let k = dst.len();
     // d = s - p over k+1 bits; the borrow-out marks lanes where s < p.
-    let mut d = [0; MAX_K + 1];
     let mut borrow: Limb = 0;
     for j in 0..=k {
         let sj = s[j];
@@ -255,32 +279,37 @@ fn add_mod(a: &[Limb], b: &[Limb], k: usize, p_masks: &[Limb; MAX_K + 1]) -> [Li
         borrow = (!sj & pj) | (borrow & !sxp);
     }
     let ge = !borrow; // lanes where s >= p
-
     // result = ge ? d : s, taking the low k planes (result < p < 2^k).
-    let mut out = [0; MAX_K];
     for j in 0..k {
-        out[j] = (d[j] & ge) | (s[j] & !ge);
+        dst[j] = (d[j] & ge) | (s[j] & !ge);
     }
-    out
 }
 
-/// `c * b` (mod p) for a constant scalar `c`, via double-and-add with modular reduction.
+/// `acc = c * b` (mod p) for a constant scalar `c`, via double-and-add with modular
+/// reduction. `temp`/`s`/`d` are reusable scratch (`temp` is `k` limbs, `s`/`d` are `k+1`).
 #[inline]
-fn scalar_mul(b: &[Limb], c: u32, k: usize, p_masks: &[Limb; MAX_K + 1]) -> [Limb; MAX_K] {
-    let mut result = [0; MAX_K];
-    let mut temp = [0; MAX_K];
-    temp[..k].copy_from_slice(&b[..k]);
+fn scalar_mul_into(
+    acc: &mut [Limb],
+    b: &[Limb],
+    c: u32,
+    p_masks: &[Limb],
+    temp: &mut [Limb],
+    s: &mut [Limb],
+    d: &mut [Limb],
+) {
+    temp.copy_from_slice(b);
+    acc.fill(0);
     let mut cc = c;
-    while cc > 0 {
+    loop {
         if cc & 1 == 1 {
-            result = add_mod(&result, &temp, k, p_masks);
+            add_mod_into(acc, temp, p_masks, s, d);
         }
         cc >>= 1;
-        if cc > 0 {
-            temp = add_mod(&temp, &temp, k, p_masks);
+        if cc == 0 {
+            break;
         }
+        double_mod_into(temp, p_masks, s, d);
     }
-    result
 }
 
 /// F3 addition circuit on the `(lo, hi)` plane encoding (`value = 2*hi + lo`).
