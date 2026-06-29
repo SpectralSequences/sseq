@@ -160,27 +160,49 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             return;
         }
         let epg = fq.entries_per_group();
+        let s_start = self.start();
+        let o_start = other.start();
         let len = self.as_slice().len();
+        if len == 0 {
+            return;
+        }
 
-        if self.start() % epg == 0 && other.start() % epg == 0 {
-            let k = fq.limbs_per_group();
-            let full_groups = len / epg;
-            if full_groups > 0 {
-                let nlimbs = full_groups * k;
-                let sbase = (self.start() / epg) * k;
-                let obase = (other.start() / epg) * k;
-                let src = &other.limbs()[obase..obase + nlimbs];
-                fq.add_groups(&mut self.limbs_mut()[sbase..sbase + nlimbs], src, c.clone());
-            }
-            // Trailing entries that don't fill a whole group.
-            for i in (full_groups * epg)..len {
-                let v = other.entry(i);
-                if v != fq.zero() {
-                    self.add_basis_element(i, v * c.clone());
-                }
-            }
-        } else {
+        // The fast plane kernel needs the two slices to share a lane offset within their
+        // groups (so group `g` of one lines up with group `g` of the other). This holds for
+        // whole vectors and for matrix-row adds that start at the same pivot column. The
+        // partial leading/trailing groups (and any mismatched-offset slice) are added
+        // entry-wise.
+        let aligned = s_start % epg == o_start % epg;
+        let s_end = s_start + len;
+        let first_full = s_start.div_ceil(epg) * epg;
+        let last_full = (s_end / epg) * epg;
+
+        if !aligned || first_full >= last_full {
             for (i, v) in other.iter_nonzero() {
+                self.add_basis_element(i, v * c.clone());
+            }
+            return;
+        }
+
+        let k = fq.limbs_per_group();
+        // Leading partial group.
+        for i in 0..(first_full - s_start) {
+            let v = other.entry(i);
+            if v != fq.zero() {
+                self.add_basis_element(i, v * c.clone());
+            }
+        }
+        // Interior full groups, via the plane kernel.
+        let num_full = (last_full - first_full) / epg;
+        let s_limb = (first_full / epg) * k;
+        let o_limb = ((o_start + (first_full - s_start)) / epg) * k;
+        let nlimbs = num_full * k;
+        let src = &other.limbs()[o_limb..o_limb + nlimbs];
+        fq.add_groups(&mut self.limbs_mut()[s_limb..s_limb + nlimbs], src, c.clone());
+        // Trailing partial group.
+        for i in (last_full - s_start)..len {
+            let v = other.entry(i);
+            if v != fq.zero() {
                 self.add_basis_element(i, v * c.clone());
             }
         }
