@@ -128,36 +128,33 @@ impl BitSlicedVec {
     }
 
     /// `self += c * other` (mod p), generic kernel for any prime.
+    ///
+    /// Dispatches on the number of planes `k` to a const-generic implementation, so the
+    /// per-group arithmetic uses exactly-`K`-sized stack arrays and fully-unrolled loops
+    /// tuned to the prime, rather than runtime-bounded loops over heap scratch. `k` only
+    /// takes a handful of values (`k = ceil(log2 p)`), so the dispatch covers them directly
+    /// and falls back to a heap path only for very large primes.
     pub fn add_generic(&mut self, other: &Self, c: u32) {
         assert_eq!(self.p, other.p);
         assert_eq!(self.len, other.len);
         if c == 0 {
             return;
         }
-        let k = self.k;
         let p_masks = self.p_masks();
-        // Reusable scratch, sized exactly to the number of planes (no fixed MAX_K arrays).
-        let mut s = vec![0; k + 1];
-        let mut d = vec![0; k + 1];
-        let mut acc = vec![0; k];
-        let mut temp = vec![0; k];
-        for g in 0..self.num_groups() {
-            let base = g * k;
-            let b = &other.limbs[base..base + k];
-            if c == 1 {
-                // dst += b
-                add_mod_into(&mut self.limbs[base..base + k], b, &p_masks, &mut s, &mut d);
-            } else {
-                // acc = c * b, then dst += acc
-                scalar_mul_into(&mut acc, b, c, &p_masks, &mut temp, &mut s, &mut d);
-                add_mod_into(&mut self.limbs[base..base + k], &acc, &p_masks, &mut s, &mut d);
-            }
+        macro_rules! dispatch {
+            ($($k:literal),*) => {
+                match self.k {
+                    $($k => add_groups_k::<$k>(&mut self.limbs, &other.limbs, c, &p_masks),)*
+                    _ => self.add_generic_dyn(other, c, &p_masks),
+                }
+            };
         }
+        dispatch!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
     }
 
-    /// `self *= c` (mod p), generic kernel.
+    /// `self *= c` (mod p), generic kernel. See [`add_generic`](Self::add_generic) for the
+    /// const-generic dispatch rationale.
     pub fn scale_generic(&mut self, c: u32) {
-        let k = self.k;
         if c == 1 {
             return;
         }
@@ -168,6 +165,39 @@ impl BitSlicedVec {
             return;
         }
         let p_masks = self.p_masks();
+        macro_rules! dispatch {
+            ($($k:literal),*) => {
+                match self.k {
+                    $($k => scale_groups_k::<$k>(&mut self.limbs, c, &p_masks),)*
+                    _ => self.scale_generic_dyn(c, &p_masks),
+                }
+            };
+        }
+        dispatch!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    }
+
+    /// Heap-scratch fallback for `add_generic` when `k` exceeds the const-dispatch range.
+    fn add_generic_dyn(&mut self, other: &Self, c: u32, p_masks: &[Limb]) {
+        let k = self.k;
+        let mut s = vec![0; k + 1];
+        let mut d = vec![0; k + 1];
+        let mut acc = vec![0; k];
+        let mut temp = vec![0; k];
+        for g in 0..self.num_groups() {
+            let base = g * k;
+            let b = &other.limbs[base..base + k];
+            if c == 1 {
+                add_mod_into(&mut self.limbs[base..base + k], b, p_masks, &mut s, &mut d);
+            } else {
+                scalar_mul_into(&mut acc, b, c, p_masks, &mut temp, &mut s, &mut d);
+                add_mod_into(&mut self.limbs[base..base + k], &acc, p_masks, &mut s, &mut d);
+            }
+        }
+    }
+
+    /// Heap-scratch fallback for `scale_generic` when `k` exceeds the const-dispatch range.
+    fn scale_generic_dyn(&mut self, c: u32, p_masks: &[Limb]) {
+        let k = self.k;
         let mut s = vec![0; k + 1];
         let mut d = vec![0; k + 1];
         let mut acc = vec![0; k];
@@ -178,7 +208,7 @@ impl BitSlicedVec {
                 &mut acc,
                 &self.limbs[base..base + k],
                 c,
-                &p_masks,
+                p_masks,
                 &mut temp,
                 &mut s,
                 &mut d,
@@ -309,6 +339,105 @@ fn scalar_mul_into(
             break;
         }
         double_mod_into(temp, p_masks, s, d);
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// Const-generic kernels: `K` planes known at compile time, so every array is exactly sized
+// and every loop is fully unrolled. Selected by a runtime dispatch on `k = ceil(log2 p)`.
+// ---------------------------------------------------------------------------------------
+
+/// Reduce a `(K+1)`-bit unreduced sum (`s` low planes + `s_top`) in `[0, 2p)` to `s mod p`.
+#[inline(always)]
+fn cond_sub_k<const K: usize>(s: &[Limb; K], s_top: Limb, p_masks: &[Limb]) -> [Limb; K] {
+    let mut d = [0 as Limb; K];
+    let mut borrow: Limb = 0;
+    for j in 0..K {
+        let sj = s[j];
+        let pj = p_masks[j];
+        let sxp = sj ^ pj;
+        d[j] = sxp ^ borrow;
+        borrow = (!sj & pj) | (borrow & !sxp);
+    }
+    // Top bit only affects the borrow-out (the result fits in K planes since result < p).
+    let pj = p_masks[K];
+    let sxp = s_top ^ pj;
+    borrow = (!s_top & pj) | (borrow & !sxp);
+    let ge = !borrow;
+    let mut out = [0 as Limb; K];
+    for j in 0..K {
+        out[j] = (d[j] & ge) | (s[j] & !ge);
+    }
+    out
+}
+
+/// `(a + b) mod p` over `K` planes.
+#[inline(always)]
+fn add_mod_k<const K: usize>(a: &[Limb; K], b: &[Limb; K], p_masks: &[Limb]) -> [Limb; K] {
+    let mut s = [0 as Limb; K];
+    let mut carry: Limb = 0;
+    for j in 0..K {
+        let aj = a[j];
+        let bj = b[j];
+        let axb = aj ^ bj;
+        s[j] = axb ^ carry;
+        carry = (aj & bj) | (carry & axb);
+    }
+    cond_sub_k::<K>(&s, carry, p_masks)
+}
+
+/// `(2 * a) mod p` over `K` planes (doubling is a one-position plane shift).
+#[inline(always)]
+fn double_mod_k<const K: usize>(a: &[Limb; K], p_masks: &[Limb]) -> [Limb; K] {
+    let mut s = [0 as Limb; K];
+    for j in 1..K {
+        s[j] = a[j - 1];
+    }
+    let s_top = a[K - 1];
+    cond_sub_k::<K>(&s, s_top, p_masks)
+}
+
+/// `(c * b) mod p` over `K` planes, via double-and-add.
+#[inline(always)]
+fn scalar_mul_k<const K: usize>(b: &[Limb; K], c: u32, p_masks: &[Limb]) -> [Limb; K] {
+    let mut result = [0 as Limb; K];
+    let mut temp = *b;
+    let mut cc = c;
+    loop {
+        if cc & 1 == 1 {
+            result = add_mod_k::<K>(&result, &temp, p_masks);
+        }
+        cc >>= 1;
+        if cc == 0 {
+            break;
+        }
+        temp = double_mod_k::<K>(&temp, p_masks);
+    }
+    result
+}
+
+/// `dst += c * src` (mod p) over all groups, with `K` planes per group.
+#[inline]
+fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p_masks: &[Limb]) {
+    for (dg, sg) in dst.chunks_exact_mut(K).zip(src.chunks_exact(K)) {
+        let mut a = [0 as Limb; K];
+        let mut b = [0 as Limb; K];
+        a.copy_from_slice(dg);
+        b.copy_from_slice(sg);
+        let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p_masks) };
+        let sum = add_mod_k::<K>(&a, &addend, p_masks);
+        dg.copy_from_slice(&sum);
+    }
+}
+
+/// `dst *= c` (mod p) over all groups, with `K` planes per group.
+#[inline]
+fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, p_masks: &[Limb]) {
+    for dg in dst.chunks_exact_mut(K) {
+        let mut a = [0 as Limb; K];
+        a.copy_from_slice(dg);
+        let scaled = scalar_mul_k::<K>(&a, c, p_masks);
+        dg.copy_from_slice(&scaled);
     }
 }
 
