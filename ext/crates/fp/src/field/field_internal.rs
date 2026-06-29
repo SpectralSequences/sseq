@@ -293,7 +293,13 @@ pub trait FieldInternal:
     /// Return the `Range<usize>` of limbs spanning entries `start..end`: from the first limb of
     /// the group containing `start` to the last limb of the group containing `end - 1`.
     fn range(self, start: usize, end: usize) -> Range<usize> {
+        debug_assert!(start <= end);
         let min = self.group_of(start) * self.limbs_per_group();
+        if start == end {
+            // An empty entry range maps to an empty limb range; otherwise callers that guard
+            // on `limb_range.is_empty()` would touch the (unrelated) containing group.
+            return min..min;
+        }
         let max = self.number(end);
         min..max
     }

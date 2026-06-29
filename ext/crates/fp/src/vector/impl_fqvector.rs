@@ -249,6 +249,14 @@ impl<F: Field> FqVector<F> {
     pub fn add_truncate(&mut self, other: &Self, c: FieldElement<F>) -> Option<()> {
         assert_eq!(self.fq(), other.fq());
         let fq = self.fq();
+        if fq.is_bitsliced() {
+            // `truncate` guards against an entry's packed sum carrying into the next entry's
+            // bits. The bit-sliced layout reduces each lane independently (every plane is a
+            // separate limb), so no such carry can occur and the addition never fails. The
+            // packed `fma_limb`/`truncate` loop below would instead corrupt the bit-planes.
+            self.add(other, c);
+            return Some(());
+        }
         for (left, right) in self.limbs_mut().iter_mut().zip_eq(other.limbs()) {
             *left = fq.fma_limb(*left, *right, c.clone());
             *left = fq.truncate(*left)?;

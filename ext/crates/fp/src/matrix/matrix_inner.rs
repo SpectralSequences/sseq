@@ -322,6 +322,10 @@ impl Matrix {
             return Self::new(p, 0, 0);
         }
         let columns = input[0].len();
+        assert!(
+            input.iter().all(|row| row.len() == columns),
+            "all rows must have the same length"
+        );
         let stride = fp.number(columns);
         let physical_rows = get_physical_rows(p, rows);
 
