@@ -137,19 +137,52 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
                 };
             }
         } else if self.fq().is_bitsliced() {
-            // Bit-sliced slices: add entry-wise. The bit-shift realignment used by the packed
-            // paths does not apply (an entry's bits are spread across planes).
-            if c != self.fq().zero() {
-                for (i, v) in other.iter_nonzero() {
-                    self.add_basis_element(i, v * c.clone());
-                }
-            }
+            self.add_bitsliced(other, c);
         } else {
             match self.as_slice().offset().cmp(&other.offset()) {
                 Ordering::Equal => self.add_shift_none(other, c),
                 Ordering::Less => self.add_shift_left(other, c),
                 Ordering::Greater => self.add_shift_right(other, c),
             };
+        }
+    }
+
+    /// Add `c * other` to `self` in the bit-sliced layout. When both slices begin at a group
+    /// boundary (lane 0 — the common case, e.g. whole vectors and matrix rows), the complete
+    /// groups are added with the fast plane kernel ([`add_groups`](crate::field::field_internal));
+    /// the fewer-than-64 trailing entries, and any non-group-aligned slice, fall back to
+    /// entry-wise addition.
+    ///
+    /// [`add_groups`]: crate::field::field_internal::FieldInternal::add_groups
+    fn add_bitsliced(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
+        let fq = self.fq();
+        if c == fq.zero() {
+            return;
+        }
+        let epg = fq.entries_per_group();
+        let len = self.as_slice().len();
+
+        if self.start() % epg == 0 && other.start() % epg == 0 {
+            let k = fq.limbs_per_group();
+            let full_groups = len / epg;
+            if full_groups > 0 {
+                let nlimbs = full_groups * k;
+                let sbase = (self.start() / epg) * k;
+                let obase = (other.start() / epg) * k;
+                let src = &other.limbs()[obase..obase + nlimbs];
+                fq.add_groups(&mut self.limbs_mut()[sbase..sbase + nlimbs], src, c.clone());
+            }
+            // Trailing entries that don't fill a whole group.
+            for i in (full_groups * epg)..len {
+                let v = other.entry(i);
+                if v != fq.zero() {
+                    self.add_basis_element(i, v * c.clone());
+                }
+            }
+        } else {
+            for (i, v) in other.iter_nonzero() {
+                self.add_basis_element(i, v * c.clone());
+            }
         }
     }
 
