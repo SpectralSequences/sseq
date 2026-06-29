@@ -29,8 +29,10 @@ pub(crate) fn planes(p: u32) -> usize {
 /// for `j` in `0..=k`.
 fn p_masks(p: u32, k: usize) -> [Limb; BITS_PER_LIMB + 1] {
     let mut masks = [0; BITS_PER_LIMB + 1];
-    for (j, m) in masks.iter_mut().enumerate().take(k + 1) {
-        *m = if (p >> j) & 1 == 1 { !0 } else { 0 };
+    for (i, m) in masks.iter_mut().enumerate().take(k + 1) {
+        if (p >> i) & 1 == 1 {
+            *m = !0;
+        }
     }
     masks
 }
