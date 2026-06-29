@@ -296,16 +296,15 @@ impl<'a> Iterator for PartitionIterator<'a> {
     type Item = (i32, &'a Vec<u32>);
 
     fn next<'b>(&'b mut self) -> Option<Self::Item> {
-        let found;
-        if self.initial {
+        let found = if self.initial {
             if self.remaining < 0 {
                 return None;
             }
             self.initial = false;
-            found = true;
+            true
         } else {
-            found = self.search();
-        }
+            self.search()
+        };
         if found {
             // SAFETY: We are returning a reference to a field of `self`, which is valid as long as
             // `self` is alive. In other words, we know that `'b: 'a`, but we can't tell that to the

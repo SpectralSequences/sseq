@@ -364,8 +364,7 @@ impl Algebra for MilnorAlgebra {
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
-        let max_degree;
-        if self.generic() {
+        let max_degree = if self.generic() {
             if self.profile.q_part & 1 != 0 {
                 products.push((
                     "a_0".to_string(),
@@ -388,7 +387,7 @@ impl Algebra for MilnorAlgebra {
                     },
                 ));
             }
-            max_degree = (2 * self.prime() - 2) as i32;
+            (2 * self.prime() - 2) as i32
         } else {
             let mut max = 4;
             if !self.profile.p_part.is_empty() {
@@ -407,8 +406,8 @@ impl Algebra for MilnorAlgebra {
                     },
                 ));
             }
-            max_degree = 1 << 3;
-        }
+            1 << 3
+        };
         self.compute_basis(max_degree + 1);
 
         products
