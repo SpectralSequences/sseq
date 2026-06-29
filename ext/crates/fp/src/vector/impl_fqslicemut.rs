@@ -60,6 +60,20 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             return;
         }
 
+        if fq.is_bitsliced() {
+            // The packed bit-offset masking does not apply to the bit-sliced layout; scale
+            // each in-range entry through the layout-aware gather/scatter.
+            if c == fq.zero() {
+                self.set_to_zero();
+                return;
+            }
+            for i in 0..self.as_slice().len() {
+                let x = self.as_slice().entry(i) * c.clone();
+                self.set_entry(i, x);
+            }
+            return;
+        }
+
         let limb_range = self.as_slice().limb_range();
         if limb_range.is_empty() {
             return;
@@ -85,6 +99,13 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn set_to_zero(&mut self) {
+        if self.fq().is_bitsliced() {
+            let zero = self.fq().zero();
+            for i in 0..self.as_slice().len() {
+                self.set_entry(i, zero.clone());
+            }
+            return;
+        }
         let limb_range = self.as_slice().limb_range();
         if limb_range.is_empty() {
             return;
@@ -114,6 +135,14 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
                     Ordering::Less => self.add_shift_left(other, self.fq().one()),
                     Ordering::Greater => self.add_shift_right(other, self.fq().one()),
                 };
+            }
+        } else if self.fq().is_bitsliced() {
+            // Bit-sliced slices: add entry-wise. The bit-shift realignment used by the packed
+            // paths does not apply (an entry's bits are spread across planes).
+            if c != self.fq().zero() {
+                for (i, v) in other.iter_nonzero() {
+                    self.add_basis_element(i, v * c.clone());
+                }
             }
         } else {
             match self.as_slice().offset().cmp(&other.offset()) {
@@ -153,7 +182,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: FqSlice<'_, F>) {
         assert_eq!(self.fq(), other.fq());
-        if self.as_slice().offset() != other.offset() {
+        if self.fq().is_bitsliced() || self.as_slice().offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq().one());
             return;

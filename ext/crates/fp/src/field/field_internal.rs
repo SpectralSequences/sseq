@@ -133,15 +133,16 @@ pub trait FieldInternal:
         }
     }
 
-    // # Group layout
+    // # Group layout (bit-sliced storage)
     //
-    // The storage is organized into *groups*: a group holds [`entries_per_group`] consecutive
-    // entries and occupies [`limbs_per_group`] consecutive limbs. The packed layout (the
-    // default here) has one limb per group, so a group is exactly a limb. The bit-sliced
-    // layout (see [`Fp`](super::Fp)) overrides these to spread an entry's bits across several
-    // limbs of a group. Entry-level access goes through [`gather`]/[`scatter`], and the
-    // sizing helpers [`number`]/[`range`] are expressed in terms of groups so that overriding
-    // the two layout methods is enough to relocate every entry.
+    // Storage is organized into *groups*: a group holds [`entries_per_group`] = 64 consecutive
+    // entries and occupies [`limbs_per_group`] = `k` consecutive limbs, the *bit-planes*. Plane
+    // `j` of a group holds bit `j` of all 64 entries, so entry `i` lives at bit `i` of each of
+    // the `k` planes. Every field uses this layout, with `k = ceil(log2 q)` (the bits needed to
+    // store an encoded value in `0..q`). For `q = 2` this is `k = 1`, which coincides exactly
+    // with the old packed layout — so `F_2` (and its SIMD / matrix machinery) is byte-identical
+    // and unaffected. Entry access goes through [`gather`]/[`scatter`]; the sizing helpers
+    // [`number`]/[`range`] are expressed in terms of groups.
     //
     // [`entries_per_group`]: FieldInternal::entries_per_group
     // [`limbs_per_group`]: FieldInternal::limbs_per_group
@@ -150,17 +151,14 @@ pub trait FieldInternal:
     // [`number`]: FieldInternal::number
     // [`range`]: FieldInternal::range
 
-    /// The number of entries stored in a single group. Packed default: [`entries_per_limb`].
-    ///
-    /// [`entries_per_limb`]: FieldInternal::entries_per_limb
+    /// The number of entries stored in a single group: one per bit of a [`Limb`].
     fn entries_per_group(self) -> usize {
-        self.entries_per_limb()
+        BITS_PER_LIMB
     }
 
-    /// The number of limbs a single group occupies. Packed default: `1`.
-    fn limbs_per_group(self) -> usize {
-        1
-    }
+    /// The number of bit-planes per group, `k = ceil(log2 q)`. Each field defines this; `q = 2`
+    /// gives `k = 1` (packed-compatible).
+    fn limbs_per_group(self) -> usize;
 
     /// The index of the group containing entry `idx`.
     fn group_of(self, idx: usize) -> usize {
@@ -172,22 +170,65 @@ pub trait FieldInternal:
         idx % self.entries_per_group()
     }
 
-    /// Read entry `lane` (in `0..entries_per_group()`) out of a single group's limbs (a slice
-    /// of length [`limbs_per_group`](FieldInternal::limbs_per_group)).
+    /// Read entry `lane` (in `0..entries_per_group()`) out of a single group's `k` planes (a
+    /// slice of length [`limbs_per_group`](FieldInternal::limbs_per_group)) by reassembling its
+    /// bit from each plane.
     fn gather(self, group: &[Limb], lane: usize) -> FieldElement<Self> {
-        // Packed default: a group is one limb; the entry is a contiguous bitfield.
-        let mut result = group[0] >> (lane * self.bit_length());
-        result &= self.bitmask();
-        self.decode(result)
+        let mut value: Limb = 0;
+        for (j, plane) in group.iter().enumerate() {
+            value |= ((plane >> lane) & 1) << j;
+        }
+        self.decode(value)
     }
 
-    /// Write `value` into entry `lane` of a single group's limbs (a slice of length
-    /// [`limbs_per_group`](FieldInternal::limbs_per_group)). Assumes the limbs are reduced.
+    /// Write `value` into entry `lane` of a single group's `k` planes, dispersing the encoded
+    /// value's bits one per plane. Assumes the stored value fits in `k` bits.
     fn scatter(self, group: &mut [Limb], lane: usize, value: FieldElement<Self>) {
-        // Packed default: clear the entry's bitfield and write the encoded value.
-        let shift = lane * self.bit_length();
-        let mask = self.bitmask() << shift;
-        group[0] = (group[0] & !mask) | (self.encode(value) << shift);
+        let encoded = self.encode(value);
+        let lane_mask: Limb = 1 << lane;
+        for (j, plane) in group.iter_mut().enumerate() {
+            let bit = (encoded >> j) & 1;
+            *plane = (*plane & !lane_mask) | (bit << lane);
+        }
+    }
+
+    /// Whether this field uses a genuinely multi-plane layout (`k > 1`). Only `F_2` has `k = 1`,
+    /// where the bit-sliced layout coincides with the packed one and the `F_2`-specific fast
+    /// paths (`offset`, `limb_masks`, SIMD, m4ri) apply.
+    fn is_bitsliced(self) -> bool {
+        self.limbs_per_group() > 1
+    }
+
+    /// `dst += coeff * src` (mod p) over a span of whole groups (`dst` and `src` have equal,
+    /// group-aligned length). Both are assumed reduced; the result is reduced.
+    ///
+    /// Default: element-wise over lanes via [`gather`]/[`scatter`] and the field's own
+    /// arithmetic — correct for any bit-sliced field (used by [`SmallFq`](super::SmallFq)). The
+    /// prime fields [`Fp`](super::Fp) override this with a branch-free plane circuit.
+    fn add_groups(self, dst: &mut [Limb], src: &[Limb], coeff: FieldElement<Self>) {
+        let lpg = self.limbs_per_group();
+        let epg = self.entries_per_group();
+        for (dgroup, sgroup) in dst.chunks_exact_mut(lpg).zip(src.chunks_exact(lpg)) {
+            for lane in 0..epg {
+                let a = self.gather(dgroup, lane);
+                let b = self.gather(sgroup, lane);
+                let result = self.add(a, self.mul(coeff.clone(), b));
+                self.scatter(dgroup, lane, result);
+            }
+        }
+    }
+
+    /// `dst *= coeff` (mod p) over a span of whole groups. Default: element-wise; overridden by
+    /// [`Fp`](super::Fp).
+    fn scale_groups(self, dst: &mut [Limb], coeff: FieldElement<Self>) {
+        let lpg = self.limbs_per_group();
+        let epg = self.entries_per_group();
+        for dgroup in dst.chunks_exact_mut(lpg) {
+            for lane in 0..epg {
+                let a = self.gather(dgroup, lane);
+                self.scatter(dgroup, lane, self.mul(a, coeff.clone()));
+            }
+        }
     }
 
     /// Check whether or not a limb is reduced. This may potentially not be faster than calling

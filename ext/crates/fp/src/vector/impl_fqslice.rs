@@ -54,6 +54,9 @@ impl<'a, F: Field> FqSlice<'a, F> {
     }
 
     pub fn is_zero(&self) -> bool {
+        if self.fq().is_bitsliced() {
+            return self.first_nonzero().is_none();
+        }
         let limb_range = self.limb_range();
         if limb_range.is_empty() {
             return true;
@@ -89,7 +92,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
     #[must_use]
     pub fn to_owned(self) -> FqVector<F> {
         let mut new = FqVector::new(self.fq(), self.len());
-        if self.start().is_multiple_of(self.fq().entries_per_limb()) {
+        if !self.fq().is_bitsliced() && self.start().is_multiple_of(self.fq().entries_per_limb()) {
             let limb_range = self.limb_range();
             new.limbs_mut()[0..limb_range.len()].copy_from_slice(&self.limbs()[limb_range]);
             if !new.limbs().is_empty() {

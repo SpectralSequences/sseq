@@ -324,6 +324,20 @@ impl Matrix {
         let columns = input[0].len();
         let stride = fp.number(columns);
         let physical_rows = get_physical_rows(p, rows);
+
+        if fp.is_bitsliced() {
+            // The bit-sliced layout interleaves an entry's bits across planes, so build each
+            // row through the (dispatching) row slice rather than by packing contiguous chunks.
+            let mut matrix = Self::new(p, rows, columns);
+            for (i, row) in input.iter().enumerate() {
+                let mut target = matrix.row_mut(i);
+                for (j, &x) in row.iter().enumerate() {
+                    target.set_entry(j, x);
+                }
+            }
+            return matrix;
+        }
+
         let mut data = AVec::with_capacity(0, physical_rows * stride);
         for row in input {
             for chunk in row.chunks(fp.entries_per_limb()) {
@@ -352,6 +366,14 @@ impl Matrix {
     /// assert_eq!(Matrix::from_vec(TWO, &matrix_vec).to_vec(), matrix_vec);
     /// ```
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
+        if self.fp.is_bitsliced() {
+            return (0..self.rows())
+                .map(|i| {
+                    let row = self.row(i);
+                    (0..self.columns()).map(|j| row.entry(j)).collect()
+                })
+                .collect();
+        }
         self.data
             .iter()
             .chunks(self.stride)
