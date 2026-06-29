@@ -69,6 +69,33 @@ So the tightened generic kernel is now faster than packed for **all `p ≥ 7`**;
 SWAR-tuned `p ∈ {3, 5}` still need specialized circuits to win — and F3 confirms that
 specialization does win.
 
+## Phase 0c — const-generic `K` dispatch (the decisive change)
+
+The heap-scratch generic kernel was replaced with a runtime dispatch on `k = ceil(log2 p)`
+to **const-generic** implementations (`add_groups_k::<K>` etc.): exactly-`K`-sized stack
+arrays and fully-unrolled loops per prime, so the compiler keeps planes in registers and
+auto-vectorizes the group loop. This is the single biggest win and it changes the
+conclusion — the generic kernel now **beats packed for every prime tested**, and is
+competitive with the hand-written F3 circuit (numbers from one run, length 100k):
+
+| op    | prime | packed | bitsliced generic (const-K) | generic vs packed | F3 circuit |
+|------:|------:|-------:|----------------------------:|:------------------|-----------:|
+| add   | 3     | 11.0 µs |  3.62 µs | **3.0× faster** | 3.84 µs |
+| add   | 5     | 21.0 µs |  6.09 µs | **3.4× faster** | — |
+| add   | 7     | 95.5 µs |  5.76 µs | **16.6× faster** | — |
+| add   | 251   |  481 µs | 19.68 µs | **24× faster** | — |
+| scale | 3     | 2.75 µs |  2.50 µs | **1.1× faster** | 1.65 µs |
+| scale | 5     | 5.07 µs |  3.50 µs | **1.45× faster** | — |
+| scale | 7     | 74.0 µs |  3.54 µs | **21× faster** | — |
+| scale | 251   |  415 µs | 11.48 µs | **36× faster** | — |
+
+Key consequence: **the const-K generic kernel is fast enough to be the single code path
+for all primes.** It matches the F3 add circuit (3.62 vs 3.84 µs) and beats the SWAR-tuned
+packed path even for `p ∈ {3, 5}`. Hand-written per-prime circuits are now *optional polish*
+(F3 still wins `scale` modestly via the plane-swap negation, 1.65 vs 2.50 µs) rather than a
+requirement. This substantially de-risks and simplifies Phase 2/3: implement the
+const-generic kernel once; add specialized circuits later only where a measured gap remains.
+
 ## Implications for the next phases
 
 - **Specialized circuits are needed for `p = 3, 5, 7`** (not just F3) to beat the tuned
