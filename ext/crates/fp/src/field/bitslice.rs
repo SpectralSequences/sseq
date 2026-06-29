@@ -35,18 +35,23 @@ fn p_masks(p: u32, k: usize) -> [Limb; BITS_PER_LIMB + 1] {
     masks
 }
 
+/// The full-width lane mask for bit `j` of `p`: all-ones if set, zero otherwise.
+#[inline(always)]
+fn pmask(p: u32, j: usize) -> Limb {
+    0u64.wrapping_sub(((p >> j) & 1) as Limb)
+}
+
 /// `dst += c * src` (mod p) over every group, where `dst` and `src` hold the same number of
 /// whole groups of `k` planes. Assumes both are reduced; the result is reduced.
 pub(crate) fn add_groups(p: u32, k: usize, dst: &mut [Limb], src: &[Limb], c: u32) {
     if c == 0 {
         return;
     }
-    let masks = p_masks(p, k);
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
-                $($k => add_groups_k::<$k>(dst, src, c, &masks),)*
-                _ => add_groups_dyn(k, dst, src, c, &masks),
+                $($k => add_groups_k::<$k>(dst, src, c, p),)*
+                _ => add_groups_dyn(k, dst, src, c, &p_masks(p, k)),
             }
         };
     }
@@ -67,23 +72,31 @@ pub(crate) fn add_group_masked(
     if c == 0 {
         return;
     }
-    // Masking `src` to the in-range lanes makes the circuit a no-op elsewhere: an out-of-range
-    // lane adds `c * 0 = 0` to an already-reduced `dst`, leaving it unchanged.
-    let mut masked = [0 as Limb; BITS_PER_LIMB];
-    for j in 0..k {
-        masked[j] = src[j] & lane_mask;
+    macro_rules! dispatch {
+        ($($k:literal),*) => {
+            match k {
+                $($k => add_group_masked_k::<$k>(dst, src, c, p, lane_mask),)*
+                _ => {
+                    // Masking `src` to the in-range lanes makes the circuit a no-op elsewhere.
+                    let mut masked = vec![0; k];
+                    for j in 0..k {
+                        masked[j] = src[j] & lane_mask;
+                    }
+                    add_groups(p, k, dst, &masked, c);
+                }
+            }
+        };
     }
-    add_groups(p, k, dst, &masked[..k], c);
+    dispatch!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 }
 
 /// `dst *= c` (mod p) over every group.
 pub(crate) fn scale_groups(p: u32, k: usize, dst: &mut [Limb], c: u32) {
-    let masks = p_masks(p, k);
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
-                $($k => scale_groups_k::<$k>(dst, c, &masks),)*
-                _ => scale_groups_dyn(k, dst, c, &masks),
+                $($k => scale_groups_k::<$k>(dst, c, p),)*
+                _ => scale_groups_dyn(k, dst, c, &p_masks(p, k)),
             }
         };
     }
@@ -96,19 +109,20 @@ pub(crate) fn scale_groups(p: u32, k: usize, dst: &mut [Limb], c: u32) {
 // ---------------------------------------------------------------------------------------
 
 /// Reduce a `(K+1)`-bit unreduced sum (`s` low planes + `s_top`) in `[0, 2p)` to `s mod p`.
+/// The per-plane mask is computed inline from `p` (no per-call mask array).
 #[inline(always)]
-fn cond_sub_k<const K: usize>(s: &[Limb; K], s_top: Limb, masks: &[Limb]) -> [Limb; K] {
+fn cond_sub_k<const K: usize>(s: &[Limb; K], s_top: Limb, p: u32) -> [Limb; K] {
     let mut d = [0 as Limb; K];
     let mut borrow: Limb = 0;
     for j in 0..K {
         let sj = s[j];
-        let pj = masks[j];
+        let pj = pmask(p, j);
         let sxp = sj ^ pj;
         d[j] = sxp ^ borrow;
         borrow = (!sj & pj) | (borrow & !sxp);
     }
     // Top bit only affects the borrow-out (the result fits in K planes since result < p).
-    let pj = masks[K];
+    let pj = pmask(p, K);
     let sxp = s_top ^ pj;
     borrow = (!s_top & pj) | (borrow & !sxp);
     let ge = !borrow;
@@ -121,7 +135,7 @@ fn cond_sub_k<const K: usize>(s: &[Limb; K], s_top: Limb, masks: &[Limb]) -> [Li
 
 /// `(a + b) mod p` over `K` planes.
 #[inline(always)]
-fn add_mod_k<const K: usize>(a: &[Limb; K], b: &[Limb; K], masks: &[Limb]) -> [Limb; K] {
+fn add_mod_k<const K: usize>(a: &[Limb; K], b: &[Limb; K], p: u32) -> [Limb; K] {
     let mut s = [0 as Limb; K];
     let mut carry: Limb = 0;
     for j in 0..K {
@@ -131,54 +145,74 @@ fn add_mod_k<const K: usize>(a: &[Limb; K], b: &[Limb; K], masks: &[Limb]) -> [L
         s[j] = axb ^ carry;
         carry = (aj & bj) | (carry & axb);
     }
-    cond_sub_k::<K>(&s, carry, masks)
+    cond_sub_k::<K>(&s, carry, p)
 }
 
 /// `(2 * a) mod p` over `K` planes (doubling is a one-position plane shift).
 #[inline(always)]
-fn double_mod_k<const K: usize>(a: &[Limb; K], masks: &[Limb]) -> [Limb; K] {
+fn double_mod_k<const K: usize>(a: &[Limb; K], p: u32) -> [Limb; K] {
     let mut s = [0 as Limb; K];
     for j in 1..K {
         s[j] = a[j - 1];
     }
     let s_top = a[K - 1];
-    cond_sub_k::<K>(&s, s_top, masks)
+    cond_sub_k::<K>(&s, s_top, p)
 }
 
 /// `(c * b) mod p` over `K` planes, via double-and-add.
 #[inline(always)]
-fn scalar_mul_k<const K: usize>(b: &[Limb; K], c: u32, masks: &[Limb]) -> [Limb; K] {
+fn scalar_mul_k<const K: usize>(b: &[Limb; K], c: u32, p: u32) -> [Limb; K] {
     let mut result = [0 as Limb; K];
     let mut temp = *b;
     let mut cc = c;
     loop {
         if cc & 1 == 1 {
-            result = add_mod_k::<K>(&result, &temp, masks);
+            result = add_mod_k::<K>(&result, &temp, p);
         }
         cc >>= 1;
         if cc == 0 {
             break;
         }
-        temp = double_mod_k::<K>(&temp, masks);
+        temp = double_mod_k::<K>(&temp, p);
     }
     result
 }
 
 #[inline]
-fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, masks: &[Limb]) {
+fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p: u32) {
     for (dg, sg) in dst.chunks_exact_mut(K).zip(src.chunks_exact(K)) {
         let mut a = [0 as Limb; K];
         let mut b = [0 as Limb; K];
         a.copy_from_slice(dg);
         b.copy_from_slice(sg);
-        let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, masks) };
-        let sum = add_mod_k::<K>(&a, &addend, masks);
+        let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p) };
+        let sum = add_mod_k::<K>(&a, &addend, p);
         dg.copy_from_slice(&sum);
     }
 }
 
+/// `dst += c * src` (mod p) for a single `K`-plane group, restricted to lanes in `lane_mask`.
 #[inline]
-fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, masks: &[Limb]) {
+fn add_group_masked_k<const K: usize>(
+    dst: &mut [Limb],
+    src: &[Limb],
+    c: u32,
+    p: u32,
+    lane_mask: Limb,
+) {
+    let mut a = [0 as Limb; K];
+    let mut b = [0 as Limb; K];
+    for j in 0..K {
+        a[j] = dst[j];
+        b[j] = src[j] & lane_mask;
+    }
+    let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p) };
+    let sum = add_mod_k::<K>(&a, &addend, p);
+    dst[..K].copy_from_slice(&sum);
+}
+
+#[inline]
+fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, p: u32) {
     if c == 1 {
         return;
     }
@@ -189,7 +223,7 @@ fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, masks: &[Limb]) {
     for dg in dst.chunks_exact_mut(K) {
         let mut a = [0 as Limb; K];
         a.copy_from_slice(dg);
-        let scaled = scalar_mul_k::<K>(&a, c, masks);
+        let scaled = scalar_mul_k::<K>(&a, c, p);
         dg.copy_from_slice(&scaled);
     }
 }
