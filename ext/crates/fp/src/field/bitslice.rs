@@ -53,6 +53,29 @@ pub(crate) fn add_groups(p: u32, k: usize, dst: &mut [Limb], src: &[Limb], c: u3
     dispatch!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 }
 
+/// `dst += c * src` (mod p) for a single group of `k` planes, restricted to the lanes set in
+/// `lane_mask`. Lanes outside the mask are unchanged. `dst` and `src` are each exactly `k`
+/// limbs.
+pub(crate) fn add_group_masked(
+    p: u32,
+    k: usize,
+    dst: &mut [Limb],
+    src: &[Limb],
+    c: u32,
+    lane_mask: Limb,
+) {
+    if c == 0 {
+        return;
+    }
+    // Masking `src` to the in-range lanes makes the circuit a no-op elsewhere: an out-of-range
+    // lane adds `c * 0 = 0` to an already-reduced `dst`, leaving it unchanged.
+    let mut masked = [0 as Limb; BITS_PER_LIMB];
+    for j in 0..k {
+        masked[j] = src[j] & lane_mask;
+    }
+    add_groups(p, k, dst, &masked[..k], c);
+}
+
 /// `dst *= c` (mod p) over every group.
 pub(crate) fn scale_groups(p: u32, k: usize, dst: &mut [Limb], c: u32) {
     let masks = p_masks(p, k);

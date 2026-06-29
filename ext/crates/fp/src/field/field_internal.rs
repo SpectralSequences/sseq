@@ -231,6 +231,26 @@ pub trait FieldInternal:
         }
     }
 
+    /// `dst += coeff * src` (mod p) for a single group (each `limbs_per_group()` limbs),
+    /// restricted to the lanes set in `lane_mask`; other lanes are unchanged. Used for the
+    /// partial boundary groups of a slice add. Default: element-wise; overridden by
+    /// [`Fp`](super::Fp) with a masked plane circuit.
+    fn add_group_masked(
+        self,
+        dst: &mut [Limb],
+        src: &[Limb],
+        coeff: FieldElement<Self>,
+        lane_mask: Limb,
+    ) {
+        for lane in 0..self.entries_per_group() {
+            if (lane_mask >> lane) & 1 == 1 {
+                let a = self.gather(dst, lane);
+                let b = self.gather(src, lane);
+                self.scatter(dst, lane, self.add(a, self.mul(coeff.clone(), b)));
+            }
+        }
+    }
+
     /// Check whether or not a limb is reduced. This may potentially not be faster than calling
     /// [`reduce`](FieldInternal::reduce) directly.
     fn is_reduced(self, limb: Limb) -> bool {

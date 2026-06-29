@@ -176,6 +176,23 @@ impl<P: Prime> FieldInternal for Fp<P> {
             self.encode(coeff) as u32,
         );
     }
+
+    fn add_group_masked(
+        self,
+        dst: &mut [Limb],
+        src: &[Limb],
+        coeff: FieldElement<Self>,
+        lane_mask: Limb,
+    ) {
+        crate::field::bitslice::add_group_masked(
+            self.characteristic().as_u32(),
+            self.limbs_per_group(),
+            dst,
+            src,
+            self.encode(coeff) as u32,
+            lane_mask,
+        );
+    }
 }
 
 #[cfg(feature = "proptest")]

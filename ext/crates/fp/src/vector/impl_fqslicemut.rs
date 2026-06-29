@@ -172,12 +172,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         // whole vectors and for matrix-row adds that start at the same pivot column. The
         // partial leading/trailing groups (and any mismatched-offset slice) are added
         // entry-wise.
-        let aligned = s_start % epg == o_start % epg;
-        let s_end = s_start + len;
-        let first_full = s_start.div_ceil(epg) * epg;
-        let last_full = (s_end / epg) * epg;
-
-        if !aligned || first_full >= last_full {
+        if s_start % epg != o_start % epg {
+            // Mismatched lane offsets: the planes don't line up, so fall back to entry-wise.
             for (i, v) in other.iter_nonzero() {
                 self.add_basis_element(i, v * c.clone());
             }
@@ -185,26 +181,52 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         }
 
         let k = fq.limbs_per_group();
-        // Leading partial group.
-        for i in 0..(first_full - s_start) {
-            let v = other.entry(i);
-            if v != fq.zero() {
-                self.add_basis_element(i, v * c.clone());
-            }
+        let s_end = s_start + len;
+        let first_g = s_start / epg;
+        let last_g = (s_end - 1) / epg;
+        // Group `g` of `self` lines up with group `g - first_g + o_first_g` of `other`.
+        let o_first_g = o_start / epg;
+        let group_limbs = |self_g: usize| {
+            let s = self_g * k;
+            let o = (o_first_g + (self_g - first_g)) * k;
+            (s, o)
+        };
+        // Lane mask selecting bits `[lo, hi)`.
+        let lane_mask = |lo: usize, hi: usize| -> Limb {
+            let high: Limb = if hi >= epg { !0 } else { (1 << hi) - 1 };
+            let low: Limb = (1 << lo) - 1;
+            high & !low
+        };
+
+        if first_g == last_g {
+            // Single (partial) group.
+            let (s, o) = group_limbs(first_g);
+            let mask = lane_mask(s_start - first_g * epg, s_end - first_g * epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c, mask);
+            return;
         }
-        // Interior full groups, via the plane kernel.
-        let num_full = (last_full - first_full) / epg;
-        let s_limb = (first_full / epg) * k;
-        let o_limb = ((o_start + (first_full - s_start)) / epg) * k;
-        let nlimbs = num_full * k;
-        let src = &other.limbs()[o_limb..o_limb + nlimbs];
-        fq.add_groups(&mut self.limbs_mut()[s_limb..s_limb + nlimbs], src, c.clone());
-        // Trailing partial group.
-        for i in (last_full - s_start)..len {
-            let v = other.entry(i);
-            if v != fq.zero() {
-                self.add_basis_element(i, v * c.clone());
-            }
+
+        // Leading partial group: lanes [s_start mod 64, 64).
+        {
+            let (s, o) = group_limbs(first_g);
+            let mask = lane_mask(s_start - first_g * epg, epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c.clone(), mask);
+        }
+        // Interior full groups, via the plane kernel in one contiguous call.
+        if last_g > first_g + 1 {
+            let (s, o) = group_limbs(first_g + 1);
+            let nlimbs = (last_g - first_g - 1) * k;
+            let src = &other.limbs()[o..o + nlimbs];
+            fq.add_groups(&mut self.limbs_mut()[s..s + nlimbs], src, c.clone());
+        }
+        // Trailing partial group: lanes [0, s_end mod 64).
+        {
+            let (s, o) = group_limbs(last_g);
+            let mask = lane_mask(0, s_end - last_g * epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c, mask);
         }
     }
 
