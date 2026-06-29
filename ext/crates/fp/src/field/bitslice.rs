@@ -222,7 +222,11 @@ fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p: u32) 
         let mut b = [0 as Limb; K];
         a.copy_from_slice(dg);
         b.copy_from_slice(sg);
-        let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p) };
+        let addend = if c == 1 {
+            b
+        } else {
+            scalar_mul_k::<K>(&b, c, p)
+        };
         let sum = add_mod_k::<K>(&a, &addend, p);
         dg.copy_from_slice(&sum);
     }
@@ -243,7 +247,11 @@ fn add_group_masked_k<const K: usize>(
         a[j] = dst[j];
         b[j] = src[j] & lane_mask;
     }
-    let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p) };
+    let addend = if c == 1 {
+        b
+    } else {
+        scalar_mul_k::<K>(&b, c, p)
+    };
     let sum = add_mod_k::<K>(&a, &addend, p);
     dst[..K].copy_from_slice(&sum);
 }
@@ -368,14 +376,7 @@ fn f5_mul_planes(p0: Limb, p1: Limb, p2: Limb, c: u32) -> (Limb, Limb, Limb) {
 
 /// `(a + b) mod 5` on the three planes, as a flat indicator circuit.
 #[inline(always)]
-fn f5_add_planes(
-    a0: Limb,
-    a1: Limb,
-    a2: Limb,
-    b0: Limb,
-    b1: Limb,
-    b2: Limb,
-) -> (Limb, Limb, Limb) {
+fn f5_add_planes(a0: Limb, a1: Limb, a2: Limb, b0: Limb, b1: Limb, b2: Limb) -> (Limb, Limb, Limb) {
     let ia = f5_indicators(a0, a1, a2);
     let ib = f5_indicators(b0, b1, b2);
     let mut sel = [0 as Limb; 5];

@@ -9,7 +9,7 @@
 //! # Layout
 //!
 //! An element of `F_p` is represented with `k = ceil(log2 p)` bits. A *group* of 64
-//! elements occupies `k` consecutive [`Limb`]s (the *planes*): plane `j` of a group holds
+//! elements occupies `k` consecutive `Limb`s (the *planes*): plane `j` of a group holds
 //! bit `j` of all 64 elements, with element `i` living at bit `i` of each plane. A vector
 //! of length `len` has `ceil(len / 64)` groups, so `k * ceil(len / 64)` limbs total.
 //!
@@ -190,7 +190,13 @@ impl BitSlicedVec {
                 add_mod_into(&mut self.limbs[base..base + k], b, p_masks, &mut s, &mut d);
             } else {
                 scalar_mul_into(&mut acc, b, c, p_masks, &mut temp, &mut s, &mut d);
-                add_mod_into(&mut self.limbs[base..base + k], &acc, p_masks, &mut s, &mut d);
+                add_mod_into(
+                    &mut self.limbs[base..base + k],
+                    &acc,
+                    p_masks,
+                    &mut s,
+                    &mut d,
+                );
             }
         }
     }
@@ -424,7 +430,11 @@ fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p_masks:
         let mut b = [0 as Limb; K];
         a.copy_from_slice(dg);
         b.copy_from_slice(sg);
-        let addend = if c == 1 { b } else { scalar_mul_k::<K>(&b, c, p_masks) };
+        let addend = if c == 1 {
+            b
+        } else {
+            scalar_mul_k::<K>(&b, c, p_masks)
+        };
         let sum = add_mod_k::<K>(&a, &addend, p_masks);
         dg.copy_from_slice(&sum);
     }
@@ -499,7 +509,12 @@ mod tests {
             } else {
                 // Sample a spread of pairs into 64 lanes.
                 (0..64u32)
-                    .map(|i| ((i.wrapping_mul(2654435761) % p), (i.wrapping_mul(40503) % p)))
+                    .map(|i| {
+                        (
+                            (i.wrapping_mul(2654435761) % p),
+                            (i.wrapping_mul(40503) % p),
+                        )
+                    })
                     .collect()
             };
             for c in 0..p {

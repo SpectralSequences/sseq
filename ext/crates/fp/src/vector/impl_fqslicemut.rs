@@ -250,7 +250,11 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         let epg_i = epg as isize;
         for g in first_g..=last_g {
             let lo = if g == first_g { ts - g * epg } else { 0 };
-            let hi = if g == last_g { (ts + len) - g * epg } else { epg };
+            let hi = if g == last_g {
+                (ts + len) - g * epg
+            } else {
+                epg
+            };
             let mask = lane_mask(lo, hi);
 
             // Source bit `b` of target group `g` lives at absolute source lane `g*epg + b + shift`.

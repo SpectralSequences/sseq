@@ -45,13 +45,17 @@ fn bench_add(c: &mut Criterion) {
             // Bit-sliced generic kernel.
             let bs_a = BitSlicedVec::from_u32(p, &a);
             let bs_b = BitSlicedVec::from_u32(p, &b);
-            group.bench_with_input(BenchmarkId::new("bitsliced_generic", len), &len, |bench, _| {
-                bench.iter_batched_ref(
-                    || bs_a.clone(),
-                    |va| va.add_generic(&bs_b, SCALAR),
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+            group.bench_with_input(
+                BenchmarkId::new("bitsliced_generic", len),
+                &len,
+                |bench, _| {
+                    bench.iter_batched_ref(
+                        || bs_a.clone(),
+                        |va| va.add_generic(&bs_b, SCALAR),
+                        criterion::BatchSize::SmallInput,
+                    )
+                },
+            );
 
             // Bit-sliced F3 fast circuit.
             if p == 3 {
@@ -85,13 +89,17 @@ fn bench_scale(c: &mut Criterion) {
             });
 
             let bs_a = BitSlicedVec::from_u32(p, &a);
-            group.bench_with_input(BenchmarkId::new("bitsliced_generic", len), &len, |bench, _| {
-                bench.iter_batched_ref(
-                    || bs_a.clone(),
-                    |va| va.scale_generic(SCALAR),
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+            group.bench_with_input(
+                BenchmarkId::new("bitsliced_generic", len),
+                &len,
+                |bench, _| {
+                    bench.iter_batched_ref(
+                        || bs_a.clone(),
+                        |va| va.scale_generic(SCALAR),
+                        criterion::BatchSize::SmallInput,
+                    )
+                },
+            );
 
             if p == 3 {
                 group.bench_with_input(BenchmarkId::new("bitsliced_f3", len), &len, |bench, _| {
