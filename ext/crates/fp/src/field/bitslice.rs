@@ -215,7 +215,12 @@ fn scalar_mul_k<const K: usize>(b: &[Limb; K], c: u32, p: u32) -> [Limb; K] {
 
 #[inline]
 fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p: u32) {
-    for (dg, sg) in dst.as_chunks_mut::<K>().0.iter_mut().zip(src.as_chunks::<K>().0) {
+    for (dg, sg) in dst
+        .as_chunks_mut::<K>()
+        .0
+        .iter_mut()
+        .zip(src.as_chunks::<K>().0)
+    {
         let addend = if c == 1 {
             *sg
         } else {
@@ -299,7 +304,12 @@ fn f3_addend(sg: &[Limb], c: u32) -> (Limb, Limb) {
 }
 
 fn f3_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
-    for (dg, sg) in dst.as_chunks_mut::<2>().0.iter_mut().zip(src.as_chunks::<2>().0) {
+    for (dg, sg) in dst
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
+        .zip(src.as_chunks::<2>().0)
+    {
         let (b_lo, b_hi) = f3_addend(sg, c);
         let (r_lo, r_hi) = f3_add_planes(dg[0], dg[1], b_lo, b_hi);
         dg[0] = r_lo;
@@ -379,7 +389,12 @@ fn f5_add_planes(a0: Limb, a1: Limb, a2: Limb, b0: Limb, b1: Limb, b2: Limb) -> 
 }
 
 fn f5_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
-    for (dg, sg) in dst.as_chunks_mut::<3>().0.iter_mut().zip(src.as_chunks::<3>().0) {
+    for (dg, sg) in dst
+        .as_chunks_mut::<3>()
+        .0
+        .iter_mut()
+        .zip(src.as_chunks::<3>().0)
+    {
         let (b0, b1, b2) = if c == 1 {
             (sg[0], sg[1], sg[2])
         } else {
