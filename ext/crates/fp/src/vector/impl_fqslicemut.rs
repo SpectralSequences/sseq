@@ -30,12 +30,12 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         assert_eq!(self.fq(), value.field());
         assert!(index < self.as_slice().len());
-        let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
-        let mut result = self.limbs()[limb_index.limb];
-        result &= !(bit_mask << limb_index.bit_index);
-        result |= self.fq().encode(value) << limb_index.bit_index;
-        self.limbs_mut()[limb_index.limb] = result;
+        let fq = self.fq();
+        let idx = index + self.start();
+        let lpg = fq.limbs_per_group();
+        let base = fq.group_of(idx) * lpg;
+        let lane = fq.lane_of(idx);
+        fq.scatter(&mut self.limbs_mut()[base..base + lpg], lane, value);
     }
 
     fn reduce_limbs(&mut self) {

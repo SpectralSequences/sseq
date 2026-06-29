@@ -33,12 +33,11 @@ impl<'a, F: Field> FqSlice<'a, F> {
             index,
             self.len()
         );
-        let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
-        let mut result = self.limbs()[limb_index.limb];
-        result >>= limb_index.bit_index;
-        result &= bit_mask;
-        self.fq().decode(result)
+        let fq = self.fq();
+        let idx = index + self.start();
+        let lpg = fq.limbs_per_group();
+        let base = fq.group_of(idx) * lpg;
+        fq.gather(&self.limbs()[base..base + lpg], fq.lane_of(idx))
     }
 
     /// TODO: implement prime 2 version

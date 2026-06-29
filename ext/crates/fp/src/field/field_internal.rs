@@ -133,6 +133,63 @@ pub trait FieldInternal:
         }
     }
 
+    // # Group layout
+    //
+    // The storage is organized into *groups*: a group holds [`entries_per_group`] consecutive
+    // entries and occupies [`limbs_per_group`] consecutive limbs. The packed layout (the
+    // default here) has one limb per group, so a group is exactly a limb. The bit-sliced
+    // layout (see [`Fp`](super::Fp)) overrides these to spread an entry's bits across several
+    // limbs of a group. Entry-level access goes through [`gather`]/[`scatter`], and the
+    // sizing helpers [`number`]/[`range`] are expressed in terms of groups so that overriding
+    // the two layout methods is enough to relocate every entry.
+    //
+    // [`entries_per_group`]: FieldInternal::entries_per_group
+    // [`limbs_per_group`]: FieldInternal::limbs_per_group
+    // [`gather`]: FieldInternal::gather
+    // [`scatter`]: FieldInternal::scatter
+    // [`number`]: FieldInternal::number
+    // [`range`]: FieldInternal::range
+
+    /// The number of entries stored in a single group. Packed default: [`entries_per_limb`].
+    ///
+    /// [`entries_per_limb`]: FieldInternal::entries_per_limb
+    fn entries_per_group(self) -> usize {
+        self.entries_per_limb()
+    }
+
+    /// The number of limbs a single group occupies. Packed default: `1`.
+    fn limbs_per_group(self) -> usize {
+        1
+    }
+
+    /// The index of the group containing entry `idx`.
+    fn group_of(self, idx: usize) -> usize {
+        idx / self.entries_per_group()
+    }
+
+    /// The position of entry `idx` within its group, in `0..entries_per_group()`.
+    fn lane_of(self, idx: usize) -> usize {
+        idx % self.entries_per_group()
+    }
+
+    /// Read entry `lane` (in `0..entries_per_group()`) out of a single group's limbs (a slice
+    /// of length [`limbs_per_group`](FieldInternal::limbs_per_group)).
+    fn gather(self, group: &[Limb], lane: usize) -> FieldElement<Self> {
+        // Packed default: a group is one limb; the entry is a contiguous bitfield.
+        let mut result = group[0] >> (lane * self.bit_length());
+        result &= self.bitmask();
+        self.decode(result)
+    }
+
+    /// Write `value` into entry `lane` of a single group's limbs (a slice of length
+    /// [`limbs_per_group`](FieldInternal::limbs_per_group)). Assumes the limbs are reduced.
+    fn scatter(self, group: &mut [Limb], lane: usize, value: FieldElement<Self>) {
+        // Packed default: clear the entry's bitfield and write the encoded value.
+        let shift = lane * self.bit_length();
+        let mask = self.bitmask() << shift;
+        group[0] = (group[0] & !mask) | (self.encode(value) << shift);
+    }
+
     /// Check whether or not a limb is reduced. This may potentially not be faster than calling
     /// [`reduce`](FieldInternal::reduce) directly.
     fn is_reduced(self, limb: Limb) -> bool {
@@ -166,17 +223,16 @@ pub trait FieldInternal:
 
     /// Return the number of limbs required to hold `dim` entries.
     fn number(self, dim: usize) -> usize {
-        if dim == 0 {
-            0
-        } else {
-            self.limb_bit_index_pair(dim - 1).limb + 1
-        }
+        // Whole groups needed to hold `dim` entries, times the limbs in each group. For the
+        // packed layout (1 limb/group, `entries_per_limb` entries/group) this is `ceil(dim /
+        // entries_per_limb)`, matching the previous definition.
+        self.limbs_per_group() * dim.div_ceil(self.entries_per_group())
     }
 
-    /// Return the `Range<usize>` starting at the index of the limb containing the `start`th entry, and
-    /// ending at the index of the limb containing the `end`th entry (including the latter).
+    /// Return the `Range<usize>` of limbs spanning entries `start..end`: from the first limb of
+    /// the group containing `start` to the last limb of the group containing `end - 1`.
     fn range(self, start: usize, end: usize) -> Range<usize> {
-        let min = self.limb_bit_index_pair(start).limb;
+        let min = self.group_of(start) * self.limbs_per_group();
         let max = self.number(end);
         min..max
     }
