@@ -128,6 +128,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             return;
         }
 
+        // `F_2` is the only field that is not bit-sliced (`k = 1`, identical to the old packed
+        // layout); it keeps the bit-shift realignment path. Every other field is bit-sliced.
         if self.fq().q() == 2 {
             if c != self.fq().zero() {
                 match self.as_slice().offset().cmp(&other.offset()) {
@@ -136,14 +138,9 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
                     Ordering::Greater => self.add_shift_right(other, self.fq().one()),
                 };
             }
-        } else if self.fq().is_bitsliced() {
-            self.add_bitsliced(other, c);
         } else {
-            match self.as_slice().offset().cmp(&other.offset()) {
-                Ordering::Equal => self.add_shift_none(other, c),
-                Ordering::Less => self.add_shift_left(other, c),
-                Ordering::Greater => self.add_shift_right(other, c),
-            };
+            debug_assert!(self.fq().is_bitsliced());
+            self.add_bitsliced(other, c);
         }
     }
 

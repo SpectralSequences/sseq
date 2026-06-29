@@ -112,11 +112,6 @@ impl FpVector {
         v
     }
 
-    // Convenient for some matrix methods
-    pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
-        Fp::new(p).number(len)
-    }
-
     // Round `len` up to a whole number of groups, so that an augmented-matrix segment of this
     // length ends on a group boundary and the next segment starts on one. For the packed
     // layout a group is one limb (`entries_per_group == entries_per_limb`), so this equals the
