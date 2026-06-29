@@ -47,6 +47,13 @@ pub(crate) fn add_groups(p: u32, k: usize, dst: &mut [Limb], src: &[Limb], c: u3
     if c == 0 {
         return;
     }
+    if p == 2 {
+        // One plane (k = 1); the only nonzero scalar is 1, so addition is XOR.
+        for (d, s) in dst.iter_mut().zip(src) {
+            *d ^= *s;
+        }
+        return;
+    }
     if p == 3 {
         return f3_add_groups(dst, src, c);
     }
@@ -76,6 +83,11 @@ pub(crate) fn add_group_masked(
     lane_mask: Limb,
 ) {
     if c == 0 {
+        return;
+    }
+    if p == 2 {
+        // One plane (k = 1); XOR in only the in-range lanes.
+        dst[0] ^= src[0] & lane_mask;
         return;
     }
     if p == 3 {
