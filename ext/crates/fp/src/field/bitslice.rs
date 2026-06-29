@@ -47,6 +47,9 @@ pub(crate) fn add_groups(p: u32, k: usize, dst: &mut [Limb], src: &[Limb], c: u3
     if c == 0 {
         return;
     }
+    if p == 3 {
+        return f3_add_groups(dst, src, c);
+    }
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
@@ -72,6 +75,9 @@ pub(crate) fn add_group_masked(
     if c == 0 {
         return;
     }
+    if p == 3 {
+        return f3_add_group_masked(dst, src, c, lane_mask);
+    }
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
@@ -92,6 +98,16 @@ pub(crate) fn add_group_masked(
 
 /// `dst *= c` (mod p) over every group.
 pub(crate) fn scale_groups(p: u32, k: usize, dst: &mut [Limb], c: u32) {
+    if c == 1 {
+        return;
+    }
+    if c == 0 {
+        dst.fill(0);
+        return;
+    }
+    if p == 3 {
+        return f3_scale_groups(dst, c);
+    }
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
@@ -225,6 +241,67 @@ fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, p: u32) {
         a.copy_from_slice(dg);
         let scaled = scalar_mul_k::<K>(&a, c, p);
         dg.copy_from_slice(&scaled);
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// F3 specialization (k = 2). Plane 0 is the low bit, plane 1 the high bit, so an element
+// `v in {0,1,2}` is stored as `(hi, lo)` with `v = 2*hi + lo`. Addition is a flat boolean
+// circuit (no ripple-carry or borrow chain), and multiplication by 2 = negation just swaps
+// the two planes — both avoid the sequential dependencies that make the generic circuit lose
+// to the packed SWAR reduce at small primes.
+// ---------------------------------------------------------------------------------------
+
+/// `(a + b) mod 3` as a flat 6-gate circuit on the `(lo, hi)` planes (each lane independent).
+///
+/// Three parallel layers — two XORs, two XORs, two AND-NOTs — so it maps onto x86 `andn`
+/// and has very short dependency chains. Verified exhaustively against the 9 valid input
+/// pairs (the `(hi, lo) = (1, 1)` encoding never occurs for reduced inputs).
+#[inline(always)]
+fn f3_add_planes(a_lo: Limb, a_hi: Limb, b_lo: Limb, b_hi: Limb) -> (Limb, Limb) {
+    let t_hi = a_hi ^ b_hi;
+    let t_lo = a_lo ^ b_lo;
+    let u_hi = b_hi ^ t_lo;
+    let u_lo = b_lo ^ t_hi;
+    let r_hi = u_lo & !t_lo;
+    let r_lo = u_hi & !t_hi;
+    (r_lo, r_hi)
+}
+
+/// Negation in F3 swaps 1 <-> 2 (and fixes 0), i.e. swaps the two planes.
+#[inline(always)]
+fn f3_addend(sg: &[Limb], c: u32) -> (Limb, Limb) {
+    // c is 1 or 2 here; c == 2 means add (-other), i.e. negate by swapping planes.
+    if c == 1 {
+        (sg[0], sg[1])
+    } else {
+        (sg[1], sg[0])
+    }
+}
+
+fn f3_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
+    for (dg, sg) in dst.chunks_exact_mut(2).zip(src.chunks_exact(2)) {
+        let (b_lo, b_hi) = f3_addend(sg, c);
+        let (r_lo, r_hi) = f3_add_planes(dg[0], dg[1], b_lo, b_hi);
+        dg[0] = r_lo;
+        dg[1] = r_hi;
+    }
+}
+
+fn f3_add_group_masked(dst: &mut [Limb], src: &[Limb], c: u32, lane_mask: Limb) {
+    let (b_lo, b_hi) = f3_addend(src, c);
+    // Masking the addend to the in-range lanes makes the circuit a no-op (adds 0) elsewhere.
+    let (r_lo, r_hi) = f3_add_planes(dst[0], dst[1], b_lo & lane_mask, b_hi & lane_mask);
+    dst[0] = r_lo;
+    dst[1] = r_hi;
+}
+
+fn f3_scale_groups(dst: &mut [Limb], c: u32) {
+    // c == 2 is negation (plane swap); c == 1 is a no-op; c == 0 is handled by the caller.
+    if c == 2 {
+        for dg in dst.chunks_exact_mut(2) {
+            dg.swap(0, 1);
+        }
     }
 }
 
