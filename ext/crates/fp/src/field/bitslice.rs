@@ -50,6 +50,9 @@ pub(crate) fn add_groups(p: u32, k: usize, dst: &mut [Limb], src: &[Limb], c: u3
     if p == 3 {
         return f3_add_groups(dst, src, c);
     }
+    if p == 5 {
+        return f5_add_groups(dst, src, c);
+    }
     macro_rules! dispatch {
         ($($k:literal),*) => {
             match k {
@@ -77,6 +80,9 @@ pub(crate) fn add_group_masked(
     }
     if p == 3 {
         return f3_add_group_masked(dst, src, c, lane_mask);
+    }
+    if p == 5 {
+        return f5_add_group_masked(dst, src, c, lane_mask);
     }
     macro_rules! dispatch {
         ($($k:literal),*) => {
@@ -107,6 +113,9 @@ pub(crate) fn scale_groups(p: u32, k: usize, dst: &mut [Limb], c: u32) {
     }
     if p == 3 {
         return f3_scale_groups(dst, c);
+    }
+    if p == 5 {
+        return f5_scale_groups(dst, c);
     }
     macro_rules! dispatch {
         ($($k:literal),*) => {
@@ -302,6 +311,106 @@ fn f3_scale_groups(dst: &mut [Limb], c: u32) {
         for dg in dst.chunks_exact_mut(2) {
             dg.swap(0, 1);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// F5 specialization (k = 3). Planes are bits 0,1,2 of the value `v in {0,..,4}`. Both the
+// add and the scalar multiply are built as flat "indicator" circuits — one-hot lane masks
+// `is_v` for each operand value, recombined into the result with no carry/borrow chain — so
+// they keep the wide instruction-level parallelism the sequential generic circuit loses.
+// ---------------------------------------------------------------------------------------
+
+/// One-hot lane masks: `out[v]` has the bits of the lanes whose value is `v` (for `v in 0..5`).
+#[inline(always)]
+fn f5_indicators(p0: Limb, p1: Limb, p2: Limb) -> [Limb; 5] {
+    let n0 = !p0;
+    let n1 = !p1;
+    let n2 = !p2;
+    [
+        n0 & n1 & n2, // 0 = 000
+        p0 & n1 & n2, // 1 = 001
+        n0 & p1 & n2, // 2 = 010
+        p0 & p1 & n2, // 3 = 011
+        n0 & n1 & p2, // 4 = 100
+    ]
+}
+
+/// Reassemble the three planes from per-value selection masks (`sel[v]` selects value `v`).
+#[inline(always)]
+fn f5_compose(sel: [Limb; 5]) -> (Limb, Limb, Limb) {
+    // bit 0 set for values {1,3}; bit 1 for {2,3}; bit 2 for {4}.
+    (sel[1] | sel[3], sel[2] | sel[3], sel[4])
+}
+
+/// `c * v mod 5` on the three planes (`c in 1..5`).
+#[inline(always)]
+fn f5_mul_planes(p0: Limb, p1: Limb, p2: Limb, c: u32) -> (Limb, Limb, Limb) {
+    let ind = f5_indicators(p0, p1, p2);
+    let mut sel = [0 as Limb; 5];
+    for v in 0..5u32 {
+        sel[((c * v) % 5) as usize] |= ind[v as usize];
+    }
+    f5_compose(sel)
+}
+
+/// `(a + b) mod 5` on the three planes, as a flat indicator circuit.
+#[inline(always)]
+fn f5_add_planes(
+    a0: Limb,
+    a1: Limb,
+    a2: Limb,
+    b0: Limb,
+    b1: Limb,
+    b2: Limb,
+) -> (Limb, Limb, Limb) {
+    let ia = f5_indicators(a0, a1, a2);
+    let ib = f5_indicators(b0, b1, b2);
+    let mut sel = [0 as Limb; 5];
+    for av in 0..5usize {
+        for bv in 0..5usize {
+            sel[(av + bv) % 5] |= ia[av] & ib[bv];
+        }
+    }
+    f5_compose(sel)
+}
+
+fn f5_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
+    for (dg, sg) in dst.chunks_exact_mut(3).zip(src.chunks_exact(3)) {
+        let (b0, b1, b2) = if c == 1 {
+            (sg[0], sg[1], sg[2])
+        } else {
+            f5_mul_planes(sg[0], sg[1], sg[2], c)
+        };
+        let (r0, r1, r2) = f5_add_planes(dg[0], dg[1], dg[2], b0, b1, b2);
+        dg[0] = r0;
+        dg[1] = r1;
+        dg[2] = r2;
+    }
+}
+
+fn f5_add_group_masked(dst: &mut [Limb], src: &[Limb], c: u32, lane_mask: Limb) {
+    let (mut b0, mut b1, mut b2) = if c == 1 {
+        (src[0], src[1], src[2])
+    } else {
+        f5_mul_planes(src[0], src[1], src[2], c)
+    };
+    // Zeroing the addend outside the mask leaves those lanes unchanged (adds 0).
+    b0 &= lane_mask;
+    b1 &= lane_mask;
+    b2 &= lane_mask;
+    let (r0, r1, r2) = f5_add_planes(dst[0], dst[1], dst[2], b0, b1, b2);
+    dst[0] = r0;
+    dst[1] = r1;
+    dst[2] = r2;
+}
+
+fn f5_scale_groups(dst: &mut [Limb], c: u32) {
+    for dg in dst.chunks_exact_mut(3) {
+        let (r0, r1, r2) = f5_mul_planes(dg[0], dg[1], dg[2], c);
+        dg[0] = r0;
+        dg[1] = r1;
+        dg[2] = r2;
     }
 }
 
