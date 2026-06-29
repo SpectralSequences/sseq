@@ -202,7 +202,7 @@ pub trait FieldInternal:
     /// `dst += coeff * src` (mod p) over a span of whole groups (`dst` and `src` have equal,
     /// group-aligned length). Both are assumed reduced; the result is reduced.
     ///
-    /// Default: element-wise over lanes via [`gather`]/[`scatter`] and the field's own
+    /// Default: element-wise over lanes via [`Self::gather`]/[`Self::scatter`] and the field's own
     /// arithmetic — correct for any bit-sliced field (used by [`SmallFq`](super::SmallFq)). The
     /// prime fields [`Fp`](super::Fp) override this with a branch-free plane circuit.
     fn add_groups(self, dst: &mut [Limb], src: &[Limb], coeff: FieldElement<Self>) {

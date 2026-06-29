@@ -215,18 +215,13 @@ fn scalar_mul_k<const K: usize>(b: &[Limb; K], c: u32, p: u32) -> [Limb; K] {
 
 #[inline]
 fn add_groups_k<const K: usize>(dst: &mut [Limb], src: &[Limb], c: u32, p: u32) {
-    for (dg, sg) in dst.chunks_exact_mut(K).zip(src.chunks_exact(K)) {
-        let mut a = [0 as Limb; K];
-        let mut b = [0 as Limb; K];
-        a.copy_from_slice(dg);
-        b.copy_from_slice(sg);
+    for (dg, sg) in dst.as_chunks_mut::<K>().0.iter_mut().zip(src.as_chunks::<K>().0) {
         let addend = if c == 1 {
-            b
+            *sg
         } else {
-            scalar_mul_k::<K>(&b, c, p)
+            scalar_mul_k::<K>(sg, c, p)
         };
-        let sum = add_mod_k::<K>(&a, &addend, p);
-        dg.copy_from_slice(&sum);
+        *dg = add_mod_k::<K>(dg, &addend, p);
     }
 }
 
@@ -263,11 +258,8 @@ fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, p: u32) {
         dst.fill(0);
         return;
     }
-    for dg in dst.chunks_exact_mut(K) {
-        let mut a = [0 as Limb; K];
-        a.copy_from_slice(dg);
-        let scaled = scalar_mul_k::<K>(&a, c, p);
-        dg.copy_from_slice(&scaled);
+    for dg in dst.as_chunks_mut::<K>().0 {
+        *dg = scalar_mul_k::<K>(dg, c, p);
     }
 }
 
@@ -307,7 +299,7 @@ fn f3_addend(sg: &[Limb], c: u32) -> (Limb, Limb) {
 }
 
 fn f3_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
-    for (dg, sg) in dst.chunks_exact_mut(2).zip(src.chunks_exact(2)) {
+    for (dg, sg) in dst.as_chunks_mut::<2>().0.iter_mut().zip(src.as_chunks::<2>().0) {
         let (b_lo, b_hi) = f3_addend(sg, c);
         let (r_lo, r_hi) = f3_add_planes(dg[0], dg[1], b_lo, b_hi);
         dg[0] = r_lo;
@@ -326,7 +318,7 @@ fn f3_add_group_masked(dst: &mut [Limb], src: &[Limb], c: u32, lane_mask: Limb) 
 fn f3_scale_groups(dst: &mut [Limb], c: u32) {
     // c == 2 is negation (plane swap); c == 1 is a no-op; c == 0 is handled by the caller.
     if c == 2 {
-        for dg in dst.chunks_exact_mut(2) {
+        for dg in dst.as_chunks_mut::<2>().0 {
             dg.swap(0, 1);
         }
     }
@@ -387,7 +379,7 @@ fn f5_add_planes(a0: Limb, a1: Limb, a2: Limb, b0: Limb, b1: Limb, b2: Limb) -> 
 }
 
 fn f5_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
-    for (dg, sg) in dst.chunks_exact_mut(3).zip(src.chunks_exact(3)) {
+    for (dg, sg) in dst.as_chunks_mut::<3>().0.iter_mut().zip(src.as_chunks::<3>().0) {
         let (b0, b1, b2) = if c == 1 {
             (sg[0], sg[1], sg[2])
         } else {
@@ -417,7 +409,7 @@ fn f5_add_group_masked(dst: &mut [Limb], src: &[Limb], c: u32, lane_mask: Limb) 
 }
 
 fn f5_scale_groups(dst: &mut [Limb], c: u32) {
-    for dg in dst.chunks_exact_mut(3) {
+    for dg in dst.as_chunks_mut::<3>().0 {
         let (r0, r1, r2) = f5_mul_planes(dg[0], dg[1], dg[2], c);
         dg[0] = r0;
         dg[1] = r1;

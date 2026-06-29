@@ -119,6 +119,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
+        assert_eq!(self.as_slice().len(), other.len());
 
         if self.as_slice().is_empty() {
             return;
@@ -345,7 +346,13 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             // The packed limb-move trick assumes an entry is a contiguous bitfield, which the
             // bit-sliced layout breaks. Move entries down one at a time via gather/scatter:
             // reading `i + shift` strictly ahead of writing `i` keeps it correct in place.
-            let new_len = self.as_slice().len() - shift;
+            let len = self.as_slice().len();
+            if shift >= len {
+                // Every entry shifts out; the slice becomes empty.
+                *self.end_mut() = self.start();
+                return;
+            }
+            let new_len = len - shift;
             for i in 0..new_len {
                 let v = self.as_slice().entry(i + shift);
                 self.set_entry(i, v);
