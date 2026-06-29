@@ -189,9 +189,7 @@ fn add_mod_k<const K: usize>(a: &[Limb; K], b: &[Limb; K], p: u32) -> [Limb; K] 
 #[inline(always)]
 fn double_mod_k<const K: usize>(a: &[Limb; K], p: u32) -> [Limb; K] {
     let mut s = [0 as Limb; K];
-    for j in 1..K {
-        s[j] = a[j - 1];
-    }
+    s[1..K].copy_from_slice(&a[..K - 1]);
     let s_top = a[K - 1];
     cond_sub_k::<K>(&s, s_top, p)
 }
@@ -464,9 +462,7 @@ fn add_mod_into(dst: &mut [Limb], b: &[Limb], masks: &[Limb], s: &mut [Limb], d:
 fn double_mod_into(dst: &mut [Limb], masks: &[Limb], s: &mut [Limb], d: &mut [Limb]) {
     let k = dst.len();
     s[0] = 0;
-    for j in 1..=k {
-        s[j] = dst[j - 1];
-    }
+    s[1..=k].copy_from_slice(&dst[..k]);
     cond_sub_into(dst, s, masks, d);
 }
 

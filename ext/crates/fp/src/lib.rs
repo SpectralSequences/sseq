@@ -10,10 +10,6 @@ pub mod matrix;
 pub mod prime;
 pub mod vector;
 
-// PHASE 0 PROTOTYPE — to be removed in Phase 5. See module docs.
-#[doc(hidden)]
-pub mod bitslice_proto;
-
 pub mod blas;
 
 pub(crate) mod simd;

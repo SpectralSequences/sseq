@@ -47,11 +47,6 @@ harness = false
 name = "reduce"
 harness = false
 
-# PHASE 0 PROTOTYPE bench — to be removed in Phase 5.
-[[bench]]
-name = "bitslice"
-harness = false
-
 [[bench]]
 name = "smallfq"
 harness = false
