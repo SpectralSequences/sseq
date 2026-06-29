@@ -11,10 +11,10 @@ test:
 
 lint:
 	cargo fmt --all -- --check
-	cargo clippy --workspace --no-default-features --profile test
-	cargo clippy --workspace --all-targets --profile test
-	cargo check --workspace --no-default-features --profile test
-	cargo check --workspace --all-targets --all-features --profile test
+	cargo clippy --workspace --no-default-features --profile test --fix
+	cargo clippy --workspace --all-targets --profile test --fix
+	cargo check --workspace --no-default-features --profile test --fix
+	cargo check --workspace --all-targets --all-features --profile test --fix
 
 docs:
 	# Prevent the cached crates.js from confusing the current run

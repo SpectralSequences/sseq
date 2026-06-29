@@ -25,7 +25,10 @@ impl std::fmt::Display for CoproductError {
             Self::OutOfRange => f.write_str("basis element index out of range"),
             Self::OddPrimeUnsupported => f.write_str("coproduct is only supported at p = 2"),
             Self::IndivisibleDegree { q, degree } => {
-                write!(f, "coproduct expects a degree divisible by {q}, got {degree}")
+                write!(
+                    f,
+                    "coproduct expects a degree divisible by {q}, got {degree}"
+                )
             }
             Self::NonzeroIndex => f.write_str("at p = 2 the coproduct expects index 0"),
         }

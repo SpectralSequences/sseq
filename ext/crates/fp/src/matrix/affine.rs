@@ -58,10 +58,7 @@ impl AffineSubspace {
     /// without panicking: `offset` and `linear_part` must share a prime and `offset.len()` must
     /// equal `linear_part`'s ambient dimension, returning the matching [`AffineSubspaceError`]
     /// otherwise. Intended for callers handling untrusted input, such as the Python bindings.
-    pub fn try_new(
-        offset: FpVector,
-        linear_part: Subspace,
-    ) -> Result<Self, AffineSubspaceError> {
+    pub fn try_new(offset: FpVector, linear_part: Subspace) -> Result<Self, AffineSubspaceError> {
         let offset_prime = offset.prime().as_u32();
         let linear_prime = linear_part.prime().as_u32();
         if offset_prime != linear_prime {

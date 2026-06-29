@@ -159,10 +159,7 @@ impl<P: Prime> SmallFq<P> {
         if d <= 1 {
             return Err(SmallFqError::DegreeTooSmall { d });
         }
-        let too_large = d > 16
-            || p.as_u32()
-                .checked_pow(d)
-                .is_none_or(|q| q >= 1 << 16);
+        let too_large = d > 16 || p.as_u32().checked_pow(d).is_none_or(|q| q >= 1 << 16);
         if too_large {
             return Err(SmallFqError::FieldTooLarge { p: p.as_u32(), d });
         }

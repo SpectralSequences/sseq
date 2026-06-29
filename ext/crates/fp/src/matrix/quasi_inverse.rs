@@ -74,10 +74,7 @@ impl QuasiInverse {
     /// pivots than `preimage` has rows. This checks exactly those conditions, returning the
     /// matching [`QuasiInverseError`] otherwise. When `image` is `None` the image is the standard
     /// basis and no validation is needed.
-    pub fn try_new(
-        image: Option<Vec<isize>>,
-        preimage: Matrix,
-    ) -> Result<Self, QuasiInverseError> {
+    pub fn try_new(image: Option<Vec<isize>>, preimage: Matrix) -> Result<Self, QuasiInverseError> {
         if let Some(pivots) = image.as_ref() {
             let rows = preimage.rows();
             let mut nonneg = 0usize;

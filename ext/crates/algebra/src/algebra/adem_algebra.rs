@@ -1409,7 +1409,7 @@ impl Bialgebra for AdemAlgebra {
         if self.generic {
             if op_deg != 1 {
                 let q = self.prime() * 2 - 2;
-                if (op_deg as u32) % q != 0 {
+                if !(op_deg as u32).is_multiple_of(q) {
                     return Err(CoproductError::IndivisibleDegree { q, degree: op_deg });
                 }
             }
