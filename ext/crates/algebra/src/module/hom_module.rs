@@ -33,10 +33,7 @@ impl<M: Module> HomModule<M> {
     /// Returns `Err` when `target` is not bounded above (`target.max_degree()`
     /// is `None`), which `HomModule` requires in order to be bounded below.
     /// [`new`](Self::new) is simply `Self::try_new(source, target).unwrap()`.
-    pub fn try_new(
-        source: Arc<FreeModule<M::Algebra>>,
-        target: Arc<M>,
-    ) -> anyhow::Result<Self> {
+    pub fn try_new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>) -> anyhow::Result<Self> {
         let p = source.prime();
         let algebra = Arc::new(Field::new(p));
         let max_degree = target.max_degree().ok_or_else(|| {
@@ -188,12 +185,6 @@ mod tests {
         let unbounded = Arc::new(FreeModule::new(Arc::clone(&algebra), "T".to_string(), 0));
         let result = HomModule::try_new(f, unbounded);
         assert!(result.is_err());
-        assert!(
-            result
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("bounded above")
-        );
+        assert!(result.err().unwrap().to_string().contains("bounded above"));
     }
 }

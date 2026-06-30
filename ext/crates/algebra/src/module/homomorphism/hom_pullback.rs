@@ -297,7 +297,11 @@ mod tests {
 
         let algebra = Arc::new(MilnorAlgebra::new(p, false));
         let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
-        let f1 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F1".to_string(), SHIFT));
+        let f1 = Arc::new(FreeModule::new(
+            Arc::clone(&algebra),
+            "F1".to_string(),
+            SHIFT,
+        ));
         let m = Arc::new(
             FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
         );
