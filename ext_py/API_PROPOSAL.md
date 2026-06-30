@@ -405,7 +405,7 @@ machinery — internal (§8).
 | `differentials, differentials_hitting` | return `Differential` / iterator |
 | `page_data, invalid, update, update_degree, complete, inconsistent` | methods |
 | `multiply(elem, product)`, `leibniz(...)` | methods |
-| `write_to_graph(backend, r, differentials, products, header)` | the charting entry point used by `chart.py` |
+| `write_to_graph(backend, *, page, differentials=False, products=[], header=None)` | the charting entry point used by `chart.py` |
 | `Adams`, `SseqProfile`, `Product<2>` | `Adams` marker exposed as default; `Product` pyclass (`b`, `left`, `matrices`) |
 | `Differential::{new, add, set_to_zero, prime, inconsistent, get_source_target_pairs, evaluate, quasi_inverse}` | `Differential` pyclass (slice args per §2.7) |
 

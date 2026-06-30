@@ -4,7 +4,6 @@ Compute dimensions of the Milnor algebra A_n for n = 0 to 125.
 Python translation of algebra_dim.rs example.
 """
 
-import ext
 from ext import algebra
 
 

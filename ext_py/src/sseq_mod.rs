@@ -1261,16 +1261,21 @@ pub mod sseq_py {
         /// Chart this spectral sequence to `backend` (an `SvgBackend` or
         /// `TikzBackend`), drawing the `E_r` page.
         ///
-        /// - `r`: the page to draw.
-        /// - `differentials`: whether to draw the `d_r` differentials.
-        /// - `products`: a list of `(name, Product)` pairs; for each, the
-        ///   structure lines it induces are drawn (labelled `name`).
-        /// - `header`: a Python callable invoked after the grid is drawn with
-        ///   a `GraphContext` argument that exposes the backend's drawing
-        ///   methods (`text`, `line`, `node`, `structline`) onto the chart.
-        ///   The context is valid only during the callback; using it after
-        ///   `write_to_graph` returns raises `RuntimeError`. A header that
-        ///   ignores its argument (`lambda _: None`) is fine.
+        /// `backend` is the only positional parameter; everything else must be
+        /// passed by keyword. Defaults:
+        ///
+        /// - `page`: the page to draw (required).
+        /// - `differentials` (default `False`): whether to draw the `d_r`
+        ///   differentials.
+        /// - `products` (default `[]`): a list of `(name, Product)` pairs; for
+        ///   each, the structure lines it induces are drawn (labelled `name`).
+        /// - `header` (default `None`): a Python callable invoked after the
+        ///   grid is drawn with a `GraphContext` argument that exposes the
+        ///   backend's drawing methods (`text`, `line`, `node`, `structline`)
+        ///   onto the chart. The context is valid only during the callback;
+        ///   using it after `write_to_graph` returns raises `RuntimeError`. A
+        ///   header that ignores its argument (`lambda _: None`) is fine; when
+        ///   omitted (or `None`) no header callback runs.
         ///
         /// Dispatches over the two concrete bound backends (keeping the generic
         /// upstream call monomorphic). The backend is *consumed*: its inner
@@ -1282,13 +1287,14 @@ pub mod sseq_py {
         /// `RuntimeError` if it was already consumed or if the upstream call
         /// panics (e.g. the sseq's minimal filtration is not 0), and propagates
         /// any exception raised by the file object's `.write` or by `header`.
+        #[pyo3(signature = (backend, *, page, differentials=false, products=Vec::new(), header=None))]
         pub fn write_to_graph(
             &self,
             backend: &Bound<'_, PyAny>,
-            r: i32,
+            page: i32,
             differentials: bool,
             products: Vec<(String, PyRef<'_, Product>)>,
-            header: Py<PyAny>,
+            header: Option<Py<PyAny>>,
         ) -> PyResult<()> {
             let prods: Vec<(String, RsProduct)> = products
                 .iter()
@@ -1302,7 +1308,7 @@ pub mod sseq_py {
                     &mut b.inner,
                     &err,
                     &self.0,
-                    r,
+                    page,
                     differentials,
                     &prods,
                     header,
@@ -1314,7 +1320,7 @@ pub mod sseq_py {
                     &mut b.inner,
                     &err,
                     &self.0,
-                    r,
+                    page,
                     differentials,
                     &prods,
                     header,
@@ -1373,6 +1379,14 @@ pub mod sseq_py {
             }
             let s = String::from_utf8_lossy(buf);
             Python::attach(|py| {
+                // This `write` may run from a backend's `Drop` while a Python
+                // exception is already pending (e.g. the call that owned the
+                // backend failed to parse its args). Re-entering the interpreter
+                // to call `.write` would clobber that pending exception and turn
+                // it into `SystemError: error return without exception set`.
+                // Detach the pending exception across the call and restore it
+                // afterwards so the caller's error propagates untouched.
+                let pending = PyErr::take(py);
                 // Text files (StringIO, sys.stdout) take str; binary files
                 // (BytesIO) take bytes and raise TypeError on str. Try str,
                 // then fall back to bytes on a TypeError.
@@ -1384,6 +1398,9 @@ pub mod sseq_py {
                     }
                     Err(e) => Err(e),
                 };
+                if let Some(e) = pending {
+                    e.restore(py);
+                }
                 match res {
                     Ok(()) => Ok(buf.len()),
                     Err(e) => {
@@ -1395,14 +1412,21 @@ pub mod sseq_py {
         }
 
         fn flush(&mut self) -> io::Result<()> {
-            Python::attach(|py| match self.file.call_method0(py, "flush") {
-                Ok(_) => Ok(()),
-                // A missing `.flush` is fine (not every file-like has one).
-                Err(e) if e.is_instance_of::<PyAttributeError>(py) => Ok(()),
-                Err(e) => {
-                    self.record(e);
-                    Err(io::Error::other("python file .flush raised"))
+            Python::attach(|py| {
+                let pending = PyErr::take(py);
+                let res = match self.file.call_method0(py, "flush") {
+                    Ok(_) => Ok(()),
+                    // A missing `.flush` is fine (not every file-like has one).
+                    Err(e) if e.is_instance_of::<PyAttributeError>(py) => Ok(()),
+                    Err(e) => {
+                        self.record(e);
+                        Err(io::Error::other("python file .flush raised"))
+                    }
+                };
+                if let Some(e) = pending {
+                    e.restore(py);
                 }
+                res
             })
         }
     }
@@ -1643,12 +1667,13 @@ pub mod sseq_py {
     /// backend is dropped at the end of the call. Subsequent manual method
     /// calls on the same pyclass therefore raise "already consumed".
     ///
-    /// `header` is a Python callable invoked (after the grid is drawn) with a
-    /// [`GraphContext`] exposing the backend's drawing methods (`text`,
-    /// `line`, `node`, `structline`). The context wraps a scoped raw pointer
-    /// to the live Rust `&mut T`, valid only for the duration of the callback;
-    /// it is cleared immediately afterwards (in all paths). A header that
-    /// ignores its argument (`lambda _: None`) keeps working unchanged.
+    /// `header` is an optional Python callable invoked (after the grid is
+    /// drawn) with a [`GraphContext`] exposing the backend's drawing methods
+    /// (`text`, `line`, `node`, `structline`). When `None`, no callback runs.
+    /// When `Some`, the context wraps a scoped raw pointer to the live Rust
+    /// `&mut T`, valid only for the duration of the callback; it is cleared
+    /// immediately afterwards (in all paths). A header that ignores its
+    /// argument (`lambda _: None`) keeps working unchanged.
     fn run_write_to_graph<T>(
         inner: &mut Option<T>,
         err: &Rc<RefCell<Option<PyErr>>>,
@@ -1656,7 +1681,7 @@ pub mod sseq_py {
         r: i32,
         differentials: bool,
         products: &[(String, RsProduct)],
-        header: Py<PyAny>,
+        header: Option<Py<PyAny>>,
     ) -> PyResult<()>
     where
         T: RsBackend<Error = io::Error> + HeaderBackend + 'static,
@@ -1696,6 +1721,13 @@ pub mod sseq_py {
             let backend: &mut dyn HeaderBackend = g;
             *header_active.borrow_mut() = Some(std::ptr::NonNull::from(backend));
             let _guard = ClearGuard(&header_active);
+
+            // No header requested: the grid is already drawn, so there is
+            // nothing for the callback to add. `_guard` drops on return,
+            // clearing `active` back to `None`.
+            let Some(header) = header.as_ref() else {
+                return Ok(());
+            };
 
             Python::attach(|py| match header.call1(py, (ctx.clone_ref(py),)) {
                 Ok(_) => Ok(()),

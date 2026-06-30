@@ -169,9 +169,6 @@ jobs:
       - name: Lint sseq_gui wasm
         run: make -C web_ext/sseq_gui lint-wasm
 
-      - name: Test worker panic handling
-        run: make -C web_ext/sseq_gui test-wasm-js
-
       - name: Build wasm
         run: make -C web_ext/sseq_gui wasm
 

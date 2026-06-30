@@ -156,7 +156,7 @@ def test_non_backend_argument_to_write_to_graph():
     s = sseq.Sseq(2)
     s.set_dimension(Bidegree.x_y(0, 0), 1)
     with pytest.raises(TypeError):
-        s.write_to_graph(object(), 2, False, [], lambda _: None)
+        s.write_to_graph(object(), page=2)
 
 
 # --------------------------------------------------------------------------
@@ -179,7 +179,7 @@ def make_small_sseq():
 def test_write_to_graph_svg_no_products():
     s = make_small_sseq()
     buf = io.StringIO()
-    s.write_to_graph(SvgBackend(buf), 2, False, [], lambda _: None)
+    s.write_to_graph(SvgBackend(buf), page=2)
     out = buf.getvalue()
     assert "<svg" in out
     assert "</svg>" in out
@@ -190,7 +190,7 @@ def test_write_to_graph_svg_no_products():
 def test_write_to_graph_svg_with_differentials():
     s = make_small_sseq()
     buf = io.StringIO()
-    s.write_to_graph(SvgBackend(buf), 2, True, [], lambda _: None)
+    s.write_to_graph(SvgBackend(buf), page=2, differentials=True)
     out = buf.getvalue()
     # The d_2 differential out of (1, 0) is drawn as a structure line.
     assert 'class="structline d2"' in out
@@ -204,7 +204,7 @@ def test_write_to_graph_tikz_with_products():
         Bidegree.x_y(1, 1), True, [(Bidegree.x_y(0, 0), Matrix.from_vec(2, [[1]]))]
     )
     buf = io.StringIO()
-    s.write_to_graph(TikzBackend(buf), 2, False, [("h0", prod)], lambda _: None)
+    s.write_to_graph(TikzBackend(buf), page=2, products=[("h0", prod)])
     out = buf.getvalue()
     assert r"\begin{tikzpicture}" in out
     assert r"\end{tikzpicture}" in out
@@ -213,10 +213,38 @@ def test_write_to_graph_tikz_with_products():
 def test_write_to_graph_consumes_backend():
     s = make_small_sseq()
     backend = SvgBackend(io.StringIO())
-    s.write_to_graph(backend, 2, False, [], lambda _: None)
+    s.write_to_graph(backend, page=2)
     # The backend was consumed; further manual use raises (no panic).
     with pytest.raises(RuntimeError):
         backend.header(Bidegree.x_y(2, 2))
+
+
+def test_write_to_graph_defaults_match_explicit():
+    # Omitting every optional kwarg (differentials/products/header) must draw
+    # the same chart as passing the documented defaults explicitly.
+    s = make_small_sseq()
+    buf_default = io.StringIO()
+    s.write_to_graph(SvgBackend(buf_default), page=2)
+
+    s2 = make_small_sseq()
+    buf_explicit = io.StringIO()
+    s2.write_to_graph(
+        SvgBackend(buf_explicit),
+        page=2,
+        differentials=False,
+        products=[],
+        header=None,
+    )
+
+    assert buf_default.getvalue() == buf_explicit.getvalue()
+
+
+def test_write_to_graph_args_after_backend_are_keyword_only():
+    # Everything after `backend` is keyword-only: passing `page` (or any other
+    # arg) positionally is a TypeError rather than being silently accepted.
+    s = make_small_sseq()
+    with pytest.raises(TypeError):
+        s.write_to_graph(SvgBackend(io.StringIO()), 2)
 
 
 def test_write_to_graph_header_callback_exception_propagates():
@@ -226,7 +254,7 @@ def test_write_to_graph_header_callback_exception_propagates():
         raise ValueError("boom from header")
 
     with pytest.raises(ValueError, match="boom from header"):
-        s.write_to_graph(SvgBackend(io.StringIO()), 2, False, [], bad_header)
+        s.write_to_graph(SvgBackend(io.StringIO()), page=2, header=bad_header)
 
 
 # --------------------------------------------------------------------------
@@ -241,7 +269,7 @@ def test_write_to_graph_header_context_draws_text():
     def header(g):
         g.text(Bidegree.x_y(0, 0), "HELLO", Orientation.Left)
 
-    s.write_to_graph(SvgBackend(buf), 2, False, [], header)
+    s.write_to_graph(SvgBackend(buf), page=2, header=header)
     out = buf.getvalue()
     assert "HELLO" in out
 
@@ -253,7 +281,7 @@ def test_write_to_graph_header_context_invalid_after_call():
     def header(g):
         captured.append(g)
 
-    s.write_to_graph(SvgBackend(io.StringIO()), 2, False, [], header)
+    s.write_to_graph(SvgBackend(io.StringIO()), page=2, header=header)
     # The context's backend pointer is cleared once the callback returns; using
     # it afterwards raises RuntimeError rather than dereferencing a dangling
     # pointer.
@@ -293,7 +321,7 @@ def test_write_to_graph_svg_closing_tag_write_error_propagates():
     s = make_small_sseq()
     f = CloseTagRaisingFile("</svg>")
     with pytest.raises(ValueError, match="boom on closing tag"):
-        s.write_to_graph(SvgBackend(f), 2, False, [], lambda _: None)
+        s.write_to_graph(SvgBackend(f), page=2)
     # The body was written but the chart is truncated (no closing tag); the
     # point is that the failure is surfaced rather than silently swallowed.
     assert "".join(f.parts).startswith("<svg") or f.parts
@@ -303,7 +331,7 @@ def test_write_to_graph_tikz_closing_tag_write_error_propagates():
     s = make_small_sseq()
     f = CloseTagRaisingFile(r"\end{tikzpicture}")
     with pytest.raises(ValueError, match="boom on closing tag"):
-        s.write_to_graph(TikzBackend(f), 2, False, [], lambda _: None)
+        s.write_to_graph(TikzBackend(f), page=2)
 
 
 # --------------------------------------------------------------------------

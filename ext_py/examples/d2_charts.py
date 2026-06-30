@@ -29,7 +29,9 @@ def main():
         backend = sseq.TikzBackend(
             open(f"{path}_{resolution.name}.{suffix}", "w")
         )
-        ss.write_to_graph(backend, page, diff, products[:prod], lambda _: None)
+        ss.write_to_graph(
+            backend, page=page, differentials=diff, products=products[:prod]
+        )
 
     write("e2", 2, False, 3)
     write("e2_d2", 2, True, 3)

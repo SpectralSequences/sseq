@@ -98,10 +98,9 @@ def main():
 
         ss.write_to_graph(
             sseq.TikzBackend(sys.stdout),
-            2,
-            False,
-            shift_products,
-            header,
+            page=2,
+            products=shift_products,
+            header=header,
         )
 
         print("\\end{figure}")

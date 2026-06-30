@@ -5571,7 +5571,7 @@ mod ext_py {
     }
 
     #[pymodule_init]
-    fn init(_m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
         ext::utils::init_logging()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         Ok(())

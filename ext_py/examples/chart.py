@@ -22,10 +22,8 @@ def main():
 
     ss.write_to_graph(
         sseq.SvgBackend(sys.stdout),
-        2,
-        False,
-        products,
-        lambda _: None,
+        page=2,
+        products=products,
     )
 
 
