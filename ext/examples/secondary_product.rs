@@ -25,7 +25,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, SecondaryExtAlgebra},
+    ext_algebra::{BZE, ExtAlgebra, SecondaryExtAlgebra},
     secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };
@@ -98,25 +98,33 @@ fn main() -> anyhow::Result<()> {
 
         let page = sec_e2.unit_page_data(b);
 
-        // First the products with non-surviving classes: these are just λ times the (primary)
-        // product, read off the multiplication map.
+        // Products with non-surviving classes (E): just λ times the primary product.
         if target_num_gens > 0
             && let Some(rows) = e2.multiply_into(&x, b)
         {
-            for i in page.complement_pivots() {
+            for i in 0..e2.unit_dimension(b) {
+                if BZE::from_page_data(&page, i) != BZE::E {
+                    continue;
+                }
                 let g = BidegreeGenerator::new(b, i);
                 let entry: Vec<u32> = rows.row(i).iter().collect();
-                println!("{disp} λ x_{g} = λ {entry:?}");
+                println!("E  {disp} λ x_{g} = λ {entry:?}");
             }
         }
 
-        // Now the genuinely secondary products with surviving classes.
+        // Secondary products with surviving classes (B and Z). The source is a whole class, so we
+        // classify it by membership in the boundary subspace rather than by its first basis index:
+        // boundaries live in `page.zeros()`, every other surviving class is a non-boundary cycle.
         for prod in sec_e2.secondary_multiply_into(&x, b) {
+            let label = if page.zeros().contains(prod.source.vec()) {
+                "B"
+            } else {
+                "Z"
+            };
             println!(
-                "{disp} [{basis}] = {ext} + λ {lambda}",
+                "{label}  {disp} [{basis}] = {value}",
                 basis = prod.source.to_basis_string(),
-                ext = prod.ext_part.as_slice(),
-                lambda = prod.lambda_part.as_slice(),
+                value = prod.value,
             );
         }
     }

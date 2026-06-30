@@ -26,9 +26,10 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
-use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator, MultiDegree};
 
-pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
+pub use self::secondary::{BZE, PiElement, PiGenerator, SecondaryExtAlgebra, SecondaryProduct};
+pub use crate::secondary::{SecondaryDegree, SecondaryElement, SecondaryGenerator, Weight};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -104,6 +105,24 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
     pub fn prime(&self) -> ValidPrime {
         self.resolution.prime()
+    }
+
+    /// The trigraded spectral sequence for this Ext algebra, built from the *current* resolution
+    /// state. Generators live at weight 0 only; weight 1 is unpopulated, so $d_2$ is trivially zero
+    /// and $E_2 = E_3 = E_\infty$. Every generator classifies as Z.
+    ///
+    /// This is computed on demand rather than cached so it always reflects how far the resolution
+    /// has been extended (e.g. by [`compute_through_bidegree`](Self::compute_through_bidegree));
+    /// building it is cheap — one `set_dimension` per stem bidegree, with no differentials.
+    pub fn sseq(&self) -> sseq::Sseq<3, sseq::AdamsLambda2> {
+        let p = self.resolution.prime();
+        let mut sseq = sseq::Sseq::new(p);
+        for b in self.resolution.iter_stem() {
+            let dim = self.resolution.number_of_gens_in_bidegree(b);
+            let [n, s] = b.coords();
+            sseq.set_dimension(MultiDegree::new([n, s, 0]), dim);
+        }
+        sseq
     }
 
     /// Ensure both the resolution and the unit are computed through the given bidegree.

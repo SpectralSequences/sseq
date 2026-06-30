@@ -1,4 +1,8 @@
-use std::{io, sync::Arc};
+use std::{
+    fmt::{self, Display, Formatter},
+    io,
+    sync::Arc,
+};
 
 use algebra::{
     Algebra,
@@ -29,6 +33,254 @@ use crate::{
 };
 
 pub static LAMBDA_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
+
+/// The λ-adic weight of a homogeneous secondary class: [`Ext`](Weight::Ext) is the weight-0
+/// (bottom) part, [`Lambda`](Weight::Lambda) the weight-1 (λ) part. In $\Mod_{C\lambda^2}$ only
+/// these two weights occur, since $\lambda^2 = 0$.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Weight {
+    Ext,
+    Lambda,
+}
+
+impl Weight {
+    /// The weight as a synthetic coordinate: `0` for [`Ext`](Self::Ext), `1` for
+    /// [`Lambda`](Self::Lambda). (Lets these coordinates feed a future 3-graded synthetic
+    /// spectral sequence with the weight in the third coordinate.)
+    pub fn as_i32(self) -> i32 {
+        match self {
+            Self::Ext => 0,
+            Self::Lambda => 1,
+        }
+    }
+}
+
+impl Display for Weight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_i32())
+    }
+}
+
+/// A degree for the secondary ($\Mod_{C\lambda^2}$) layer: the base bidegree `b` of a homotopy
+/// group of a module over $C\lambda^2$. The weight-0 (Ext) part lives at `b` and the weight-1 (λ)
+/// part at `b + LAMBDA_BIDEGREE`.
+///
+/// The secondary analog of [`Bidegree`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SecondaryDegree {
+    base: Bidegree,
+}
+
+impl SecondaryDegree {
+    pub fn new(base: Bidegree) -> Self {
+        Self { base }
+    }
+
+    /// The base bidegree; the Ext (weight 0) part lives here.
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The bidegree of the λ (weight 1) part, `base + LAMBDA_BIDEGREE`.
+    pub fn lambda_bidegree(&self) -> Bidegree {
+        self.base + LAMBDA_BIDEGREE
+    }
+
+    /// The bidegree the part of the given `weight` lives in.
+    pub fn bidegree(&self, weight: Weight) -> Bidegree {
+        match weight {
+            Weight::Ext => self.base,
+            Weight::Lambda => self.lambda_bidegree(),
+        }
+    }
+}
+
+impl From<Bidegree> for SecondaryDegree {
+    fn from(base: Bidegree) -> Self {
+        Self::new(base)
+    }
+}
+
+impl Display for SecondaryDegree {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.base, f)
+    }
+}
+
+/// A basis generator of a secondary ($\Mod_{C\lambda^2}$) homotopy group: a base bidegree, a
+/// [`Weight`], and an index into the generator basis of the bidegree the generator lives in.
+///
+/// The secondary analog of [`BidegreeGenerator`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SecondaryGenerator {
+    base: Bidegree,
+    weight: Weight,
+    idx: usize,
+}
+
+impl SecondaryGenerator {
+    pub fn new(base: Bidegree, weight: Weight, idx: usize) -> Self {
+        Self { base, weight, idx }
+    }
+
+    /// The base bidegree (the degree of the weight-0 part).
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The secondary degree this generator belongs to.
+    pub fn degree(&self) -> SecondaryDegree {
+        SecondaryDegree::new(self.base)
+    }
+
+    pub fn weight(&self) -> Weight {
+        self.weight
+    }
+
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+
+    /// The bidegree this generator actually lives in: `base` for [`Weight::Ext`], `base +
+    /// LAMBDA_BIDEGREE` for [`Weight::Lambda`].
+    pub fn bidegree(&self) -> Bidegree {
+        self.degree().bidegree(self.weight)
+    }
+
+    /// Realize the generator as a [`SecondaryElement`]. `ext_ambient`/`lambda_ambient` are the
+    /// dimensions of the weight-0/weight-1 parts; the single nonzero entry is placed in the part
+    /// selected by [`weight`](Self::weight). Mirrors `MultiDegreeGenerator::into_element`.
+    pub fn into_element(
+        self,
+        p: ValidPrime,
+        ext_ambient: usize,
+        lambda_ambient: usize,
+    ) -> SecondaryElement {
+        let mut ext = FpVector::new(p, ext_ambient);
+        let mut lambda = FpVector::new(p, lambda_ambient);
+        match self.weight {
+            Weight::Ext => ext.set_entry(self.idx, 1),
+            Weight::Lambda => lambda.set_entry(self.idx, 1),
+        }
+        SecondaryElement::new(self.base, ext, lambda)
+    }
+}
+
+impl Display for SecondaryGenerator {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let g = BidegreeGenerator::new(self.bidegree(), self.idx);
+        match self.weight {
+            Weight::Ext => write!(f, "x_{g}"),
+            Weight::Lambda => write!(f, "λx_{g}"),
+        }
+    }
+}
+
+/// An element of a secondary ($\Mod_{C\lambda^2}$) homotopy group: the homotopy of a module over
+/// $C\lambda^2$ at a base bidegree `b`. It bundles an Ext (weight 0) part in bidegree `b` and a
+/// $\lambda$ (weight 1) part in bidegree `b + LAMBDA_BIDEGREE` (the latter understood modulo the
+/// image of $d_2$). A generic class is *not* weight-homogeneous, so both parts are stored.
+///
+/// The secondary analog of [`BidegreeElement`]: a pure data container that performs no reduction,
+/// signs or $\mathbb{Z}/p^2$ arithmetic — those stay in the primitives that produce its components.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SecondaryElement {
+    base: Bidegree,
+    /// The Ext (weight 0) part, in bidegree `base`.
+    ext: FpVector,
+    /// The $\lambda$ (weight 1) part, in bidegree `base + LAMBDA_BIDEGREE`.
+    lambda: FpVector,
+}
+
+impl SecondaryElement {
+    /// Build a secondary element from its Ext part (in bidegree `base`) and $\lambda$ part (in
+    /// bidegree `base + LAMBDA_BIDEGREE`).
+    pub fn new(base: Bidegree, ext: FpVector, lambda: FpVector) -> Self {
+        Self { base, ext, lambda }
+    }
+
+    /// Split a concatenated `[ext | lambda]` vector, where `ext_dim` is the length of the Ext
+    /// chunk. This mirrors the output layout of
+    /// [`SecondaryResolutionHomomorphism::hom_k`](crate::secondary::SecondaryResolutionHomomorphism::hom_k):
+    /// the first `ext_dim` entries are the Ext part and the remainder the $\lambda$ part.
+    pub fn from_concatenated(base: Bidegree, concatenated: FpSlice, ext_dim: usize) -> Self {
+        let total = concatenated.len();
+        Self {
+            base,
+            ext: concatenated.restrict(0, ext_dim).to_owned(),
+            lambda: concatenated.restrict(ext_dim, total).to_owned(),
+        }
+    }
+
+    /// The base bidegree `b`; the Ext part lives here and the $\lambda$ part in `b + LAMBDA_BIDEGREE`.
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The secondary degree of this element.
+    pub fn degree(&self) -> SecondaryDegree {
+        SecondaryDegree::new(self.base)
+    }
+
+    /// The Ext (weight 0) part, in bidegree [`base`](Self::base).
+    pub fn ext(&self) -> FpSlice<'_> {
+        self.ext.as_slice()
+    }
+
+    /// The $\lambda$ (weight 1) part, in bidegree `base + LAMBDA_BIDEGREE`.
+    pub fn lambda(&self) -> FpSlice<'_> {
+        self.lambda.as_slice()
+    }
+
+    /// The Ext part as a [`BidegreeElement`] at [`base`](Self::base).
+    pub fn ext_element(&self) -> BidegreeElement {
+        BidegreeElement::new(self.base, self.ext.clone())
+    }
+
+    /// The $\lambda$ part as a [`BidegreeElement`] at `base + LAMBDA_BIDEGREE`.
+    pub fn lambda_element(&self) -> BidegreeElement {
+        BidegreeElement::new(self.base + LAMBDA_BIDEGREE, self.lambda.clone())
+    }
+
+    /// Whether both the Ext and $\lambda$ parts vanish.
+    pub fn is_zero(&self) -> bool {
+        self.ext.is_zero() && self.lambda.is_zero()
+    }
+
+    /// The element as a linear combination of generators, e.g. `[x_(n, s, 0)] + λx_(n, s+1, 0)`.
+    /// The Ext part is bracketed, and the $\lambda$ part is parenthesized when it has more than one
+    /// term. Returns `0` when the element vanishes.
+    pub fn to_basis_string(&self) -> String {
+        let has_ext = !self.ext.is_zero();
+        let lambda_entries = self.lambda.iter_nonzero().count();
+
+        let mut out = String::new();
+        if has_ext {
+            out.push_str(&format!("[{}]", self.ext_element().to_basis_string()));
+        }
+        if lambda_entries > 0 {
+            if has_ext {
+                out.push_str(" + ");
+            }
+            let s = self.lambda_element().to_basis_string();
+            if lambda_entries == 1 {
+                out.push_str(&format!("λ{s}"));
+            } else {
+                out.push_str(&format!("λ({s})"));
+            }
+        }
+        if out.is_empty() {
+            out.push('0');
+        }
+        out
+    }
+}
+
+impl Display for SecondaryElement {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(&self.to_basis_string())
+    }
+}
 
 pub type CompositeData<A> = Vec<(
     u32,
@@ -647,7 +899,9 @@ pub trait SecondaryLift: Sync + Sized {
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);
         let max = self.max().restrict(s_range.end);
-        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        if min.s() < max.s() {
+            sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        }
     }
 
     #[tracing::instrument(skip(self))]
