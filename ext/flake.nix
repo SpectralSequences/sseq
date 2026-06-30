@@ -44,12 +44,12 @@
           export RUSTFLAGS="-D warnings"
           export RUSTDOCFLAGS="-D warnings"
 
-          make lint
-          make test
-          make benchmarks
-          make benchmarks-nassau
-          make benchmarks-concurrent
-          make miri
+          just lint
+          just test
+          just benchmarks
+          just benchmarks-nassau
+          just benchmarks-concurrent
+          just miri
         '');
       };
     });

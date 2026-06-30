@@ -32,7 +32,7 @@ distribution but is slower. A live version is available at
 To setup the build environment, run
 
 ```shell
-make setup-wasm
+just setup-wasm
 ```
 
 By default the wasm is built with `panic=abort`, which works on stable. Passing
@@ -41,18 +41,18 @@ By default the wasm is built with `panic=abort`, which works on stable. Passing
 than aborting the whole module:
 
 ```shell
-make wasm WASM_UNWIND=1
+just WASM_UNWIND=1 wasm
 ```
 
 This requires a **nightly** toolchain with the `rust-src` component (installed
-by `make setup-wasm`). The deployed build uses `WASM_UNWIND=1`; CI also builds
+by `just setup-wasm`). The deployed build uses `WASM_UNWIND=1`; CI also builds
 the default `panic=abort` configuration on stable/beta.
 
 Afterwards, build and serve with
 
 ```shell
-make wasm
-make serve-wasm
+just wasm
+just serve-wasm
 ```
 
 This serves the website at `localhost:[port]`. The `[port]` argument is optional and defaults to `8000`.
