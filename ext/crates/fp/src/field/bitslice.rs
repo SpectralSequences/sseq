@@ -12,6 +12,9 @@
 //! dispatched to a const-generic implementation so that, for each prime, the arrays are
 //! exactly sized and the loops fully unrolled; a heap-scratch fallback covers the rare
 //! primes with `k` beyond the dispatch range.
+//!
+//! The idea of bit-slicing finite-field vectors, and the optimized F3 addition circuit in
+//! [`f3_add_planes`], were both contributed by Carl McTague (<carl.mctague@bc.edu>).
 
 use crate::{constants::BITS_PER_LIMB, limb::Limb};
 
@@ -285,6 +288,8 @@ fn scale_groups_k<const K: usize>(dst: &mut [Limb], c: u32, p: u32) {
 /// Three parallel layers — two XORs, two XORs, two AND-NOTs — so it maps onto x86 `andn`
 /// and has very short dependency chains. Verified exhaustively against the 9 valid input
 /// pairs (the `(hi, lo) = (1, 1)` encoding never occurs for reduced inputs).
+///
+/// This circuit was contributed by Carl McTague.
 #[inline(always)]
 fn f3_add_planes(a_lo: Limb, a_hi: Limb, b_lo: Limb, b_hi: Limb) -> (Limb, Limb) {
     let t_hi = a_hi ^ b_hi;
