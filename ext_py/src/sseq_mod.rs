@@ -560,7 +560,7 @@ pub mod sseq_py {
     /// implementor. `Sseq` is monomorphized to `Sseq<2, Adams>`, so `Adams` is
     /// always the active profile; this class exposes the profile's
     /// page/bidegree arithmetic for inspection.
-    #[pyclass(frozen)]
+    #[pyclass(frozen, skip_from_py_object)]
     #[derive(Clone, Copy)]
     pub struct Adams;
 
@@ -608,7 +608,7 @@ pub mod sseq_py {
     /// `N = 2` implementation and the default profile for `Sseq`. This marker
     /// pyclass exists so the name `SseqProfile` is available from Python and to
     /// hand back the default profile via `default()`.
-    #[pyclass(frozen)]
+    #[pyclass(frozen, skip_from_py_object)]
     #[derive(Clone, Copy)]
     pub struct SseqProfile;
 

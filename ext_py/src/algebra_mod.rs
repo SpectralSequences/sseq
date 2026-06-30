@@ -401,7 +401,7 @@ pub mod algebra_py {
         }
     }
 
-    #[pyclass] // This will be part of the module
+    #[pyclass(from_py_object)] // This will be part of the module
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum AlgebraType {
         Adem,
@@ -423,7 +423,7 @@ pub mod algebra_py {
     /// non-`AlgebraType` value raises `TypeError`. Use this in binding
     /// signatures (instead of `AlgebraType`) wherever the proposal calls for an
     /// algebra-type argument, then convert with `.0`/`.into()`.
-    pub(crate) struct AlgebraTypeArg(pub(crate) AlgebraType);
+    pub struct AlgebraTypeArg(pub AlgebraType);
 
     impl<'a, 'py> FromPyObject<'a, 'py> for AlgebraTypeArg {
         type Error = PyErr;
@@ -1145,7 +1145,7 @@ pub mod algebra_py {
     /// A Steenrod power `P^i`, or a Bockstein `b^e`. Mirrors upstream's
     /// `PorBockstein` enum (the pieces of an Adem basis element's
     /// decomposition).
-    #[pyclass(name = "PorBockstein")]
+    #[pyclass(name = "PorBockstein", skip_from_py_object)]
     #[derive(Clone, Debug)]
     pub enum PorBockstein {
         P(u32),
@@ -3999,7 +3999,7 @@ pub mod algebra_py {
     /// element of the block belonging to generator `(generator_degree,
     /// generator_index)`. Mirrors upstream `GeneratorBasisEltPair`'s three
     /// public fields.
-    #[pyclass(name = "GeneratorBasisEltPair")]
+    #[pyclass(name = "GeneratorBasisEltPair", skip_from_py_object)]
     #[derive(Clone)]
     pub struct GeneratorBasisEltPair {
         #[pyo3(get)]
@@ -7202,7 +7202,7 @@ pub mod algebra_py {
     /// Mirrors upstream's `steenrod_parser::BocksteinOrSq`. This is a faithful
     /// (complete) binding of the upstream enum; the upstream
     /// `to_adem_basis_elt` helper is `pub(crate)` and intentionally not exposed.
-    #[pyclass(name = "BocksteinOrSq")]
+    #[pyclass(name = "BocksteinOrSq", skip_from_py_object)]
     #[derive(Clone, Debug)]
     pub enum BocksteinOrSq {
         Bockstein {},
@@ -7226,7 +7226,7 @@ pub mod algebra_py {
     /// accessors, each of which raises `ValueError` when called on the wrong
     /// shape. This is a faithful, fully-inspectable binding: every field of
     /// every variant is reachable.
-    #[pyclass(name = "AlgebraBasisElt")]
+    #[pyclass(name = "AlgebraBasisElt", skip_from_py_object)]
     #[derive(Clone)]
     pub struct AlgebraBasisElt(::algebra::steenrod_parser::AlgebraBasisElt);
 
@@ -7295,7 +7295,7 @@ pub mod algebra_py {
     /// child `AlgebraNode`s (for `Product`/`Sum`), the `AlgebraBasisElt` (for
     /// `BasisElt`), or the `int` scalar (for `Scalar`). A Python user can fully
     /// walk the tree; each accessor raises `ValueError` on the wrong shape.
-    #[pyclass(name = "AlgebraNode")]
+    #[pyclass(name = "AlgebraNode", skip_from_py_object)]
     #[derive(Clone)]
     pub struct AlgebraNode(::algebra::steenrod_parser::AlgebraNode);
 
