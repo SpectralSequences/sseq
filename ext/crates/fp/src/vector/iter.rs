@@ -166,7 +166,7 @@ impl<F: Field> ExactSizeIterator for FqVectorIterator<'_, F> {
 pub struct FqVectorNonZeroIterator<'a, F> {
     fq: F,
     limbs: &'a [Limb],
-    // Bit-sliced path: absolute index of the group base, and the relative cursor.
+    // Bit-sliced path: `start` is the slice's absolute start; `idx` is the relative cursor.
     bitsliced: bool,
     start: usize,
     // Shared/packed path state.

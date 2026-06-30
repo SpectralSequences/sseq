@@ -130,11 +130,12 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         self.add_bitsliced(other, c);
     }
 
-    /// Add `c * other` to `self` in the bit-sliced layout. When both slices begin at a group
-    /// boundary (lane 0 — the common case, e.g. whole vectors and matrix rows), the complete
-    /// groups are added with the fast plane kernel ([`add_groups`](crate::field::field_internal));
-    /// the fewer-than-64 trailing entries, and any non-group-aligned slice, fall back to
-    /// entry-wise addition.
+    /// Add `c * other` to `self` in the bit-sliced layout. Interior full groups are added with
+    /// the fast plane kernel ([`add_groups`](crate::field::field_internal)); the leading/trailing
+    /// partial groups go through the masked plane circuit
+    /// ([`add_group_masked`](crate::field::field_internal::FieldInternal::add_group_masked)). When
+    /// the two slices have different lane offsets within their groups, the planes are realigned
+    /// first via [`add_bitsliced_shifted`](Self::add_bitsliced_shifted).
     ///
     /// [`add_groups`]: crate::field::field_internal::FieldInternal::add_groups
     fn add_bitsliced(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
