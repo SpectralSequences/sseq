@@ -113,11 +113,9 @@ impl FpVector {
     }
 
     // Round `len` up to a whole number of groups, so that an augmented-matrix segment of this
-    // length ends on a group boundary and the next segment starts on one. For the packed
-    // layout a group is one limb (`entries_per_group == entries_per_limb`), so this equals the
-    // old `num_limbs * entries_per_limb`; for the bit-sliced layout a group spans 64 entries
-    // across several limbs, and segments must align to those 64-entry boundaries (not to the
-    // packed `entries_per_limb`) or a single group would straddle two segments.
+    // length ends on a group boundary and the next segment starts on one. A group spans 64
+    // entries (across several limbs in the bit-sliced layout), and segments must align to those
+    // 64-entry boundaries or a single group would straddle two segments.
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
         let entries_per_group = Fp::new(p).entries_per_group();
         len.div_ceil(entries_per_group) * entries_per_group

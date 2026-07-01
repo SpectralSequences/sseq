@@ -125,8 +125,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             return;
         }
 
-        // Every field uses the bit-sliced layout (`F_2` is just the `k = 1` case, identical to
-        // the old packed layout), so a single code path handles them all.
+        // Every field uses the bit-sliced layout (`F_2` is just the `k = 1` case), so a single
+        // code path handles them all.
         self.add_bitsliced(other, c);
     }
 
@@ -179,7 +179,6 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         };
 
         if first_g == last_g {
-            // Single (partial) group.
             let (s, o) = group_limbs(first_g);
             let mask = lane_mask(s_start - first_g * epg, s_end - first_g * epg);
             let src = &other.limbs()[o..o + k];
@@ -349,7 +348,6 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             // reading `i + shift` strictly ahead of writing `i` keeps it correct in place.
             let len = self.as_slice().len();
             if shift >= len {
-                // Every entry shifts out; the slice becomes empty.
                 *self.end_mut() = self.start();
                 return;
             }

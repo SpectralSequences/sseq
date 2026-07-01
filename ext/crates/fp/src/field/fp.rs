@@ -145,14 +145,11 @@ impl<P: Prime> FieldInternal for Fp<P> {
 
     // # Bit-sliced layout
     //
-    // Prime-field vectors are stored bit-sliced: a group of `BITS_PER_LIMB` (64) elements
-    // occupies `k = ceil(log2 p)` limbs, one per bit-plane. Note that for `p = 2` this is
-    // `k = 1`, which is byte-identical to the packed layout, so `F_2` (and all of its SIMD /
-    // matrix machinery) is unaffected. The packed limb helpers above are retained because
-    // `decode`/`encode`/`reduce` are still used by callers that construct elements; they are
-    // simply not used to lay out `FqVector<Fp<_>>` storage. The uniform `gather`/`scatter`
-    // defaults (in `FieldInternal`) handle entry access; `Fp` only overrides the bulk kernels
-    // with a branch-free plane circuit.
+    // Prime-field vectors use the bit-sliced group layout (see [`FieldInternal`]). The packed
+    // limb helpers above are not used to lay out `FqVector<Fp<_>>` storage, but are retained
+    // because `decode`/`encode`/`reduce` are still called when constructing elements. The
+    // uniform `gather`/`scatter` defaults handle entry access; `Fp` only overrides the bulk
+    // kernels with a branch-free plane circuit.
 
     fn limbs_per_group(self) -> usize {
         crate::field::bitslice::planes(self.characteristic().as_u32())

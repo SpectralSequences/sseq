@@ -121,7 +121,6 @@ impl<F: Field> FqVector<F> {
             return;
         }
         if fq.q() == 2 {
-            // `c` is one; scaling is a no-op.
             return;
         }
         fq.scale_groups(self.limbs_mut(), c);

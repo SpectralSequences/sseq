@@ -43,8 +43,7 @@ fn p_masks(p: u32, k: usize) -> [Limb; BITS_PER_LIMB + 1] {
 /// The full-width lane mask for bit `j` of `p`: all-ones if set, zero otherwise.
 #[inline(always)]
 fn pmask(p: u32, j: usize) -> Limb {
-    // Widen bit `j` of `p` to the limb width, then broadcast it: `1 -> !0`, `0 -> 0` via
-    // two's-complement negation.
+    // Broadcast bit `j` across the limb via two's-complement negation: `1 -> !0`, `0 -> 0`.
     Limb::from((p >> j) & 1).wrapping_neg()
 }
 
@@ -93,7 +92,6 @@ pub(crate) fn add_group_masked(
         return;
     }
     if p == 2 {
-        // One plane (k = 1); XOR in only the in-range lanes.
         dst[0] ^= src[0] & lane_mask;
         return;
     }

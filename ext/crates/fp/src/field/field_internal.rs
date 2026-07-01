@@ -284,9 +284,7 @@ pub trait FieldInternal:
 
     /// Return the number of limbs required to hold `dim` entries.
     fn number(self, dim: usize) -> usize {
-        // Whole groups needed to hold `dim` entries, times the limbs in each group. For the
-        // packed layout (1 limb/group, `entries_per_limb` entries/group) this is `ceil(dim /
-        // entries_per_limb)`, matching the previous definition.
+        // Whole groups needed to hold `dim` entries, times the limbs in each group.
         self.limbs_per_group() * dim.div_ceil(self.entries_per_group())
     }
 
