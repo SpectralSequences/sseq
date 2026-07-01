@@ -29,19 +29,19 @@ def main():
 
     hom = ext.ResolutionHomomorphism(name, resolution, unit, shift)
 
-    matrix = fp.Matrix(p, hom.source().number_of_gens_in_bidegree(shift), 1)
+    matrix = fp.Matrix(p, hom.source.number_of_gens_in_bidegree(shift), 1)
 
-    if matrix.rows() == 0 or matrix.columns() == 0:
+    if matrix.rows == 0 or matrix.columns == 0:
         raise AssertionError("No classes in this bidegree")
 
-    v = query.vector("Input ext class", matrix.rows())
+    v = query.vector("Input ext class", matrix.rows)
     for i, x in enumerate(v):
         matrix.row_mut(i).set_entry(0, x)
 
     if not is_unit:
         res_max = sseq.Bidegree.n_s(
-            resolution.module(0).max_computed_degree(),
-            resolution.next_homological_degree() - 1,
+            resolution.module(0).max_computed_degree,
+            resolution.next_homological_degree - 1,
         )
         unit.compute_through_stem(res_max - shift)
 
@@ -93,7 +93,7 @@ def main():
                 continue
         raise IndexError(f"no computed page data at bidegree {b}")
 
-    name = hom_lift.name()
+    name = hom_lift.name
     # Iterate through the multiplicand
     for b in unit.iter_nonzero_stem():
         # The potential target has to be hit, and we need to have computed (the data need for) the
@@ -116,26 +116,26 @@ def main():
         # First print the products with non-surviving classes
         if target_num_gens > 0:
             hom_k = hom.get_map((b + shift).s).hom_k(b.t)
-            for i in page_data.complement_pivots():
+            for i in page_data.complement_pivots:
                 g = sseq.BidegreeGenerator(b, i)
                 print(f"{name} λ x_{g} = λ {list(hom_k[i])}")
 
         # Now print the secondary products
-        if page_data.subspace_dimension() == 0:
+        if page_data.subspace_dimension == 0:
             continue
 
         outputs = [
             fp.FpVector(p, target_num_gens + lambda_num_gens)
-            for _ in range(page_data.subspace_dimension())
+            for _ in range(page_data.subspace_dimension)
         ]
 
         hom_lift.hom_k(
             res_sseq,
             b,
-            page_data.subspace_gens(),
+            page_data.subspace_gens,
             [out.as_slice_mut() for out in outputs],
         )
-        for g, output in zip(page_data.subspace_gens(), outputs):
+        for g, output in zip(page_data.subspace_gens, outputs):
             basis_string = sseq.BidegreeElement(b, g.to_owned()).to_basis_string()
             print(
                 f"{name} [{basis_string}] = "

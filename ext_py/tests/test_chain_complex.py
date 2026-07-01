@@ -50,11 +50,11 @@ def ccdz_c2():
 def test_ccdz_basic_invariants():
     cc = ccdz_c2()
     assert cc.prime == 2
-    assert cc.min_degree() == 0
-    assert cc.algebra().prime == 2
+    assert cc.min_degree == 0
+    assert cc.algebra.prime == 2
     # next_homological_degree is i32::MAX for a FiniteChainComplex.
-    assert cc.next_homological_degree() == 2147483647
-    assert cc.save_dir() is None
+    assert cc.next_homological_degree == 2147483647
+    assert cc.save_dir is None
 
 
 def test_ccdz_modules_and_differential():
@@ -67,7 +67,7 @@ def test_ccdz_modules_and_differential():
     assert m0.dimension(2) == 0
     # C_s = 0 for s >= 1.
     assert cc.module(1).dimension(0) == 0
-    assert cc.zero_module().dimension(0) == 0
+    assert cc.zero_module.dimension(0) == 0
     # differential is the (zero) boundary; shares the algebra.
     d0 = cc.differential(0)
     assert isinstance(d0, algebra.FullModuleHomomorphism)
@@ -234,7 +234,7 @@ def test_resolution_chain_complex_accessor():
     cc = r.chain_complex()
     assert isinstance(cc, ext.ChainComplex)
     assert cc.prime == 2
-    assert cc.min_degree() == 0
+    assert cc.min_degree == 0
     # The complex resolved is the sphere: C_0 is the unit module (dim 1 in deg 0).
     assert cc.module(0).dimension(0) == 1
 
@@ -288,13 +288,13 @@ def test_facc_valid_one_module():
     aug = algebra.FullModuleHomomorphism(c0, d0)  # C_0 -> D_0
     facc = ext.FiniteAugmentedChainComplex([c0], [], target, [aug])
     assert facc.prime == 2
-    assert facc.min_degree() == 0
-    assert facc.algebra().prime == 2
-    assert facc.max_s() == 1
+    assert facc.min_degree == 0
+    assert facc.algebra.prime == 2
+    assert facc.max_s == 1
     assert facc.module(0).dimension(0) == 1
     # target() shares the Arc and reports the same prime.
-    assert isinstance(facc.target(), ext.ChainComplex)
-    assert facc.target().prime == 2
+    assert isinstance(facc.target, ext.ChainComplex)
+    assert facc.target.prime == 2
     # chain_map(0) is the augmentation.
     assert isinstance(facc.chain_map(0), algebra.FullModuleHomomorphism)
     assert facc.chain_map(0).prime == 2
@@ -309,7 +309,7 @@ def test_facc_valid_two_module():
     aug0 = algebra.FullModuleHomomorphism(c0, d0)
     aug1 = algebra.FullModuleHomomorphism(c1, d1)
     facc = ext.FiniteAugmentedChainComplex([c0, c1], [diff], target, [aug0, aug1])
-    assert facc.max_s() == 2
+    assert facc.max_s == 2
     assert facc.module(1).dimension(1) == 1
     assert facc.differential(1).prime == 2
     assert facc.chain_map(1).prime == 2

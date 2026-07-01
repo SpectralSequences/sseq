@@ -787,6 +787,7 @@ pub mod sseq_py {
 
         /// Whether the recorded differentials are inconsistent. Only meaningful
         /// after the targets have been reduced (which `Sseq.update` does).
+        #[getter]
         pub fn inconsistent(&self) -> bool {
             self.0.inconsistent()
         }
@@ -997,11 +998,13 @@ pub mod sseq_py {
         }
 
         /// The minimal defined bidegree (componentwise), or `(0, 0)` if empty.
+        #[getter]
         pub fn min(&self) -> Bidegree {
             Bidegree(self.0.min())
         }
 
         /// The maximal defined bidegree (componentwise), or `(0, 0)` if empty.
+        #[getter]
         pub fn max(&self) -> Bidegree {
             Bidegree(self.0.max())
         }

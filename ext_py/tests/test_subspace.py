@@ -6,23 +6,23 @@ from ext import fp
 def test_subspace_construction_and_queries():
     s = fp.Subspace(3, 3)
     assert s.prime == 3
-    assert s.ambient_dimension() == 3
-    assert s.dimension() == 0
+    assert s.ambient_dimension == 3
+    assert s.dimension == 0
     assert len(s) == 0
     assert repr(s) == "Subspace(3, dim=0, ambient=3)"
 
 
 def test_subspace_entire_space():
     s = fp.Subspace.entire_space(2, 3)
-    assert s.dimension() == 3
-    assert s.ambient_dimension() == 3
+    assert s.dimension == 3
+    assert s.ambient_dimension == 3
 
 
 def test_subspace_from_matrix():
     m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
     s = fp.Subspace.from_matrix(m)
-    assert s.dimension() == 2
-    assert s.ambient_dimension() == 3
+    assert s.dimension == 2
+    assert s.ambient_dimension == 3
 
 
 def test_add_vector_and_contains():
@@ -57,18 +57,18 @@ def test_contains_space_and_sum():
 
     # The sum of two complementary lines is their 2-dimensional span.
     s = a.sum(b)
-    assert s.dimension() == 2
+    assert s.dimension == 2
     assert s.contains_space(a)
     assert s.contains_space(b)
     assert s.contains(fp.FpVector.from_slice(3, [1, 0, 0]))
     assert s.contains(fp.FpVector.from_slice(3, [0, 1, 0]))
-    assert s.dimension() <= s.ambient_dimension()
+    assert s.dimension <= s.ambient_dimension
 
     # Overlapping subspaces: the sum's dimension is the union's rank.
     c = fp.Subspace(3, 3)
     c.add_vector(fp.FpVector.from_slice(3, [1, 0, 0]))
     overlap = a.sum(c)
-    assert overlap.dimension() == 1
+    assert overlap.dimension == 1
     assert overlap.contains_space(a)
 
 
@@ -84,11 +84,11 @@ def test_reduce_in_place():
 
 def test_set_to_zero_and_entire():
     s = fp.Subspace.entire_space(2, 3)
-    assert s.dimension() == 3
+    assert s.dimension == 3
     s.set_to_zero()
-    assert s.dimension() == 0
+    assert s.dimension == 0
     s.set_to_entire()
-    assert s.dimension() == 3
+    assert s.dimension == 3
 
 
 def test_iter_returns_basis_vectors():
@@ -101,8 +101,8 @@ def test_iter_returns_basis_vectors():
 def test_basis_matches_iter():
     m = fp.Matrix.from_vec(3, [[1, 0, 0], [0, 1, 2]])
     s = fp.Subspace.from_matrix(m)
-    assert [list(v) for v in s.basis()] == [[1, 0, 0], [0, 1, 2]]
-    assert [list(v) for v in s.basis()] == [list(v) for v in s.iter()]
+    assert [list(v) for v in s.basis] == [[1, 0, 0], [0, 1, 2]]
+    assert [list(v) for v in s.basis] == [list(v) for v in s.iter()]
 
 
 def test_contains_accepts_slice():
@@ -148,7 +148,7 @@ def test_bytes_roundtrip():
     data = s.to_bytes()
     assert isinstance(data, bytes)
     restored = fp.Subspace.from_bytes(3, data)
-    assert restored.dimension() == 1
+    assert restored.dimension == 1
     assert restored.contains(fp.FpVector.from_slice(3, [1, 0, 0]))
 
 

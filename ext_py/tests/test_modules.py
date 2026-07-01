@@ -35,13 +35,13 @@ def test_fdmodule_basic_invariants():
     m = make_c2_fdmodule()
     assert isinstance(m.prime, int)
     assert m.prime == 2
-    assert m.min_degree() == 0
+    assert m.min_degree == 0
     assert m.dimension(0) == 1
     assert m.dimension(1) == 1
     assert m.dimension(2) == 0
     assert m.dimension(-1) == 0
-    assert m.max_degree() == 1
-    assert m.total_dimension() == 2
+    assert m.max_degree == 1
+    assert m.total_dimension == 2
 
 
 def test_fdmodule_act_on_basis_known_value():
@@ -154,7 +154,7 @@ def test_fdmodule_build():
     assert sm.dimension(0) == m.dimension(0)
     assert sm.dimension(1) == m.dimension(1)
     # The algebra accessor returns a SteenrodAlgebra at the same prime.
-    assert sm.algebra().prime == 2
+    assert sm.algebra.prime == 2
 
 
 # --- FDModuleBuilder algebra-argument acceptance --------------------------
@@ -181,7 +181,7 @@ def test_fdmodule_accepts_all_algebra_types(make_alg, expected_type):
     m.set_action(1, 0, 0, 0, [1])
     assert m.prime == 2
     # The builder's algebra is the matching SteenrodAlgebra variant.
-    assert m.algebra().algebra_type() == expected_type
+    assert m.algebra.algebra_type() == expected_type
     sm = m.build()
     res = fp.FpVector(2, sm.dimension(1))
     sm.act_on_basis(res, 1, 1, 0, 0, 0)
@@ -192,7 +192,7 @@ def test_fdmodule_accepts_milnor_algebra_with_profile():
     # A profile-restricted MilnorAlgebra is accepted and reconstructed as Milnor.
     alg = algebra.MilnorAlgebra(2, False)
     m = algebra.FDModuleBuilder(alg, "", [1, 1])
-    assert m.algebra().algebra_type() == algebra.AlgebraType.Milnor
+    assert m.algebra.algebra_type() == algebra.AlgebraType.Milnor
 
 
 def test_fdmodule_rejects_non_algebra_argument():
@@ -225,7 +225,7 @@ def test_from_spec_c2():
     sm = algebra.SteenrodModule.from_spec(C2_JSON, milnor(2))
     assert isinstance(sm, algebra.SteenrodModule)
     assert sm.prime == 2
-    assert sm.min_degree() == 0
+    assert sm.min_degree == 0
     assert sm.dimension(0) == 1
     assert sm.dimension(1) == 1
     assert sm.dimension(2) == 0
@@ -293,7 +293,7 @@ def make_free(gen_degrees=(0,)):
 def test_freemodule_basic_invariants():
     m = make_free()
     assert m.prime == 2
-    assert m.min_degree() == 0
+    assert m.min_degree == 0
     assert m.number_of_gens_in_degree(0) == 1
     # dimension(t) tracks the algebra dimension for a single degree-0 generator.
     assert m.dimension(0) == 1
@@ -329,7 +329,7 @@ def test_freemodule_offsets_and_iter_gens():
     m = make_free()
     assert m.generator_offset(1, 0, 0) == 0
     assert m.iter_gens(3) == [(0, 0)]
-    names = m.gen_names()
+    names = m.gen_names
     assert len(names) >= 1
 
 
@@ -353,7 +353,7 @@ def test_freemodule_total_dimension_unbounded_raises():
     m = make_free()
     # FreeModule is unbounded above -> total_dimension raises, never panics.
     with pytest.raises(ValueError):
-        m.total_dimension()
+        m.total_dimension
 
 
 def test_freemodule_number_of_gens_in_degree_above_range_returns_zero():
@@ -521,7 +521,7 @@ def test_from_tensor_module_to_json_sensible():
     j = fd.to_json()
     assert j["type"] == "finite dimensional module"
     # C2 (x) C2 has dimensions 1, 2, 1 in degrees 0, 1, 2.
-    assert fd.min_degree() == 0
+    assert fd.min_degree == 0
     assert [fd.dimension(t) for t in range(3)] == [1, 2, 1]
     # gens map names to degrees; there should be 4 of them.
     assert isinstance(j["gens"], dict)

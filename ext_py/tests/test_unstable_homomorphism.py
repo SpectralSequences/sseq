@@ -60,17 +60,17 @@ def identity_hom(r, max_st=6):
 def test_new_accessors_roundtrip():
     r = us2_rect(4)
     hom = ext.UnstableResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
-    assert hom.name() == "f"
+    assert hom.name == "f"
     assert hom.prime == 2
-    assert hom.shift().s == 1
-    assert hom.shift().t == 1
-    assert hom.source().prime == 2
-    assert hom.target().prime == 2
-    assert hom.source().graded_dimension_string() == r.graded_dimension_string()
+    assert hom.shift.s == 1
+    assert hom.shift.t == 1
+    assert hom.source.prime == 2
+    assert hom.target.prime == 2
+    assert hom.source.graded_dimension_string() == r.graded_dimension_string()
     # A freshly constructed hom defines no maps yet (next_hom_degree == shift.s).
-    assert hom.next_homological_degree() == 1
-    assert hom.save_dir() is None
-    assert hom.algebra().prime == 2
+    assert hom.next_homological_degree == 1
+    assert hom.save_dir is None
+    assert hom.algebra.prime == 2
 
 
 # --- known value: from_class([1]) at (0,0) is the identity chain map ------
@@ -94,8 +94,8 @@ def test_from_class_identity_matches_basis():
     # test_unstable_vs_stable_s3_charts_differ instead.
     r = us2_rect(6)
     hom = identity_hom(r, 6)
-    assert hom.name() == "id"
-    assert hom.shift().s == 0 and hom.shift().t == 0
+    assert hom.name == "id"
+    assert hom.shift.s == 0 and hom.shift.t == 0
 
     visited = 0
     for s in range(0, 7):
@@ -120,13 +120,13 @@ def test_get_map_is_unstable_free_to_free():
     r = us2_rect(4)
     hom = identity_hom(r, 4)
     m = hom.get_map(0)
-    assert m.degree_shift() == 0
+    assert m.degree_shift == 0
     assert m.prime == 2
     # source()/target() are unstable free modules sharing the resolution's Arc.
-    assert isinstance(m.source(), algebra.UnstableFreeModule)
-    assert isinstance(m.target(), algebra.UnstableFreeModule)
-    assert m.source().prime == 2
-    assert m.next_degree() > 0
+    assert isinstance(m.source, algebra.UnstableFreeModule)
+    assert isinstance(m.target, algebra.UnstableFreeModule)
+    assert m.source.prime == 2
+    assert m.next_degree > 0
     # s=0 map is the identity on the unit: output(0,0) == [1].
     assert list(m.output(0, 0)) == [1]
 
@@ -202,20 +202,20 @@ def test_act_map_undefined_at_s_errors():
 
 
 def test_act_not_extended_far_enough_errors():
-    # The `src_t >= map.next_degree()` guard ("map not extended far enough"):
+    # The `src_t >= map.next_degree` guard ("map not extended far enough"):
     # the hom IS defined at homological degree src_s (so the src_s guard does
     # NOT fire) and the source IS computed at the source bidegree, but the map
     # has only been extended through a smaller t. Resolve S_2 through (6, 6) so
     # the source bidegree (0, 3) is computed, but extend the identity hom only
     # through (0, 0); then act at g = (0, 3, 0): src = (0, 3) with src_t = 3 >=
-    # map(0).next_degree() == 1.
+    # map(0).next_degree == 1.
     r = us2_rect(6)
     hom = ext.UnstableResolutionHomomorphism.from_class(
         "id", r, r, Bidegree.s_t(0, 0), [1]
     )
     hom.extend(Bidegree.s_t(0, 0))
-    assert hom.next_homological_degree() == 1  # s = 0 map is defined ...
-    assert hom.get_map(0).next_degree() == 1  # ... but only extended through t=0
+    assert hom.next_homological_degree == 1  # s = 0 map is defined ...
+    assert hom.get_map(0).next_degree == 1  # ... but only extended through t=0
     result = FpVector(2, 1)
     with pytest.raises(ValueError, match="not extended through"):
         hom.act(result, 1, BidegreeGenerator.s_t(0, 3, 0))
@@ -225,7 +225,7 @@ def test_act_target_not_computed_guard_is_shadowed():
     # The `target.has_computed_bidegree(g.degree())` guard is intentionally
     # over-strict relative to the stable ResolutionHomomorphism.act (see the
     # NOTE at that guard in src/lib.rs): it is a conservative superset of the
-    # `src_t >= map.next_degree()` guard and is UNREACHABLE from Python. The hom
+    # `src_t >= map.next_degree` guard and is UNREACHABLE from Python. The hom
     # cannot be extended past the target's computed range (extend itself guards
     # `target.has_computed_bidegree(input - shift)`), so whenever g.degree() is
     # uncomputed in the target the earlier "not extended through" guard fires
@@ -234,7 +234,7 @@ def test_act_target_not_computed_guard_is_shadowed():
     # Setup: source resolved further (through t = 9) than target (through t = 6),
     # shift (0, 0). The hom can only be extended through (6, 6) (target's range),
     # so act at g = (0, 7, 0) -- where the target is NOT computed but the source
-    # IS -- trips `src_t >= map.next_degree()` rather than the target guard.
+    # IS -- trips `src_t >= map.next_degree` rather than the target guard.
     src = ext.construct_unstable("S_2")
     src.compute_through_bidegree(Bidegree.s_t(6, 9))
     tgt = ext.construct_unstable("S_2")
@@ -245,7 +245,7 @@ def test_act_target_not_computed_guard_is_shadowed():
     hom.extend(Bidegree.s_t(6, 6))
     assert src.has_computed_bidegree(Bidegree.s_t(0, 7)) is True
     assert tgt.has_computed_bidegree(Bidegree.s_t(0, 7)) is False
-    # g.s = 0 < tgt.next_homological_degree(), so the target-s guard is passed;
+    # g.s = 0 < tgt.next_homological_degree, so the target-s guard is passed;
     # the "not extended through" guard is what actually fires.
     result = FpVector(2, 1)
     with pytest.raises(ValueError, match="not extended through"):
@@ -341,7 +341,7 @@ def test_unstable_resolution_module_accessor_and_guards():
     m = r.module(0)
     assert isinstance(m, algebra.UnstableFreeModule)
     assert m.prime == 2
-    assert m.min_degree() == 0
+    assert m.min_degree == 0
     assert m.number_of_gens_in_degree(0) == 1
     assert m.dimension(0) == 1
     assert isinstance(m.basis_element_to_string(0, 0), str)

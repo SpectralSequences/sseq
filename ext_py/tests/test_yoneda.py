@@ -8,7 +8,7 @@ We copy the canonical construction from the upstream ``examples/yoneda.rs`` /
 its representative.
 
 Structural invariants asserted (derived from the upstream examples, which print
-``module(s).total_dimension()`` for ``s`` in ``0..=b.s()`` and the upstream
+``module(s).total_dimension`` for ``s`` in ``0..=b.s()`` and the upstream
 Euler-characteristic sanity assert ``euler_characteristic(t) == target_dim(t)``):
 
 * the result is a ``FiniteAugmentedChainComplex`` over ``p = 2``;
@@ -46,11 +46,11 @@ def test_h0_representative_structure():
     y = ext.yoneda_representative_element(r, H0, [1])
     assert isinstance(y, ext.FiniteAugmentedChainComplex)
     assert y.prime == 2
-    # s_max = b.s() = 1, so modules C_0, C_1 => max_s() = modules.len() = 2.
-    assert y.max_s() == 2
+    # s_max = b.s() = 1, so modules C_0, C_1 => max_s() = modules.len = 2.
+    assert y.max_s == 2
     # The augmentation target is the original S_2 complex: 1-dimensional in
     # internal degree 0.
-    target = y.target()
+    target = y.target
     assert target.prime == 2
     assert target.module(0).dimension(0) == 1
     # The bottom cell C_0 is a point in internal degree 0.

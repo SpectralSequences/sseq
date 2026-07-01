@@ -10,12 +10,12 @@ def test_fp_vector_slice_queries_and_to_owned():
 
     assert s.prime == 5
     assert len(s) == 3
-    assert not s.is_empty()
+    assert not s.is_empty
     assert s.entry(1) == 2
     assert s[1] == 2
     assert s[-1] == 0
-    assert not s.is_zero()
-    assert s.first_nonzero() == (0, 1)
+    assert not s.is_zero
+    assert s.first_nonzero == (0, 1)
     assert list(s.iter()) == [1, 2, 0]
     assert s.iter_nonzero() == [(0, 1), (1, 2)]
     assert repr(s) == "FpSlice(5, [1, 2, 0])"
@@ -349,18 +349,18 @@ def test_fp_slice_len_revalidates_after_parent_shrink():
 
     assert len(s) == 3
     assert len(sm) == 3
-    assert not s.is_empty()
+    assert not s.is_empty
 
     v.set_scratch_vector_size(2)
 
     with pytest.raises(IndexError):
         len(s)
     with pytest.raises(IndexError):
-        s.is_empty()
+        s.is_empty
     with pytest.raises(IndexError):
         len(sm)
     with pytest.raises(IndexError):
-        sm.is_empty()
+        sm.is_empty
 
 
 def test_fp_slice_mut_index_and_range_errors():

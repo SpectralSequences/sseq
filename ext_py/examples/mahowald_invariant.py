@@ -106,7 +106,7 @@ class PKData:
                 for p_k_gen in range(p_k_gens):
                     output = bottom_cell_map.output(b_p_k.t, p_k_gen)
                     for s_2_gen, row in enumerate(matrix):
-                        index = bottom_cell_map.target().operation_generator_to_index(
+                        index = bottom_cell_map.target.operation_generator_to_index(
                             0, 0, b_bottom.t, s_2_gen
                         )
                         row[p_k_gen] = output.entry(index)
@@ -117,7 +117,7 @@ class PKData:
                 if rank > 0:
                     kernel_subspace = matrix.compute_kernel(padded_columns)
                     indeterminacy_basis = [
-                        row.to_owned() for row in kernel_subspace.basis()
+                        row.to_owned() for row in kernel_subspace.basis
                     ]
                     image_subspace = matrix.compute_image(p_k_gens, padded_columns)
                     quasi_inverse = matrix.compute_quasi_inverse(
@@ -128,7 +128,7 @@ class PKData:
                         image = fp.FpVector.new(TWO, p_k_gens)
                         g = sseq.BidegreeGenerator(b, i)
                         self.minus_one_cell.act(image.slice_mut(0, p_k_gens), 1, g)
-                        if not image.is_zero() and image_subspace.contains(
+                        if not image.is_zero and image_subspace.contains(
                             image.slice(0, p_k_gens)
                         ):
                             invariant = fp.FpVector.new(TWO, bottom_s_2_gens)

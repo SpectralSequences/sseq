@@ -27,10 +27,10 @@ def main():
     # ext::utils::init_logging() -> stderr only; no stdout effect.
 
     resolution = query.query_resolution("Module", None, algorithm="standard")
-    module = resolution.target().module(0)
+    module = resolution.target.module(0)
     p = resolution.prime
 
-    if resolution.target().max_s() != 1 or not module.is_unit() or p != 2:
+    if resolution.target.max_s != 1 or not module.is_unit or p != 2:
         raise AssertionError("Can only run Steenrod on the sphere")
 
     b = sseq.Bidegree.n_s(
@@ -46,7 +46,7 @@ def main():
 
     print("Dimensions of Yoneda representative: 1", end="")
     for s in range(b.s + 1):
-        print(f" {yoneda.module(s).total_dimension()}", end="")
+        print(f" {yoneda.module(s).total_dimension}", end="")
     print()
 
     # NOTE: depends on TensorChainComplex (not in API_PROPOSAL / requires

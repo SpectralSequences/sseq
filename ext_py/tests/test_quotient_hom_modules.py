@@ -36,14 +36,14 @@ def test_quotient_module_basic_dimensions():
     q.compute_basis(2)
     assert isinstance(q.prime, int)
     assert q.prime == 2
-    assert q.min_degree() == 0
+    assert q.min_degree == 0
     assert q.truncation == 1
     # Nothing quotiented yet: same dims as C2 ([1, 1]).
     assert q.dimension(0) == 1
     assert q.dimension(1) == 1
     assert q.dimension(2) == 0
-    assert q.max_degree() == 1
-    assert q.total_dimension() == 2
+    assert q.max_degree == 1
+    assert q.total_dimension == 2
 
 
 def test_quotient_module_truncation_zeroes_above():
@@ -53,8 +53,8 @@ def test_quotient_module_truncation_zeroes_above():
     q.compute_basis(2)
     assert q.dimension(0) == 1
     assert q.dimension(1) == 0
-    assert q.max_degree() == 0
-    assert q.total_dimension() == 1
+    assert q.max_degree == 0
+    assert q.total_dimension == 1
 
 
 def test_quotient_module_quotient_basis_elements():
@@ -65,7 +65,7 @@ def test_quotient_module_quotient_basis_elements():
     q.quotient_basis_elements(1, [0])
     assert q.dimension(1) == 0
     assert q.dimension(0) == 1
-    assert q.total_dimension() == 1
+    assert q.total_dimension == 1
 
 
 def test_quotient_module_quotient_vector_and_reduce():
@@ -192,7 +192,7 @@ def test_quotient_module_free_inner_uncomputed_algebra_no_panic():
     q = algebra.QuotientModule(f.into_steenrod_module(), 20)
     assert q.prime == 2
     assert q.truncation == 20
-    assert q.min_degree() == 0
+    assert q.min_degree == 0
     # F<x0> over A: dim in degree t equals the algebra dimension in t.
     assert q.dimension(0) == 1  # 1 (unit)
     assert q.dimension(1) == 1  # Sq1
@@ -247,8 +247,8 @@ def test_hom_module_dimensions():
     hom = algebra.HomModule(source, target)
     assert isinstance(hom.prime, int)
     assert hom.prime == 2
-    # min_degree = source.min_degree() - target.max_degree() = 0 - 1.
-    assert hom.min_degree() == -1
+    # min_degree = source.min_degree - target.max_degree = 0 - 1.
+    assert hom.min_degree == -1
     hom.compute_basis(0)
     # Hom(F<x0>, C2) graded opposite: dim in degree d = target.dim(-d).
     assert hom.dimension(-1) == 1  # target.dim(1)
@@ -261,10 +261,10 @@ def test_hom_module_source_target_roundtrip():
     source = free_one_gen(alg)
     target = make_c2(alg)
     hom = algebra.HomModule(source, target)
-    s = hom.source()
-    assert s.min_degree() == 0
+    s = hom.source
+    assert s.min_degree == 0
     assert s.number_of_gens_in_degree(0) == 1
-    t = hom.target()
+    t = hom.target
     assert t.dimension(0) == 1
     assert t.dimension(1) == 1
 
@@ -284,7 +284,7 @@ def test_hom_module_basis_element_to_string():
     hom = algebra.HomModule(free_one_gen(alg), make_c2(alg))
     hom.compute_basis(0)
     assert isinstance(hom.basis_element_to_string(-1, 0), str)
-    assert isinstance(hom.is_unit(), bool)
+    assert isinstance(hom.is_unit, bool)
 
 
 def test_hom_module_prime_mismatch_raises():
@@ -321,7 +321,7 @@ def test_hom_module_out_of_range_no_panic():
 
 
 def test_hom_module_overflow_degree_no_panic():
-    # target.max_degree() == 1, so the upstream compute_basis would add
+    # target.max_degree == 1, so the upstream compute_basis would add
     # i32::MAX + 1 and overflow. The degree-touching methods short-circuit
     # cleanly instead of panicking.
     alg = milnor(2)
@@ -340,7 +340,7 @@ def test_hom_module_total_dimension_unbounded_raises():
     hom = algebra.HomModule(free_one_gen(alg), make_c2(alg))
     # Hom over a free source is unbounded above.
     with pytest.raises(ValueError):
-        hom.total_dimension()
+        hom.total_dimension
 
 
 def test_hom_module_has_no_into_steenrod_module():

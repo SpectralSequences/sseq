@@ -41,8 +41,8 @@ def _unstable_s2(spec="S_2", n=8, s=4):
 def test_unstable_resolution_basic_invariants():
     r = _unstable_s2()
     assert r.prime == 2
-    assert r.min_degree() == 0
-    assert r.next_homological_degree() > 0
+    assert r.min_degree == 0
+    assert r.next_homological_degree > 0
     # The unit: exactly one generator at (0, 0).
     assert r.number_of_gens_in_bidegree(_st(0, 0)) == 1
     # graded_dimension_string is nonempty/consistent.
@@ -115,8 +115,8 @@ def test_unstable_vs_stable_s3_charts_differ():
     unstable = ext.construct_unstable("S_2[3]")
     unstable.compute_through_stem(rng)
 
-    assert stable.min_degree() == 3
-    assert unstable.min_degree() == 3
+    assert stable.min_degree == 3
+    assert unstable.min_degree == 3
 
     chart_stable = stable.graded_dimension_string()
     chart_unstable = unstable.graded_dimension_string()
@@ -352,7 +352,7 @@ def test_unstable_hom_k_suspension_matrix():
     # s=0: target is res_a's module S_2; degree t = 1 (= suspension_shift.t).
     m = hom.get_map(0)
     t = suspension_shift.t
-    target = m.target()
+    target = m.target
     expected_rows = target.number_of_gens_in_degree(t)
     mat = m.hom_k(t)
     assert isinstance(mat, list)
@@ -365,7 +365,7 @@ def test_unstable_hom_k_suspension_matrix():
     # as an empty matrix, never a panic. (Avoid a wildly large degree: hom_k
     # ensures the module basis up to t first, so probing e.g. 10_000 would force
     # a huge basis computation.)
-    above_range = target.max_computed_degree() + 5
+    above_range = target.max_computed_degree + 5
     assert m.hom_k(above_range) == []
     # A negative degree is cheap (no basis computation) and also empty.
     assert m.hom_k(-5) == []
@@ -433,7 +433,7 @@ def test_query_unstable_module_resolves_through_stem(feed):
     res = ext.query_unstable_module()
     assert res.number_of_gens_in_bidegree(_st(0, 0)) == 1
     # Resolved through the requested stem.
-    assert res.next_homological_degree() > 0
+    assert res.next_homological_degree > 0
 
 
 def test_query_unstable_module_save_dir_round_trip(feed, tmp_path):

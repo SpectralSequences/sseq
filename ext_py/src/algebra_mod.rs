@@ -889,6 +889,7 @@ pub mod algebra_py {
                     })
                 }
 
+                #[getter]
                 pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
                     self.0.default_filtration_one_products()
                 }
@@ -1649,6 +1650,7 @@ pub mod algebra_py {
             })
         }
 
+        #[getter]
         pub fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
             self.0.default_filtration_one_products()
         }
@@ -1990,18 +1992,22 @@ pub mod algebra_py {
 
                 // --- flattened Module method set ------------------------------
 
+                #[getter]
                 pub fn algebra(&self) -> SteenrodAlgebra {
                     SteenrodAlgebra::from_arc(self.as_dyn().algebra())
                 }
 
+                #[getter]
                 pub fn min_degree(&self) -> i32 {
                     self.as_dyn().min_degree()
                 }
 
+                #[getter]
                 pub fn max_computed_degree(&self) -> i32 {
                     self.as_dyn().max_computed_degree()
                 }
 
+                #[getter]
                 pub fn max_degree(&self) -> Option<i32> {
                     self.as_dyn().max_degree()
                 }
@@ -2020,10 +2026,12 @@ pub mod algebra_py {
                     module_dimension(self.as_dyn(), degree)
                 }
 
+                #[getter]
                 pub fn total_dimension(&self) -> PyResult<usize> {
                     module_total_dimension(self.as_dyn())
                 }
 
+                #[getter]
                 pub fn is_unit(&self) -> bool {
                     self.as_dyn().is_unit()
                 }
@@ -2145,11 +2153,13 @@ pub mod algebra_py {
                 // --- flattened ModuleHomomorphism method set ------------------
 
                 /// The degree shift: `output_degree = input_degree - degree_shift`.
+                #[getter]
                 pub fn degree_shift(&self) -> i32 {
                     self.0.degree_shift()
                 }
 
                 /// The smallest input degree the homomorphism is defined on.
+                #[getter]
                 pub fn min_degree(&self) -> i32 {
                     self.0.min_degree()
                 }
@@ -2735,6 +2745,7 @@ pub mod algebra_py {
 
         /// The generator names up to the maximum computed generator degree, as a
         /// list (indexed from `min_degree`) of lists.
+        #[getter]
         pub fn gen_names(&self) -> Vec<Vec<String>> {
             self.0.gen_names().iter().map(|(_, v)| v.clone()).collect()
         }
@@ -3009,6 +3020,7 @@ pub mod algebra_py {
 
         /// The degree shift this suspension applies. (Upstream's `shift` field
         /// is private with no accessor, so we report our stored copy.)
+        #[getter]
         pub fn shift(&self) -> i32 {
             self.shift
         }
@@ -3454,18 +3466,22 @@ pub mod algebra_py {
         /// The ground-field algebra `F_p` this Hom space is a module over,
         /// as the bound `Field` pyclass. Shares the module's `Arc<Field>` (no
         /// `ValidPrime` is exposed, and the prime matches the source/target).
+        #[getter]
         pub fn algebra(&self) -> Field {
             Field::from_arc(self.0.algebra())
         }
 
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
         }
 
+        #[getter]
         pub fn max_computed_degree(&self) -> i32 {
             self.0.max_computed_degree()
         }
 
+        #[getter]
         pub fn max_degree(&self) -> Option<i32> {
             self.0.max_degree()
         }
@@ -3489,12 +3505,14 @@ pub mod algebra_py {
             module_dimension(self.as_dyn(), degree)
         }
 
+        #[getter]
         pub fn total_dimension(&self) -> PyResult<usize> {
             // `HomModule` is unbounded above (over a free source), so
             // `max_degree()` is `None` and this raises without computing.
             module_total_dimension(self.as_dyn())
         }
 
+        #[getter]
         pub fn is_unit(&self) -> bool {
             self.0.is_unit()
         }
@@ -3646,12 +3664,14 @@ pub mod algebra_py {
         // --- HomModule-specific (thin) ----------------------------------------
 
         /// The source `FreeModule` (shares state via an `Arc`).
+        #[getter]
         pub fn source(&self) -> FreeModule {
             FreeModule(self.0.source())
         }
 
         /// The target module, as a `SteenrodModule` (shares state via an
         /// `Arc`).
+        #[getter]
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
         }
@@ -3886,6 +3906,7 @@ pub mod algebra_py {
             self.inner.prime().as_u32()
         }
 
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.inner.min_degree()
         }
@@ -4136,6 +4157,7 @@ pub mod algebra_py {
         }
 
         /// The total dimension of the direct sum (the sum of all block sizes).
+        #[getter]
         pub fn total_dimension(&self) -> usize {
             self.inner.total_dimension()
         }
@@ -4327,12 +4349,14 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The source `FreeModule` (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> FreeModule {
             FreeModule(self.0.source())
         }
 
         /// The target module, boxed as a `SteenrodModule` (shares state via
         /// `Arc`).
+        #[getter]
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
         }
@@ -4490,6 +4514,7 @@ pub mod algebra_py {
 
         /// The first input degree whose outputs on generators have *not* yet
         /// been defined (i.e. the length of the `outputs` table).
+        #[getter]
         pub fn next_degree(&self) -> i32 {
             self.0.next_degree()
         }
@@ -4887,11 +4912,13 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The source `FreeModule` (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> FreeModule {
             FreeModule(self.0.source())
         }
 
         /// The target `FreeModule` (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> FreeModule {
             FreeModule(self.0.target())
         }
@@ -5049,6 +5076,7 @@ pub mod algebra_py {
 
         /// The first input degree whose outputs on generators have *not* yet
         /// been defined (i.e. the length of the `outputs` table).
+        #[getter]
         pub fn next_degree(&self) -> i32 {
             self.0.next_degree()
         }
@@ -5417,14 +5445,17 @@ pub mod algebra_py {
     impl UnstableFreeModule {
         /// The Steenrod algebra the module is built over (an unstable-flagged
         /// `SteenrodAlgebra`; shares the `Arc`).
+        #[getter]
         pub fn algebra(&self) -> SteenrodAlgebra {
             SteenrodAlgebra::from_arc(self.0.algebra())
         }
 
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
         }
 
+        #[getter]
         pub fn max_computed_degree(&self) -> i32 {
             self.0.max_computed_degree()
         }
@@ -5565,21 +5596,25 @@ pub mod algebra_py {
     #[pymethods]
     impl UnstableFreeModuleHomomorphism {
         /// The source unstable `FreeModule` (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> UnstableFreeModule {
             UnstableFreeModule::from_arc(self.0.source())
         }
 
         /// The target unstable `FreeModule` (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> UnstableFreeModule {
             UnstableFreeModule::from_arc(self.0.target())
         }
 
         /// The degree shift: `output_degree = input_degree - degree_shift`.
+        #[getter]
         pub fn degree_shift(&self) -> i32 {
             self.0.degree_shift()
         }
 
         /// The smallest input degree the homomorphism is defined on.
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
         }
@@ -5592,6 +5627,7 @@ pub mod algebra_py {
 
         /// The first input degree whose outputs on generators have *not* yet
         /// been defined (the length of the `outputs` table).
+        #[getter]
         pub fn next_degree(&self) -> i32 {
             self.0.next_degree()
         }
@@ -5957,11 +5993,13 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The source module (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> SteenrodModule {
             SteenrodModule((*self.0.source()).clone())
         }
 
         /// The target module (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
         }
@@ -6192,11 +6230,13 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The (quotient) source module (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> QuotientModule {
             QuotientModule(self.0.source())
         }
 
         /// The (quotient) target module (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> QuotientModule {
             QuotientModule(self.0.target())
         }
@@ -6429,12 +6469,14 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The (quotient) source module (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> QuotientModule {
             QuotientModule(self.0.source())
         }
 
         /// The (plain) target module, boxed as a `SteenrodModule` (shares state
         /// via `Arc`).
+        #[getter]
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
         }
@@ -6640,11 +6682,13 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The source module (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> SteenrodModule {
             SteenrodModule((*self.0.source()).clone())
         }
 
         /// The target module (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> SteenrodModule {
             SteenrodModule((*self.0.target()).clone())
         }
@@ -6960,23 +7004,27 @@ pub mod algebra_py {
         // --- flattened ModuleHomomorphism method set --------------------------
 
         /// The source `Hom(B, X)` module (shares state via `Arc`).
+        #[getter]
         pub fn source(&self) -> HomModule {
             self.src_hom()
         }
 
         /// The target `Hom(A, X)` module (shares state via `Arc`).
+        #[getter]
         pub fn target(&self) -> HomModule {
             self.tgt_hom()
         }
 
         /// The degree shift: `output_degree = input_degree - degree_shift`.
         /// Upstream this is `-map.degree_shift()`.
+        #[getter]
         pub fn degree_shift(&self) -> i32 {
             self.inner.degree_shift()
         }
 
         /// The smallest input degree the homomorphism is defined on
         /// (`source.min_degree()`).
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.inner.min_degree()
         }
@@ -7314,6 +7362,7 @@ pub mod algebra_py {
 
         /// The left child of a `Product`/`Sum` node. Raises `ValueError`
         /// otherwise.
+        #[getter]
         pub fn left(&self) -> PyResult<AlgebraNode> {
             use ::algebra::steenrod_parser::AlgebraNode::*;
             match &self.0 {
@@ -7324,6 +7373,7 @@ pub mod algebra_py {
 
         /// The right child of a `Product`/`Sum` node. Raises `ValueError`
         /// otherwise.
+        #[getter]
         pub fn right(&self) -> PyResult<AlgebraNode> {
             use ::algebra::steenrod_parser::AlgebraNode::*;
             match &self.0 {

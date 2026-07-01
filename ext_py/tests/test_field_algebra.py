@@ -1,5 +1,5 @@
 """Tests for `algebra.Field`: the ground field F_p viewed as the trivial
-1-dimensional algebra (concentrated in degree 0), and for `HomModule.algebra()`,
+1-dimensional algebra (concentrated in degree 0), and for `HomModule.algebra`,
 which returns that ground-field algebra.
 
 Note: `algebra.Field` (this trivial *algebra*) is distinct from `fp.Fp`
@@ -138,7 +138,7 @@ def test_field_is_not_fp():
     assert isinstance(f, algebra.Field)
 
 
-# --- HomModule.algebra() ---------------------------------------------------
+# --- HomModule.algebra ---------------------------------------------------
 
 
 def milnor(p=2):
@@ -168,7 +168,7 @@ def test_hom_module_algebra_returns_ground_field():
     x = make_c2(alg)
     hom = algebra.HomModule(source, x)
 
-    field = hom.algebra()
+    field = hom.algebra
     # The Hom space is a module over the ground field, not the Steenrod algebra.
     assert isinstance(field, algebra.Field)
     assert field.prime == hom.prime == 2
@@ -181,7 +181,7 @@ def test_hom_module_algebra_prime_matches_at_odd_prime():
     source = free_one_gen(alg, "F")
     x = algebra.FDModuleBuilder(alg, "pt", [1]).build()
     hom = algebra.HomModule(source, x)
-    field = hom.algebra()
+    field = hom.algebra
     assert field.prime == 3
     assert field.dimension(0) == 1
 

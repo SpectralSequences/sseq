@@ -671,6 +671,7 @@ mod ext_py {
         /// resolves a different (monomorphised) complex type that the
         /// `ChainComplex` pyclass cannot represent, so it is rejected with a
         /// `ValueError` (mirroring `chain_complex()` / `module()`).
+        #[getter]
         pub fn target(&self) -> PyResult<ChainComplex> {
             match &self.0 {
                 AnyResolution::Standard(r) => Ok(ChainComplex(r.target())),
@@ -793,12 +794,14 @@ mod ext_py {
         }
 
         /// The minimum internal degree of the resolution's modules.
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             dispatch!(&self.0, r => r.min_degree())
         }
 
         /// The first `s` for which `module(s)` is not yet defined (i.e. the
         /// number of homological degrees resolved so far).
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             dispatch!(&self.0, r => r.next_homological_degree())
         }
@@ -1097,6 +1100,7 @@ mod ext_py {
         /// is rebuilt into the equivalent `SteenrodAlgebra::Milnor` variant (same
         /// prime/profile, so identical basis indexing). See
         /// `SteenrodAlgebra::from_milnor`.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             match &self.0 {
                 AnyResolution::Standard(r) => algebra_py::SteenrodAlgebra::from_arc(r.algebra()),
@@ -1294,11 +1298,13 @@ mod ext_py {
         }
 
         /// The minimum internal degree of the resolution's modules.
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
         }
 
         /// The first `s` for which `module(s)` is not yet defined.
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             self.0.next_homological_degree()
         }
@@ -1426,12 +1432,14 @@ mod ext_py {
         /// The resolution's name (used in tracing/logging). `set_name` is not
         /// bound for the same reason as on `Resolution` (it takes `&mut self`,
         /// but this pyclass is `frozen` and wraps the resolution in an `Arc`).
+        #[getter]
         pub fn name(&self) -> String {
             self.0.name().to_string()
         }
 
         /// The directory used to persist the resolution, or `None` if it is held
         /// purely in memory (the default).
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
         }
@@ -1843,11 +1851,13 @@ mod ext_py {
         ///
         /// `set_name` is not bound: the upstream `name` field is private and has
         /// no `&self` setter (and this pyclass is `frozen`).
+        #[getter]
         pub fn name(&self) -> String {
             reshom_dispatch!(self, r => r.name().to_string())
         }
 
         /// The Steenrod algebra the (source) resolution is built over.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             reshom_dispatch!(self, r => algebra_py::SteenrodAlgebra::from_arc(r.algebra()))
         }
@@ -1861,11 +1871,13 @@ mod ext_py {
         /// The shift bidegree of the homomorphism (`f` sends `source.module(s)`
         /// into `target.module(s - shift.s)` and raises internal degree by
         /// `shift.t`).
+        #[getter]
         pub fn shift(&self) -> sseq_py::Bidegree {
             reshom_dispatch!(self, r => sseq_py::Bidegree(r.shift))
         }
 
         /// The source resolution (shares the underlying `Arc`).
+        #[getter]
         pub fn source(&self) -> Resolution {
             reshom_dispatch!(self, r => Resolution(
                 AnyResolution::Standard(Arc::clone(&r.source)),
@@ -1876,6 +1888,7 @@ mod ext_py {
         /// The target of the homomorphism (shares the underlying `Arc`): a
         /// `Resolution` for a resolution→resolution map, or a
         /// `DoubleChainComplex` for a resolution→double map.
+        #[getter]
         pub fn target(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
             match &self.0 {
                 AnyResHom::ToRes(r) => Ok(Py::new(
@@ -1894,6 +1907,7 @@ mod ext_py {
 
         /// The first homological degree `s` at which the chain map is not yet
         /// defined (the length of the internal `maps` table).
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             reshom_dispatch!(self, r => r.next_homological_degree())
         }
@@ -1901,6 +1915,7 @@ mod ext_py {
         /// The directory used to persist the chain map, or `None` if it is held
         /// purely in memory (the default — only set when the source resolution
         /// has a save directory and the homomorphism has a non-empty name).
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             reshom_dispatch!(self, r => r.save_dir().read().map(|p| p.display().to_string()))
         }
@@ -2514,16 +2529,19 @@ mod ext_py {
 
         /// Whether the resolution already resolves the unit (i.e. `M == k`, the
         /// resolution and unit share the same `Arc`).
+        #[getter]
         pub fn is_unit(&self) -> bool {
             self.0.is_unit()
         }
 
         /// The resolution of `M` (shares the underlying `Arc`).
+        #[getter]
         pub fn resolution(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(self.0.resolution())), std::sync::Mutex::new(None))
         }
 
         /// The resolution of the unit `k` (shares the underlying `Arc`).
+        #[getter]
         pub fn unit(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(self.0.unit())), std::sync::Mutex::new(None))
         }
@@ -2952,12 +2970,14 @@ mod ext_py {
         }
 
         /// The homomorphism's name (used in tracing/logging).
+        #[getter]
         pub fn name(&self) -> String {
             self.0.name().to_string()
         }
 
         /// The Steenrod algebra the (source) resolution is built over (an
         /// unstable-flagged `SteenrodAlgebra`).
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
         }
@@ -2969,28 +2989,33 @@ mod ext_py {
         }
 
         /// The shift bidegree of the homomorphism.
+        #[getter]
         pub fn shift(&self) -> sseq_py::Bidegree {
             sseq_py::Bidegree(self.0.shift)
         }
 
         /// The source unstable resolution (shares the underlying `Arc`).
+        #[getter]
         pub fn source(&self) -> UnstableResolution {
             UnstableResolution(Arc::clone(&self.0.source))
         }
 
         /// The target unstable resolution (shares the underlying `Arc`).
+        #[getter]
         pub fn target(&self) -> UnstableResolution {
             UnstableResolution(Arc::clone(&self.0.target))
         }
 
         /// The first homological degree `s` at which the chain map is not yet
         /// defined (the length of the internal `maps` table).
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             self.0.next_homological_degree()
         }
 
         /// The directory used to persist the chain map, or `None` if held purely
         /// in memory (the default).
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
         }
@@ -3418,16 +3443,19 @@ mod ext_py {
         }
 
         /// The total shift bidegree `left.shift + right.shift`.
+        #[getter]
         pub fn shift(&self) -> sseq_py::Bidegree {
             sseq_py::Bidegree(self.0.shift())
         }
 
         /// The left homomorphism `S -> T` (shares the underlying `Arc`).
+        #[getter]
         pub fn left(&self) -> ResolutionHomomorphism {
             ResolutionHomomorphism(AnyResHom::ToRes(self.0.left()))
         }
 
         /// The right homomorphism `T -> U` (shares the underlying `Arc`).
+        #[getter]
         pub fn right(&self) -> ResolutionHomomorphism {
             ResolutionHomomorphism(AnyResHom::ToRes(self.0.right()))
         }
@@ -3642,6 +3670,7 @@ mod ext_py {
             catch_secondary_lift_panic(|| self.0.extend_all())
         }
 
+        #[getter]
         pub fn underlying(&self) -> Resolution {
             Resolution(AnyResolution::Standard(Arc::clone(&self.0.underlying())), std::sync::Mutex::new(None))
         }
@@ -3915,6 +3944,7 @@ mod ext_py {
 
         /// The homomorphism's name, bracketed (`[name]`) to mark it as the
         /// secondary lift (matching upstream `name()`).
+        #[getter]
         pub fn name(&self) -> String {
             self.inner.name()
         }
@@ -3926,35 +3956,41 @@ mod ext_py {
         }
 
         /// The Steenrod algebra the resolutions are built over.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             algebra_py::SteenrodAlgebra::from_arc(self.inner.algebra())
         }
 
         /// The shift bidegree of the secondary lift (`underlying.shift + (1, 0)`).
+        #[getter]
         pub fn shift(&self) -> sseq_py::Bidegree {
             sseq_py::Bidegree(self.inner.shift())
         }
 
         /// The source resolution (the *underlying* resolution of the source
         /// secondary resolution; shares its `Arc`).
+        #[getter]
         pub fn source(&self) -> Resolution {
             Resolution(AnyResolution::Standard(self.inner.source()), std::sync::Mutex::new(None))
         }
 
         /// The target resolution (the *underlying* resolution of the target
         /// secondary resolution; shares its `Arc`).
+        #[getter]
         pub fn target(&self) -> Resolution {
             Resolution(AnyResolution::Standard(self.inner.target()), std::sync::Mutex::new(None))
         }
 
         /// The underlying `ResolutionHomomorphism` (shares its `Arc`; a live
         /// shared view — extending it is visible here and vice versa).
+        #[getter]
         pub fn underlying(&self) -> ResolutionHomomorphism {
             ResolutionHomomorphism(AnyResHom::ToRes(self.inner.underlying()))
         }
 
         /// The directory used to persist the lift, or `None` if held in memory
         /// (the default for the in-memory resolutions built here).
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             self.inner
                 .save_dir()
@@ -4320,31 +4356,37 @@ mod ext_py {
         }
 
         /// The Steenrod algebra the resolutions are built over.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
         }
 
         /// The total shift bidegree of the secondary chain homotopy.
+        #[getter]
         pub fn shift(&self) -> sseq_py::Bidegree {
             sseq_py::Bidegree(self.0.shift())
         }
 
         /// The source resolution (`left`'s source; shares its `Arc`).
+        #[getter]
         pub fn source(&self) -> Resolution {
             Resolution(AnyResolution::Standard(self.0.source()), std::sync::Mutex::new(None))
         }
 
         /// The target resolution (`right`'s target; shares its `Arc`).
+        #[getter]
         pub fn target(&self) -> Resolution {
             Resolution(AnyResolution::Standard(self.0.target()), std::sync::Mutex::new(None))
         }
 
         /// The underlying `ChainHomotopy` (shares its `Arc`; a live shared view).
+        #[getter]
         pub fn underlying(&self) -> ChainHomotopy {
             ChainHomotopy(self.0.underlying())
         }
 
         /// The directory used to persist the lift, or `None` if held in memory.
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
         }
@@ -4387,6 +4429,7 @@ mod ext_py {
         ///
         /// Call `extend_all()` (or the relevant `compute_partial`) first to
         /// populate the homotopy table.
+        #[getter]
         pub fn homotopies(&self) -> SecondaryChainHomotopyList {
             SecondaryChainHomotopyList(Arc::clone(&self.0))
         }
@@ -4688,6 +4731,7 @@ mod ext_py {
         /// The primary `ExtAlgebra` this is built on: the SAME shared instance
         /// (stable identity, shared resolution/unit `Arc`s and product cache —
         /// see `ExtAlgebra.inner_arc`/`from_arc`).
+        #[getter]
         pub fn ext_algebra(&self) -> ExtAlgebra {
             ExtAlgebra::from_arc(self.inner.ext_algebra())
         }
@@ -5083,11 +5127,13 @@ mod ext_py {
         }
 
         /// The Steenrod algebra the complex is built over.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             algebra_py::SteenrodAlgebra::from_arc(self.0.algebra())
         }
 
         /// The minimum internal degree shared by every module.
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.0.min_degree()
         }
@@ -5095,6 +5141,7 @@ mod ext_py {
         /// The first `s` for which `module(s)` is not defined. For a
         /// `FiniteChainComplex` this is `i32::MAX` (every `s` resolves to the
         /// zero module past the top), so `iter_stem` is *infinite*; see there.
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             self.0.next_homological_degree()
         }
@@ -5102,12 +5149,14 @@ mod ext_py {
         /// The number of (potentially) nonzero modules: `C_s` is the zero module
         /// for `s >= max_s()`. `CCC` is a `FiniteChainComplex`, hence bounded
         /// (upstream `BoundedChainComplex::max_s` returns `modules.len()`).
+        #[getter]
         pub fn max_s(&self) -> i32 {
             use ext::chain_complex::BoundedChainComplex;
             self.0.max_s()
         }
 
         /// The zero module (the target/source of the boundary differentials).
+        #[getter]
         pub fn zero_module(&self) -> algebra_py::SteenrodModule {
             algebra_py::SteenrodModule::from_rust((*self.0.zero_module()).clone())
         }
@@ -5180,6 +5229,7 @@ mod ext_py {
 
         /// The directory used to persist this complex, or `None` if it is purely
         /// in-memory (the default for `CCC`).
+        #[getter]
         pub fn save_dir(&self) -> Option<String> {
             self.0.save_dir().read().map(|p| p.display().to_string())
         }
@@ -5474,11 +5524,13 @@ mod ext_py {
         }
 
         /// The Steenrod algebra the complex is built over.
+        #[getter]
         pub fn algebra(&self) -> algebra_py::SteenrodAlgebra {
             algebra_py::SteenrodAlgebra::from_arc(self.inner.algebra())
         }
 
         /// The minimum internal degree shared by every module.
+        #[getter]
         pub fn min_degree(&self) -> i32 {
             self.inner.min_degree()
         }
@@ -5486,11 +5538,13 @@ mod ext_py {
         /// The first `s` for which `module(s)` is not defined (`i32::MAX` for a
         /// finite complex; `iter`-style helpers are therefore not bound here,
         /// matching `ChainComplex`).
+        #[getter]
         pub fn next_homological_degree(&self) -> i32 {
             self.inner.next_homological_degree()
         }
 
         /// The zero module.
+        #[getter]
         pub fn zero_module(&self) -> algebra_py::SteenrodModule {
             algebra_py::SteenrodModule::from_rust((*self.inner.zero_module()).clone())
         }
@@ -5542,6 +5596,7 @@ mod ext_py {
         /// The augmentation target complex `D`, as a bound `ChainComplex`
         /// sharing the underlying `Arc`. (Because it shares the `Arc`, the
         /// returned complex cannot be `pop`-ped — `pop` requires sole ownership.)
+        #[getter]
         pub fn target(&self) -> ChainComplex {
             ChainComplex(self.inner.target())
         }
@@ -5564,6 +5619,7 @@ mod ext_py {
 
         /// The maximum homological degree `s` with `C_s != 0` (the bounded-complex
         /// `max_s`).
+        #[getter]
         pub fn max_s(&self) -> i32 {
             use ext::chain_complex::BoundedChainComplex;
             self.inner.max_s()

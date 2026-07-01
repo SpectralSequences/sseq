@@ -48,14 +48,14 @@ def test_quotient_hom_construct_and_invariants():
     qh = algebra.QuotientHomomorphism(f, q, q)
     assert isinstance(qh.prime, int)
     assert qh.prime == 2
-    assert qh.degree_shift() == 0
-    assert qh.min_degree() == 0
+    assert qh.degree_shift == 0
+    assert qh.min_degree == 0
     assert repr(qh).startswith("QuotientHomomorphism(")
     # source / target are the bound QuotientModule, sharing state.
-    assert isinstance(qh.source(), algebra.QuotientModule)
-    assert isinstance(qh.target(), algebra.QuotientModule)
-    assert qh.source().dimension(0) == 1
-    assert qh.target().dimension(1) == 1
+    assert isinstance(qh.source, algebra.QuotientModule)
+    assert isinstance(qh.target, algebra.QuotientModule)
+    assert qh.source.dimension(0) == 1
+    assert qh.target.dimension(1) == 1
 
 
 def test_quotient_hom_identity_known_values():
@@ -150,8 +150,8 @@ def test_quotient_hom_get_partial_matrix():
     qh = algebra.QuotientHomomorphism(f, q, q)
     gm = qh.get_partial_matrix(0, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 1
+    assert gm.rows == 1
+    assert gm.columns == 1
     assert gm.to_vec() == [[1]]
 
 
@@ -180,12 +180,12 @@ def test_quotient_hom_partial_matrix_below_target_min():
     q_src = algebra.QuotientModule(source, 3)
     q_tgt = algebra.QuotientModule(target, 3)
     qh = algebra.QuotientHomomorphism(f, q_src, q_tgt)
-    assert qh.source().min_degree() == 0
-    assert qh.target().min_degree() == 2
+    assert qh.source.min_degree == 0
+    assert qh.target.min_degree == 2
     gm = qh.get_partial_matrix(0, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 0
+    assert gm.rows == 1
+    assert gm.columns == 0
 
 
 def test_quotient_hom_partial_matrix_degree_shift_guard():
@@ -198,7 +198,7 @@ def test_quotient_hom_partial_matrix_degree_shift_guard():
     f = algebra.FullModuleHomomorphism(m, m, 1)
     q = algebra.QuotientModule(m, 3)
     qh = algebra.QuotientHomomorphism(f, q, q)
-    assert qh.degree_shift() == 1
+    assert qh.degree_shift == 1
     with pytest.raises(ValueError):
         qh.get_partial_matrix(1, [0])
 
@@ -211,14 +211,14 @@ def test_quotient_hom_source_construct_and_types():
     _m, f, q = identity_and_quotient(alg)
     qhs = algebra.QuotientHomomorphismSource(f, q)
     assert qhs.prime == 2
-    assert qhs.degree_shift() == 0
-    assert qhs.min_degree() == 0
+    assert qhs.degree_shift == 0
+    assert qhs.min_degree == 0
     assert repr(qhs).startswith("QuotientHomomorphismSource(")
     # source is the quotient; target is the plain SteenrodModule.
-    assert isinstance(qhs.source(), algebra.QuotientModule)
-    assert isinstance(qhs.target(), algebra.SteenrodModule)
-    assert qhs.source().dimension(0) == 1
-    assert qhs.target().dimension(1) == 1
+    assert isinstance(qhs.source, algebra.QuotientModule)
+    assert isinstance(qhs.target, algebra.SteenrodModule)
+    assert qhs.source.dimension(0) == 1
+    assert qhs.target.dimension(1) == 1
 
 
 def test_quotient_hom_source_known_values():
@@ -260,8 +260,8 @@ def test_quotient_hom_source_get_partial_matrix():
     qhs = algebra.QuotientHomomorphismSource(f, q)
     gm = qhs.get_partial_matrix(0, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 1
+    assert gm.rows == 1
+    assert gm.columns == 1
     assert gm.to_vec() == [[1]]
 
 
@@ -273,13 +273,13 @@ def test_generic_zero_construct_and_invariants():
     m = c2_module(alg)
     z = algebra.GenericZeroHomomorphism(m, m, 0)
     assert z.prime == 2
-    assert z.degree_shift() == 0
-    assert z.min_degree() == 0
+    assert z.degree_shift == 0
+    assert z.min_degree == 0
     assert repr(z).startswith("GenericZeroHomomorphism(")
-    assert isinstance(z.source(), algebra.SteenrodModule)
-    assert isinstance(z.target(), algebra.SteenrodModule)
-    assert z.source().dimension(0) == 1
-    assert z.target().dimension(1) == 1
+    assert isinstance(z.source, algebra.SteenrodModule)
+    assert isinstance(z.target, algebra.SteenrodModule)
+    assert z.source.dimension(0) == 1
+    assert z.target.dimension(1) == 1
 
 
 def test_generic_zero_maps_everything_to_zero():
@@ -303,7 +303,7 @@ def test_generic_zero_default_degree_shift():
     alg = milnor(2)
     m = c2_module(alg)
     z = algebra.GenericZeroHomomorphism(m, m)
-    assert z.degree_shift() == 0
+    assert z.degree_shift == 0
 
 
 def test_generic_zero_get_partial_matrix_is_zero():
@@ -312,8 +312,8 @@ def test_generic_zero_get_partial_matrix_is_zero():
     z = algebra.GenericZeroHomomorphism(m, m, 0)
     gm = z.get_partial_matrix(0, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 1
+    assert gm.rows == 1
+    assert gm.columns == 1
     assert gm.to_vec() == [[0]]
 
 
@@ -375,9 +375,9 @@ def test_generic_zero_partial_matrix_beyond_target_range():
     free = algebra.FPModuleBuilder(alg, "t", 0).build().generators()
     target = free.into_steenrod_module()
     z = algebra.GenericZeroHomomorphism(source, target, 1)
-    assert z.degree_shift() == 1
+    assert z.degree_shift == 1
     # Source (C2) has dimension 1 in degree 1, so input index 0 is valid.
     gm = z.get_partial_matrix(1, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 0
+    assert gm.rows == 1
+    assert gm.columns == 0

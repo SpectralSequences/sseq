@@ -22,15 +22,15 @@ def main():
     # Rust views the resolution's SteenrodAlgebra as a &MilnorAlgebra via try_into.
     # No such conversion is bound; we use the resolution's algebra directly, which
     # is the Milnor algebra and exposes dimension / basis_element_from_index.
-    alg = resolution.algebra()
+    alg = resolution.algebra
 
-    for s in range(resolution.next_homological_degree()):
+    for s in range(resolution.next_homological_degree):
         with open(f"hDiff.{s}", "w") as f:
             module = resolution.module(s)
             # We don't use this when s = 0
             dmodule = resolution.module(max(s - 1, 0))
-            min_degree = module.min_degree()
-            max_degree = module.max_computed_degree()
+            min_degree = module.min_degree
+            max_degree = module.max_computed_degree
             num_gens = sum(
                 module.number_of_gens_in_degree(t)
                 for t in range(min_degree, max_degree + 1)
@@ -57,7 +57,7 @@ def main():
                             algebra_dim = alg.dimension(op_deg)
                             start = dmodule.generator_offset(t, gen_deg, gen_idx)
                             slice = dx.slice(start, start + algebra_dim)
-                            if slice.is_zero():
+                            if slice.is_zero:
                                 gen_count += 1
                                 continue
                             row_count += 1

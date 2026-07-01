@@ -19,8 +19,8 @@ def test_slice_mut_construction_and_queries():
     rect = m.slice_mut(0, 2, 1, 3)
     # prime returned as a plain int.
     assert rect.prime == 5
-    assert rect.rows() == 2
-    assert rect.columns() == 2
+    assert rect.rows == 2
+    assert rect.columns == 2
     assert repr(rect) == "MatrixSliceMut(5, 2x2)"
 
 
@@ -36,8 +36,8 @@ def test_row_and_row_slice_read():
 
     # row_slice restricts the row range, keeping the columns.
     sub = rect.row_slice(1, 3)
-    assert sub.rows() == 2
-    assert sub.columns() == 2
+    assert sub.rows == 2
+    assert sub.columns == 2
     assert sub.row(0)[0] == 1  # original row 1, column 1
 
 
@@ -134,7 +134,7 @@ def test_stale_handle_after_parent_shrinks_raises():
     # Trim the parent to a single row; the 2-row rectangles are now stale.
     m.trim(0, 1, 0)
     with pytest.raises(IndexError):
-        rect.rows()
+        rect.rows
     # The square rectangle passes its shape check but fails revalidation.
     with pytest.raises(IndexError):
         square.add_identity()
@@ -148,10 +148,10 @@ def test_augmented_segment_mutates_and_reads_back():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     seg = m.segment(1, 1)
     assert isinstance(seg, fp.MatrixSliceMut)
-    assert seg.rows() == 2
-    assert seg.columns() == 2
+    assert seg.rows == 2
+    assert seg.columns == 2
     seg.add_identity()
-    start1 = m.segment_starts()[1]
+    start1 = m.segment_starts[1]
     rows = m.to_vec()
     assert rows[0][start1] == 1
     assert rows[1][start1 + 1] == 1
@@ -172,10 +172,10 @@ def test_augmented3_segment_and_row_segment_mut_write_through():
     m = fp.AugmentedMatrix3(3, 2, [2, 2, 2])
     seg = m.segment(1, 1)
     assert isinstance(seg, fp.MatrixSliceMut)
-    assert seg.rows() == 2
-    assert seg.columns() == 2
+    assert seg.rows == 2
+    assert seg.columns == 2
     seg.add_identity()
-    start1 = m.segment_starts()[1]
+    start1 = m.segment_starts[1]
     rows = m.to_vec()
     assert rows[0][start1] == 1
     assert rows[1][start1 + 1] == 1
@@ -220,10 +220,10 @@ def test_augmented_segment_builds_nontrivial_compute_values():
     m.row_reduce()
 
     image = m.compute_image()
-    assert image.dimension() == 2
+    assert image.dimension == 2
     image_rows = [list(v) for v in image.iter()]
     assert image_rows == [[1, 0, 2, 1, 1], [0, 1, 1, 0, 1]]
 
     qi = m.compute_quasi_inverse()
-    assert qi.source_dimension() == 3
-    assert qi.preimage().to_vec() == [[0, 1, 0], [0, 2, 2]]
+    assert qi.source_dimension == 3
+    assert qi.preimage.to_vec() == [[0, 1, 0], [0, 2, 2]]

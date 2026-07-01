@@ -53,18 +53,18 @@ def test_secondary_res_hom_construction_and_accessors():
     sec = ext.SecondaryResolutionHomomorphism(res_lift, res_lift, hom)
     assert sec.prime == 2
     # shift = underlying.shift + (1, 0) = (1, 1) + (1, 0) = (2, 1).
-    assert sec.shift().s == 2
-    assert sec.shift().t == 1
+    assert sec.shift.s == 2
+    assert sec.shift.t == 1
     # name is bracketed to mark it as the secondary lift.
-    assert sec.name() == "[h0]"
+    assert sec.name == "[h0]"
     # underlying() shares the same ResolutionHomomorphism (same name).
-    assert isinstance(sec.underlying(), ext.ResolutionHomomorphism)
-    assert sec.underlying().name() == "h0"
+    assert isinstance(sec.underlying, ext.ResolutionHomomorphism)
+    assert sec.underlying.name == "h0"
     # source()/target() are the underlying resolutions.
-    assert isinstance(sec.source(), ext.Resolution)
-    assert sec.source().prime == 2
-    assert sec.target().prime == 2
-    assert sec.save_dir() is None
+    assert isinstance(sec.source, ext.Resolution)
+    assert sec.source.prime == 2
+    assert sec.target.prime == 2
+    assert sec.save_dir is None
 
 
 def test_secondary_res_hom_extend_all_succeeds_when_extended():
@@ -131,14 +131,14 @@ def test_secondary_chain_homotopy_construction_and_accessors():
     res_lift = ext.SecondaryResolution(r)
     sec_ch = make_secondary_chain_homotopy(r, res_lift)
     assert sec_ch.prime == 2
-    assert sec_ch.source().prime == 2
-    assert sec_ch.target().prime == 2
+    assert sec_ch.source.prime == 2
+    assert sec_ch.target.prime == 2
     # underlying() shares the ChainHomotopy.
-    assert isinstance(sec_ch.underlying(), ext.ChainHomotopy)
-    assert sec_ch.underlying().prime == 2
-    assert sec_ch.save_dir() is None
+    assert isinstance(sec_ch.underlying, ext.ChainHomotopy)
+    assert sec_ch.underlying.prime == 2
+    assert sec_ch.save_dir is None
     # algebra() round-trips.
-    assert sec_ch.algebra().prime == 2
+    assert sec_ch.algebra.prime == 2
 
 
 # --- SecondaryChainHomotopy: guards ----------------------------------------
@@ -184,7 +184,7 @@ def test_secondary_chain_homotopy_rejects_bad_lambda_shift():
 
 def test_secondary_chain_homotopy_rejects_lambda_source_target_mismatch():
     # left_lambda with the CORRECT shift ((1,1)+LAMBDA(1,1) = (2,2)) but built
-    # over a *different* resolution than underlying.left(): only the source/
+    # over a *different* resolution than underlying.left: only the source/
     # target Arc::ptr_eq branch can reject (distinct from the shift-mismatch
     # branch exercised above).
     r = sphere(8)
@@ -248,7 +248,7 @@ def test_secondary_chain_homotopy_accepts_valid_lambdas():
         right_lambda=right_lambda,
     )
     assert sec_ch.prime == 2
-    assert isinstance(sec_ch.underlying(), ext.ChainHomotopy)
+    assert isinstance(sec_ch.underlying, ext.ChainHomotopy)
 
 
 # --- backend rejection (Nassau) --------------------------------------------

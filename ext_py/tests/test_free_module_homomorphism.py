@@ -47,17 +47,17 @@ def test_construct_and_invariants():
     hom = c2_differential(alg)
     assert isinstance(hom.prime, int)
     assert hom.prime == 2
-    assert hom.degree_shift() == 0
-    assert hom.min_degree() == 0
-    assert hom.next_degree() == 1
+    assert hom.degree_shift == 0
+    assert hom.min_degree == 0
+    assert hom.next_degree == 1
     assert repr(hom).startswith("FreeModuleHomomorphism(")
 
 
 def test_source_and_target_types_and_state():
     alg = milnor(2)
     hom = c2_differential(alg)
-    source = hom.source()
-    target = hom.target()
+    source = hom.source
+    target = hom.target
     assert isinstance(source, algebra.FreeModule)
     assert isinstance(target, algebra.SteenrodModule)
     assert source.number_of_gens_in_degree(0) == 1
@@ -140,8 +140,8 @@ def test_auxiliary_data_dimensions_and_types():
     assert isinstance(kernel, fp.Subspace)
     assert isinstance(qi, fp.QuasiInverse)
     # f is an iso k -> k in degree 0.
-    assert image.dimension() == 1
-    assert kernel.dimension() == 0
+    assert image.dimension == 1
+    assert kernel.dimension == 0
 
 
 def test_apply_quasi_inverse_round_trip():
@@ -171,8 +171,8 @@ def test_get_partial_matrix():
     hom = c2_differential(alg)
     m = hom.get_partial_matrix(0, [0])
     assert isinstance(m, fp.Matrix)
-    assert m.rows() == 1
-    assert m.columns() == 1
+    assert m.rows == 1
+    assert m.columns == 1
 
 
 # --- guards: errors instead of panics --------------------------------------
@@ -269,7 +269,7 @@ def test_set_kernel_non_consecutive_raises():
 # - degree_shift` (line 64) and acts via
 # `target.act(.., generator_degree - degree_shift, output_on_generator)`
 # (lines 78-85), so:
-#   * min_degree = max(source.min_degree(), target.min_degree() + degree_shift)
+#   * min_degree = max(source.min_degree, target.min_degree + degree_shift)
 #                = max(0, 0 + 1) = 1.
 #   * output(1, 0) = x0 = [1] in target degree 1 - 1 = 0 (dimension 1).
 #   * apply_to_basis_element(degree 1, idx 0) = f(g) = x0 = [1] (target deg 0).
@@ -306,10 +306,10 @@ def c2_differential_shift(alg):
 def test_degree_shift_invariants():
     alg = milnor(2)
     hom = c2_differential_shift(alg)
-    assert hom.degree_shift() == 1
-    # min_degree = max(source.min_degree()=0, target.min_degree()=0 + shift=1).
-    assert hom.min_degree() == 1
-    assert hom.next_degree() == 2
+    assert hom.degree_shift == 1
+    # min_degree = max(source.min_degree=0, target.min_degree=0 + shift=1).
+    assert hom.min_degree == 1
+    assert hom.next_degree == 2
 
 
 def test_degree_shift_output_and_apply_to_generator():
@@ -355,8 +355,8 @@ def test_degree_shift_get_partial_matrix_dims_coincide():
     # matrix is well-defined. Its single row is f(g) = x0 = [1].
     m = hom.get_partial_matrix(1, [0])
     assert isinstance(m, fp.Matrix)
-    assert m.rows() == 1
-    assert m.columns() == 1
+    assert m.rows == 1
+    assert m.columns == 1
     assert m.to_vec() == [[1]]
 
 
@@ -391,11 +391,11 @@ def test_compute_auxiliary_data_out_of_sync_raises():
     # quasi_inverses tables in lock-step (free_module_homomorphism.rs lines
     # 101-108 push all three at the same degree). A manual `set_image` that
     # advances only the images table leaves the three out of sync; the binding
-    # detects this (images.len() != kernels.len()) and raises ValueError rather
+    # detects this (images.len != kernels.len) and raises ValueError rather
     # than letting the upstream `push_checked` panic.
     alg = milnor(2)
     hom = c2_differential(alg)
-    # Advance only the images table by one (degree 0 == images.len()).
+    # Advance only the images table by one (degree 0 == images.len).
     hom.set_image(0, None)
     with pytest.raises(ValueError):
         hom.compute_auxiliary_data_through_degree(0)
@@ -503,7 +503,7 @@ def test_apply_to_basis_element_below_min_degree_raises():
     alg = milnor(2)
     hom = c2_differential(alg)
     res = fp.FpVector(2, 1)
-    # source.min_degree() = 0, so input degree -1 is below the source.
+    # source.min_degree = 0, so input degree -1 is below the source.
     with pytest.raises(IndexError):
         hom.apply_to_basis_element(res, 1, -1, 0)
 
@@ -535,7 +535,7 @@ def test_target_state_is_shared_not_snapshotted():
     gc.collect()
 
     # The homomorphism's target() handle still reflects the shared module.
-    target = hom.target()
+    target = hom.target
     assert target.dimension(0) == 1
     assert target.dimension(1) == 1
     res = fp.FpVector(2, 1)
@@ -555,9 +555,9 @@ def test_source_handle_reflects_underlying_state():
     target = algebra.SteenrodModule.from_spec(C2_JSON, alg)
     hom = algebra.FreeModuleHomomorphism(source, target, 0)
 
-    s1 = hom.source()
-    s2 = hom.source()
+    s1 = hom.source
+    s2 = hom.source
     assert s1.prime == source.prime == 2
     assert s1.number_of_gens_in_degree(0) == source.number_of_gens_in_degree(0) == 1
-    assert s1.max_computed_degree() == source.max_computed_degree()
+    assert s1.max_computed_degree == source.max_computed_degree
     assert s2.number_of_gens_in_degree(0) == 1

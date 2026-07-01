@@ -49,18 +49,18 @@ def identity_hom(r, max_st=8):
 def test_new_accessors_roundtrip():
     r = s2_rect(4)
     hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(1, 1))
-    assert hom.name() == "f"
+    assert hom.name == "f"
     assert hom.prime == 2
-    assert hom.shift().s == 1
-    assert hom.shift().t == 1
+    assert hom.shift.s == 1
+    assert hom.shift.t == 1
     # source()/target() share the underlying resolution.
-    assert hom.source().prime == 2
-    assert hom.target().prime == 2
-    assert hom.source().graded_dimension_string() == r.graded_dimension_string()
+    assert hom.source.prime == 2
+    assert hom.target.prime == 2
+    assert hom.source.graded_dimension_string() == r.graded_dimension_string()
     # A freshly constructed hom defines no maps yet.
-    assert hom.next_homological_degree() == 1  # = shift.s
-    assert hom.save_dir() is None
-    assert hom.algebra().prime == 2
+    assert hom.next_homological_degree == 1  # = shift.s
+    assert hom.save_dir is None
+    assert hom.algebra.prime == 2
 
 
 # --- known value: from_class([1]) at (0,0) is the identity chain map ------
@@ -69,8 +69,8 @@ def test_new_accessors_roundtrip():
 def test_from_class_identity_matches_basis():
     r = s2_rect(8)
     hom = identity_hom(r, 8)
-    assert hom.name() == "id"
-    assert hom.shift().s == 0 and hom.shift().t == 0
+    assert hom.name == "id"
+    assert hom.shift.s == 0 and hom.shift.t == 0
 
     for s in range(0, 9):
         m = hom.get_map(s)
@@ -91,7 +91,7 @@ def test_get_map_is_free_to_free_homomorphism():
     hom = identity_hom(r, 4)
     m = hom.get_map(1)
     # source = r.module(1), target = r.module(0) (output_s = input_s - shift.s = 1).
-    assert m.degree_shift() == 0
+    assert m.degree_shift == 0
     assert m.prime == 2
 
 
@@ -211,7 +211,7 @@ def test_act_map_undefined_at_s_errors():
 def test_act_map_not_extended_far_enough_errors():
     # The map at s exists but is not extended through src_t -> ValueError.
     # Resolve the source over the full (6, 6) rectangle but extend the chain map
-    # only through t = 4, so get_map(2).next_degree() == 5 and src_t = 5 is out
+    # only through t = 4, so get_map(2).next_degree == 5 and src_t = 5 is out
     # of range.
     r = s2_rect(6)
     hom = ext.ResolutionHomomorphism.from_class("id", r, r, Bidegree.s_t(0, 0), [1])
@@ -222,13 +222,13 @@ def test_act_map_not_extended_far_enough_errors():
 
 
 def test_act_target_s_out_of_range_errors():
-    # g.s >= target.next_homological_degree(). With shift >= 0 this guard is
+    # g.s >= target.next_homological_degree. With shift >= 0 this guard is
     # shadowed by the src_s ("map undefined") guard (src_s = g.s + shift.s >=
     # g.s), so it cannot fire first from the bound API, but the call still
     # raises ValueError.
     r = s2_rect(6)
     hom = identity_hom(r, 6)
-    assert hom.target().next_homological_degree() == 7
+    assert hom.target.next_homological_degree == 7
     result = FpVector(2, 1)
     with pytest.raises(ValueError):
         hom.act(result, 1, BidegreeGenerator.s_t(7, 7, 0))
@@ -292,7 +292,7 @@ def test_new_negative_shift_errors():
         ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(-1, 0))
     # shift.t < 0 is allowed.
     hom = ext.ResolutionHomomorphism("f", r, r, Bidegree.s_t(0, -1))
-    assert hom.shift().t == -1
+    assert hom.shift.t == -1
 
 
 def rp_minus_k(k, max_st):
@@ -314,8 +314,8 @@ def test_from_class_negative_t_shift_rp():
         "bottom_cell", rp, s2, Bidegree.s_t(0, -k), [1]
     )
     hom.extend_all()
-    assert hom.shift().s == 0
-    assert hom.shift().t == -k
+    assert hom.shift.s == 0
+    assert hom.shift.t == -k
 
 
 def test_from_class_negative_s_shift_still_rejected():
@@ -376,13 +376,13 @@ def test_double_target_sq0_action():
     r = s2_rect(8)
     doubled = ext.DoubleChainComplex(r)
     doubled.compute_through_bidegree(
-        Bidegree.s_t(r.next_homological_degree() - 1, 0)
+        Bidegree.s_t(r.next_homological_degree - 1, 0)
     )
 
     hom = ext.ResolutionHomomorphism("Sq^0", r, doubled, Bidegree.zero())
     # target() hands back the DoubleChainComplex (shared Arc), not a Resolution.
-    assert isinstance(hom.target(), ext.DoubleChainComplex)
-    assert hom.name() == "Sq^0"
+    assert isinstance(hom.target, ext.DoubleChainComplex)
+    assert hom.name == "Sq^0"
     assert hom.prime == 2
 
     hom.extend_step_raw(Bidegree.zero(), [FpVector.from_slice(r.prime, [1])])
@@ -416,7 +416,7 @@ def test_double_target_extend_step_only_for_resolution():
     target, so it is rejected for a DoubleChainComplex target."""
     r = s2_rect(4)
     doubled = ext.DoubleChainComplex(r)
-    doubled.compute_through_bidegree(Bidegree.s_t(r.next_homological_degree() - 1, 0))
+    doubled.compute_through_bidegree(Bidegree.s_t(r.next_homological_degree - 1, 0))
     hom = ext.ResolutionHomomorphism("Sq^0", r, doubled, Bidegree.zero())
     with pytest.raises(ValueError):
         hom.extend_step(Bidegree.zero(), None)

@@ -36,14 +36,14 @@ def test_tensor_module_dimensions():
     t.compute_basis(4)
     assert isinstance(t.prime, int)
     assert t.prime == 2
-    assert t.min_degree() == 0
+    assert t.min_degree == 0
     # C2 (x) C2: convolution of [1, 1] with [1, 1] = [1, 2, 1].
     assert t.dimension(0) == 1
     assert t.dimension(1) == 2
     assert t.dimension(2) == 1
     assert t.dimension(3) == 0
-    assert t.max_degree() == 2
-    assert t.total_dimension() == 4
+    assert t.max_degree == 2
+    assert t.total_dimension == 4
 
 
 def test_tensor_module_action_decomposable():
@@ -171,10 +171,10 @@ def test_derived_modules_string_and_is_unit():
     assert isinstance(s.basis_element_to_string(3, 0), str)
     assert isinstance(rp.basis_element_to_string(1, 0), str)
     # is_unit is callable and returns a bool on each derived class.
-    assert isinstance(t.is_unit(), bool)
-    assert isinstance(s.is_unit(), bool)
-    assert isinstance(z.is_unit(), bool)
-    assert isinstance(rp.is_unit(), bool)
+    assert isinstance(t.is_unit, bool)
+    assert isinstance(s.is_unit, bool)
+    assert isinstance(z.is_unit, bool)
+    assert isinstance(rp.is_unit, bool)
 
 
 def test_tensor_module_prime_mismatch_raises():
@@ -199,7 +199,7 @@ def test_tensor_module_into_steenrod_module_roundtrip():
     boxed = t.into_steenrod_module()
     assert boxed.prime == t.prime
     assert boxed.dimension(1) == t.dimension(1)
-    assert boxed.total_dimension() == t.total_dimension()
+    assert boxed.total_dimension == t.total_dimension
 
 
 def test_tensor_module_out_of_range_no_panic():
@@ -220,15 +220,15 @@ def test_suspension_module_shifts_degrees():
     alg = milnor(2)
     s = algebra.SuspensionModule(make_c2(alg), 3)
     s.compute_basis(8)
-    assert s.shift() == 3
+    assert s.shift == 3
     assert isinstance(s.prime, int)
     assert s.prime == 2
-    assert s.min_degree() == 3
+    assert s.min_degree == 3
     assert s.dimension(0) == 0
     assert s.dimension(3) == 1
     assert s.dimension(4) == 1
     assert s.dimension(5) == 0
-    assert s.max_degree() == 4
+    assert s.max_degree == 4
 
 
 def test_suspension_module_preserves_action():
@@ -246,7 +246,7 @@ def test_suspension_module_into_steenrod_module_roundtrip():
     s = algebra.SuspensionModule(make_c2(alg), 3)
     s.compute_basis(8)
     boxed = s.into_steenrod_module()
-    assert boxed.min_degree() == 3
+    assert boxed.min_degree == 3
     assert boxed.dimension(3) == 1
     assert boxed.dimension(4) == 1
 
@@ -255,8 +255,8 @@ def test_suspension_module_negative_shift():
     alg = milnor(2)
     s = algebra.SuspensionModule(make_c2(alg), -2)
     s.compute_basis(4)
-    assert s.shift() == -2
-    assert s.min_degree() == -2
+    assert s.shift == -2
+    assert s.min_degree == -2
     assert s.dimension(-2) == 1
     assert s.dimension(-1) == 1
 
@@ -269,22 +269,22 @@ def test_zero_module_is_empty():
     z.compute_basis(8)
     assert isinstance(z.prime, int)
     assert z.prime == 2
-    assert z.min_degree() == 0
+    assert z.min_degree == 0
     for d in range(-2, 9):
         assert z.dimension(d) == 0
-    assert z.total_dimension() == 0
+    assert z.total_dimension == 0
 
 
 def test_zero_module_into_steenrod_module_roundtrip():
     z = algebra.ZeroModule(milnor(2), 0)
     boxed = z.into_steenrod_module()
     assert boxed.dimension(0) == 0
-    assert boxed.total_dimension() == 0
+    assert boxed.total_dimension == 0
 
 
 def test_zero_module_default_min_degree():
     z = algebra.ZeroModule(milnor(2))
-    assert z.min_degree() == 0
+    assert z.min_degree == 0
 
 
 # --- RealProjectiveSpace --------------------------------------------------
@@ -295,7 +295,7 @@ def test_rp_dimensions():
     rp.compute_basis(6)
     assert isinstance(rp.prime, int)
     assert rp.prime == 2
-    assert rp.min_degree() == 1
+    assert rp.min_degree == 1
     assert rp.min == 1
     assert rp.max == 4
     assert rp.clear_bottom is False
@@ -303,7 +303,7 @@ def test_rp_dimensions():
         assert rp.dimension(d) == 1
     assert rp.dimension(0) == 0
     assert rp.dimension(5) == 0
-    assert rp.total_dimension() == 4
+    assert rp.total_dimension == 4
 
 
 def test_rp_action():
@@ -338,5 +338,5 @@ def test_rp_into_steenrod_module_roundtrip():
     rp = algebra.RealProjectiveSpace(adem(2), 1, 4)
     rp.compute_basis(6)
     boxed = rp.into_steenrod_module()
-    assert boxed.min_degree() == 1
+    assert boxed.min_degree == 1
     assert boxed.dimension(2) == 1

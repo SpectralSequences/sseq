@@ -126,7 +126,7 @@ def test_secondary_over_standard_backend():
     r = resolve("standard")
     sec = ext.SecondaryResolution(r)
     sec.extend_all()
-    assert isinstance(sec.underlying(), ext.Resolution)
+    assert isinstance(sec.underlying, ext.Resolution)
 
 
 def test_secondary_over_nassau_backend_raises_valueerror():
@@ -146,7 +146,7 @@ def test_double_chain_complex_construct_and_compute():
     r = resolve("standard")
     d = ext.DoubleChainComplex(r)
     d.compute_through_bidegree(
-        sseq.Bidegree.s_t(r.next_homological_degree() - 1, 0)
+        sseq.Bidegree.s_t(r.next_homological_degree - 1, 0)
     )
 
 
@@ -260,20 +260,20 @@ def test_module_standard_shares_arc():
     with pytest.raises(ValueError):
         r.module(-1)
     with pytest.raises(ValueError):
-        r.module(r.next_homological_degree())
+        r.module(r.next_homological_degree)
 
 
 def test_target_standard_chain_complex():
     # target() is the augmentation target: the chain complex being resolved.
     # For S_2 that is the trivial complex with the base module in degree 0.
     r = resolve("standard")
-    cc = r.target()
+    cc = r.target
     assert isinstance(cc, ext.ChainComplex)
     assert cc.prime == 2
     # max_s == 1: only C_0 is (potentially) nonzero for the sphere.
-    assert cc.max_s() == 1
+    assert cc.max_s == 1
     m0 = cc.module(0)
-    assert m0.is_unit()
+    assert m0.is_unit
 
 
 def test_target_nassau_unsupported():
@@ -281,7 +281,7 @@ def test_target_nassau_unsupported():
     # (CCC) cannot represent.
     r = resolve("nassau")
     with pytest.raises(ValueError):
-        r.target()
+        r.target
 
 
 def test_module_nassau_unsupported():
@@ -404,9 +404,9 @@ def test_algebra_returns_steenrod_algebra(algorithm):
     # shares its union algebra directly; the Nassau backend (which resolves over
     # a bare MilnorAlgebra) rebuilds the equivalent Milnor variant.
     r = resolve(algorithm)
-    alg = r.algebra()
+    alg = r.algebra
     assert isinstance(alg, ext.algebra.SteenrodAlgebra)
     assert alg.prime == 2
     assert alg.algebra_type() == ext.algebra.AlgebraType.Milnor
     # The accessor an example relies on (chart.py) must work off it.
-    assert alg.default_filtration_one_products()
+    assert alg.default_filtration_one_products

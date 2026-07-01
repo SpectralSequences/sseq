@@ -40,7 +40,7 @@ def main():
         unit.compute_through_stem(shift)
 
     if not resolution.has_computed_bidegree(
-        shift + sseq.Bidegree.s_t(0, resolution.min_degree())
+        shift + sseq.Bidegree.s_t(0, resolution.min_degree)
     ):
         return
 

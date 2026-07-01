@@ -20,15 +20,15 @@ def main():
     res.compute_through_stem(query.query_n_s())
     assert (
         res.prime == 2
-        and res.target().max_s() == 1
-        and res.target().module(0).is_unit()
+        and res.target.max_s == 1
+        and res.target.module(0).is_unit
     ), "Sq^0 can only be computed for the sphere at the prime 2"
 
     # NOTE: depends on a future `DoubleChainComplex` binding (see top-of-file
     # note). The doubled chain complex halves Steenrod operations degree-wise.
     doubled = ext.DoubleChainComplex(res)
     doubled.compute_through_bidegree(
-        sseq.Bidegree.s_t(res.next_homological_degree() - 1, 0)
+        sseq.Bidegree.s_t(res.next_homological_degree - 1, 0)
     )
 
     hom = ext.ResolutionHomomorphism(

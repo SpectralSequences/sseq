@@ -75,20 +75,20 @@ def test_construct_and_invariants():
     pb, source, target, _f0, _f1, _d, _x = identity_pullback(milnor(2))
     assert isinstance(pb.prime, int)
     assert pb.prime == 2
-    assert pb.degree_shift() == 0
-    # Hom(F<g deg 0>, C2).min_degree() = 0 - C2.max_degree()(=1) = -1.
-    assert pb.min_degree() == -1
+    assert pb.degree_shift == 0
+    # Hom(F<g deg 0>, C2).min_degree = 0 - C2.max_degree(=1) = -1.
+    assert pb.min_degree == -1
     assert repr(pb).startswith("HomPullback(")
 
 
 def test_source_target_roundtrip():
     pb, _source, _target, _f0, _f1, _d, _x = identity_pullback(milnor(2))
-    s = pb.source()
-    t = pb.target()
+    s = pb.source
+    t = pb.target
     assert isinstance(s, algebra.HomModule)
     assert isinstance(t, algebra.HomModule)
-    assert s.min_degree() == -1
-    assert t.min_degree() == -1
+    assert s.min_degree == -1
+    assert t.min_degree == -1
     s.compute_basis(0)
     t.compute_basis(0)
     # Hom(F<g>, C2) dims: dim(-1) = C2.dim(1) = 1, dim(0) = C2.dim(0) = 1.
@@ -148,8 +148,8 @@ def test_auxiliary_data_dimensions():
         kernel = pb.kernel(deg)
         assert isinstance(image, fp.Subspace)
         assert isinstance(kernel, fp.Subspace)
-        assert image.dimension() == 1
-        assert kernel.dimension() == 0
+        assert image.dimension == 1
+        assert kernel.dimension == 0
     assert pb.quasi_inverse(0) is not None
 
 
@@ -183,7 +183,7 @@ def test_get_partial_matrix_out_of_range_is_zero_matrix():
     # Degree 5 is above the target Hom module's computed range -> dimension 0,
     # so the (0 x 0) zero matrix is returned (no panic).
     m = pb.get_partial_matrix(5, [])
-    assert m.columns() == 0
+    assert m.columns == 0
 
 
 def test_get_partial_matrix_below_min_degree_raises():
@@ -214,7 +214,7 @@ def test_apply_out_of_range_index_raises():
 
 
 def test_assertion_target_source_mismatch_raises():
-    # target.source() must equal map.source() (= f1); passing Hom(f0, X) as the
+    # target.source must equal map.source (= f1); passing Hom(f0, X) as the
     # target violates this (its source is f0).
     alg = milnor(2)
     f0 = free_one_gen(alg, "F0")
@@ -231,7 +231,7 @@ def test_assertion_target_source_mismatch_raises():
 
 
 def test_assertion_source_source_mismatch_raises():
-    # source.source() must equal map.target() (= f0); passing Hom(f1, X) as the
+    # source.source must equal map.target (= f0); passing Hom(f1, X) as the
     # source violates this (its source is f1).
     alg = milnor(2)
     f0 = free_one_gen(alg, "F0")
@@ -248,7 +248,7 @@ def test_assertion_source_source_mismatch_raises():
 
 
 def test_assertion_distinct_X_raises():
-    # source.target() must equal target.target(): two independently built Hom
+    # source.target must equal target.target: two independently built Hom
     # modules over distinct (even if equal) X objects fail the identity check.
     alg = milnor(2)
     f0 = free_one_gen(alg, "F0")
@@ -270,7 +270,7 @@ def shifted_pullback(alg, shift=1):
     """A pullback of a map with a nonzero `degree_shift`.
 
     `map: A -> B` with `A = f1 = <g>` in degree `shift`, `B = f0 = <a>` in
-    degree 0, `map(g) = a` (so `map.degree_shift() == shift`). The pullback
+    degree 0, `map(g) = a` (so `map.degree_shift == shift`). The pullback
     `Hom(B, X) -> Hom(A, X)` then has `degree_shift == -shift`.
     """
     f0 = free_gen_in_degree(alg, "F0", 0, min_degree=0)
@@ -288,8 +288,8 @@ def shifted_pullback(alg, shift=1):
 
 def test_nonzero_degree_shift_invariants_and_apply():
     pb, source, target = shifted_pullback(milnor(2), shift=1)
-    # HomPullback.degree_shift() == -map.degree_shift() == -1.
-    assert pb.degree_shift() == -1
+    # HomPullback.degree_shift == -map.degree_shift == -1.
+    assert pb.degree_shift == -1
     source.compute_basis(2)
     target.compute_basis(2)
     # apply at input degree -1: output_degree = -1 - (-1) = 0, both dim 1.
@@ -309,23 +309,23 @@ def test_nonzero_degree_shift_invariants_and_apply():
     # `.to_vec()` here: it independently panics on any 0-column matrix — a
     # pre-existing PyMatrix issue unrelated to this fix.)
     m_lo = pb.get_partial_matrix(-1, [0])
-    assert m_lo.rows() == 1
-    assert m_lo.columns() == 0
+    assert m_lo.rows == 1
+    assert m_lo.columns == 0
 
 
 # --- misaligned map min-degrees (Fix 2 reachability) -----------------------
 
 
 def test_misaligned_map_min_degree_apply_no_panic():
-    """`map.target().min_degree() + degree_shift > map.source().min_degree()`.
+    """`map.target.min_degree + degree_shift > map.source.min_degree`.
 
-    Here `B = map.target()` has `min_degree == 1` while `A = map.source()` has
+    Here `B = map.target` has `min_degree == 1` while `A = map.source` has
     `min_degree == 0` and a generator in degree 0, with `degree_shift == 0`, so
-    `map.min_degree() == max(0, 1) == 1` and A's degree-0 generator lives below
-    `map.min_degree()`. Upstream `map.output(..)` asserts
-    `generator_degree >= map.min_degree()`, which would panic if the pullback's
+    `map.min_degree == max(0, 1) == 1` and A's degree-0 generator lives below
+    `map.min_degree`. Upstream `map.output(..)` asserts
+    `generator_degree >= map.min_degree`, which would panic if the pullback's
     per-call filter admitted that generator. It does not: the filter's lower
-    bound is `>= B.min_degree() + degree_shift == map.min_degree()`, so the
+    bound is `>= B.min_degree + degree_shift == map.min_degree`, so the
     bad generator is excluded and `apply` is safe (produces zero / valid output,
     never panics). This documents that the assert is unreachable.
     """
@@ -333,7 +333,7 @@ def test_misaligned_map_min_degree_apply_no_panic():
     f0 = free_gen_in_degree(alg, "F0", 1, min_degree=1)  # B, min_degree 1
     f1 = free_gen_in_degree(alg, "F1", 0, min_degree=0)  # A, gen in degree 0
     d = algebra.FreeModuleHomomorphismToFree(f1, f0, 0)
-    assert d.min_degree() == 1  # max(A.min=0, B.min+shift=1)
+    assert d.min_degree == 1  # max(A.min=0, B.min+shift=1)
     x = make_c2(alg)
     source = algebra.HomModule(f0, x)  # Hom(B, X)
     target = source.with_source(f1)  # Hom(A, X), sharing X
@@ -341,9 +341,9 @@ def test_misaligned_map_min_degree_apply_no_panic():
     source.compute_basis(3)
     target.compute_basis(3)
     # Apply across every computed degree: no panic despite A's degree-0 gen
-    # sitting below map.min_degree().
-    for deg in range(pb.min_degree(), 3):
-        out_deg = deg - pb.degree_shift()
+    # sitting below map.min_degree.
+    for deg in range(pb.min_degree, 3):
+        out_deg = deg - pb.degree_shift
         res = fp.FpVector(2, target.dimension(out_deg))
         for idx in range(source.dimension(deg)):
             pb.apply_to_basis_element(res, 1, deg, idx)

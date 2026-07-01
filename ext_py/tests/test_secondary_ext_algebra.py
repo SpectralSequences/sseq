@@ -64,16 +64,16 @@ def test_construct_and_prime():
     alg, sec = build(4, 4)
     assert sec.prime == 2
     # ext_algebra() returns the bound ExtAlgebra (sharing resolutions).
-    e = sec.ext_algebra()
+    e = sec.ext_algebra
     assert isinstance(e, ext.ExtAlgebra)
     assert e.prime == 2
-    assert e.is_unit() is True
+    assert e.is_unit is True
 
 
 def test_without_unit_builds_usable_d2_path():
     # without_unit(res) == new(res, res): is_unit True, and the d2 layer works.
     alg, sec = build(16, 6, via_without_unit=True)
-    assert alg.is_unit() is True
+    assert alg.is_unit is True
     h0 = gen(alg, 0, 1)
     assert sec.survives(h0) is True
 
@@ -95,7 +95,7 @@ def test_permanent_classes_survive(n, s):
     assert sec.survives(h) is True
     d = sec.d2(h)
     assert d is not None
-    assert d.vec().is_zero()
+    assert d.vec().is_zero
 
 
 def test_h4_first_adams_differential():
@@ -108,7 +108,7 @@ def test_h4_first_adams_differential():
     assert d.n == 14
     assert d.s == 3
     assert alg.dimension(Bidegree.n_s(14, 3)) == 1
-    assert not d.vec().is_zero()
+    assert not d.vec().is_zero
     # h4 does not survive.
     assert sec.survives(h4) is False
 
@@ -121,11 +121,11 @@ def test_page_data_returns_subquotient():
     sq = sec.page_data(Bidegree.n_s(0, 1))
     assert isinstance(sq, fp.Subquotient)
     # h0 is a single surviving class at (0, 1).
-    assert sq.dimension() == 1
+    assert sq.dimension == 1
     usq = sec.unit_page_data(Bidegree.n_s(0, 0))
     assert isinstance(usq, fp.Subquotient)
     # The unit class survives at (0, 0).
-    assert usq.dimension() == 1
+    assert usq.dimension == 1
 
 
 # --- SecondaryProduct round-trip -------------------------------------------
@@ -294,8 +294,8 @@ def test_ext_algebra_shares_instance():
     # observable equivalence: same prime / is_unit / dimension at a computed
     # bidegree as the algebra passed to the constructor.
     alg, sec = build(8, 6)
-    e = sec.ext_algebra()
+    e = sec.ext_algebra
     assert e.prime == alg.prime
-    assert e.is_unit() == alg.is_unit()
+    assert e.is_unit == alg.is_unit
     b = Bidegree.n_s(0, 1)
     assert e.dimension(b) == alg.dimension(b)

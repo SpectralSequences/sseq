@@ -29,7 +29,7 @@ def main():
 
     for s in range(0, b.s + 1):
         print(
-            f"Dimension of {s}th module is {yoneda.module(s).total_dimension()}"
+            f"Dimension of {s}th module is {yoneda.module(s).total_dimension}"
         )
 
 

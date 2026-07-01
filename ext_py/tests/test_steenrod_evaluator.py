@@ -34,7 +34,7 @@ def test_evaluate_algebra_adem_zero():
     # Sq1 Sq1 = 0 by the Adem relations, but it still lives in degree 2.
     degree, vec = ev.evaluate_algebra_adem("Sq1 * Sq1")
     assert degree == 2
-    assert vec.is_zero()
+    assert vec.is_zero
 
 
 def test_evaluate_algebra_milnor_known_value():
@@ -101,8 +101,8 @@ def test_malformed_input_raises_value_error():
 def test_parse_algebra_tree():
     node = algebra.parse_algebra("Sq2 * Sq2")
     assert node.kind() == "Product"
-    left = node.left()
-    right = node.right()
+    left = node.left
+    right = node.right
     assert left.kind() == "BasisElt"
     assert right.kind() == "BasisElt"
     be = left.basis_element()

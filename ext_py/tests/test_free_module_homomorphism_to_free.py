@@ -55,16 +55,16 @@ def test_construct_and_invariants():
     hom = free_to_free_id(milnor(2))
     assert isinstance(hom.prime, int)
     assert hom.prime == 2
-    assert hom.degree_shift() == 0
-    assert hom.min_degree() == 0
-    assert hom.next_degree() == 1
+    assert hom.degree_shift == 0
+    assert hom.min_degree == 0
+    assert hom.next_degree == 1
     assert repr(hom).startswith("FreeModuleHomomorphismToFree(")
 
 
 def test_source_and_target_are_both_free_modules():
     hom = free_to_free_id(milnor(2))
-    source = hom.source()
-    target = hom.target()
+    source = hom.source
+    target = hom.target
     assert isinstance(source, algebra.FreeModule)
     assert isinstance(target, algebra.FreeModule)
     assert source.number_of_gens_in_degree(0) == 1
@@ -91,7 +91,7 @@ def test_apply_to_basis_element_known_values():
     hom.apply_to_basis_element(res, 1, 0, 0)
     assert res[0] == 1
     # f(Sq1 . g) = Sq1 . a = [1] in target degree 1 (dimension 1).
-    res1 = fp.FpVector(2, hom.target().dimension(1))
+    res1 = fp.FpVector(2, hom.target.dimension(1))
     hom.apply_to_basis_element(res1, 1, 1, 0)
     assert res1[0] == 1
 
@@ -145,7 +145,7 @@ def test_hom_k_source_above_max_computed_degree_no_panic():
     alg = milnor(2)
     source = free_gen_in_degree(alg, "F1", 2)
     target = free_gen_in_degree(alg, "F0", 5)
-    assert source.max_computed_degree() == 2
+    assert source.max_computed_degree == 2
     assert target.number_of_gens_in_degree(5) == 1
     hom = algebra.FreeModuleHomomorphismToFree(source, target, 0)
     assert hom.hom_k(5) == [[]]
@@ -158,7 +158,7 @@ def test_hom_k_target_above_max_computed_degree_is_empty():
     alg = milnor(2)
     source = free_gen_in_degree(alg, "F1", 2)
     target = free_gen_in_degree(alg, "F0", 5)
-    assert target.max_computed_degree() == 5
+    assert target.max_computed_degree == 5
     hom = algebra.FreeModuleHomomorphismToFree(source, target, 0)
     assert hom.hom_k(6) == []
 
@@ -186,8 +186,8 @@ def test_auxiliary_data_dimensions_and_types():
     assert isinstance(kernel, fp.Subspace)
     assert isinstance(qi, fp.QuasiInverse)
     # f is an iso k -> k in degree 0.
-    assert image.dimension() == 1
-    assert kernel.dimension() == 0
+    assert image.dimension == 1
+    assert kernel.dimension == 0
 
 
 def test_apply_quasi_inverse_round_trip():
@@ -226,7 +226,7 @@ def test_get_partial_matrix_in_range():
 
 
 def test_get_partial_matrix_out_of_range_target_is_zero_matrix():
-    # source.min_degree() = 0 but target.min_degree() = 1, so the output degree
+    # source.min_degree = 0 but target.min_degree = 1, so the output degree
     # 0 is below the target's range -> target dimension 0 -> the (1 x 0) zero
     # matrix is returned rather than panicking.
     alg = milnor(2)
@@ -234,8 +234,8 @@ def test_get_partial_matrix_out_of_range_target_is_zero_matrix():
     target = free_gen_in_degree(alg, "F0", 1, min_degree=1)
     hom = algebra.FreeModuleHomomorphismToFree(source, target, 0)
     m = hom.get_partial_matrix(0, [0])
-    assert m.rows() == 1
-    assert m.columns() == 0
+    assert m.rows == 1
+    assert m.columns == 0
 
 
 # --- guards: errors instead of panics --------------------------------------
@@ -327,9 +327,9 @@ def c2_like_shift(alg):
 
 def test_degree_shift_invariants_and_apply():
     hom = c2_like_shift(milnor(2))
-    assert hom.degree_shift() == 1
-    assert hom.min_degree() == 1
-    assert hom.next_degree() == 2
+    assert hom.degree_shift == 1
+    assert hom.min_degree == 1
+    assert hom.next_degree == 2
     # output(1, 0) = a = [1] in target degree 0.
     assert hom.output(1, 0)[0] == 1
     # apply_to_basis_element(degree 1, idx 0) = f(g) = a = [1] in target deg 0.
@@ -358,6 +358,6 @@ def test_target_state_is_shared_not_snapshotted():
     hom.add_generators_from_rows(0, [row])
     del target
     gc.collect()
-    t = hom.target()
+    t = hom.target
     assert t.number_of_gens_in_degree(0) == 1
     assert t.dimension(0) == 1

@@ -51,14 +51,14 @@ def s2_algebra(n=8, s=8):
 def test_construct_and_prime():
     alg = s2_algebra(4, 4)
     assert alg.prime == 2
-    assert alg.is_unit() is True
+    assert alg.is_unit is True
 
 
 def test_resolution_and_unit_share_object():
     alg = s2_algebra(4, 4)
     # M == k: the resolution and unit are the same object, both prime 2.
-    assert alg.resolution().prime == 2
-    assert alg.unit().prime == 2
+    assert alg.resolution.prime == 2
+    assert alg.unit.prime == 2
 
 
 def test_separate_unit_is_not_unit():
@@ -68,7 +68,7 @@ def test_separate_unit_is_not_unit():
     u = ext.Resolution("S_2", "standard")
     alg = ext.ExtAlgebra(r, u)
     alg.compute_through_stem(Bidegree.n_s(4, 4))
-    assert alg.is_unit() is False
+    assert alg.is_unit is False
     assert alg.prime == 2
 
 
@@ -131,15 +131,15 @@ def test_h0_squared_nonzero():
     h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))
     h0_sq = alg.multiply(h0, h0)
     assert h0_sq.degree == Bidegree.n_s(0, 2)
-    assert not h0_sq.vec().is_zero()
+    assert not h0_sq.vec().is_zero
 
 
 def test_adams_relation_h0_h1_vanishes():
     alg = s2_algebra(8, 8)
     h0 = alg.generator(BidegreeGenerator.n_s(0, 1, 0))
     h1 = alg.generator(BidegreeGenerator.n_s(1, 1, 0))
-    assert alg.multiply(h0, h1).vec().is_zero()
-    assert alg.multiply(h1, h0).vec().is_zero()
+    assert alg.multiply(h0, h1).vec().is_zero
+    assert alg.multiply(h1, h0).vec().is_zero
 
 
 def test_try_multiply_in_range_matches_multiply():
@@ -148,7 +148,7 @@ def test_try_multiply_in_range_matches_multiply():
     via_try = alg.try_multiply(h0, h0)
     assert via_try is not None
     assert via_try.degree == Bidegree.n_s(0, 2)
-    assert not via_try.vec().is_zero()
+    assert not via_try.vec().is_zero
 
 
 def test_multiply_into_matrix_shape():

@@ -59,7 +59,7 @@ def main():
         query.raw("Max n", int),
         query.raw("Max s", int),
     )
-    min_degree = sseq.Bidegree.s_t(0, module.min_degree())
+    min_degree = sseq.Bidegree.s_t(0, module.min_degree)
 
     # NOTE: depends on ext.SuspensionModule, ext.ChainComplex.ccdz and
     # ext.UnstableResolution.new_with_save (API_PROPOSAL §5.3, §7.1, §7.2).

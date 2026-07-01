@@ -12,21 +12,21 @@ def test_construction_and_queries():
     m = fp.AugmentedMatrix2(3, 2, [2, 2])
     # Prime is passed/queried as a plain int.
     assert m.prime == 3
-    assert m.rows() == 2
-    assert m.segments() == 2
-    assert m.is_zero()
+    assert m.rows == 2
+    assert m.segments == 2
+    assert m.is_zero
     # The first segment starts at column 0; the matrix has as many columns as
     # the final segment's end.
-    starts = m.segment_starts()
-    ends = m.segment_ends()
+    starts = m.segment_starts
+    ends = m.segment_ends
     assert starts[0] == 0
-    assert ends[-1] == m.columns()
+    assert ends[-1] == m.columns
     assert len(starts) == 2
     assert len(ends) == 2
 
     m3 = fp.AugmentedMatrix3(3, 2, [2, 2, 2])
-    assert m3.segments() == 3
-    assert len(m3.segment_starts()) == 3
+    assert m3.segments == 3
+    assert len(m3.segment_starts) == 3
 
 
 def test_invalid_segment_widths_raise():
@@ -45,7 +45,7 @@ def test_invalid_segment_widths_raise():
 def test_add_identity_and_invalid_segments():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     m.add_identity(1, 1)
-    start1 = m.segment_starts()[1]
+    start1 = m.segment_starts[1]
     rows = m.to_vec()
     assert rows[0][start1] == 1
     assert rows[1][start1 + 1] == 1
@@ -76,7 +76,7 @@ def test_row_mut_writes_through_to_parent():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     rm = m.row_mut(0)
     assert isinstance(rm, fp.FpSliceMut)
-    assert len(rm) == m.columns()
+    assert len(rm) == m.columns
     rm.set_entry(0, 1)
     rm.slice_mut(2, 4).set_entry(1, 1)
     assert m.to_vec()[0][0] == 1
@@ -88,15 +88,15 @@ def test_row_mut_writes_through_to_parent():
 def test_into_matrix_returns_matrix_and_consumes():
     m = fp.AugmentedMatrix2(2, 2, [2, 2])
     m.add_identity(1, 1)
-    cols = m.columns()
+    cols = m.columns
     inner = m.into_matrix()
     assert isinstance(inner, fp.Matrix)
-    assert inner.rows() == 2
-    assert inner.columns() == cols
+    assert inner.rows == 2
+    assert inner.columns == cols
     # `into_matrix` now consumes the augmented matrix: any further use raises
     # RuntimeError, and calling it again also raises.
     with pytest.raises(RuntimeError):
-        m.rows()
+        m.rows
     with pytest.raises(RuntimeError):
         m.into_matrix()
 
@@ -126,19 +126,19 @@ def test_augmented_matrix2_compute_image_and_quasi_inverse():
     image = m.compute_image()
     assert isinstance(image, fp.Subspace)
     assert image.prime == 2
-    assert image.dimension() == 2
+    assert image.dimension == 2
 
     qi = m.compute_quasi_inverse()
     assert isinstance(qi, fp.QuasiInverse)
     assert qi.prime == 2
-    assert qi.source_dimension() == 2
+    assert qi.source_dimension == 2
     # A is the identity, so its quasi-inverse preimage is the identity too.
-    assert qi.preimage().to_vec() == [[1, 0], [0, 1]]
+    assert qi.preimage.to_vec() == [[1, 0], [0, 1]]
 
     kernel = m.compute_kernel()
     assert isinstance(kernel, fp.Subspace)
     # A is full rank, so the kernel is trivial.
-    assert kernel.dimension() == 0
+    assert kernel.dimension == 0
 
 
 def test_augmented_matrix3_compute_kernel_and_quasi_inverses():
@@ -159,12 +159,12 @@ def test_augmented_matrix3_compute_kernel_and_quasi_inverses():
     assert a.prime == 3
     assert b.prime == 3
     # A = I is full-rank 2->2, so its quasi-inverse maps F3^2 -> F3^2.
-    assert a.source_dimension() == 2
-    assert a.target_dimension() == 2
+    assert a.source_dimension == 2
+    assert a.target_dimension == 2
     # The residual quasi-inverse inverts B (= I) and is itself a full-rank
     # 2->2 map.
-    assert b.source_dimension() == 2
-    assert b.target_dimension() == 2
+    assert b.source_dimension == 2
+    assert b.target_dimension == 2
 
 
 def test_compute_methods_require_row_reduce():
@@ -186,10 +186,10 @@ def test_compute_methods_require_row_reduce():
 
     # The failed (not-row-reduced) compute_* call must NOT consume the matrix;
     # it is still usable afterwards (parity with the Rust test).
-    assert m2.rows() == 2
+    assert m2.rows == 2
     m2.row_reduce()
     assert isinstance(m2.compute_kernel(), fp.Subspace)
-    assert m3.rows() == 2
+    assert m3.rows == 2
     m3.row_reduce()
     a, _ = m3.compute_quasi_inverses()
     assert isinstance(a, fp.QuasiInverse)
@@ -205,9 +205,9 @@ def test_outstanding_handles_after_into_matrix_raise_not_panic():
     rseg = m.row_segment_mut(0, 0, 0)
     m.into_matrix()
     with pytest.raises(RuntimeError):
-        seg.rows()
+        seg.rows
     with pytest.raises(RuntimeError):
-        rseg.len()
+        rseg.len
     with pytest.raises(RuntimeError):
         rseg.to_owned()
 
@@ -222,9 +222,9 @@ def test_outstanding_handles_after_compute_quasi_inverses_raise_not_panic():
     m.row_reduce()
     m.compute_quasi_inverses()
     with pytest.raises(RuntimeError):
-        seg.rows()
+        seg.rows
     with pytest.raises(RuntimeError):
-        rseg.len()
+        rseg.len
 
 
 def test_into_matrix_repr_and_value_correctness():

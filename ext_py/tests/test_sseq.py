@@ -87,8 +87,8 @@ def test_min_max_iter_degrees():
     s = sseq.Sseq(2)
     for b in [Bidegree.x_y(0, 0), Bidegree.x_y(2, 1), Bidegree.x_y(1, 0)]:
         s.set_dimension(b, 1)
-    assert s.min() == Bidegree.x_y(0, 0)
-    assert s.max() == Bidegree.x_y(2, 1)
+    assert s.min == Bidegree.x_y(0, 0)
+    assert s.max == Bidegree.x_y(2, 1)
     degrees = s.iter_degrees()
     assert len(degrees) == 3
     assert Bidegree.x_y(1, 0) in degrees
@@ -125,11 +125,11 @@ def make_small_sseq():
 def test_add_differential_and_page_data():
     s = make_small_sseq()
     # E_2 at (1,0) is the full 2-dimensional space; E_3 collapses to 0.
-    assert s.page_data(Bidegree.x_y(1, 0), 2).dimension() == 2
-    assert s.page_data(Bidegree.x_y(1, 0), 3).dimension() == 0
+    assert s.page_data(Bidegree.x_y(1, 0), 2).dimension == 2
+    assert s.page_data(Bidegree.x_y(1, 0), 3).dimension == 0
     # (0,2) is killed too.
-    assert s.page_data(Bidegree.x_y(0, 2), 2).dimension() == 2
-    assert s.page_data(Bidegree.x_y(0, 2), 3).dimension() == 0
+    assert s.page_data(Bidegree.x_y(0, 2), 2).dimension == 2
+    assert s.page_data(Bidegree.x_y(0, 2), 3).dimension == 0
 
 
 def test_differentials_and_hitting():
@@ -169,7 +169,7 @@ def test_permanent_classes():
     assert not s.add_permanent_class(elem(Bidegree.x_y(0, 0), 2, [1, 0]))
     classes = s.permanent_classes(Bidegree.x_y(0, 0))
     assert isinstance(classes, fp.Subspace)
-    assert classes.dimension() == 1
+    assert classes.dimension == 1
     assert classes.contains(vec(2, [1, 0]))
 
 
@@ -286,7 +286,7 @@ def test_differential_round_trip():
 
     # quasi_inverse returns a preimage of length source_dim.
     preimage = d.quasi_inverse(vec(2, [1]))
-    assert preimage.len() == 2
+    assert preimage.len == 2
     check = FpVector(2, 1)
     d.evaluate(preimage, check)
     assert check.entry(0) == 1
@@ -298,7 +298,7 @@ def test_differential_set_to_zero_and_inconsistent():
     assert d.get_source_target_pairs()
     d.set_to_zero()
     assert d.get_source_target_pairs() == []
-    assert d.inconsistent() is False
+    assert d.inconsistent is False
 
 
 def test_differential_guards():
@@ -342,7 +342,7 @@ def test_leibniz_permanent_product():
     assert result is not None
     r, new_class = result
     assert new_class.degree == Bidegree.x_y(1, 1)
-    assert s.permanent_classes(Bidegree.x_y(1, 1)).dimension() == 1
+    assert s.permanent_classes(Bidegree.x_y(1, 1)).dimension == 1
 
 
 def test_leibniz_guards():
@@ -420,10 +420,10 @@ def test_add_differential_r3_all_defined_succeeds():
     hitting = s.differentials_hitting(Bidegree.x_y(0, 3))
     assert any(r == 3 for (r, _d) in hitting)
     # E_3 at (1,0) still has the class; E_4 has it killed (it supports a d_3).
-    assert s.page_data(Bidegree.x_y(1, 0), 3).dimension() == 1
-    assert s.page_data(Bidegree.x_y(1, 0), 4).dimension() == 0
+    assert s.page_data(Bidegree.x_y(1, 0), 3).dimension == 1
+    assert s.page_data(Bidegree.x_y(1, 0), 4).dimension == 0
     # (0,3) is a boundary on E_4.
-    assert s.page_data(Bidegree.x_y(0, 3), 4).dimension() == 0
+    assert s.page_data(Bidegree.x_y(0, 3), 4).dimension == 0
 
 
 # --------------------------------------------------------------------------

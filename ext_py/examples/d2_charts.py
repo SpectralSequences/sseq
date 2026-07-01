@@ -20,11 +20,11 @@ def main():
     ss = lift.e3_page
     products = [
         (name, resolution.filtration_one_products(op_deg, op_idx))
-        for (name, op_deg, op_idx) in resolution.algebra().default_filtration_one_products()
+        for (name, op_deg, op_idx) in resolution.algebra.default_filtration_one_products
     ]
 
     def write(path, page, diff, prod):
-        # NOTE: depends on TikzBackend.EXT and Resolution.name() (API_PROPOSAL §6.3, §7.4).
+        # NOTE: depends on TikzBackend.EXT and Resolution.name (API_PROPOSAL §6.3, §7.4).
         suffix = sseq.TikzBackend.EXT
         backend = sseq.TikzBackend(
             open(f"{path}_{resolution.name}.{suffix}", "w")

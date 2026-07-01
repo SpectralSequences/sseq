@@ -165,7 +165,7 @@ def define_fpmodule(output_json, p):
         adem_terms = []
         milnor_terms = []
         for g, (op_deg, adem_op) in sorted(relation.items()):
-            if adem_op.is_zero():
+            if adem_op.is_zero:
                 continue
             milnor_op = ev.adem_to_milnor(op_deg, adem_op)
             adem_terms.append(replace(ev.adem_element_to_string(op_deg, adem_op), g))

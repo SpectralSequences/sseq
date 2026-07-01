@@ -30,21 +30,21 @@ def get_hom(name, source, target):
 
     ext_name = query.raw(f"Name of Ext part of {name}", str)
 
-    source.underlying().compute_through_stem(shift + ext.LAMBDA_BIDEGREE)
+    source.underlying.compute_through_stem(shift + ext.LAMBDA_BIDEGREE)
 
     hom = ext.ResolutionHomomorphism(
-        ext_name, source.underlying(), target.underlying(), shift
+        ext_name, source.underlying, target.underlying, shift
     )
 
-    num_gens = source.underlying().number_of_gens_in_bidegree(shift)
-    num_lambda_gens = hom.source().number_of_gens_in_bidegree(shift + ext.LAMBDA_BIDEGREE)
+    num_gens = source.underlying.number_of_gens_in_bidegree(shift)
+    num_lambda_gens = hom.source.number_of_gens_in_bidegree(shift + ext.LAMBDA_BIDEGREE)
 
     class_ = fp.FpVector(p, num_gens + num_lambda_gens)
 
     matrix = fp.Matrix(p, num_gens, 1)
 
-    if hom.name() != "":
-        if matrix.rows() == 0:
+    if hom.name != "":
+        if matrix.rows == 0:
             print("No classes in this bidegree", file=sys.stderr)
         else:
             v = query.vector(f"Input Ext class {ext_name}", num_gens)
@@ -67,13 +67,13 @@ def get_hom(name, source, target):
                 class_.set_entry(num_gens + i, x)
             lambda_part = ext.ResolutionHomomorphism.from_class(
                 lambda_name,
-                hom_lift.source(),
-                hom_lift.target(),
+                hom_lift.source,
+                hom_lift.target,
                 shift + ext.LAMBDA_BIDEGREE,
                 v,
             )
 
-    lambda_name = lambda_part.name() if lambda_part is not None else ""
+    lambda_name = lambda_part.name if lambda_part is not None else ""
     if ext_name == "" and lambda_name == "":
         raise AssertionError("Do not compute zero Massey product")
     elif ext_name == "":
@@ -116,17 +116,17 @@ def main():
     b_lambda = b_data.lambda_part
 
     shift = sseq.Bidegree.s_t(
-        (a.underlying().shift() + b.underlying().shift()).s,
-        (a.shift() + b.shift()).t,
+        (a.underlying.shift + b.underlying.shift).s,
+        (a.shift + b.shift).t,
     )
 
     # Extend resolutions
     if not is_unit:
         res_max = sseq.Bidegree.n_s(
-            resolution.module(0).max_computed_degree(),
-            resolution.next_homological_degree() - 1,
+            resolution.module(0).max_computed_degree,
+            resolution.next_homological_degree - 1,
         )
-        unit.compute_through_stem(res_max - a.underlying().shift())
+        unit.compute_through_stem(res_max - a.underlying.shift)
 
     if is_unit:
         res_lift.extend_all()
@@ -135,9 +135,9 @@ def main():
         unit_lift.extend_all()
 
     # Now extend homomorphisms
-    a.underlying().extend_all()
+    a.underlying.extend_all()
     a.extend_all()
-    b.underlying().extend_all()
+    b.underlying.extend_all()
     b.extend_all()
     if a_lambda is not None:
         a_lambda.extend_all()
@@ -147,15 +147,15 @@ def main():
     res_sseq = res_lift.e3_page
     unit_sseq = res_sseq if is_unit else res_lift.e3_page
 
-    b_shift = b.underlying().shift()
+    b_shift = b.underlying.shift
 
-    chain_homotopy = ext.ChainHomotopy(a.underlying(), b.underlying())
-    chain_homotopy.initialize_homotopies((b_shift + a.underlying().shift()).s)
+    chain_homotopy = ext.ChainHomotopy(a.underlying, b.underlying)
+    chain_homotopy.initialize_homotopies((b_shift + a.underlying.shift).s)
 
     # Compute first homotopy
     v = a.product_nullhomotopy(a_lambda, res_sseq, b_shift, b_class)
-    homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying().shift().s - 1)
-    htpy_source = a.shift() + b_shift
+    homotopy = chain_homotopy.homotopy(b_shift.s + a.underlying.shift.s - 1)
+    htpy_source = a.shift + b_shift
     homotopy.extend_by_zero(htpy_source.t - 1)
     homotopy.add_generators_from_rows(
         htpy_source.t,
@@ -192,7 +192,7 @@ def main():
 
     scratch1 = fp.FpVector(p, 0)
 
-    h_0 = ch_lift.algebra().p_tilde()
+    h_0 = ch_lift.algebra.p_tilde()
 
     p_int = int(p)
 
@@ -236,15 +236,15 @@ def main():
 
         product_matrix = fp.Matrix(
             p,
-            target_page_data.subspace_dimension(),
+            target_page_data.subspace_dimension,
             target_num_gens + prod_num_gens,
         )
 
         m0 = fp.Matrix.from_vec(
             p,
-            b.underlying().get_map(c.s + b.underlying().shift().s).hom_k(c.t),
+            b.underlying.get_map(c.s + b.underlying.shift.s).hom_k(c.t),
         )
-        for g, out in zip(target_page_data.subspace_gens(), product_matrix.iter_mut()):
+        for g, out in zip(target_page_data.subspace_gens, product_matrix.iter_mut()):
             out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens).add(g, 1)
             for i, val in g.iter_nonzero():
                 out.slice_mut(0, prod_num_gens).add(m0.row(i), val)
@@ -252,10 +252,10 @@ def main():
         e2_kernel = product_matrix.compute_kernel(prod_num_gens)
 
         # Now compute the e3 kernel
-        e2_ker_dim = e2_kernel.dimension()
+        e2_ker_dim = e2_kernel.dimension
         product_matrix = fp.Matrix(
             p,
-            e2_ker_dim + target_lambda_page_data.quotient_dimension(),
+            e2_ker_dim + target_lambda_page_data.quotient_dimension,
             target_all_gens + prod_all_gens,
         )
 
@@ -263,20 +263,20 @@ def main():
             b_lambda,
             unit_sseq,
             c,
-            e2_kernel.basis(),
+            e2_kernel.basis,
             list(product_matrix.slice_mut(0, e2_ker_dim, 0, prod_all_gens).iter_mut()),
         )
-        for vec, t in zip(e2_kernel.basis(), product_matrix.iter_mut()):
+        for vec, t in zip(e2_kernel.basis, product_matrix.iter_mut()):
             t.slice_mut(prod_all_gens, prod_all_gens + target_num_gens).assign(vec)
 
         # Now add the lambda multiples
         m = fp.Matrix.from_vec(
             p,
-            b.underlying().get_map(b_shift.s + c.s + 1).hom_k(c.t + 1),
+            b.underlying.get_map(b_shift.s + c.s + 1).hom_k(c.t + 1),
         )
 
         count = 0
-        for i, vv in enumerate(target_lambda_page_data.quotient_pivots()):
+        for i, vv in enumerate(target_lambda_page_data.quotient_pivots):
             if vv >= 0:
                 continue
             row = product_matrix.row_mut(e2_ker_dim + count)
@@ -290,7 +290,7 @@ def main():
         product_matrix.row_reduce()
         e3_kernel = product_matrix.compute_kernel(prod_all_gens)
 
-        if e3_kernel.dimension() == 0:
+        if e3_kernel.dimension == 0:
             continue
 
         m0 = chain_homotopy.homotopy(source.s).hom_k(c.t)
@@ -298,7 +298,7 @@ def main():
             p, chain_homotopy.homotopy(source.s + 1).hom_k(c.t + 1)
         )
         m1 = fp.Matrix.from_vec(
-            p, ch_lift.homotopies()[source.s + 1].homotopies.hom_k(c.t)
+            p, ch_lift.homotopies[source.s + 1].homotopies.hom_k(c.t)
         )
         mp = fp.Matrix.from_vec(
             p,
@@ -306,8 +306,8 @@ def main():
                 1, h_0, sseq.Bidegree.s_t(source.s, c.t + shift.t)
             ),
         )
-        ma = a.underlying().get_map(source.s).hom_k(c.t + b_shift.t)
-        mb = b.underlying().get_map(c.s + b_shift.s).hom_k(c.t)
+        ma = a.underlying.get_map(source.s).hom_k(c.t + b_shift.t)
+        mb = b.underlying.get_map(c.s + b_shift.s).hom_k(c.t)
 
         for g in e3_kernel.iter():
             # Print name
@@ -371,7 +371,7 @@ def main():
                 if extra == 0:
                     continue
                 for gen_idx in range(source_lambda_num_gens):
-                    mm = a.underlying().get_map((source + ext.LAMBDA_BIDEGREE).s)
+                    mm = a.underlying.get_map((source + ext.LAMBDA_BIDEGREE).s)
                     dx = mm.output((source + ext.LAMBDA_BIDEGREE).t, gen_idx)
                     idx = unit.module((c + shift).s).operation_generator_to_index(
                         1, h_0, (c + shift).t, i

@@ -17,8 +17,8 @@ def test_construction_and_queries():
 
     # Prime is passed/queried as a plain int.
     assert aff.prime == 2
-    assert aff.ambient_dimension() == 3
-    assert aff.dimension() == 2
+    assert aff.ambient_dimension == 3
+    assert aff.dimension == 2
     assert repr(aff) == "AffineSubspace([1, 0, 0] + {[0, 1, 0], [0, 0, 1]})"
 
 
@@ -36,8 +36,8 @@ def test_offset_and_linear_part_roundtrip():
     # linear_part() returns an owned Subspace clone.
     lp = aff.linear_part()
     assert isinstance(lp, fp.Subspace)
-    assert lp.dimension() == 2
-    assert lp.ambient_dimension() == 3
+    assert lp.dimension == 2
+    assert lp.ambient_dimension == 3
     assert [list(v) for v in lp.iter()] == [[0, 1, 0], [0, 0, 1]]
 
 
@@ -63,8 +63,8 @@ def test_offset_and_linear_part_are_owned_copies():
     # Mutating the returned linear part must not alias the stored linear part.
     lin = aff.linear_part()
     lin.set_to_zero()
-    assert aff.linear_part().dimension() == 2
-    assert aff.dimension() == 2
+    assert aff.linear_part().dimension == 2
+    assert aff.dimension == 2
     assert [list(v) for v in aff.linear_part().iter()] == [[0, 1, 0], [0, 0, 1]]
 
 
@@ -130,7 +130,7 @@ def test_sum_semantics():
     # a.offset [1,0,0] + b.offset [0,0,0] = [1,0,0], re-reduced against
     # span{[0,1,0],[0,0,1]} (dim 2) -> [1,0,0]. No [1,0,1] intermediate occurs.
     s = a.sum(b)
-    assert s.dimension() == 2
+    assert s.dimension == 2
     assert list(s.offset()) == [1, 0, 0]
     # [1,1,1] = offset + [0,1,1] is contained; [0,0,0] is not.
     assert s.contains(fp.FpVector.from_slice(2, [1, 1, 1]))

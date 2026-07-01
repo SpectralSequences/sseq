@@ -44,8 +44,8 @@ def test_zero_construct_and_invariants():
     hom = algebra.FullModuleHomomorphism(m, m, 0)
     assert isinstance(hom.prime, int)
     assert hom.prime == 2
-    assert hom.degree_shift() == 0
-    assert hom.min_degree() == 0
+    assert hom.degree_shift == 0
+    assert hom.min_degree == 0
     assert repr(hom).startswith("FullModuleHomomorphism(")
 
 
@@ -53,8 +53,8 @@ def test_source_and_target_types_and_state():
     alg = milnor(2)
     m = c2_module(alg)
     hom = algebra.FullModuleHomomorphism(m, m, 0)
-    source = hom.source()
-    target = hom.target()
+    source = hom.source
+    target = hom.target
     assert isinstance(source, algebra.SteenrodModule)
     assert isinstance(target, algebra.SteenrodModule)
     assert source.dimension(0) == 1
@@ -92,7 +92,7 @@ def test_identity_is_identity():
     alg = milnor(2)
     m = c2_module(alg)
     hom = algebra.FullModuleHomomorphism.identity(m)
-    assert hom.degree_shift() == 0
+    assert hom.degree_shift == 0
     # identity: x0 -> x0 (degree 0), x1 -> x1 (degree 1).
     res0 = fp.FpVector(2, 1)
     hom.apply_to_basis_element(res0, 1, 0, 0)
@@ -173,11 +173,11 @@ def test_auxiliary_data_dimensions_and_types():
     assert isinstance(kernel0, fp.Subspace)
     assert isinstance(qi0, fp.QuasiInverse)
     # degree 0 is an iso k -> k.
-    assert image0.dimension() == 1
-    assert kernel0.dimension() == 0
+    assert image0.dimension == 1
+    assert kernel0.dimension == 0
     # degree 1 is the zero map k -> k.
-    assert hom.image(1).dimension() == 0
-    assert hom.kernel(1).dimension() == 1
+    assert hom.image(1).dimension == 0
+    assert hom.kernel(1).dimension == 1
 
 
 def test_apply_quasi_inverse_round_trip():
@@ -206,8 +206,8 @@ def test_get_partial_matrix():
     hom = from_matrices_bottom_cell(alg)
     m = hom.get_partial_matrix(0, [0])
     assert isinstance(m, fp.Matrix)
-    assert m.rows() == 1
-    assert m.columns() == 1
+    assert m.rows == 1
+    assert m.columns == 1
     assert m.to_vec() == [[1]]
 
 
@@ -257,10 +257,10 @@ def test_apply_aliasing_input_and_target_raises():
 def test_from_matrices_rejects_min_degree_below_target_min():
     alg = milnor(2)
     m = c2_module(alg)
-    target_min = m.min_degree()
+    target_min = m.min_degree
     assert target_min == 0
     # Upstream builds the kernels/images/quasi_inverses tables starting at
-    # target.min_degree(), so matrices recorded below it would never get
+    # target.min_degree, so matrices recorded below it would never get
     # auxiliary data -> rejected with a clear ValueError.
     with pytest.raises(ValueError):
         algebra.FullModuleHomomorphism.from_matrices(
@@ -271,8 +271,8 @@ def test_from_matrices_rejects_min_degree_below_target_min():
 def test_from_matrices_min_degree_at_target_min_and_default_ok():
     alg = milnor(2)
     m = c2_module(alg)
-    target_min = m.min_degree()
-    # min_degree == target.min_degree() is accepted.
+    target_min = m.min_degree
+    # min_degree == target.min_degree is accepted.
     hom = algebra.FullModuleHomomorphism.from_matrices(
         m, m, [], 0, min_degree=target_min
     )
@@ -292,7 +292,7 @@ def test_from_matrices_explicit_min_degree_multi_degree_apply():
     m0 = fp.Matrix.from_vec(2, [[0]])  # output degree 0
     m1 = fp.Matrix.from_vec(2, [[1]])  # output degree 1
     hom = algebra.FullModuleHomomorphism.from_matrices(
-        m, m, [m0, m1], 0, min_degree=m.min_degree()
+        m, m, [m0, m1], 0, min_degree=m.min_degree
     )
     r0 = fp.FpVector(2, 1)
     hom.apply_to_basis_element(r0, 1, 0, 0)
@@ -321,7 +321,7 @@ def shift_one_top_to_bottom(alg):
 def test_shift_apply_lands_in_shifted_degree():
     alg = milnor(2)
     hom = shift_one_top_to_bottom(alg)
-    assert hom.degree_shift() == 1
+    assert hom.degree_shift == 1
     # input_degree 1 -> output_degree 0; result lives in target.dim(0) == 1.
     # Per upstream apply_to_basis_element: result += matrices.get(0).row(0) = [1].
     res = fp.FpVector(2, 1)
@@ -345,8 +345,8 @@ def test_shift_get_partial_matrix_success_and_guard():
     # Success case: target.dim(1) == target.dim(0) == 1.
     gm = hom.get_partial_matrix(1, [0])
     assert isinstance(gm, fp.Matrix)
-    assert gm.rows() == 1
-    assert gm.columns() == 1
+    assert gm.rows == 1
+    assert gm.columns == 1
     assert gm.to_vec() == [[1]]
     # Guard case: target.dim(0) == 1 != target.dim(-1) == 0 -> ValueError.
     with pytest.raises(ValueError):

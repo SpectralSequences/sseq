@@ -227,7 +227,7 @@ def test_generated_algebra_surface(variant):
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_default_filtration_one_products(variant):
     a = make(variant, 2, 8)
-    products = a.default_filtration_one_products()
+    products = a.default_filtration_one_products
     assert all(len(triple) == 3 for triple in products)
     assert all(isinstance(name, str) for name, _, _ in products)
 

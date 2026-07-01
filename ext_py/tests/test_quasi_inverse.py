@@ -20,16 +20,16 @@ def make_qi():
 def test_import_and_construction():
     qi = make_qi()
     assert qi.prime == 2
-    assert qi.image_dimension() == 4
-    assert qi.source_dimension() == 4
-    assert qi.target_dimension() == 6
+    assert qi.image_dimension == 4
+    assert qi.source_dimension == 4
+    assert qi.target_dimension == 6
     assert "QuasiInverse(2" in repr(qi)
 
 
 def test_pivots_and_preimage():
     qi = make_qi()
-    assert qi.pivots() == [0, -1, 1, -1, 2, 3]
-    assert qi.preimage().to_vec() == [
+    assert qi.pivots == [0, -1, 1, -1, 2, 3]
+    assert qi.preimage.to_vec() == [
         [1, 0, 1, 1],
         [1, 1, 0, 0],
         [0, 1, 0, 1],
@@ -119,9 +119,9 @@ def test_bytes_roundtrip():
     data = qi.to_bytes()
     assert isinstance(data, bytes)
     restored = fp.QuasiInverse.from_bytes(2, data)
-    assert restored.source_dimension() == qi.source_dimension()
-    assert restored.target_dimension() == qi.target_dimension()
-    assert restored.image_dimension() == qi.image_dimension()
+    assert restored.source_dimension == qi.source_dimension
+    assert restored.target_dimension == qi.target_dimension
+    assert restored.image_dimension == qi.image_dimension
 
     v = fp.FpVector.from_slice(2, [1, 1, 0, 0, 1, 0])
     out = fp.FpVector(2, 4)
@@ -145,8 +145,8 @@ def test_compute_quasi_inverse_from_matrix():
     m.row_reduce()
     qi = m.compute_quasi_inverse(len(rows[0]), padded_cols)
     assert qi.prime == 3
-    assert qi.source_dimension() == 3
-    assert qi.preimage().to_vec() == [[0, 1, 0], [0, 2, 2]]
+    assert qi.source_dimension == 3
+    assert qi.preimage.to_vec() == [[0, 1, 0], [0, 2, 2]]
 
 
 def test_compute_quasi_inverse_out_of_range():
@@ -236,11 +236,11 @@ def test_none_image_construction_and_roundtrip():
         ],
     )
     qi = fp.QuasiInverse(None, preimage)
-    assert qi.pivots() is None
+    assert qi.pivots is None
     # With a None (identity) image, target_dimension == image_dimension.
-    assert qi.image_dimension() == 3
-    assert qi.source_dimension() == 3
-    assert qi.target_dimension() == 3
+    assert qi.image_dimension == 3
+    assert qi.source_dimension == 3
+    assert qi.target_dimension == 3
 
     v = fp.FpVector.from_slice(2, [1, 0, 1])
     out = fp.FpVector(2, 3)
@@ -250,8 +250,8 @@ def test_none_image_construction_and_roundtrip():
     # A None image is serialized as an explicit identity pivot list and so
     # round-trips to Some([0, 1, 2, ...]) rather than None.
     restored = fp.QuasiInverse.from_bytes(2, qi.to_bytes())
-    assert restored.pivots() == [0, 1, 2]
-    assert restored.target_dimension() == 3
+    assert restored.pivots == [0, 1, 2]
+    assert restored.target_dimension == 3
     out2 = fp.FpVector(2, 3)
     restored.apply(out2, 1, v)
     assert list(out2) == [1, 0, 1]

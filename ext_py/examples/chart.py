@@ -17,7 +17,7 @@ def main():
     ss = resolution.to_sseq()
     products = [
         (name, resolution.filtration_one_products(op_deg, op_idx))
-        for (name, op_deg, op_idx) in resolution.algebra().default_filtration_one_products()
+        for (name, op_deg, op_idx) in resolution.algebra.default_filtration_one_products
     ]
 
     ss.write_to_graph(

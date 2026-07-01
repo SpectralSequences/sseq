@@ -30,10 +30,10 @@ def main():
     d2_shift = sseq.Bidegree.n_s(-1, 2)
 
     # Iterate through the target of the d2.
-    for b in lift.underlying().iter_nonzero_stem():
+    for b in lift.underlying.iter_nonzero_stem():
         if b.s < 3:
             continue
-        if b.t - 1 > resolution.module(b.s - 2).max_computed_degree():
+        if b.t - 1 > resolution.module(b.s - 2).max_computed_degree:
             continue
 
         homotopy = lift.homotopy(b.s)

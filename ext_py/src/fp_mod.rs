@@ -957,10 +957,12 @@ pub mod fp_py {
             self.0.prime().as_u32()
         }
 
+        #[getter]
         pub fn len(&self) -> usize {
             self.0.len()
         }
 
+        #[getter]
         pub fn is_empty(&self) -> bool {
             self.0.is_empty()
         }
@@ -969,14 +971,17 @@ pub mod fp_py {
             Ok(self.0.entry(checked_index(index, self.0.len())?))
         }
 
+        #[getter]
         pub fn density(&self) -> f32 {
             self.0.density()
         }
 
+        #[getter]
         pub fn is_zero(&self) -> bool {
             self.0.is_zero()
         }
 
+        #[getter]
         pub fn first_nonzero(&self) -> Option<(usize, u32)> {
             self.0.first_nonzero()
         }
@@ -1107,10 +1112,12 @@ pub mod fp_py {
             self.with_slice(py, |s| s.prime().as_u32())
         }
 
+        #[getter]
         pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
             self.with_slice(py, |s| s.len())
         }
 
+        #[getter]
         pub fn is_empty(&self, py: Python<'_>) -> PyResult<bool> {
             self.with_slice(py, |s| s.is_empty())
         }
@@ -1129,10 +1136,12 @@ pub mod fp_py {
             self.with_slice(py, |s| s.iter_nonzero().collect())
         }
 
+        #[getter]
         pub fn is_zero(&self, py: Python<'_>) -> PyResult<bool> {
             self.with_slice(py, |s| s.is_zero())
         }
 
+        #[getter]
         pub fn first_nonzero(&self, py: Python<'_>) -> PyResult<Option<(usize, u32)>> {
             self.with_slice(py, |s| s.first_nonzero())
         }
@@ -1171,10 +1180,12 @@ pub mod fp_py {
             self.with_slice(py, |s| s.prime().as_u32())
         }
 
+        #[getter]
         pub fn len(&self, py: Python<'_>) -> PyResult<usize> {
             self.with_slice(py, |s| s.len())
         }
 
+        #[getter]
         pub fn is_empty(&self, py: Python<'_>) -> PyResult<bool> {
             self.with_slice(py, |s| s.is_empty())
         }
@@ -1387,10 +1398,12 @@ pub mod fp_py {
             self.with_slice_mut(py, |s| s.prime().as_u32())
         }
 
+        #[getter]
         pub fn rows(&self, py: Python<'_>) -> PyResult<usize> {
             self.with_slice_mut(py, |s| s.rows())
         }
 
+        #[getter]
         pub fn columns(&self, py: Python<'_>) -> PyResult<usize> {
             self.with_slice_mut(py, |s| s.columns())
         }
@@ -1593,18 +1606,22 @@ pub mod fp_py {
             self.0.prime().as_u32()
         }
 
+        #[getter]
         pub fn rows(&self) -> usize {
             self.0.rows()
         }
 
+        #[getter]
         pub fn columns(&self) -> usize {
             self.0.columns()
         }
 
+        #[getter]
         pub fn pivots(&self) -> Vec<isize> {
             self.0.pivots().to_vec()
         }
 
+        #[getter]
         pub fn is_zero(&self) -> bool {
             self.0.is_zero()
         }
@@ -1919,10 +1936,12 @@ pub mod fp_py {
             self.0.prime().as_u32()
         }
 
+        #[getter]
         pub fn dimension(&self) -> usize {
             self.0.dimension()
         }
 
+        #[getter]
         pub fn ambient_dimension(&self) -> usize {
             self.0.ambient_dimension()
         }
@@ -1971,6 +1990,7 @@ pub mod fp_py {
 
         /// Return the basis of the subspace as a list of owned `FpVector`s.
         /// Mirrors upstream `Subspace::basis`.
+        #[getter]
         pub fn basis(&self) -> Vec<PyFpVector> {
             self.iter()
         }
@@ -2163,22 +2183,27 @@ pub mod fp_py {
             self.0.prime().as_u32()
         }
 
+        #[getter]
         pub fn image_dimension(&self) -> usize {
             self.0.image_dimension()
         }
 
+        #[getter]
         pub fn source_dimension(&self) -> usize {
             self.0.source_dimension()
         }
 
+        #[getter]
         pub fn target_dimension(&self) -> usize {
             self.0.target_dimension()
         }
 
+        #[getter]
         pub fn preimage(&self) -> PyMatrix {
             PyMatrix(self.0.preimage().clone())
         }
 
+        #[getter]
         pub fn pivots(&self) -> Option<Vec<isize>> {
             self.0.pivots().map(<[isize]>::to_vec)
         }
@@ -2286,22 +2311,27 @@ pub mod fp_py {
             self.0.prime().as_u32()
         }
 
+        #[getter]
         pub fn dimension(&self) -> usize {
             self.0.dimension()
         }
 
+        #[getter]
         pub fn ambient_dimension(&self) -> usize {
             self.0.ambient_dimension()
         }
 
+        #[getter]
         pub fn quotient_dimension(&self) -> usize {
             self.0.quotient_dimension()
         }
 
+        #[getter]
         pub fn subspace_dimension(&self) -> usize {
             self.0.subspace_dimension()
         }
 
+        #[getter]
         pub fn is_empty(&self) -> bool {
             self.0.is_empty()
         }
@@ -2316,6 +2346,7 @@ pub mod fp_py {
         /// `FpVector`s. Mirrors the choice made for `Subspace.iter`: the
         /// upstream iterator borrows the subquotient, so we materialize owned
         /// vectors rather than expose borrowed slice handles.
+        #[getter]
         pub fn gens(&self) -> Vec<PyFpVector> {
             self.0
                 .gens()
@@ -2325,6 +2356,7 @@ pub mod fp_py {
 
         /// The generators of the subspace part of the subquotient, returned as
         /// a list of owned `FpVector`s (see `gens` for the ownership choice).
+        #[getter]
         pub fn subspace_gens(&self) -> Vec<PyFpVector> {
             self.0
                 .subspace_gens()
@@ -2333,11 +2365,13 @@ pub mod fp_py {
         }
 
         /// The pivot columns of the complement to the subspace.
+        #[getter]
         pub fn complement_pivots(&self) -> Vec<usize> {
             self.0.complement_pivots().collect()
         }
 
         /// The pivot table of the quotient subspace.
+        #[getter]
         pub fn quotient_pivots(&self) -> Vec<isize> {
             self.0.quotient_pivots().to_vec()
         }
@@ -2460,10 +2494,12 @@ pub mod fp_py {
             self.0.linear_part().prime().as_u32()
         }
 
+        #[getter]
         pub fn ambient_dimension(&self) -> usize {
             self.0.linear_part().ambient_dimension()
         }
 
+        #[getter]
         pub fn dimension(&self) -> usize {
             self.0.linear_part().dimension()
         }
@@ -2596,33 +2632,40 @@ pub mod fp_py {
                     Ok(self.0.get()?.prime().as_u32())
                 }
 
+                #[getter]
                 fn rows(&self) -> PyResult<usize> {
                     Ok(self.0.get()?.rows())
                 }
 
+                #[getter]
                 fn columns(&self) -> PyResult<usize> {
                     Ok(self.0.get()?.columns())
                 }
 
                 /// Number of column segments (`N`).
+                #[getter]
                 fn segments(&self) -> usize {
                     $n
                 }
 
                 /// The starting column index of each segment.
+                #[getter]
                 fn segment_starts(&self) -> PyResult<Vec<usize>> {
                     Ok(self.0.get()?.start.to_vec())
                 }
 
                 /// The (exclusive) ending column index of each segment.
+                #[getter]
                 fn segment_ends(&self) -> PyResult<Vec<usize>> {
                     Ok(self.0.get()?.end.to_vec())
                 }
 
+                #[getter]
                 fn pivots(&self) -> PyResult<Vec<isize>> {
                     Ok(self.0.get()?.pivots().to_vec())
                 }
 
+                #[getter]
                 fn is_zero(&self) -> PyResult<bool> {
                     Ok(self.0.get()?.is_zero())
                 }

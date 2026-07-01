@@ -28,7 +28,7 @@ def test_fp_module_construct_and_dimensions():
     m = a_mod_sq1(alg)
     assert isinstance(m.prime, int)
     assert m.prime == 2
-    assert m.min_degree() == 0
+    assert m.min_degree == 0
     # x0 survives, Sq1 x0 killed, Sq2 x0 survives.
     assert m.dimension(0) == 1
     assert m.dimension(1) == 0
@@ -101,7 +101,7 @@ def test_fp_module_builder_build_and_mutation_after_build_raises():
     alg = milnor(2)
     b = algebra.FPModuleBuilder(alg, "M", 0)
     assert b.prime == 2
-    assert b.min_degree() == 0
+    assert b.min_degree == 0
     b.add_generators(0, ["x0"])
     m = b.build()
     assert isinstance(m, algebra.FPModule)
@@ -171,7 +171,7 @@ def test_fp_module_from_json():
     m = algebra.FPModule.from_json(alg, A_MOD_SQ1_SQ2)
     assert isinstance(m, algebra.FPModule)
     assert m.prime == 2
-    assert m.min_degree() == 0
+    assert m.min_degree == 0
     assert m.dimension(0) == 1
     # Both Sq1 x0 and Sq2 x0 are killed.
     assert m.dimension(1) == 0
@@ -197,7 +197,7 @@ def test_fp_module_from_json_prime_mismatch_raises():
 def test_block_structure_queries():
     # Degree 0 has blocks of size [2, 1]; degree 1 has block [3].
     bs = algebra.BlockStructure(0, [[2, 1], [3]])
-    assert bs.total_dimension() == 6
+    assert bs.total_dimension == 6
     assert bs.generator_to_block(0, 0) == (0, 2)
     assert bs.generator_to_block(0, 1) == (2, 3)
     assert bs.generator_to_block(1, 0) == (3, 6)
@@ -224,7 +224,7 @@ def test_block_structure_out_of_range_raises():
 
 def test_block_structure_add_block():
     bs = algebra.BlockStructure(0, [[2, 1], [3]])
-    target = fp.FpVector(2, bs.total_dimension())
+    target = fp.FpVector(2, bs.total_dimension)
     source = fp.FpVector(2, 3)
     source.set_entry(0, 1)
     source.set_entry(2, 1)
