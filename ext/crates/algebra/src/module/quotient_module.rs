@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use bivec::BiVec;
 use fp::{
     matrix::Subspace,
@@ -30,28 +31,30 @@ impl<M: Module> std::fmt::Display for QuotientModule<M> {
 impl<M: Module> QuotientModule<M> {
     /// Fallible version of [`new`](Self::new).
     ///
-    /// Returns `Err` when `truncation < min_degree - 1` (which would trip
-    /// `BiVec::with_capacity`'s `debug_assert` or request a huge allocation) or
-    /// when `truncation + 1` overflows `i32`. [`new`](Self::new) is simply
-    /// `Self::try_new(module, truncation).unwrap()`.
+    /// Returns `Err` when the allocation span `truncation + 1 - min_degree` is
+    /// negative or would overflow `i32` (which would trip
+    /// `BiVec::with_capacity`'s `debug_assert` or request a huge allocation).
+    /// [`new`](Self::new) is simply `Self::try_new(module, truncation).unwrap()`.
     pub fn try_new(module: Arc<M>, truncation: i32) -> anyhow::Result<Self> {
         let min_degree = module.min_degree();
+        let capacity = truncation
+            .checked_add(1)
+            .with_context(|| format!("truncation {truncation} + 1 overflows i32"))?;
+        let span = capacity
+            .checked_sub(min_degree)
+            .with_context(|| format!("span {capacity} - min_degree {min_degree} overflows i32"))?;
         anyhow::ensure!(
-            truncation >= min_degree - 1,
+            span >= 0,
             "truncation {truncation} is below min_degree - 1 ({})",
-            min_degree - 1
-        );
-        anyhow::ensure!(
-            truncation.checked_add(1).is_some(),
-            "truncation {truncation} + 1 overflows i32"
+            min_degree.saturating_sub(1)
         );
 
         module.compute_basis(truncation);
 
         let p = module.prime();
 
-        let mut subspaces = BiVec::with_capacity(min_degree, truncation + 1);
-        let mut basis_list = BiVec::with_capacity(min_degree, truncation + 1);
+        let mut subspaces = BiVec::with_capacity(min_degree, capacity);
+        let mut basis_list = BiVec::with_capacity(min_degree, capacity);
 
         for t in min_degree..=truncation {
             let dim = module.dimension(t);
