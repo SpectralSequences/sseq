@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_NEW_GENS"],"struct":["MuResolution","SenderData"],"type":["Resolution","UnstableResolution"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_NEW_GENS"],"mod":["secondary"],"struct":["MuResolution","SenderData"],"type":["Resolution","UnstableResolution"]};

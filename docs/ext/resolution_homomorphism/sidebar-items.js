@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MuResolutionHomomorphism"],"type":["ResolutionHomomorphism","UnstableResolutionHomomorphism"]};
+window.SIDEBAR_ITEMS = {"mod":["secondary"],"struct":["MuResolutionHomomorphism"],"type":["ResolutionHomomorphism","UnstableResolutionHomomorphism"]};
