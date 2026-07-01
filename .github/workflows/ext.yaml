@@ -43,16 +43,16 @@ jobs:
         run: pip install pytest
 
       - name: Run ext tests
-        run: just --working-directory ext --justfile ext/justfile test
+        run: cd ext && just test
 
       - name: Run ext examples
-        run: just --working-directory ext --justfile ext/justfile benchmarks
+        run: cd ext && just benchmarks
 
       - name: Run ext examples (nassau)
-        run: just --working-directory ext --justfile ext/justfile benchmarks-nassau
+        run: cd ext && just benchmarks-nassau
 
       - name: Run ext examples (concurrent)
-        run: just --working-directory ext --justfile ext/justfile benchmarks-concurrent
+        run: cd ext && just benchmarks-concurrent
 
       - name: Benchmark executable size
         run: |
@@ -89,7 +89,7 @@ jobs:
           key: miri-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Run miri
-        run: just --working-directory ext --justfile ext/justfile miri
+        run: cd ext && just miri
 
   lint:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
@@ -125,13 +125,13 @@ jobs:
           key: lint-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Run lint
-        run: just --working-directory ext --justfile ext/justfile lint
+        run: cd ext && just lint
 
       - name: Lint sseq_gui
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile lint
+        run: cd web_ext/sseq_gui && just lint
 
       - name: Lint sseq_gui tests
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile lint-selenium
+        run: cd web_ext/sseq_gui && just lint-selenium
 
   # Build the wasm webserver with the default `panic=abort` configuration on
   # stable/beta. This is the compatibility build; the deployed artifact is
@@ -177,16 +177,16 @@ jobs:
         run: sudo apt-get install binaryen
 
       - name: Setup build environment
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile setup-wasm
+        run: cd web_ext/sseq_gui && just setup-wasm
 
       - name: Lint sseq_gui wasm
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile lint-wasm
+        run: cd web_ext/sseq_gui && just lint-wasm
 
       - name: Test worker panic handling
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile test-wasm-js
+        run: cd web_ext/sseq_gui && just test-wasm-js
 
       - name: Build wasm
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile wasm
+        run: cd web_ext/sseq_gui && just wasm
 
       - name: Benchmark wasm size
         run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
@@ -237,13 +237,13 @@ jobs:
         run: sudo apt-get install -y binaryen wabt
 
       - name: Setup build environment
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile setup-wasm
+        run: cd web_ext/sseq_gui && just setup-wasm
 
       - name: Build wasm (panic=unwind)
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile WASM_UNWIND=1 wasm
+        run: cd web_ext/sseq_gui && just WASM_UNWIND=1 wasm
 
       - name: Verify wasm unwinding
-        run: just --working-directory web_ext/sseq_gui --justfile web_ext/sseq_gui/justfile test-wasm-unwind
+        run: cd web_ext/sseq_gui && just test-wasm-unwind
 
       - name: Benchmark wasm size
         run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
@@ -377,13 +377,13 @@ jobs:
         run: sudo apt-get install binaryen
 
       - name: Setup build environment
-        run: just --working-directory web_ext/steenrod_calculator --justfile web_ext/steenrod_calculator/justfile setup-wasm
+        run: cd web_ext/steenrod_calculator && just setup-wasm
 
       - name: Lint sseq_gui wasm
-        run: just --working-directory web_ext/steenrod_calculator --justfile web_ext/steenrod_calculator/justfile lint
+        run: cd web_ext/steenrod_calculator && just lint
 
       - name: Build wasm
-        run: just --working-directory web_ext/steenrod_calculator --justfile web_ext/steenrod_calculator/justfile all
+        run: cd web_ext/steenrod_calculator && just all
 
       - name: Benchmark wasm size
         run: ls -l web_ext/steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
@@ -431,7 +431,7 @@ jobs:
           key: docs-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('ext/Cargo.*') }}
 
       - name: Generate docs
-        run: just --working-directory ext --justfile ext/justfile docs
+        run: cd ext && just docs
 
       - name: Upload docs
         uses: actions/upload-artifact@v4

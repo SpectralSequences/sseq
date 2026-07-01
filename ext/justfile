@@ -22,6 +22,11 @@ lint:
     cargo check --workspace --no-default-features --profile test
     cargo check --workspace --all-targets --all-features --profile test
 
+# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes.
+fix:
+    cargo fmt --all
+    cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged
+
 docs:
     # Prevent the cached crates.js from confusing the current run
     rm target/doc/crates.js || true
@@ -77,8 +82,8 @@ bench-concurrent NAME:
         exit 1
     fi
 
-# Rewrite a single benchmark's expected output to the current program output.
-fix-bench NAME:
+# Bless a single benchmark: overwrite its expected output with the current output.
+bless-bench NAME:
     #!/usr/bin/env bash
     set -euo pipefail
     file="{{BENCH_DIR}}/{{NAME}}"
@@ -121,20 +126,20 @@ benchmarks-concurrent:
         just bench-concurrent "$name"
     done
 
-# Rewrite all non-nassau benchmark outputs.
-fix-benchmarks:
+# Bless all non-nassau benchmarks.
+bless-benchmarks:
     #!/usr/bin/env bash
     set -euo pipefail
     for file in {{BENCH_DIR}}/*; do
         name="$(basename "$file")"
         [[ "$name" == *-nassau ]] && continue
-        just fix-bench "$name"
+        just bless-bench "$name"
     done
 
-# Rewrite all nassau benchmark outputs.
-fix-benchmarks-nassau:
+# Bless all nassau benchmarks.
+bless-benchmarks-nassau:
     #!/usr/bin/env bash
     set -euo pipefail
     for file in {{BENCH_DIR}}/*-nassau; do
-        just fix-bench "$(basename "$file")"
+        just bless-bench "$(basename "$file")"
     done

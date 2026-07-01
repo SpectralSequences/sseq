@@ -128,7 +128,7 @@ just benchmarks-concurrent
 Running
 
 ```shell
-just fix-benchmarks
+just bless-benchmarks
 ```
 
 updates the outputs in all benchmark files to match the current program output.
@@ -139,5 +139,5 @@ These can be run for individual benchmarks by e.g.
 ```shell
 just bench resolve-S_2
 just bench-concurrent resolve-S_2
-just fix-bench resolve-S_2
+just bless-bench resolve-S_2
 ```
