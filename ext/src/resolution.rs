@@ -978,6 +978,178 @@ where
     }
 }
 
+// The secondary lift of a `Resolution` lives here, beside the primary object it lifts, rather than
+// in the monolithic `secondary` module. This keeps `secondary.rs` to the shared lift machinery and
+// pairs each variant with its primary for locality. The module is `pub(crate)`; `SecondaryResolution`
+// is re-exported from `crate::secondary` so the public API path is unchanged.
+pub(crate) mod secondary {
+    use std::sync::Arc;
+
+    use algebra::{module::Module, pair_algebra::PairAlgebra};
+    use dashmap::DashMap;
+    use fp::vector::FpVector;
+    use once::OnceBiVec;
+    use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator, BidegreeRange};
+
+    use crate::{
+        chain_complex::FreeChainComplex,
+        save::{SaveDirectory, SaveKind},
+        secondary::{CompositeData, SecondaryHomotopy, SecondaryLift},
+    };
+
+    pub struct SecondaryResolution<CC: FreeChainComplex>
+    where
+        CC::Algebra: PairAlgebra,
+    {
+        underlying: Arc<CC>,
+        /// s -> t -> idx -> homotopy
+        pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<CC::Algebra>>,
+        intermediates: DashMap<BidegreeGenerator, FpVector>,
+    }
+
+    impl<CC: FreeChainComplex> SecondaryLift for SecondaryResolution<CC>
+    where
+        CC::Algebra: PairAlgebra,
+    {
+        type Algebra = CC::Algebra;
+        type Source = CC;
+        type Target = CC;
+        type Underlying = CC;
+
+        fn underlying(&self) -> Arc<CC> {
+            Arc::clone(&self.underlying)
+        }
+
+        fn algebra(&self) -> Arc<Self::Algebra> {
+            self.underlying.algebra()
+        }
+
+        fn source(&self) -> Arc<Self::Source> {
+            Arc::clone(&self.underlying)
+        }
+
+        fn target(&self) -> Arc<Self::Target> {
+            Arc::clone(&self.underlying)
+        }
+
+        fn shift(&self) -> Bidegree {
+            Bidegree::s_t(2, 0)
+        }
+
+        fn max(&self) -> BidegreeRange<'_, Self> {
+            BidegreeRange::new(
+                self,
+                self.underlying.next_homological_degree(),
+                &|selff, s| {
+                    std::cmp::min(
+                        selff.underlying.module(s).max_computed_degree(),
+                        selff.underlying.module(s - 2).max_computed_degree() + 1,
+                    ) + 1
+                },
+            )
+        }
+
+        fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<CC::Algebra>> {
+            &self.homotopies
+        }
+
+        fn intermediates(&self) -> &DashMap<BidegreeGenerator, FpVector> {
+            &self.intermediates
+        }
+
+        fn save_dir(&self) -> &SaveDirectory {
+            self.underlying.save_dir()
+        }
+
+        fn composite(&self, s: i32) -> CompositeData<CC::Algebra> {
+            let d1 = self.underlying.differential(s);
+            let d0 = self.underlying.differential(s - 1);
+            vec![(1, d1, d0)]
+        }
+
+        fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
+            let p = self.prime();
+            let target = self.underlying.module(g.s() - 3);
+            let mut result = FpVector::new(p, target.dimension(g.t() - 1));
+            let d = self.underlying.differential(g.s());
+            self.homotopies[g.s() - 1].act(
+                result.as_slice_mut(),
+                1,
+                g.t(),
+                d.output(g.t(), g.idx()).as_slice(),
+                false,
+            );
+            result
+        }
+    }
+
+    impl<CC: FreeChainComplex> SecondaryResolution<CC>
+    where
+        CC::Algebra: PairAlgebra,
+    {
+        pub fn new(cc: Arc<CC>) -> Self {
+            if let Some(p) = cc.save_dir().write() {
+                for subdir in SaveKind::secondary_data() {
+                    subdir.create_dir(p).unwrap();
+                }
+            }
+
+            Self {
+                underlying: cc,
+                homotopies: OnceBiVec::new(2),
+                intermediates: DashMap::new(),
+            }
+        }
+
+        pub fn homotopy(&self, s: i32) -> &SecondaryHomotopy<CC::Algebra> {
+            &self.homotopies[s]
+        }
+
+        pub fn e3_page(&self) -> sseq::Sseq<2, sseq::Adams> {
+            let p = self.prime();
+
+            let mut sseq = self.underlying.to_sseq();
+
+            let mut source_vec = FpVector::new(p, 0);
+            let mut target_vec = FpVector::new(p, 0);
+
+            for b in self.underlying.iter_stem() {
+                if b.t() > 0
+                    && self
+                        .underlying
+                        .has_computed_bidegree(b + Bidegree::n_s(-1, 2))
+                {
+                    let m = self.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                    if m.is_empty() || m[0].is_empty() {
+                        continue;
+                    }
+
+                    source_vec.set_scratch_vector_size(m.len());
+                    target_vec.set_scratch_vector_size(m[0].len());
+
+                    for (i, row) in m.into_iter().enumerate() {
+                        source_vec.set_to_zero();
+                        source_vec.set_entry(i, 1);
+                        target_vec.copy_from_slice(&row);
+
+                        let source = BidegreeElement::new(b, source_vec);
+                        sseq.add_differential(2, &source, target_vec.as_slice());
+
+                        source_vec = source.into_vec();
+                    }
+                }
+            }
+
+            for b in self.underlying.iter_stem() {
+                if sseq.invalid(b) {
+                    sseq.update_degree(b);
+                }
+            }
+            sseq
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use expect_test::expect;

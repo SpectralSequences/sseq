@@ -491,3 +491,387 @@ where
         }
     }
 }
+
+// The secondary lift of a `ResolutionHomomorphism` lives here, beside the primary object it lifts,
+// rather than in the monolithic `secondary` module. This keeps `secondary.rs` to the shared lift
+// machinery and pairs each variant with its primary for locality. The module is `pub(crate)`;
+// `SecondaryResolutionHomomorphism` is re-exported from `crate::secondary` so the public API path is
+// unchanged.
+pub(crate) mod secondary {
+    use std::sync::Arc;
+
+    use algebra::{
+        module::{Module, homomorphism::ModuleHomomorphism},
+        pair_algebra::PairAlgebra,
+    };
+    use dashmap::DashMap;
+    use fp::{
+        matrix::Matrix,
+        vector::{FpSlice, FpSliceMut, FpVector},
+    };
+    use itertools::Itertools;
+    use once::OnceBiVec;
+    use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+
+    use super::ResolutionHomomorphism;
+    use crate::{
+        chain_complex::FreeChainComplex,
+        save::{SaveDirectory, SaveKind},
+        secondary::{
+            CompositeData, LAMBDA_BIDEGREE, SecondaryHomotopy, SecondaryLift, SecondaryResolution,
+        },
+    };
+
+    // Rustdoc ICE's when trying to document this struct. See
+    // https://github.com/rust-lang/rust/issues/91380
+    #[doc(hidden)]
+    pub struct SecondaryResolutionHomomorphism<
+        CC1: FreeChainComplex,
+        CC2: FreeChainComplex<Algebra = CC1::Algebra>,
+    >
+    where
+        CC1::Algebra: PairAlgebra,
+    {
+        source: Arc<SecondaryResolution<CC1>>,
+        target: Arc<SecondaryResolution<CC2>>,
+        underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+        /// input s -> homotopy
+        homotopies: OnceBiVec<SecondaryHomotopy<CC1::Algebra>>,
+        intermediates: DashMap<BidegreeGenerator, FpVector>,
+    }
+
+    impl<CC1: FreeChainComplex, CC2: FreeChainComplex<Algebra = CC1::Algebra>> SecondaryLift
+        for SecondaryResolutionHomomorphism<CC1, CC2>
+    where
+        CC1::Algebra: PairAlgebra,
+    {
+        type Algebra = CC1::Algebra;
+        type Source = CC1;
+        type Target = CC2;
+        type Underlying = ResolutionHomomorphism<CC1, CC2>;
+
+        fn underlying(&self) -> Arc<Self::Underlying> {
+            Arc::clone(&self.underlying)
+        }
+
+        fn algebra(&self) -> Arc<Self::Algebra> {
+            self.source.algebra()
+        }
+
+        fn source(&self) -> Arc<Self::Source> {
+            Arc::clone(&self.source.underlying())
+        }
+
+        fn target(&self) -> Arc<Self::Target> {
+            Arc::clone(&self.target.underlying())
+        }
+
+        fn shift(&self) -> Bidegree {
+            self.underlying.shift + Bidegree::s_t(1, 0)
+        }
+
+        fn max(&self) -> BidegreeRange<'_, Self> {
+            BidegreeRange::new(
+                self,
+                self.underlying.next_homological_degree(),
+                &|selff, s| {
+                    std::cmp::min(
+                        selff.underlying.get_map(s).next_degree(),
+                        std::cmp::min(
+                            selff.source.homotopies[s].homotopies.next_degree(),
+                            if s == selff.shift().s() {
+                                i32::MAX
+                            } else {
+                                selff.target.homotopies[s + 1 - selff.shift().s()]
+                                    .composites
+                                    .max_degree()
+                                    + selff.shift().t()
+                                    + 1
+                            },
+                        ),
+                    )
+                },
+            )
+        }
+
+        fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+            &self.homotopies
+        }
+
+        fn intermediates(&self) -> &DashMap<BidegreeGenerator, FpVector> {
+            &self.intermediates
+        }
+
+        fn save_dir(&self) -> &SaveDirectory {
+            self.underlying.save_dir()
+        }
+
+        fn composite(&self, s: i32) -> CompositeData<Self::Algebra> {
+            let p = self.prime();
+            // This is -1 mod p^2
+            let neg_1 = p * p - 1;
+
+            let d_source = self.source.underlying().differential(s);
+            let d_target = self
+                .target
+                .underlying()
+                .differential(s + 1 - self.shift().s());
+
+            let c1 = self.underlying.get_map(s);
+            let c0 = self.underlying.get_map(s - 1);
+
+            vec![(neg_1, d_source, c0), (1, c1, d_target)]
+        }
+
+        fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
+            let p = self.prime();
+            let neg_1 = p - 1;
+            let shifted_b = g.degree() - self.shift();
+            let target = self.target().module(shifted_b.s() - 1);
+
+            let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
+            let d = self.source().differential(g.s());
+
+            self.homotopies[g.s() - 1].act(
+                result.as_slice_mut(),
+                neg_1,
+                g.t(),
+                d.output(g.t(), g.idx()).as_slice(),
+                false,
+            );
+            self.target.homotopy(shifted_b.s() + 1).act(
+                result.as_slice_mut(),
+                neg_1,
+                shifted_b.t(),
+                self.underlying
+                    .get_map(g.s())
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+                true,
+            );
+            self.underlying.get_map(g.s() - 2).apply(
+                result.as_slice_mut(),
+                1,
+                g.t() - 1,
+                self.source
+                    .homotopy(g.s())
+                    .homotopies
+                    .output(g.t(), g.idx())
+                    .as_slice(),
+            );
+
+            result
+        }
+    }
+
+    impl<CC1: FreeChainComplex, CC2: FreeChainComplex<Algebra = CC1::Algebra>>
+        SecondaryResolutionHomomorphism<CC1, CC2>
+    where
+        CC1::Algebra: PairAlgebra,
+    {
+        pub fn new(
+            source: Arc<SecondaryResolution<CC1>>,
+            target: Arc<SecondaryResolution<CC2>>,
+            underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+        ) -> Self {
+            assert!(Arc::ptr_eq(&underlying.source, &source.underlying()));
+            assert!(Arc::ptr_eq(&underlying.target, &target.underlying()));
+
+            if let Some(p) = underlying.save_dir().write() {
+                for subdir in SaveKind::secondary_data() {
+                    subdir.create_dir(p).unwrap();
+                }
+            }
+
+            Self {
+                source,
+                target,
+                homotopies: OnceBiVec::new(underlying.shift.s() + 1),
+                underlying,
+                intermediates: DashMap::new(),
+            }
+        }
+
+        pub fn name(&self) -> String {
+            let name = self.underlying.name();
+            if name.starts_with('[') || name.starts_with('λ') {
+                name.to_owned()
+            } else {
+                format!("[{name}]")
+            }
+        }
+
+        pub fn homotopy(&self, s: i32) -> &SecondaryHomotopy<CC1::Algebra> {
+            &self.homotopies[s]
+        }
+
+        pub fn secondary_source(&self) -> Arc<SecondaryResolution<CC1>> {
+            Arc::clone(&self.source)
+        }
+
+        pub fn secondary_target(&self) -> Arc<SecondaryResolution<CC2>> {
+            Arc::clone(&self.target)
+        }
+
+        /// A version of [`hom_k`] but with a non-trivial λ part.
+        pub fn hom_k_with<'a>(
+            &self,
+            lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
+            sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
+            b: Bidegree,
+            inputs: impl Iterator<Item = FpSlice<'a>>,
+            outputs: impl Iterator<Item = FpSliceMut<'a>>,
+        ) {
+            let source = b + self.shift() - Bidegree::s_t(1, 0);
+            let lambda_source = source + LAMBDA_BIDEGREE;
+
+            let p = self.prime();
+            let h_0 = self.algebra().p_tilde();
+
+            let source_num_gens = self.source().number_of_gens_in_bidegree(source);
+            let lambda_num_gens = self.source().number_of_gens_in_bidegree(lambda_source);
+
+            let m0 = self.underlying.get_map(source.s()).hom_k(b.t());
+            let mut m1 =
+                Matrix::from_vec(p, &self.homotopy(lambda_source.s()).homotopies.hom_k(b.t()));
+            if let Some(lambda_part) = lambda_part {
+                m1 += &Matrix::from_vec(p, &lambda_part.get_map(lambda_source.s()).hom_k(b.t()));
+            }
+
+            // The multiplication by p map
+            let mp = Matrix::from_vec(
+                p,
+                &self
+                    .source()
+                    .filtration_one_product(1, h_0, source)
+                    .unwrap(),
+            );
+
+            let sign = if (self.underlying.shift.s() * b.t()) % 2 == 1 {
+                p * p - 1
+            } else {
+                1
+            };
+            let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
+
+            let page_data = sseq.map(|sseq| {
+                let d = sseq.page_data(lambda_source);
+                &d[std::cmp::min(3, d.len() - 1)]
+            });
+
+            let mut scratch0: Vec<u32> = Vec::new();
+            for (input, mut out) in inputs.zip_eq(outputs) {
+                scratch0.clear();
+                scratch0.resize(source_num_gens, 0);
+                for (i, v) in input.iter_nonzero() {
+                    scratch0
+                        .iter_mut()
+                        .zip_eq(&m0[i])
+                        .for_each(|(a, b)| *a += v * b * sign);
+                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
+                        .add(m1.row(i), (v * sign) % p);
+                }
+                for (i, v) in scratch0.iter().enumerate() {
+                    out.add_basis_element(i, *v % p);
+
+                    let extra = *v / p;
+                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
+                        .add(mp.row(i), (extra * filtration_one_sign) % p);
+                }
+                if let Some(page_data) = page_data {
+                    page_data.reduce_by_quotient(
+                        out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
+                    );
+                }
+            }
+        }
+
+        /// Compute the induced map on Mod_{C\lambda^2} homotopy groups. This only computes it on
+        /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
+        /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
+        /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
+        /// records the λ part of the result.
+        ///
+        /// This reduces the λ part of the result by the image of d₂.
+        ///
+        /// # Arguments
+        /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
+        ///   of the map by the image of $d_2$.
+        pub fn hom_k<'a>(
+            &self,
+            sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
+            b: Bidegree,
+            inputs: impl Iterator<Item = FpSlice<'a>>,
+            outputs: impl Iterator<Item = FpSliceMut<'a>>,
+        ) {
+            self.hom_k_with(None, sseq, b, inputs, outputs);
+        }
+
+        /// Given an element b whose product with this is null, find the element whose $d_2$ hits the
+        /// λ part of the composition.
+        ///
+        /// # Arguments:
+        /// - `sseq`: spectral sequence object of the source
+        pub fn product_nullhomotopy(
+            &self,
+            lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
+            sseq: &sseq::Sseq<2, sseq::Adams>,
+            b: Bidegree,
+            class: FpSlice,
+        ) -> FpVector {
+            let p = self.prime();
+            let shift = self.underlying.shift;
+
+            let result_num_gens = self
+                .source()
+                .number_of_gens_in_bidegree(shift + b - Bidegree::s_t(1, 0));
+
+            let lambda_num_gens = self
+                .source()
+                .number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
+
+            let lower_num_gens = self.source().number_of_gens_in_bidegree(b + shift);
+
+            let target_num_gens = self.target().number_of_gens_in_bidegree(b);
+            let target_lambda_num_gens = self
+                .target()
+                .number_of_gens_in_bidegree(b + LAMBDA_BIDEGREE);
+
+            let mut output_class = FpVector::new(p, result_num_gens);
+            if result_num_gens == 0 || lambda_num_gens == 0 {
+                return output_class;
+            }
+
+            let mut prod_value = FpVector::new(p, lower_num_gens + lambda_num_gens);
+            self.hom_k_with(
+                lambda_part,
+                None,
+                b,
+                [class.restrict(0, target_num_gens)].into_iter(),
+                [prod_value.as_slice_mut()].into_iter(),
+            );
+            assert!(prod_value.slice(0, lower_num_gens).is_zero());
+
+            let matrix = Matrix::from_vec(
+                p,
+                &self
+                    .underlying
+                    .get_map((b + shift + LAMBDA_BIDEGREE).s())
+                    .hom_k((b + LAMBDA_BIDEGREE).t()),
+            );
+            matrix.apply(
+                prod_value.slice_mut(lower_num_gens, lower_num_gens + lambda_num_gens),
+                1,
+                class.restrict(target_num_gens, target_num_gens + target_lambda_num_gens),
+            );
+
+            let diff_source = b + shift - Bidegree::n_s(-1, 1);
+            sseq.differentials(diff_source)[2].quasi_inverse(
+                output_class.as_slice_mut(),
+                prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
+            );
+
+            output_class
+        }
+    }
+}

@@ -1,4 +1,4 @@
-mod chain_homotopy;
+pub(crate) mod chain_homotopy;
 mod finite_chain_complex;
 
 use std::sync::Arc;
