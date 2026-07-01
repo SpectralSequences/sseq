@@ -69,7 +69,13 @@ wasm: wasm-bindgen-step
 # of the lib so the check is meaningful regardless of how it was invoked.
 test-wasm-unwind:
     #!/usr/bin/env bash
-    set -euo pipefail
+    # NB: deliberately no `pipefail`. `wasm-objdump` prints the section headers
+    # (including `Tag`) to stdout but may then exit non-zero on a later section
+    # it cannot parse (newer toolchains emit wasm features wabt doesn't grok).
+    # We only care whether a `Tag` section was printed, so the pipe's exit must
+    # come from `grep`, not `wasm-objdump` — matching the old Makefile, which ran
+    # this under plain `sh` without pipefail.
+    set -eu
     export PATH="$HOME/.cargo/bin:$PATH"
     just WASM_UNWIND=1 wasm-lib
     wasm-objdump -h {{WASM_LIB}} | grep -qi '^ *Tag ' \
