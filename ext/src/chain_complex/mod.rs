@@ -163,10 +163,47 @@ where
         self.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
+    /// Like [`number_of_gens_in_bidegree`](Self::number_of_gens_in_bidegree), but returns `None`
+    /// for any bidegree outside the currently computed range instead of panicking.
+    ///
+    /// `number_of_gens_in_bidegree` panics out of range on either axis: `module(b.s())` indexes the
+    /// homological degrees (panicking unless `0 <= b.s() < next_homological_degree()`), and the
+    /// module's `number_of_gens_in_degree(b.t())` indexes its computed degrees (panicking for
+    /// `b.t() > max_computed_degree()`; it returns 0 below `min_degree()`). `None` distinguishes
+    /// "not computed" from a computed bidegree that genuinely has 0 generators (`Some(0)`).
+    fn try_number_of_gens_in_bidegree(&self, b: Bidegree) -> Option<usize> {
+        if b.s() < 0 || b.s() >= self.next_homological_degree() {
+            return None;
+        }
+        let m = self.module(b.s());
+        if b.t() < m.min_degree() || b.t() > m.max_computed_degree() {
+            return None;
+        }
+        Some(m.number_of_gens_in_degree(b.t()))
+    }
+
     /// Iterate through all nonzero bidegrees in increasing order of stem.
     fn iter_nonzero_stem(&self) -> impl Iterator<Item = Bidegree> + '_ {
         self.iter_stem()
             .filter(move |&b| self.number_of_gens_in_bidegree(b) > 0)
+    }
+
+    /// Like [`iter_nonzero_stem`](Self::iter_nonzero_stem), but the returned iterator owns a
+    /// shared handle (`Arc`) to the chain complex instead of borrowing it.
+    ///
+    /// This is the owning analogue of [`iter_nonzero_stem`]: it walks the same bidegrees as
+    /// [`iter_stem_owned`](ChainComplex::iter_stem_owned) and keeps only those with a nonzero
+    /// number of generators. The filter uses
+    /// [`try_number_of_gens_in_bidegree`](Self::try_number_of_gens_in_bidegree) (mapping the
+    /// out-of-range `None` to 0); every bidegree the stem walk yields is in the computed range,
+    /// so this matches `number_of_gens_in_bidegree(b) > 0` exactly.
+    fn iter_nonzero_stem_owned(self: Arc<Self>) -> impl Iterator<Item = Bidegree>
+    where
+        Self: Sized,
+    {
+        let cc = Arc::clone(&self);
+        self.iter_stem_owned()
+            .filter(move |&b| cc.try_number_of_gens_in_bidegree(b).unwrap_or(0) > 0)
     }
 
     /// Get a string representation of d(gen), where d is the differential of the resolution.
@@ -220,12 +257,60 @@ pub trait ChainComplex: Send + Sync {
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
 
+    /// Like [`module`](Self::module), but returns `None` for any homological degree outside the
+    /// defined range `[0, next_homological_degree())` instead of panicking.
+    ///
+    /// The resolution backends index their internal module table (an `OnceBiVec`) here, panicking
+    /// unless `0 <= s < next_homological_degree()`; this is the non-panicking sibling used to guard
+    /// such an access (e.g. from the Python bindings).
+    fn try_module(&self, s: i32) -> Option<Arc<Self::Module>> {
+        if s < 0 || s >= self.next_homological_degree() {
+            None
+        } else {
+            Some(self.module(s))
+        }
+    }
+
+    /// Like [`differential`](Self::differential), but returns `None` for any homological degree
+    /// outside the defined range `[0, next_homological_degree())` instead of panicking.
+    ///
+    /// The resolution backends index their internal differential table (an `OnceVec`) here,
+    /// panicking unless `0 <= s < next_homological_degree()`; this is the non-panicking sibling used
+    /// to guard such an access.
+    fn try_differential(&self, s: i32) -> Option<Arc<Self::Homomorphism>> {
+        if s < 0 || s >= self.next_homological_degree() {
+            None
+        } else {
+            Some(self.differential(s))
+        }
+    }
+
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
             cc: self,
             current: Bidegree::n_s(self.min_degree(), 0),
             max_s: self.next_homological_degree(),
+        }
+    }
+
+    /// Like [`iter_stem`](Self::iter_stem), but the returned iterator owns a shared handle
+    /// (`Arc`) to the chain complex instead of borrowing it.
+    ///
+    /// This yields exactly the same bidegrees, in the same order, with the same bounds as
+    /// [`iter_stem`] (both delegate to the shared [`stem_step`] cursor logic). Because the
+    /// iterator does not borrow `self`, it is `'static` (when `Self: 'static`) and can be stored
+    /// in long-lived owners such as FFI handles.
+    fn iter_stem_owned(self: Arc<Self>) -> OwnedStemIterator<Self>
+    where
+        Self: Sized,
+    {
+        let current = Bidegree::n_s(self.min_degree(), 0);
+        let max_s = self.next_homological_degree();
+        OwnedStemIterator {
+            cc: self,
+            current,
+            max_s,
         }
     }
 
@@ -278,6 +363,41 @@ pub trait ChainComplex: Send + Sync {
     }
 }
 
+/// Advance a stem-walk cursor by one step, shared by [`StemIterator`] (borrowing) and
+/// [`OwnedStemIterator`] (owning) so the two stay in lockstep.
+///
+/// `cc` is the chain complex being walked, `current` the mutable cursor (next bidegree to
+/// consider), and `max_s` the exclusive homological-degree bound (`next_homological_degree()` at
+/// the time the iterator was created). Returns the next defined bidegree in increasing order of
+/// stem, or `None` once the walk is exhausted.
+fn stem_step<CC: ChainComplex + ?Sized>(
+    cc: &CC,
+    current: &mut Bidegree,
+    max_s: i32,
+) -> Option<Bidegree> {
+    loop {
+        if max_s == 0 {
+            return None;
+        }
+        let cur = *current;
+
+        if cur.s() == max_s {
+            *current = Bidegree::n_s(cur.n() + 1, 0);
+            continue;
+        }
+        if cur.t() > cc.module(cur.s()).max_computed_degree() {
+            if cur.s() == 0 {
+                return None;
+            } else {
+                *current = Bidegree::n_s(cur.n() + 1, 0);
+                continue;
+            }
+        }
+        *current = cur + Bidegree::n_s(0, 1);
+        return Some(cur);
+    }
+}
+
 /// An iterator returned by [`ChainComplex::iter_stem`]
 pub struct StemIterator<'a, CC: ?Sized> {
     cc: &'a CC,
@@ -289,25 +409,25 @@ impl<CC: ChainComplex + ?Sized> Iterator for StemIterator<'_, CC> {
     type Item = Bidegree;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.max_s == 0 {
-            return None;
-        }
-        let cur = self.current;
+        stem_step(self.cc, &mut self.current, self.max_s)
+    }
+}
 
-        if cur.s() == self.max_s {
-            self.current = Bidegree::n_s(cur.n() + 1, 0);
-            return self.next();
-        }
-        if cur.t() > self.cc.module(cur.s()).max_computed_degree() {
-            if cur.s() == 0 {
-                return None;
-            } else {
-                self.current = Bidegree::n_s(cur.n() + 1, 0);
-                return self.next();
-            }
-        }
-        self.current = cur + Bidegree::n_s(0, 1);
-        Some(cur)
+/// The owning analogue of [`StemIterator`], returned by [`ChainComplex::iter_stem_owned`]. It
+/// holds a shared handle (`Arc`) to the chain complex rather than a borrow, so it can outlive any
+/// particular reference and be stored in long-lived owners. It yields the same bidegrees, in the
+/// same order, as [`StemIterator`] (both delegate to [`stem_step`]).
+pub struct OwnedStemIterator<CC: ?Sized> {
+    cc: Arc<CC>,
+    current: Bidegree,
+    max_s: i32,
+}
+
+impl<CC: ChainComplex + ?Sized> Iterator for OwnedStemIterator<CC> {
+    type Item = Bidegree;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        stem_step(&*self.cc, &mut self.current, self.max_s)
     }
 }
 
@@ -322,6 +442,24 @@ pub trait AugmentedChainComplex: ChainComplex {
 
     fn target(&self) -> Arc<Self::TargetComplex>;
     fn chain_map(&self, s: i32) -> Arc<Self::ChainMap>;
+
+    /// Like [`chain_map`](Self::chain_map), but returns `None` for any homological degree outside
+    /// the bounded range `[0, max_s())` instead of panicking.
+    ///
+    /// [`chain_map`](Self::chain_map) indexes the internal `chain_maps` `Vec` and panics out of
+    /// range; for a complex augmented from a [`FiniteChainComplex`] there is one chain map per
+    /// module, so `max_s()` (the number of nonzero modules) is the defined upper bound. This is the
+    /// non-panicking sibling used to guard such an access.
+    fn try_chain_map(&self, s: i32) -> Option<Arc<Self::ChainMap>>
+    where
+        Self: BoundedChainComplex,
+    {
+        if s < 0 || s >= self.max_s() {
+            None
+        } else {
+            Some(self.chain_map(s))
+        }
+    }
 }
 
 /// A bounded chain complex is a chain complex C for which C_s = 0 for all s >= max_s

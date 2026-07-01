@@ -99,6 +99,23 @@ where
         Arc::clone(&self.maps[input_s])
     }
 
+    /// Like [`get_map`](Self::get_map), but returns `None` for any homological degree outside the
+    /// defined range `[shift.s(), next_homological_degree())` instead of panicking.
+    ///
+    /// [`get_map`](Self::get_map) indexes the internal `maps` `OnceBiVec` (which starts at
+    /// `shift.s()`), panicking unless `shift.s() <= input_s < next_homological_degree()`. This is
+    /// the non-panicking sibling used to guard such an access (e.g. from the Python bindings).
+    pub fn try_get_map(
+        &self,
+        input_s: i32,
+    ) -> Option<Arc<MuFreeModuleHomomorphism<U, CC2::Module>>> {
+        if input_s < self.shift.s() || input_s >= self.next_homological_degree() {
+            None
+        } else {
+            Some(self.get_map(input_s))
+        }
+    }
+
     pub fn save_dir(&self) -> &SaveDirectory {
         &self.save_dir
     }

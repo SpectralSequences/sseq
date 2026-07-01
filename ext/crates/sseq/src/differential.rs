@@ -4,6 +4,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
+#[derive(Clone)]
 pub struct Differential {
     pub matrix: Matrix,
     first_empty_row: usize,
@@ -22,6 +23,16 @@ impl Differential {
             error: false,
             first_empty_row: 0,
         }
+    }
+
+    /// The dimension of the source space of the differential.
+    pub fn source_dim(&self) -> usize {
+        self.source_dim
+    }
+
+    /// The dimension of the target space of the differential.
+    pub fn target_dim(&self) -> usize {
+        self.target_dim
     }
 
     pub fn set_to_zero(&mut self) {

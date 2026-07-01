@@ -352,6 +352,11 @@ impl Matrix {
     /// assert_eq!(Matrix::from_vec(TWO, &matrix_vec).to_vec(), matrix_vec);
     /// ```
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
+        // A matrix with zero columns has `stride == 0`, and `itertools::chunks`
+        // panics on a chunk size of 0. Such a matrix is `rows` empty rows.
+        if self.columns() == 0 {
+            return (0..self.rows()).map(|_| Vec::new()).collect();
+        }
         self.data
             .iter()
             .chunks(self.stride)
@@ -920,6 +925,58 @@ impl Matrix {
         Subspace::from_matrix(kernel)
     }
 
+    /// Whether the pivot vector has been sized to match the columns, i.e. the
+    /// matrix has been through [`Self::initialize_pivots`] (as
+    /// [`Self::row_reduce`] does). The `compute_*` methods below read the
+    /// pivots — directly and via [`Self::find_first_row_in_block`] — and would
+    /// slice the empty pivot vector out of bounds if called on a matrix that
+    /// has never been row reduced. This is the precondition the `try_compute_*`
+    /// variants check before delegating.
+    fn pivots_initialized(&self) -> bool {
+        self.pivots().len() == self.columns()
+    }
+
+    /// Non-panicking variant of [`Self::compute_quasi_inverse`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_quasi_inverse`
+    /// would slice `pivots` out of bounds and panic. Otherwise returns `Some`
+    /// of the same result.
+    pub fn try_compute_quasi_inverse(
+        &self,
+        last_target_col: usize,
+        first_source_col: usize,
+    ) -> Option<QuasiInverse> {
+        self.pivots_initialized()
+            .then(|| self.compute_quasi_inverse(last_target_col, first_source_col))
+    }
+
+    /// Non-panicking variant of [`Self::compute_image`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_image` would
+    /// slice `pivots` out of bounds and panic. Otherwise returns `Some` of the
+    /// same result.
+    pub fn try_compute_image(
+        &self,
+        last_target_col: usize,
+        first_source_col: usize,
+    ) -> Option<Subspace> {
+        self.pivots_initialized()
+            .then(|| self.compute_image(last_target_col, first_source_col))
+    }
+
+    /// Non-panicking variant of [`Self::compute_kernel`].
+    ///
+    /// Returns `None` exactly when the matrix has not been row reduced (its
+    /// pivots are uninitialized), the state in which `compute_kernel` would
+    /// slice `pivots` out of bounds and panic. Otherwise returns `Some` of the
+    /// same result.
+    pub fn try_compute_kernel(&self, first_source_column: usize) -> Option<Subspace> {
+        self.pivots_initialized()
+            .then(|| self.compute_kernel(first_source_column))
+    }
+
     pub fn extend_column_dimension(&mut self, columns: usize) {
         if columns > self.columns {
             self.extend_column_capacity(columns);
@@ -1080,6 +1137,14 @@ impl Matrix {
         }
     }
 
+    /// Trim the matrix to rows `row_start..row_end` and columns `col_start..`.
+    ///
+    /// When `keep_pivots` is `true` the existing pivot table is carried over to
+    /// the trimmed matrix. This is only valid when `col_start == 0`: a nonzero
+    /// `col_start` shifts every column index, so the old pivots would point at
+    /// the wrong columns (and the pivot table length would no longer match the
+    /// trimmed column count). Passing `keep_pivots == true` with `col_start != 0`
+    /// is therefore forbidden.
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize, keep_pivots: bool) {
         assert!(
             !keep_pivots || col_start == 0,
@@ -1364,6 +1429,12 @@ impl<const N: usize> AugmentedMatrix<N> {
         self.inner.compute_kernel(self.start[N - 1])
     }
 
+    /// Non-panicking variant of [`Self::compute_kernel`]. Returns `None` when
+    /// the matrix has not been row reduced (see [`Matrix::try_compute_kernel`]).
+    pub fn try_compute_kernel(&self) -> Option<Subspace> {
+        self.inner.try_compute_kernel(self.start[N - 1])
+    }
+
     pub fn extend_column_dimension(&mut self, columns: usize) {
         if columns > self.columns {
             self.end[N - 1] += columns - self.columns;
@@ -1391,8 +1462,22 @@ impl AugmentedMatrix<2> {
         self.inner.compute_image(self.end[0], self.start[1])
     }
 
+    /// Non-panicking variant of [`Self::compute_image`]. Returns `None` when
+    /// the matrix has not been row reduced (see [`Matrix::try_compute_image`]).
+    pub fn try_compute_image(&self) -> Option<Subspace> {
+        self.inner.try_compute_image(self.end[0], self.start[1])
+    }
+
     pub fn compute_quasi_inverse(&self) -> QuasiInverse {
         self.inner.compute_quasi_inverse(self.end[0], self.start[1])
+    }
+
+    /// Non-panicking variant of [`Self::compute_quasi_inverse`]. Returns `None`
+    /// when the matrix has not been row reduced (see
+    /// [`Matrix::try_compute_quasi_inverse`]).
+    pub fn try_compute_quasi_inverse(&self) -> Option<QuasiInverse> {
+        self.inner
+            .try_compute_quasi_inverse(self.end[0], self.start[1])
     }
 }
 
@@ -1416,6 +1501,21 @@ impl AugmentedMatrix<3> {
     ///
     /// This takes ownership of the matrix since it heavily modifies the matrix. This is not
     /// strictly necessary but is fine in most applications.
+    /// Non-panicking variant of [`Self::compute_quasi_inverses`].
+    ///
+    /// `compute_quasi_inverses` consumes the matrix and slices its pivots, so it
+    /// would panic if called before row reduction. This variant checks that the
+    /// pivots are initialized first; if they are not, it returns the matrix back
+    /// unconsumed as `Err(self)` so the caller can recover (e.g. row reduce and
+    /// retry). Otherwise it returns `Ok` of the same result.
+    pub fn try_compute_quasi_inverses(self) -> Result<(QuasiInverse, QuasiInverse), Self> {
+        if self.pivots_initialized() {
+            Ok(self.compute_quasi_inverses())
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn compute_quasi_inverses(mut self) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
         let stride = self.stride;
@@ -1620,6 +1720,13 @@ mod tests {
             }
             assert_eq!(m.pivots(), &goal_pivots)
         }
+    }
+
+    #[test]
+    fn test_to_vec_zero_columns() {
+        // A matrix with zero columns is `rows` empty rows, not zero rows.
+        let m = Matrix::new(ValidPrime::new(2), 3, 0);
+        assert_eq!(m.to_vec(), vec![Vec::<u32>::new(); 3]);
     }
 
     proptest! {

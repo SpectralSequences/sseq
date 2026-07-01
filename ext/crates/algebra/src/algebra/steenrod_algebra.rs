@@ -9,7 +9,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra},
+    algebra::{
+        AdemAlgebra, Algebra, Bialgebra, CoproductError, DecomposeError, GeneratedAlgebra,
+        MilnorAlgebra, UnstableAlgebra,
+    },
     pair_algebra::PairAlgebra,
 };
 

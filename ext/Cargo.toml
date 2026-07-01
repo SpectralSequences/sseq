@@ -35,7 +35,9 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 zstd = { version = "0.13.3", optional = true }
 
-[target.'cfg(unix)'.dependencies]
+# Emscripten reports `target_family = "unix"` but lacks the signal APIs
+# (`pthread_sigmask`, …) that `ctrlc`/`nix` require, so exclude wasm targets.
+[target.'cfg(all(unix, not(target_arch = "wasm32")))'.dependencies]
 ctrlc = { version = "3", features = ["termination"] }
 
 [dev-dependencies]

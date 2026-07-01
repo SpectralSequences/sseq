@@ -7,13 +7,13 @@
 
 pub mod module;
 pub mod steenrod_evaluator;
-pub(crate) mod steenrod_parser;
+pub mod steenrod_parser;
 
 mod algebra;
 
 pub use crate::algebra::*;
 
-pub(crate) fn module_gens_from_json(
+pub fn module_gens_from_json(
     gens: &serde_json::Value,
 ) -> (
     bivec::BiVec<usize>,

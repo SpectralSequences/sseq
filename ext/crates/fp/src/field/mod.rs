@@ -1,15 +1,17 @@
 use self::field_internal::FieldInternal;
 use crate::prime::Prime;
 
+pub mod dyn_field;
 pub mod element;
 pub(crate) mod field_internal;
 
 pub mod fp;
 pub mod smallfq;
 
+pub use dyn_field::{DivError, DynFieldElement};
 use element::FieldElement;
 pub use fp::Fp;
-pub use smallfq::SmallFq;
+pub use smallfq::{SmallFq, SmallFqError};
 
 pub trait Field: FieldInternal + Sized {
     type Characteristic: Prime;
