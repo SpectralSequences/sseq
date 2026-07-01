@@ -6,7 +6,7 @@ set shell := ["bash", "-c"]
 WASM_TARGET := "wasm32-unknown-unknown"
 NAME        := "sseq_gui"
 WASM_LIB    := "target/" + WASM_TARGET + "/release/" + NAME + ".wasm"
-WASM_OUT    := "dist/"
+WASM_OUT    := "dist"
 WASM_FILE   := WASM_OUT + "/" + NAME + "_wasm_bg.wasm"
 EXT         := "../../ext/"
 
@@ -34,7 +34,14 @@ lint-wasm:
     cargo clippy --lib --target {{WASM_TARGET}}
 
 setup-wasm:
-    cargo install wasm-bindgen-cli --debug
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Install wasm-bindgen-cli at the exact version the crate resolves to: the
+    # generated glue and the CLI share an unstable schema and must be
+    # version-matched, so an unpinned install can drift out of sync and break
+    # the build. Deriving the version keeps this in step with the crate.
+    version="$(cargo tree --package wasm-bindgen --depth 0 --prefix none | head -1 | awk '{gsub(/^v/,"",$2); print $2}')"
+    cargo install wasm-bindgen-cli --version "$version" --debug
     rustup target add wasm32-unknown-unknown
     # rust-src is required by `-Z build-std` (see the WASM_UNWIND note above).
     rustup component add rust-src
@@ -65,8 +72,9 @@ wasm: wasm-bindgen-step
 
 # Assert that the wasm is actually built with unwinding support: a wasm module
 # using the exception-handling proposal contains a `Tag` section. If unwinding
-# silently regressed to `panic=abort`, this fails. Forces a WASM_UNWIND=1 build
-# of the lib so the check is meaningful regardless of how it was invoked.
+# silently regressed to `panic=abort`, this fails. Builds the full WASM_UNWIND=1
+# pipeline and inspects the shipped WASM_FILE (the wasm-bindgen/wasm-opt output),
+# so breakage anywhere in the pipeline is caught regardless of how it was invoked.
 test-wasm-unwind:
     #!/usr/bin/env bash
     # NB: deliberately no `pipefail`. `wasm-objdump` prints the section headers
@@ -77,9 +85,9 @@ test-wasm-unwind:
     # this under plain `sh` without pipefail.
     set -eu
     export PATH="$HOME/.cargo/bin:$PATH"
-    just WASM_UNWIND=1 wasm-lib
-    wasm-objdump -h {{WASM_LIB}} | grep -qi '^ *Tag ' \
-        || { echo "ERROR: {{WASM_LIB}} has no Tag section; panic=unwind is not in effect"; exit 1; }
+    just WASM_UNWIND=1 wasm
+    wasm-objdump -h {{WASM_FILE}} | grep -qi '^ *Tag ' \
+        || { echo "ERROR: {{WASM_FILE}} has no Tag section; panic=unwind is not in effect"; exit 1; }
     echo "OK: wasm built with exception-handling (panic=unwind)"
 
 # Unit-test the panic-catching logic in the worker JS (wasm/*_worker.js).
