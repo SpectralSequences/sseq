@@ -156,6 +156,12 @@ jobs:
         with:
           just-version: "1.54.0"
 
+      # `just test-wasm-js` runs the worker unit tests under Node's built-in
+      # test runner. Pin Node 24 so CI doesn't drift with the runner default.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Install rustup
         uses: dtolnay/rust-toolchain@v1
         id: rustup
