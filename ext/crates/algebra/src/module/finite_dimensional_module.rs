@@ -610,13 +610,16 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
     pub fn extend_actions(&mut self, input_deg: i32, output_deg: i32) {
         let p = self.prime();
         let algebra = self.algebra();
-        let op_deg = output_deg - input_deg;
         if self.dimension(output_deg) == 0 || self.dimension(input_deg) == 0 {
             return;
         }
 
-        let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
+        let op_deg = output_deg - input_deg;
         let generators = algebra.generators(op_deg);
+        if generators.len() == 0 {
+            return;
+        }
+        let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
         for idx in 0..self.dimension(input_deg) {
             for op_idx in 0..algebra.dimension(op_deg) {
                 if !generators.contains(&op_idx) {
