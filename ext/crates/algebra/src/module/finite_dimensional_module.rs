@@ -541,24 +541,14 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         Ok(())
     }
 
-    /// Fallible version of [`check_validity`](Self::check_validity).
-    ///
-    /// Returns `Err` if `output_deg <= input_deg` or if the stored actions
-    /// fail a relation.
-    pub fn try_check_validity(&self, input_deg: i32, output_deg: i32) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            output_deg > input_deg,
-            "output_deg {output_deg} must be strictly greater than input_deg {input_deg}"
-        );
-        Ok(self.check_validity(input_deg, output_deg)?)
-    }
-
     pub fn check_validity(
         &self,
         input_deg: i32,
         output_deg: i32,
     ) -> Result<(), ModuleFailedRelationError> {
-        assert!(output_deg > input_deg);
+        if output_deg <= input_deg {
+            return Ok(());
+        }
         let p = self.prime();
         let algebra = self.algebra();
         let op_deg = output_deg - input_deg;
@@ -616,46 +606,44 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 
         let op_deg = output_deg - input_deg;
         let generators = algebra.generators(op_deg);
-        if generators.len() == 0 {
-            return;
-        }
         let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
         for idx in 0..self.dimension(input_deg) {
             for op_idx in 0..algebra.dimension(op_deg) {
-                if !generators.contains(&op_idx) {
-                    let mut output_vec = std::mem::replace(
-                        &mut self.actions[input_deg][output_deg][op_idx][idx],
-                        FpVector::new(p, 0),
-                    );
-                    let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
-                    for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
-                        let intermediate_dim = self.dimension(input_deg + deg_2);
-                        if intermediate_dim > tmp_output.len() {
-                            tmp_output = FpVector::new(p, intermediate_dim);
-                        }
-                        self.act_on_basis(
-                            tmp_output.slice_mut(0, intermediate_dim),
-                            1,
-                            deg_2,
-                            idx_2,
-                            input_deg,
-                            idx,
-                        );
-                        self.act(
-                            output_vec.as_slice_mut(),
-                            coef,
-                            deg_1,
-                            idx_1,
-                            deg_2 + input_deg,
-                            tmp_output.slice(0, intermediate_dim),
-                        );
-                        tmp_output.set_to_zero();
-                    }
-                    let _ = std::mem::replace(
-                        &mut self.actions[input_deg][output_deg][op_idx][idx],
-                        output_vec,
-                    );
+                if generators.contains(&op_idx) {
+                    conntinue
                 }
+                let mut output_vec = std::mem::replace(
+                    &mut self.actions[input_deg][output_deg][op_idx][idx],
+                    FpVector::new(p, 0),
+                );
+                let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
+                for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
+                    let intermediate_dim = self.dimension(input_deg + deg_2);
+                    if intermediate_dim > tmp_output.len() {
+                        tmp_output = FpVector::new(p, intermediate_dim);
+                    }
+                    self.act_on_basis(
+                        tmp_output.slice_mut(0, intermediate_dim),
+                        1,
+                        deg_2,
+                        idx_2,
+                        input_deg,
+                        idx,
+                    );
+                    self.act(
+                        output_vec.as_slice_mut(),
+                        coef,
+                        deg_1,
+                        idx_1,
+                        deg_2 + input_deg,
+                        tmp_output.slice(0, intermediate_dim),
+                    );
+                    tmp_output.set_to_zero();
+                }
+                let _ = std::mem::replace(
+                    &mut self.actions[input_deg][output_deg][op_idx][idx],
+                    output_vec,
+                );
             }
         }
     }
@@ -831,11 +819,11 @@ mod tests {
     }
 
     #[test]
-    fn try_check_validity_degree_order() {
+    fn check_validity_non_increasing_bidegree_is_ok() {
         let module = make_test_module();
-        assert!(module.try_check_validity(0, 1).is_ok());
-        // A non-increasing bidegree is an error rather than the `assert!` panic.
-        assert!(module.try_check_validity(1, 1).is_err());
-        assert!(module.try_check_validity(2, 1).is_err());
+        assert!(module.check_validity(0, 1).is_ok());
+        // A non-increasing bidegree is a no-op returning Ok rather than asserting.
+        assert!(module.check_validity(1, 1).is_ok());
+        assert!(module.check_validity(2, 1).is_ok());
     }
 }
