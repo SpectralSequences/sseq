@@ -16,8 +16,8 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
       - uses: extractions/setup-just@v4
@@ -31,7 +31,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -67,7 +67,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.54.0"
@@ -80,7 +80,7 @@ jobs:
           components: miri
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -100,7 +100,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.54.0"
@@ -116,7 +116,7 @@ jobs:
         run: sudo apt-get install black flake8
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -150,7 +150,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: extractions/setup-just@v4
         with:
@@ -158,7 +158,7 @@ jobs:
 
       # `just test-wasm-js` runs the worker unit tests under Node's built-in
       # test runner. Pin Node 24 so CI doesn't drift with the runner default.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "24"
 
@@ -171,7 +171,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -198,7 +198,7 @@ jobs:
         run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
 
       - name: Upload webserver
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: webserver-${{ matrix.toolchain }}
           path: web_ext/sseq_gui/dist/
@@ -215,7 +215,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: extractions/setup-just@v4
         with:
@@ -231,7 +231,7 @@ jobs:
           components: clippy, rustfmt, rust-src
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -255,7 +255,7 @@ jobs:
         run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
 
       - name: Upload webserver
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: webserver-nightly
           path: web_ext/sseq_gui/dist/
@@ -281,13 +281,13 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.54.0"
 
       - name: Download webserver
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: webserver-beta
           path: web_ext/sseq_gui/dist/
@@ -311,7 +311,7 @@ jobs:
           pip install webdriver-manager
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -338,7 +338,7 @@ jobs:
 
       - name: Upload Artifact
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: svg-changes-${{ matrix.toolchain }}
           path: web_ext/sseq_gui/tests/benchmarks/*-new.svg
@@ -357,7 +357,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.54.0"
@@ -371,7 +371,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -395,7 +395,7 @@ jobs:
         run: ls -l web_ext/steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
 
       - name: Upload calculator
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: calculator-${{ matrix.toolchain }}
           path: web_ext/steenrod_calculator/dist/
@@ -415,7 +415,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.54.0"
@@ -428,7 +428,7 @@ jobs:
 
       - name: Cache files
         if: ${{ matrix.toolchain != 'beta' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo
@@ -440,7 +440,7 @@ jobs:
         run: cd ext && just docs
 
       - name: Upload docs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docs-${{ matrix.toolchain }}
           path: ext/target/doc/
@@ -453,18 +453,18 @@ jobs:
     steps:
       - name: Download webserver
         # Deploy the nightly build, which is compiled with panic=unwind.
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: webserver-nightly
 
       - name: Download calculator
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: calculator-stable
           path: calculator
 
       - name: Download docs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: docs-stable
           path: docs
