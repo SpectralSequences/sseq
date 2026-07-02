@@ -610,7 +610,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         for idx in 0..self.dimension(input_deg) {
             for op_idx in 0..algebra.dimension(op_deg) {
                 if generators.contains(&op_idx) {
-                    conntinue
+                    continue
                 }
                 let mut output_vec = std::mem::replace(
                     &mut self.actions[input_deg][output_deg][op_idx][idx],
