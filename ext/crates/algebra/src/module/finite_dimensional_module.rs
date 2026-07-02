@@ -543,9 +543,8 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 
     /// Fallible version of [`check_validity`](Self::check_validity).
     ///
-    /// Returns `Err` if `output_deg <= input_deg` (which
-    /// [`check_validity`](Self::check_validity) asserts) or if the stored
-    /// actions fail a relation.
+    /// Returns `Err` if `output_deg <= input_deg` or if the stored actions
+    /// fail a relation.
     pub fn try_check_validity(&self, input_deg: i32, output_deg: i32) -> anyhow::Result<()> {
         anyhow::ensure!(
             output_deg > input_deg,
@@ -605,20 +604,6 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                 }
             }
         }
-        Ok(())
-    }
-
-    /// Fallible version of [`extend_actions`](Self::extend_actions).
-    ///
-    /// Returns `Err` if `output_deg <= input_deg`. This keeps `op_deg =
-    /// output_deg - input_deg` positive, so the `algebra.generators(op_deg)`
-    /// lookup cannot index out of bounds.
-    pub fn try_extend_actions(&mut self, input_deg: i32, output_deg: i32) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            output_deg > input_deg,
-            "output_deg {output_deg} must be strictly greater than input_deg {input_deg}"
-        );
-        self.extend_actions(input_deg, output_deg);
         Ok(())
     }
 
@@ -832,12 +817,14 @@ mod tests {
     }
 
     #[test]
-    fn try_extend_actions_degree_order() {
+    fn extend_actions_negative_op_degree_is_safe() {
         let mut module = make_test_module();
-        assert!(module.try_extend_actions(0, 1).is_ok());
-        // output <= input is rejected rather than panicking on a non-positive op degree.
-        assert!(module.try_extend_actions(1, 1).is_err());
-        assert!(module.try_extend_actions(2, 1).is_err());
+        // output < input means a negative op degree; algebra.generators(negative)
+        // returns an empty set, so this is a safe no-op rather than an
+        // out-of-bounds panic.
+        module.extend_actions(1, 0);
+        module.extend_actions(2, 0);
+        module.extend_actions(2, 1);
     }
 
     #[test]

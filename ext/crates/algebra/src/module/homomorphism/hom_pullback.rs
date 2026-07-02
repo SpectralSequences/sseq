@@ -27,10 +27,7 @@ impl<M: Module> HomPullback<M> {
     ///
     /// Returns `Err` unless `source`, `target` and `map` are wired together
     /// consistently: `source = Hom(B, X)`, `target = Hom(A, X)` and `map: A ->
-    /// B`, i.e. `source.source() == map.target()`, `target.source() ==
-    /// map.source()` and `source.target() == target.target()` (all by pointer
-    /// identity). [`new`](Self::new) is simply
-    /// `Self::try_new(source, target, map).unwrap()`.
+    /// B`.
     pub fn try_new(
         source: Arc<HomModule<M>>,
         target: Arc<HomModule<M>>,

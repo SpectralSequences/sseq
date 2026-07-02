@@ -326,7 +326,7 @@ impl GeneratedAlgebra for AdemAlgebra {
 
     fn generators(&self, degree: i32) -> Vec<usize> {
         let p = self.prime();
-        if degree == 0 {
+        if degree <= 0 {
             return vec![];
         }
         if self.generic {

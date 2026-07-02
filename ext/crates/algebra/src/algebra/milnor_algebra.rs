@@ -695,7 +695,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 
     fn generators(&self, degree: i32) -> Vec<usize> {
-        if degree == 0 {
+        if degree <= 0 {
             return vec![];
         } else if degree == 1 {
             return vec![0]; // Q_0
