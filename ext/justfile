@@ -22,10 +22,12 @@ lint:
     cargo check --workspace --no-default-features --profile test
     cargo check --workspace --all-targets --all-features --profile test
 
-# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes.
+# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes
+# (mirrors the clippy configurations run by `lint`).
 fix:
     cargo fmt --all
-    cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged
+    cargo clippy --workspace --no-default-features --profile test --fix --allow-dirty --allow-staged
+    cargo clippy --workspace --all-targets --profile test --fix --allow-dirty --allow-staged
 
 docs:
     # Prevent the cached crates.js from confusing the current run

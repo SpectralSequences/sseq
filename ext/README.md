@@ -97,7 +97,12 @@ Lint scripts can be run with
 just lint
 ```
 
-This runs `clippy` and `rustfmt`.
+This runs `clippy` and `rustfmt`. To apply the formatting and clippy autofixes
+instead of just checking, run
+
+```shell
+just fix
+```
 
 ### Tests
 

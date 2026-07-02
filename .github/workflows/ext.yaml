@@ -379,7 +379,7 @@ jobs:
       - name: Setup build environment
         run: cd web_ext/steenrod_calculator && just setup-wasm
 
-      - name: Lint sseq_gui wasm
+      - name: Lint calculator wasm
         run: cd web_ext/steenrod_calculator && just lint
 
       - name: Build wasm
