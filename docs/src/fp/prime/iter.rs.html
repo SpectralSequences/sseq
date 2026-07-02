@@ -109,7 +109,7 @@
 <a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
 <a href=#85 id=85 data-nosnippet>85</a>        <span class="kw">let </span>v = <span class="self">self</span>.value;
 <a href=#86 id=86 data-nosnippet>86</a>        <span class="comment">// Only available in nightly for now
-<a href=#87 id=87 data-nosnippet>87</a>        </span><span class="attr">#[allow(clippy::manual_isolate_lowest_one)]
+<a href=#87 id=87 data-nosnippet>87</a>        </span><span class="attr">#[allow(unknown_lints, clippy::manual_isolate_lowest_one)]
 <a href=#88 id=88 data-nosnippet>88</a>        </span><span class="kw">let </span>c = v &amp; v.wrapping_neg();
 <a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span>r = v + c;
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>n = (r ^ v).wrapping_shr(<span class="number">2 </span>+ v.trailing_zeros());

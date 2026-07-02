@@ -351,7 +351,7 @@
 <a href=#326 id=326 data-nosnippet>326</a>
 <a href=#327 id=327 data-nosnippet>327</a>    <span class="kw">fn </span>generators(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;usize&gt; {
 <a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">let </span>p = <span class="self">self</span>.prime();
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">if </span>degree == <span class="number">0 </span>{
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">if </span>degree &lt;= <span class="number">0 </span>{
 <a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">return </span><span class="macro">vec!</span>[];
 <a href=#331 id=331 data-nosnippet>331</a>        }
 <a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">if </span><span class="self">self</span>.generic {
