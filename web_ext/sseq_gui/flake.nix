@@ -33,7 +33,7 @@
 
           pythonEnv
           pkgs.openssl
-          # wabt provides wasm-objdump, used by `make test-wasm-unwind` to
+          # wabt provides wasm-objdump, used by `just test-wasm-unwind` to
           # assert the wasm is actually built with unwinding support.
           pkgs.wabt
         ]
@@ -45,24 +45,24 @@
         export RUSTFLAGS="-D warnings"
         export RUSTDOCFLAGS="-D warnings"
 
-        make lint
-        make lint-selenium
+        just lint
+        just lint-selenium
 
         cargo install wasm-bindgen-cli --debug
-        make lint-wasm
-        make wasm
-        make test-wasm-unwind
+        just lint-wasm
+        just wasm
+        just test-wasm-unwind
 
-        make serve-wasm &
-        (sleep 1 && make selenium)
+        just serve-wasm &
+        (sleep 1 && just selenium)
 
         cargo build &&
         (target/debug/sseq_gui &
-         (sleep 1 && make selenium))
+         (sleep 1 && just selenium))
 
         cargo build --features concurrent &&
         (target/debug/sseq_gui &
-         (sleep 1 && make selenium))
+         (sleep 1 && just selenium))
       '';
     in {
       devShells.default = pkgs.mkShell {

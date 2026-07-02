@@ -1,0 +1,119 @@
+# Command runner for sseq_gui. Replaces the old Makefile.
+# Requires `just` >= 1.5 (shebang recipes, if/else expressions, CLI overrides).
+
+set shell := ["bash", "-c"]
+
+WASM_TARGET := "wasm32-unknown-unknown"
+NAME        := "sseq_gui"
+WASM_LIB    := "target/" + WASM_TARGET + "/release/" + NAME + ".wasm"
+WASM_OUT    := "dist"
+WASM_FILE   := WASM_OUT + "/" + NAME + "_wasm_bg.wasm"
+EXT         := "../../ext/"
+
+# Building with `panic=unwind` lets Rust panics unwind into JS exceptions
+# instead of aborting the whole wasm module. The prebuilt std for
+# wasm32-unknown-unknown is compiled with `panic=abort`, so `-C panic=unwind`
+# alone is silently ignored: we must rebuild std with `-Z build-std` (nightly
+# only) and enable the wasm exception-handling proposal.
+#
+# This is opt-in via `WASM_UNWIND=1` so the default build still works on
+# stable/beta (panic=abort). Override on the command line, e.g.
+# `just WASM_UNWIND=1 wasm`. CI builds stable/beta with panic=abort and the
+# deployed build with `WASM_UNWIND=1` on nightly.
+WASM_UNWIND := ""
+WASM_RUSTFLAGS := if WASM_UNWIND != "" { "-C panic=unwind -C target-feature=+exception-handling" } else { "" }
+WASM_BUILD_STD := if WASM_UNWIND != "" { "-Z build-std=std,panic_unwind" } else { "" }
+WASM_OPT_FLAGS := if WASM_UNWIND != "" { "--enable-exception-handling" } else { "" }
+
+lint:
+    cargo clippy --all-features --all-targets
+    cargo clippy --no-default-features --all-targets
+    cargo fmt -- --check
+
+lint-wasm:
+    cargo clippy --lib --target {{WASM_TARGET}}
+
+setup-wasm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Install wasm-bindgen-cli at the exact version the crate resolves to: the
+    # generated glue and the CLI share an unstable schema and must be
+    # version-matched, so an unpinned install can drift out of sync and break
+    # the build. Deriving the version keeps this in step with the crate.
+    # `--target all` is required: wasm-bindgen is a wasm32-only dependency, so a
+    # host-target `cargo tree` would print nothing and leave the version empty.
+    version="$(cargo tree --target all --package wasm-bindgen --depth 0 --prefix none | head -1 | awk '{gsub(/^v/,"",$2); print $2}')"
+    test -n "$version" || { echo "could not determine wasm-bindgen version" >&2; exit 1; }
+    cargo install wasm-bindgen-cli --version "$version" --debug
+    rustup target add wasm32-unknown-unknown
+    # rust-src is required by `-Z build-std` (see the WASM_UNWIND note above).
+    rustup component add rust-src
+
+# Always rebuild: cargo fingerprints RUSTFLAGS and the build-std setting, so it
+# correctly rebuilds when toggling between panic=abort and panic=unwind (which a
+# timestamp check cannot detect, as the sources are unchanged).
+wasm-lib:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export PATH="$HOME/.cargo/bin:$PATH"
+    RUSTFLAGS="${RUSTFLAGS:-} {{WASM_RUSTFLAGS}}" \
+        cargo build --lib --target {{WASM_TARGET}} --release {{WASM_BUILD_STD}}
+
+wasm-bindgen-step: wasm-lib
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export PATH="$HOME/.cargo/bin:$PATH"
+    wasm-bindgen --no-typescript --target no-modules --out-dir {{WASM_OUT}} --out-name {{NAME}}_wasm {{WASM_LIB}}
+    wasm-opt -O3 {{WASM_OPT_FLAGS}} {{WASM_FILE}} -o {{WASM_FILE}} || true
+
+wasm: wasm-bindgen-step
+    # Must be done in this order since both contain index.js and we want the wasm version
+    cp interface/* {{WASM_OUT}}
+    cp wasm/* {{WASM_OUT}}
+    cp vendor/* {{WASM_OUT}}
+    cp -r {{EXT}}/steenrod_modules {{WASM_OUT}}
+
+# Assert that the wasm is actually built with unwinding support: a wasm module
+# using the exception-handling proposal contains a `Tag` section. If unwinding
+# silently regressed to `panic=abort`, this fails. Builds the full WASM_UNWIND=1
+# pipeline and inspects the shipped WASM_FILE (the wasm-bindgen/wasm-opt output),
+# so breakage anywhere in the pipeline is caught regardless of how it was invoked.
+test-wasm-unwind:
+    #!/usr/bin/env bash
+    # NB: deliberately no `pipefail`. `wasm-objdump` prints the section headers
+    # (including `Tag`) to stdout but may then exit non-zero on a later section
+    # it cannot parse (newer toolchains emit wasm features wabt doesn't grok).
+    # We only care whether a `Tag` section was printed, so the pipe's exit must
+    # come from `grep`, not `wasm-objdump` — matching the old Makefile, which ran
+    # this under plain `sh` without pipefail.
+    set -eu
+    export PATH="$HOME/.cargo/bin:$PATH"
+    just WASM_UNWIND=1 wasm
+    wasm-objdump -h {{WASM_FILE}} | grep -qi '^ *Tag ' \
+        || { echo "ERROR: {{WASM_FILE}} has no Tag section; panic=unwind is not in effect"; exit 1; }
+    echo "OK: wasm built with exception-handling (panic=unwind)"
+
+# Unit-test the panic-catching logic in the worker JS (wasm/*_worker.js).
+# Runs in plain Node with mocked wasm globals, so no browser/wasm build needed.
+test-wasm-js:
+    node --test wasm/*.test.mjs
+
+serve-wasm:
+    python3 -m http.server --directory dist 8080
+
+clean-wasm:
+    rm -r dist/*
+
+clean: clean-wasm
+    rm -r target
+
+lint-selenium:
+    flake8 --ignore E501 tests
+    black --diff --check tests
+
+selenium:
+    python3 -m pytest -s tests --driver chrome
+    python3 -m pytest -s tests --driver firefox
+
+selenium-update:
+    python3 -m pytest tests --driver firefox --update

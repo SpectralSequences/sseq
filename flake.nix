@@ -33,6 +33,7 @@
         pkgs = import nixpkgs {inherit system;};
       in [
         pkgs.git
+        pkgs.just
         pkgs.hyperfine
         pkgs.binutils
         pkgs.cargo-binutils

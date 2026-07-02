@@ -1,0 +1,147 @@
+# Command runner for the `ext` library. Replaces the old Makefile.
+# Requires `just` >= 1.5 (shebang recipes, if/else expressions, CLI overrides).
+
+set shell := ["bash", "-c"]
+
+BENCH_DIR := "examples/benchmarks"
+
+# Build the library (default recipe).
+all:
+    cargo build
+
+test:
+    cargo test --examples
+    cargo test --features concurrent --lib --tests --workspace
+    cargo test --features concurrent --doc --workspace
+    pytest
+
+lint:
+    cargo fmt --all -- --check
+    cargo clippy --workspace --no-default-features --profile test
+    cargo clippy --workspace --all-targets --profile test
+    cargo check --workspace --no-default-features --profile test
+    cargo check --workspace --all-targets --all-features --profile test
+
+# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes
+# (mirrors the clippy configurations run by `lint`).
+fix:
+    cargo fmt --all
+    cargo clippy --workspace --no-default-features --profile test --fix --allow-dirty --allow-staged
+    cargo clippy --workspace --all-targets --profile test --fix --allow-dirty --allow-staged
+
+docs:
+    # Prevent the cached crates.js from confusing the current run
+    rm target/doc/crates.js || true
+    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo rustdoc --examples --all-features
+    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo doc --all --no-deps --document-private-items --all-features
+    # Prevent the examples from showing up in the sidebar
+    echo "window.ALL_CRATES = [$(ls crates/ | sed "s/.*/'&',/; s/-/_/g")'ext'];" > target/doc/crates.js
+
+miri:
+    cargo miri test -p once
+    MIRIFLAGS="-Zmiri-ignore-leaks -Zmiri-disable-isolation" cargo miri test -p once --features concurrent
+
+# ---- Benchmarks ----------------------------------------------------------
+#
+# Each file in examples/benchmarks/ has the example argument on its first line
+# and the expected output on the rest. Names ending in `-nassau` are run with
+# `--features nassau`.
+
+# Run a single benchmark, e.g. `just bench resolve-S_2`.
+bench NAME:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    file="{{BENCH_DIR}}/{{NAME}}"
+    features=""
+    [[ "{{NAME}}" == *-nassau ]] && features="--features nassau"
+    # The first line is the example invocation. It is expanded UNQUOTED into the
+    # inner `bash -c` string, which then word-splits it into separate cargo args
+    # (e.g. `resolve -- S_2 "" 30 11 ""`) with the `""` tokens becoming empty
+    # arguments via the inner shell's quote removal — matching the old Makefile.
+    example="$(head -n 1 "$file")"
+    (echo "$example" && bash -c "echo '' | cargo run $features --example $example") | diff --color "$file" -
+
+# Run a single benchmark with --features concurrent (30s timeout = success).
+bench-concurrent NAME:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    file="{{BENCH_DIR}}/{{NAME}}"
+    example="$(head -n 1 "$file")"
+    {
+        echo "$example"
+        timeout 30 bash -c "echo '' | cargo run --features concurrent --example $example"
+        ec=$?
+    } > output.txt || ec=$?
+    if [ "${ec:-0}" -eq 124 ]; then
+        echo "Timeout occurred, but treating as success."
+        rm -f output.txt
+    elif [ "${ec:-0}" -eq 0 ]; then
+        diff --color output.txt "$file"
+        rm -f output.txt
+    else
+        echo "Command failed with code ${ec}."
+        rm -f output.txt
+        exit 1
+    fi
+
+# Bless a single benchmark: overwrite its expected output with the current output.
+bless-bench NAME:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    file="{{BENCH_DIR}}/{{NAME}}"
+    features=""
+    [[ "{{NAME}}" == *-nassau ]] && features="--features nassau"
+    example="$(head -n 1 "$file")"
+    out="${file}-fixed"
+    (echo "$example" && bash -c "echo '' | cargo run $features --example $example") > "$out"
+    if diff --color "$file" "$out"; then
+        rm "$out"
+    else
+        mv "$out" "$file"
+    fi
+
+# All non-nassau benchmarks.
+benchmarks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{BENCH_DIR}}/*; do
+        name="$(basename "$file")"
+        [[ "$name" == *-nassau ]] && continue
+        just bench "$name"
+    done
+
+# All nassau benchmarks.
+benchmarks-nassau:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{BENCH_DIR}}/*-nassau; do
+        just bench "$(basename "$file")"
+    done
+
+# All non-nassau benchmarks, concurrent.
+benchmarks-concurrent:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{BENCH_DIR}}/*; do
+        name="$(basename "$file")"
+        [[ "$name" == *-nassau ]] && continue
+        just bench-concurrent "$name"
+    done
+
+# Bless all non-nassau benchmarks.
+bless-benchmarks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{BENCH_DIR}}/*; do
+        name="$(basename "$file")"
+        [[ "$name" == *-nassau ]] && continue
+        just bless-bench "$name"
+    done
+
+# Bless all nassau benchmarks.
+bless-benchmarks-nassau:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{BENCH_DIR}}/*-nassau; do
+        just bless-bench "$(basename "$file")"
+    done

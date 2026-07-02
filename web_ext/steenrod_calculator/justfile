@@ -1,0 +1,39 @@
+# Command runner for the Steenrod calculator. Replaces the old Makefile.
+# Requires `just` >= 1.5.
+
+set shell := ["bash", "-c"]
+
+WASM_TARGET := "wasm32-unknown-unknown"
+NAME        := "steenrod_calculator"
+WASM_LIB    := "target/" + WASM_TARGET + "/release/" + NAME + ".wasm"
+WASM_OUT    := "dist"
+WASM_FILE   := WASM_OUT + "/" + NAME + "_wasm_bg.wasm"
+
+# Build the wasm and copy the static files (default recipe).
+all: wasm-bindgen-step
+    cp files/* {{WASM_OUT}}
+
+lint:
+    cargo fmt -- --check
+    cargo clippy --lib --target {{WASM_TARGET}}
+
+setup-wasm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Install wasm-bindgen-cli at the exact version the crate resolves to: the
+    # generated glue and the CLI share an unstable schema and must be
+    # version-matched, so an unpinned install can drift out of sync and break
+    # the build. Deriving the version keeps this in step with the crate.
+    # `--target all` so this keeps working even if wasm-bindgen becomes a
+    # wasm32-only dependency (a host-target `cargo tree` would print nothing).
+    version="$(cargo tree --target all --package wasm-bindgen --depth 0 --prefix none | head -1 | awk '{gsub(/^v/,"",$2); print $2}')"
+    test -n "$version" || { echo "could not determine wasm-bindgen version" >&2; exit 1; }
+    cargo install wasm-bindgen-cli --version "$version" --debug
+    rustup target add wasm32-unknown-unknown
+
+wasm-lib:
+    cargo build --lib --target {{WASM_TARGET}} --release
+
+wasm-bindgen-step: wasm-lib
+    wasm-bindgen --no-typescript --target no-modules --out-dir {{WASM_OUT}} --out-name {{NAME}}_wasm {{WASM_LIB}}
+    wasm-opt -O3 {{WASM_FILE}} -o {{WASM_FILE}} || true
