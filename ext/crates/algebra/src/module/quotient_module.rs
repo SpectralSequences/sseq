@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use bivec::BiVec;
 use fp::{
     matrix::Subspace,
@@ -28,26 +29,48 @@ impl<M: Module> std::fmt::Display for QuotientModule<M> {
 }
 
 impl<M: Module> QuotientModule<M> {
-    pub fn new(module: Arc<M>, truncation: i32) -> Self {
+    /// Fallible version of [`new`](Self::new).
+    ///
+    /// Returns `Err` when the allocation span `truncation + 1 - min_degree` is
+    /// negative or would overflow `i32` (which would trip
+    /// `BiVec::with_capacity`'s `debug_assert` or request a huge allocation).
+    /// [`new`](Self::new) is simply `Self::try_new(module, truncation).unwrap()`.
+    pub fn try_new(module: Arc<M>, truncation: i32) -> anyhow::Result<Self> {
+        let min_degree = module.min_degree();
+        let capacity = truncation
+            .checked_add(1)
+            .with_context(|| format!("truncation {truncation} + 1 overflows i32"))?;
+        let span = capacity
+            .checked_sub(min_degree)
+            .with_context(|| format!("span {capacity} - min_degree {min_degree} overflows i32"))?;
+        anyhow::ensure!(
+            span >= 0,
+            "truncation {truncation} is below min_degree - 1 ({})",
+            min_degree.saturating_sub(1)
+        );
+
         module.compute_basis(truncation);
 
         let p = module.prime();
-        let min_degree = module.min_degree();
 
-        let mut subspaces = BiVec::with_capacity(min_degree, truncation + 1);
-        let mut basis_list = BiVec::with_capacity(min_degree, truncation + 1);
+        let mut subspaces = BiVec::with_capacity(min_degree, capacity);
+        let mut basis_list = BiVec::with_capacity(min_degree, capacity);
 
         for t in min_degree..=truncation {
             let dim = module.dimension(t);
             subspaces.push(Subspace::new(p, dim));
             basis_list.push((0..dim).collect());
         }
-        Self {
+        Ok(Self {
             module,
             subspaces,
             basis_list,
             truncation,
-        }
+        })
+    }
+
+    pub fn new(module: Arc<M>, truncation: i32) -> Self {
+        Self::try_new(module, truncation).unwrap()
     }
 
     pub fn quotient(&mut self, degree: i32, element: FpSlice) {
@@ -201,5 +224,44 @@ impl<M: Module> Module for QuotientModule<M> {
 impl<M: ZeroModule> ZeroModule for QuotientModule<M> {
     fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
         Self::new(Arc::new(M::zero_module(algebra, min_degree)), min_degree)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MilnorAlgebra, module::FDModule};
+
+    fn joker() -> Arc<FDModule<MilnorAlgebra>> {
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        Arc::new(FDModule::from_json(algebra, &crate::tests::joker_json()).unwrap())
+    }
+
+    #[test]
+    fn try_new_valid_truncation() {
+        let module = joker();
+        let min = module.min_degree();
+        // `min_degree - 1` is the lowest valid truncation (an empty quotient).
+        assert!(QuotientModule::try_new(Arc::clone(&module), min - 1).is_ok());
+        assert!(QuotientModule::try_new(module, min + 5).is_ok());
+    }
+
+    #[test]
+    fn try_new_truncation_too_low_errors() {
+        let module = joker();
+        let min = module.min_degree();
+        // Below `min_degree - 1` would request a negative-length `BiVec` capacity.
+        let result = QuotientModule::try_new(module, min - 2);
+        assert!(result.is_err());
+        assert!(result.err().unwrap().to_string().contains("min_degree"));
+    }
+
+    #[test]
+    fn try_new_truncation_overflow_errors() {
+        let module = joker();
+        // `truncation + 1` would overflow `i32`.
+        let result = QuotientModule::try_new(module, i32::MAX);
+        assert!(result.is_err());
+        assert!(result.err().unwrap().to_string().contains("overflow"));
     }
 }
