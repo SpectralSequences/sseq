@@ -50,12 +50,6 @@ impl MasseyResult {
     }
 }
 
-struct MasseyComputeDatum {
-    answers: Matrix,
-    kernel: Subspace,
-    tot: Bidegree,
-}
-
 impl<CC> ExtAlgebra<CC>
 where
     CC: FreeChainComplex + AugmentedChainComplex,
@@ -85,85 +79,100 @@ where
         hom
     }
 
-    /// Compute, for a single multiplicand bidegree `c_deg`, the per-generator bracket values and
-    /// the kernel of multiplication by `b` (the valid third factors). The bracket values form a
-    /// `num_gens × target_num_gens` matrix whose row `gen` is the bracket of the `gen`th generator
-    /// of `c_deg`. Returns `None` if the bracket bidegree is empty or uncomputed.
-    fn massey_at(
+    /// The kernel of multiplication by `b` at bidegree `c_deg`: the valid third factors of
+    /// $\langle a, b, -\rangle$, since the bracket is defined only when `b · c = 0`.
+    ///
+    /// Computed from the product maps alone (no null-homotopy), as `c · b` (equal to `b · c` up to
+    /// sign, so the same kernel). Returns `None` when the product bidegree `c_deg + b.degree()` is
+    /// uncomputed, so callers never mistake an uncomputed product for a zero one; a computed but
+    /// empty product bidegree correctly yields the full space.
+    fn massey_kernel(&self, b: &BidegreeElement, c_deg: Bidegree) -> Option<Subspace> {
+        let p = self.prime();
+        let resolution = self.resolution();
+
+        let prod_deg = c_deg + b.degree();
+        if !resolution.has_computed_bidegree(prod_deg) {
+            return None;
+        }
+        let num_gens = resolution.number_of_gens_in_bidegree(c_deg);
+        let product_num_gens = resolution.number_of_gens_in_bidegree(prod_deg);
+
+        let mut product = AugmentedMatrix::<2>::new(p, num_gens, [product_num_gens, num_gens]);
+        product.segment(1, 1).add_identity();
+        for i in 0..num_gens {
+            let c_gen = self.generator(BidegreeGenerator::new(c_deg, i));
+            let prod = self.try_multiply(&c_gen, b)?;
+            product
+                .row_mut(i)
+                .slice_mut(0, product_num_gens)
+                .add(prod.vec(), 1);
+        }
+        product.row_reduce();
+        Some(product.compute_kernel())
+    }
+
+    /// The bracket $\langle a, b, c\rangle$ for a single third factor `c`, which the caller must
+    /// have checked lies in the kernel of multiplication by `b` (so that `b · c = 0` and the
+    /// null-homotopy exists); otherwise the lift in [`ChainHomotopy::extend`] cannot complete.
+    ///
+    /// Unlike the removed per-generator scheme, this realises the *actual* class `c` (a linear
+    /// combination) via [`ResolutionHomomorphism::from_class`] and builds a single valid
+    /// null-homotopy, matching the approach of [`massey_iter_a`](Self::massey_iter_a). Returns
+    /// `None` when the bracket bidegree `c.degree() + shift` is uncomputed or empty.
+    fn massey_bracket_of(
         &self,
         a: &BidegreeElement,
-        b: &BidegreeElement,
         b_hom: &Arc<ResolutionHomomorphism<CC, CC>>,
         shift: Bidegree,
         offset_a: usize,
-        c_deg: Bidegree,
-    ) -> Option<MasseyComputeDatum> {
+        c: &BidegreeElement,
+    ) -> Option<MasseyResult> {
         let p = self.prime();
         let resolution = self.resolution();
         let unit = self.unit();
 
-        if !resolution.has_computed_bidegree(c_deg + shift) {
+        let c_deg = c.degree();
+        let tot = c_deg + shift;
+        if !resolution.has_computed_bidegree(tot) {
             return None;
         }
-        let tot = c_deg + shift;
-
-        let num_gens = resolution.number_of_gens_in_bidegree(c_deg);
-        let product_num_gens = resolution.number_of_gens_in_bidegree(b.degree() + c_deg);
         let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
         if target_num_gens == 0 {
             return None;
         }
 
         let a_coords: Vec<u32> = a.vec().iter().collect();
-        let b_coords: Vec<u32> = b.vec().iter().collect();
+        let c_coords: Vec<u32> = c.vec().iter().collect();
 
-        let mut answers = Matrix::new(p, num_gens, target_num_gens);
-        let mut product = AugmentedMatrix::<2>::new(p, num_gens, [product_num_gens, num_gens]);
-        product.segment(1, 1).add_identity();
+        let f_c = Arc::new(ResolutionHomomorphism::from_class(
+            String::new(),
+            Arc::clone(resolution),
+            Arc::clone(unit),
+            c_deg,
+            &c_coords,
+        ));
+        f_c.extend_through_stem(tot);
 
-        let mut matrix = Matrix::new(p, num_gens, 1);
-        for idx in 0..num_gens {
-            let hom = Arc::new(ResolutionHomomorphism::new(
-                String::new(),
-                Arc::clone(resolution),
-                Arc::clone(unit),
-                c_deg,
-            ));
+        let homotopy = ChainHomotopy::new(f_c, Arc::clone(b_hom));
+        homotopy.extend(tot);
 
-            matrix.row_mut(idx).set_entry(0, 1);
-            hom.extend_step(c_deg, Some(&matrix));
-            matrix.row_mut(idx).set_entry(0, 0);
-
-            hom.extend_through_stem(tot);
-
-            let homotopy = ChainHomotopy::new(Arc::clone(&hom), Arc::clone(b_hom));
-            homotopy.extend(tot);
-
-            let last = homotopy.homotopy(tot.s());
-            let mut answer_row = answers.row_mut(idx);
-            for i in 0..target_num_gens {
-                let output = last.output(tot.t(), i);
-                for (k, &val) in a_coords.iter().enumerate() {
-                    if val != 0 {
-                        answer_row.add_basis_element(i, val * output.entry(offset_a + k));
-                    }
-                }
-            }
-
-            for (k, &val) in b_coords.iter().enumerate() {
+        // Read the bracket by pairing the top homotopy against `a`, exactly as the old
+        // per-generator scheme did, but for the single realised class `c`.
+        let last = homotopy.homotopy(tot.s());
+        let mut representative = FpVector::new(p, target_num_gens);
+        for i in 0..target_num_gens {
+            let output = last.output(tot.t(), i);
+            for (k, &val) in a_coords.iter().enumerate() {
                 if val != 0 {
-                    let g = BidegreeGenerator::new(b.degree(), k);
-                    hom.act(product.row_mut(idx).slice_mut(0, product_num_gens), val, g);
+                    representative.add_basis_element(i, val * output.entry(offset_a + k));
                 }
             }
         }
-        product.row_reduce();
-        let kernel = product.compute_kernel();
 
-        Some(MasseyComputeDatum {
-            answers,
-            kernel,
-            tot,
+        let indeterminacy = self.massey_indeterminacy(a, c, tot);
+        Some(MasseyResult {
+            degree: tot,
+            coset: AffineSubspace::new(representative, indeterminacy),
         })
     }
 
@@ -244,17 +253,14 @@ where
 
         let mut results = Vec::new();
         for c_deg in self.resolution().iter_nonzero_stem() {
-            let Some(MasseyComputeDatum {
-                answers,
-                kernel,
-                tot,
-            }) = self.massey_at(a, b, &b_hom, shift, offset_a, c_deg)
-            else {
+            let Some(kernel) = self.massey_kernel(b, c_deg) else {
                 continue;
             };
             for row in kernel.iter() {
                 let c = BidegreeElement::new(c_deg, row.to_owned());
-                let result = self.massey_result(a, &c, &answers, row, tot);
+                let Some(result) = self.massey_bracket_of(a, &b_hom, shift, offset_a, &c) else {
+                    continue;
+                };
                 if result.contains_zero() {
                     continue;
                 }
@@ -397,19 +403,15 @@ where
             return None;
         }
 
-        let MasseyComputeDatum {
-            answers,
-            kernel,
-            tot,
-        } = self.massey_at(a, b, &b_hom, shift, offset_a, c.degree())?;
-
-        let mut reduced = c.vec().to_owned();
-        kernel.reduce(reduced.as_slice_mut());
-        if !reduced.is_zero() {
-            return None;
+        // The bracket is also defined only when `b · c = 0`. Check this via `c · b` (equal up to
+        // sign) *before* building any null-homotopy: an invalid `c` has no null-homotopy and would
+        // otherwise fail to lift.
+        match self.try_multiply(c, b) {
+            Some(prod) if prod.vec().is_zero() => {}
+            _ => return None,
         }
 
-        Some(self.massey_result(a, c, &answers, c.vec(), tot))
+        self.massey_bracket_of(a, &b_hom, shift, offset_a, c)
     }
 }
 
@@ -460,6 +462,16 @@ mod tests {
             alg.massey(&h0, &h0, &h1).is_none(),
             "<h0, h0, h1> should be undefined since h0^2 != 0"
         );
+
+        // Regression (issue #116): a first factor with `s >= 2` engages the homotopy-lift
+        // obstruction. <h1^2, h0, h0> is undefined (b · c = h0 · h0 = h0^2 != 0), and `a · b =
+        // h1^2 · h0 = 0` passes, so the third-factor path is exercised. The old per-generator
+        // scheme built the null-homotopy for the non-kernel generator h0 and panicked ("Failed to
+        // lift"); the fix rejects `c` up front and returns `None` without lifting.
+        assert!(
+            alg.massey(&h1_sq, &h0, &h0).is_none(),
+            "<h1^2, h0, h0> should be undefined since h0^2 != 0, and must not panic"
+        );
     }
 
     /// For `M == k`, iterating the first factor must agree with iterating the third, via the
@@ -478,6 +490,42 @@ mod tests {
         let by_c = alg.massey_iter_c(&h0, &h1);
         let by_a = alg.massey_iter_a(&h1, &h0);
         assert!(!by_c.is_empty(), "expected some defined brackets");
+
+        let normalize = |family: Vec<(BidegreeElement, MasseyResult)>| {
+            let mut keyed: Vec<(String, AffineSubspace)> = family
+                .into_iter()
+                .map(|(x, result)| (format!("{x}"), result.coset))
+                .collect();
+            keyed.sort_by(|l, r| l.0.cmp(&r.0));
+            keyed
+        };
+        assert_eq!(normalize(by_c), normalize(by_a));
+    }
+
+    /// Regression (issue #116) with a first factor of filtration `s = 2`. The old `massey_iter_c`
+    /// built a null-homotopy per generator of each third-factor bidegree and panicked ("Failed to
+    /// lift") whenever some generator was not killed by `b` — e.g. `h0` at `c_deg = (0, 1)`, since
+    /// `h0 · h0 = h0^2 != 0`. This only surfaced for `a.s() >= 2` (see the homotopy top step). The
+    /// fix realises the actual kernel class, so `massey_iter_c(h1^2, h0)` no longer panics and must
+    /// agree with the reference `massey_iter_a(h0, h1^2)` via `<h1^2, h0, x> = ±<x, h0, h1^2>`
+    /// (sign trivial at `p = 2`). The mere fact that `massey_iter_c` runs to completion here is the
+    /// regression guarantee; the equality additionally pins that the fixed `iter_c` agrees with the
+    /// independent `iter_a` path.
+    #[test]
+    fn test_iter_c_proper_kernel() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(6, 5));
+        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+
+        let h0 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
+        let h1 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(1, 1), 0));
+        let h1_sq = alg.multiply(&h1, &h1); // (n = 2, s = 2), so the fixed first factor has s = 2.
+
+        // Old code panicked ("Failed to lift") building the per-generator homotopy for a non-kernel
+        // generator (e.g. h0 at c_deg = (0, 1), since h0^2 != 0); the fix realises the actual
+        // kernel class and completes.
+        let by_c = alg.massey_iter_c(&h1_sq, &h0);
+        let by_a = alg.massey_iter_a(&h0, &h1_sq);
 
         let normalize = |family: Vec<(BidegreeElement, MasseyResult)>| {
             let mut keyed: Vec<(String, AffineSubspace)> = family
