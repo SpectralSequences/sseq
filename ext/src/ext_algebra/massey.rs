@@ -122,9 +122,8 @@ where
     fn massey_bracket_of(
         &self,
         a: &BidegreeElement,
-        b_hom: &Arc<ResolutionHomomorphism<CC, CC>>,
+        b_hom: Arc<ResolutionHomomorphism<CC, CC>>,
         shift: Bidegree,
-        offset_a: usize,
         c: &BidegreeElement,
     ) -> Option<MasseyResult> {
         let p = self.prime();
@@ -141,6 +140,10 @@ where
             return None;
         }
 
+        // Where `a`'s generators sit in the homotopy output, so we can pair against them below.
+        let offset_a = unit
+            .module(a.degree().s())
+            .generator_offset(a.degree().t(), a.degree().t(), 0);
         let a_coords: Vec<u32> = a.vec().iter().collect();
         let c_coords: Vec<u32> = c.vec().iter().collect();
 
@@ -153,7 +156,7 @@ where
         ));
         f_c.extend_through_stem(tot);
 
-        let homotopy = ChainHomotopy::new(f_c, Arc::clone(b_hom));
+        let homotopy = ChainHomotopy::new(f_c, b_hom);
         homotopy.extend(tot);
 
         // Read the bracket by pairing the top homotopy against `a`, exactly as the old
@@ -246,10 +249,6 @@ where
         b: &BidegreeElement,
     ) -> Vec<(BidegreeElement, MasseyResult)> {
         let shift = Self::massey_shift(a, b);
-        let offset_a =
-            self.unit()
-                .module(a.degree().s())
-                .generator_offset(a.degree().t(), a.degree().t(), 0);
         let b_hom = self.massey_b_hom(b, shift);
 
         let mut results = Vec::new();
@@ -259,7 +258,7 @@ where
             };
             for row in kernel.iter() {
                 let c = BidegreeElement::new(c_deg, row.to_owned());
-                let Some(result) = self.massey_bracket_of(a, &b_hom, shift, offset_a, &c) else {
+                let Some(result) = self.massey_bracket_of(a, Arc::clone(&b_hom), shift, &c) else {
                     continue;
                 };
                 if result.contains_zero() {
@@ -380,10 +379,6 @@ where
         c: &BidegreeElement,
     ) -> Option<MasseyResult> {
         let shift = Self::massey_shift(a, b);
-        let offset_a =
-            self.unit()
-                .module(a.degree().s())
-                .generator_offset(a.degree().t(), a.degree().t(), 0);
         let b_hom = self.massey_b_hom(b, shift);
 
         // The bracket is defined only when `a · b = 0`. Compute `b · a` (equal to `a · b` up to
@@ -412,7 +407,7 @@ where
             _ => return None,
         }
 
-        self.massey_bracket_of(a, &b_hom, shift, offset_a, c)
+        self.massey_bracket_of(a, b_hom, shift, c)
     }
 }
 
