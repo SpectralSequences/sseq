@@ -15,6 +15,8 @@ pub use base_ring::{BaseRingOf, Ring, Scalar};
 
 pub mod combinatorics;
 
+pub mod motivic_milnor;
+
 pub mod field;
 pub use field::Field;
 

@@ -90,6 +90,43 @@ pub fn xi_degrees(p: ValidPrime) -> &'static [i32] {
     &XI_DEGREES[PRIME_TO_INDEX_MAP[p.as_usize()]]
 }
 
+/// The C-motivic (prime 2) bidegree `(t, w)` — topological degree and motivic weight — of
+/// the Milnor basis element `Q(E) P(R)` whose exterior part is the bitmask `q_part` (a set
+/// bit at `i` means the generator `tau_i` is present) and whose polynomial part is `p_part`
+/// (with `p_part[i]` the exponent of `xi_{i+1}`).
+///
+/// The generators sit in bidegrees `|xi_i| = (2(2^i - 1), 2^i - 1)` and
+/// `|tau_i| = (2^{i+1} - 1, 2^i - 1)`. Note the topological degree of `xi_i` is exactly
+/// twice its classical Milnor degree, so the polynomial contribution reuses
+/// [`xi_degrees`], doubled; the `tau_i` topological degree is [`tau_degrees`] (whose value
+/// at the prime 2 is nonsense classically but is precisely the motivic `tau_i` degree).
+pub fn motivic_bidegree(q_part: u32, p_part: &[u32]) -> (i32, i32) {
+    let xi = xi_degrees(fp::prime::TWO);
+    let tau = tau_degrees(fp::prime::TWO);
+    let xi_contrib: i32 = p_part
+        .iter()
+        .enumerate()
+        .map(|(i, &e)| xi[i] * e as i32)
+        .sum();
+    let (mut t, mut w) = (2 * xi_contrib, xi_contrib);
+    for k in fp::prime::iter::BitflagIterator::set_bit_iterator(q_part as u64) {
+        t += tau[k];
+        w += (1i32 << k) - 1; // weight of tau_k is 2^k - 1
+    }
+    (t, w)
+}
+
+/// The C-motivic (prime 2) weight of a Milnor basis element of topological degree `t` whose
+/// exterior part `q_part` has `k = q_part.count_ones()` factors: `w = (t - k) / 2`. Each
+/// `tau_i` contributes `+1` to `t` beyond `2w`, and each `xi_i` contributes an even amount,
+/// so `t - k` is always even. This agrees with [`motivic_bidegree`] but needs only the
+/// degree and the exterior part.
+pub fn motivic_weight(t: i32, q_part: u32) -> i32 {
+    let k = q_part.count_ones() as i32;
+    debug_assert_eq!((t - k) % 2, 0, "malformed motivic degree: t={t}, k={k}");
+    (t - k) / 2
+}
+
 pub struct TruncatedPolynomialMonomialBasis {
     p: ValidPrime,
     /// degree => (first_index, number_of_gens)
@@ -324,6 +361,29 @@ impl<'a> Iterator for PartitionIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_motivic_bidegree() {
+        // Generators: |xi_i| = (2(2^i - 1), 2^i - 1), |tau_i| = (2^{i+1} - 1, 2^i - 1).
+        // p_part[i] is the exponent of xi_{i+1}; q_part bit i is tau_i.
+        assert_eq!(motivic_bidegree(0, &[]), (0, 0)); // unit
+        assert_eq!(motivic_bidegree(0, &[1]), (2, 1)); // xi_1
+        assert_eq!(motivic_bidegree(0, &[0, 1]), (6, 3)); // xi_2
+        assert_eq!(motivic_bidegree(0b1, &[]), (1, 0)); // tau_0
+        assert_eq!(motivic_bidegree(0b10, &[]), (3, 1)); // tau_1
+        assert_eq!(motivic_bidegree(0b100, &[]), (7, 3)); // tau_2
+        assert_eq!(motivic_bidegree(0b1, &[1]), (3, 1)); // tau_0 xi_1
+        // tau_0 (1,0) + tau_1 (3,1) + xi_1^2 (4,2) = (8, 3)
+        assert_eq!(motivic_bidegree(0b11, &[2]), (8, 3));
+
+        // motivic_weight agrees with the second coordinate of motivic_bidegree.
+        for q_part in 0u32..16 {
+            for p_part in [vec![], vec![1], vec![2], vec![0, 1], vec![3, 1, 2]] {
+                let (t, w) = motivic_bidegree(q_part, &p_part);
+                assert_eq!(motivic_weight(t, q_part), w, "q={q_part:b} p={p_part:?}");
+            }
+        }
+    }
 
     #[test]
     fn test_trunc_poly_partitions() {
