@@ -17,6 +17,9 @@ pub mod combinatorics;
 
 pub mod motivic_milnor;
 
+pub mod fp_tau;
+pub use fp_tau::FpTau;
+
 pub mod field;
 pub use field::Field;
 
