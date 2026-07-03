@@ -141,9 +141,9 @@ where
         }
 
         // Where `a`'s generators sit in the homotopy output, so we can pair against them below.
-        let offset_a = unit
-            .module(a.degree().s())
-            .generator_offset(a.degree().t(), a.degree().t(), 0);
+        let offset_a =
+            unit.module(a.degree().s())
+                .generator_offset(a.degree().t(), a.degree().t(), 0);
         let a_coords: Vec<u32> = a.vec().iter().collect();
         let c_coords: Vec<u32> = c.vec().iter().collect();
 
