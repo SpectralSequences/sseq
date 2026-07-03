@@ -14,9 +14,22 @@
 //!
 //! Basis elements are $Q(E)P(R)$ with $E \in \mathrm{Seq}_1$ (entries in $\{0,1\}$, encoded
 //! as a bitmask: bit $i$ is $\tau_i$) and $R \in \mathrm{Seq}$ (the exponent vector of the
-//! $\xi_i$). This module currently implements the combinatorial core and the $\tau(S)$
-//! rewrite (Theorem 3.4); the coproduct (Cor. 4.4) and the product (Theorem 5.1) build on
-//! it.
+//! $\xi_i$).
+//!
+//! The product in the Steenrod algebra $A$ is computed by **duality**: the dual algebra
+//! $A_{**}$ is a commutative $\mathbb{F}_2[\tau]$-algebra whose multiplication ([`dual_mul`])
+//! reduces $\tau_i^2 = \tau\xi_{i+1}$ via [`rewrite_tau`] (Kong–Lin Theorem 3.4), and its
+//! coproduct $\psi$ ([`coproduct`], Kong–Lin §2.2) is a $\tau$-free algebra map. The product
+//! $a \cdot b$ in $A$ is then read off from $\psi$: the coefficient of $z$ in $a \cdot b$ is
+//! the coefficient of $\mathrm{mon}(a) \otimes \mathrm{mon}(b)$ in $\psi(\mathrm{mon}(z))$
+//! ([`multiply`]). This is a first, correctness-oriented implementation; the closed-form
+//! product (Kong–Lin Theorem 5.1) can replace it later for speed, validated against this one.
+//!
+//! Weight convention: the motivic weight of an algebra basis element is the *negative* of the
+//! weight of the dual monomial it pairs with, so that products are weight-homogeneous with
+//! $\tau$ (weight $-1$) absorbing the difference.
+
+use std::collections::BTreeMap;
 
 use fp::prime::Binomial;
 
@@ -159,9 +172,475 @@ fn rewrite_tau_dfs(
     r[idx] = 0;
 }
 
+// ---------------------------------------------------------------------------
+// The dual algebra A_** (used to compute the product in A by duality).
+// ---------------------------------------------------------------------------
+
+/// An element of $\mathbb{F}_2[\tau]$, encoded as a bitmask of exponents: bit $e$ set means
+/// $\tau^e$ appears (coefficients mod 2). Addition is `XOR`; multiplication by $\tau^j$ is a
+/// left shift; general multiplication is carry-less (polynomial) multiplication.
+type TauPoly = u64;
+
+/// An element of the dual algebra $A_{**}$: basis monomials $\tau(E)\xi(R)$ (`E` a square-free
+/// bitmask, `R` a trimmed exponent vector) mapped to their $\mathbb{F}_2[\tau]$ coefficients.
+/// Zero coefficients are never stored, so equality is canonical.
+pub type DualElement = BTreeMap<(u32, Vec<u32>), TauPoly>;
+
+/// Carry-less ($\mathbb{F}_2[\tau]$) product of two coefficients.
+fn tau_mul(a: TauPoly, b: TauPoly) -> TauPoly {
+    let mut res = 0;
+    for k in 0..u64::BITS {
+        if (a >> k) & 1 != 0 {
+            res ^= b << k;
+        }
+    }
+    res
+}
+
+/// Elementwise sum of two exponent vectors, trimmed of trailing zeros.
+fn vec_add(a: &[u32], b: &[u32]) -> Vec<u32> {
+    let n = a.len().max(b.len());
+    let mut r: Vec<u32> = (0..n)
+        .map(|i| a.get(i).copied().unwrap_or(0) + b.get(i).copied().unwrap_or(0))
+        .collect();
+    while let Some(&0) = r.last() {
+        r.pop();
+    }
+    r
+}
+
+/// Add `coeff * mon` into `acc`, dropping the entry if it cancels to zero.
+fn dual_add(acc: &mut DualElement, mon: (u32, Vec<u32>), coeff: TauPoly) {
+    use std::collections::btree_map::Entry;
+    if coeff == 0 {
+        return;
+    }
+    match acc.entry(mon) {
+        Entry::Occupied(mut o) => {
+            *o.get_mut() ^= coeff;
+            if *o.get() == 0 {
+                o.remove();
+            }
+        }
+        Entry::Vacant(v) => {
+            v.insert(coeff);
+        }
+    }
+}
+
+/// Multiply two basis monomials of $A_{**}$ and accumulate `coeff * (m1 * m2)` into `acc`.
+///
+/// $A_{**}$ is commutative, so $\tau(E_1)\xi(R_1)\cdot\tau(E_2)\xi(R_2)$ is obtained by adding
+/// exponents: the exterior parts form $S = E_1 + E_2$ (entries in $\{0,1,2\}$), which is
+/// rewritten into the square-free basis via [`rewrite_tau`] ($\tau_i^2 = \tau\xi_{i+1}$), and
+/// the resulting $\xi$ exponents are added to $R_1 + R_2$.
+fn mul_monomials(
+    m1: &(u32, Vec<u32>),
+    m2: &(u32, Vec<u32>),
+    coeff: TauPoly,
+    acc: &mut DualElement,
+) {
+    let (e1, e2) = (m1.0, m2.0);
+    let bits = u32::BITS - (e1 | e2).leading_zeros();
+    let s: Vec<u32> = (0..bits)
+        .map(|i| ((e1 >> i) & 1) + ((e2 >> i) & 1))
+        .collect();
+    let r12 = vec_add(&m1.1, &m2.1);
+    for term in rewrite_tau(&s) {
+        let r = vec_add(&term.r, &r12);
+        dual_add(acc, (term.e_mask, r), tau_mul(coeff, 1 << term.tau_pow));
+    }
+}
+
+/// The product of two elements of $A_{**}$.
+pub fn dual_mul(a: &DualElement, b: &DualElement) -> DualElement {
+    let mut out = DualElement::new();
+    for (m1, &c1) in a {
+        for (m2, &c2) in b {
+            mul_monomials(m1, m2, tau_mul(c1, c2), &mut out);
+        }
+    }
+    out
+}
+
+/// The generator $\tau_i \in A_{**}$.
+pub fn tau_gen(i: usize) -> DualElement {
+    DualElement::from([((1u32 << i, vec![]), 1)])
+}
+
+/// The generator $\xi_i \in A_{**}$ (for $i \ge 1$).
+pub fn xi_gen(i: usize) -> DualElement {
+    let mut r = vec![0u32; i + 1];
+    r[i] = 1;
+    DualElement::from([((0, r), 1)])
+}
+
+/// The unit $1 \in A_{**}$.
+pub fn dual_one() -> DualElement {
+    DualElement::from([((0, vec![]), 1)])
+}
+
+// ---------------------------------------------------------------------------
+// The coproduct ψ: A_** → A_** ⊗ A_**, an algebra map (Kong–Lin §2.2).
+// ---------------------------------------------------------------------------
+
+/// An element of $A_{**} \otimes A_{**}$: pairs of basis monomials → $\mathbb{F}_2[\tau]$
+/// coefficients. Zero coefficients are never stored.
+pub type TensorElement = BTreeMap<((u32, Vec<u32>), (u32, Vec<u32>)), TauPoly>;
+
+fn tensor_add(acc: &mut TensorElement, key: ((u32, Vec<u32>), (u32, Vec<u32>)), coeff: TauPoly) {
+    use std::collections::btree_map::Entry;
+    if coeff == 0 {
+        return;
+    }
+    match acc.entry(key) {
+        Entry::Occupied(mut o) => {
+            *o.get_mut() ^= coeff;
+            if *o.get() == 0 {
+                o.remove();
+            }
+        }
+        Entry::Vacant(v) => {
+            v.insert(coeff);
+        }
+    }
+}
+
+/// The unit $1 \otimes 1$.
+fn tensor_one() -> TensorElement {
+    TensorElement::from([(((0, vec![]), (0, vec![])), 1)])
+}
+
+/// Multiply in $A_{**} \otimes A_{**}$: $(a_L \otimes a_R)(b_L \otimes b_R) = (a_L b_L) \otimes (a_R b_R)$.
+fn tensor_mul(t1: &TensorElement, t2: &TensorElement) -> TensorElement {
+    let mut out = TensorElement::new();
+    for ((al, ar), &c1) in t1 {
+        for ((bl, br), &c2) in t2 {
+            let mut left = DualElement::new();
+            mul_monomials(al, bl, 1, &mut left);
+            let mut right = DualElement::new();
+            mul_monomials(ar, br, 1, &mut right);
+            let c = tau_mul(c1, c2);
+            for (ml, &cl) in &left {
+                for (mr, &cr) in &right {
+                    tensor_add(
+                        &mut out,
+                        (ml.clone(), mr.clone()),
+                        tau_mul(c, tau_mul(cl, cr)),
+                    );
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The monomial $\xi_j^p$ (with $\xi_0 = 1$).
+fn xi_pow_mon(j: usize, p: u32) -> (u32, Vec<u32>) {
+    if j == 0 || p == 0 {
+        (0, vec![])
+    } else {
+        let mut r = vec![0u32; j + 1];
+        r[j] = p;
+        (0, r)
+    }
+}
+
+/// $\psi(\tau_k) = 1 \otimes \tau_k + \sum_{i=0}^{k} \tau_i \otimes \xi_{k-i}^{2^i}$.
+fn coprod_tau(k: usize) -> TensorElement {
+    let mut out = TensorElement::new();
+    tensor_add(&mut out, ((0, vec![]), (1 << k, vec![])), 1);
+    for i in 0..=k {
+        tensor_add(&mut out, ((1 << i, vec![]), xi_pow_mon(k - i, 1 << i)), 1);
+    }
+    out
+}
+
+/// $\psi(\xi_k) = \sum_{i=0}^{k} \xi_i \otimes \xi_{k-i}^{2^i}$ (with $\xi_0 = 1$).
+fn coprod_xi(k: usize) -> TensorElement {
+    let mut out = TensorElement::new();
+    for i in 0..=k {
+        tensor_add(&mut out, (xi_pow_mon(i, 1), xi_pow_mon(k - i, 1 << i)), 1);
+    }
+    out
+}
+
+/// The coproduct of a basis monomial $\tau(E)\xi(R)$, computed as an algebra map: the product
+/// of the coproducts of its generators.
+fn coproduct_monomial(e_mask: u32, r: &[u32]) -> TensorElement {
+    let mut acc = tensor_one();
+    for i in 0..u32::BITS {
+        if (e_mask >> i) & 1 != 0 {
+            acc = tensor_mul(&acc, &coprod_tau(i as usize));
+        }
+    }
+    for (j, &rj) in r.iter().enumerate() {
+        for _ in 0..rj {
+            acc = tensor_mul(&acc, &coprod_xi(j));
+        }
+    }
+    acc
+}
+
+/// The coproduct of an arbitrary element of $A_{**}$ (extended $\mathbb{F}_2[\tau]$-linearly).
+pub fn coproduct(elt: &DualElement) -> TensorElement {
+    let mut out = TensorElement::new();
+    for ((e, r), &c) in elt {
+        for (key, cc) in coproduct_monomial(*e, r) {
+            tensor_add(&mut out, key, tau_mul(c, cc));
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// The product in the Steenrod algebra A, computed by dualizing ψ.
+// ---------------------------------------------------------------------------
+
+/// The C-motivic (prime 2) bidegree `(t, w)` of the basis monomial `τ(E)ξ(R)`, in the
+/// *paper's* R-convention (`r[j]` is the exponent of `ξ_j`, with `ξ_0 = 1` so `r[0]` is
+/// ignored). `|τ_i| = (2^{i+1}-1, 2^i-1)`, `|ξ_j| = (2^{j+1}-2, 2^j-1)`.
+fn paper_bidegree(e_mask: u32, r: &[u32]) -> (i32, i32) {
+    let (mut t, mut w) = (0i32, 0i32);
+    for i in 0..u32::BITS {
+        if (e_mask >> i) & 1 != 0 {
+            t += (1 << (i + 1)) - 1;
+            w += (1 << i) - 1;
+        }
+    }
+    for (j, &rj) in r.iter().enumerate().skip(1) {
+        t += rj as i32 * ((1 << (j + 1)) - 2);
+        w += rj as i32 * ((1 << j) - 1);
+    }
+    (t, w)
+}
+
+/// All basis monomials `τ(E)ξ(R)` of a given topological degree `target`.
+fn enum_basis(target: i32) -> Vec<(u32, Vec<u32>)> {
+    // Generators available up to `target`: τ_i of degree 2^{i+1}-1, ξ_j (j≥1) of degree
+    // 2^{j+1}-2. Represented as (is_tau, index, degree).
+    let mut gens: Vec<(bool, usize, i32)> = Vec::new();
+    let mut i = 0;
+    while (1i32 << (i + 1)) - 1 <= target {
+        gens.push((true, i, (1 << (i + 1)) - 1));
+        i += 1;
+    }
+    let mut j = 1;
+    while (1i32 << (j + 1)) - 2 <= target {
+        gens.push((false, j, (1 << (j + 1)) - 2));
+        j += 1;
+    }
+    let r_len = gens
+        .iter()
+        .filter(|g| !g.0)
+        .map(|g| g.1 + 1)
+        .max()
+        .unwrap_or(0);
+
+    let mut out = Vec::new();
+    let mut e = 0u32;
+    let mut r = vec![0u32; r_len];
+    enum_basis_dfs(&gens, 0, target, &mut e, &mut r, &mut out);
+    out
+}
+
+fn enum_basis_dfs(
+    gens: &[(bool, usize, i32)],
+    idx: usize,
+    rem: i32,
+    e: &mut u32,
+    r: &mut [u32],
+    out: &mut Vec<(u32, Vec<u32>)>,
+) {
+    if idx == gens.len() {
+        if rem == 0 {
+            let mut r = r.to_vec();
+            while let Some(&0) = r.last() {
+                r.pop();
+            }
+            out.push((*e, r));
+        }
+        return;
+    }
+    let (is_tau, index, deg) = gens[idx];
+    let max_mult = if is_tau { 1 } else { rem / deg };
+    for m in 0..=max_mult {
+        if m * deg > rem {
+            break;
+        }
+        if is_tau && m == 1 {
+            *e |= 1 << index;
+        } else if !is_tau {
+            r[index] = m as u32;
+        }
+        enum_basis_dfs(gens, idx + 1, rem - m * deg, e, r, out);
+        if is_tau {
+            *e &= !(1 << index);
+        } else {
+            r[index] = 0;
+        }
+    }
+}
+
+/// The product `a · b` in the C-motivic Steenrod algebra `A`, where `a`, `b` are Milnor basis
+/// elements `Q(E)P(R)` given as the monomials `(E, R)` they are dual to. The result is a map
+/// from basis monomials to their `𝔽₂[τ]` coefficients.
+///
+/// Computed by duality: the coefficient of `z` in `a · b` is the coefficient of
+/// `mon(a) ⊗ mon(b)` in `ψ(mon(z))`, summed over the basis `z` of the appropriate
+/// topological degree.
+pub fn multiply(a: &(u32, Vec<u32>), b: &(u32, Vec<u32>)) -> BTreeMap<(u32, Vec<u32>), TauPoly> {
+    let key = (a.clone(), b.clone());
+    let t = paper_bidegree(a.0, &a.1).0 + paper_bidegree(b.0, &b.1).0;
+    let mut out = BTreeMap::new();
+    for z in enum_basis(t) {
+        if let Some(&c) = coproduct_monomial(z.0, &z.1).get(&key)
+            && c != 0
+        {
+            out.insert(z, c);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tau_mul() {
+        assert_eq!(tau_mul(0b1, 0b1), 0b1); // 1 * 1 = 1
+        assert_eq!(tau_mul(0b10, 0b10), 0b100); // τ * τ = τ^2
+        assert_eq!(tau_mul(0b11, 0b1), 0b11); // (1+τ) * 1
+        assert_eq!(tau_mul(0b11, 0b11), 0b101); // (1+τ)^2 = 1 + τ^2 (mod 2)
+    }
+
+    #[test]
+    fn test_dual_mul_relations() {
+        // τ_0^2 = τ ξ_1 (the defining relation at ρ = 0).
+        assert_eq!(
+            dual_mul(&tau_gen(0), &tau_gen(0)),
+            DualElement::from([((0, vec![0, 1]), 0b10)]) // τ^1 · ξ_1
+        );
+        // ξ_1^2 is just the monomial ξ_1^2.
+        assert_eq!(
+            dual_mul(&xi_gen(1), &xi_gen(1)),
+            DualElement::from([((0, vec![0, 2]), 1)])
+        );
+        // Distinct τ's commute and stay square-free: τ_0 τ_1.
+        assert_eq!(
+            dual_mul(&tau_gen(0), &tau_gen(1)),
+            DualElement::from([((0b11, vec![]), 1)])
+        );
+        // τ_1^2 = τ ξ_2.
+        assert_eq!(
+            dual_mul(&tau_gen(1), &tau_gen(1)),
+            DualElement::from([((0, vec![0, 0, 1]), 0b10)])
+        );
+        // Multiplication by the unit is the identity.
+        assert_eq!(dual_mul(&dual_one(), &tau_gen(2)), tau_gen(2));
+    }
+
+    #[test]
+    fn test_product_q0_p_xi1() {
+        // The case my reading of Kong–Lin Theorem 5.1 got wrong. By duality:
+        //   Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1)   (both with coefficient τ^0).
+        let q0 = (0b1, vec![]);
+        let p_xi1 = (0, vec![0, 1]);
+        assert_eq!(
+            multiply(&q0, &p_xi1),
+            BTreeMap::from([
+                ((0b10, vec![]), 1),    // Q_1
+                ((0b1, vec![0, 1]), 1), // Q_0 P(ξ_1)
+            ])
+        );
+    }
+
+    #[test]
+    fn test_product_unit_and_squares() {
+        // 1 · x = x.
+        let x = (0b101, vec![0, 2]);
+        assert_eq!(multiply(&(0, vec![]), &x), BTreeMap::from([(x.clone(), 1)]));
+        // Q_i^2 = 0. (Q_0 = Sq^1 is the motivic Bockstein; P(ξ_1) = Sq^2 does NOT square to
+        // zero — its square is τ Q_0 Q_1 + …, a genuine motivic feature.)
+        for i in 0..3 {
+            assert!(
+                multiply(&(1 << i, vec![]), &(1 << i, vec![])).is_empty(),
+                "Q_{i}^2 ≠ 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_product_weight_homogeneous_and_tau_appears() {
+        // Every product is weight-homogeneous: term z occurs with a single power τ^k, and by
+        // weight-preservation of ψ, k = (w_a + w_b) - w_z ≥ 0 in *dual*-monomial weights (the
+        // algebra weight of a basis element is the negative of its dual monomial's weight, so
+        // τ, of weight -1, absorbs the difference). Also confirm τ genuinely enters at least
+        // one product (i.e. the τ_i^2 = τξ_{i+1} relation fires).
+        let basis: Vec<(u32, Vec<u32>)> = (0..=6).flat_map(enum_basis).collect();
+        let mut saw_tau = false;
+        for a in &basis {
+            for b in &basis {
+                let (wa, wb) = (paper_bidegree(a.0, &a.1).1, paper_bidegree(b.0, &b.1).1);
+                for (z, c) in multiply(a, b) {
+                    assert!(
+                        c.is_power_of_two(),
+                        "coeff {c:b} not a single τ power for {a:?}*{b:?}"
+                    );
+                    let k = c.trailing_zeros() as i32;
+                    let wz = paper_bidegree(z.0, &z.1).1;
+                    assert_eq!(wa + wb - wz, k, "weight mismatch: {a:?}*{b:?} → z={z:?}");
+                    assert!(k >= 0);
+                    saw_tau |= k > 0;
+                }
+            }
+        }
+        assert!(
+            saw_tau,
+            "no product produced a τ coefficient — τ_i^2 relation never exercised"
+        );
+    }
+
+    #[test]
+    fn test_coproduct_generators() {
+        // ψ(τ_1) = 1⊗τ_1 + τ_0⊗ξ_1 + τ_1⊗1  (Kong–Lin §2.2).
+        assert_eq!(
+            coproduct(&tau_gen(1)),
+            TensorElement::from([
+                (((0, vec![]), (0b10, vec![])), 1),    // 1 ⊗ τ_1
+                (((0b1, vec![]), (0, vec![0, 1])), 1), // τ_0 ⊗ ξ_1
+                (((0b10, vec![]), (0, vec![])), 1),    // τ_1 ⊗ 1
+            ])
+        );
+        // ψ(ξ_2) = 1⊗ξ_2 + ξ_1⊗ξ_1^2 + ξ_2⊗1  (matches Milnor).
+        assert_eq!(
+            coproduct(&xi_gen(2)),
+            TensorElement::from([
+                (((0, vec![]), (0, vec![0, 0, 1])), 1),  // 1 ⊗ ξ_2
+                (((0, vec![0, 1]), (0, vec![0, 2])), 1), // ξ_1 ⊗ ξ_1^2
+                (((0, vec![0, 0, 1]), (0, vec![])), 1),  // ξ_2 ⊗ 1
+            ])
+        );
+    }
+
+    #[test]
+    fn test_coproduct_is_algebra_map() {
+        // ψ(xy) = ψ(x)ψ(y); in particular this checks that the τ_i^2 = τξ_{i+1} reduction is
+        // compatible with the (τ-free) coproduct.
+        for (x, y) in [
+            (tau_gen(0), tau_gen(0)),
+            (tau_gen(1), tau_gen(1)),
+            (tau_gen(0), tau_gen(1)),
+            (xi_gen(1), xi_gen(1)),
+            (tau_gen(0), xi_gen(1)),
+            (tau_gen(1), xi_gen(2)),
+        ] {
+            let lhs = coproduct(&dual_mul(&x, &y));
+            let rhs = tensor_mul(&coproduct(&x), &coproduct(&y));
+            assert_eq!(lhs, rhs, "ψ not an algebra map on {x:?} * {y:?}");
+        }
+    }
 
     #[test]
     fn test_rewrite_tau_square_free_is_identity() {
