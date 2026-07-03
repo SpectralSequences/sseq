@@ -394,6 +394,69 @@ pub fn coproduct(elt: &DualElement) -> TensorElement {
 }
 
 // ---------------------------------------------------------------------------
+// The antipode χ: A_** → A_** (conjugate generators ⟷ standard Milnor generators).
+// ---------------------------------------------------------------------------
+
+/// $\xi_j^p \in A_{**}$ (with $\xi_0 = 1$).
+fn xi_pow_elt(j: usize, p: u32) -> DualElement {
+    DualElement::from([(xi_pow_mon(j, p), 1)])
+}
+
+/// $\chi(\xi_k)$, from the antipode axiom with this module's coproduct:
+/// $\chi(\xi_k) = \sum_{i=0}^{k-1} \chi(\xi_i)\,\xi_{k-i}^{2^i}$, $\chi(\xi_0) = 1$.
+fn chi_xi(k: usize) -> DualElement {
+    if k == 0 {
+        return dual_one();
+    }
+    let mut acc = DualElement::new();
+    for i in 0..k {
+        let term = dual_mul(&chi_xi(i), &xi_pow_elt(k - i, 1 << i));
+        for (mon, c) in term {
+            dual_add(&mut acc, mon, c);
+        }
+    }
+    acc
+}
+
+/// $\chi(\tau_k)$, from the antipode axiom:
+/// $\chi(\tau_k) = \tau_k + \sum_{i=0}^{k-1} \chi(\tau_i)\,\xi_{k-i}^{2^i}$.
+fn chi_tau(k: usize) -> DualElement {
+    let mut acc = tau_gen(k);
+    for i in 0..k {
+        let term = dual_mul(&chi_tau(i), &xi_pow_elt(k - i, 1 << i));
+        for (mon, c) in term {
+            dual_add(&mut acc, mon, c);
+        }
+    }
+    acc
+}
+
+/// The antipode $\chi$ of $A_{**}$ — an algebra map (since $A_{**}$ is commutative) extended
+/// from [`chi_tau`]/[`chi_xi`] on the generators. It converts the paper's conjugate
+/// generators to the standard Milnor/Voevodsky generators (`χ(ξ_2) = ξ_2 + ξ_1^3`, etc.) and
+/// is an involution.
+pub fn antipode(elt: &DualElement) -> DualElement {
+    let mut out = DualElement::new();
+    for ((e, r), &c) in elt {
+        let mut m = dual_one();
+        for i in 0..u32::BITS {
+            if (e >> i) & 1 != 0 {
+                m = dual_mul(&m, &chi_tau(i as usize));
+            }
+        }
+        for (j, &rj) in r.iter().enumerate() {
+            for _ in 0..rj {
+                m = dual_mul(&m, &chi_xi(j));
+            }
+        }
+        for (mon, cc) in m {
+            dual_add(&mut out, mon, tau_mul(c, cc));
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
 // The product in the Steenrod algebra A, computed by dualizing ψ.
 // ---------------------------------------------------------------------------
 
@@ -630,6 +693,111 @@ mod tests {
     }
 
     #[test]
+    fn test_full_xi_matches_classical_via_antipode() {
+        // Full (all-ξ) cross-check against the codebase's classical Milnor product, using the
+        // antipode χ to reconcile the paper's conjugate generators with the codebase's standard
+        // ones. Identity checked (pure-ξ, τ-free, so over 𝔽₂): expressing both inputs and
+        // outputs of the motivic conjugate product in the standard basis via χ reproduces the
+        // codebase product. `A[μ][W] = coeff of conj-mon μ in std ξ(W) = [χ(mon_W)]_μ`.
+        use fp::{prime::TWO, vector::FpVector};
+
+        use crate::algebra::{
+            Algebra,
+            milnor_algebra::{MilnorAlgebra, MilnorBasisElement},
+        };
+
+        let alg = MilnorAlgebra::new(TWO, false);
+        let trim = |mut v: Vec<u32>| {
+            while let Some(&0) = v.last() {
+                v.pop();
+            }
+            v
+        };
+        let pp_to_paper = |pp: &[u32]| {
+            let mut r = vec![0u32];
+            r.extend_from_slice(pp);
+            trim(r)
+        };
+        let paper_to_pp = |r: &[u32]| trim(r.get(1..).map(<[u32]>::to_vec).unwrap_or_default());
+        let mdeg = |pp: &[u32]| paper_bidegree(0, &pp_to_paper(pp)).0;
+        let xi_pps = |t: i32| -> Vec<Vec<u32>> {
+            enum_basis(t)
+                .into_iter()
+                .filter(|(e, _)| *e == 0)
+                .map(|(_, r)| paper_to_pp(&r))
+                .collect()
+        };
+        let a_coeff = |mu_pp: &[u32], w_pp: &[u32]| -> u32 {
+            let ap = antipode(&DualElement::from([((0u32, pp_to_paper(w_pp)), 1u64)]));
+            (ap.get(&(0u32, pp_to_paper(mu_pp))).copied().unwrap_or(0) & 1) as u32
+        };
+        let cb_mul = |a_pp: &[u32], b_pp: &[u32], acc: &mut BTreeMap<Vec<u32>, u32>| {
+            let mk = |p: &[u32]| {
+                let mut m = MilnorBasisElement {
+                    q_part: 0,
+                    p_part: p.to_vec(),
+                    degree: 0,
+                };
+                m.compute_degree(TWO);
+                m
+            };
+            let (m1, m2) = (mk(a_pp), mk(b_pp));
+            let deg = m1.degree + m2.degree;
+            alg.compute_basis(deg);
+            let mut res = FpVector::new(TWO, alg.dimension(deg));
+            alg.multiply(res.as_slice_mut(), 1, &m1, &m2);
+            for (idx, _) in res.iter_nonzero() {
+                let pp = trim(alg.basis_element_from_index(deg, idx).p_part.clone());
+                *acc.entry(pp).or_insert(0) ^= 1;
+            }
+        };
+
+        for (r1, r2) in [
+            (vec![2u32], vec![1u32]),
+            (vec![1], vec![2]),
+            (vec![0, 1], vec![1]),
+            (vec![2], vec![2]),
+            (vec![3], vec![1]),
+            (vec![1, 1], vec![1]),
+            (vec![4], vec![1]),
+            (vec![2, 1], vec![2]),
+        ] {
+            // LHS: motivic conjugate product (E=0), converted to std via χ.
+            let conj: Vec<Vec<u32>> = multiply(&(0, pp_to_paper(&r1)), &(0, pp_to_paper(&r2)))
+                .into_iter()
+                .filter(|((e, _), _)| *e == 0)
+                .map(|((_, r), _)| paper_to_pp(&r))
+                .collect();
+            let mut lhs: BTreeMap<Vec<u32>, u32> = BTreeMap::new();
+            for w in xi_pps(mdeg(&r1) + mdeg(&r2)) {
+                let s = conj.iter().fold(0u32, |acc, mu| acc ^ a_coeff(mu, &w));
+                if s != 0 {
+                    lhs.insert(w, s);
+                }
+            }
+
+            // RHS: convert inputs to std via χ, multiply in the codebase.
+            let in1: Vec<Vec<u32>> = xi_pps(mdeg(&r1))
+                .into_iter()
+                .filter(|w| a_coeff(&r1, w) == 1)
+                .collect();
+            let in2: Vec<Vec<u32>> = xi_pps(mdeg(&r2))
+                .into_iter()
+                .filter(|w| a_coeff(&r2, w) == 1)
+                .collect();
+            let mut rhs: BTreeMap<Vec<u32>, u32> = BTreeMap::new();
+            for w1 in &in1 {
+                for w2 in &in2 {
+                    cb_mul(w1, w2, &mut rhs);
+                }
+            }
+            rhs.retain(|_, v| *v != 0);
+
+            assert_eq!(lhs, rhs, "full ξ cross-check failed for {r1:?} * {r2:?}");
+        }
+    }
+
+    #[test]
     fn test_product_associative() {
         // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
         // Extend the basis×basis product to element×basis.
@@ -728,6 +896,57 @@ mod tests {
             saw_tau,
             "no product produced a τ coefficient — τ_i^2 relation never exercised"
         );
+    }
+
+    #[test]
+    fn test_antipode() {
+        // χ(ξ_1) = ξ_1 (primitive); χ(ξ_2) = ξ_2 + ξ_1^3; χ(τ_0) = τ_0.
+        assert_eq!(antipode(&xi_gen(1)), xi_gen(1));
+        assert_eq!(
+            antipode(&xi_gen(2)),
+            DualElement::from([((0, vec![0, 0, 1]), 1), ((0, vec![0, 3]), 1)])
+        );
+        assert_eq!(antipode(&tau_gen(0)), tau_gen(0));
+
+        // χ is an involution: χ(χ(x)) = x.
+        for x in [
+            xi_gen(1),
+            xi_gen(2),
+            xi_gen(3),
+            tau_gen(0),
+            tau_gen(1),
+            tau_gen(2),
+            dual_mul(&tau_gen(0), &xi_gen(2)),
+        ] {
+            assert_eq!(antipode(&antipode(&x)), x, "χ not an involution on {x:?}");
+        }
+
+        // Antipode axiom: m(χ ⊗ id)ψ(x) = η ε(x); for positive-degree x this is 0.
+        let counit_via_antipode = |x: &DualElement| -> DualElement {
+            let mut out = DualElement::new();
+            for ((l, r), c) in coproduct(x) {
+                let prod = dual_mul(
+                    &antipode(&DualElement::from([(l, 1)])),
+                    &DualElement::from([(r, 1)]),
+                );
+                for (mon, cc) in prod {
+                    dual_add(&mut out, mon, tau_mul(c, cc));
+                }
+            }
+            out
+        };
+        for x in [
+            xi_gen(2),
+            xi_gen(3),
+            tau_gen(1),
+            tau_gen(2),
+            dual_mul(&tau_gen(0), &tau_gen(1)),
+        ] {
+            assert!(
+                counit_via_antipode(&x).is_empty(),
+                "antipode axiom failed on {x:?}"
+            );
+        }
     }
 
     #[test]
