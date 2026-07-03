@@ -432,9 +432,9 @@ fn chi_tau(k: usize) -> DualElement {
 }
 
 /// The antipode $\chi$ of $A_{**}$ — an algebra map (since $A_{**}$ is commutative) extended
-/// from [`chi_tau`]/[`chi_xi`] on the generators. It converts the paper's conjugate
-/// generators to the standard Milnor/Voevodsky generators (`χ(ξ_2) = ξ_2 + ξ_1^3`, etc.) and
-/// is an involution.
+/// from `chi_tau`/`chi_xi` on the generators. It converts the paper's conjugate generators to
+/// the standard Milnor/Voevodsky generators (`χ(ξ_2) = ξ_2 + ξ_1^3`, etc.) and is an
+/// involution.
 pub fn antipode(elt: &DualElement) -> DualElement {
     let mut out = DualElement::new();
     for ((e, r), &c) in elt {
@@ -797,6 +797,9 @@ mod tests {
         }
     }
 
+    // TODO: once proptest plumbing exists for the `algebra` crate (currently only `fp` has
+    // it), replace these fixed-input axiom checks with property tests over random basis
+    // elements — associativity, the ψ algebra-map law, and the classical cross-check.
     #[test]
     fn test_product_associative() {
         // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
