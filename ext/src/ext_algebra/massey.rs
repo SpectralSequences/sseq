@@ -118,7 +118,8 @@ where
     /// Unlike the removed per-generator scheme, this realises the *actual* class `c` (a linear
     /// combination) via [`ResolutionHomomorphism::from_class`] and builds a single valid
     /// null-homotopy, matching the approach of [`massey_iter_a`](Self::massey_iter_a). Returns
-    /// `None` when the bracket bidegree `c.degree() + shift` is uncomputed or empty.
+    /// `None` only when the bracket bidegree `c.degree() + shift` is uncomputed; a computed but
+    /// empty bidegree yields the (defined) zero bracket, not `None`.
     fn massey_bracket_of(
         &self,
         a: &BidegreeElement,
@@ -136,41 +137,45 @@ where
             return None;
         }
         let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
-        if target_num_gens == 0 {
-            return None;
-        }
 
-        // Where `a`'s generators sit in the homotopy output, so we can pair against them below.
-        let offset_a =
-            unit.module(a.degree().s())
-                .generator_offset(a.degree().t(), a.degree().t(), 0);
-        let a_coords: Vec<u32> = a.vec().iter().collect();
-        let c_coords: Vec<u32> = c.vec().iter().collect();
+        // When `tot` is computed but empty the bracket lands in the zero group, so it is the
+        // (defined) zero element: skip the null-homotopy and use a zero representative. Otherwise
+        // read the bracket by pairing the top homotopy against `a`, as the old per-generator scheme
+        // did, but for the single realised class `c`.
+        let representative = if target_num_gens == 0 {
+            FpVector::new(p, 0)
+        } else {
+            // Where `a`'s generators sit in the homotopy output, so we can pair against them.
+            let offset_a =
+                unit.module(a.degree().s())
+                    .generator_offset(a.degree().t(), a.degree().t(), 0);
+            let a_coords: Vec<u32> = a.vec().iter().collect();
+            let c_coords: Vec<u32> = c.vec().iter().collect();
 
-        let f_c = Arc::new(ResolutionHomomorphism::from_class(
-            String::new(),
-            Arc::clone(resolution),
-            Arc::clone(unit),
-            c_deg,
-            &c_coords,
-        ));
-        f_c.extend_through_stem(tot);
+            let f_c = Arc::new(ResolutionHomomorphism::from_class(
+                String::new(),
+                Arc::clone(resolution),
+                Arc::clone(unit),
+                c_deg,
+                &c_coords,
+            ));
+            f_c.extend_through_stem(tot);
 
-        let homotopy = ChainHomotopy::new(f_c, b_hom);
-        homotopy.extend(tot);
+            let homotopy = ChainHomotopy::new(f_c, b_hom);
+            homotopy.extend(tot);
 
-        // Read the bracket by pairing the top homotopy against `a`, exactly as the old
-        // per-generator scheme did, but for the single realised class `c`.
-        let last = homotopy.homotopy(tot.s());
-        let mut representative = FpVector::new(p, target_num_gens);
-        for i in 0..target_num_gens {
-            let output = last.output(tot.t(), i);
-            for (k, &val) in a_coords.iter().enumerate() {
-                if val != 0 {
-                    representative.add_basis_element(i, val * output.entry(offset_a + k));
+            let last = homotopy.homotopy(tot.s());
+            let mut representative = FpVector::new(p, target_num_gens);
+            for i in 0..target_num_gens {
+                let output = last.output(tot.t(), i);
+                for (k, &val) in a_coords.iter().enumerate() {
+                    if val != 0 {
+                        representative.add_basis_element(i, val * output.entry(offset_a + k));
+                    }
                 }
             }
-        }
+            representative
+        };
 
         let indeterminacy = self.massey_indeterminacy(a, c, tot);
         Some(MasseyResult {
