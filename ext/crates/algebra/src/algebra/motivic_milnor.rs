@@ -542,6 +542,134 @@ mod tests {
     }
 
     #[test]
+    fn test_pure_xi_matches_classical_milnor() {
+        // Motivically the even part is NOT closed: P(R_1)·P(R_2) can leak into Q-terms
+        // carrying τ (e.g. Sq^2·Sq^2 ∋ τ Q_0 Q_1). But the pure-ξ *outputs* (E = 0) are τ-free
+        // and must agree with the ordinary mod-2 Milnor product. Compare those against the
+        // codebase's `MilnorAlgebra` (paper R = [0, p_part...]; drop the ξ_0 slot to convert).
+        use fp::{prime::TWO, vector::FpVector};
+
+        use crate::algebra::{
+            Algebra,
+            milnor_algebra::{MilnorAlgebra, MilnorBasisElement},
+        };
+
+        let alg = MilnorAlgebra::new(TWO, false);
+        let trim = |mut v: Vec<u32>| {
+            while let Some(&0) = v.last() {
+                v.pop();
+            }
+            v
+        };
+
+        let classical = |p1: &[u32], p2: &[u32]| -> Vec<Vec<u32>> {
+            let mk = |p: &[u32]| {
+                let mut m = MilnorBasisElement {
+                    q_part: 0,
+                    p_part: p.to_vec(),
+                    degree: 0,
+                };
+                m.compute_degree(TWO);
+                m
+            };
+            let (m1, m2) = (mk(p1), mk(p2));
+            let deg = m1.degree + m2.degree;
+            alg.compute_basis(deg);
+            let mut res = FpVector::new(TWO, alg.dimension(deg));
+            alg.multiply(res.as_slice_mut(), 1, &m1, &m2);
+            let mut out: Vec<Vec<u32>> = res
+                .iter_nonzero()
+                .map(|(idx, _)| trim(alg.basis_element_from_index(deg, idx).p_part.clone()))
+                .collect();
+            out.sort();
+            out
+        };
+
+        let motivic = |p1: &[u32], p2: &[u32]| -> Vec<Vec<u32>> {
+            let to_paper = |pp: &[u32]| {
+                let mut r = vec![0u32];
+                r.extend_from_slice(pp);
+                trim(r)
+            };
+            let mut out: Vec<Vec<u32>> = multiply(&(0, to_paper(p1)), &(0, to_paper(p2)))
+                .into_iter()
+                .filter(|((e, _), _)| *e == 0) // keep the pure-ξ outputs
+                .map(|((_, r), c)| {
+                    assert_eq!(c, 1, "pure-ξ output carried a τ power");
+                    trim(r.get(1..).map(<[u32]>::to_vec).unwrap_or_default())
+                })
+                .collect();
+            out.sort();
+            out
+        };
+
+        // The paper uses *conjugate* generators, so P(paper R) differs from the codebase's
+        // standard Milnor basis by the antipode χ for ξ_2 and higher (e.g. χ(ξ_2)=ξ_2+ξ_1^3).
+        // They agree on the self-conjugate ξ_1-power sector (ξ_1 is primitive), so restrict the
+        // comparison to outputs that are pure powers of ξ_1 (a `p_part` of length ≤ 1).
+        let xi1_only = |mut v: Vec<Vec<u32>>| {
+            v.retain(|pp| pp.len() <= 1);
+            v
+        };
+        for (p1, p2) in [
+            (vec![1u32], vec![1u32]),
+            (vec![2], vec![1]),
+            (vec![1], vec![2]),
+            (vec![3], vec![1]),
+            (vec![2, 1], vec![1]),
+            (vec![0, 1], vec![0, 1]),
+            (vec![2], vec![2]),
+            (vec![3], vec![3]),
+        ] {
+            assert_eq!(
+                xi1_only(motivic(&p1, &p2)),
+                xi1_only(classical(&p1, &p2)),
+                "ξ_1-sector mismatch for {p1:?} * {p2:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_product_associative() {
+        // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
+        // Extend the basis×basis product to element×basis.
+        fn mul_elt_basis(
+            x: &BTreeMap<(u32, Vec<u32>), TauPoly>,
+            c: &(u32, Vec<u32>),
+        ) -> BTreeMap<(u32, Vec<u32>), TauPoly> {
+            let mut out: BTreeMap<(u32, Vec<u32>), TauPoly> = BTreeMap::new();
+            for (z, &cz) in x {
+                for (w, cw) in multiply(z, c) {
+                    *out.entry(w).or_insert(0) ^= tau_mul(cz, cw);
+                }
+            }
+            out.retain(|_, v| *v != 0);
+            out
+        }
+
+        let basis: Vec<(u32, Vec<u32>)> = (0..=5).flat_map(enum_basis).collect();
+        for a in &basis {
+            for b in &basis {
+                let ab = multiply(a, b);
+                for c in &basis {
+                    let lhs = mul_elt_basis(&ab, c);
+                    let bc = multiply(b, c);
+                    // a · (b·c): multiply basis `a` on the left of each term of bc.
+                    let mut rhs = BTreeMap::new();
+                    for (z, &cz) in &bc {
+                        for (w, cw) in multiply(a, z) {
+                            let e = rhs.entry(w).or_insert(0);
+                            *e ^= tau_mul(cz, cw);
+                        }
+                    }
+                    rhs.retain(|_, v| *v != 0);
+                    assert_eq!(lhs, rhs, "associativity failed at {a:?},{b:?},{c:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_product_q0_p_xi1() {
         // The case my reading of Kong–Lin Theorem 5.1 got wrong. By duality:
         //   Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1)   (both with coefficient τ^0).
