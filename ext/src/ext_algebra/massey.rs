@@ -176,8 +176,9 @@ where
         })
     }
 
-    /// Compute a representative of a Massey product evaluated at `row` using the data returned by
-    /// [`massey_at`](Self::massey_at).
+    /// Compute a representative of a Massey product evaluated at `row` from the per-generator
+    /// bracket matrix `answers`. Used by [`massey_iter_a`](Self::massey_iter_a), which builds one
+    /// null-homotopy for fixed `b, c` and reads a whole family of first factors off `answers`.
     fn massey_representative(&self, answers: &Matrix, row: FpSlice) -> FpVector {
         let mut v = FpVector::new(self.prime(), answers.columns());
         answers.apply(v.as_slice_mut(), 1, row);
