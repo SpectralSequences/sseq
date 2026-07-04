@@ -7,11 +7,11 @@ use serde::Deserialize;
 use serde_json::{json, value::Value};
 
 use crate::{
-    algebra::{Algebra, GeneratedAlgebra},
+    algebra::{Algebra, Field, GeneratedAlgebra, Ring, Scalar},
     module::{Module, ModuleFailedRelationError, ZeroModule},
 };
 
-pub struct FiniteDimensionalModule<A: Algebra> {
+pub struct FiniteDimensionalModule<A: Algebra<BaseRing = Field>> {
     algebra: Arc<A>,
     pub name: String,
     graded_dimension: BiVec<usize>,
@@ -20,13 +20,13 @@ pub struct FiniteDimensionalModule<A: Algebra> {
     actions: BiVec<BiVec<Vec<Vec<FpVector>>>>,
 }
 
-impl<A: Algebra> std::fmt::Display for FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> std::fmt::Display for FiniteDimensionalModule<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> Clone for FiniteDimensionalModule<A> {
     fn clone(&self) -> Self {
         Self {
             algebra: Arc::clone(&self.algebra),
@@ -38,15 +38,15 @@ impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
     }
 }
 
-impl<A: Algebra> PartialEq for FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> PartialEq for FiniteDimensionalModule<A> {
     fn eq(&self, other: &Self) -> bool {
         self.test_equal(other).is_ok()
     }
 }
 
-impl<A: Algebra> Eq for FiniteDimensionalModule<A> {}
+impl<A: Algebra<BaseRing = Field>> Eq for FiniteDimensionalModule<A> {}
 
-impl<A: Algebra> FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> FiniteDimensionalModule<A> {
     pub fn test_equal(&self, other: &Self) -> Result<(), String> {
         if self.graded_dimension != other.graded_dimension {
             if self.graded_dimension.min_degree() != other.graded_dimension.min_degree() {
@@ -122,7 +122,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 }
 
-impl<A: Algebra> Module for FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> Module for FiniteDimensionalModule<A> {
     type Algebra = A;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
@@ -156,7 +156,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     fn act_on_basis(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -182,13 +182,13 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     }
 }
 
-impl<A: Algebra> ZeroModule for FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> ZeroModule for FiniteDimensionalModule<A> {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
         Self::new(algebra, "zero".to_string(), BiVec::new(min_degree))
     }
 }
 
-impl<A: Algebra> FiniteDimensionalModule<A> {
+impl<A: Algebra<BaseRing = Field>> FiniteDimensionalModule<A> {
     pub fn new(algebra: Arc<A>, name: String, graded_dimension: BiVec<usize>) -> Self {
         let min_degree = graded_dimension.min_degree();
         let max_degree = graded_dimension.len();
@@ -397,7 +397,10 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 }
 
-impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
+impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     /// This should really by try_from but orphan rules prohibit this
     fn from(module: &M) -> Self {
         let min_degree = module.min_degree();
@@ -432,7 +435,7 @@ impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
                             result.action_mut(op_degree, op_idx, input_degree, input_idx);
                         module.act_on_basis(
                             output_vec.as_slice_mut(),
-                            1,
+                            module.base_ring().one(),
                             op_degree,
                             op_idx,
                             input_degree,
@@ -446,7 +449,10 @@ impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
     }
 }
 
-impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
+impl<A: GeneratedAlgebra> FiniteDimensionalModule<A>
+where
+    A: Algebra<BaseRing = Field>,
+{
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         let (graded_dimension, gen_names, gen_to_idx) = crate::module_gens_from_json(&json["gens"]);
         let name = json["name"].as_str().unwrap_or("").to_string();
@@ -560,10 +566,17 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                 for &(coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     let intermediate_dim = self.dimension(input_deg + deg_2);
                     tmp_output.set_scratch_vector_size(intermediate_dim);
-                    self.act_on_basis(tmp_output.as_slice_mut(), 1, deg_2, idx_2, input_deg, idx);
+                    self.act_on_basis(
+                        tmp_output.as_slice_mut(),
+                        self.algebra.base_ring().one(),
+                        deg_2,
+                        idx_2,
+                        input_deg,
+                        idx,
+                    );
                     self.act(
                         output_vec.as_slice_mut(),
-                        coef,
+                        self.algebra.base_ring().embed_field(coef),
                         deg_1,
                         idx_1,
                         deg_2 + input_deg,
@@ -624,7 +637,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                     }
                     self.act_on_basis(
                         tmp_output.slice_mut(0, intermediate_dim),
-                        1,
+                        self.algebra.base_ring().one(),
                         deg_2,
                         idx_2,
                         input_deg,
@@ -632,7 +645,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                     );
                     self.act(
                         output_vec.as_slice_mut(),
-                        coef,
+                        self.algebra.base_ring().embed_field(coef),
                         deg_1,
                         idx_1,
                         deg_2 + input_deg,

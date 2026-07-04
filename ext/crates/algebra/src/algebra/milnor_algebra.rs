@@ -9,7 +9,7 @@ use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
+use crate::algebra::{Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
 fn q_part_default() -> u32 {
     !0
@@ -345,6 +345,12 @@ impl MilnorAlgebra {
 }
 
 impl Algebra for MilnorAlgebra {
+    type BaseRing = Field;
+
+    fn base_ring(&self) -> Field {
+        Field::new(self.prime())
+    }
+
     fn prefix(&self) -> &str {
         "milnor"
     }

@@ -6,7 +6,8 @@ use once::OnceBiVec;
 use serde_json::Value;
 
 use crate::{
-    algebra::Algebra,
+    algebra::{Algebra, BaseRingOf, Field, Scalar},
+    linear_algebra::GradedDvr,
     module::{
         FreeModule, Module, ZeroModule,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -18,7 +19,10 @@ struct FPMIndexTable {
     fp_idx_to_gen_idx: Vec<usize>,
 }
 
-pub struct FinitelyPresentedModule<A: Algebra> {
+pub struct FinitelyPresentedModule<A: Algebra>
+where
+    BaseRingOf<A>: GradedDvr,
+{
     name: String,
     min_degree: i32,
     generators: Arc<FreeModule<A>>,
@@ -27,27 +31,33 @@ pub struct FinitelyPresentedModule<A: Algebra> {
     index_table: OnceBiVec<FPMIndexTable>,
 }
 
-impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A> {
+impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A>
+where
+    BaseRingOf<A>: GradedDvr,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-impl<A: Algebra> PartialEq for FinitelyPresentedModule<A> {
+impl<A: Algebra> PartialEq for FinitelyPresentedModule<A>
+where
+    BaseRingOf<A>: GradedDvr,
+{
     fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }
 
-impl<A: Algebra> Eq for FinitelyPresentedModule<A> {}
+impl<A: Algebra> Eq for FinitelyPresentedModule<A> where BaseRingOf<A>: GradedDvr {}
 
-impl<A: Algebra> ZeroModule for FinitelyPresentedModule<A> {
+impl<A: Algebra<BaseRing = Field>> ZeroModule for FinitelyPresentedModule<A> {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
         Self::new(algebra, "zero".to_string(), min_degree)
     }
 }
 
-impl<A: Algebra> FinitelyPresentedModule<A> {
+impl<A: Algebra<BaseRing = Field>> FinitelyPresentedModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let generators = Arc::new(FreeModule::new(
             Arc::clone(&algebra),
@@ -99,7 +109,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     }
 }
 
-impl<A: Algebra> FinitelyPresentedModule<A> {
+impl<A: Algebra<BaseRing = Field>> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         use anyhow::anyhow;
         use nom::{Parser, combinator::opt};
@@ -170,7 +180,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     }
 }
 
-impl<A: Algebra> Module for FinitelyPresentedModule<A> {
+impl<A: Algebra<BaseRing = Field>> Module for FinitelyPresentedModule<A> {
     type Algebra = A;
 
     fn algebra(&self) -> Arc<A> {
@@ -217,7 +227,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
     fn act_on_basis(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,

@@ -10,6 +10,9 @@ pub use algebra_trait::{Algebra, GeneratedAlgebra, MuAlgebra, UnstableAlgebra};
 mod bialgebra_trait;
 pub use bialgebra_trait::Bialgebra;
 
+pub mod base_ring;
+pub use base_ring::{BaseRingOf, Ring, Scalar};
+
 pub mod combinatorics;
 
 pub mod field;

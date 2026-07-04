@@ -8,7 +8,7 @@ use fp::{
 use once::OnceBiVec;
 
 use crate::{
-    algebra::{Algebra, Bialgebra},
+    algebra::{Algebra, Bialgebra, Field, Ring, Scalar},
     module::{Module, ZeroModule, block_structure::BlockStructure},
 };
 
@@ -29,7 +29,7 @@ impl<M: Module, N: Module<Algebra = M::Algebra>> std::fmt::Display for TensorMod
 
 impl<A, M, N> TensorModule<M, N>
 where
-    A: Algebra + Bialgebra,
+    A: Algebra<BaseRing = Field> + Bialgebra,
     M: Module<Algebra = A>,
     N: Module<Algebra = A>,
 {
@@ -56,7 +56,7 @@ where
     fn act_helper(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<A>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -66,6 +66,7 @@ where
         let p = self.prime();
 
         let coproduct = algebra.coproduct(op_degree, op_index).into_iter();
+        let ring = algebra.base_ring();
         let output_degree = mod_degree + op_degree;
 
         let mut left_result = FpVector::new(p, 0);
@@ -120,7 +121,7 @@ where
                         }
                         self.right.act_on_basis(
                             right_result.as_slice_mut(),
-                            entry,
+                            ring.embed_field(entry),
                             op_deg_r,
                             op_idx_r,
                             right_deg,
@@ -147,7 +148,7 @@ where
 }
 impl<A, M, N> Module for TensorModule<M, N>
 where
-    A: Algebra + Bialgebra,
+    A: Algebra<BaseRing = Field> + Bialgebra,
     M: Module<Algebra = A>,
     N: Module<Algebra = A>,
 {
@@ -193,7 +194,7 @@ where
     fn act_on_basis(
         &self,
         result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -215,7 +216,7 @@ where
     fn act(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -304,7 +305,7 @@ where
 
 impl<A, M, N> ZeroModule for TensorModule<M, N>
 where
-    A: Algebra + Bialgebra,
+    A: Algebra<BaseRing = Field> + Bialgebra,
     M: Module<Algebra = A> + ZeroModule,
     N: Module<Algebra = A> + ZeroModule,
 {

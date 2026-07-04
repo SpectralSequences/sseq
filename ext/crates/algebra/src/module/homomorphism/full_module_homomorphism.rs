@@ -8,7 +8,7 @@ use fp::{
 use once::OnceBiVec;
 
 use crate::{
-    algebra::Algebra,
+    algebra::{Algebra, Field, Scalar},
     module::{
         Module,
         homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
@@ -42,8 +42,9 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> Clone for FullModuleHomomorphis
     }
 }
 
-impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
-    for FullModuleHomomorphism<S, T>
+impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism for FullModuleHomomorphism<S, T>
+where
+    S::Algebra: Algebra<BaseRing = Field>,
 {
     type Source = S;
     type Target = T;
@@ -63,7 +64,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     fn apply_to_basis_element(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<<Self::Source as Module>::Algebra>,
         input_degree: i32,
         input_idx: usize,
     ) {
@@ -98,7 +99,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
 
 impl<A, S, T> FullModuleHomomorphism<S, T>
 where
-    A: Algebra,
+    A: Algebra<BaseRing = Field>,
     S: Module<Algebra = A>,
     T: Module<Algebra = A>,
 {
@@ -204,13 +205,18 @@ where
 
 impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
     for FullModuleHomomorphism<S, T>
+where
+    S::Algebra: Algebra<BaseRing = Field>,
 {
     fn zero_homomorphism(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
         Self::new(source, target, degree_shift)
     }
 }
 
-impl<S: Module> IdentityHomomorphism<S> for FullModuleHomomorphism<S, S> {
+impl<S: Module> IdentityHomomorphism<S> for FullModuleHomomorphism<S, S>
+where
+    S::Algebra: Algebra<BaseRing = Field>,
+{
     fn identity_homomorphism(source: Arc<S>) -> Self {
         let p = source.prime();
         let min_degree = source.min_degree();

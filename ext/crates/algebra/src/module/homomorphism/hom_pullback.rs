@@ -6,14 +6,21 @@ use fp::{
 };
 use once::OnceBiVec;
 
-use crate::module::{
-    FreeModule, HomModule, Module,
-    block_structure::GeneratorBasisEltPair,
-    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+use crate::{
+    algebra::{Algebra, BaseRingOf, Field, Ring, Scalar},
+    linear_algebra::GradedDvr,
+    module::{
+        FreeModule, HomModule, Module,
+        block_structure::GeneratorBasisEltPair,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    },
 };
 
 /// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
-pub struct HomPullback<M: Module> {
+pub struct HomPullback<M: Module>
+where
+    BaseRingOf<M::Algebra>: GradedDvr,
+{
     source: Arc<HomModule<M>>,
     target: Arc<HomModule<M>>,
     map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
@@ -22,7 +29,10 @@ pub struct HomPullback<M: Module> {
     quasi_inverses: OnceBiVec<QuasiInverse>,
 }
 
-impl<M: Module> HomPullback<M> {
+impl<M: Module> HomPullback<M>
+where
+    BaseRingOf<M::Algebra>: GradedDvr,
+{
     /// Fallible version of [`new`](Self::new).
     ///
     /// Returns `Err` unless `source`, `target` and `map` are wired together
@@ -66,7 +76,10 @@ impl<M: Module> HomPullback<M> {
     }
 }
 
-impl<M: Module> ModuleHomomorphism for HomPullback<M> {
+impl<M: Module> ModuleHomomorphism for HomPullback<M>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     type Source = HomModule<M>;
     type Target = HomModule<M>;
 
@@ -89,7 +102,7 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
     fn apply_to_basis_element(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<<Self::Source as Module>::Algebra>,
         fn_degree: i32,
         fn_idx: usize,
     ) {
@@ -130,7 +143,7 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
             }
             target_module.act_by_element_on_basis(
                 result.slice_mut(target_range.start, target_range.end),
-                coeff,
+                target_module.base_ring().embed_field(coeff),
                 target_gen_deg - degree_shift - *generator_degree,
                 slice,
                 *generator_degree - fn_degree,

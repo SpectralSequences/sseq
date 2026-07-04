@@ -5,13 +5,20 @@
 
 #![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
+pub mod linear_algebra;
 pub mod module;
 pub mod steenrod_evaluator;
 pub(crate) mod steenrod_parser;
 
 mod algebra;
 
-pub use crate::algebra::*;
+pub use crate::{
+    algebra::*,
+    linear_algebra::{
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, GradedDvr, QuasiInverseOf,
+        SubmoduleOf, VectorOf,
+    },
+};
 
 pub(crate) fn module_gens_from_json(
     gens: &serde_json::Value,

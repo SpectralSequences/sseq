@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use fp::vector::FpSliceMut;
-
-use crate::module::{
-    Module,
-    homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+use crate::{
+    algebra::{BaseRingOf, Scalar},
+    linear_algebra::{BaseSliceMutOf, GradedDvr},
+    module::{
+        Module,
+        homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+    },
 };
 
 pub struct GenericZeroHomomorphism<S: Module, T: Module<Algebra = S::Algebra>> {
@@ -25,6 +27,8 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> GenericZeroHomomorphism<S, T> {
 
 impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     for GenericZeroHomomorphism<S, T>
+where
+    BaseRingOf<S::Algebra>: GradedDvr,
 {
     type Source = S;
     type Target = T;
@@ -41,11 +45,20 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
         self.degree_shift
     }
 
-    fn apply_to_basis_element(&self, _: FpSliceMut, _: u32, _: i32, _: usize) {}
+    fn apply_to_basis_element(
+        &self,
+        _: BaseSliceMutOf<'_, <Self::Source as Module>::Algebra>,
+        _: Scalar<<Self::Source as Module>::Algebra>,
+        _: i32,
+        _: usize,
+    ) {
+    }
 }
 
 impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
     for GenericZeroHomomorphism<S, T>
+where
+    BaseRingOf<S::Algebra>: GradedDvr,
 {
     fn zero_homomorphism(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
         Self::new(source, target, degree_shift)
