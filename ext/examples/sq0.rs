@@ -77,11 +77,11 @@ mod double {
 
     mod double_algebra {
         use algebra::{
-            AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra, adem_algebra::AdemBasisElement,
-            milnor_algebra::MilnorBasisElement,
+            AdemAlgebra, Algebra, Field, MilnorAlgebra, SteenrodAlgebra,
+            adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement,
         };
 
-        pub trait DoubleAlgebra: Algebra {
+        pub trait DoubleAlgebra: Algebra<BaseRing = Field> {
             /// `degree` is guaranteed to be even
             fn halve(&self, degree: i32, idx: usize) -> Option<usize>;
         }
@@ -144,7 +144,10 @@ mod double {
     pub mod double_module {
         use std::sync::Arc;
 
-        use algebra::module::{Module, homomorphism::ModuleHomomorphism};
+        use algebra::{
+            Scalar,
+            module::{Module, homomorphism::ModuleHomomorphism},
+        };
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
             vector::{FpSlice, FpSliceMut},
@@ -200,7 +203,7 @@ mod double {
             fn act_on_basis(
                 &self,
                 result: fp::vector::FpSliceMut,
-                coeff: u32,
+                coeff: Scalar<Self::Algebra>,
                 op_degree: i32,
                 op_index: usize,
                 mod_degree: i32,
@@ -254,7 +257,7 @@ mod double {
             fn act(
                 &self,
                 result: FpSliceMut,
-                coeff: u32,
+                coeff: Scalar<Self::Algebra>,
                 op_degree: i32,
                 op_index: usize,
                 input_degree: i32,
@@ -331,7 +334,7 @@ mod double {
             fn apply_to_basis_element(
                 &self,
                 result: FpSliceMut,
-                coeff: u32,
+                coeff: Scalar<<Self::Source as Module>::Algebra>,
                 input_degree: i32,
                 input_idx: usize,
             ) {
@@ -339,7 +342,13 @@ mod double {
                     .apply_to_basis_element(result, coeff, input_degree / 2, input_idx)
             }
 
-            fn apply(&self, result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
+            fn apply(
+                &self,
+                result: FpSliceMut,
+                coeff: Scalar<<Self::Source as Module>::Algebra>,
+                input_degree: i32,
+                input: FpSlice,
+            ) {
                 if input_degree % 2 == 0 {
                     self.inner.apply(result, coeff, input_degree / 2, input)
                 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use algebra::{
-    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
+    AdemAlgebra, Algebra, Field, GeneratedAlgebra, MilnorAlgebra, Ring, SteenrodAlgebra,
     module::{
         FDModule, FreeModule, Module, QuotientModule as QM,
         homomorphism::{
@@ -241,6 +241,7 @@ where
     let p = cc.prime();
     let target_cc = cc.target();
     let algebra = cc.algebra();
+    let ring = algebra.base_ring();
 
     let t_shift: i32 = map.chain_maps[0].degree_shift();
     let s_shift: i32 = map.s_shift;
@@ -304,7 +305,7 @@ where
 
                     for (i, mut row) in differentials.iter_mut().enumerate() {
                         let j = prev.basis_list[t][i];
-                        d.apply_to_basis_element(row.copy(), 1, t, j);
+                        d.apply_to_basis_element(row.copy(), ring.one(), t, j);
                         curr.reduce(t, row);
                     }
 
@@ -440,7 +441,7 @@ where
 
                     let mut indices = start..end;
                     target.quotient_vectors(t, |row| {
-                        d.apply_to_basis_element(row, 1, t, indices.next()?);
+                        d.apply_to_basis_element(row, ring.one(), t, indices.next()?);
                         Some(())
                     });
                     check!(t);
@@ -525,7 +526,7 @@ where
             });
 
             target.quotient_vectors(t, |row| {
-                d.apply(row, 1, t, source_iter2.next()?);
+                d.apply(row, ring.one(), t, source_iter2.next()?);
                 Some(())
             });
 
@@ -576,10 +577,13 @@ fn compute_kernel_image<M: Module, F: ModuleHomomorphism, G: ModuleHomomorphism>
     t: i32,
 ) -> (Matrix, Matrix)
 where
-    M::Algebra: GeneratedAlgebra,
+    M::Algebra: GeneratedAlgebra + Algebra<BaseRing = Field>,
+    <F::Source as Module>::Algebra: Algebra<BaseRing = Field>,
+    <G::Source as Module>::Algebra: Algebra<BaseRing = Field>,
 {
     let algebra = source.algebra();
     let p = algebra.prime();
+    let ring = algebra.base_ring();
 
     let mut generators: Vec<(i32, usize)> = Vec::new();
     let mut target_dims = Vec::new();
@@ -613,6 +617,9 @@ where
         ],
     );
 
+    let aug_ring = augmentation_map.map(|m| m.target().base_ring());
+    let preserve_ring = preserve_map.map(|m| m.target().base_ring());
+
     for (row_idx, &i) in source.basis_list[t].iter().enumerate() {
         let mut offset = 0;
         let mut row = matrix.row_segment_mut(row_idx, 0, 0);
@@ -622,7 +629,7 @@ where
             let len = cols.next().unwrap();
             source.act_on_original_basis(
                 row.slice_mut(offset, offset + len),
-                1,
+                ring.one(),
                 *op_deg,
                 *op_idx,
                 t,
@@ -633,13 +640,23 @@ where
 
         if let Some(m) = &augmentation_map {
             let len = cols.next().unwrap();
-            m.apply_to_basis_element(row.slice_mut(offset, offset + len), 1, t, i);
+            m.apply_to_basis_element(
+                row.slice_mut(offset, offset + len),
+                aug_ring.unwrap().one(),
+                t,
+                i,
+            );
             offset += len;
         }
 
         if let Some(m) = &preserve_map {
             let len = cols.next().unwrap();
-            m.apply_to_basis_element(row.slice_mut(offset, offset + len), 1, t, i);
+            m.apply_to_basis_element(
+                row.slice_mut(offset, offset + len),
+                preserve_ring.unwrap().one(),
+                t,
+                i,
+            );
             offset += len;
         }
 

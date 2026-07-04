@@ -3,7 +3,8 @@
 use std::sync::{Arc, Mutex, mpsc};
 
 use algebra::{
-    Algebra, MuAlgebra,
+    Algebra, Field, GradedDvr, MuAlgebra, Ring,
+    linear_algebra::NextStageInput,
     module::{
         Module, MuFreeModule,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
@@ -353,6 +354,7 @@ where
         }
 
         let p = self.prime();
+        let ring = self.base_ring();
 
         //                           current_chain_map
         //                X_{s, t} --------------------> C_{s, t}
@@ -478,26 +480,25 @@ where
             return;
         }
 
-        let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
-            p,
-            source_dimension,
-            &[target_cc_dimension, target_res_dimension, source_dimension],
-            source_dimension + MAX_NEW_GENS,
-            MAX_NEW_GENS,
-        );
-        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
+        let field = Field::new(p);
 
-        {
+        // Realize the step's chain map `f` and differential `d` as a vector-space map over the base
+        // ring (block 2).
+        let matrix = {
             let _guard = ParallelGuard::new();
-            current_chain_map.get_matrix(matrix.segment(0, 0), b.t());
-            current_differential.get_matrix(matrix.segment(1, 1), b.t());
-        }
-        matrix.segment(2, 2).add_identity();
+            field.differential_matrix(
+                source_dimension,
+                target_cc_dimension,
+                target_res_dimension,
+                MAX_NEW_GENS,
+                |i, row| current_chain_map.apply_to_basis_element(row, ring.one(), b.t(), i),
+                |i, row| current_differential.apply_to_basis_element(row, ring.one(), b.t(), i),
+            )
+        };
 
-        matrix.row_reduce();
-
+        // Compute the kernel (block 3), caching it for the next homological degree.
         if !self.has_computed_bidegree(b + Bidegree::s_t(1, 0)) {
-            let kernel = matrix.compute_kernel();
+            let kernel = field.step_kernel(&matrix);
             if self.should_save
                 && let Some(dir) = self.save_dir.write()
             {
@@ -514,142 +515,43 @@ where
             self.kernels.insert(b, kernel);
         }
 
-        // Now add generators to surject onto C_{s, t}.
-        // (For now we are just adding the eventual images of the new generators into matrix, we will update
-        // X_{s,t} and f later).
-        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
-        // work out what dX should to to each of them.
-        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dimension, MAX_NEW_GENS);
-
-        let mut res_new_gens = Vec::new();
-
-        if b.s() > 0 {
-            if !cc_new_gens.is_empty() {
-                // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
-                // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
-                // So we set dX(x) = f^{-1}(dC(f(x)))
-                let prev_chain_map = self.chain_map(b.s() - 1);
-                let quasi_inverse = prev_chain_map.quasi_inverse(b.t()).unwrap();
-
-                let dfx_dim = complex_cur_differential.target().dimension(b.t());
-                let mut dfx = FpVector::new(self.prime(), dfx_dim);
-
-                for (i, &column) in cc_new_gens.iter().enumerate() {
-                    complex_cur_differential.apply_to_basis_element(
-                        dfx.as_slice_mut(),
-                        1,
-                        b.t(),
-                        column,
-                    );
-                    quasi_inverse.apply(
-                        matrix.row_segment_mut(source_dimension + i, 1, 1),
-                        1,
-                        dfx.as_slice(),
-                    );
-                    dfx.set_to_zero();
-                }
-            }
-
-            // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            //
-            // At this point the matrix is not quite row reduced and the pivots are not correct.
-            // However, extend_image only needs the sign of the pivots within the column range,
-            // which are still correct. The point is that the rows we added all have pivot columns
-            // in the first segment.
-            res_new_gens = matrix.inner.extend_image(
-                matrix.start[1],
-                matrix.end[1],
-                &self.get_kernel(b - Bidegree::s_t(1, 0)),
+        // Construct the next stage (block 4): new generators surjecting onto C_{s,t} and hitting the
+        // old kernel, their differential, and the quasi-inverses of `f` and `d`.
+        let complex_differential_target_dim = complex_cur_differential.target().dimension(b.t());
+        let next = if b.s() > 0 {
+            let prev_chain_map = self.chain_map(b.s() - 1);
+            let previous_kernel = self.get_kernel(b - Bidegree::s_t(1, 0));
+            field.construct_next_stage(
+                matrix,
+                NextStageInput {
+                    previous_chain_map_quasi_inverse: prev_chain_map.quasi_inverse(b.t()),
+                    previous_kernel: Some(&previous_kernel),
+                    complex_differential_target_dim,
+                },
+                |column, dfx| {
+                    complex_cur_differential.apply_to_basis_element(dfx, ring.one(), b.t(), column);
+                },
                 MAX_NEW_GENS,
-            );
-        }
-        let num_new_gens = cc_new_gens.len() + res_new_gens.len();
+            )
+        } else {
+            field.construct_next_stage(
+                matrix,
+                NextStageInput {
+                    previous_chain_map_quasi_inverse: None,
+                    previous_kernel: None,
+                    complex_differential_target_dim,
+                },
+                |_, _| {},
+                MAX_NEW_GENS,
+            )
+        };
+
+        let num_new_gens = next.num_new_gens;
         self.add_generators(b, num_new_gens);
-
-        let new_rows = source_dimension + num_new_gens;
-
-        current_chain_map.add_generators_from_matrix_rows(
-            b.t(),
-            matrix.segment(0, 0).row_slice(source_dimension, new_rows),
-        );
-        current_differential.add_generators_from_matrix_rows(
-            b.t(),
-            matrix.segment(1, 1).row_slice(source_dimension, new_rows),
-        );
-
-        if num_new_gens > 0 {
-            // Fix up the augmentation
-            let columns = matrix.columns();
-            matrix.extend_column_dimension(columns + num_new_gens);
-
-            for i in source_dimension..new_rows {
-                matrix.inner.row_mut(i).set_entry(matrix.start[2] + i, 1);
-            }
-
-            // We are now supposed to row reduce the matrix. However, running the full row
-            // reduction algorithm is wasteful, since we have only added a few rows and the rest is
-            // intact.
-            //
-            // The new resolution rows are all zero in the existing pivot columns. Indeed,
-            // the resolution generators are mapped to generators of the kernel, which are zero in
-            // pivot columns of the kernel matrix. But the old image is a subspace of the kernel,
-            // so its pivot columns are a subset of the pivot columns of the kernel matrix.
-            //
-            // So we clear the new cc rows using the old rows.
-            for k in source_dimension..source_dimension + cc_new_gens.len() {
-                for column in matrix.start[1]..matrix.end[1] {
-                    let row = matrix.pivots()[column];
-                    if row < 0 {
-                        continue;
-                    }
-                    let row = row as usize;
-                    unsafe {
-                        matrix.row_op(k, row, column, p);
-                    }
-                }
-            }
-
-            // Now use the new resolution rows to reduce the old rows and the cc rows.
-            let first_res_row = source_dimension + cc_new_gens.len();
-            for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
-                for target_row in 0..first_res_row {
-                    unsafe {
-                        matrix.row_op(target_row, source_row + first_res_row, pivot_col, p);
-                    }
-                }
-            }
-
-            // We are now almost in RREF, except we need to permute the rows.
-            let mut new_gens = cc_new_gens.into_iter().chain(res_new_gens).enumerate();
-            let (mut next_new_row, mut next_new_col) = new_gens.next().unwrap();
-            let mut next_old_row = 0;
-
-            for old_col in 0..matrix.columns() {
-                if old_col == next_new_col {
-                    matrix.rotate_down(next_old_row..source_dimension + next_new_row + 1, 1);
-                    matrix.pivots_mut()[old_col] = next_old_row as isize;
-                    match new_gens.next() {
-                        Some((x, y)) => {
-                            next_new_row = x;
-                            next_new_col = y;
-                        }
-                        None => {
-                            for entry in &mut matrix.pivots_mut()[old_col + 1..] {
-                                if *entry >= 0 {
-                                    *entry += next_new_row as isize + 1;
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    next_old_row += 1;
-                } else if matrix.pivots()[old_col] >= 0 {
-                    matrix.pivots_mut()[old_col] += next_new_row as isize;
-                    next_old_row += 1;
-                }
-            }
-        }
-        let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
+        current_chain_map.add_generators_from_rows(b.t(), next.chain_map_rows);
+        current_differential.add_generators_from_rows(b.t(), next.differential_rows);
+        let cm_qi = next.chain_map_quasi_inverse;
+        let res_qi = next.differential_quasi_inverse;
 
         tracing::Span::current().record("num_new_gens", num_new_gens);
         tracing::Span::current().record(

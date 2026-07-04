@@ -189,9 +189,12 @@ fn main() -> anyhow::Result<()> {
 mod sum_module {
     use std::sync::Arc;
 
-    use algebra::module::{
-        Module, ZeroModule,
-        block_structure::{BlockStructure, GeneratorBasisEltPair},
+    use algebra::{
+        Algebra, Field, Scalar,
+        module::{
+            Module, ZeroModule,
+            block_structure::{BlockStructure, GeneratorBasisEltPair},
+        },
     };
     use bivec::BiVec;
     use fp::vector::FpSliceMut;
@@ -242,7 +245,10 @@ mod sum_module {
         }
     }
 
-    impl<M: Module> Module for SumModule<M> {
+    impl<M: Module> Module for SumModule<M>
+    where
+        M::Algebra: Algebra<BaseRing = Field>,
+    {
         type Algebra = M::Algebra;
 
         fn algebra(&self) -> Arc<Self::Algebra> {
@@ -279,7 +285,7 @@ mod sum_module {
         fn act_on_basis(
             &self,
             mut result: FpSliceMut,
-            coeff: u32,
+            coeff: Scalar<Self::Algebra>,
             op_degree: i32,
             op_index: usize,
             mod_degree: i32,
@@ -323,7 +329,10 @@ mod sum_module {
         }
     }
 
-    impl<M: Module> ZeroModule for SumModule<M> {
+    impl<M: Module> ZeroModule for SumModule<M>
+    where
+        M::Algebra: Algebra<BaseRing = Field>,
+    {
         fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
             Self::new(algebra, vec![], min_degree)
         }
@@ -378,7 +387,7 @@ mod tensor_product_chain_complex {
     use std::sync::Arc;
 
     use algebra::{
-        Algebra, Bialgebra,
+        Algebra, Bialgebra, Field, Ring, Scalar,
         module::{Module, TensorModule, ZeroModule, homomorphism::ModuleHomomorphism},
     };
     use ext::chain_complex::ChainComplex;
@@ -395,7 +404,7 @@ mod tensor_product_chain_complex {
 
     pub struct TensorChainComplex<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -408,7 +417,7 @@ mod tensor_product_chain_complex {
 
     impl<A, CC1, CC2> TensorChainComplex<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -444,7 +453,7 @@ mod tensor_product_chain_complex {
 
     impl<A, CC> TensorChainComplex<A, CC, CC>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC: ChainComplex<Algebra = A>,
     {
         /// This function sends a (x) b to b (x) a. This makes sense only if left_cc and right_cc are
@@ -491,7 +500,7 @@ mod tensor_product_chain_complex {
 
     impl<A, CC1, CC2> ChainComplex for TensorChainComplex<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -584,7 +593,7 @@ mod tensor_product_chain_complex {
 
     pub struct TensorChainMap<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -598,7 +607,7 @@ mod tensor_product_chain_complex {
 
     impl<A, CC1, CC2> ModuleHomomorphism for TensorChainMap<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -621,7 +630,7 @@ mod tensor_product_chain_complex {
         fn apply_to_basis_element(
             &self,
             mut result: FpSliceMut,
-            coeff: u32,
+            coeff: Scalar<<Self::Source as Module>::Algebra>,
             degree: i32,
             input_idx: usize,
         ) {
@@ -706,7 +715,7 @@ mod tensor_product_chain_complex {
 
     impl<A, CC1, CC2> TensorChainMap<A, CC1, CC2>
     where
-        A: Algebra + Bialgebra,
+        A: Algebra<BaseRing = Field> + Bialgebra,
         CC1: ChainComplex<Algebra = A>,
         CC2: ChainComplex<Algebra = A>,
     {
@@ -716,6 +725,7 @@ mod tensor_product_chain_complex {
             degree: i32,
         ) -> Vec<Option<Vec<(usize, usize, FpVector)>>> {
             let p = self.prime();
+            let ring = self.left_cc.base_ring();
             // start, end, preimage
             let mut quasi_inverse_list: Vec<Option<Vec<(usize, usize, FpVector)>>> =
                 vec![None; self.target.dimension(degree)];
@@ -759,7 +769,7 @@ mod tensor_product_chain_complex {
                     for ri in 0..source_right_dim {
                         self.right_cc
                             .differential(self.source_s - s)
-                            .apply_to_basis_element(result.as_slice_mut(), 1, right_t, ri);
+                            .apply_to_basis_element(result.as_slice_mut(), ring.one(), right_t, ri);
                         for li in 0..source_left_dim {
                             let mut row = matrix.row_mut(row_count + li * source_right_dim + ri);
                             row.slice_mut(
@@ -794,7 +804,7 @@ mod tensor_product_chain_complex {
                     for li in 0..source_left_dim {
                         self.left_cc.differential(s).apply_to_basis_element(
                             result.as_slice_mut(),
-                            1,
+                            ring.one(),
                             left_t,
                             li,
                         );

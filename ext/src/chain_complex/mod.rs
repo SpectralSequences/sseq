@@ -4,7 +4,7 @@ mod finite_chain_complex;
 use std::sync::Arc;
 
 use algebra::{
-    Algebra, MuAlgebra,
+    Algebra, BaseRingOf, Field, MuAlgebra,
     module::{
         Module, MuFreeModule,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
@@ -192,7 +192,7 @@ where
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
 pub trait ChainComplex: Send + Sync {
-    type Algebra: Algebra;
+    type Algebra: Algebra<BaseRing = Field>;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;
 
@@ -201,6 +201,12 @@ pub trait ChainComplex: Send + Sync {
     }
 
     fn algebra(&self) -> Arc<Self::Algebra>;
+
+    /// The base ring the chain complex is linear over (a `Copy` handle, returned by value).
+    fn base_ring(&self) -> BaseRingOf<Self::Algebra> {
+        self.algebra().base_ring()
+    }
+
     fn min_degree(&self) -> i32;
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree: i32) -> Arc<Self::Module>;
