@@ -11,7 +11,9 @@ use crate::algebra::{Algebra, Bialgebra};
 ///
 /// As an [`Algebra`], a field is one-dimensional, with basis element `1`.
 /// It is also trivially a coalgebra via the trivial diagonal comultiplication,
-/// and thus a [`Bialgebra`].
+/// and thus a [`Bialgebra`]. It is also the base ring (a [`Ring`](crate::algebra::Ring))
+/// of every classical $\mathbb{F}_p$ algebra.
+#[derive(Clone, Copy)]
 pub struct Field {
     prime: ValidPrime,
 }
@@ -30,6 +32,12 @@ impl std::fmt::Display for Field {
 }
 
 impl Algebra for Field {
+    type BaseRing = Self;
+
+    fn base_ring(&self) -> Self {
+        *self
+    }
+
     fn prime(&self) -> ValidPrime {
         self.prime
     }

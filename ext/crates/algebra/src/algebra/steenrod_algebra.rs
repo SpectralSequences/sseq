@@ -9,7 +9,11 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra},
+    algebra::{
+        AdemAlgebra, Algebra, Bialgebra, Field, GeneratedAlgebra, MilnorAlgebra, Scalar,
+        UnstableAlgebra,
+    },
+    linear_algebra::{BaseSliceMutOf, BaseSliceOf},
     pair_algebra::PairAlgebra,
 };
 
@@ -53,7 +57,11 @@ impl std::str::FromStr for AlgebraType {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
+// `Algebra` is *not* in this list: it declares an associated `BaseRing` type, which `enum_dispatch`
+// cannot handle, so its impl for this enum is hand-rolled below via `dispatch_steenrod!`. The other
+// traits declare no associated type and stay dispatched even though their methods consume base-ring
+// coefficients.
+#[enum_dispatch::enum_dispatch(Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
     MilnorAlgebra(MilnorAlgebra),
@@ -140,6 +148,31 @@ macro_rules! dispatch_steenrod {
         }
         dispatch_steenrod!{$($tail)*}
     };
+}
+
+// `Algebra` cannot be `enum_dispatch`ed because it declares an associated `BaseRing` type, so we
+// forward every method to the active variant by hand. This reproduces exactly what `enum_dispatch`
+// generated, keeping the classical behaviour bit-identical.
+impl Algebra for SteenrodAlgebra {
+    type BaseRing = Field;
+
+    dispatch_steenrod! {
+        fn base_ring(&self) -> Field;
+        fn prefix(&self) -> &str;
+        fn magic(&self) -> u32;
+        fn prime(&self) -> ValidPrime;
+        fn compute_basis(&self, degree: i32);
+        fn dimension(&self, degree: i32) -> usize;
+        fn multiply_basis_elements(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
+        fn multiply_basis_element_by_element(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: FpSlice);
+        fn multiply_element_by_basis_element(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s_idx: usize);
+        fn multiply_element_by_element(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
+        fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
+        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+        fn try_basis_element_to_string(&self, degree: i32, idx: usize) -> Option<String>;
+        fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
+        fn element_to_string(&self, degree: i32, element: FpSlice) -> String;
+    }
 }
 
 impl PairAlgebra for AdemAlgebra {

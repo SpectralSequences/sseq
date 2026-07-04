@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use auto_impl::auto_impl;
-use fp::{
-    prime::ValidPrime,
-    vector::{FpSlice, FpSliceMut},
-};
+use fp::{prime::ValidPrime, vector::FpSlice};
 use itertools::Itertools;
 
-use crate::algebra::Algebra;
+use crate::{
+    algebra::{Algebra, BaseRingOf, Ring, Scalar},
+    linear_algebra::{BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf},
+};
 
 /// A bounded below module over an algebra.
 ///
@@ -32,6 +32,16 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// The algebra the module is over.
     fn algebra(&self) -> Arc<Self::Algebra>;
 
+    /// The base ring the module is linear over.
+    ///
+    /// This is a `Copy` handle, so it is returned by value and coefficient code can hold it without
+    /// touching the algebra's `Arc`. The default forwards through [`Module::algebra`]; modules that
+    /// store their algebra as an `Arc` field should override it to borrow that field instead of
+    /// cloning the `Arc`.
+    fn base_ring(&self) -> BaseRingOf<Self::Algebra> {
+        self.algebra().base_ring()
+    }
+
     /// The minimum degree of the module, which is required to be bounded below
     fn min_degree(&self) -> i32;
 
@@ -52,8 +62,8 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -65,8 +75,8 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// panicking. On success it delegates to [`Module::act_on_basis`] and returns `Ok(())`.
     fn try_act_on_basis(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -108,12 +118,12 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// panicking. On success it delegates to [`Module::act`] and returns `Ok(())`.
     fn try_act(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) -> Result<(), ActError> {
         if op_degree < 0 {
             return Err(ActError::IndexOutOfRange(format!(
@@ -188,19 +198,19 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// what generators will be added in degree `t` yet.
     fn act(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) {
         assert!(input.len() <= self.dimension(input_degree));
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 op_degree,
                 op_index,
                 input_degree,
@@ -211,20 +221,20 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
-        op: FpSlice,
+        op: BaseSliceOf<'_, Self::Algebra>,
         input_degree: i32,
-        input: FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) {
         assert_eq!(input.len(), self.dimension(input_degree));
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in op.iter_nonzero() {
             self.act(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 op_degree,
                 i,
                 input_degree,
@@ -235,19 +245,19 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element_on_basis(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
-        op: FpSlice,
+        op: BaseSliceOf<'_, Self::Algebra>,
         input_degree: i32,
         input_index: usize,
     ) {
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in op.iter_nonzero() {
             self.act_on_basis(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 op_degree,
                 i,
                 input_degree,

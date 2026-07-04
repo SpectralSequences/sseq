@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use fp::vector::{FpSliceMut, FpVector};
 
-use crate::module::{Module, QuotientModule, homomorphism::ModuleHomomorphism};
+use crate::{
+    algebra::{Algebra, Field, Scalar},
+    module::{Module, QuotientModule, homomorphism::ModuleHomomorphism},
+};
 
 pub struct QuotientHomomorphism<F: ModuleHomomorphism> {
     f: Arc<F>,
@@ -20,7 +23,10 @@ impl<F: ModuleHomomorphism> QuotientHomomorphism<F> {
     }
 }
 
-impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
+impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F>
+where
+    <F::Source as Module>::Algebra: Algebra<BaseRing = Field>,
+{
     type Source = QuotientModule<F::Source>;
     type Target = QuotientModule<F::Target>;
 
@@ -39,7 +45,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
     fn apply_to_basis_element(
         &self,
         result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<<Self::Source as Module>::Algebra>,
         input_degree: i32,
         input_idx: usize,
     ) {
@@ -69,7 +75,10 @@ impl<F: ModuleHomomorphism> QuotientHomomorphismSource<F> {
     }
 }
 
-impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F> {
+impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F>
+where
+    <F::Source as Module>::Algebra: Algebra<BaseRing = Field>,
+{
     type Source = QuotientModule<F::Source>;
     type Target = F::Target;
 
@@ -88,7 +97,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F>
     fn apply_to_basis_element(
         &self,
         result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<<Self::Source as Module>::Algebra>,
         input_degree: i32,
         input_idx: usize,
     ) {

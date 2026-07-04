@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use crate::module::{Module, ZeroModule};
+use crate::{
+    algebra::Scalar,
+    linear_algebra::{BaseSliceMutOf, BaseSliceOf},
+    module::{Module, ZeroModule},
+};
 
 pub struct SuspensionModule<M: Module> {
     inner: Arc<M>,
@@ -53,12 +57,12 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act(
         &self,
-        result: fp::vector::FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: fp::vector::FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) {
         self.inner.act(
             result,
@@ -72,12 +76,12 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_by_element(
         &self,
-        result: fp::vector::FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
-        op: fp::vector::FpSlice,
+        op: BaseSliceOf<'_, Self::Algebra>,
         input_degree: i32,
-        input: fp::vector::FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) {
         self.inner.act_by_element(
             result,
@@ -91,10 +95,10 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_by_element_on_basis(
         &self,
-        result: fp::vector::FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
-        op: fp::vector::FpSlice,
+        op: BaseSliceOf<'_, Self::Algebra>,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -130,8 +134,8 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_on_basis(
         &self,
-        result: fp::vector::FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,

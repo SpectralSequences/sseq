@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
 use crate::algebra::{
-    Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+    Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra,
     combinatorics::{self, MAX_XI_TAU},
 };
 
@@ -160,6 +160,12 @@ impl fmt::Display for AdemAlgebra {
 }
 
 impl Algebra for AdemAlgebra {
+    type BaseRing = Field;
+
+    fn base_ring(&self) -> Field {
+        Field::new(self.prime())
+    }
+
     fn prefix(&self) -> &str {
         "adem"
     }

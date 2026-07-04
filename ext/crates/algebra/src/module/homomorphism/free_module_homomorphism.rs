@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use fp::{
-    matrix::{MatrixSliceMut, QuasiInverse, Subspace},
-    vector::{FpSlice, FpSliceMut, FpVector},
+    matrix::MatrixSliceMut,
+    vector::{FpSlice, FpVector},
 };
 use once::OnceBiVec;
 
 use crate::{
-    algebra::MuAlgebra,
+    algebra::{Algebra, BaseRingOf, Field, MuAlgebra, Ring, Scalar},
+    linear_algebra::{
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, GradedDvr, QuasiInverseOf, SubmoduleOf, VectorOf,
+    },
     module::{
         Module, MuFreeModule,
         free_module::OperationGeneratorPair,
@@ -21,13 +24,14 @@ pub type UnstableFreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<true, M>;
 pub struct MuFreeModuleHomomorphism<const U: bool, M: Module>
 where
     M::Algebra: MuAlgebra<U>,
+    BaseRingOf<M::Algebra>: GradedDvr,
 {
     source: Arc<MuFreeModule<U, M::Algebra>>,
     target: Arc<M>,
-    outputs: OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
-    pub images: OnceBiVec<Option<Subspace>>,
-    pub kernels: OnceBiVec<Option<Subspace>>,
-    pub quasi_inverses: OnceBiVec<Option<QuasiInverse>>,
+    outputs: OnceBiVec<Vec<VectorOf<M::Algebra>>>, // degree --> input_idx --> output
+    pub images: OnceBiVec<Option<SubmoduleOf<M::Algebra>>>,
+    pub kernels: OnceBiVec<Option<SubmoduleOf<M::Algebra>>>,
+    pub quasi_inverses: OnceBiVec<Option<QuasiInverseOf<M::Algebra>>>,
     min_degree: i32,
     /// degree shift, such that ouptut_degree = input_degree - degree_shift
     degree_shift: i32,
@@ -36,6 +40,7 @@ where
 impl<const U: bool, M: Module> ModuleHomomorphism for MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
+    BaseRingOf<M::Algebra>: GradedDvr,
 {
     type Source = MuFreeModule<U, M::Algebra>;
     type Target = M;
@@ -54,8 +59,8 @@ where
 
     fn apply_to_basis_element(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, <Self::Source as Module>::Algebra>,
+        coeff: Scalar<<Self::Source as Module>::Algebra>,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -74,6 +79,7 @@ where
         } = *self.source.index_to_op_gen(input_degree, input_index);
 
         if generator_degree >= self.min_degree() {
+            let ring = self.target.base_ring();
             let output_on_generator = self.output(generator_degree, generator_index);
             self.target.act(
                 result,
@@ -81,20 +87,20 @@ where
                 operation_degree,
                 operation_index,
                 generator_degree - self.degree_shift,
-                output_on_generator.as_slice(),
+                ring.as_slice(output_on_generator),
             );
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverseOf<M::Algebra>> {
         self.quasi_inverses.get(degree).and_then(Option::as_ref)
     }
 
-    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+    fn kernel(&self, degree: i32) -> Option<&SubmoduleOf<M::Algebra>> {
         self.kernels.get(degree).and_then(Option::as_ref)
     }
 
-    fn image(&self, degree: i32) -> Option<&Subspace> {
+    fn image(&self, degree: i32) -> Option<&SubmoduleOf<M::Algebra>> {
         self.images.get(degree).and_then(Option::as_ref)
     }
 
@@ -111,6 +117,7 @@ where
 impl<const U: bool, M: Module> MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
+    BaseRingOf<M::Algebra>: GradedDvr,
 {
     pub fn new(
         source: Arc<MuFreeModule<U, M::Algebra>>,
@@ -146,7 +153,7 @@ where
         self.outputs.len()
     }
 
-    pub fn output(&self, generator_degree: i32, generator_index: usize) -> &FpVector {
+    pub fn output(&self, generator_degree: i32, generator_index: usize) -> &VectorOf<M::Algebra> {
         assert!(
             generator_degree >= self.min_degree(),
             "generator_degree {} less than min degree {}",
@@ -162,6 +169,61 @@ where
         &self.outputs[generator_degree][generator_index]
     }
 
+    pub fn extend_by_zero(&self, degree: i32) {
+        let ring = self.target.base_ring();
+        self.outputs.extend(degree, |i| {
+            let num_gens = self.source.number_of_gens_in_degree(i);
+            let dimension = self.target.dimension(i - self.degree_shift);
+            let mut new_outputs: Vec<VectorOf<M::Algebra>> = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                new_outputs.push(ring.new_vector(dimension));
+            }
+            new_outputs
+        });
+    }
+
+    pub fn add_generators_from_rows(&self, degree: i32, rows: Vec<VectorOf<M::Algebra>>) {
+        self.outputs.push_checked(rows, degree);
+    }
+
+    /// Add the image of a bidegree out of order. See
+    /// [`OnceVec::push_ooo`](once::OnceVec::push_ooo) for details on return value.
+    pub fn add_generators_from_rows_ooo(
+        &self,
+        degree: i32,
+        rows: Vec<VectorOf<M::Algebra>>,
+    ) -> std::ops::Range<i32> {
+        self.outputs.push_ooo(rows, degree)
+    }
+
+    /// List of outputs that have been added out of order
+    pub fn ooo_outputs(&self) -> Vec<i32> {
+        self.outputs.ooo_elements()
+    }
+
+    pub fn set_image(&self, degree: i32, image: Option<SubmoduleOf<M::Algebra>>) {
+        self.images.push_checked(image, degree);
+    }
+
+    pub fn set_kernel(&self, degree: i32, kernel: Option<SubmoduleOf<M::Algebra>>) {
+        self.kernels.push_checked(kernel, degree);
+    }
+
+    pub fn set_quasi_inverse(
+        &self,
+        degree: i32,
+        quasi_inverse: Option<QuasiInverseOf<M::Algebra>>,
+    ) {
+        self.quasi_inverses.push_checked(quasi_inverse, degree);
+    }
+}
+
+/// Helpers that build outputs from `fp`'s concrete matrices/vectors, available only when the base
+/// ring is a field.
+impl<const U: bool, M: Module> MuFreeModuleHomomorphism<U, M>
+where
+    M::Algebra: MuAlgebra<U> + Algebra<BaseRing = Field>,
+{
     pub fn differential_density(&self, degree: i32) -> f32 {
         let outputs = &self.outputs[degree];
         if outputs.is_empty() {
@@ -169,19 +231,6 @@ where
         } else {
             outputs.iter().map(FpVector::density).sum::<f32>() / outputs.len() as f32
         }
-    }
-
-    pub fn extend_by_zero(&self, degree: i32) {
-        let p = self.prime();
-        self.outputs.extend(degree, |i| {
-            let num_gens = self.source.number_of_gens_in_degree(i);
-            let dimension = self.target.dimension(i - self.degree_shift);
-            let mut new_outputs: Vec<FpVector> = Vec::with_capacity(num_gens);
-            for _ in 0..num_gens {
-                new_outputs.push(FpVector::new(p, dimension));
-            }
-            new_outputs
-        });
     }
 
     pub fn add_generators_from_big_vector(&self, degree: i32, outputs_vectors: FpSlice) {
@@ -224,40 +273,9 @@ where
         self.outputs.push_checked(new_outputs, degree);
     }
 
-    pub fn add_generators_from_rows(&self, degree: i32, rows: Vec<FpVector>) {
-        self.outputs.push_checked(rows, degree);
-    }
-
-    /// Add the image of a bidegree out of order. See
-    /// [`OnceVec::push_ooo`](once::OnceVec::push_ooo) for details on return value.
-    pub fn add_generators_from_rows_ooo(
-        &self,
-        degree: i32,
-        rows: Vec<FpVector>,
-    ) -> std::ops::Range<i32> {
-        self.outputs.push_ooo(rows, degree)
-    }
-
-    /// List of outputs that have been added out of order
-    pub fn ooo_outputs(&self) -> Vec<i32> {
-        self.outputs.ooo_elements()
-    }
-
     pub fn apply_to_generator(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         let output_on_gen = self.output(degree, idx);
         result.add(output_on_gen, coeff);
-    }
-
-    pub fn set_image(&self, degree: i32, image: Option<Subspace>) {
-        self.images.push_checked(image, degree);
-    }
-
-    pub fn set_kernel(&self, degree: i32, kernel: Option<Subspace>) {
-        self.kernels.push_checked(kernel, degree);
-    }
-
-    pub fn set_quasi_inverse(&self, degree: i32, quasi_inverse: Option<QuasiInverse>) {
-        self.quasi_inverses.push_checked(quasi_inverse, degree);
     }
 }
 
@@ -265,6 +283,7 @@ impl<const U: bool, M: Module> ZeroHomomorphism<MuFreeModule<U, M::Algebra>, M>
     for MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
+    BaseRingOf<M::Algebra>: GradedDvr,
 {
     fn zero_homomorphism(
         source: Arc<MuFreeModule<U, M::Algebra>>,
@@ -275,7 +294,9 @@ where
     }
 }
 
-impl<const U: bool, A: MuAlgebra<U>> MuFreeModuleHomomorphism<U, MuFreeModule<U, A>> {
+impl<const U: bool, A: MuAlgebra<U> + Algebra<BaseRing = Field>>
+    MuFreeModuleHomomorphism<U, MuFreeModule<U, A>>
+{
     /// Given f: M -> N, compute the dual f*: Hom(N, k) -> Hom(M, k) in source (N) degree t.
     pub fn hom_k(&self, t: i32) -> Vec<Vec<u32>> {
         let source_dim = self.source.number_of_gens_in_degree(t + self.degree_shift);

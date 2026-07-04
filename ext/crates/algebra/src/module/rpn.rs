@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::{
     algebra::{
-        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+        AdemAlgebra, Algebra, Field, MilnorAlgebra, Ring, Scalar, SteenrodAlgebra,
         adem_algebra::AdemBasisElement,
         milnor_algebra::{MilnorBasisElement, PPartEntry},
     },
@@ -54,7 +54,7 @@ impl<A: Algebra> PartialEq for RealProjectiveSpace<A> {
 
 impl<A: Algebra> Eq for RealProjectiveSpace<A> {}
 
-impl<A: Algebra> Module for RealProjectiveSpace<A>
+impl<A: Algebra<BaseRing = Field>> Module for RealProjectiveSpace<A>
 where
     for<'a> &'a A: TryInto<&'a SteenrodAlgebra>,
 {
@@ -102,7 +102,7 @@ where
     fn act_on_basis(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -113,7 +113,7 @@ where
 
         let output_degree = mod_degree + op_degree;
 
-        if op_degree == 0 || coeff == 0 || self.dimension(output_degree) == 0 {
+        if op_degree == 0 || self.base_ring().is_zero(coeff) || self.dimension(output_degree) == 0 {
             return;
         }
 
@@ -175,7 +175,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
     PPartEntry::multinomial2(&list) == 1
 }
 
-impl<A: Algebra> ZeroModule for RealProjectiveSpace<A>
+impl<A: Algebra<BaseRing = Field>> ZeroModule for RealProjectiveSpace<A>
 where
     for<'a> &'a A: TryInto<&'a SteenrodAlgebra>,
 {

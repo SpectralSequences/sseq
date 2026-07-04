@@ -1,11 +1,13 @@
 use enum_dispatch::enum_dispatch;
 #[cfg(doc)]
 use fp::vector::FpVector;
-use fp::{
-    prime::ValidPrime,
-    vector::{FpSlice, FpSliceMut},
-};
+use fp::{prime::ValidPrime, vector::FpSlice};
 use itertools::Itertools;
+
+use crate::{
+    algebra::{Ring, Scalar},
+    linear_algebra::{BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf},
+};
 
 /// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -20,8 +22,40 @@ use itertools::Itertools;
 /// this function before performing other operations at that degree.
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
-#[enum_dispatch]
+///
+/// # Base ring
+///
+/// An algebra is linear over a coefficient ring, its [`BaseRing`](Algebra::BaseRing). Classically
+/// this is the field $\mathbb{F}_p$ ([`Field`](crate::algebra::Field)); the C-motivic Steenrod
+/// algebra is linear over $\mathbb{F}_2[\tau]$. The base ring is intrinsic to the algebra (its
+/// products and module actions are $R$-linear and consume $R$-coefficients), so it is declared here
+/// as an associated type rather than on a separate trait.
+///
+/// This associated type is why [`Algebra`] itself is not `#[enum_dispatch]`ed (`enum_dispatch`
+/// cannot handle a trait declaring an associated type); the [`SteenrodAlgebra`] enum's [`Algebra`]
+/// impl is hand-rolled with a forwarding macro instead. The subtraits [`Bialgebra`],
+/// [`GeneratedAlgebra`] and [`UnstableAlgebra`] declare no associated type and remain
+/// `#[enum_dispatch]`ed, even where their methods consume base-ring coefficients.
+///
+/// [`SteenrodAlgebra`]: crate::algebra::SteenrodAlgebra
+/// [`Bialgebra`]: crate::algebra::Bialgebra
 pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
+    /// The coefficient ring this algebra (and its modules) are linear over.
+    ///
+    /// This is bounded only by [`Ring`] — enough to represent and multiply elements, and to act on
+    /// modules. Resolving *over* the algebra additionally needs the base ring to be a
+    /// [`GradedDvr`](crate::linear_algebra::GradedDvr) (for kernels and quasi-inverses); that
+    /// stronger bound is imposed where resolution happens (e.g. [`ModuleHomomorphism`] and the chain
+    /// complex), not here, so that an algebra can be defined over a ring whose solving linear algebra
+    /// is not yet implemented.
+    ///
+    /// [`ModuleHomomorphism`]: crate::module::homomorphism::ModuleHomomorphism
+    type BaseRing: Ring;
+
+    /// The base-ring handle (carrying any runtime data, e.g. the prime), used for coefficient
+    /// arithmetic and the linear algebra of resolving over this algebra.
+    fn base_ring(&self) -> Self::BaseRing;
+
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.
     fn prefix(&self) -> &str {
@@ -60,8 +94,8 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// `result` is not required to be aligned.
     fn multiply_basis_elements(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
@@ -74,18 +108,18 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result` nor `s` must be aligned.
     fn multiply_basis_element_by_element(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in s.iter_nonzero() {
             self.multiply_basis_elements(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 r_idx,
                 s_degree,
@@ -100,18 +134,18 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
         s_idx: usize,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in r.iter_nonzero() {
             self.multiply_basis_elements(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 i,
                 s_degree,
@@ -126,18 +160,18 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in s.iter_nonzero() {
             self.multiply_element_by_basis_element(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 r,
                 s_degree,
@@ -215,8 +249,8 @@ pub trait UnstableAlgebra: Algebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_index: usize,
         s_degree: i32,
@@ -230,19 +264,19 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result` nor `s` must be aligned.
     fn multiply_basis_element_by_element_unstable(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in s.iter_nonzero() {
             self.multiply_basis_elements_unstable(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 r_idx,
                 s_degree,
@@ -258,19 +292,19 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element_unstable(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in r.iter_nonzero() {
             self.multiply_basis_elements_unstable(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 i,
                 s_degree,
@@ -286,19 +320,19 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element_unstable(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     ) {
-        let p = self.prime();
+        let ring = self.base_ring();
         for (i, v) in s.iter_nonzero() {
             self.multiply_element_by_basis_element_unstable(
-                result.copy(),
-                (coeff * v) % p,
+                result.reborrow(),
+                ring.mul(coeff, v),
                 r_degree,
                 r,
                 s_degree,
@@ -319,8 +353,8 @@ pub trait MuAlgebra<const U: bool>: Algebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_index: usize,
         s_degree: i32,
@@ -330,12 +364,12 @@ pub trait MuAlgebra<const U: bool>: Algebra {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     );
 
@@ -345,10 +379,10 @@ pub trait MuAlgebra<const U: bool>: Algebra {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -360,12 +394,12 @@ pub trait MuAlgebra<const U: bool>: Algebra {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     );
 }
@@ -377,8 +411,8 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_index: usize,
         s_degree: i32,
@@ -390,12 +424,12 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         _excess: i32,
     ) {
         self.multiply_basis_element_by_element(result, coeff, r_degree, r_idx, s_degree, s)
@@ -403,10 +437,10 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
         s_idx: usize,
         _excess: i32,
@@ -416,12 +450,12 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         _excess: i32,
     ) {
         self.multiply_element_by_element(result, coeff, r_degree, r, s_degree, s)
@@ -435,8 +469,8 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_index: usize,
         s_degree: i32,
@@ -450,12 +484,12 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_basis_element_by_element_unstable(
@@ -465,10 +499,10 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -480,12 +514,12 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_element_by_element_unstable(
         &self,
-        result: FpSliceMut,
-        coeff: u32,
+        result: BaseSliceMutOf<'_, Self>,
+        coeff: Scalar<Self>,
         r_degree: i32,
-        r: FpSlice,
+        r: BaseSliceOf<'_, Self>,
         s_degree: i32,
-        s: FpSlice,
+        s: BaseSliceOf<'_, Self>,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_element_by_element_unstable(

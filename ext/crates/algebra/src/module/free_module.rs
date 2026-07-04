@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use fp::vector::{FpSlice, FpSliceMut};
+use fp::vector::FpSlice;
 use once::{OnceBiVec, OnceVec};
 
 use crate::{
-    algebra::MuAlgebra,
+    algebra::{MuAlgebra, Scalar},
+    linear_algebra::{BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf},
     module::{Module, ZeroModule},
 };
 
@@ -139,8 +140,8 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
 
     fn act_on_basis(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -179,12 +180,12 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
 
     fn act(
         &self,
-        mut result: FpSliceMut,
-        coeff: u32,
+        mut result: BaseSliceMutOf<'_, Self::Algebra>,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: FpSlice,
+        input: BaseSliceOf<'_, Self::Algebra>,
     ) {
         for GeneratorData {
             gen_deg,

@@ -7,7 +7,10 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
-use crate::module::{Module, ZeroModule};
+use crate::{
+    algebra::{Algebra, Field, Scalar},
+    module::{Module, ZeroModule},
+};
 
 /// A quotient of a module truncated below a fix degree.
 pub struct QuotientModule<M: Module> {
@@ -28,7 +31,10 @@ impl<M: Module> std::fmt::Display for QuotientModule<M> {
     }
 }
 
-impl<M: Module> QuotientModule<M> {
+impl<M: Module> QuotientModule<M>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     /// Fallible version of [`new`](Self::new).
     ///
     /// Returns `Err` when the allocation span `truncation + 1 - min_degree` is
@@ -123,7 +129,7 @@ impl<M: Module> QuotientModule<M> {
     pub fn act_on_original_basis(
         &self,
         mut result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<M::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -158,7 +164,10 @@ impl<M: Module> QuotientModule<M> {
     }
 }
 
-impl<M: Module> Module for QuotientModule<M> {
+impl<M: Module> Module for QuotientModule<M>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     type Algebra = M::Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
@@ -184,7 +193,7 @@ impl<M: Module> Module for QuotientModule<M> {
     fn act_on_basis(
         &self,
         result: FpSliceMut,
-        coeff: u32,
+        coeff: Scalar<Self::Algebra>,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
@@ -221,7 +230,10 @@ impl<M: Module> Module for QuotientModule<M> {
     }
 }
 
-impl<M: ZeroModule> ZeroModule for QuotientModule<M> {
+impl<M: ZeroModule> ZeroModule for QuotientModule<M>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
         Self::new(Arc::new(M::zero_module(algebra, min_degree)), min_degree)
     }
