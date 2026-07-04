@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use algebra::module::{
-    Module, ZeroModule,
-    homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
+use algebra::{
+    Algebra, Field,
+    module::{
+        Module, ZeroModule,
+        homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
+    },
 };
 use sseq::coordinates::Bidegree;
 
@@ -11,6 +14,7 @@ use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComp
 pub struct FiniteChainComplex<M, F = FullModuleHomomorphism<M>>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
     modules: Vec<Arc<M>>,
@@ -21,6 +25,7 @@ where
 impl<M, F> FiniteChainComplex<M, F>
 where
     M: Module + ZeroModule,
+    M::Algebra: Algebra<BaseRing = Field>,
     F: ModuleHomomorphism<Source = M, Target = M> + ZeroHomomorphism<M, M>,
 {
     pub fn new(modules: Vec<Arc<M>>, differentials: Vec<Arc<F>>) -> Self {
@@ -57,6 +62,7 @@ where
 impl<M, F> FiniteChainComplex<M, F>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     F: ModuleHomomorphism<Source = M, Target = M> + ZeroHomomorphism<M, M>,
 {
     pub fn pop(&mut self) {
@@ -83,7 +89,10 @@ where
     }
 }
 
-impl<M: Module> FiniteChainComplex<M, FullModuleHomomorphism<M>> {
+impl<M: Module> FiniteChainComplex<M, FullModuleHomomorphism<M>>
+where
+    M::Algebra: Algebra<BaseRing = Field>,
+{
     pub fn map<N: Module<Algebra = M::Algebra>>(
         &self,
         mut f: impl FnMut(&M) -> N,
@@ -123,6 +132,7 @@ impl<M: Module> FiniteChainComplex<M, FullModuleHomomorphism<M>> {
 impl<M, F> ChainComplex for FiniteChainComplex<M, F>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
     type Algebra = M::Algebra;
@@ -174,6 +184,7 @@ where
 impl<M, F> BoundedChainComplex for FiniteChainComplex<M, F>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
     fn max_s(&self) -> i32 {
@@ -184,6 +195,7 @@ where
 pub struct FiniteAugmentedChainComplex<M, F1, F2, CC>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
@@ -196,6 +208,7 @@ where
 impl<M, F1, F2, CC> ChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
@@ -246,6 +259,7 @@ impl<M, CC>
     >
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
 {
     pub fn map<N: Module<Algebra = M::Algebra>>(
@@ -272,6 +286,7 @@ where
 impl<M, F1, F2, CC> AugmentedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
@@ -292,6 +307,7 @@ where
 impl<M, F1, F2, CC> From<FiniteAugmentedChainComplex<M, F1, F2, CC>> for FiniteChainComplex<M, F1>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
@@ -304,6 +320,7 @@ where
 impl<M, F1, F2, CC> BoundedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     CC: ChainComplex<Algebra = M::Algebra>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
@@ -316,6 +333,7 @@ where
 impl<M, F1> FiniteChainComplex<M, F1>
 where
     M: Module,
+    M::Algebra: Algebra<BaseRing = Field>,
     F1: ModuleHomomorphism<Source = M, Target = M>,
 {
     pub fn augment<

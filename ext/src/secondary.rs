@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use algebra::{
-    Algebra,
+    Algebra, BaseRingOf, Field, GradedDvr, Ring,
     module::{
         FreeModule, Module,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -54,7 +54,7 @@ pub struct SecondaryComposite<A: PairAlgebra> {
     composite: BiVec<Vec<A::Element>>,
 }
 
-impl<A: PairAlgebra> SecondaryComposite<A> {
+impl<A: PairAlgebra + Algebra<BaseRing = Field>> SecondaryComposite<A> {
     pub fn algebra(&self) -> Arc<A> {
         self.target.algebra()
     }
@@ -201,7 +201,10 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
     }
 }
 
-pub struct SecondaryHomotopy<A: PairAlgebra> {
+pub struct SecondaryHomotopy<A: PairAlgebra>
+where
+    BaseRingOf<A>: GradedDvr,
+{
     pub source: Arc<FreeModule<A>>,
     pub target: Arc<FreeModule<A>>,
     /// output_t = input_t - shift_t
@@ -216,7 +219,7 @@ pub struct SecondaryHomotopy<A: PairAlgebra> {
     hit_generator: bool,
 }
 
-impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
+impl<A: PairAlgebra + Send + Sync + Algebra<BaseRing = Field>> SecondaryHomotopy<A> {
     pub fn new(
         source: Arc<FreeModule<A>>,
         target: Arc<FreeModule<A>>,
@@ -327,7 +330,12 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
         }
 
         if full {
-            self.homotopies.apply(result, coeff, elt_degree, elt);
+            self.homotopies.apply(
+                result,
+                self.homotopies.base_ring().embed_field(coeff),
+                elt_degree,
+                elt,
+            );
         }
     }
 
@@ -359,7 +367,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 /// The λ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
 /// [`SecondaryLift::compute_intermediate`] returns.
 pub trait SecondaryLift: Sync + Sized {
-    type Algebra: PairAlgebra;
+    type Algebra: PairAlgebra + Algebra<BaseRing = Field>;
     type Source: FreeChainComplex<Algebra = Self::Algebra>;
     type Target: FreeChainComplex<Algebra = Self::Algebra>;
     type Underlying;
@@ -545,6 +553,7 @@ pub trait SecondaryLift: Sync + Sized {
         let target_b = b - shift - Bidegree::s_t(0, 1);
 
         let d = self.source().differential(b.s());
+        let ring = d.base_ring();
         let source = self.source().module(b.s());
         let target = self.target();
         let num_gens = source.number_of_gens_in_degree(b.t());
@@ -578,7 +587,7 @@ pub trait SecondaryLift: Sync + Sized {
             if g.s() > shift.s() + 1 {
                 self.homotopies()[g.s() - 1].homotopies.apply(
                     v.as_slice_mut(),
-                    1,
+                    ring.one(),
                     g.t(),
                     d.output(g.t(), g.idx()).as_slice(),
                 );
@@ -602,7 +611,12 @@ pub trait SecondaryLift: Sync + Sized {
             // Check that we indeed had a lift
             let d = target.differential(target_b.s());
             for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
-                d.apply(tgt.as_slice_mut(), p - 1, target_b.t(), src.as_slice());
+                d.apply(
+                    tgt.as_slice_mut(),
+                    ring.embed_field(p - 1),
+                    target_b.t(),
+                    src.as_slice(),
+                );
                 anyhow::ensure!(
                     tgt.is_zero(),
                     "secondary: Failed to lift at {b}. This likely indicates an invalid input."

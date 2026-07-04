@@ -1,8 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use algebra::module::{
-    Module,
-    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+use algebra::{
+    Ring,
+    module::{
+        Module,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    },
 };
 use fp::{prime::ValidPrime, vector::FpVector};
 use maybe_rayon::prelude::*;
@@ -154,6 +157,7 @@ impl<
 
     fn extend_step(&self, source: Bidegree) -> std::ops::Range<i32> {
         let p = self.prime();
+        let ring = self.left.source.base_ring();
         let shift = self.shift();
         let target = source + Bidegree::s_t(1, 0) - shift;
 
@@ -205,7 +209,7 @@ impl<
             let left_shifted_b = source - self.left.shift;
             self.right.get_map(left_shifted_b.s()).apply(
                 scratch.as_slice_mut(),
-                1,
+                ring.one(),
                 left_shifted_b.t(),
                 self.left
                     .get_map(source.s())
@@ -215,7 +219,7 @@ impl<
 
             self.homotopies[source.s() - 1].apply(
                 scratch.as_slice_mut(),
-                p - 1,
+                ring.embed_field(p - 1),
                 source.t(),
                 self.left
                     .source
@@ -240,7 +244,7 @@ impl<
                 );
                 self.right.target.differential(target.s() - 1).apply(
                     r.as_slice_mut(),
-                    1,
+                    ring.one(),
                     target.t(),
                     scratch.as_slice(),
                 );
@@ -294,6 +298,7 @@ pub(crate) mod secondary {
     use std::sync::Arc;
 
     use algebra::{
+        Algebra, Ring,
         module::{Module, homomorphism::ModuleHomomorphism},
         pair_algebra::PairAlgebra,
     };
@@ -408,6 +413,7 @@ pub(crate) mod secondary {
 
         fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
             let p = self.prime();
+            let ring = self.algebra().base_ring();
             let neg_1 = p - 1;
             let shifted_b = g.degree() - self.shift();
 
@@ -439,7 +445,7 @@ pub(crate) mod secondary {
 
             self.underlying.homotopy(g.s() - 2).apply(
                 result.as_slice_mut(),
-                neg_1,
+                ring.embed_field(neg_1),
                 g.t() - 1,
                 self.left.secondary_source().homotopies()[g.s()]
                     .homotopies
@@ -465,7 +471,7 @@ pub(crate) mod secondary {
             if let Some(right_lambda) = &self.right_lambda {
                 right_lambda.get_map(left_shifted_b.s()).apply(
                     result.as_slice_mut(),
-                    neg_1,
+                    ring.embed_field(neg_1),
                     left_shifted_b.t(),
                     self.left
                         .underlying()
@@ -480,7 +486,7 @@ pub(crate) mod secondary {
                 .get_map(left_shifted_b.s() - 1)
                 .apply(
                     result.as_slice_mut(),
-                    neg_1,
+                    ring.embed_field(neg_1),
                     left_shifted_b.t() - 1,
                     self.left.homotopies()[g.s()]
                         .homotopies
@@ -494,7 +500,7 @@ pub(crate) mod secondary {
                     .get_map(left_shifted_b.s() - 1)
                     .apply(
                         result.as_slice_mut(),
-                        neg_1,
+                        ring.embed_field(neg_1),
                         left_shifted_b.t() - 1,
                         left_lambda.get_map(g.s()).output(g.t(), g.idx()).as_slice(),
                     );

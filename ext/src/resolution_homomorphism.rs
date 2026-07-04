@@ -3,7 +3,7 @@
 use std::{ops::Range, sync::Arc};
 
 use algebra::{
-    MuAlgebra,
+    MuAlgebra, Ring,
     module::{
         Module,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
@@ -220,6 +220,7 @@ where
         }
 
         let p = self.source.prime();
+        let ring = self.source.base_ring();
 
         let num_gens = f_cur.source().number_of_gens_in_degree(input.t());
         let fx_dimension = f_cur.target().dimension(output.t());
@@ -295,7 +296,7 @@ where
                 let mut fdx_vector = FpVector::new(p, fdx_dimension);
                 f_prev.apply(
                     fdx_vector.as_slice_mut(),
-                    1,
+                    ring.one(),
                     input.t(),
                     dx_vector.as_slice(),
                 );
@@ -501,6 +502,7 @@ pub(crate) mod secondary {
     use std::sync::Arc;
 
     use algebra::{
+        Algebra, Ring,
         module::{Module, homomorphism::ModuleHomomorphism},
         pair_algebra::PairAlgebra,
     };
@@ -625,6 +627,7 @@ pub(crate) mod secondary {
 
         fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
             let p = self.prime();
+            let ring = self.algebra().base_ring();
             let neg_1 = p - 1;
             let shifted_b = g.degree() - self.shift();
             let target = self.target().module(shifted_b.s() - 1);
@@ -651,7 +654,7 @@ pub(crate) mod secondary {
             );
             self.underlying.get_map(g.s() - 2).apply(
                 result.as_slice_mut(),
-                1,
+                ring.one(),
                 g.t() - 1,
                 self.source
                     .homotopy(g.s())
