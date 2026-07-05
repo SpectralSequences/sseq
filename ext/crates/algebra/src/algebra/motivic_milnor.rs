@@ -29,10 +29,20 @@
 //! weight of the dual monomial it pairs with, so that products are weight-homogeneous with
 //! $\tau$ (weight $-1$) absorbing the difference.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
-use fp::prime::Binomial;
+use fp::prime::{Binomial, TWO, ValidPrime};
+use itertools::Itertools;
 use once::OnceVec;
+
+use crate::{
+    algebra::{
+        Algebra, FpTau, Ring,
+        fp_tau::{FpTauSliceMut, TauPower},
+    },
+    linear_algebra::BaseSliceMut,
+    module::{FreeModule, Module},
+};
 
 /// $\Sigma(R) = \sum_i r_i$.
 fn sigma(r: &[u32]) -> u32 {
@@ -600,21 +610,6 @@ impl MotivicMilnorAlgebra {
         }
     }
 
-    /// Compute and cache the basis in every topological degree up to and including `degree`.
-    /// Idempotent and cheap to re-call.
-    pub fn compute_basis(&self, degree: i32) {
-        for t in self.basis.len() as i32..=degree {
-            let mut b = enum_basis(t);
-            b.sort();
-            self.basis.push(b);
-        }
-    }
-
-    /// The $\mathbb{F}_2[\tau]$-rank of `A` in topological degree `degree`.
-    pub fn dimension(&self, degree: i32) -> usize {
-        self.basis[degree as usize].len()
-    }
-
     /// The `idx`-th basis monomial `(E, R)` in degree `degree`.
     pub fn basis_element(&self, degree: i32, idx: usize) -> &(u32, Vec<u32>) {
         &self.basis[degree as usize][idx]
@@ -633,8 +628,11 @@ impl MotivicMilnorAlgebra {
     }
 
     /// The product of two basis elements, as an $\mathbb{F}_2[\tau]$-linear combination of basis
-    /// elements in degree `t1 + t2`: a list of `(coefficient, index)` pairs.
-    pub fn multiply_basis_elements(
+    /// elements in degree `t1 + t2`: a list of `(coefficient, index)` pairs, where the coefficient is
+    /// the raw [`TauPoly`]. This is the internal engine behind the [`Algebra`] impl's
+    /// `multiply_basis_elements`; for a product of homogeneous basis elements each coefficient is a
+    /// single power $\tau^k$.
+    pub fn product_indexed(
         &self,
         t1: i32,
         idx1: usize,
@@ -658,9 +656,110 @@ impl MotivicMilnorAlgebra {
     }
 }
 
+impl std::fmt::Display for MotivicMilnorAlgebra {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "MotivicMilnorAlgebra(C, p=2)")
+    }
+}
+
+impl Algebra for MotivicMilnorAlgebra {
+    type BaseRing = FpTau;
+    type GradedPiece = FreeModule<FpTau>;
+
+    fn base_ring(&self) -> FpTau {
+        FpTau::new()
+    }
+
+    fn module_at(&self, t: i32) -> FreeModule<FpTau> {
+        // The degree-`t` piece is a free F_2[tau]-module on the basis monomials of topological
+        // degree `t`; the (weight-graded) internal grading is deferred, so the generators sit in
+        // degree 0 for now (this accessor is not yet used by the engine).
+        let piece = FreeModule::new(Arc::new(self.base_ring()), String::new(), 0);
+        piece.add_generators(0, Algebra::dimension(self, t), None);
+        piece.compute_basis(0);
+        piece
+    }
+
+    fn prefix(&self) -> &str {
+        "motivic_milnor"
+    }
+
+    fn magic(&self) -> u32 {
+        // Distinct from the classical MilnorAlgebra magic so motivic and classical save files can
+        // never be cross-loaded.
+        0x004D_0002
+    }
+
+    fn prime(&self) -> ValidPrime {
+        TWO
+    }
+
+    /// Compute and cache the basis in every topological degree up to and including `degree`.
+    /// Idempotent and cheap to re-call.
+    fn compute_basis(&self, degree: i32) {
+        for t in self.basis.len() as i32..=degree {
+            let mut b = enum_basis(t);
+            b.sort();
+            self.basis.push(b);
+        }
+    }
+
+    /// The $\mathbb{F}_2[\tau]$-rank of `A` in topological degree `degree`.
+    fn dimension(&self, degree: i32) -> usize {
+        if degree < 0 {
+            return 0;
+        }
+        self.basis[degree as usize].len()
+    }
+
+    fn multiply_basis_elements(
+        &self,
+        mut result: FpTauSliceMut,
+        coeff: TauPower,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s_idx: usize,
+    ) {
+        let ring = FpTau;
+        for (tau_poly, idx) in self.product_indexed(r_degree, r_idx, s_degree, s_idx) {
+            // A product of homogeneous basis elements is weight-homogeneous, so each target basis
+            // element carries a single power of tau.
+            debug_assert_eq!(
+                tau_poly.count_ones(),
+                1,
+                "inhomogeneous product coefficient {tau_poly:b}"
+            );
+            let k = tau_poly.trailing_zeros() as usize;
+            result.add_basis_element(idx, ring.mul(coeff, Some(k)));
+        }
+    }
+
+    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+        let (e_mask, r) = self.basis_element(degree, idx);
+        let mut parts = Vec::new();
+        for i in fp::prime::iter::BitflagIterator::set_bit_iterator(*e_mask as u64) {
+            parts.push(format!("Q_{i}"));
+        }
+        if !r.is_empty() {
+            parts.push(format!("P({})", r.iter().format(", ")));
+        }
+        if parts.is_empty() {
+            "1".to_string()
+        } else {
+            parts.join(" ")
+        }
+    }
+
+    fn basis_element_from_string(&self, _elt: &str) -> Option<(i32, usize)> {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::algebra::Algebra;
 
     #[test]
     fn test_algebra_basis_and_multiply() {
@@ -681,13 +780,70 @@ mod tests {
 
         // Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1), reconstructed from indices.
         let terms: BTreeMap<(u32, Vec<u32>), TauPoly> = alg
-            .multiply_basis_elements(1, 0, 2, 0)
+            .product_indexed(1, 0, 2, 0)
             .into_iter()
             .map(|(c, idx)| (alg.basis_element(3, idx).clone(), c))
             .collect();
         assert_eq!(
             terms,
             BTreeMap::from([((0b10, vec![]), 1), ((0b1, vec![0, 1]), 1)])
+        );
+    }
+
+    #[test]
+    fn test_algebra_trait_multiply_threads_tau_scalar() {
+        use crate::{algebra::Ring, linear_algebra::BaseSlice};
+
+        // The Algebra-trait `multiply_basis_elements` writes into an F_2[tau] vector, converting the
+        // raw single-power TauPoly coefficient of `product_indexed` into a tau-power scalar and
+        // multiplying it by the input coefficient. (Note Q_i^2 = 0 in the *algebra*; the tau's come
+        // from the P-part / structure constants, not from Q-collisions — that is the dual relation.)
+        let alg = MotivicMilnorAlgebra::new();
+        alg.compute_basis(8);
+        let ring = alg.base_ring();
+        let mut saw_tau = false;
+
+        for t1 in 0..=4 {
+            for idx1 in 0..Algebra::dimension(&alg, t1) {
+                for t2 in 0..=(4 - t1) {
+                    for idx2 in 0..Algebra::dimension(&alg, t2) {
+                        let t = t1 + t2;
+                        let raw = alg.product_indexed(t1, idx1, t2, idx2);
+
+                        // Unit coefficient: entries are exactly the raw single-power tau coefficients.
+                        let mut v = ring.new_vector(Algebra::dimension(&alg, t));
+                        alg.multiply_basis_elements(
+                            ring.as_slice_mut(&mut v),
+                            ring.one(),
+                            t1,
+                            idx1,
+                            t2,
+                            idx2,
+                        );
+                        // A tau^2 input coefficient is threaded through multiplicatively.
+                        let mut v2 = ring.new_vector(Algebra::dimension(&alg, t));
+                        alg.multiply_basis_elements(
+                            ring.as_slice_mut(&mut v2),
+                            Some(2),
+                            t1,
+                            idx1,
+                            t2,
+                            idx2,
+                        );
+
+                        for &(tau_poly, idx) in &raw {
+                            let k = tau_poly.trailing_zeros() as usize;
+                            saw_tau |= k > 0;
+                            assert_eq!(ring.as_slice(&v).entry(idx), Some(k));
+                            assert_eq!(ring.as_slice(&v2).entry(idx), Some(k + 2));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            saw_tau,
+            "expected some algebra product to carry a power of tau"
         );
     }
 
@@ -703,7 +859,7 @@ mod tests {
                         let b = alg.basis_element(t2, idx2).clone();
                         // Indexed product agrees with the raw monomial product.
                         let indexed: BTreeMap<(u32, Vec<u32>), TauPoly> = alg
-                            .multiply_basis_elements(t1, idx1, t2, idx2)
+                            .product_indexed(t1, idx1, t2, idx2)
                             .into_iter()
                             .map(|(c, idx)| (alg.basis_element(t1 + t2, idx).clone(), c))
                             .collect();
@@ -711,7 +867,7 @@ mod tests {
 
                         // Weight-homogeneous: w_out - (τ-power) = w_a + w_b.
                         let (wa, wb) = (alg.bidegree(t1, idx1).1, alg.bidegree(t2, idx2).1);
-                        for (c, idx) in alg.multiply_basis_elements(t1, idx1, t2, idx2) {
+                        for (c, idx) in alg.product_indexed(t1, idx1, t2, idx2) {
                             let w = alg.bidegree(t1 + t2, idx).1;
                             assert_eq!(w - c.trailing_zeros() as i32, wa + wb);
                         }
