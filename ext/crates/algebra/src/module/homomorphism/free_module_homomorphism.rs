@@ -9,7 +9,7 @@ use once::OnceBiVec;
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, MuAlgebra, Ring, Scalar},
     linear_algebra::{
-        BaseSlice, BaseSliceMut, BaseSliceMutOf, Solvable, QuasiInverseOf, SubmoduleOf, VectorOf,
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, QuasiInverseOf, Solvable, SubmoduleOf, VectorOf,
     },
     module::{
         Module, MuFreeModule,

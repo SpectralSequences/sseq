@@ -8,8 +8,7 @@ use fp::{
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, Ring, Scalar},
     linear_algebra::{
-        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, Solvable, QuasiInverseOf,
-        SubmoduleOf,
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, QuasiInverseOf, Solvable, SubmoduleOf,
     },
     module::Module,
 };

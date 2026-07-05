@@ -38,12 +38,11 @@ impl std::fmt::Display for Field {
 
 impl Algebra for Field {
     type BaseRing = Self;
+    type GradedPiece = FreeModule<Self>;
 
     fn base_ring(&self) -> Self {
         *self
     }
-
-    type GradedPiece = FreeModule<Self>;
 
     fn module_at(&self, t: i32) -> FreeModule<Self> {
         let piece = FreeModule::new(Arc::new(self.base_ring()), String::new(), 0);

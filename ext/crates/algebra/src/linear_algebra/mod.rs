@@ -1,13 +1,13 @@
 //! The linear algebra of *solving* over a graded DVR.
 //!
-//! This layer sits beside [`algebra`](crate::algebra) and [`module`](crate::module). The coefficient
+//! This layer sits beside the `algebra` and [`module`](crate::module) modules. The coefficient
 //! *ring* — scalars, their arithmetic, and the representation of finite free modules over it
-//! (vectors and slices) — is [`Ring`](crate::algebra::Ring); that is enough to define an algebra and
+//! (vectors and slices) — is [`Ring`]; that is enough to define an algebra and
 //! act on its modules. This module adds the harder capability a free *resolution* needs: computing
 //! images, kernels, and quasi-inverses, which requires the ring to be a graded DVR (so that graded
 //! Nakayama holds and minimal generators can be read off mod the maximal ideal).
 //!
-//! The central trait is [`Solvable`]: a [`Ring`](crate::algebra::Ring) over which one can solve
+//! The central trait is [`Solvable`]: a [`Ring`] over which one can solve
 //! linear systems. For [`Field`] the vector types are exactly `fp`'s `FpVector`/`FpSlice`/`FpSliceMut`
 //! and every operation forwards to `fp`, so the classical path is unchanged and bit-identical. A
 //! future $\mathbb{F}_2[\tau]$ impl provides the graded-local solving (per-weight `fp` blocks plus a
@@ -129,7 +129,7 @@ pub trait BaseSliceMut<'a, R: Ring> {
 
 /// The linear algebra of solving over a graded DVR `R`.
 ///
-/// Extends [`Ring`](crate::algebra::Ring) — which already provides the ring's scalars and its vector
+/// Extends [`Ring`] — which already provides the ring's scalars and its vector
 /// representation — with the operations a free resolution needs: computing the image, kernel, and
 /// quasi-inverse of an `R`-linear map. These are meaningful precisely because `R` is a graded DVR
 /// (graded-local, so graded Nakayama holds). For [`Field`] everything forwards to `fp`.
