@@ -209,13 +209,15 @@ fn vec_add(a: &[u32], b: &[u32]) -> Vec<u32> {
     r
 }
 
-/// Add `coeff * mon` into `acc`, dropping the entry if it cancels to zero.
-fn dual_add(acc: &mut DualElement, mon: (u32, Vec<u32>), coeff: TauPower) {
+/// Add `coeff * key` into a sparse $\mathbb{F}_2[\tau]$-linear combination `acc`, dropping the entry
+/// if it cancels to zero. Used for both [`DualElement`] and [`TensorElement`]; the coefficient
+/// bookkeeping is entirely [`FpTau`]'s [`Ring`] arithmetic (`is_zero` and `add`).
+fn add_term<K: Ord>(acc: &mut BTreeMap<K, TauPower>, key: K, coeff: TauPower) {
     use std::collections::btree_map::Entry;
     if FpTau.is_zero(coeff) {
         return;
     }
-    match acc.entry(mon) {
+    match acc.entry(key) {
         Entry::Occupied(mut o) => {
             let sum = FpTau.add(*o.get(), coeff);
             if FpTau.is_zero(sum) {
@@ -250,7 +252,7 @@ fn mul_monomials(
     let r12 = vec_add(&m1.1, &m2.1);
     for term in rewrite_tau(&s) {
         let r = vec_add(&term.r, &r12);
-        dual_add(
+        add_term(
             acc,
             (term.e_mask, r),
             FpTau.mul(coeff, Some(term.tau_pow as usize)),
@@ -271,19 +273,19 @@ pub fn dual_mul(a: &DualElement, b: &DualElement) -> DualElement {
 
 /// The generator $\tau_i \in A_{**}$.
 pub fn tau_gen(i: usize) -> DualElement {
-    DualElement::from([((1u32 << i, vec![]), Some(0))])
+    DualElement::from([((1u32 << i, vec![]), FpTau.one())])
 }
 
 /// The generator $\xi_i \in A_{**}$ (for $i \ge 1$).
 pub fn xi_gen(i: usize) -> DualElement {
     let mut r = vec![0u32; i + 1];
     r[i] = 1;
-    DualElement::from([((0, r), Some(0))])
+    DualElement::from([((0, r), FpTau.one())])
 }
 
 /// The unit $1 \in A_{**}$.
 pub fn dual_one() -> DualElement {
-    DualElement::from([((0, vec![]), Some(0))])
+    DualElement::from([((0, vec![]), FpTau.one())])
 }
 
 // ---------------------------------------------------------------------------
@@ -294,29 +296,9 @@ pub fn dual_one() -> DualElement {
 /// coefficients. Zero coefficients are never stored.
 pub type TensorElement = BTreeMap<((u32, Vec<u32>), (u32, Vec<u32>)), TauPower>;
 
-fn tensor_add(acc: &mut TensorElement, key: ((u32, Vec<u32>), (u32, Vec<u32>)), coeff: TauPower) {
-    use std::collections::btree_map::Entry;
-    if FpTau.is_zero(coeff) {
-        return;
-    }
-    match acc.entry(key) {
-        Entry::Occupied(mut o) => {
-            let sum = FpTau.add(*o.get(), coeff);
-            if FpTau.is_zero(sum) {
-                o.remove();
-            } else {
-                *o.get_mut() = sum;
-            }
-        }
-        Entry::Vacant(v) => {
-            v.insert(coeff);
-        }
-    }
-}
-
 /// The unit $1 \otimes 1$.
 fn tensor_one() -> TensorElement {
-    TensorElement::from([(((0, vec![]), (0, vec![])), Some(0))])
+    TensorElement::from([(((0, vec![]), (0, vec![])), FpTau.one())])
 }
 
 /// Multiply in $A_{**} \otimes A_{**}$: $(a_L \otimes a_R)(b_L \otimes b_R) = (a_L b_L) \otimes (a_R b_R)$.
@@ -331,7 +313,7 @@ fn tensor_mul(t1: &TensorElement, t2: &TensorElement) -> TensorElement {
             let c = FpTau.mul(c1, c2);
             for (ml, &cl) in &left {
                 for (mr, &cr) in &right {
-                    tensor_add(
+                    add_term(
                         &mut out,
                         (ml.clone(), mr.clone()),
                         FpTau.mul(c, FpTau.mul(cl, cr)),
@@ -357,12 +339,12 @@ fn xi_pow_mon(j: usize, p: u32) -> (u32, Vec<u32>) {
 /// $\psi(\tau_k) = 1 \otimes \tau_k + \sum_{i=0}^{k} \tau_i \otimes \xi_{k-i}^{2^i}$.
 fn coprod_tau(k: usize) -> TensorElement {
     let mut out = TensorElement::new();
-    tensor_add(&mut out, ((0, vec![]), (1 << k, vec![])), Some(0));
+    add_term(&mut out, ((0, vec![]), (1 << k, vec![])), FpTau.one());
     for i in 0..=k {
-        tensor_add(
+        add_term(
             &mut out,
             ((1 << i, vec![]), xi_pow_mon(k - i, 1 << i)),
-            Some(0),
+            FpTau.one(),
         );
     }
     out
@@ -372,10 +354,10 @@ fn coprod_tau(k: usize) -> TensorElement {
 fn coprod_xi(k: usize) -> TensorElement {
     let mut out = TensorElement::new();
     for i in 0..=k {
-        tensor_add(
+        add_term(
             &mut out,
             (xi_pow_mon(i, 1), xi_pow_mon(k - i, 1 << i)),
-            Some(0),
+            FpTau.one(),
         );
     }
     out
@@ -403,7 +385,7 @@ pub fn coproduct(elt: &DualElement) -> TensorElement {
     let mut out = TensorElement::new();
     for ((e, r), &c) in elt {
         for (key, cc) in coproduct_monomial(*e, r) {
-            tensor_add(&mut out, key, FpTau.mul(c, cc));
+            add_term(&mut out, key, FpTau.mul(c, cc));
         }
     }
     out
@@ -415,7 +397,7 @@ pub fn coproduct(elt: &DualElement) -> TensorElement {
 
 /// $\xi_j^p \in A_{**}$ (with $\xi_0 = 1$).
 fn xi_pow_elt(j: usize, p: u32) -> DualElement {
-    DualElement::from([(xi_pow_mon(j, p), Some(0))])
+    DualElement::from([(xi_pow_mon(j, p), FpTau.one())])
 }
 
 /// $\chi(\xi_k)$, from the antipode axiom with this module's coproduct:
@@ -428,7 +410,7 @@ fn chi_xi(k: usize) -> DualElement {
     for i in 0..k {
         let term = dual_mul(&chi_xi(i), &xi_pow_elt(k - i, 1 << i));
         for (mon, c) in term {
-            dual_add(&mut acc, mon, c);
+            add_term(&mut acc, mon, c);
         }
     }
     acc
@@ -441,7 +423,7 @@ fn chi_tau(k: usize) -> DualElement {
     for i in 0..k {
         let term = dual_mul(&chi_tau(i), &xi_pow_elt(k - i, 1 << i));
         for (mon, c) in term {
-            dual_add(&mut acc, mon, c);
+            add_term(&mut acc, mon, c);
         }
     }
     acc
@@ -466,7 +448,7 @@ pub fn antipode(elt: &DualElement) -> DualElement {
             }
         }
         for (mon, cc) in m {
-            dual_add(&mut out, mon, FpTau.mul(c, cc));
+            add_term(&mut out, mon, FpTau.mul(c, cc));
         }
     }
     out
@@ -1106,13 +1088,13 @@ mod tests {
         use crate::algebra::Ring;
 
         // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
-        // Extend the basis×basis product to element×basis, F_2[τ]-linearly (dual_add handles the
+        // Extend the basis×basis product to element×basis, F_2[τ]-linearly (add_term handles the
         // coefficient sum + zero cancellation via FpTau's Ring arithmetic).
         fn mul_elt_basis(x: &DualElement, c: &(u32, Vec<u32>)) -> DualElement {
             let mut out = DualElement::new();
             for (z, &cz) in x {
                 for (w, cw) in multiply(z, c) {
-                    dual_add(&mut out, w, FpTau.mul(cz, cw));
+                    add_term(&mut out, w, FpTau.mul(cz, cw));
                 }
             }
             out
@@ -1129,7 +1111,7 @@ mod tests {
                     let mut rhs = DualElement::new();
                     for (z, &cz) in &bc {
                         for (w, cw) in multiply(a, z) {
-                            dual_add(&mut rhs, w, FpTau.mul(cz, cw));
+                            add_term(&mut rhs, w, FpTau.mul(cz, cw));
                         }
                     }
                     assert_eq!(lhs, rhs, "associativity failed at {a:?},{b:?},{c:?}");
@@ -1232,7 +1214,7 @@ mod tests {
                     &DualElement::from([(r, Some(0))]),
                 );
                 for (mon, cc) in prod {
-                    dual_add(&mut out, mon, FpTau.mul(c, cc));
+                    add_term(&mut out, mon, FpTau.mul(c, cc));
                 }
             }
             out

@@ -155,9 +155,10 @@ impl Ring for FpTau {
             (x, None) => x,
             (None, y) => y,
             // Two nonzero homogeneous elements of the same degree are equal (both $\tau^k$), so their
-            // sum is $2\tau^k = 0$. Distinct powers would be inhomogeneous and must never occur.
+            // sum is $2\tau^k = 0$. Distinct powers would be inhomogeneous and cannot occur — this is
+            // a hard invariant of the (fully homogeneous) engine, so assert it unconditionally.
             (Some(i), Some(j)) => {
-                debug_assert_eq!(
+                assert_eq!(
                     i, j,
                     "adding inhomogeneous F_2[tau] scalars tau^{i} + tau^{j}"
                 );
