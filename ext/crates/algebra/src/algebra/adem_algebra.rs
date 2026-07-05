@@ -15,9 +15,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
-use crate::algebra::{
-    Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra,
-    combinatorics::{self, MAX_XI_TAU},
+use crate::{
+    algebra::{
+        Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra,
+        combinatorics::{self, MAX_XI_TAU},
+    },
+    module::{FreeModule, Module as _},
 };
 
 /// An Adem basis element for the Steenrod algebra.
@@ -164,6 +167,15 @@ impl Algebra for AdemAlgebra {
 
     fn base_ring(&self) -> Field {
         Field::new(self.prime())
+    }
+
+    type GradedPiece = FreeModule<Field>;
+
+    fn module_at(&self, t: i32) -> FreeModule<Field> {
+        let piece = FreeModule::new(std::sync::Arc::new(self.base_ring()), String::new(), 0);
+        piece.add_generators(0, self.dimension(t), None);
+        piece.compute_basis(0);
+        piece
     }
 
     fn prefix(&self) -> &str {

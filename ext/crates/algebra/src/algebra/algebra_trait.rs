@@ -58,6 +58,32 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// arithmetic and the linear algebra of resolving over this algebra.
     fn base_ring(&self) -> Self::BaseRing;
 
+    /// The type of graded piece returned by [`module_at`](Algebra::module_at).
+    ///
+    /// This is a *concrete* associated type (rather than `-> impl Module`) so that the hand-rolled
+    /// [`SteenrodAlgebra`] dispatch can forward it. For every classical algebra `BaseRing = Field`,
+    /// and since every module over a field is free, this is simply a
+    /// [`FreeModule`](crate::module::FreeModule)`<Field>`; the C-motivic algebra makes it a
+    /// weight-graded $\mathbb{F}_2[\tau]$-module (a presentation, since those pieces may carry
+    /// $\tau$-torsion).
+    ///
+    /// [`SteenrodAlgebra`]: crate::algebra::SteenrodAlgebra
+    type GradedPiece: crate::module::Module<Algebra = Self::BaseRing>;
+
+    /// The degree-`t` component of the algebra, viewed as a module over the base ring.
+    ///
+    /// Since [`BaseRing`](Algebra::BaseRing) is itself an [`Algebra`], "an R-module" is just
+    /// `Module<Algebra = R>`, and each graded piece of the algebra is such a module. Its own internal
+    /// grading is the *weight*: classically the base field sits in degree 0, so the piece is a
+    /// $\mathbb{F}_p$-vector space of dimension [`dimension(t)`](Algebra::dimension) concentrated in
+    /// degree 0 — represented as a free `Field`-module with that many generators in degree 0; the
+    /// C-motivic algebra's pieces are weight-graded.
+    ///
+    /// This is additive structural access — a view of the algebra as a module over its coefficients.
+    /// The load-bearing rank is still [`dimension`](Algebra::dimension); `module_at` is derived from
+    /// it classically.
+    fn module_at(&self, t: i32) -> Self::GradedPiece;
+
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.
     fn prefix(&self) -> &str {
