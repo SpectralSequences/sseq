@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use algebra::{
-    Algebra, BaseRingOf, Field, Solvable, Ring,
+    Algebra, BaseRingOf, Field, Ring, Solvable,
     module::{
         FreeModule, Module,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},

@@ -349,12 +349,11 @@ impl MilnorAlgebra {
 
 impl Algebra for MilnorAlgebra {
     type BaseRing = Field;
+    type GradedPiece = FreeModule<Field>;
 
     fn base_ring(&self) -> Field {
         Field::new(self.prime())
     }
-
-    type GradedPiece = FreeModule<Field>;
 
     fn module_at(&self, t: i32) -> FreeModule<Field> {
         let piece = FreeModule::new(std::sync::Arc::new(self.base_ring()), String::new(), 0);
