@@ -9,7 +9,7 @@ use once::OnceBiVec;
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, MuAlgebra, Ring, Scalar},
     linear_algebra::{
-        BaseSlice, BaseSliceMut, BaseSliceMutOf, GradedDvr, QuasiInverseOf, SubmoduleOf, VectorOf,
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, Solvable, QuasiInverseOf, SubmoduleOf, VectorOf,
     },
     module::{
         Module, MuFreeModule,
@@ -24,7 +24,7 @@ pub type UnstableFreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<true, M>;
 pub struct MuFreeModuleHomomorphism<const U: bool, M: Module>
 where
     M::Algebra: MuAlgebra<U>,
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     source: Arc<MuFreeModule<U, M::Algebra>>,
     target: Arc<M>,
@@ -40,7 +40,7 @@ where
 impl<const U: bool, M: Module> ModuleHomomorphism for MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     type Source = MuFreeModule<U, M::Algebra>;
     type Target = M;
@@ -117,7 +117,7 @@ where
 impl<const U: bool, M: Module> MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     pub fn new(
         source: Arc<MuFreeModule<U, M::Algebra>>,
@@ -283,7 +283,7 @@ impl<const U: bool, M: Module> ZeroHomomorphism<MuFreeModule<U, M::Algebra>, M>
     for MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     fn zero_homomorphism(
         source: Arc<MuFreeModule<U, M::Algebra>>,

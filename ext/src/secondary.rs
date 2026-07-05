@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use algebra::{
-    Algebra, BaseRingOf, Field, GradedDvr, Ring,
+    Algebra, BaseRingOf, Field, Solvable, Ring,
     module::{
         FreeModule, Module,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -203,7 +203,7 @@ impl<A: PairAlgebra + Algebra<BaseRing = Field>> SecondaryComposite<A> {
 
 pub struct SecondaryHomotopy<A: PairAlgebra>
 where
-    BaseRingOf<A>: GradedDvr,
+    BaseRingOf<A>: Solvable,
 {
     pub source: Arc<FreeModule<A>>,
     pub target: Arc<FreeModule<A>>,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     algebra::{BaseRingOf, Scalar},
-    linear_algebra::{BaseSliceMutOf, GradedDvr},
+    linear_algebra::{BaseSliceMutOf, Solvable},
     module::{
         Module,
         homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
@@ -28,7 +28,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> GenericZeroHomomorphism<S, T> {
 impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     for GenericZeroHomomorphism<S, T>
 where
-    BaseRingOf<S::Algebra>: GradedDvr,
+    BaseRingOf<S::Algebra>: Solvable,
 {
     type Source = S;
     type Target = T;
@@ -58,7 +58,7 @@ where
 impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
     for GenericZeroHomomorphism<S, T>
 where
-    BaseRingOf<S::Algebra>: GradedDvr,
+    BaseRingOf<S::Algebra>: Solvable,
 {
     fn zero_homomorphism(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
         Self::new(source, target, degree_shift)

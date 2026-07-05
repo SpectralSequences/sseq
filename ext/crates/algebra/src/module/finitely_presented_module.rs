@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, Scalar},
-    linear_algebra::GradedDvr,
+    linear_algebra::Solvable,
     module::{
         FreeModule, Module, ZeroModule,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -21,7 +21,7 @@ struct FPMIndexTable {
 
 pub struct FinitelyPresentedModule<A: Algebra>
 where
-    BaseRingOf<A>: GradedDvr,
+    BaseRingOf<A>: Solvable,
 {
     name: String,
     min_degree: i32,
@@ -33,7 +33,7 @@ where
 
 impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A>
 where
-    BaseRingOf<A>: GradedDvr,
+    BaseRingOf<A>: Solvable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
@@ -42,14 +42,14 @@ where
 
 impl<A: Algebra> PartialEq for FinitelyPresentedModule<A>
 where
-    BaseRingOf<A>: GradedDvr,
+    BaseRingOf<A>: Solvable,
 {
     fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }
 
-impl<A: Algebra> Eq for FinitelyPresentedModule<A> where BaseRingOf<A>: GradedDvr {}
+impl<A: Algebra> Eq for FinitelyPresentedModule<A> where BaseRingOf<A>: Solvable {}
 
 impl<A: Algebra<BaseRing = Field>> ZeroModule for FinitelyPresentedModule<A> {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
