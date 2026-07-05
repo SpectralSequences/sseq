@@ -155,9 +155,11 @@ macro_rules! dispatch_steenrod {
 // generated, keeping the classical behaviour bit-identical.
 impl Algebra for SteenrodAlgebra {
     type BaseRing = Field;
+    type GradedPiece = crate::module::FreeModule<Field>;
 
     dispatch_steenrod! {
         fn base_ring(&self) -> Field;
+        fn module_at(&self, t: i32) -> crate::module::FreeModule<Field>;
         fn prefix(&self) -> &str;
         fn magic(&self) -> u32;
         fn prime(&self) -> ValidPrime;

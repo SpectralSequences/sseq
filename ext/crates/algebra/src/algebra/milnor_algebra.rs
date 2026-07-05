@@ -9,7 +9,10 @@ use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::algebra::{Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra, combinatorics};
+use crate::{
+    algebra::{Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra, combinatorics},
+    module::{FreeModule, Module as _},
+};
 
 fn q_part_default() -> u32 {
     !0
@@ -349,6 +352,15 @@ impl Algebra for MilnorAlgebra {
 
     fn base_ring(&self) -> Field {
         Field::new(self.prime())
+    }
+
+    type GradedPiece = FreeModule<Field>;
+
+    fn module_at(&self, t: i32) -> FreeModule<Field> {
+        let piece = FreeModule::new(std::sync::Arc::new(self.base_ring()), String::new(), 0);
+        piece.add_generators(0, self.dimension(t), None);
+        piece.compute_basis(0);
+        piece
     }
 
     fn prefix(&self) -> &str {
@@ -1798,6 +1810,18 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    #[test]
+    fn module_at_is_the_graded_piece() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        algebra.compute_basis(20);
+        for t in 0..=20 {
+            let piece = algebra.module_at(t);
+            // The graded piece is a free Field-module concentrated in degree 0, whose dimension
+            // there equals the algebra's dimension in degree t.
+            assert_eq!(piece.dimension(0), algebra.dimension(t), "t = {t}");
+        }
+    }
 
     #[rstest]
     #[trace]

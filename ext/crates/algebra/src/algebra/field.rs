@@ -1,11 +1,16 @@
 //! Finite fields over a prime.
 
+use std::sync::Arc;
+
 use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut},
 };
 
-use crate::algebra::{Algebra, Bialgebra};
+use crate::{
+    algebra::{Algebra, Bialgebra},
+    module::{FreeModule, Module},
+};
 
 /// $\mathbb{F}_p$, viewed as an [`Algebra`] over itself.
 ///
@@ -36,6 +41,15 @@ impl Algebra for Field {
 
     fn base_ring(&self) -> Self {
         *self
+    }
+
+    type GradedPiece = FreeModule<Self>;
+
+    fn module_at(&self, t: i32) -> FreeModule<Self> {
+        let piece = FreeModule::new(Arc::new(self.base_ring()), String::new(), 0);
+        piece.add_generators(0, self.dimension(t), None);
+        piece.compute_basis(0);
+        piece
     }
 
     fn prime(&self) -> ValidPrime {
