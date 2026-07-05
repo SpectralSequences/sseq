@@ -2,11 +2,16 @@
 //!
 //! An [`Algebra`] declares its coefficient ring as `type BaseRing: Ring`. [`Ring`] is that ring: the
 //! scalar type, its arithmetic, and the representation of finite free modules over it (vectors and
-//! their slices) — everything needed to define an algebra and act on its modules. The *harder*
-//! linear algebra that a free resolution needs — kernels and quasi-inverses, which require the ring
-//! to be a graded DVR — is the [`GradedDvr`](crate::linear_algebra::GradedDvr) subtrait, in
-//! [`linear_algebra`](crate::linear_algebra). Keeping them separate lets an algebra be defined over a
-//! ring whose solving linear algebra is not yet implemented.
+//! their slices) — everything needed to define an algebra and act on its modules. A coefficient ring
+//! is itself an [`Algebra`] (over itself), so [`Ring`] is a *sub-trait* of [`Algebra`]: `Field` is
+//! the field $\mathbb{F}_p$ as a one-dimensional algebra over itself, and $\mathbb{F}_2[\tau]$ is the
+//! polynomial algebra on $\tau$ over itself. This fold is what makes `Algebra::BaseRing: Algebra`
+//! hold, so that each graded piece of an algebra can be viewed as a module over the base ring.
+//!
+//! The *harder* linear algebra that a free resolution needs — kernels and quasi-inverses, which
+//! require the ring to be a graded DVR — is the [`GradedDvr`](crate::linear_algebra::GradedDvr)
+//! subtrait, in [`linear_algebra`](crate::linear_algebra). Keeping that separate from [`Ring`] lets
+//! an algebra be defined over a ring whose solving linear algebra is not yet implemented.
 //!
 //! Every classical algebra has `BaseRing = Field` (the field $\mathbb{F}_p$); the C-motivic Steenrod
 //! algebra will use $\mathbb{F}_2[\tau]$.
@@ -38,18 +43,24 @@ pub type Scalar<A> = <BaseRingOf<A> as Ring>::Element;
 /// A graded coefficient ring over which algebras and their modules are linear — concretely
 /// $\mathbb{F}_p$ (a field, via [`Field`]) or $\mathbb{F}_2[\tau]$.
 ///
-/// This trait is the coefficient *ring*: the scalar type and its arithmetic, together with a
-/// representation of finite free modules over the ring (vectors and their slices). This is enough to
-/// *define* an algebra and its modules — to multiply basis elements and act on modules, accumulating
-/// ring-coefficient results into a vector. It is deliberately *not* enough to resolve: the linear
-/// algebra of solving (kernels, quasi-inverses, minimal generators) requires the ring to be a graded
-/// DVR, and lives in the [`GradedDvr`](crate::linear_algebra::GradedDvr) subtrait. Splitting them
-/// this way lets us define algebras over rings whose solving linear algebra we have not yet
-/// implemented (e.g. $\mathbb{R}$-motivic).
+/// A coefficient ring is itself an [`Algebra`] (over itself, i.e. `BaseRing = Self`), so this trait
+/// is a *sub-trait* of [`Algebra`]. On top of the algebra structure it adds what is needed to serve
+/// as coefficients: the scalar type and its arithmetic, together with a representation of finite free
+/// modules over the ring (vectors and their slices). This is enough to *define* an algebra and its
+/// modules — to multiply basis elements and act on modules, accumulating ring-coefficient results
+/// into a vector. It is deliberately *not* enough to resolve: the linear algebra of solving (kernels,
+/// quasi-inverses, minimal generators) requires the ring to be a graded DVR, and lives in the
+/// [`GradedDvr`](crate::linear_algebra::GradedDvr) subtrait. Splitting them this way lets us define
+/// algebras over rings whose solving linear algebra we have not yet implemented (e.g.
+/// $\mathbb{R}$-motivic).
+///
+/// Confining the coefficient capacity (scalar, vector, arithmetic) to this sub-trait — rather than
+/// putting it on [`Algebra`] itself — keeps [`Algebra`] lean: the Steenrod, Milnor, Adem, and
+/// module-algebras, which are never coefficient rings, carry no dead scalar/vector members.
 ///
 /// The ring is a `Copy` handle (like `fp`'s `Field`): it may carry a small amount of runtime data
 /// (e.g. the prime of $\mathbb{F}_p$), so its operations take `self`.
-pub trait Ring: Copy + Send + Sync + 'static {
+pub trait Ring: Algebra + Copy + Send + Sync + 'static {
     /// A scalar of the ring.
     type Element: Copy + PartialEq + Send + Sync;
 
