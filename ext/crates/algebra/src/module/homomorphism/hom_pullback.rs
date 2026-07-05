@@ -8,7 +8,7 @@ use once::OnceBiVec;
 
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, Ring, Scalar},
-    linear_algebra::GradedDvr,
+    linear_algebra::Solvable,
     module::{
         FreeModule, HomModule, Module,
         block_structure::GeneratorBasisEltPair,
@@ -19,7 +19,7 @@ use crate::{
 /// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
 pub struct HomPullback<M: Module>
 where
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     source: Arc<HomModule<M>>,
     target: Arc<HomModule<M>>,
@@ -31,7 +31,7 @@ where
 
 impl<M: Module> HomPullback<M>
 where
-    BaseRingOf<M::Algebra>: GradedDvr,
+    BaseRingOf<M::Algebra>: Solvable,
 {
     /// Fallible version of [`new`](Self::new).
     ///

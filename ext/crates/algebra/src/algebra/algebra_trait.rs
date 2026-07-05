@@ -45,8 +45,8 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// This is bounded only by [`Ring`] — enough to represent and multiply elements, and to act on
     /// modules. Since [`Ring`] is a sub-trait of [`Algebra`], the base ring is itself an [`Algebra`]
     /// (over itself), so each graded piece of this algebra may be viewed as a module over it.
-    /// Resolving *over* the algebra additionally needs the base ring to be a
-    /// [`GradedDvr`](crate::linear_algebra::GradedDvr) (for kernels and quasi-inverses); that
+    /// Resolving *over* the algebra additionally needs the base ring to be
+    /// [`Solvable`](crate::linear_algebra::Solvable) (for kernels and quasi-inverses); that
     /// stronger bound is imposed where resolution happens (e.g. [`ModuleHomomorphism`] and the chain
     /// complex), not here, so that an algebra can be defined over a ring whose solving linear algebra
     /// is not yet implemented.

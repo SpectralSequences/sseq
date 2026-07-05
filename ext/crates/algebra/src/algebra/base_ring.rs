@@ -9,7 +9,7 @@
 //! hold, so that each graded piece of an algebra can be viewed as a module over the base ring.
 //!
 //! The *harder* linear algebra that a free resolution needs — kernels and quasi-inverses, which
-//! require the ring to be a graded DVR — is the [`GradedDvr`](crate::linear_algebra::GradedDvr)
+//! require the ring to be a graded DVR — is the [`Solvable`](crate::linear_algebra::Solvable)
 //! subtrait, in [`linear_algebra`](crate::linear_algebra). Keeping that separate from [`Ring`] lets
 //! an algebra be defined over a ring whose solving linear algebra is not yet implemented.
 //!
@@ -50,7 +50,7 @@ pub type Scalar<A> = <BaseRingOf<A> as Ring>::Element;
 /// modules — to multiply basis elements and act on modules, accumulating ring-coefficient results
 /// into a vector. It is deliberately *not* enough to resolve: the linear algebra of solving (kernels,
 /// quasi-inverses, minimal generators) requires the ring to be a graded DVR, and lives in the
-/// [`GradedDvr`](crate::linear_algebra::GradedDvr) subtrait. Splitting them this way lets us define
+/// [`Solvable`](crate::linear_algebra::Solvable) subtrait. Splitting them this way lets us define
 /// algebras over rings whose solving linear algebra we have not yet implemented (e.g.
 /// $\mathbb{R}$-motivic).
 ///

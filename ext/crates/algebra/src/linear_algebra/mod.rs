@@ -7,7 +7,7 @@
 //! images, kernels, and quasi-inverses, which requires the ring to be a graded DVR (so that graded
 //! Nakayama holds and minimal generators can be read off mod the maximal ideal).
 //!
-//! The central trait is [`GradedDvr`]: a [`Ring`](crate::algebra::Ring) over which one can solve
+//! The central trait is [`Solvable`]: a [`Ring`](crate::algebra::Ring) over which one can solve
 //! linear systems. For [`Field`] the vector types are exactly `fp`'s `FpVector`/`FpSlice`/`FpSliceMut`
 //! and every operation forwards to `fp`, so the classical path is unchanged and bit-identical. A
 //! future $\mathbb{F}_2[\tau]$ impl provides the graded-local solving (per-weight `fp` blocks plus a
@@ -35,18 +35,18 @@ pub type BaseSliceMutOf<'a, A> = <BaseRingOf<A> as Ring>::SliceMut<'a>;
 
 /// A submodule (image or kernel) over the base ring of the algebra `A`. For every classical algebra
 /// this is `fp`'s `Subspace`.
-pub type SubmoduleOf<A> = <BaseRingOf<A> as GradedDvr>::Submodule;
+pub type SubmoduleOf<A> = <BaseRingOf<A> as Solvable>::Submodule;
 
 /// A quasi-inverse of a map over the base ring of the algebra `A`. For every classical algebra this
 /// is `fp`'s `QuasiInverse`.
-pub type QuasiInverseOf<A> = <BaseRingOf<A> as GradedDvr>::QuasiInverse;
+pub type QuasiInverseOf<A> = <BaseRingOf<A> as Solvable>::QuasiInverse;
 
 /// The data — beyond the step matrix itself — needed to construct the next stage of a resolution:
 /// how to make the chain map a chain map, and which cycles the new generators must hit.
 ///
 /// At homological degree 0 there is no previous stage, so both submodule fields are `None` and the
 /// target dimension is 0.
-pub struct NextStageInput<'a, R: GradedDvr> {
+pub struct NextStageInput<'a, R: Solvable> {
     /// The previous chain map's quasi-inverse, used to set `dX(x) = f^{-1}(dC(f(x)))`. `None` at
     /// homological degree 0, or when no new augmentation generators are added.
     pub previous_chain_map_quasi_inverse: Option<&'a R::QuasiInverse>,
@@ -59,8 +59,8 @@ pub struct NextStageInput<'a, R: GradedDvr> {
 
 /// The generators produced by one resolution step: the new differential and chain-map rows to store,
 /// plus the quasi-inverses of the two maps. Returned by
-/// [`GradedDvr::construct_next_stage`].
-pub struct NextStage<R: GradedDvr> {
+/// [`Solvable::construct_next_stage`].
+pub struct NextStage<R: Solvable> {
     /// The number of new generators added (surjecting onto the cokernel plus hitting the old kernel).
     pub num_new_gens: usize,
     /// The chain map on each new generator (its image in `C_{s,t}`).
@@ -133,7 +133,7 @@ pub trait BaseSliceMut<'a, R: Ring> {
 /// representation — with the operations a free resolution needs: computing the image, kernel, and
 /// quasi-inverse of an `R`-linear map. These are meaningful precisely because `R` is a graded DVR
 /// (graded-local, so graded Nakayama holds). For [`Field`] everything forwards to `fp`.
-pub trait GradedDvr: Ring {
+pub trait Solvable: Ring {
     /// A submodule of a finite free module over the ring (the image or kernel of a map). For
     /// [`Field`] this is `fp`'s [`Subspace`].
     type Submodule: Send + Sync;
@@ -278,7 +278,7 @@ impl<'a> BaseSliceMut<'a, Field> for FpSliceMut<'a> {
     }
 }
 
-impl GradedDvr for Field {
+impl Solvable for Field {
     type Matrix = AugmentedMatrix<3>;
     type QuasiInverse = QuasiInverse;
     type Submodule = Subspace;

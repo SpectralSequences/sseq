@@ -8,7 +8,7 @@ use fp::{
 use crate::{
     algebra::{Algebra, BaseRingOf, Field, Ring, Scalar},
     linear_algebra::{
-        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, GradedDvr, QuasiInverseOf,
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, Solvable, QuasiInverseOf,
         SubmoduleOf,
     },
     module::Module,
@@ -47,7 +47,7 @@ pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource
 /// `compute_auxiliary_data_through_degree` is invoked.
 pub trait ModuleHomomorphism: Send + Sync
 where
-    BaseRingOf<<Self::Source as Module>::Algebra>: GradedDvr,
+    BaseRingOf<<Self::Source as Module>::Algebra>: Solvable,
 {
     type Source: Module;
     type Target: Module<Algebra = <Self::Source as Module>::Algebra>;
@@ -209,14 +209,14 @@ where
 pub trait ZeroHomomorphism<S: Module, T: Module<Algebra = S::Algebra>>:
     ModuleHomomorphism<Source = S, Target = T>
 where
-    BaseRingOf<S::Algebra>: GradedDvr,
+    BaseRingOf<S::Algebra>: Solvable,
 {
     fn zero_homomorphism(s: Arc<S>, t: Arc<T>, degree_shift: i32) -> Self;
 }
 
 pub trait IdentityHomomorphism<S: Module>: ModuleHomomorphism<Source = S, Target = S>
 where
-    BaseRingOf<S::Algebra>: GradedDvr,
+    BaseRingOf<S::Algebra>: Solvable,
 {
     fn identity_homomorphism(s: Arc<S>) -> Self;
 }

@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex, mpsc};
 
 use algebra::{
-    Algebra, Field, GradedDvr, MuAlgebra, Ring,
+    Algebra, Field, Solvable, MuAlgebra, Ring,
     linear_algebra::NextStageInput,
     module::{
         Module, MuFreeModule,

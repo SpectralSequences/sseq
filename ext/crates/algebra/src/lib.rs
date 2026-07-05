@@ -15,7 +15,7 @@ mod algebra;
 pub use crate::{
     algebra::*,
     linear_algebra::{
-        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, GradedDvr, QuasiInverseOf,
+        BaseSlice, BaseSliceMut, BaseSliceMutOf, BaseSliceOf, Solvable, QuasiInverseOf,
         SubmoduleOf, VectorOf,
     },
 };
