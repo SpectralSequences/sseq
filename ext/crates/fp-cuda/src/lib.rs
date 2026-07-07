@@ -177,17 +177,6 @@ fn matmul_b1_inner(
         sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
     )?;
 
-    // Persistent grid: a 1-D launch of ~SM-count CTAs that sweep all output
-    // tiles in a grouped-rasterized order (kernel-side) for L2 reuse of B.
-    // Rounded down to a whole number of clusters: __cluster_dims__ requires
-    // gridDim.x to be a multiple of CLUSTER. Surplus clusters (beyond the work)
-    // just run an empty schedule loop.
-    let sms = gpu
-        .ctx
-        .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
-        as u32;
-    let num_ctas = (sms / CLUSTER as u32).max(1) * CLUSTER as u32;
-
     // Dynamic SMEM per CTA: sA + sB + 2*sC (double-buffered) + 2*STAGES mbarriers.
     let tile_a = TILE_M * KL; // TILE_M-row A block
     let tile_b = NG as usize * 64 * KL; // (NG*64)-col B tile
@@ -199,6 +188,34 @@ fn matmul_b1_inner(
         sys::CUfunction_attribute_enum::CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
         smem_bytes as i32,
     )?;
+
+    // Persistent grid: co-resident CTAs = (occupancy per SM) × SM count, so the
+    // grid exactly fills the machine and the kernel's persistent loop sweeps all
+    // output tiles in grouped-rasterized order. Rounded to a whole number of
+    // clusters (`__cluster_dims__` requires gridDim.x % CLUSTER == 0); surplus
+    // clusters run an empty loop.
+    //
+    // This is 1 CTA/SM at the register-blocked config, and that is optimal:
+    // 2 CTAs/SM was measured (2026-07-07 H200) and loses badly. Two CTAs need the
+    // compiled register count ≤128/thread (2·256·128 = the 64K reg file), but the
+    // resident accumulator that gives the kernel its arithmetic intensity is
+    // 192 regs/thread at MSTRIPS=3. Shrinking it to fit two CTAs (MSTRIPS=1,
+    // 64-reg acc → occ=2) collapses AI and drops 16384 from ~8,600 to ~5,500
+    // TOPS. High AI (big accumulator) and high occupancy compete for the same
+    // register file and AI wins, so we run 1 CTA/SM with the largest accumulator
+    // that fits under the 255-reg cap.
+    let sms = gpu
+        .ctx
+        .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+        as u32;
+    let occ = gpu
+        .kernel
+        .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem_bytes as usize, None)?
+        .max(1);
+    let num_ctas = (occ * sms / CLUSTER as u32).max(1) * CLUSTER as u32;
+    if std::env::var("FP_CUDA_DEBUG").is_ok() {
+        eprintln!("[fp-cuda] occ={occ}/SM sms={sms} num_ctas={num_ctas} smem={smem_bytes}B");
+    }
 
     let ta = TmaArg(tma_a);
     let tb = TmaArg(tma_b);

@@ -70,40 +70,50 @@ The crate is still a workspace **member**, so `cargo metadata` sees it,
 
 ## Status
 
-The full Phase 3–7 pipeline (host row-major pre-arrangement → TMA 128B-swizzle
-loads → mbarrier sync → pipelined `m64n256k256` wgmma.b1 → bit-pack → TMA bulk
-output store) is **validated on an H100 NVL (sm_90, CUDA 13.0 driver / 12.8
-toolkit, 2026-06-15)**. The PTX JITs at module load, the dynamic-SMEM opt-in and
-all three TMA descriptors are accepted, and outputs are **bit-exact** against the
-CPU `fp::blas` path across `matmul_b1_demo` (64…8192) and the kernel-only bench
-(4096…32768, including a full 32768³ CPU cross-check).
+The full pipeline (host row-major pre-arrangement → TMA 128B-swizzle loads →
+mbarrier sync → persistent grid + clusters/multicast → register-blocked
+`m64n128k256` wgmma.b1 strips → bit-pack → double-buffered TMA bulk output
+store) is **validated on an H200 NVL (sm_90, CUDA 13.0 driver / 12.4 toolkit,
+2026-07-07)** and earlier on an H100 NVL. The PTX JITs at module load, the
+dynamic-SMEM opt-in (~166 KB) and all three TMA descriptors are accepted, and
+outputs are **bit-exact** against the CPU `fp::blas` path across `matmul_b1_demo`
+(64…8192) and the kernel-only bench (4096…32768, incl. a full 32768³ CPU
+cross-check).
 
 Throughput, **kernel-only** (host setup + H2D/D2H excluded — the comparison the
-~100-TOPS pre-swizzle baseline was measured at):
+~100-TOPS pre-swizzle baseline was measured at), H200 NVL:
 
 | size (M=K=N) | binary TOPS | ms/launch |
 |--------------|-------------|-----------|
-| 4096         | ~3,600      | 0.038     |
-| 8192         | ~5,200      | 0.211     |
-| 16384        | ~5,800      | 1.52      |
-| 32768        | ~2,200      | 32.1      |
+| 4096         | ~4,000      | 0.034     |
+| 8192         | ~6,700      | 0.163     |
+| 16384        | ~8,600      | 1.02      |
+| 32768        | ~9,600      | 7.33      |
 
-i.e. roughly a **50–58× kernel speedup** over the ~100-TOPS pre-swizzle state.
+i.e. roughly a **~96× kernel speedup** over the ~100-TOPS pre-swizzle state, and
+the >16384 L2 cliff is **gone** — throughput now *climbs* with size.
 
-The drop past 16384 is **not** a power/compute bound (measured: 136 W of the
-310 W cap, SM 0–12 %, memory clock pinned at max) — the kernel is
-**memory-bandwidth bound on L2 residency of B**. Each B column-panel is reused
-across every M-tile, so the whole B matrix (`K*N/8` bytes) wants to fit in the
-50 MB L2: at 16384² B is 33.6 MB (fits, ~5,800 TOPS), at 32768² it is 134 MB
-(spills → re-streamed from HBM per M-tile → ~2,300 TOPS). `bench_shapes`
-confirms this with equal-FLOPs shapes: M=65536/K=N=16384 (B fits) hits 5,386
-TOPS while M=16384/K=16384/N=65536 (same FLOPs, B spills) gets 2,272 TOPS, and
-M=131072 (8× the FLOPs, B still fits) sustains 5,275 TOPS — so total size is not
-the limiter, L2 residency is. This is exactly what the remaining rungs target:
-**persistent kernel + tile rasterization** (keep the active tile working set in
-L2 at large N) and **clusters + TMA multicast** (one HBM read of a B-panel feeds
-a whole cluster). Run `cargo run --release -p fp-cuda --example bench_shapes` to
-reproduce.
+Getting there took closing an L2-residency-of-B cliff, then a bandwidth wall,
+then a latency wall (all measured on-device, since ncu can't attach through the
+CUDA-13 driver — see the standalone wgmma/L2 microbenchmark approach):
+- **Persistent grid + grouped rasterization + clusters/TMA-multicast** (Phases
+  8–9) keep B's reuse distance short so it stays L2-resident. `bench_shapes` now
+  shows equal-FLOPs B-fits and B-spills shapes running at the *same* throughput —
+  the cliff is closed.
+- **Register-blocking** (Phase 10): each CTA computes a 192×128 output block as 3
+  `m64n128` strips sharing one loaded B sub-tile, cutting operand-refill
+  bytes/MAC by 33% — the kernel had become L2→SMEM-refill bound (~8 TB/s
+  sustained vs a ~12.5k-TOPS single-warpgroup wgmma ceiling).
+- **Epilogue overlap** (Phase 11): double-buffered `sC` + a deferred
+  `cp.async.bulk.wait_group.read 1` so tile T's output store drains during tile
+  T+1's compute.
+- **Fence hoisting** (Phase 12): one `wgmma.fence` before the K-loop instead of
+  two per k-chunk (a warpgroup-wide sync). After blocking, skipping an entire
+  operand load barely changes throughput — the kernel is now **TMA-latency
+  bound** (deeper pipelines help; pipeline depth is capped by SMEM at STAGES=4).
+
+Run `cargo run --release -p fp-cuda --example bench_shapes` (L2-residency check)
+or `--example tune` (fast throughput sweep) to reproduce.
 
 The end-to-end `cargo bench` figures (≤30 TOPS) are dominated by host
 serialization and the TMA-layout pre-arrangement; use `cargo run --release -p
@@ -143,28 +153,39 @@ Done:
   run behind one `commit_group`/`wait_group` and accumulate in-hardware
   (`scale-D = 1`). Operands moved to dynamic shared memory. Host pre-arrangement
   is plain row-major tiles (no `cm()` interleave).
-- **Widest binary MMA** (Phase 4) — one `m64n256k256` per k-step covering all
-  NG = 4 output limbs, replacing four `m64n64k256`. Same registers/SMEM, 1/4 the
-  instructions; B is one 256-column tile per CTA.
+- **Wide binary MMA** (Phase 4) — began with one `m64n256k256` per k-step
+  (replacing four `m64n64k256`); the current kernel uses `m64n128k256` strips
+  (see Phase 10).
 - **Register reallocation** (Phase 5) — `setmaxnreg.dec(40)` in the producer,
-  `setmaxnreg.inc(216)` in the consumer.
-- **Deeper pipeline** (Phase 6) — `STAGES = 3` (latency-vs-occupancy knob).
+  `setmaxnreg.inc(N)` in the consumer (N sized to the accumulator block).
+- **Deeper pipeline** (Phase 6) — `STAGES` full/empty buffers (now 4).
 - **TMA output store** (Phase 7) — the packed `sC` tile is written back with a
   single `cp.async.bulk.tensor.2d.global.shared::cta`; C is padded to whole
   NG-limb column groups so every stored tile is complete.
 - **Persistent kernel + grouped rasterization** (Phase 8) — a 1-D grid of
   ~SM-count CTAs sweeps the output tiles in a grouped-along-M order (`GROUP_M`
   M-tiles per band), shortening each B-panel's reuse distance to keep it
-  L2-resident. Cuts B's HBM re-reads by ~`GROUP_M`. *Code-only; pending H100
-  validation.*
+  L2-resident. Cuts B's HBM re-reads by ~`GROUP_M`.
 - **Clusters + TMA multicast** (Phase 9) — `CLUSTER` CTAs along M form a
   thread-block cluster and share one HBM read of each B-panel via
-  `cp.async.bulk.tensor…multicast::cluster` (each computes a different M-tile,
-  each keeps its own n256 accumulator). Cluster-wide empty barrier; the pipeline
-  barriers init once and flow continuously across tiles. Mirrors the proven
-  `pranjalssh/fast.cu` matmul_9. *Code-only; pending H100 validation.*
+  `cp.async.bulk.tensor…multicast::cluster` (each computes a different M-tile).
+  Cluster-wide empty barrier; the pipeline barriers init once and flow
+  continuously across tiles. Mirrors the proven `pranjalssh/fast.cu` matmul_9.
+- **Register-blocking** (Phase 10) — each CTA computes a `TM×NB` output block
+  (`MSTRIPS` `m64n128` strips × `NB`=128 cols) whose strips all reuse one loaded
+  B sub-tile, cutting operand-refill bytes/MAC (the bottleneck after Phase 9).
+  `MSTRIPS`=3 → a 192×128 block, −33% bytes/MAC. `MSTRIPS`/`TILE_M`/`NG` in the
+  kernel and `src/lib.rs` must match.
+- **Epilogue overlap** (Phase 11) — double-buffered `sC` + deferred
+  `cp.async.bulk.wait_group.read 1` so tile T's output store overlaps tile T+1's
+  compute.
+- **Fence hoisting** (Phase 12) — one `wgmma.fence` before the K-loop instead of
+  two per k-chunk.
 
-Remaining:
+Phases 8–9 were validated on hardware (H200 NVL) alongside 10–12.
+
+Remaining (now TMA-latency bound — the consumer out-runs per-tile TMA latency and
+pipeline depth is SMEM-capped at `STAGES`=4):
 
 - Add a `cuda` feature on the `fp` crate that pulls in `fp-cuda` and
   inserts a runtime device check at the top of `impl Mul for &Matrix`,
