@@ -193,6 +193,13 @@ constexpr int STROW = MW*KL;       // u64 per m64 strip in sA (64*16 = 1024 = 8 
 constexpr int SC_STRIDE = NG*TM;   // u64 per sC output buffer (double-buffered)
 constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
 constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
+// K-loop pipeline depth. Cap is 4 under CLUSTER>1: each stage is 40 KB, so
+// STAGES=5 needs ~206 KB, which is under the 227 KB opt-in cap BUT a cluster
+// launch reserves extra shared memory (distributed-SMEM / cluster-barrier
+// bookkeeping), so 206 KB intermittently over-commits and the kernel faults
+// with a flaky "unspecified launch failure" (verified 2026-07-07 H200; the
+// sanitizers miss it because it is an async/resource fault). STAGES=5 is stable
+// only with CLUSTER=1, and gives no large-N speedup there, so 4 it is.
 constexpr int STAGES = 4;          // K-loop pipeline depth (full/empty buffers)
 constexpr int THREADS_PER_WG = 128;
 constexpr int GROUP_M = 16;        // M-tiles per rasterization group (L2 reuse knob)
