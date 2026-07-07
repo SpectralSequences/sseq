@@ -13,12 +13,13 @@
 // hand-rolled interleave.
 //
 // Each loaded tile spans a full 128B K-major swizzle atom (8 rows × 1024 bits),
-// i.e. KSUB = 4 consecutive k256 sub-chunks. A is one 64-row tile; B is one
-// 256-column tile, so each k256 step is a single m64n256k256 wgmma covering all
-// NG = 4 output column-limbs of the CTA at once (instead of four m64n64 wgmmas).
-// The consumer issues all KSUB wgmmas behind a single commit/wait and
-// accumulates the popcounts in-hardware (scale-D = 1) into one resident
-// accumulator that stays live across the whole K loop.
+// i.e. KSUB = 4 consecutive k256 sub-chunks. A CTA computes a register-blocked
+// TM×NB output block (MSTRIPS m64 row-strips × 128 columns). Each k256 step
+// loads B once and issues MSTRIPS m64n128k256 wgmmas that all reuse it — one
+// L2→SMEM read of B feeds every strip, which cuts the operand-refill bytes per
+// MAC (the measured bottleneck on Hopper: the tensor core out-runs L2→SMEM
+// bandwidth). Each strip accumulates into its own resident 64-reg accumulator
+// (scale-D = 1, popcounts summed in-hardware), all live across the whole K loop.
 //
 // The grid is persistent: ~SM-count CTAs (in clusters of CLUSTER along M) sweep
 // the output tile grid in a grouped-along-M rasterized order so each B-panel's
@@ -122,53 +123,26 @@ __device__ __forceinline__ void tma_2d_multicast(
         : "memory");
 }
 
-// m64n256k256 binary MMA, scale-D = 1 (accumulate into the 128 s32 regs of
-// `acc`, which the consumer pre-zeroes). da/db are the swizzled operand
-// descriptors.
-__device__ __forceinline__ void wgmma_n256(int32_t acc[128], uint64_t da, uint64_t db) {
+// m64n128k256 binary MMA, scale-D = 1 (accumulate into the 64 s32 regs of
+// `acc`). da/db are the swizzled operand descriptors. Half the N of the
+// widest binary shape, so MSTRIPS of these share one B tile to cut refill BW.
+__device__ __forceinline__ void wgmma_n128(int32_t acc[64], uint64_t da, uint64_t db) {
     asm volatile(
-        "wgmma.mma_async.sync.aligned.m64n256k256.row.col.s32.b1.b1.and.popc "
-        "{%0,%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14,%15," \
+        "wgmma.mma_async.sync.aligned.m64n128k256.row.col.s32.b1.b1.and.popc "
+        "{" \
+        "%0,%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14,%15," \
         "%16,%17,%18,%19,%20,%21,%22,%23,%24,%25,%26,%27,%28,%29,%30,%31," \
         "%32,%33,%34,%35,%36,%37,%38,%39,%40,%41,%42,%43,%44,%45,%46,%47," \
-        "%48,%49,%50,%51,%52,%53,%54,%55,%56,%57,%58,%59,%60,%61,%62,%63," \
-        "%64,%65,%66,%67,%68,%69,%70,%71,%72,%73,%74,%75,%76,%77,%78,%79," \
-        "%80,%81,%82,%83,%84,%85,%86,%87,%88,%89,%90,%91,%92,%93,%94,%95," \
-        "%96,%97,%98,%99,%100,%101,%102,%103,%104,%105,%106,%107,%108,%109,%110,%111," \
-        "%112,%113,%114,%115,%116,%117,%118,%119,%120,%121,%122,%123,%124,%125,%126,%127}," \
-        "%128,%129, 1;\n"
-        : "+r"(acc[0]),"+r"(acc[1]),"+r"(acc[2]),"+r"(acc[3]),
-          "+r"(acc[4]),"+r"(acc[5]),"+r"(acc[6]),"+r"(acc[7]),
-          "+r"(acc[8]),"+r"(acc[9]),"+r"(acc[10]),"+r"(acc[11]),
-          "+r"(acc[12]),"+r"(acc[13]),"+r"(acc[14]),"+r"(acc[15]),
-          "+r"(acc[16]),"+r"(acc[17]),"+r"(acc[18]),"+r"(acc[19]),
-          "+r"(acc[20]),"+r"(acc[21]),"+r"(acc[22]),"+r"(acc[23]),
-          "+r"(acc[24]),"+r"(acc[25]),"+r"(acc[26]),"+r"(acc[27]),
-          "+r"(acc[28]),"+r"(acc[29]),"+r"(acc[30]),"+r"(acc[31]),
-          "+r"(acc[32]),"+r"(acc[33]),"+r"(acc[34]),"+r"(acc[35]),
-          "+r"(acc[36]),"+r"(acc[37]),"+r"(acc[38]),"+r"(acc[39]),
-          "+r"(acc[40]),"+r"(acc[41]),"+r"(acc[42]),"+r"(acc[43]),
-          "+r"(acc[44]),"+r"(acc[45]),"+r"(acc[46]),"+r"(acc[47]),
-          "+r"(acc[48]),"+r"(acc[49]),"+r"(acc[50]),"+r"(acc[51]),
-          "+r"(acc[52]),"+r"(acc[53]),"+r"(acc[54]),"+r"(acc[55]),
-          "+r"(acc[56]),"+r"(acc[57]),"+r"(acc[58]),"+r"(acc[59]),
-          "+r"(acc[60]),"+r"(acc[61]),"+r"(acc[62]),"+r"(acc[63]),
-          "+r"(acc[64]),"+r"(acc[65]),"+r"(acc[66]),"+r"(acc[67]),
-          "+r"(acc[68]),"+r"(acc[69]),"+r"(acc[70]),"+r"(acc[71]),
-          "+r"(acc[72]),"+r"(acc[73]),"+r"(acc[74]),"+r"(acc[75]),
-          "+r"(acc[76]),"+r"(acc[77]),"+r"(acc[78]),"+r"(acc[79]),
-          "+r"(acc[80]),"+r"(acc[81]),"+r"(acc[82]),"+r"(acc[83]),
-          "+r"(acc[84]),"+r"(acc[85]),"+r"(acc[86]),"+r"(acc[87]),
-          "+r"(acc[88]),"+r"(acc[89]),"+r"(acc[90]),"+r"(acc[91]),
-          "+r"(acc[92]),"+r"(acc[93]),"+r"(acc[94]),"+r"(acc[95]),
-          "+r"(acc[96]),"+r"(acc[97]),"+r"(acc[98]),"+r"(acc[99]),
-          "+r"(acc[100]),"+r"(acc[101]),"+r"(acc[102]),"+r"(acc[103]),
-          "+r"(acc[104]),"+r"(acc[105]),"+r"(acc[106]),"+r"(acc[107]),
-          "+r"(acc[108]),"+r"(acc[109]),"+r"(acc[110]),"+r"(acc[111]),
-          "+r"(acc[112]),"+r"(acc[113]),"+r"(acc[114]),"+r"(acc[115]),
-          "+r"(acc[116]),"+r"(acc[117]),"+r"(acc[118]),"+r"(acc[119]),
-          "+r"(acc[120]),"+r"(acc[121]),"+r"(acc[122]),"+r"(acc[123]),
-          "+r"(acc[124]),"+r"(acc[125]),"+r"(acc[126]),"+r"(acc[127])
+        "%48,%49,%50,%51,%52,%53,%54,%55,%56,%57,%58,%59,%60,%61,%62,%63}," \
+        "%64,%65, 1;\n"
+        : "+r"(acc[0]),"+r"(acc[1]),"+r"(acc[2]),"+r"(acc[3]),"+r"(acc[4]),"+r"(acc[5]),"+r"(acc[6]),"+r"(acc[7]),
+          "+r"(acc[8]),"+r"(acc[9]),"+r"(acc[10]),"+r"(acc[11]),"+r"(acc[12]),"+r"(acc[13]),"+r"(acc[14]),"+r"(acc[15]),
+          "+r"(acc[16]),"+r"(acc[17]),"+r"(acc[18]),"+r"(acc[19]),"+r"(acc[20]),"+r"(acc[21]),"+r"(acc[22]),"+r"(acc[23]),
+          "+r"(acc[24]),"+r"(acc[25]),"+r"(acc[26]),"+r"(acc[27]),"+r"(acc[28]),"+r"(acc[29]),"+r"(acc[30]),"+r"(acc[31]),
+          "+r"(acc[32]),"+r"(acc[33]),"+r"(acc[34]),"+r"(acc[35]),"+r"(acc[36]),"+r"(acc[37]),"+r"(acc[38]),"+r"(acc[39]),
+          "+r"(acc[40]),"+r"(acc[41]),"+r"(acc[42]),"+r"(acc[43]),"+r"(acc[44]),"+r"(acc[45]),"+r"(acc[46]),"+r"(acc[47]),
+          "+r"(acc[48]),"+r"(acc[49]),"+r"(acc[50]),"+r"(acc[51]),"+r"(acc[52]),"+r"(acc[53]),"+r"(acc[54]),"+r"(acc[55]),
+          "+r"(acc[56]),"+r"(acc[57]),"+r"(acc[58]),"+r"(acc[59]),"+r"(acc[60]),"+r"(acc[61]),"+r"(acc[62]),"+r"(acc[63])
         : "l"(da), "l"(db));
 }
 __device__ __forceinline__ void wgmma_fence()  { asm volatile("wgmma.fence.sync.aligned;\n" ::: "memory"); }
@@ -189,26 +163,39 @@ __device__ __forceinline__ void tma_store_wait()   { asm volatile("cp.async.bulk
 __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory"); }
 
 // Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
-// few registers, so it releases its surplus; the consumer (128-reg accumulator)
-// claims them. Counts must be multiples of 8 in [24,256] and sum, weighted by
-// 128 threads/warpgroup, to ≤ the 64K-register SM budget:
-// 128*(40 + 216) = 32768, leaving room for 2 CTAs/SM.
+// few registers, so it releases its surplus; the consumer (MSTRIPS*ACC_N-reg
+// accumulator) claims them. Counts must be multiples of 8 in [24,256]; at
+// 1 CTA/SM the SM's 64K-register budget is ample (128*(40+232) = 34816 at
+// MSTRIPS=3), so the binding limit is the 255-reg-per-thread hardware cap.
 #define SET_MAXNREG_DEC(N) asm volatile("setmaxnreg.dec.sync.aligned.u32 %0;\n" :: "n"(N))
 #define SET_MAXNREG_INC(N) asm volatile("setmaxnreg.inc.sync.aligned.u32 %0;\n" :: "n"(N))
-constexpr int PRODUCER_REGS = 40;
-constexpr int CONSUMER_REGS = 216;
 
-constexpr int TM = 64, TK = 1024, KL = TK/64;
-constexpr int TILE = TM*KL;        // A tile: 64 rows × 16 u64 = 1024 u64
-constexpr int NB = 256;            // n256 output width (columns) per CTA
-constexpr int TILE_B = NB*KL;      // B tile: 256 cols × 16 u64 = 4096 u64
-constexpr int NG = NB/64;          // 4 output column-limbs per CTA
+// Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
+// issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
+// load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
+// ~1/(1+NB/BM). MSTRIPS is the block knob: 2 → 128×128 block (−20% bytes/MAC,
+// 128 acc regs), 3 → 192×128 (−33%, 192 acc regs). NB is fixed at 128 (the
+// wgmma_n128 shape); acc regs per thread = MSTRIPS*ACC_N ≤ 240.
+constexpr int MSTRIPS = 3;         // m64 row-strips per CTA (block knob)
+constexpr int MW = 64;             // wgmma M extent (fixed for binary wgmma)
+constexpr int TK = 1024, KL = TK/64;
+constexpr int TM = MW*MSTRIPS;     // output rows per CTA (192 at MSTRIPS=3)
+constexpr int NB = 128;            // n128 output width (columns) per CTA
+constexpr int NG = NB/64;          // 2 output column-limbs per CTA
+constexpr int ACC_N = NB/2;        // 64 s32 accumulator regs per m64n128 strip
+constexpr int TILE_A = TM*KL;      // A tile: TM rows × 16 u64 (192 rows → 3072 u64 = 24 KB)
+constexpr int TILE_B = NB*KL;      // B tile: 128 cols × 16 u64 = 2048 u64 = 16 KB
+constexpr int STROW = MW*KL;       // u64 per m64 strip in sA (64*16 = 1024 = 8 KB)
 constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
 constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
-constexpr int STAGES = 3;          // K-loop pipeline depth (full/empty buffers)
+constexpr int STAGES = 4;          // K-loop pipeline depth (full/empty buffers)
 constexpr int THREADS_PER_WG = 128;
-constexpr int GROUP_M = 8;         // M-tiles per rasterization group (L2 reuse knob)
+constexpr int GROUP_M = 16;        // M-tiles per rasterization group (L2 reuse knob)
 constexpr int CLUSTER = 2;         // CTAs per cluster along M (multicast B; reuse knob)
+constexpr int PRODUCER_REGS = 40;
+// Consumer holds MSTRIPS*ACC_N accumulator regs live across K, plus addressing;
+// round up to a multiple of 8, ≤ 240. 1 CTA/SM so the SM reg budget is ample.
+constexpr int CONSUMER_REGS = ((MSTRIPS*ACC_N + 40 + 7)/8)*8;
 
 // wgmma 128B K-major descriptor constants (CUTLASS make_gmma_desc<Major::K>,
 // LayoutType::B128): LBO = 1 uint128 = 16 bytes, SBO = 8-row-brick stride =
@@ -226,21 +213,21 @@ constexpr uint32_t DESC_SWIZ = 1;
 //                                  K-loop into a STAGES-deep circular SMEM
 //                                  buffer.
 //   Warpgroup 1 (t in [128, 256)) = CONSUMER: waits for each stage to be full,
-//                                   runs KSUB pipelined m64n256 wgmmas against
-//                                   it, signals the stage empty so producer can
-//                                   refill.
+//                                   runs KSUB*MSTRIPS pipelined m64n128 wgmmas
+//                                   against it, signals the stage empty so the
+//                                   producer can refill.
 //
 // Dynamic SMEM per CTA (carved from `smem`, 128B-aligned for TMA):
-//   sA[STAGES][TILE]    = STAGES * 8192 B
-//   sB[STAGES][TILE_B]  = STAGES * 32768 B
-//   sC[TM][NG]          = 64 * NG * 8 B (consumer-only, row-major for TMA store)
+//   sA[STAGES][TILE_A]  = STAGES * 24576 B (TM=192 rows)
+//   sB[STAGES][TILE_B]  = STAGES * 16384 B (NB=128 cols)
+//   sC[TM][NG]          = TM * NG * 8 B (consumer-only, row-major for TMA store)
 //   mbar_full[STAGES] + mbar_empty[STAGES]
 //
-// Per stage = sA (8 KB) + sB (32 KB) = 40 KB; STAGES=3 ≈ 122 KB total (requires
+// Per stage = sA (24 KB) + sB (16 KB) = 40 KB; STAGES=4 ≈ 163 KB total (requires
 // the opt-in CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
-// STAGES is the latency-vs-occupancy knob: 2 → 2 CTAs/SM (82 KB), 3 → 1 CTA/SM.
+// At 40 KB/stage the block runs 1 CTA/SM; STAGES is the K-pipeline-depth knob.
 //
-// The output tile (64 rows × NG limbs) is packed row-major into sC and written
+// The output block (TM rows × NG limbs) is packed row-major into sC and written
 // back with a single TMA bulk store (S2G). C is padded to whole NG-limb column
 // groups on the host so every stored tile is complete.
 extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
@@ -252,8 +239,8 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
     uint32_t M, uint32_t K)
 {
     extern __shared__ __align__(128) uint64_t smem[];
-    uint64_t* sA = smem;                          // [STAGES][TILE]
-    uint64_t* sB = sA + STAGES * TILE;            // [STAGES][TILE_B]
+    uint64_t* sA = smem;                          // [STAGES][TILE_A]
+    uint64_t* sB = sA + STAGES * TILE_A;          // [STAGES][TILE_B]
     uint64_t* sC = sB + STAGES * TILE_B;          // [TM][NG] row-major
     uint64_t* mbar_full  = sC + NG * TM;          // [STAGES]
     uint64_t* mbar_empty = mbar_full + STAGES;    // [STAGES]
@@ -267,7 +254,7 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
     // host to a multiple of NB columns, so it is always a complete tile). A is
     // loaded per-CTA; B arrives via multicast — both target this CTA's full
     // barrier, so the expected bytes are the same as the single-CTA case.
-    const uint32_t expected_tx = (uint32_t)((TILE + TILE_B) * sizeof(uint64_t));
+    const uint32_t expected_tx = (uint32_t)((TILE_A + TILE_B) * sizeof(uint64_t));
 
     // Cluster geometry: CLUSTER CTAs along M share one B-panel via multicast,
     // so the schedule walks "M-super-rows" of CLUSTER M-tiles. The host pads
@@ -321,9 +308,11 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
         const int bi = (int)(sbi * CLUSTER + rank);  // this CTA's M-tile
         const int row0 = bi * TM, col0 = bj * NG;
 
-        if (t_wg < TM && wg == 1) {
-            #pragma unroll
-            for (int g = 0; g < NG; ++g) sC[t_wg * NG + g] = 0;
+        if (wg == 1) {
+            for (int r = t_wg; r < TM; r += THREADS_PER_WG) {
+                #pragma unroll
+                for (int g = 0; g < NG; ++g) sC[r * NG + g] = 0;
+            }
         }
         __syncthreads();
 
@@ -337,8 +326,8 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                     // set expected bytes (A + multicast B) and issue the loads.
                     mbar_wait(&mbar_empty[s], p);
                     mbar_tx(&mbar_full[s], expected_tx);
-                    // A: this CTA's own 64-row tile.
-                    tma_2d(&sA[s * TILE], &tma_a, 0,
+                    // A: this CTA's own TM-row block (MSTRIPS m64 strips).
+                    tma_2d(&sA[s * TILE_A], &tma_a, 0,
                            (kk * m_tiles + bi) * TM, &mbar_full[s]);
                     // B: one HBM read, multicast into every cluster member's sB
                     // and counted against every member's full barrier. Issued by
@@ -353,10 +342,13 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
             }
         } else {
             // ===================== CONSUMER =====================
-            // One m64n256 accumulator (128 s32 regs/thread), re-zeroed per tile.
-            int32_t acc[128];
+            // MSTRIPS m64n128 accumulators (MSTRIPS*ACC_N s32 regs/thread), all
+            // resident across the whole K loop, re-zeroed per output tile.
+            int32_t acc[MSTRIPS][ACC_N];
             #pragma unroll
-            for (int r = 0; r < 128; ++r) acc[r] = 0;
+            for (int si = 0; si < MSTRIPS; ++si)
+                #pragma unroll
+                for (int r = 0; r < ACC_N; ++r) acc[si][r] = 0;
 
             for (int kk = 0; kk < nchunks; ++kk) {
                 const uint32_t s = qidx;
@@ -365,15 +357,20 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 mbar_wait(&mbar_full[s], p);
 
                 // Issue every k256 wgmma for this stage behind one commit/wait so
-                // they pipeline. scale-D = 1 accumulates each sub-chunk in-hardware.
+                // they pipeline. Each k256 loads B once and reuses it across all
+                // MSTRIPS strips (independent accumulators → they can overlap).
+                // scale-D = 1 accumulates each sub-chunk in-hardware.
                 wgmma_fence();
                 #pragma unroll
                 for (int c = 0; c < KSUB; ++c) {
-                    uint64_t da = make_desc(&sA[s * TILE + c * KSUB_U64],
-                                            DESC_LBO, DESC_SBO, DESC_SWIZ);
                     uint64_t db = make_desc(&sB[s * TILE_B + c * KSUB_U64],
                                             DESC_LBO, DESC_SBO, DESC_SWIZ);
-                    wgmma_n256(acc, da, db);
+                    #pragma unroll
+                    for (int si = 0; si < MSTRIPS; ++si) {
+                        uint64_t da = make_desc(&sA[s * TILE_A + si * STROW + c * KSUB_U64],
+                                                DESC_LBO, DESC_SBO, DESC_SWIZ);
+                        wgmma_n128(acc[si], da, db);
+                    }
                 }
                 wgmma_commit();
                 wgmma_wait();
@@ -385,39 +382,43 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 if (++qidx == STAGES) { qidx = 0; p ^= 1; }
             }
 
-            // Pack the 256-wide accumulator into sC's NG=4 output limbs. The
-            // m64n256 fragment is the m64n64 layout tiled along N: register group
-            // gi (0..31) covers output columns [gi*8, gi*8+8); within it this
-            // thread owns columns cb, cb+1 for rows rb and rb+8. Column c maps to
-            // limb c/64, bit c%64.
+            // Pack each strip's NB-wide accumulator into sC's NG output limbs.
+            // The m64n128 fragment is the m64n64 layout tiled along N: register
+            // group gi (0..NB/8-1) covers output columns [gi*8, gi*8+8); within it
+            // this thread owns columns cb, cb+1 for rows rb and rb+8. Strip si adds
+            // si*MW to the row. Column c maps to limb c/64, bit c%64.
             const int wid = t_wg >> 5, lane = t_wg & 31;
             const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
-            uint64_t lo[NG] = {0}, hi[NG] = {0};
             #pragma unroll
-            for (int gi = 0; gi < 32; ++gi) {
-                int c0 = cb + gi*8, c1 = c0 + 1;
-                int l0 = c0 >> 6, b0p = c0 & 63;
-                int l1 = c1 >> 6, b1p = c1 & 63;
-                lo[l0] |= (uint64_t)(acc[gi*4+0]&1) << b0p;
-                lo[l1] |= (uint64_t)(acc[gi*4+1]&1) << b1p;
-                hi[l0] |= (uint64_t)(acc[gi*4+2]&1) << b0p;
-                hi[l1] |= (uint64_t)(acc[gi*4+3]&1) << b1p;
-            }
-            // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns) get
-            // zero popcounts from the zero-padded B, so they store harmless zeros
-            // into C's padded region (trimmed on the host).
-            #pragma unroll
-            for (int g = 0; g < NG; ++g) {
-                uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rb * NG + g]);
-                uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[(rb + 8) * NG + g]);
-                atomicXor(&clo[0], (uint32_t)lo[g]);
-                atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
-                atomicXor(&chi[0], (uint32_t)hi[g]);
-                atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
+            for (int si = 0; si < MSTRIPS; ++si) {
+                uint64_t lo[NG] = {0}, hi[NG] = {0};
+                #pragma unroll
+                for (int gi = 0; gi < NB/8; ++gi) {
+                    int c0 = cb + gi*8, c1 = c0 + 1;
+                    int l0 = c0 >> 6, b0p = c0 & 63;
+                    int l1 = c1 >> 6, b1p = c1 & 63;
+                    lo[l0] |= (uint64_t)(acc[si][gi*4+0]&1) << b0p;
+                    lo[l1] |= (uint64_t)(acc[si][gi*4+1]&1) << b1p;
+                    hi[l0] |= (uint64_t)(acc[si][gi*4+2]&1) << b0p;
+                    hi[l1] |= (uint64_t)(acc[si][gi*4+3]&1) << b1p;
+                }
+                // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns)
+                // get zero popcounts from the zero-padded B, so they store harmless
+                // zeros into C's padded region (trimmed on the host).
+                const int rlo = si*MW + rb, rhi = si*MW + rb + 8;
+                #pragma unroll
+                for (int g = 0; g < NG; ++g) {
+                    uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rlo * NG + g]);
+                    uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[rhi * NG + g]);
+                    atomicXor(&clo[0], (uint32_t)lo[g]);
+                    atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
+                    atomicXor(&chi[0], (uint32_t)hi[g]);
+                    atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
+                }
             }
         }
 
-        // Write the 64×NG output tile back with a single TMA bulk store.
+        // Write the TM×NG output block back with a single TMA bulk store.
         __syncthreads();        // sC fully packed by the consumer
         fence_async_shared();   // make the atomicXor writes visible to the async proxy
         if (t == 0) {
