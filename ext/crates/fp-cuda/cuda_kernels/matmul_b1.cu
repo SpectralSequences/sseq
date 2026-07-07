@@ -160,6 +160,10 @@ __device__ __forceinline__ void tma_store_2d(
 }
 __device__ __forceinline__ void tma_store_commit() { asm volatile("cp.async.bulk.commit_group;\n" ::: "memory"); }
 __device__ __forceinline__ void tma_store_wait()   { asm volatile("cp.async.bulk.wait_group 0;\n" ::: "memory"); }
+// Wait until all but the most-recent store group have *read* their SMEM source
+// (`.read` = don't wait for global visibility). Lets a double-buffered sC free
+// the buffer from two tiles ago while the newest store drains in the background.
+__device__ __forceinline__ void tma_store_wait_read1() { asm volatile("cp.async.bulk.wait_group.read 1;\n" ::: "memory"); }
 __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory"); }
 
 // Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
@@ -186,6 +190,7 @@ constexpr int ACC_N = NB/2;        // 64 s32 accumulator regs per m64n128 strip
 constexpr int TILE_A = TM*KL;      // A tile: TM rows × 16 u64 (192 rows → 3072 u64 = 24 KB)
 constexpr int TILE_B = NB*KL;      // B tile: 128 cols × 16 u64 = 2048 u64 = 16 KB
 constexpr int STROW = MW*KL;       // u64 per m64 strip in sA (64*16 = 1024 = 8 KB)
+constexpr int SC_STRIDE = NG*TM;   // u64 per sC output buffer (double-buffered)
 constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
 constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
 constexpr int STAGES = 4;          // K-loop pipeline depth (full/empty buffers)
@@ -220,7 +225,8 @@ constexpr uint32_t DESC_SWIZ = 1;
 // Dynamic SMEM per CTA (carved from `smem`, 128B-aligned for TMA):
 //   sA[STAGES][TILE_A]  = STAGES * 24576 B (TM=192 rows)
 //   sB[STAGES][TILE_B]  = STAGES * 16384 B (NB=128 cols)
-//   sC[TM][NG]          = TM * NG * 8 B (consumer-only, row-major for TMA store)
+//   sC[2][TM][NG]       = 2 * TM * NG * 8 B (double-buffered so the output store
+//                         of tile T overlaps tile T+1's compute)
 //   mbar_full[STAGES] + mbar_empty[STAGES]
 //
 // Per stage = sA (24 KB) + sB (16 KB) = 40 KB; STAGES=4 ≈ 163 KB total (requires
@@ -241,8 +247,8 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
     extern __shared__ __align__(128) uint64_t smem[];
     uint64_t* sA = smem;                          // [STAGES][TILE_A]
     uint64_t* sB = sA + STAGES * TILE_A;          // [STAGES][TILE_B]
-    uint64_t* sC = sB + STAGES * TILE_B;          // [TM][NG] row-major
-    uint64_t* mbar_full  = sC + NG * TM;          // [STAGES]
+    uint64_t* sC = sB + STAGES * TILE_B;          // [2][TM][NG] row-major (double-buffered)
+    uint64_t* mbar_full  = sC + 2 * SC_STRIDE;    // [STAGES]
     uint64_t* mbar_empty = mbar_full + STAGES;    // [STAGES]
 
     const int t = threadIdx.x;
@@ -297,8 +303,11 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
     // B-panel's reuse distance short for L2 residency; the cluster additionally
     // shares each B-panel HBM read across its CLUSTER CTAs via multicast.
     // qidx/p are the running pipeline slot/phase, carried across tiles.
-    uint32_t qidx = 0, p = 0;
-    for (uint32_t ct = cluster_id; ct < total_cl; ct += num_clusters) {
+    // sC is double-buffered so tile T's output store overlaps tile T+1's
+    // compute: cbuf ping-pongs per tile, and the store's wait is deferred one
+    // tile (see epilogue). titer counts this CTA's tiles for the ping-pong.
+    uint32_t qidx = 0, p = 0, titer = 0;
+    for (uint32_t ct = cluster_id; ct < total_cl; ct += num_clusters, ++titer) {
         const uint32_t gid    = ct / (GROUP_M * n_groups);
         const uint32_t firstm = gid * GROUP_M;
         const uint32_t curm   = min((uint32_t)GROUP_M, m_super - firstm);
@@ -307,11 +316,16 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
         const int bj = (int)(local / curm);
         const int bi = (int)(sbi * CLUSTER + rank);  // this CTA's M-tile
         const int row0 = bi * TM, col0 = bj * NG;
+        uint64_t* sCb = sC + (titer & 1) * SC_STRIDE;   // this tile's sC buffer
 
+        // Before reusing this buffer, make sure the store that last used it (two
+        // tiles ago) has finished reading it. The deferred .read-1 wait below
+        // already drained it during the previous tile; this syncs all consumer
+        // threads to that wait before they overwrite the buffer.
         if (wg == 1) {
             for (int r = t_wg; r < TM; r += THREADS_PER_WG) {
                 #pragma unroll
-                for (int g = 0; g < NG; ++g) sC[r * NG + g] = 0;
+                for (int g = 0; g < NG; ++g) sCb[r * NG + g] = 0;
             }
         }
         __syncthreads();
@@ -408,8 +422,8 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 const int rlo = si*MW + rb, rhi = si*MW + rb + 8;
                 #pragma unroll
                 for (int g = 0; g < NG; ++g) {
-                    uint32_t* clo = reinterpret_cast<uint32_t*>(&sC[rlo * NG + g]);
-                    uint32_t* chi = reinterpret_cast<uint32_t*>(&sC[rhi * NG + g]);
+                    uint32_t* clo = reinterpret_cast<uint32_t*>(&sCb[rlo * NG + g]);
+                    uint32_t* chi = reinterpret_cast<uint32_t*>(&sCb[rhi * NG + g]);
                     atomicXor(&clo[0], (uint32_t)lo[g]);
                     atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
                     atomicXor(&chi[0], (uint32_t)hi[g]);
@@ -418,15 +432,21 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
             }
         }
 
-        // Write the TM×NG output block back with a single TMA bulk store.
-        __syncthreads();        // sC fully packed by the consumer
+        // Write the TM×NG output block back with a single TMA bulk store, then
+        // DEFER its wait: `.read 1` blocks only until every store but the newest
+        // (this one) has finished reading its sC buffer, so tile T's store drains
+        // during tile T+1's compute instead of stalling here. The buffer freed is
+        // the one from two tiles ago — safe to reuse next time cbuf lands on it.
+        __syncthreads();        // sC[cbuf] fully packed by the consumer
         fence_async_shared();   // make the atomicXor writes visible to the async proxy
         if (t == 0) {
-            tma_store_2d(&tma_c, col0 * 2, row0, sC); // x in UINT32 units (2 per limb)
+            tma_store_2d(&tma_c, col0 * 2, row0, sCb); // x in UINT32 units (2 per limb)
             tma_store_commit();
-            tma_store_wait();
+            tma_store_wait_read1();
         }
-        __syncthreads();        // keep sC alive until the store completes, and
-                                // fence this tile before the next reuses SMEM
+        __syncthreads();        // order the deferred wait before the next tile
+                                // reuses (zeroes) an sC buffer
     }
+    // Drain the last outstanding output store before the CTA exits.
+    if (t == 0) tma_store_wait();
 }

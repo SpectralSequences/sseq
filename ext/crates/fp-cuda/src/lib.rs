@@ -188,10 +188,10 @@ fn matmul_b1_inner(
         as u32;
     let num_ctas = (sms / CLUSTER as u32).max(1) * CLUSTER as u32;
 
-    // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
+    // Dynamic SMEM per CTA: sA + sB + 2*sC (double-buffered) + 2*STAGES mbarriers.
     let tile_a = TILE_M * KL; // TILE_M-row A block
     let tile_b = NG as usize * 64 * KL; // (NG*64)-col B tile
-    let smem_u64 = STAGES * tile_a + STAGES * tile_b + NG as usize * TILE_M + 2 * STAGES;
+    let smem_u64 = STAGES * tile_a + STAGES * tile_b + 2 * NG as usize * TILE_M + 2 * STAGES;
     let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
 
     // Opt in to >48 KB shared memory (Hopper static default cap).
