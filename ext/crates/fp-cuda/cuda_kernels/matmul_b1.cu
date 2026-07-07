@@ -364,6 +364,12 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 #pragma unroll
                 for (int r = 0; r < ACC_N; ++r) acc[si][r] = 0;
 
+            // One wgmma.fence for the whole K-loop: it orders the non-wgmma
+            // accumulator zeroing above before the first wgmma. Inside the loop
+            // the accumulators are written only by wgmma, so no per-chunk fence
+            // is needed (a warpgroup-wide sync we don't want 32× per tile). The
+            // per-chunk wgmma.wait_group 0 makes the results readable at the end.
+            wgmma_fence();
             for (int kk = 0; kk < nchunks; ++kk) {
                 const uint32_t s = qidx;
 
@@ -374,7 +380,6 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 // they pipeline. Each k256 loads B once and reuses it across all
                 // MSTRIPS strips (independent accumulators → they can overlap).
                 // scale-D = 1 accumulates each sub-chunk in-hardware.
-                wgmma_fence();
                 #pragma unroll
                 for (int c = 0; c < KSUB; ++c) {
                     uint64_t db = make_desc(&sB[s * TILE_B + c * KSUB_U64],
@@ -388,7 +393,6 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
                 }
                 wgmma_commit();
                 wgmma_wait();
-                wgmma_fence();
 
                 // Release this stage cluster-wide: arrive on every CTA's empty
                 // barrier (so rank 0 may overwrite their multicast sB).
