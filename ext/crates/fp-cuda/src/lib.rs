@@ -2,8 +2,9 @@
 //!
 //! Both operands are pre-arranged on the host as plain row-major K-major tiles
 //! and loaded via TMA with 128B swizzle, which lands them in the SMEM layout the
-//! swizzled wgmma matrix descriptors expect. The kernel is a thin wrapper around
-//! wgmma.b1 m64n256k256.
+//! swizzled wgmma matrix descriptors expect. The kernel register-blocks a
+//! TILE_M×(NG*64) output tile per CTA out of MSTRIPS m64n128 wgmma.b1 strips
+//! that share each loaded B tile (cuts operand-refill bandwidth, the bottleneck).
 
 use std::{ffi::c_void, mem::MaybeUninit, sync::Arc, time::Instant};
 
@@ -18,12 +19,12 @@ use fp::{matrix::Matrix, prime::TWO};
 
 static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
 
-const TILE_M: usize = 64;
+const TILE_M: usize = 192; // MW*MSTRIPS in the kernel; must match
 const TILE_K: usize = 1024;
 const KL: usize = TILE_K / 64; // 16
 const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
-const NG: u32 = 4;
-const STAGES: usize = 3; // K-loop pipeline depth; must match the kernel
+const NG: u32 = 2; // output column-limbs per CTA (NB/64 = 128/64); must match the kernel
+const STAGES: usize = 4; // K-loop pipeline depth; must match the kernel
 const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match the kernel
 
 /// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
@@ -121,8 +122,8 @@ fn matmul_b1_inner(
     let m_padded = m.next_multiple_of(TILE_M * CLUSTER);
     let m_tiles = m_padded / TILE_M;
     let k_chunks = k_padded / TILE_K;
-    // Each CTA computes a 256-column (NG-limb) group with one m64n256 wgmma, so
-    // B (and the C output) are grouped/padded to whole 256-column tiles.
+    // Each CTA computes a TILE_M×(NG*64) output block via MSTRIPS m64n128 wgmmas,
+    // so B (and the C output) are grouped/padded to whole NG-limb column tiles.
     let n_groups = n_lim.div_ceil(NG as usize);
     let n_padded_lim = n_groups * NG as usize;
 
@@ -149,10 +150,11 @@ fn matmul_b1_inner(
     let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
     let (c_ptr, _gc) = c_dev.device_ptr(&stream);
 
-    // TMA tensor maps. A: 64-row tile per (k_chunk, M-tile). B: 256-column tile
-    // per (k_chunk, 256-col group), fed to one m64n256 wgmma. Both have a
-    // 128-byte inner dim (= the 128B swizzle width). C: 64-row × NG-limb output
-    // tiles, no swizzle, for the bulk store.
+    // TMA tensor maps. A: TILE_M-row block per (k_chunk, M-block), split into
+    // MSTRIPS m64 strips by the consumer. B: (NG*64)-column tile per (k_chunk,
+    // column group), reused across the strips. Both have a 128-byte inner dim
+    // (= the 128B swizzle width). C: TILE_M-row × NG-limb output blocks, no
+    // swizzle, for the bulk store.
     let tma_a = encode_tma(
         a_ptr,
         [32, (k_chunks * m_tiles * TILE_M) as u64],
@@ -187,8 +189,8 @@ fn matmul_b1_inner(
     let num_ctas = (sms / CLUSTER as u32).max(1) * CLUSTER as u32;
 
     // Dynamic SMEM per CTA: sA + sB + sC + 2*STAGES mbarriers (see kernel).
-    let tile_a = TILE_M * KL; // 64-row A tile
-    let tile_b = NG as usize * 64 * KL; // 256-col B tile
+    let tile_a = TILE_M * KL; // TILE_M-row A block
+    let tile_b = NG as usize * 64 * KL; // (NG*64)-col B tile
     let smem_u64 = STAGES * tile_a + STAGES * tile_b + NG as usize * TILE_M + 2 * STAGES;
     let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
 
@@ -315,10 +317,11 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
 
 /// Pre-transpose B into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Each (k_chunk, 256-col group) tile is NB = NG*64 = 256 rows (= the 256 output
-/// columns of the group) × KL u64s (= TILE_K K bits), fed to one m64n256 wgmma.
-/// Operand row `lg*64 + jj` is output column `cg*256 + lg*64 + jj`; element
-/// `[..][kl] bit` is bit `jj` of `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
+/// Each (k_chunk, column group) tile is NB = NG*64 rows (= the NG*64 output
+/// columns of the group) × KL u64s (= TILE_K K bits); the consumer feeds it to
+/// MSTRIPS m64n128 wgmmas that share it. Operand row `lg*64 + jj` is output
+/// column `cg*NG*64 + lg*64 + jj`; element `[..][kl] bit` is bit `jj` of
+/// `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
 /// Groups whose limb runs past `n_lim` are left zero-padded. Output is
 /// row-major; the TMA applies the swizzle on load.
 fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
