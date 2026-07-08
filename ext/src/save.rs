@@ -1403,11 +1403,17 @@ impl SaveDirectory {
     }
 }
 
-impl From<Option<PathBuf>> for SaveDirectory {
-    fn from(x: Option<PathBuf>) -> Self {
+impl TryFrom<Option<PathBuf>> for SaveDirectory {
+    type Error = anyhow::Error;
+
+    /// `None` yields [`SaveDirectory::None`]; `Some(path)` opens (or creates) the zarr store at
+    /// that path. Store creation is fallible (bad path, permissions, corrupt existing metadata),
+    /// so this is a `TryFrom` rather than a panicking `From` — the error propagates through the
+    /// `new_with_save` / `construct*` call chain instead of aborting.
+    fn try_from(x: Option<PathBuf>) -> anyhow::Result<Self> {
         match x {
-            None => Self::None,
-            Some(p) => Self::Store(ZarrSaveStore::create(p).expect("Failed to create zarr store")),
+            None => Ok(Self::None),
+            Some(p) => Ok(Self::Store(ZarrSaveStore::create(p)?)),
         }
     }
 }

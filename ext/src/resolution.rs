@@ -133,9 +133,9 @@ where
 
     pub fn new_with_save(
         complex: Arc<CC>,
-        save_dir: impl Into<SaveDirectory>,
+        save_dir: impl TryInto<SaveDirectory, Error = anyhow::Error>,
     ) -> anyhow::Result<Self> {
-        let save_dir = save_dir.into();
+        let save_dir = save_dir.try_into()?;
         let algebra = complex.algebra();
         if let Some(store) = save_dir.store() {
             store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
