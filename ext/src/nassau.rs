@@ -338,9 +338,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     pub fn new_with_save(
         module: Arc<M>,
-        save_dir: impl TryInto<SaveDirectory, Error = anyhow::Error>,
+        save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
     ) -> anyhow::Result<Self> {
-        let save_dir = save_dir.try_into()?;
+        let save_dir = save_dir.try_into().map_err(Into::into)?;
         let max_degree = module
             .max_degree()
             .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
