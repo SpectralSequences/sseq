@@ -243,8 +243,8 @@ pub struct ZarrSaveStore {
     /// Cache of opened shard-tier [`zarrs::array::Array`] handles, one per [`SaveKind`].
     ///
     /// Opening an array parses its `zarr.json` metadata through the storage backend (a file read
-    /// + `serde_json` parse on the filesystem store). Every `read`/`write`/`delete` targets the
-    /// same handful of per-kind arrays, so we open each at most once and reuse the handle. The
+    /// and a `serde_json` parse on the filesystem store). Every `read`/`write`/`delete` targets
+    /// the same handful of per-kind arrays, so we open each at most once and reuse the handle. The
     /// `Array` holds no chunk data — chunks are fetched/stored through the shared store on each
     /// call — and its methods take `&self`, so a cached `Arc<Array>` is safe to share across
     /// threads for concurrent reads and (shard-serialized) writes.
