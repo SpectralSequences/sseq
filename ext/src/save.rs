@@ -1231,9 +1231,14 @@ impl NassauQiReader {
                     "NassauQi signature payload has odd length {}",
                     payload.len()
                 );
+                // Even length checked above, so `as_chunks` leaves no remainder. (Using
+                // `as_chunks` rather than `chunks_exact(2)` also satisfies clippy's
+                // `chunks_exact_to_as_chunks` lint on nightly.)
                 let sig: Vec<u16> = payload
-                    .chunks_exact(2)
-                    .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|&[a, b]| u16::from_le_bytes([a, b]))
                     .collect();
                 Ok(NassauCommand::Signature(sig))
             }
