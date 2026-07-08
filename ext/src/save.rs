@@ -571,7 +571,7 @@ impl ZarrSaveStore {
         location: impl SaveCoords<N>,
         data: &[u8],
     ) -> anyhow::Result<()> {
-        debug_assert!(
+        assert!(
             !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
             "write() is only for sharded kinds, got {:?}",
             kind
@@ -606,7 +606,7 @@ impl ZarrSaveStore {
         kind: SaveKind,
         location: impl SaveCoords<N>,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        debug_assert!(
+        assert!(
             !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
             "read() is only for sharded kinds, got {:?}",
             kind
@@ -626,7 +626,7 @@ impl ZarrSaveStore {
 
     /// Check if a sharded payload exists.
     pub fn exists<const N: usize>(&self, kind: SaveKind, location: impl SaveCoords<N>) -> bool {
-        debug_assert!(
+        assert!(
             !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
             "exists() is only for sharded kinds, got {:?}",
             kind
@@ -640,7 +640,7 @@ impl ZarrSaveStore {
         kind: SaveKind,
         location: impl SaveCoords<N>,
     ) -> anyhow::Result<()> {
-        debug_assert!(
+        assert!(
             !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
             "delete() is only for sharded kinds, got {:?}",
             kind
@@ -1045,7 +1045,7 @@ impl ResQiReader {
                 continue;
             }
             let got = self.next_row(&mut row)?;
-            assert!(got, "ResQi truncated: expected row for pivot {i}");
+            anyhow::ensure!(got, "ResQi truncated: expected row for pivot {i}");
             for (input, result) in inputs.iter().zip_eq(results.iter_mut()) {
                 result.into().add(row.as_slice(), input.into().entry(i));
             }
@@ -1061,7 +1061,7 @@ impl ResQiReader {
         for _ in 0..self.image_dim {
             let mut row = FpVector::new(self.p, self.source_dim);
             let got = self.next_row(&mut row)?;
-            assert!(got, "ResQi truncated while materializing");
+            anyhow::ensure!(got, "ResQi truncated while materializing");
             rows.push(row);
         }
         let preimage = Matrix::from_rows(self.p, rows, self.source_dim);
@@ -1226,6 +1226,11 @@ impl NassauQiReader {
         match code {
             NASSAU_CODE_SIGNATURE => {
                 let payload = &bytes[8..];
+                anyhow::ensure!(
+                    payload.len().is_multiple_of(2),
+                    "NassauQi signature payload has odd length {}",
+                    payload.len()
+                );
                 let sig: Vec<u16> = payload
                     .chunks_exact(2)
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
