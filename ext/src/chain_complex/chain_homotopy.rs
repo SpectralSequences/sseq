@@ -29,13 +29,13 @@ pub struct ChainHomotopy<
     left: Arc<ResolutionHomomorphism<S, T>>,
     right: Arc<ResolutionHomomorphism<T, U>>,
     lock: Mutex<()>,
+    /// Homotopies, indexed by the filtration of the target of f - g.
+    homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
     /// Save directory for this homotopy and any secondary lift built from it.
     /// Set to a `homotopies/{left}__{right}` subgroup of the source's save_dir
     /// when both `left` and `right` are named, `None` otherwise so that
     /// homotopies between anonymous homs don't pollute the store.
     save_dir: SaveDirectory,
-    /// Homotopies, indexed by the filtration of the target of f - g.
-    homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
 }
 
 impl<

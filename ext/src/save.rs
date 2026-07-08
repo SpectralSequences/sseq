@@ -3,10 +3,11 @@
 //! On native targets the store is backed by a real zarr v3 store on the local filesystem via
 //! [`zarrs::filesystem::FilesystemStore`]. On `wasm32-unknown-unknown` we swap in
 //! [`zarrs::storage::store::MemoryStore`] instead — `zarrs_filesystem` transitively pulls in
-//! `positioned-io::RandomAccessFile`, which is gated to `cfg(any(windows, unix))` and doesn't
-//! compile for WASM. The WASM frontend has no filesystem to persist to anyway, so the memory
-//! store just acts as a no-op sink that's dropped at session end; the same code paths
-//! exercise it on both targets.
+//! `positioned-io::RandomAccessFile`, which is gated to `cfg(any(windows, unix))` and so doesn't
+//! compile for `wasm32-unknown-unknown` (which is neither — note `wasm32-unknown-emscripten` *is*
+//! `unix`, so this only concerns the `unknown` OS). That target is the only wasm consumer (the web
+//! frontend), and it has no filesystem to persist to anyway, so the memory store just acts as a
+//! no-op sink that's dropped at session end; the same code paths exercise it on both targets.
 //!
 //! # Layout
 //!
@@ -83,10 +84,10 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 #[cfg(not(target_arch = "wasm32"))]
 use zarrs::array::codec::ZstdCodec;
 // The concrete backing store depends on the target: native uses a `FilesystemStore` for real
-// on-disk persistence; WASM uses an in-memory `MemoryStore` so `zarrs_filesystem` (which pulls
-// in `positioned-io::RandomAccessFile`, gated to windows/unix) doesn't need to compile. The
-// WASM frontend has no filesystem to persist to anyway, so the memory store just serves as a
-// no-op sink and is dropped at session end.
+// on-disk persistence; `wasm32-unknown-unknown` uses an in-memory `MemoryStore` so
+// `zarrs_filesystem` (which pulls in `positioned-io::RandomAccessFile`, gated to windows/unix)
+// doesn't need to compile. The web frontend has no filesystem to persist to anyway, so the
+// memory store just serves as a no-op sink and is dropped at session end.
 #[cfg(not(target_arch = "wasm32"))]
 use zarrs::filesystem::FilesystemStore;
 #[cfg(target_arch = "wasm32")]
