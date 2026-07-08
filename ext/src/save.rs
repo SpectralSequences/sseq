@@ -48,6 +48,11 @@
 //! Group attributes include a `finished` flag, which is the source of truth — readers treat the
 //! data as missing if the writer was dropped before calling `finish()`.
 //!
+//! Stream-tier arrays are zstd-compressed. The level defaults to `3` (zstd's own default: most of
+//! the ratio at a fraction of the write cost of the maximum level) and can be overridden with the
+//! `EXT_SAVE_ZSTD_LEVEL` environment variable for very large runs where the on-disk footprint
+//! matters more than save time.
+//!
 //! Subgroups share the same underlying [`FilesystemStore`] via `Arc` clone; only the `group`
 //! prefix differs. Shard arrays are created lazily on first write so that subgroups don't
 //! populate kinds they never use.
@@ -119,9 +124,52 @@ const SHARD_S: u64 = 8;
 /// Shard shape in the idx dimension.
 const SHARD_IDX: u64 = 8;
 
-/// zstd compression level for the stream tier.
+/// Default stream-tier zstd level when [`ZSTD_LEVEL_ENV`] is unset.
+///
+/// Level 3 is zstd's own default and sits at the knee of the ratio/speed curve. The stream tier
+/// (`res_qi`, `nassau_qi`) is on the hot write path — every differential quasi-inverse is
+/// compressed here — so a high level makes saving several times slower for a small extra ratio
+/// on this already-dense data. Large runs that want to trade write time for maximum on-disk
+/// compression can raise the level via the environment variable below.
 #[cfg(not(target_arch = "wasm32"))]
-const ZSTD_LEVEL: i32 = 19;
+const DEFAULT_ZSTD_LEVEL: i32 = 3;
+
+/// Environment variable that overrides the stream-tier zstd level.
+///
+/// For very large resolutions (where the on-disk footprint, not save time, is the binding
+/// constraint) set e.g. `EXT_SAVE_ZSTD_LEVEL=19` for near-maximum compression. The value is read
+/// once, parsed as an integer, and clamped to zstd's valid `[1, 22]` range; anything unparseable
+/// falls back to [`DEFAULT_ZSTD_LEVEL`] with a warning.
+#[cfg(not(target_arch = "wasm32"))]
+const ZSTD_LEVEL_ENV: &str = "EXT_SAVE_ZSTD_LEVEL";
+
+/// Resolve the stream-tier zstd level, reading [`ZSTD_LEVEL_ENV`] at most once.
+#[cfg(not(target_arch = "wasm32"))]
+fn zstd_level() -> i32 {
+    use std::sync::LazyLock;
+    static LEVEL: LazyLock<i32> = LazyLock::new(|| match std::env::var(ZSTD_LEVEL_ENV) {
+        Ok(s) => match s.trim().parse::<i32>() {
+            Ok(v) => {
+                let clamped = v.clamp(1, 22);
+                if clamped != v {
+                    tracing::warn!(
+                        "{ZSTD_LEVEL_ENV}={v} is outside zstd's [1, 22] range; using {clamped}"
+                    );
+                }
+                clamped
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "{ZSTD_LEVEL_ENV}={s:?} is not a valid integer; using default level \
+                     {DEFAULT_ZSTD_LEVEL}"
+                );
+                DEFAULT_ZSTD_LEVEL
+            }
+        },
+        Err(_) => DEFAULT_ZSTD_LEVEL,
+    });
+    *LEVEL
+}
 
 /// Convert a zarrs error into `anyhow::Error`.
 ///
@@ -144,7 +192,7 @@ fn stream_tier_codecs() -> Vec<Arc<dyn zarrs::array::BytesToBytesCodecTraits>> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         vec![
-            Arc::new(ZstdCodec::new(ZSTD_LEVEL, false)),
+            Arc::new(ZstdCodec::new(zstd_level(), false)),
             Arc::new(Crc32cCodec::new()),
         ]
     }
