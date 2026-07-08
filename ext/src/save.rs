@@ -192,16 +192,29 @@ pub struct ZarrSaveStore {
     ///
     /// Used to skip the `meta_path` check on subsequent writes.
     created: DashSet<SaveKind>,
-    /// Per-kind write lock.
+    /// Cache of opened shard-tier [`zarrs::array::Array`] handles, one per [`SaveKind`].
+    ///
+    /// Opening an array parses its `zarr.json` metadata through the storage backend (a file read
+    /// + `serde_json` parse on the filesystem store). Every `read`/`write`/`delete` targets the
+    /// same handful of per-kind arrays, so we open each at most once and reuse the handle. The
+    /// `Array` holds no chunk data — chunks are fetched/stored through the shared store on each
+    /// call — and its methods take `&self`, so a cached `Arc<Array>` is safe to share across
+    /// threads for concurrent reads and (shard-serialized) writes.
+    arrays: DashMap<SaveKind, Arc<ShardArray>>,
+    /// Per-shard write lock.
     ///
     /// Since zarrs 0.14, `Array::store_array_subset` is documented as requiring caller-side
-    /// synchronization for "regions sharing any chunks" — the codec does a read-modify-write on
-    /// the entire shard internally, so concurrent calls touching different inner chunks of the
-    /// same shard race and lose writes. We serialize per kind, which is coarser than required
-    /// (per shard would suffice) but simpler and entirely sufficient for our workload, since
-    /// cross-kind parallelism dominates.
-    write_locks: DashMap<SaveKind, Arc<Mutex<()>>>,
+    /// synchronization for "regions sharing any chunks" — the sharding codec does a
+    /// read-modify-write on the entire shard internally, so concurrent calls touching different
+    /// inner chunks of the *same shard* race and lose writes. Writes to *different* shards touch
+    /// disjoint chunk files and are independent, so we key the lock by `(kind, shard coords)`
+    /// rather than by kind alone. This preserves the cross-shard write parallelism a parallel
+    /// resolution relies on while still honouring the zarrs contract.
+    write_locks: DashMap<(SaveKind, [u64; 3]), Arc<Mutex<()>>>,
 }
+
+/// Alias for the concrete opened-array type shared across the store and its streaming readers.
+type ShardArray = zarrs::array::Array<dyn ReadableWritableListableStorageTraits>;
 
 // See the doc comment on `ZarrSaveStore::store` for why this is sound on wasm. On native the
 // trait object is already `Send + Sync`, so the cfg gate avoids a redundant-impl warning.
@@ -249,6 +262,7 @@ impl ZarrSaveStore {
             store,
             group: String::new(),
             created: DashSet::new(),
+            arrays: DashMap::new(),
             write_locks: DashMap::new(),
         })
     }
@@ -328,6 +342,7 @@ impl ZarrSaveStore {
             store: self.store.clone(),
             group,
             created: DashSet::new(),
+            arrays: DashMap::new(),
             write_locks: DashMap::new(),
         })
     }
@@ -385,13 +400,30 @@ impl ZarrSaveStore {
         out
     }
 
-    /// Get-or-create the per-kind write lock for this store.
+    /// Shard-tier chunk coordinates (== shard coordinates, since the chunk shape *is* the shard
+    /// shape) covering `zarr_coords`. 2D kinds get a `0` in the third slot.
+    ///
+    /// A single-element `store_array_subset` at `zarr_coords` touches exactly this one shard, so
+    /// serializing on it is both necessary and sufficient for the zarrs read-modify-write
+    /// contract.
+    fn shard_coords(zarr_coords: &[u64]) -> [u64; 3] {
+        let mut out = [0u64; 3];
+        out[0] = zarr_coords[0] / SHARD_N;
+        out[1] = zarr_coords[1] / SHARD_S;
+        if zarr_coords.len() > 2 {
+            out[2] = zarr_coords[2] / SHARD_IDX;
+        }
+        out
+    }
+
+    /// Get-or-create the write lock guarding the shard that holds `zarr_coords` for `kind`.
     ///
     /// See the comment on the `write_locks` field for why this exists.
-    fn write_lock(&self, kind: SaveKind) -> Arc<Mutex<()>> {
+    fn write_lock(&self, kind: SaveKind, zarr_coords: &[u64]) -> Arc<Mutex<()>> {
+        let key = (kind, Self::shard_coords(zarr_coords));
         Arc::clone(
             self.write_locks
-                .entry(kind)
+                .entry(key)
                 .or_insert_with(|| Arc::new(Mutex::new(())))
                 .value(),
         )
@@ -427,6 +459,31 @@ impl ZarrSaveStore {
         }
         self.created.insert(kind);
         Ok(())
+    }
+
+    /// Return the cached (or freshly opened) shard-tier array handle for `kind`.
+    ///
+    /// With `create`, the array is created if absent (used by writes). Without, a missing array
+    /// yields `None` (used by reads, before anything of that kind has been written). The opened
+    /// handle is memoized in `self.arrays`, so the `zarr.json` metadata is parsed at most once
+    /// per kind per store.
+    fn shard_array(&self, kind: SaveKind, create: bool) -> anyhow::Result<Option<Arc<ShardArray>>> {
+        if let Some(arr) = self.arrays.get(&kind) {
+            return Ok(Some(Arc::clone(arr.value())));
+        }
+        if create {
+            self.ensure_shard_array(kind)?;
+        }
+        match zarrs::array::Array::open(self.store.clone(), &self.shard_array_path(kind)) {
+            Ok(arr) => {
+                let arr = Arc::new(arr);
+                // If another thread opened it first, keep the existing handle; they're equivalent.
+                let cached = Arc::clone(self.arrays.entry(kind).or_insert(arr).value());
+                Ok(Some(cached))
+            }
+            Err(_) if !create => Ok(None),
+            Err(e) => Err(zarr_err(e)),
+        }
     }
 
     /// Lazily create `qi/` and `qi/n{n}_s{s}/` groups under this group prefix.
@@ -471,11 +528,12 @@ impl ZarrSaveStore {
             "write() is only for sharded kinds, got {:?}",
             kind
         );
-        self.ensure_shard_array(kind)?;
-        let lock = self.write_lock(kind);
-        let _guard = lock.lock().unwrap();
-        let arr = zarrs::array::Array::open(self.store.clone(), &self.shard_array_path(kind))?;
+        let arr = self
+            .shard_array(kind, true)?
+            .expect("shard_array(create=true) never returns None");
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let lock = self.write_lock(kind, &zarr_coords);
+        let _guard = lock.lock().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
         // Force sequential codec execution. Holding our std::sync::Mutex across
         // `store_array_subset` is unsafe with rayon, because zarrs's sharding codec uses rayon
@@ -505,10 +563,9 @@ impl ZarrSaveStore {
             "read() is only for sharded kinds, got {:?}",
             kind
         );
-        let arr = match zarrs::array::Array::open(self.store.clone(), &self.shard_array_path(kind))
-        {
-            Ok(arr) => arr,
-            Err(_) => return Ok(None),
+        let arr = match self.shard_array(kind, false)? {
+            Some(arr) => arr,
+            None => return Ok(None),
         };
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
@@ -540,12 +597,15 @@ impl ZarrSaveStore {
             "delete() is only for sharded kinds, got {:?}",
             kind
         );
-        // Overwrite with fill value (empty vec). The array must already exist for delete to be
-        // meaningful. Same locking + sequential codec story as `write`.
-        let lock = self.write_lock(kind);
-        let _guard = lock.lock().unwrap();
-        let arr = zarrs::array::Array::open(self.store.clone(), &self.shard_array_path(kind))?;
+        // Overwrite with fill value (empty vec). A missing array means there is nothing to
+        // delete, so treat that as success. Same locking + sequential codec story as `write`.
+        let arr = match self.shard_array(kind, false)? {
+            Some(arr) => arr,
+            None => return Ok(()),
+        };
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let lock = self.write_lock(kind, &zarr_coords);
+        let _guard = lock.lock().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
         arr.store_array_subset_opt(
             &subset,
