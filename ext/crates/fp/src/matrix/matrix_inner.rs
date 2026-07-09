@@ -364,8 +364,8 @@ impl Matrix {
             .collect()
     }
 
-    /// Produces a padded augmented matrix from an `&[Vec<u32>]` object (produces [A|0|I] from
-    /// A). Returns the matrix and the first column index of I.
+    /// Produces a padded augmented matrix from an `&[Vec<u32>]` object (produces [A|I] from
+    /// A). The first column index of I is `m.start[1]`.
     ///
     /// # Example
     /// ```
@@ -375,23 +375,21 @@ impl Matrix {
     /// # use fp::vector::FpVector;
     /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
-    /// let (n, m) = Matrix::augmented_from_vec(p, &input);
-    /// assert!(n >= input[0].len());
+    /// let m = Matrix::augmented_from_vec(p, &input);
+    /// assert!(m.start[1] >= input[0].len());
     /// ```
-    pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Self) {
+    pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> AugmentedMatrix<2> {
         let rows = input.len();
         let cols = input[0].len();
-        let padded_cols = FpVector::padded_len(p, cols);
-        let mut m = Self::new(p, rows, padded_cols + rows);
+        let mut m = AugmentedMatrix::<2>::new(p, rows, [cols, rows]);
 
         for (i, row) in input.iter().enumerate() {
             for (j, &value) in row.iter().enumerate() {
                 m.row_mut(i).set_entry(j, value);
             }
         }
-        m.slice_mut(0, rows, padded_cols, padded_cols + rows)
-            .add_identity();
-        (padded_cols, m)
+        m.segment(1, 1).add_identity();
+        m
     }
 
     pub fn is_zero(&self) -> bool {
@@ -785,9 +783,9 @@ impl Matrix {
     ///     vec![2, 2, 0, 2, 1],
     /// ];
     ///
-    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// let mut m = Matrix::augmented_from_vec(p, &input);
     /// m.row_reduce();
-    /// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);
+    /// let qi = m.compute_quasi_inverse();
     ///
     /// let preimage = [vec![0, 1, 0], vec![0, 2, 2]];
     /// assert_eq!(qi.preimage(), &Matrix::from_vec(p, &preimage));
@@ -829,10 +827,10 @@ impl Matrix {
     ///     vec![2, 2, 0, 2, 1],
     /// ];
     ///
-    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// let mut m = Matrix::augmented_from_vec(p, &input);
     /// m.row_reduce();
     ///
-    /// let computed_image = m.compute_image(input[0].len(), padded_cols);
+    /// let computed_image = m.compute_image();
     ///
     /// let image = [vec![1, 0, 2, 1, 1], vec![0, 1, 1, 0, 1]];
     /// assert_eq!(*computed_image, Matrix::from_vec(p, &image));
@@ -879,9 +877,9 @@ impl Matrix {
     ///     vec![2, 2, 0, 2, 1],
     /// ];
     ///
-    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// let mut m = Matrix::augmented_from_vec(p, &input);
     /// m.row_reduce();
-    /// let ker = m.compute_kernel(padded_cols);
+    /// let ker = m.compute_kernel();
     ///
     /// let mut target = vec![0; 3];
     /// assert_eq!(ker.row(0).iter().collect::<Vec<u32>>(), vec![1, 1, 2]);
