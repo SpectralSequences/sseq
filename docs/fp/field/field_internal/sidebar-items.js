@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["normal_from_assign"],"struct":["LimbIterator"],"trait":["FieldInternal"]};
+window.SIDEBAR_ITEMS = {"macro":[["normal_from_assign",1]],"struct":["LimbIterator"],"trait":["FieldInternal"]};

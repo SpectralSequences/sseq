@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["unwrap_binder","wrap_binder"]};
+window.SIDEBAR_ITEMS = {"macro":[["unwrap_binder",1],["wrap_binder",1]]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["impl_arith"],"struct":["FieldElement"],"trait":["FieldElementContainer"]};
+window.SIDEBAR_ITEMS = {"macro":[["impl_arith",1]],"struct":["FieldElement"],"trait":["FieldElementContainer"]};

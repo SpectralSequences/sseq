@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["sve_cast","sve_tuple_create2","sve_tuple_create3","sve_tuple_create4","sve_tuple_get","sve_tuple_set"]};
+window.SIDEBAR_ITEMS = {"fn":["sve_tuple_create2","sve_tuple_create3","sve_tuple_create4","sve_tuple_get","sve_tuple_set"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["pattern_type"]};
+window.SIDEBAR_ITEMS = {"macro":[["pattern_type",1]]};

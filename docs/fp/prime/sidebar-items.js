@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["TWO"],"enum":["PrimeError"],"fn":["factor_pk","inverse","log2","logp","minus_one_to_the_n","power_mod"],"macro":["def_prime_static","impl_op_pn_u32","impl_prime_ops","impl_try_from"],"mod":["binomial","iter","primes_generic"],"trait":["Prime"]};
+window.SIDEBAR_ITEMS = {"constant":["TWO"],"enum":["PrimeError"],"fn":["factor_pk","inverse","log2","logp","minus_one_to_the_n","power_mod"],"macro":[["def_prime_static",1],["impl_op_pn_u32",1],["impl_prime_ops",1],["impl_try_from",1]],"mod":["binomial","iter","primes_generic"],"trait":["Prime"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["AY_CACHE"],"fn":["a_y_cached","a_y_inner"],"macro":["sub","unsub"],"struct":["MilnorPairElement"],"trait":["PairAlgebra"],"type":["HashMap"]};
+window.SIDEBAR_ITEMS = {"constant":["AY_CACHE"],"fn":["a_y_cached","a_y_inner"],"macro":[["sub",1],["unsub",1]],"struct":["MilnorPairElement"],"trait":["PairAlgebra"],"type":["HashMap"]};
