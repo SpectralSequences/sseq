@@ -138,12 +138,7 @@ where
         let save_dir = save_dir.try_into().map_err(Into::into)?;
         let algebra = complex.algebra();
         if let Some(store) = save_dir.store() {
-            store.bind_to_complex(
-                algebra.magic(),
-                algebra.prime().as_u32(),
-                algebra.prefix(),
-                complex.fingerprint(),
-            )?;
+            store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
         }
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(MuFreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
@@ -165,6 +160,16 @@ where
     }
 
     pub fn set_name(&mut self, name: String) {
+        // Record the label in the save store (if any) so the on-disk `zarr.json` is
+        // self-describing. Best-effort and purely informational — the module spec written by
+        // `bind_module_spec` is what actually guards loading.
+        if !name.is_empty()
+            && let Some(store) = self.save_dir.store()
+        {
+            store
+                .set_complex_name(&name)
+                .expect("Failed to record complex name in save store");
+        }
         self.name = name;
     }
 

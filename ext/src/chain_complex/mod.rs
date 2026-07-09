@@ -15,8 +15,8 @@ pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
 use fp::{
     matrix::Matrix,
-    prime::{Prime, ValidPrime},
-    vector::{FpSlice, FpSliceMut, FpVector},
+    prime::ValidPrime,
+    vector::{FpSlice, FpSliceMut},
 };
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
@@ -26,38 +26,6 @@ use crate::{save::SaveDirectory, utils::unicode_num};
 pub enum ChainComplexGrading {
     Homological,
     Cohomological,
-}
-
-/// A tiny FNV-1a 64-bit accumulator used by [`ChainComplex::fingerprint`].
-///
-/// `std`'s `DefaultHasher` is not guaranteed stable across toolchain versions, which would
-/// spuriously invalidate an on-disk save directory after a compiler upgrade. FNV-1a is a fixed,
-/// specified algorithm, so the fingerprint is reproducible across runs and builds.
-struct Fnv(u64);
-
-impl Fnv {
-    fn new() -> Self {
-        Self(0xcbf2_9ce4_8422_2325)
-    }
-
-    fn write_u64(&mut self, x: u64) {
-        for b in x.to_le_bytes() {
-            self.0 ^= u64::from(b);
-            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
-        }
-    }
-
-    fn write_i32(&mut self, x: i32) {
-        self.write_u64(u64::from(x as u32));
-    }
-
-    fn write_usize(&mut self, x: usize) {
-        self.write_u64(x as u64);
-    }
-
-    fn finish(self) -> u64 {
-        self.0
-    }
 }
 
 pub trait FreeChainComplex<const U: bool = false>:
@@ -251,114 +219,6 @@ pub trait ChainComplex: Send + Sync {
 
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
-
-    /// A stable content hash of this complex's structure.
-    ///
-    /// This is used to bind a save directory to the *specific complex* being resolved, not just
-    /// to its algebra. Reusing a save directory for a different complex over the same algebra
-    /// would otherwise silently load structurally-valid but wrong cached data. Two complexes that
-    /// yield the same resolution hash equal; two that differ hash differently with overwhelming
-    /// probability.
-    ///
-    /// The hash covers, over the complex's modules, each module's per-degree dimensions and the
-    /// algebra action on every basis element, plus each differential's action — so it is
-    /// basis-sensitive, exactly matching what the resolution algorithm consumes.
-    ///
-    /// It only makes sense for the *bounded* augmentation complexes that actually get resolved.
-    /// Since [`next_homological_degree`](ChainComplex::next_homological_degree) is unbounded for a
-    /// [`FiniteChainComplex`] (it returns `i32::MAX`), we walk `s` until [`module`](ChainComplex::module)
-    /// returns the complex's cached zero module (the trailing padding of a bounded complex),
-    /// bounded by a generous safety cap. A module with no `max_degree` (i.e. unbounded) is not a
-    /// complex we can meaningfully fingerprint, so its structure is skipped rather than risking a
-    /// runaway loop. The accumulator is a fixed FNV-1a so the value is stable across runs and
-    /// toolchains (unlike `std`'s `DefaultHasher`).
-    fn fingerprint(&self) -> u64 {
-        /// Safety cap on the homological length so a pathological complex can never hang the
-        /// hash. Real augmentation complexes have a handful of modules.
-        const MAX_S: i32 = 1 << 20;
-
-        let p = self.prime();
-        let mut h = Fnv::new();
-        h.write_u64(u64::from(p.as_u32()));
-        h.write_i32(self.min_degree());
-
-        let zero = self.zero_module();
-        let mut num_modules = 0;
-        for s in 0..MAX_S {
-            let module = self.module(s);
-            // Trailing zero modules mark the end of a bounded complex.
-            if Arc::ptr_eq(&module, &zero) {
-                break;
-            }
-            num_modules = s + 1;
-            let lo = module.min_degree();
-            h.write_i32(s);
-            h.write_i32(lo);
-
-            let Some(hi) = module.max_degree() else {
-                // Unbounded module: not a resolvable complex, don't try to hash its structure.
-                h.write_i32(i32::MIN);
-                continue;
-            };
-            h.write_i32(hi);
-            module.compute_basis(hi);
-            let algebra = module.algebra();
-
-            for deg in lo..=hi {
-                let dim = module.dimension(deg);
-                h.write_i32(deg);
-                h.write_usize(dim);
-                if dim == 0 {
-                    continue;
-                }
-                // The action of every algebra basis element on every module basis element pins
-                // down the module structure in the chosen basis.
-                for op_deg in 0..=(hi - deg) {
-                    algebra.compute_basis(op_deg);
-                    let op_dim = algebra.dimension(op_deg);
-                    let out_dim = module.dimension(deg + op_deg);
-                    for op_idx in 0..op_dim {
-                        for mod_idx in 0..dim {
-                            let mut out = FpVector::new(p, out_dim);
-                            module.act_on_basis(
-                                out.as_slice_mut(),
-                                1,
-                                op_deg,
-                                op_idx,
-                                deg,
-                                mod_idx,
-                            );
-                            for x in out.iter() {
-                                h.write_u64(u64::from(x));
-                            }
-                        }
-                    }
-                }
-            }
-
-            // The differential out of module(s). Zero for the `ccdz` complexes usually resolved,
-            // but non-trivial complexes (e.g. cofibers) must not collide with each other.
-            let d = self.differential(s);
-            let shift = d.degree_shift();
-            let target = d.target();
-            h.write_i32(shift);
-            for deg in lo..=hi {
-                let out_deg = deg - shift;
-                target.compute_basis(out_deg);
-                let out_dim = target.dimension(out_deg);
-                for idx in 0..module.dimension(deg) {
-                    let mut out = FpVector::new(p, out_dim);
-                    d.apply_to_basis_element(out.as_slice_mut(), 1, deg, idx);
-                    for x in out.iter() {
-                        h.write_u64(u64::from(x));
-                    }
-                }
-            }
-        }
-        h.write_i32(num_modules);
-
-        h.finish()
-    }
 
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {

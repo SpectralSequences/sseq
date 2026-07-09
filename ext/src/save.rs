@@ -54,7 +54,7 @@
 //! `EXT_SAVE_ZSTD_LEVEL` environment variable for very large runs where the on-disk footprint
 //! matters more than save time.
 //!
-//! Subgroups share the same underlying [`FilesystemStore`] via `Arc` clone; only the `group`
+//! Subgroups share the same underlying `FilesystemStore` via `Arc` clone; only the `group`
 //! prefix differs. Shard arrays are created lazily on first write so that subgroups don't
 //! populate kinds they never use.
 //!
@@ -339,32 +339,28 @@ impl ZarrSaveStore {
         })
     }
 
-    /// Bind this store to a specific complex, catching accidental algebra / prime / complex
-    /// mismatches.
+    /// Bind this store to a specific algebra, catching accidental algebra / prime mismatches.
     ///
     /// On a fresh store (the root group's `algebra_magic` attribute is unset) this writes
-    /// `algebra_magic`, `prime`, `algebra_prefix`, and `complex_fingerprint` to the root group so
-    /// a later load can verify them. On an already-bound store the stored values are compared and
-    /// any mismatch returns an error.
+    /// `algebra_magic`, `prime`, and `algebra_prefix` to the root group so a later load can
+    /// verify them. On an already-bound store the stored magic is compared against
+    /// `algebra_magic` and a mismatch returns an error citing both values.
     ///
-    /// The `complex_fingerprint` (see [`ChainComplex::fingerprint`](crate::chain_complex::ChainComplex::fingerprint))
-    /// distinguishes two different complexes over the *same* algebra: without it, resuming a save
-    /// directory against a different module would silently load structurally-valid but wrong
-    /// cached differentials/kernels/quasi-inverses. It's stored as a hex string so the full 64
-    /// bits survive the JSON round-trip exactly.
+    /// This guards only the *algebra*; the *module* is pinned separately by
+    /// [`Self::bind_module_spec`] (e.g. `S_2` vs `C2` share this algebra but are distinct
+    /// complexes). `algebra_prefix` is also what [`construct_from_save`](crate::utils::construct_from_save)
+    /// reads back to pick the algebra when reconstructing.
     ///
     /// Callers should invoke this once per resolution setup — typically from
     /// `Resolution::new_with_save` — before any data is read or written. Subgroups
     /// (`products/…`, `homotopies/…`) share the same underlying store and therefore the same
     /// root attributes, so they inherit the check without a second call.
-    pub fn bind_to_complex(
+    pub fn bind_to_algebra(
         &self,
         algebra_magic: u32,
         prime: u32,
         algebra_prefix: &str,
-        complex_fingerprint: u64,
     ) -> anyhow::Result<()> {
-        let fingerprint_hex = format!("{complex_fingerprint:016x}");
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let attrs = root.attributes();
         if let Some(stored) = attrs.get("algebra_magic").and_then(|v| v.as_u64()) {
@@ -386,21 +382,6 @@ impl ZarrSaveStore {
                     self.path,
                 );
             }
-            // Same algebra: the store must also have been created for the same complex. A stored
-            // store predating this check (no `complex_fingerprint`) is treated as a mismatch.
-            let stored_fingerprint = attrs
-                .get("complex_fingerprint")
-                .and_then(|v| v.as_str())
-                .unwrap_or("<none>");
-            if stored_fingerprint != fingerprint_hex {
-                anyhow::bail!(
-                    "Save store at {:?} was created for a different complex over the same algebra \
-                     ({algebra_prefix} at p={prime}): stored complex fingerprint \
-                     {stored_fingerprint}, expected {fingerprint_hex}. Refusing to mix cached \
-                     data between distinct complexes; use a separate save directory.",
-                    self.path,
-                );
-            }
             return Ok(());
         }
 
@@ -410,13 +391,84 @@ impl ZarrSaveStore {
         new_attrs.insert("algebra_magic".into(), (u64::from(algebra_magic)).into());
         new_attrs.insert("prime".into(), (u64::from(prime)).into());
         new_attrs.insert("algebra_prefix".into(), algebra_prefix.into());
-        new_attrs.insert("complex_fingerprint".into(), fingerprint_hex.into());
         let group = GroupBuilder::new()
             .attributes(new_attrs)
             .build(self.store.clone(), "/")
             .map_err(zarr_err)?;
         group.store_metadata().map_err(zarr_err)?;
         Ok(())
+    }
+
+    /// Record a human-readable label for the complex this store resolves, as a `complex_name`
+    /// attribute on the root group.
+    ///
+    /// Purely informational: unlike [`Self::bind_module_spec`], this is never used to gate loading —
+    /// names are free-form and often empty. It's a concise companion to the full `module_spec`, so
+    /// someone inspecting `zarr.json` sees what the save is a resolution of at a glance. Overwrites
+    /// any previous label.
+    pub fn set_complex_name(&self, name: &str) -> anyhow::Result<()> {
+        let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
+        let mut new_attrs = root.attributes().clone();
+        new_attrs.insert("complex_name".into(), name.into());
+        let group = GroupBuilder::new()
+            .attributes(new_attrs)
+            .build(self.store.clone(), "/")
+            .map_err(zarr_err)?;
+        group.store_metadata().map_err(zarr_err)?;
+        Ok(())
+    }
+
+    /// Bind this store to a specific module, and record the spec so the directory is
+    /// self-describing.
+    ///
+    /// This is the complex-identity gate that complements [`Self::bind_to_algebra`]: reusing a save
+    /// directory for a *different* module over the same algebra — resolve `S_2`, then point the
+    /// same dir at `C2` — is rejected here rather than silently loading the first module's cached
+    /// data for the second. On a fresh store the spec is written; on an already-bound store it must
+    /// match the stored one exactly, otherwise an error is returned.
+    ///
+    /// The recorded `module_spec` is the same JSON that
+    /// [`construct_from_save`](crate::utils::construct_from_save) reads to rebuild the complex from
+    /// the directory alone — one readable, inspectable artifact serving identity, reconstruction,
+    /// and documentation, in place of an opaque content hash.
+    pub fn bind_module_spec(&self, spec: &serde_json::Value) -> anyhow::Result<()> {
+        let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
+        let attrs = root.attributes();
+        if let Some(stored) = attrs.get("module_spec") {
+            if stored != spec {
+                anyhow::bail!(
+                    "Save store at {:?} was created for a different complex: the stored module \
+                     spec does not match the one being resolved. Refusing to mix cached data \
+                     between distinct complexes; use a separate save directory.\n  stored:   \
+                     {stored}\n  expected: {spec}",
+                    self.path,
+                );
+            }
+            return Ok(());
+        }
+
+        let mut new_attrs = attrs.clone();
+        new_attrs.insert("module_spec".into(), spec.clone());
+        let group = GroupBuilder::new()
+            .attributes(new_attrs)
+            .build(self.store.clone(), "/")
+            .map_err(zarr_err)?;
+        group.store_metadata().map_err(zarr_err)?;
+        Ok(())
+    }
+
+    /// Read the root-group attributes of an existing store at `path` without binding to a complex.
+    ///
+    /// Lets a caller inspect what a save is (its `module_spec`, `algebra_prefix`, `complex_name`,
+    /// …) before reconstructing it. Returns the raw attribute map.
+    pub fn read_root_attributes(
+        path: impl AsRef<Path>,
+    ) -> anyhow::Result<serde_json::Map<String, serde_json::Value>> {
+        let path = std::path::absolute(path.as_ref())
+            .with_context(|| format!("Failed to resolve path: {:?}", path.as_ref()))?;
+        let store = platform::open_store(&path)?;
+        let root = zarrs::group::Group::open(store, "/").map_err(zarr_err)?;
+        Ok(root.attributes().clone())
     }
 
     /// Open a subgroup at `{self.group}/{name}`.
