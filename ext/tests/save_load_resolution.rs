@@ -49,6 +49,21 @@ fn test_wrong_algebra() {
     construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
 }
 
+/// Resolving one module and then reusing the same save dir for a *different* module over the same
+/// algebra must fail loudly via the complex-fingerprint check, rather than silently loading the
+/// first module's cached differentials for the second.
+#[test]
+#[should_panic(expected = "different complex")]
+fn test_wrong_complex() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
+    resolution1.compute_through_bidegree(Bidegree::s_t(2, 2));
+
+    // Same Steenrod algebra at p = 2, but a different module (the mod-2 Moore complex).
+    construct_standard::<false, _, _>("C2", Some(tempdir.path().into())).unwrap();
+}
+
 #[test]
 fn test_save_load_stem() {
     let tempdir = tempfile::TempDir::new().unwrap();

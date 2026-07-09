@@ -339,23 +339,32 @@ impl ZarrSaveStore {
         })
     }
 
-    /// Bind this store to a specific algebra, catching accidental algebra / prime mismatches.
+    /// Bind this store to a specific complex, catching accidental algebra / prime / complex
+    /// mismatches.
     ///
     /// On a fresh store (the root group's `algebra_magic` attribute is unset) this writes
-    /// `algebra_magic`, `prime`, and `algebra_prefix` to the root group so a later load can
-    /// verify them. On an already-bound store the stored magic is compared against
-    /// `algebra_magic` and a mismatch returns an error citing both values.
+    /// `algebra_magic`, `prime`, `algebra_prefix`, and `complex_fingerprint` to the root group so
+    /// a later load can verify them. On an already-bound store the stored values are compared and
+    /// any mismatch returns an error.
+    ///
+    /// The `complex_fingerprint` (see [`ChainComplex::fingerprint`](crate::chain_complex::ChainComplex::fingerprint))
+    /// distinguishes two different complexes over the *same* algebra: without it, resuming a save
+    /// directory against a different module would silently load structurally-valid but wrong
+    /// cached differentials/kernels/quasi-inverses. It's stored as a hex string so the full 64
+    /// bits survive the JSON round-trip exactly.
     ///
     /// Callers should invoke this once per resolution setup — typically from
     /// `Resolution::new_with_save` — before any data is read or written. Subgroups
     /// (`products/…`, `homotopies/…`) share the same underlying store and therefore the same
     /// root attributes, so they inherit the check without a second call.
-    pub fn bind_to_algebra(
+    pub fn bind_to_complex(
         &self,
         algebra_magic: u32,
         prime: u32,
         algebra_prefix: &str,
+        complex_fingerprint: u64,
     ) -> anyhow::Result<()> {
+        let fingerprint_hex = format!("{complex_fingerprint:016x}");
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let attrs = root.attributes();
         if let Some(stored) = attrs.get("algebra_magic").and_then(|v| v.as_u64()) {
@@ -377,6 +386,21 @@ impl ZarrSaveStore {
                     self.path,
                 );
             }
+            // Same algebra: the store must also have been created for the same complex. A stored
+            // store predating this check (no `complex_fingerprint`) is treated as a mismatch.
+            let stored_fingerprint = attrs
+                .get("complex_fingerprint")
+                .and_then(|v| v.as_str())
+                .unwrap_or("<none>");
+            if stored_fingerprint != fingerprint_hex {
+                anyhow::bail!(
+                    "Save store at {:?} was created for a different complex over the same algebra \
+                     ({algebra_prefix} at p={prime}): stored complex fingerprint \
+                     {stored_fingerprint}, expected {fingerprint_hex}. Refusing to mix cached \
+                     data between distinct complexes; use a separate save directory.",
+                    self.path,
+                );
+            }
             return Ok(());
         }
 
@@ -386,6 +410,7 @@ impl ZarrSaveStore {
         new_attrs.insert("algebra_magic".into(), (u64::from(algebra_magic)).into());
         new_attrs.insert("prime".into(), (u64::from(prime)).into());
         new_attrs.insert("algebra_prefix".into(), algebra_prefix.into());
+        new_attrs.insert("complex_fingerprint".into(), fingerprint_hex.into());
         let group = GroupBuilder::new()
             .attributes(new_attrs)
             .build(self.store.clone(), "/")

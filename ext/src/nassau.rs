@@ -347,7 +347,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target = Arc::new(FiniteChainComplex::ccdz(module));
         if let Some(store) = save_dir.store() {
             let algebra = target.algebra();
-            store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
+            store.bind_to_complex(
+                algebra.magic(),
+                algebra.prime().as_u32(),
+                algebra.prefix(),
+                target.fingerprint(),
+            )?;
         }
 
         Ok(Self {
