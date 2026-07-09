@@ -165,10 +165,9 @@ where
         // `bind_module_spec` is what actually guards loading.
         if !name.is_empty()
             && let Some(store) = self.save_dir.store()
+            && let Err(e) = store.set_complex_name(&name)
         {
-            store
-                .set_complex_name(&name)
-                .expect("Failed to record complex name in save store");
+            tracing::warn!("Failed to record complex name in save store: {e}");
         }
         self.name = name;
     }
