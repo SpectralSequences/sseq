@@ -81,22 +81,129 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
-#[cfg(not(target_arch = "wasm32"))]
-use zarrs::array::codec::ZstdCodec;
-// The concrete backing store depends on the target: native uses a `FilesystemStore` for real
-// on-disk persistence; `wasm32-unknown-unknown` uses an in-memory `MemoryStore` so
-// `zarrs_filesystem` (which pulls in `positioned-io::RandomAccessFile`, gated to windows/unix)
-// doesn't need to compile. The web frontend has no filesystem to persist to anyway, so the
-// memory store just serves as a no-op sink and is dropped at session end.
-#[cfg(not(target_arch = "wasm32"))]
-use zarrs::filesystem::FilesystemStore;
-#[cfg(target_arch = "wasm32")]
-use zarrs::storage::store::MemoryStore;
 use zarrs::{
     array::{ArrayBuilder, ArraySubset, CodecOptions, codec::Crc32cCodec, data_type},
     group::GroupBuilder,
     storage::{ReadableWritableListableStorage, ReadableWritableListableStorageTraits},
 };
+
+// --- Platform backing-store selection ---
+//
+// The zarr `filesystem` and `zstd` features (which pull in `positioned-io::RandomAccessFile` and
+// `zstd-sys`) only build where there is a real OS: `cfg(any(windows, unix))`. That — not
+// `target_arch = "wasm32"` — is the authoritative condition, because it's exactly the `cfg` that
+// gates `positioned-io::RandomAccessFile`. `wasm32-unknown-emscripten` *is* `unix` and would use
+// the filesystem store; `wasm32-unknown-unknown` (the web frontend) and `wasm32-wasi` are neither
+// `windows` nor `unix`, so they fall back to an in-memory store with CRC32C-only codecs. The
+// Cargo.toml feature selection uses the same predicate, and all the target `cfg` lives in the two
+// `platform` modules below so the rest of this file is platform-agnostic.
+
+#[cfg(any(windows, unix))]
+mod platform {
+    use std::sync::LazyLock;
+
+    use zarrs::{array::codec::ZstdCodec, filesystem::FilesystemStore};
+
+    use super::*;
+
+    /// Open the on-disk zarr store rooted at `path`.
+    pub fn open_store(path: &Path) -> anyhow::Result<ReadableWritableListableStorage> {
+        Ok(Arc::new(FilesystemStore::new(path)?))
+    }
+
+    /// Whether the root group's `zarr.json` still needs to be written — i.e. it doesn't already
+    /// exist on disk.
+    pub fn root_group_missing(path: &Path) -> bool {
+        !path.join("zarr.json").exists()
+    }
+
+    /// Stream-tier codec chain: zstd (see [`zstd_level`]) followed by CRC32C.
+    pub fn stream_tier_codecs() -> Vec<Arc<dyn zarrs::array::BytesToBytesCodecTraits>> {
+        vec![
+            Arc::new(ZstdCodec::new(zstd_level(), false)),
+            Arc::new(Crc32cCodec::new()),
+        ]
+    }
+
+    /// Default stream-tier zstd level when [`ZSTD_LEVEL_ENV`] is unset.
+    ///
+    /// Level 3 is zstd's own default and sits at the knee of the ratio/speed curve. The stream
+    /// tier (`res_qi`, `nassau_qi`) is on the hot write path — every differential quasi-inverse is
+    /// compressed here — so a high level makes saving several times slower for a small extra ratio
+    /// on this already-dense data. Large runs that want to trade write time for maximum on-disk
+    /// compression can raise the level via the environment variable below.
+    const DEFAULT_ZSTD_LEVEL: i32 = 3;
+
+    /// Environment variable that overrides the stream-tier zstd level.
+    ///
+    /// For very large resolutions (where the on-disk footprint, not save time, is the binding
+    /// constraint) set e.g. `EXT_SAVE_ZSTD_LEVEL=19` for near-maximum compression. The value is
+    /// read once, parsed as an integer, and clamped to zstd's valid `[1, 22]` range; anything
+    /// unparseable falls back to [`DEFAULT_ZSTD_LEVEL`] with a warning.
+    const ZSTD_LEVEL_ENV: &str = "EXT_SAVE_ZSTD_LEVEL";
+
+    /// Resolve the stream-tier zstd level, reading [`ZSTD_LEVEL_ENV`] at most once.
+    fn zstd_level() -> i32 {
+        static LEVEL: LazyLock<i32> = LazyLock::new(|| match std::env::var(ZSTD_LEVEL_ENV) {
+            Ok(s) => match s.trim().parse::<i32>() {
+                Ok(v) => {
+                    let clamped = v.clamp(1, 22);
+                    if clamped != v {
+                        tracing::warn!(
+                            "{ZSTD_LEVEL_ENV}={v} is outside zstd's [1, 22] range; using {clamped}"
+                        );
+                    }
+                    clamped
+                }
+                Err(_) => {
+                    tracing::warn!(
+                        "{ZSTD_LEVEL_ENV}={s:?} is not a valid integer; using default level \
+                         {DEFAULT_ZSTD_LEVEL}"
+                    );
+                    DEFAULT_ZSTD_LEVEL
+                }
+            },
+            Err(_) => DEFAULT_ZSTD_LEVEL,
+        });
+        *LEVEL
+    }
+}
+
+#[cfg(not(any(windows, unix)))]
+mod platform {
+    use zarrs::storage::store::MemoryStore;
+
+    use super::*;
+
+    /// Open an in-memory store. This target has no filesystem; the web frontend uses it as a
+    /// no-op sink that's dropped at session end.
+    pub fn open_store(_path: &Path) -> anyhow::Result<ReadableWritableListableStorage> {
+        Ok(Arc::new(MemoryStore::new()))
+    }
+
+    /// The in-memory store has no on-disk `zarr.json`, so the root group is always (re)built (the
+    /// memory store silently overwrites any existing entry).
+    pub fn root_group_missing(_path: &Path) -> bool {
+        true
+    }
+
+    /// Stream-tier codec chain: CRC32C only. The `zstd` feature isn't built on this target (its
+    /// `zstd-sys` C build expects POSIX symbols the wasm libc shim doesn't expose), and the
+    /// memory-backed store is ephemeral, so skipping compression is fine.
+    pub fn stream_tier_codecs() -> Vec<Arc<dyn zarrs::array::BytesToBytesCodecTraits>> {
+        vec![Arc::new(Crc32cCodec::new())]
+    }
+
+    // The in-memory store wraps a trait object bounded only by `MaybeSend + MaybeSync` (no-ops on
+    // wasm), so the `Arc` isn't `Send`/`Sync` in Rust's eyes. The rest of `ext` requires chain
+    // complexes to be `Send + Sync`, and rippling that relaxation through the whole crate to
+    // accommodate the wasm frontend isn't worth it. We force `Send + Sync` here — sound because
+    // this target is single-threaded, so the absent cross-thread guarantees are vacuously
+    // satisfied. On `any(windows, unix)` the filesystem store is already `Send + Sync`, so no impl
+    // is needed there.
+    unsafe impl Send for super::ZarrSaveStore {}
+    unsafe impl Sync for super::ZarrSaveStore {}
+}
 
 /// Most-negative stem the on-disk layout can store.
 ///
@@ -125,53 +232,6 @@ const SHARD_S: u64 = 8;
 /// Shard shape in the idx dimension.
 const SHARD_IDX: u64 = 8;
 
-/// Default stream-tier zstd level when [`ZSTD_LEVEL_ENV`] is unset.
-///
-/// Level 3 is zstd's own default and sits at the knee of the ratio/speed curve. The stream tier
-/// (`res_qi`, `nassau_qi`) is on the hot write path — every differential quasi-inverse is
-/// compressed here — so a high level makes saving several times slower for a small extra ratio
-/// on this already-dense data. Large runs that want to trade write time for maximum on-disk
-/// compression can raise the level via the environment variable below.
-#[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_ZSTD_LEVEL: i32 = 3;
-
-/// Environment variable that overrides the stream-tier zstd level.
-///
-/// For very large resolutions (where the on-disk footprint, not save time, is the binding
-/// constraint) set e.g. `EXT_SAVE_ZSTD_LEVEL=19` for near-maximum compression. The value is read
-/// once, parsed as an integer, and clamped to zstd's valid `[1, 22]` range; anything unparseable
-/// falls back to [`DEFAULT_ZSTD_LEVEL`] with a warning.
-#[cfg(not(target_arch = "wasm32"))]
-const ZSTD_LEVEL_ENV: &str = "EXT_SAVE_ZSTD_LEVEL";
-
-/// Resolve the stream-tier zstd level, reading [`ZSTD_LEVEL_ENV`] at most once.
-#[cfg(not(target_arch = "wasm32"))]
-fn zstd_level() -> i32 {
-    use std::sync::LazyLock;
-    static LEVEL: LazyLock<i32> = LazyLock::new(|| match std::env::var(ZSTD_LEVEL_ENV) {
-        Ok(s) => match s.trim().parse::<i32>() {
-            Ok(v) => {
-                let clamped = v.clamp(1, 22);
-                if clamped != v {
-                    tracing::warn!(
-                        "{ZSTD_LEVEL_ENV}={v} is outside zstd's [1, 22] range; using {clamped}"
-                    );
-                }
-                clamped
-            }
-            Err(_) => {
-                tracing::warn!(
-                    "{ZSTD_LEVEL_ENV}={s:?} is not a valid integer; using default level \
-                     {DEFAULT_ZSTD_LEVEL}"
-                );
-                DEFAULT_ZSTD_LEVEL
-            }
-        },
-        Err(_) => DEFAULT_ZSTD_LEVEL,
-    });
-    *LEVEL
-}
-
 /// Convert a zarrs error into `anyhow::Error`.
 ///
 /// On `wasm32-unknown-unknown` some zarrs error types contain `Arc<dyn TraitObj>` with only
@@ -181,26 +241,6 @@ fn zstd_level() -> i32 {
 /// source chain is collapsed into its `Display` output.
 fn zarr_err<E: std::fmt::Display>(e: E) -> anyhow::Error {
     anyhow::anyhow!("{e}")
-}
-
-/// Build the bytes-to-bytes codec chain for stream-tier arrays.
-///
-/// On native targets this is `zstd(level=19) + crc32c`. On wasm32 the `zstd` feature is
-/// disabled (its C build expects POSIX symbols the wasm libc shim doesn't expose) so we fall
-/// back to `crc32c` alone — the memory-backed store on wasm is ephemeral, so skipping
-/// compression is fine.
-fn stream_tier_codecs() -> Vec<Arc<dyn zarrs::array::BytesToBytesCodecTraits>> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        vec![
-            Arc::new(ZstdCodec::new(zstd_level(), false)),
-            Arc::new(Crc32cCodec::new()),
-        ]
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        vec![Arc::new(Crc32cCodec::new())]
-    }
 }
 
 /// Number of matrix rows per chunk in the ResQi `rows` array.
@@ -265,13 +305,6 @@ pub struct ZarrSaveStore {
 /// Alias for the concrete opened-array type shared across the store and its streaming readers.
 type ShardArray = zarrs::array::Array<dyn ReadableWritableListableStorageTraits>;
 
-// See the doc comment on `ZarrSaveStore::store` for why this is sound on wasm. On native the
-// trait object is already `Send + Sync`, so the cfg gate avoids a redundant-impl warning.
-#[cfg(target_arch = "wasm32")]
-unsafe impl Send for ZarrSaveStore {}
-#[cfg(target_arch = "wasm32")]
-unsafe impl Sync for ZarrSaveStore {}
-
 impl std::fmt::Debug for ZarrSaveStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ZarrSaveStore")
@@ -286,21 +319,11 @@ impl ZarrSaveStore {
         let path = std::path::absolute(path.as_ref())
             .with_context(|| format!("Failed to resolve path: {:?}", path.as_ref()))?;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let store: ReadableWritableListableStorage = Arc::new(FilesystemStore::new(&path)?);
-        #[cfg(target_arch = "wasm32")]
-        let store: ReadableWritableListableStorage = Arc::new(MemoryStore::new());
+        let store: ReadableWritableListableStorage = platform::open_store(&path)?;
 
-        // Root group.
-        //
-        // On WASM the store is in-memory, so `zarr.json` never "exists" on disk; we
-        // unconditionally build the root group (the memory store silently overwrites any
-        // existing entry).
-        #[cfg(not(target_arch = "wasm32"))]
-        let needs_root_group = !path.join("zarr.json").exists();
-        #[cfg(target_arch = "wasm32")]
-        let needs_root_group = true;
-        if needs_root_group {
+        // Build the root group's `zarr.json` unless it's already on disk. (On the in-memory
+        // target it never persists, so `platform::root_group_missing` is always true there.)
+        if platform::root_group_missing(&path) {
             GroupBuilder::new()
                 .build(store.clone(), "/")?
                 .store_metadata()?;
@@ -713,7 +736,7 @@ impl ZarrSaveStore {
             data_type::int64(),
             zarrs::array::FillValue::from(0i64),
         )
-        .bytes_to_bytes_codecs(stream_tier_codecs())
+        .bytes_to_bytes_codecs(platform::stream_tier_codecs())
         .build(self.store.clone(), &format!("{}/pivots", group_path))?;
         pivots_array.store_metadata()?;
         let mut pivots_data: Vec<i64> = match qi.pivots() {
@@ -737,7 +760,7 @@ impl ZarrSaveStore {
             data_type::uint8(),
             zarrs::array::FillValue::from(0u8),
         )
-        .bytes_to_bytes_codecs(stream_tier_codecs())
+        .bytes_to_bytes_codecs(platform::stream_tier_codecs())
         .build(self.store.clone(), &format!("{}/rows", group_path))?;
         rows_array.store_metadata()?;
 
@@ -879,7 +902,7 @@ impl ZarrSaveStore {
             data_type::bytes(),
             zarrs::array::FillValue::from(Vec::<u8>::new()),
         )
-        .bytes_to_bytes_codecs(stream_tier_codecs())
+        .bytes_to_bytes_codecs(platform::stream_tier_codecs())
         .build(self.store.clone(), &format!("{}/commands", group_path))?;
         commands_array.store_metadata()?;
 
