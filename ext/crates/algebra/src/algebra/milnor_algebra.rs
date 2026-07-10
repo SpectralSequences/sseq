@@ -10,8 +10,11 @@ use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    algebra::{Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra, combinatorics},
-    module::{FreeModule, Module as _},
+    algebra::{
+        Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra, combinatorics,
+        field::classical_graded_piece,
+    },
+    module::FreeModule,
 };
 
 fn q_part_default() -> u32 {
@@ -356,10 +359,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn module_at(&self, t: i32) -> FreeModule<Field> {
-        let piece = FreeModule::new(std::sync::Arc::new(self.base_ring()), String::new(), 0);
-        piece.add_generators(0, self.dimension(t), None);
-        piece.compute_basis(0);
-        piece
+        classical_graded_piece(self.base_ring(), self.dimension(t))
     }
 
     fn prefix(&self) -> &str {
@@ -1809,6 +1809,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::module::Module;
 
     #[test]
     fn module_at_is_the_graded_piece() {
