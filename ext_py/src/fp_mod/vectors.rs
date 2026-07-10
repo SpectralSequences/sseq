@@ -219,9 +219,23 @@ impl PyFpVector {
         })
     }
 
-    /// A mutable `FpSliceMut` spanning the whole vector (mirrors upstream
-    /// `FpVector::as_slice_mut`); equivalent to `slice_mut(0, len())`.
-    pub fn as_slice_mut(slf: PyRef<'_, Self>) -> PyResult<PyFpSliceMut> {
+    /// A read-only `FpSlice` spanning the whole vector; equivalent to
+    /// `slice(0, len())`.
+    #[getter]
+    pub fn r#const(slf: PyRef<'_, Self>) -> PyResult<PyFpSlice> {
+        let end = slf.0.len();
+        let py = slf.py();
+        Ok(PyFpSlice {
+            parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
+            start: 0,
+            end,
+        })
+    }
+
+    /// A mutable `FpSliceMut` spanning the whole vector; equivalent to
+    /// `slice_mut(0, len())`.
+    #[getter]
+    pub fn r#mut(slf: PyRef<'_, Self>) -> PyResult<PyFpSliceMut> {
         let end = slf.0.len();
         let py = slf.py();
         Ok(PyFpSliceMut {
@@ -564,14 +578,6 @@ impl PyFpSliceMut {
     pub fn add_basis_element(&self, py: Python<'_>, index: usize, value: u32) -> PyResult<()> {
         let index = checked_index(index, self.span())?;
         self.with_slice_mut(py, |mut s| s.add_basis_element(index, value))
-    }
-
-    pub fn as_slice(&self, py: Python<'_>) -> PyFpSlice {
-        PyFpSlice {
-            parent: self.parent.clone_ref(py),
-            start: self.start,
-            end: self.end,
-        }
     }
 
     pub fn slice_mut(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {

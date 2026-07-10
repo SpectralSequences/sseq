@@ -93,7 +93,7 @@ def test_fp_slice_handles_parent_lifetime_after_original_reference_deleted():
     assert list(s.iter()) == [2, 3]
     sm.add_basis_element(0, 4)
     assert s[1] == 2
-    assert list(sm.as_slice().iter()) == [2, 4]
+    assert list(sm.iter()) == [2, 4]
 
 
 def test_stale_slice_handles_raise_python_exception_after_parent_shrink():
@@ -139,9 +139,8 @@ def test_fp_slice_mut_updates_parent_and_as_slice():
     s.scale(2)
     assert [v[i] for i in range(len(v))] == [1, 4, 3, 4, 0]
 
-    as_slice = s.as_slice()
-    assert len(as_slice) == 3
-    assert [as_slice[i] for i in range(len(as_slice))] == [4, 3, 4]
+    assert len(s) == 3
+    assert [s[i] for i in range(len(s))] == [4, 3, 4]
 
     sub = s.slice_mut(1, 3)
     sub.set_to_zero()
