@@ -36,6 +36,17 @@ impl std::fmt::Display for Field {
     }
 }
 
+/// Build the graded piece of a classical (`BaseRing = Field`) algebra: a free `Field`-module with
+/// `num_gens` generators concentrated in weight 0. This is the shared body of the
+/// [`module_at`](Algebra::module_at) accessor for every classical algebra ([`Field`],
+/// [`AdemAlgebra`](crate::algebra::AdemAlgebra), [`MilnorAlgebra`](crate::algebra::MilnorAlgebra)).
+pub(crate) fn classical_graded_piece(base_ring: Field, num_gens: usize) -> FreeModule<Field> {
+    let piece = FreeModule::new(Arc::new(base_ring), String::new(), 0);
+    piece.add_generators(0, num_gens, None);
+    piece.compute_basis(0);
+    piece
+}
+
 impl Algebra for Field {
     type BaseRing = Self;
     type GradedPiece = FreeModule<Self>;
@@ -45,10 +56,7 @@ impl Algebra for Field {
     }
 
     fn module_at(&self, t: i32) -> FreeModule<Self> {
-        let piece = FreeModule::new(Arc::new(self.base_ring()), String::new(), 0);
-        piece.add_generators(0, self.dimension(t), None);
-        piece.compute_basis(0);
-        piece
+        classical_graded_piece(self.base_ring(), self.dimension(t))
     }
 
     fn prime(&self) -> ValidPrime {

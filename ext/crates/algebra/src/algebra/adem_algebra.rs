@@ -19,8 +19,9 @@ use crate::{
     algebra::{
         Algebra, Bialgebra, Field, GeneratedAlgebra, UnstableAlgebra,
         combinatorics::{self, MAX_XI_TAU},
+        field::classical_graded_piece,
     },
-    module::{FreeModule, Module as _},
+    module::FreeModule,
 };
 
 /// An Adem basis element for the Steenrod algebra.
@@ -171,10 +172,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn module_at(&self, t: i32) -> FreeModule<Field> {
-        let piece = FreeModule::new(std::sync::Arc::new(self.base_ring()), String::new(), 0);
-        piece.add_generators(0, self.dimension(t), None);
-        piece.compute_basis(0);
-        piece
+        classical_graded_piece(self.base_ring(), self.dimension(t))
     }
 
     fn prefix(&self) -> &str {
