@@ -294,10 +294,12 @@ pub mod fp_py {
         PyAffineSubspace, PyMatrix, PyMatrixSliceMut, PyQuasiInverse, PySubquotient, PySubspace,
         PySubspaceVectorIterator,
     };
-    use super::matrices::{PyAugmentedMatrix2, PyAugmentedMatrix3};
     #[pymodule_export]
     pub use super::vectors::{PyFpSlice, PyFpSliceMut, PyFpVector, PyFpVectorIterator};
-    use super::*;
+    use super::{
+        matrices::{PyAugmentedMatrix2, PyAugmentedMatrix3},
+        *,
+    };
 
     #[pyclass(name = "Fp", frozen, from_py_object)]
     #[derive(Clone, Copy)]

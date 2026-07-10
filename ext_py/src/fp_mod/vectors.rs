@@ -4,7 +4,11 @@ use fp::{
     prime::Prime,
     vector::{FpSlice as RustFpSlice, FpSliceMut as RustFpSliceMut, FpVector as RustFpVector},
 };
-use pyo3::{exceptions::PyValueError, types::PyBytes};
+use pyo3::{
+    exceptions::PyValueError,
+    types::{PyAny, PyAnyMethods, PyBytes, PySlice},
+    IntoPyObject, Py,
+};
 
 use super::*;
 
@@ -108,6 +112,23 @@ pub(crate) fn py_index(index: isize, len: usize) -> PyResult<usize> {
     }
 }
 
+/// Resolve a Python subscript that may be either an integer index or a
+/// step-1 `slice`. Returns `Some((start, end))` for a slice (after clamping
+/// to `len`), or `None` for a plain integer (left for the caller to
+/// normalize via [`py_index`]). Slices with a step other than 1 raise
+/// `ValueError`.
+fn slice_step_one(obj: &Bound<'_, PyAny>, len: usize) -> PyResult<Option<(usize, usize)>> {
+    if let Ok(slice) = obj.cast::<PySlice>() {
+        let indices = slice.indices(len as isize)?;
+        if indices.step != 1 {
+            return Err(PyValueError::new_err("slice step must be 1"));
+        }
+        Ok(Some((indices.start as usize, indices.stop as usize)))
+    } else {
+        Ok(None)
+    }
+}
+
 #[pyclass(name = "FpVector")]
 pub struct PyFpVector(pub(crate) RustFpVector);
 
@@ -183,40 +204,6 @@ impl PyFpVector {
 
     pub fn iter_nonzero(&self) -> Vec<(usize, u32)> {
         self.0.as_slice().iter_nonzero().collect()
-    }
-
-    pub fn slice(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSlice> {
-        checked_range(start, end, slf.0.len())?;
-        let py = slf.py();
-        Ok(PyFpSlice {
-            parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
-            start,
-            end,
-        })
-    }
-
-    /// Restrict to the sub-range of coordinates `[start, end)`, returning a
-    /// read-only `FpSlice` view. For an `FpVector` (whose coordinates start
-    /// at 0) this mirrors `slice(start, end)`; named to match the analogous
-    /// `FpSlice.restrict` method.
-    pub fn restrict(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSlice> {
-        checked_range(start, end, slf.0.len())?;
-        let py = slf.py();
-        Ok(PyFpSlice {
-            parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
-            start,
-            end,
-        })
-    }
-
-    pub fn slice_mut(slf: PyRef<'_, Self>, start: usize, end: usize) -> PyResult<PyFpSliceMut> {
-        checked_range(start, end, slf.0.len())?;
-        let py = slf.py();
-        Ok(PyFpSliceMut {
-            parent: SliceParent::Vector(slf.into_pyobject(py)?.unbind()),
-            start,
-            end,
-        })
     }
 
     /// A read-only `FpSlice` spanning the whole vector; equivalent to
@@ -355,11 +342,6 @@ impl PyFpSlice {
         self.with_slice(py, |s| s.is_empty())
     }
 
-    pub fn entry(&self, py: Python<'_>, index: usize) -> PyResult<u32> {
-        let index = checked_index(index, self.span())?;
-        self.with_slice(py, |s| s.entry(index))
-    }
-
     pub fn iter_nonzero(&self, py: Python<'_>) -> PyResult<Vec<(usize, u32)>> {
         self.with_slice(py, |s| s.iter_nonzero().collect())
     }
@@ -391,9 +373,18 @@ impl PyFpSlice {
         self.len(py)
     }
 
-    pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
-        let index = py_index(index, self.span())?;
-        self.with_slice(py, |s| s.entry(index))
+    pub fn __getitem__(&self, py: Python<'_>, index: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Some((start, end)) = slice_step_one(index, self.span())? {
+            let sub = self.restrict(py, start, end)?;
+            Ok(Py::new(py, sub)?.into_any())
+        } else {
+            let i = py_index(index.extract::<isize>()?, self.span())?;
+            Ok(self
+                .with_slice(py, |s| s.entry(i))?
+                .into_pyobject(py)?
+                .into_any()
+                .unbind())
+        }
     }
 
     pub fn __iter__(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
@@ -580,15 +571,6 @@ impl PyFpSliceMut {
         self.with_slice_mut(py, |mut s| s.add_basis_element(index, value))
     }
 
-    pub fn slice_mut(&self, py: Python<'_>, start: usize, end: usize) -> PyResult<Self> {
-        checked_range(start, end, self.span())?;
-        Ok(Self {
-            parent: self.parent.clone_ref(py),
-            start: self.start + start,
-            end: self.start + end,
-        })
-    }
-
     pub fn to_owned(&self, py: Python<'_>) -> PyResult<PyFpVector> {
         Ok(PyFpVector(self.with_slice(py, |s| s.to_owned())?))
     }
@@ -597,9 +579,26 @@ impl PyFpSliceMut {
         self.len(py)
     }
 
-    pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
-        let index = py_index(index, self.span())?;
-        self.with_slice(py, |s| s.entry(index))
+    pub fn __getitem__(&self, py: Python<'_>, index: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        if let Some((start, end)) = slice_step_one(index, self.span())? {
+            checked_range(start, end, self.span())?;
+            Ok(Py::new(
+                py,
+                Self {
+                    parent: self.parent.clone_ref(py),
+                    start: self.start + start,
+                    end: self.start + end,
+                },
+            )?
+            .into_any())
+        } else {
+            let i = py_index(index.extract::<isize>()?, self.span())?;
+            Ok(self
+                .with_slice(py, |s| s.entry(i))?
+                .into_pyobject(py)?
+                .into_any()
+                .unbind())
+        }
     }
 
     pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {

@@ -49,7 +49,7 @@ def test_apply_accepts_slices():
     qi = make_qi()
     v = fp.FpVector.from_py(2, [1, 1, 0, 0, 1, 0])
     out = fp.FpVector(2, 4)
-    qi.apply(out.slice_mut(0, 4), 1, v.slice(0, 6))
+    qi.apply(out.mut, 1, v.const)
     assert list(out) == [1, 1, 1, 0]
 
 

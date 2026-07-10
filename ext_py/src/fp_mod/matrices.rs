@@ -234,7 +234,7 @@ impl PyMatrixSliceMut {
     }
 
     fn to_py(&self, py: Python<'_>) -> PyResult<Vec<Vec<u32>>> {
-        Ok(self.with_slice_mut(py, |s| s.to_vec())?)
+        self.with_slice_mut(py, |s| s.to_vec())
     }
 
     pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
@@ -1278,7 +1278,10 @@ augmented_matrix_pyclass!(PyAugmentedMatrix2, "AugmentedMatrix2", 2, Augmented2,
         for row in &input {
             checked_equal_len(row.len(), columns)?;
         }
-        Ok(Self(Consumable::new("AugmentedMatrix2", RustMatrix::augmented_from_vec(p, &input))))
+        Ok(Self(Consumable::new(
+            "AugmentedMatrix2",
+            RustMatrix::augmented_from_vec(p, &input),
+        )))
     }
 });
 

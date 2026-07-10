@@ -173,7 +173,7 @@ def test_reduce_by_quotient_slice_mut():
     # Sub-range slice: only the targeted columns are reduced in place.
     m2 = fp.Matrix.from_py(3, [[2, 1, 1, 0]])
     row = m2.row_mut(0)
-    sq.reduce_by_quotient(row.slice_mut(1, 4))
+    sq.reduce_by_quotient(row[1:4])
     assert list(m2.row(0)) == [2, 0, 1, 0]
 
 

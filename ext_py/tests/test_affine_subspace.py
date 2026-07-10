@@ -88,7 +88,7 @@ def test_contains_accepts_slice():
     aff = fp.AffineSubspace(offset, linear)
 
     v = fp.FpVector.from_py(2, [1, 1, 0])
-    assert aff.contains(v.slice(0, 3))
+    assert aff.contains(v.const[0:3])
 
 
 def test_contains_space():

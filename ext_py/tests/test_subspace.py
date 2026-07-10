@@ -111,12 +111,12 @@ def test_contains_accepts_slice():
     v = fp.FpVector.from_py(3, [1, 0, 0])
     # An owned FpVector and an FpSlice over it behave identically.
     assert s.contains(v)
-    assert s.contains(v.slice(0, 3))
+    assert s.contains(v.const)
     w = fp.FpVector.from_py(3, [0, 0, 1])
-    assert not s.contains(w.slice(0, 3))
+    assert not s.contains(w.const)
     # Slice of the wrong ambient dimension is rejected.
     with pytest.raises(ValueError):
-        s.contains(w.slice(0, 2))
+        s.contains(w.const[0:2])
 
 
 def test_iter_all_vectors():

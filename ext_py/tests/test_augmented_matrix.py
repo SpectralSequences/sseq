@@ -77,8 +77,8 @@ def test_row_mut_writes_through_to_parent():
     rm = m.row_mut(0)
     assert isinstance(rm, fp.FpSliceMut)
     assert len(rm) == m.columns
-    rm.set_entry(0, 1)
-    rm.slice_mut(2, 4).set_entry(1, 1)
+    rm[0] = 1
+    rm[2:4][1] = 1
     assert m.to_py()[0][0] == 1
     assert m.to_py()[0][3] == 1
     with pytest.raises(IndexError):

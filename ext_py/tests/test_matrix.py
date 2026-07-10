@@ -77,7 +77,7 @@ def test_row_access_and_getitem():
     row = m.row(1)
     assert row.prime == 5
     assert len(row) == 3
-    assert row.entry(0) == 4
+    assert row[0] == 4
     assert row[2] == 1
     assert row[-1] == 1
     assert not row.is_zero
@@ -89,8 +89,6 @@ def test_row_access_and_getitem():
 
     with pytest.raises(IndexError):
         m.row(2)
-    with pytest.raises(IndexError):
-        row.entry(3)
 
 
 def test_row_mut_reflects_in_parent():
@@ -114,7 +112,7 @@ def test_row_mut_reflects_in_parent():
 def test_row_mut_add_slice():
     m = fp.Matrix.from_py(5, [[1, 2, 3]])
     other = fp.FpVector.from_py(5, [1, 1, 1])
-    m.row_mut(0).add(other.slice(0, 3), 2)
+    m.row_mut(0).add(other.const, 2)
     assert m.to_py()[0] == [3, 4, 0]
 
 
@@ -204,11 +202,9 @@ def test_bytes_roundtrip():
 def test_stale_row_handle_after_trim_raises():
     m = fp.Matrix.from_py(5, [[1, 2, 3], [4, 0, 1], [2, 2, 2]])
     row = m.row(2)
-    assert row.entry(0) == 2
+    assert row[0] == 2
     m.trim(0, 1, 0)
     assert m.rows == 1
-    with pytest.raises(IndexError):
-        row.entry(0)
     with pytest.raises(IndexError):
         row[0]
 
@@ -225,9 +221,9 @@ def test_stale_row_mut_handle_after_trim_raises():
 def test_row_returns_same_type_as_vector_slice():
     m = fp.Matrix.from_py(5, [[1, 2, 3]])
     v = fp.FpVector.from_py(5, [1, 2, 3])
-    assert type(m.row(0)) is type(v.slice(0, 3))
-    assert type(m.row_mut(0)) is type(v.slice_mut(0, 3))
-    assert type(m[0]) is type(v.slice(0, 3))
+    assert type(m.row(0)) is type(v.const)
+    assert type(m.row_mut(0)) is type(v.mut)
+    assert type(m[0]) is type(v.const)
 
 
 def test_row_slice_restrict_and_to_owned():
@@ -247,7 +243,7 @@ def test_row_mut_to_owned_and_slice_mut():
     rm = m.row_mut(0)
     owned = rm.to_owned()
     assert owned.prime == 5
-    sub = rm.slice_mut(0, 2)
+    sub = rm[0:2]
     sub.scale(2)
     assert m.to_py()[0] == [2, 4, 3, 4]
     assert repr(rm).startswith("FpSliceMut(5, ")
@@ -268,8 +264,6 @@ def test_row_len_revalidates_after_column_shrink():
 
     with pytest.raises(IndexError):
         len(row)
-    with pytest.raises(IndexError):
-        row.entry(0)
     with pytest.raises(IndexError):
         row[0]
     with pytest.raises(IndexError):
