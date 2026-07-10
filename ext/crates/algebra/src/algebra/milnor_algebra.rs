@@ -1813,13 +1813,17 @@ mod tests {
 
     #[test]
     fn module_at_is_the_graded_piece() {
-        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
-        algebra.compute_basis(20);
-        for t in 0..=20 {
-            let piece = algebra.module_at(t);
-            // The graded piece is a free Field-module concentrated in degree 0, whose dimension
-            // there equals the algebra's dimension in degree t.
-            assert_eq!(piece.dimension(0), algebra.dimension(t), "t = {t}");
+        // Cover both the 2-primary and the generic (odd-prime) paths.
+        for p in [2u32, 3] {
+            let algebra = MilnorAlgebra::new(ValidPrime::new(p), false);
+            let max_t = if p == 2 { 20 } else { 30 };
+            algebra.compute_basis(max_t);
+            for t in 0..=max_t {
+                let piece = algebra.module_at(t);
+                // The graded piece is a free Field-module concentrated in degree 0, whose dimension
+                // there equals the algebra's dimension in degree t.
+                assert_eq!(piece.dimension(0), algebra.dimension(t), "p = {p}, t = {t}");
+            }
         }
     }
 
