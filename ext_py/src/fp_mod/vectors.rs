@@ -360,11 +360,6 @@ impl PyFpSlice {
         self.with_slice(py, |s| s.entry(index))
     }
 
-    pub fn iter(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
-        let entries = self.with_slice(py, |s| s.iter().collect())?;
-        Ok(PyFpVectorIterator { entries, index: 0 })
-    }
-
     pub fn iter_nonzero(&self, py: Python<'_>) -> PyResult<Vec<(usize, u32)>> {
         self.with_slice(py, |s| s.iter_nonzero().collect())
     }
@@ -399,6 +394,11 @@ impl PyFpSlice {
     pub fn __getitem__(&self, py: Python<'_>, index: isize) -> PyResult<u32> {
         let index = py_index(index, self.span())?;
         self.with_slice(py, |s| s.entry(index))
+    }
+
+    pub fn __iter__(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
+        let entries = self.with_slice(py, |s| s.iter().collect())?;
+        Ok(PyFpVectorIterator { entries, index: 0 })
     }
 
     pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
@@ -605,6 +605,11 @@ impl PyFpSliceMut {
     pub fn __setitem__(&self, py: Python<'_>, index: isize, value: u32) -> PyResult<()> {
         let index = py_index(index, self.span())?;
         self.with_slice_mut(py, |mut s| s.set_entry(index, value))
+    }
+
+    pub fn __iter__(&self, py: Python<'_>) -> PyResult<PyFpVectorIterator> {
+        let entries = self.with_slice(py, |s| s.iter().collect())?;
+        Ok(PyFpVectorIterator { entries, index: 0 })
     }
 
     pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {

@@ -16,7 +16,7 @@ def test_fp_vector_slice_queries_and_to_owned():
     assert s[-1] == 0
     assert not s.is_zero
     assert s.first_nonzero == (0, 1)
-    assert list(s.iter()) == [1, 2, 0]
+    assert list(s) == [1, 2, 0]
     assert s.iter_nonzero() == [(0, 1), (1, 2)]
     assert repr(s) == "FpSlice(5, [1, 2, 0])"
 
@@ -90,10 +90,10 @@ def test_fp_slice_handles_parent_lifetime_after_original_reference_deleted():
 
     del v
 
-    assert list(s.iter()) == [2, 3]
+    assert list(s) == [2, 3]
     sm.add_basis_element(0, 4)
     assert s[1] == 2
-    assert list(sm.iter()) == [2, 4]
+    assert list(sm) == [2, 4]
 
 
 def test_stale_slice_handles_raise_python_exception_after_parent_shrink():

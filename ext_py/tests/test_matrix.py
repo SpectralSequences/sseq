@@ -82,10 +82,10 @@ def test_row_access_and_getitem():
     assert row[-1] == 1
     assert not row.is_zero
     assert row.first_nonzero == (0, 4)
-    assert list(row.iter()) == [4, 0, 1]
+    assert list(row) == [4, 0, 1]
     assert row.iter_nonzero() == [(0, 4), (2, 1)]
     assert m[0].to_owned().prime == 5
-    assert list(m[0].iter()) == [1, 2, 3]
+    assert list(m[0]) == [1, 2, 3]
 
     with pytest.raises(IndexError):
         m.row(2)
