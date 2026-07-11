@@ -33,7 +33,6 @@ serde_json = { version = "1.0.141", features = ["preserve_order"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
-pprof = { version = "0.15.0", features = ["flamegraph"], optional = true }
 zstd = { version = "0.13.3", optional = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -60,8 +59,6 @@ concurrent = [
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
 nassau = []
-# Enables the optional pprof-based flamegraph in the `nassau_e2e` example (set `FLAME=<path>`).
-flamegraph = ["dep:pprof"]
 # Enables the GPU Milnor-multiply backend and the `milnor_gpu_ab` A/B microbenchmark.
 gpu = ["algebra/gpu"]
 

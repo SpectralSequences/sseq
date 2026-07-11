@@ -11,418 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
-/// Wrap profiling-only statements. Expands to nothing unless the crate is built with the
-/// `MILNOR_PROFILE` environment variable set (which turns on `cfg(milnor_profile)`; see `build.rs`),
-/// so the hot-path hooks below cost *nothing* — not even argument evaluation — in normal builds.
-macro_rules! profile {
-    ($($body:tt)*) => {
-        #[cfg(milnor_profile)]
-        {
-            $($body)*
-        }
-    };
-}
-
-/// Compile-time-gated counters for the Milnor multiplication hot path, to pinpoint what to
-/// optimize (how sparse the operands are, how much matrix enumeration is wasted, how many index
-/// lookups we pay, which path is taken, …).
-///
-/// Enable by building with `MILNOR_PROFILE=1` (e.g.
-/// `MILNOR_PROFILE=1 cargo run --release --example nassau_e2e -- 80 42 1`); otherwise every counter
-/// and hook is removed by `#[cfg]`. Call [`profile::report`] to print a summary to stderr.
-pub mod profile {
-    #[cfg(milnor_profile)]
-    pub use enabled::*;
-
-    /// Print the collected multiply statistics to stderr (or a note if profiling is disabled).
-    #[cfg(not(milnor_profile))]
-    pub fn report() {
-        eprintln!(
-            "[milnor profile] disabled — rebuild with `MILNOR_PROFILE=1` to collect multiply stats"
-        );
-    }
-
-    #[cfg(milnor_profile)]
-    mod enabled {
-        use std::sync::{
-            LazyLock, Mutex,
-            atomic::{AtomicU64, Ordering::Relaxed},
-        };
-
-        use rustc_hash::FxHashMap;
-
-        macro_rules! counters {
-            ($($(#[$m:meta])* $name:ident),* $(,)?) => {
-                $($(#[$m])* pub static $name: AtomicU64 = AtomicU64::new(0);)*
-            };
-        }
-        counters! {
-            /// `multiply_basis_element_by_element` (p=2) calls that do work.
-            MBE_CALLS,
-            /// … that took the admissible-matrix sweep.
-            MBE_ADMISSIBLE,
-            /// … that fell back to the per-term `PPartMultiplier` path.
-            MBE_PERTERM,
-            /// … where the operation was the identity `Sq(∅)`.
-            MBE_IDENTITY,
-            /// Basis×basis `multiply_with_allocation` invocations.
-            KERNEL_CALLS,
-            /// `PPartMultiplier` candidate terms yielded (before the index/bound checks).
-            PPART_TERMS,
-            /// `basis_element_to_index` lookups on the multiply hot path.
-            INDEX_LOOKUPS,
-            /// `add_basis_element` calls that actually contribute an output term.
-            OUTPUT_ADDS,
-            /// Admissible matrices enumerated (admissible path only).
-            ADM_MATRICES,
-            /// (matrix, term) compatibility tests (admissible path only).
-            ADM_TESTS,
-        }
-
-        /// Histogram of `nnz(s)` — the number of non-zero terms of the element being acted on.
-        pub static NNZ_HIST: LazyLock<Mutex<FxHashMap<usize, u64>>> =
-            LazyLock::new(|| Mutex::new(FxHashMap::default()));
-        /// Histogram of `(operation_degree, element_degree)` per call.
-        pub static DEG_HIST: LazyLock<Mutex<FxHashMap<(i32, i32), u64>>> =
-            LazyLock::new(|| Mutex::new(FxHashMap::default()));
-        /// Total element terms multiplied by each distinct operation `R = (degree, index)`. This is
-        /// the GPU-occupancy metric for Nassau's `Sq(R) · Σ Sq(Sⱼ)` kernel: batching all work sharing
-        /// one `R` (uniform matrix enumeration) gives this many threads' worth of uniform work, so
-        /// the distribution says how well workgroups would fill.
-        pub static R_TERMS: LazyLock<Mutex<FxHashMap<(i32, usize), u64>>> =
-            LazyLock::new(|| Mutex::new(FxHashMap::default()));
-
-        pub fn record_call(nnz: usize, r_degree: i32, r_index: usize, s_degree: i32) {
-            MBE_CALLS.fetch_add(1, Relaxed);
-            *NNZ_HIST.lock().unwrap().entry(nnz).or_default() += 1;
-            *DEG_HIST
-                .lock()
-                .unwrap()
-                .entry((r_degree, s_degree))
-                .or_default() += 1;
-            *R_TERMS
-                .lock()
-                .unwrap()
-                .entry((r_degree, r_index))
-                .or_default() += nnz as u64;
-        }
-
-        /// Per–GPU-launch accumulation of `R → element-terms`, where one launch = one
-        /// `get_partial_matrix` (matrix build). Unlike [`R_TERMS`], which sums an operation `R`
-        /// across the *whole* resolution, this asks how much same-`R` work is co-located within a
-        /// single matrix build — the largest unit a kernel could batch without buffering across the
-        /// streaming algorithm. `depth` keeps [`scope_begin`]/[`scope_end`] reentrancy-safe: only the
-        /// outermost pair clears and folds, so any nested matrix build is attributed to the outer
-        /// launch rather than corrupting it. (Measurement must be run serially — the `concurrent`
-        /// feature would let two launches interleave into one scope and inflate the batch sizes.)
-        struct ScopeState {
-            depth: u32,
-            /// `(homomorphism id, degree)` of the currently open launch — its merged-scope key.
-            key: (usize, i32),
-            map: FxHashMap<(i32, usize), u64>,
-        }
-        static SCOPE: LazyLock<Mutex<ScopeState>> = LazyLock::new(|| {
-            Mutex::new(ScopeState {
-                depth: 0,
-                key: (0, 0),
-                map: FxHashMap::default(),
-            })
-        });
-
-        /// Coarser accumulation: `R → element-terms` merged across every launch sharing a
-        /// `(homomorphism id, degree)` key — i.e. all the per-signature `get_partial_matrix` builds
-        /// of one differential at one bidegree, which all read the same matrix and so *could* be
-        /// fused into a single kernel launch (computing the full matrix once and slicing it). Held to
-        /// report time and folded there, to measure how much the realizable occupancy improves when
-        /// the launch scope is widened from one masked build to one whole bidegree.
-        #[allow(clippy::type_complexity)]
-        static MERGED: LazyLock<Mutex<FxHashMap<(usize, i32), FxHashMap<(i32, usize), u64>>>> =
-            LazyLock::new(|| Mutex::new(FxHashMap::default()));
-
-        /// Workgroup sizes for the realizable-coverage report (mirrors the global one).
-        const SCOPE_WS: [u64; 6] = [32, 64, 128, 256, 512, 1024];
-        /// Number of launch scopes (matrix builds) that did any work.
-        static SCOPE_COUNT: AtomicU64 = AtomicU64::new(0);
-        /// Sum over scopes of each scope's total element-terms (equals the global term-work).
-        static SCOPE_TERMS: AtomicU64 = AtomicU64::new(0);
-        /// Largest single-scope total element-terms.
-        static SCOPE_TERMS_MAX: AtomicU64 = AtomicU64::new(0);
-        /// Per `W`, term-work in `R`s that reach ≥ `W` terms *within their own launch*.
-        static SCOPE_COVER: [AtomicU64; 6] = [
-            AtomicU64::new(0),
-            AtomicU64::new(0),
-            AtomicU64::new(0),
-            AtomicU64::new(0),
-            AtomicU64::new(0),
-            AtomicU64::new(0),
-        ];
-
-        /// Open a launch scope around a matrix build of homomorphism `hom_id` at `degree`.
-        /// Reentrancy-safe (see [`ScopeState`]); the key is set by the outermost open.
-        pub fn scope_begin(hom_id: usize, degree: i32) {
-            let mut s = SCOPE.lock().unwrap();
-            if s.depth == 0 {
-                s.map.clear();
-                s.key = (hom_id, degree);
-            }
-            s.depth += 1;
-        }
-
-        /// Attribute `nnz` element-terms of operation `R = (r_degree, r_index)` to the open launch,
-        /// both to its per-launch histogram and to its `(hom, degree)` merged bucket.
-        pub fn scope_record(r_degree: i32, r_index: usize, nnz: usize) {
-            if nnz == 0 {
-                return;
-            }
-            let key = {
-                let mut s = SCOPE.lock().unwrap();
-                if s.depth == 0 {
-                    return;
-                }
-                *s.map.entry((r_degree, r_index)).or_default() += nnz as u64;
-                s.key
-            };
-            *MERGED
-                .lock()
-                .unwrap()
-                .entry(key)
-                .or_default()
-                .entry((r_degree, r_index))
-                .or_default() += nnz as u64;
-        }
-
-        /// Close a launch scope; the outermost close folds the scope's `R`-histogram into the
-        /// realizable-coverage accumulators.
-        pub fn scope_end() {
-            let mut s = SCOPE.lock().unwrap();
-            if s.depth == 0 {
-                return;
-            }
-            s.depth -= 1;
-            if s.depth > 0 {
-                return;
-            }
-            let total: u64 = s.map.values().sum();
-            if total == 0 {
-                return;
-            }
-            SCOPE_COUNT.fetch_add(1, Relaxed);
-            SCOPE_TERMS.fetch_add(total, Relaxed);
-            SCOPE_TERMS_MAX.fetch_max(total, Relaxed);
-            for (i, &w) in SCOPE_WS.iter().enumerate() {
-                let work: u64 = s.map.values().filter(|&&t| t >= w).sum();
-                SCOPE_COVER[i].fetch_add(work, Relaxed);
-            }
-            s.map.clear();
-        }
-
-        pub fn admissible() {
-            MBE_ADMISSIBLE.fetch_add(1, Relaxed);
-        }
-        pub fn perterm() {
-            MBE_PERTERM.fetch_add(1, Relaxed);
-        }
-        pub fn identity() {
-            MBE_IDENTITY.fetch_add(1, Relaxed);
-        }
-        pub fn kernel_call() {
-            KERNEL_CALLS.fetch_add(1, Relaxed);
-        }
-        pub fn ppart_term() {
-            PPART_TERMS.fetch_add(1, Relaxed);
-        }
-        pub fn index_lookup() {
-            INDEX_LOOKUPS.fetch_add(1, Relaxed);
-        }
-        pub fn output_add() {
-            OUTPUT_ADDS.fetch_add(1, Relaxed);
-        }
-        pub fn adm_matrix() {
-            ADM_MATRICES.fetch_add(1, Relaxed);
-        }
-        pub fn adm_test() {
-            ADM_TESTS.fetch_add(1, Relaxed);
-        }
-
-        pub fn report() {
-            let calls = MBE_CALLS.load(Relaxed);
-            if calls == 0 {
-                eprintln!("[milnor profile] no multiply_basis_element_by_element (p=2) calls seen");
-                return;
-            }
-            let (adm, per, ident) = (
-                MBE_ADMISSIBLE.load(Relaxed),
-                MBE_PERTERM.load(Relaxed),
-                MBE_IDENTITY.load(Relaxed),
-            );
-            let zero = calls - adm - per - ident;
-            let adds = OUTPUT_ADDS.load(Relaxed);
-            let pct = |x: u64| 100.0 * x as f64 / calls as f64;
-            let per_add = |x: u64| {
-                if adds > 0 {
-                    x as f64 / adds as f64
-                } else {
-                    0.0
-                }
-            };
-
-            eprintln!("================= Milnor multiply profile =================");
-            eprintln!("multiply_basis_element_by_element (p=2) calls : {calls}");
-            eprintln!("  admissible-matrix path : {adm:>12} ({:5.1}%)", pct(adm));
-            eprintln!("  per-term path          : {per:>12} ({:5.1}%)", pct(per));
-            eprintln!(
-                "  identity Sq(∅)         : {ident:>12} ({:5.1}%)",
-                pct(ident)
-            );
-            eprintln!("  zero element (nnz=0)   : {zero:>12} ({:5.1}%)", pct(zero));
-
-            let hist = NNZ_HIST.lock().unwrap();
-            let n: u64 = hist.values().sum();
-            let weighted: u64 = hist.iter().map(|(k, v)| *k as u64 * v).sum();
-            eprintln!(
-                "element term-count nnz : mean {:.2} over {n} calls",
-                weighted as f64 / n.max(1) as f64
-            );
-            let mut keys: Vec<usize> = hist.keys().copied().collect();
-            keys.sort_unstable();
-            let mut cum = 0u64;
-            for k in keys {
-                let v = hist[&k];
-                cum += v;
-                if k <= 6 || k.is_multiple_of(10) {
-                    eprintln!(
-                        "  nnz={k:<3} {:>6.2}%  cum {:>6.2}%",
-                        100.0 * v as f64 / n as f64,
-                        100.0 * cum as f64 / n as f64
-                    );
-                }
-            }
-
-            eprintln!(
-                "kernel basis×basis multiply_with_allocation : {}",
-                KERNEL_CALLS.load(Relaxed)
-            );
-            eprintln!("output basis-element adds : {adds}");
-            eprintln!(
-                "PPartMultiplier candidate terms : {} ({:.2} per output add)",
-                PPART_TERMS.load(Relaxed),
-                per_add(PPART_TERMS.load(Relaxed))
-            );
-            eprintln!(
-                "basis_element_to_index lookups  : {} ({:.2} per output add)",
-                INDEX_LOOKUPS.load(Relaxed),
-                per_add(INDEX_LOOKUPS.load(Relaxed))
-            );
-            let matrices = ADM_MATRICES.load(Relaxed);
-            if matrices > 0 {
-                eprintln!(
-                    "admissible matrices enumerated  : {matrices} ({:.1} term-tests each)",
-                    ADM_TESTS.load(Relaxed) as f64 / matrices as f64
-                );
-            }
-
-            let deg = DEG_HIST.lock().unwrap();
-            let mut pairs: Vec<((i32, i32), u64)> = deg.iter().map(|(k, v)| (*k, *v)).collect();
-            pairs.sort_by_key(|(_, v)| std::cmp::Reverse(*v));
-            eprintln!("top (operation_degree, element_degree) call sites:");
-            for ((r, s), v) in pairs.iter().take(10) {
-                eprintln!(
-                    "  op={r:<3} elt={s:<3} : {v} ({:.1}%)",
-                    100.0 * *v as f64 / calls as f64
-                );
-            }
-
-            // GPU-occupancy view: group all element terms by the operation `R` they are multiplied
-            // by. Nassau's kernel (`Sq(R) · Σ Sq(Sⱼ)`) parallelizes over terms sharing one `R` with
-            // uniform matrix enumeration, so a workgroup of size `W` is well-filled only by `R`s that
-            // accumulate ≥ `W` terms. We report what fraction of all term-work lives in such `R`s.
-            let r_terms = R_TERMS.lock().unwrap();
-            let distinct = r_terms.len() as u64;
-            let total_terms: u64 = r_terms.values().sum();
-            let max_terms = r_terms.values().copied().max().unwrap_or(0);
-            eprintln!(
-                "GPU occupancy — distinct operations R: {distinct}, total element terms: \
-                 {total_terms}, mean terms/R: {:.1}, max: {max_terms}",
-                total_terms as f64 / distinct.max(1) as f64
-            );
-            eprintln!("  fraction of term-work in R's with ≥ W terms (W = workgroup size):");
-            for w in [32u64, 64, 128, 256, 512, 1024] {
-                let (n_r, work): (u64, u64) =
-                    r_terms.values().fold(
-                        (0, 0),
-                        |(n, s), &t| {
-                            if t >= w { (n + 1, s + t) } else { (n, s) }
-                        },
-                    );
-                eprintln!(
-                    "    W={w:<4} : {n_r:>6} R's ({:>5.1}% of R's) cover {:>5.1}% of term-work",
-                    100.0 * n_r as f64 / distinct.max(1) as f64,
-                    100.0 * work as f64 / total_terms.max(1) as f64
-                );
-            }
-
-            // The number above aggregates each R across the *whole* resolution. A kernel can only
-            // batch work that is co-located in one launch, so this is the realizable version: R-work
-            // is re-counted per `get_partial_matrix` (matrix build), the largest unit batchable
-            // without buffering across the streaming algorithm. If these percentages collapse
-            // relative to the global ones, the amortization-by-R shape does not survive at launch
-            // granularity, and a GPU kernel must lean on raw parallel width (many independent
-            // products per launch) rather than on many terms sharing one R.
-            let scopes = SCOPE_COUNT.load(Relaxed);
-            if scopes > 0 {
-                let scope_terms = SCOPE_TERMS.load(Relaxed);
-                eprintln!(
-                    "GPU occupancy — REALIZABLE per matrix-build launch ({scopes} launches, mean \
-                     {:.1} terms/launch, max {}):",
-                    scope_terms as f64 / scopes as f64,
-                    SCOPE_TERMS_MAX.load(Relaxed)
-                );
-                eprintln!("  fraction of term-work in R's reaching ≥ W terms *within one launch*:");
-                for (i, w) in SCOPE_WS.iter().enumerate() {
-                    let work = SCOPE_COVER[i].load(Relaxed);
-                    eprintln!(
-                        "    W={w:<4} : {:>5.1}% of term-work",
-                        100.0 * work as f64 / scope_terms.max(1) as f64
-                    );
-                }
-            }
-
-            // Coarser scope: merge the per-signature builds of one differential at one bidegree into
-            // a single launch (they read the same matrix, so fusing them is free of extra multiply
-            // work). This upper-bounds the realizable occupancy for a kernel that computes the full
-            // bidegree matrix once instead of one masked slice per signature.
-            let merged = MERGED.lock().unwrap();
-            if !merged.is_empty() {
-                let n_launches = merged.len() as u64;
-                let mut total = 0u64;
-                let mut max_terms = 0u64;
-                let mut cover = [0u64; 6];
-                for hist in merged.values() {
-                    let t: u64 = hist.values().sum();
-                    total += t;
-                    max_terms = max_terms.max(t);
-                    for (i, &w) in SCOPE_WS.iter().enumerate() {
-                        cover[i] += hist.values().filter(|&&x| x >= w).sum::<u64>();
-                    }
-                }
-                eprintln!(
-                    "GPU occupancy — MERGED per (differential, bidegree) launch ({n_launches} \
-                     launches, mean {:.1} terms/launch, max {max_terms}):",
-                    total as f64 / n_launches.max(1) as f64
-                );
-                eprintln!("  fraction of term-work in R's reaching ≥ W terms *within one launch*:");
-                for (i, w) in SCOPE_WS.iter().enumerate() {
-                    eprintln!(
-                        "    W={w:<4} : {:>5.1}% of term-work",
-                        100.0 * cover[i] as f64 / total.max(1) as f64
-                    );
-                }
-            }
-            eprintln!("===========================================================");
-        }
-    }
-}
-
 fn q_part_default() -> u32 {
     !0
 }
@@ -974,16 +562,6 @@ impl Algebra for MilnorAlgebra {
         // for which the up-front enumeration cannot be amortized. It is retained as the reference
         // model for a future GPU kernel (where the enumerate-once/test-all-terms shape is ideal),
         // not wired here. See the commit history for the measurements.
-        profile!({
-            let nnz = s.iter_nonzero().count();
-            profile::record_call(nnz, r_degree, r_idx, s_degree);
-            if r_degree == 0 {
-                profile::identity();
-            } else if nnz > 0 {
-                profile::perterm();
-            }
-            profile::scope_record(r_degree, r_idx, nnz);
-        });
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
@@ -1720,18 +1298,11 @@ impl MilnorAlgebra {
         if coeff.is_multiple_of(2) {
             return;
         }
-        profile!(profile::record_call(
-            s.iter_nonzero().count(),
-            r_degree,
-            r_idx,
-            s_degree
-        ));
 
         let r = self.basis_element_from_index(r_degree, r_idx);
         // `Sq(∅) = 1`, so `Sq(R) * s = s`. (Also avoids an empty `AdmissibleMatrix`.) The output
         // degree equals `s_degree`, so basis indices are unchanged.
         if r.p_part.is_empty() {
-            profile!(profile::identity());
             for (i, _) in s.iter_nonzero() {
                 result.add_basis_element(i, 1);
             }
@@ -1749,7 +1320,6 @@ impl MilnorAlgebra {
             return; // s = 0
         };
         let Some((i1, _)) = second else {
-            profile!(profile::perterm());
             PPartAllocation::with_local(|allocation| {
                 self.multiply_with_allocation(
                     result,
@@ -1769,7 +1339,6 @@ impl MilnorAlgebra {
         terms.push(self.basis_element_from_index(s_degree, i0));
         terms.push(self.basis_element_from_index(s_degree, i1));
         terms.extend(nonzero.map(|(i, _)| self.basis_element_from_index(s_degree, i)));
-        profile!(profile::admissible());
 
         let out_degree = r_degree + s_degree;
         let mut matrix = AdmissibleMatrix::new(&r.p_part);
@@ -1780,9 +1349,7 @@ impl MilnorAlgebra {
         };
 
         loop {
-            profile!(profile::adm_matrix());
             'outer: for term in &terms {
-                profile!(profile::adm_test());
                 let basis = &term.p_part;
                 working.p_part.clear();
 
@@ -1832,9 +1399,7 @@ impl MilnorAlgebra {
                 }
 
                 let idx = self.basis_element_to_index(&working);
-                profile!(profile::index_lookup());
                 result.add_basis_element(idx, 1);
-                profile!(profile::output_add());
             }
             if !matrix.next() {
                 break;
@@ -1878,7 +1443,6 @@ impl MilnorAlgebra {
                 allocation = multiplier.into_allocation()
             }
         } else {
-            profile!(profile::kernel_call());
             let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
                 self.prime(),
                 &m1.p_part,
@@ -1889,12 +1453,9 @@ impl MilnorAlgebra {
             );
 
             while let Some(c) = multiplier.next() {
-                profile!(profile::ppart_term());
                 let idx = self.basis_element_to_index(&multiplier.ans);
-                profile!(profile::index_lookup());
                 if idx < dim {
                     res.add_basis_element(idx, c * coef);
-                    profile!(profile::output_add());
                 }
             }
             allocation = multiplier.into_allocation()

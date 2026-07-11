@@ -15,12 +15,6 @@
 //!
 //! To A/B a multiplication change: build/run on the change, then `git stash`/checkout the baseline
 //! and run again; compare the `best=` figures (min over runs is the most throttling-robust).
-//!
-//! To see *where* the time goes (e.g. multiply vs. linear algebra), build with the `flamegraph`
-//! feature and set `FLAME` to an output path — a sampling flamegraph of every run is written there:
-//! ```text
-//! FLAME=/tmp/nassau.svg cargo run --release --features flamegraph --example nassau_e2e -- 60 32 1
-//! ```
 
 use std::time::Instant;
 
@@ -32,16 +26,6 @@ fn main() {
     let n: i32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(80);
     let s: i32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(42);
     let runs: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(3);
-
-    // When built `--features flamegraph` and `FLAME=<path>` is set, sample the whole run and write a
-    // flamegraph there. Kept alive until after the timing loop so it captures every resolution.
-    #[cfg(feature = "flamegraph")]
-    let flame = std::env::var("FLAME").ok().map(|path| {
-        (
-            path,
-            pprof::ProfilerGuard::new(1000).expect("failed to start profiler"),
-        )
-    });
 
     let target = Bidegree::n_s(n, s);
     let mut best = f64::INFINITY;
@@ -59,18 +43,4 @@ fn main() {
         );
     }
     println!("S_2 @ p=2  stem={n}  filtration={s}  runs={runs}  best={best:.2}s");
-
-    // Prints Milnor-multiply counters when built with `MILNOR_PROFILE=1`, else a one-line note.
-    algebra::milnor_algebra::profile::report();
-
-    #[cfg(feature = "flamegraph")]
-    if let Some((path, guard)) = flame {
-        let report = guard
-            .report()
-            .build()
-            .expect("failed to build profiler report");
-        let file = std::fs::File::create(&path).expect("failed to create flamegraph file");
-        report.flamegraph(file).expect("failed to write flamegraph");
-        eprintln!("wrote flamegraph to {path}");
-    }
 }
