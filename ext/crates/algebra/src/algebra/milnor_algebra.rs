@@ -987,12 +987,19 @@ impl MilnorAlgebra {
             }
         }
 
-        self.seqno_tables
-            .store(Some(std::sync::Arc::new(SeqnoTables {
-                max_degree,
-                width,
-                g,
-            })));
+        // Guard the publish: under `concurrent`, parallel `get_partial_matrix` builds can race here,
+        // and an unconditional store would let a smaller table clobber a larger one already in place
+        // — after which `seqno` would index past the shrunken `g` and panic. Only replace when ours
+        // reaches at least as far, so the cached `max_degree` is monotonic.
+        let new_tables = std::sync::Arc::new(SeqnoTables {
+            max_degree,
+            width,
+            g,
+        });
+        self.seqno_tables.rcu(|current| match current.as_deref() {
+            Some(t) if t.max_degree >= max_degree => current.clone(),
+            _ => Some(new_tables.clone()),
+        });
     }
 
     /// The index ("sequence number") of `P(p_part)` in the Milnor basis of its degree, computed in
@@ -1507,6 +1514,10 @@ struct AdmissibleMatrix {
 
 impl AdmissibleMatrix {
     fn new(ps: &[PPartEntry]) -> Self {
+        debug_assert!(
+            !ps.is_empty(),
+            "AdmissibleMatrix::new requires a non-empty R; Sq(∅) = 1 is handled by the caller"
+        );
         let rows = ps.len();
         let cols = ps
             .iter()

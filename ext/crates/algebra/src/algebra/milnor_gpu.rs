@@ -45,6 +45,14 @@ use crate::algebra::{
 /// `mk_len = rows + cols − 1 ≤ MAX_XI_TAU + ⌈log2⌉`; 32 covers every in-range case.
 const WORKING_CAP: usize = 32;
 
+/// Narrow an admissible-matrix / p-part entry to the `u16` the GPU buffers use, failing loudly
+/// instead of silently wrapping. Every entry is well within `u16` for the stem ranges this path
+/// targets; a panic here means that assumption was pushed past its limit, which must not ship
+/// truncated data to the device.
+fn narrow_u16(v: u32) -> u16 {
+    u16::try_from(v).expect("admissible/term entry exceeds u16")
+}
+
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Aggregate [`multiply_batch_on_gpu`] counters across all launches (call count, host
@@ -124,8 +132,8 @@ impl Resident {
             mk_len: mk_len as u32,
             num_mats: (mk.len() / mk_len) as u32,
         };
-        self.col_sums.extend(cs.iter().map(|&v| v as u16));
-        self.masks.extend(mk.iter().map(|&v| v as u16));
+        self.col_sums.extend(cs.iter().map(|&v| narrow_u16(v)));
+        self.masks.extend(mk.iter().map(|&v| narrow_u16(v)));
         self.index.insert(p_part.to_vec(), info);
         info
     }
@@ -155,7 +163,7 @@ pub fn xor_f2_on_gpu(a: &[u32], b: &[u32]) -> Vec<u32> {
 
     let a_handle = client.create_from_slice(u32::as_bytes(a));
     let b_handle = client.create_from_slice(u32::as_bytes(b));
-    let out_handle = client.empty(n * size_of::<u32>());
+    let out_handle = client.empty(std::mem::size_of_val(a));
 
     // One 1-D block of `THREADS` units, enough blocks to cover every limb.
     const THREADS: u32 = 256;
@@ -533,8 +541,8 @@ pub fn multiply_single_r_on_gpu(
     );
     let (cs_len, mk_len, cs32, mk32) = algebra.admissible_matrices(&r.p_part);
     // Ship admissible-matrix / term data as u16 (see `multiply_batch_on_gpu`).
-    let mut col_sums: Vec<u16> = cs32.iter().map(|&v| v as u16).collect();
-    let masks: Vec<u16> = mk32.iter().map(|&v| v as u16).collect();
+    let mut col_sums: Vec<u16> = cs32.iter().map(|&v| narrow_u16(v)).collect();
+    let masks: Vec<u16> = mk32.iter().map(|&v| narrow_u16(v)).collect();
     let num_matrices = masks.len() / mk_len;
 
     // Terms of s, each p_part padded to `width`, with their true (trimmed) lengths.
@@ -548,7 +556,7 @@ pub fn multiply_single_r_on_gpu(
             .iter_mut()
             .zip(&elt.p_part)
         {
-            *slot = v as u16;
+            *slot = narrow_u16(v);
         }
     }
 
@@ -686,7 +694,7 @@ pub fn multiply_batch_on_gpu(
                 let elt = algebra.basis_element_from_index(prod.s_degree, ti);
                 tl.push(elt.p_part.len() as u32);
                 for (slot, &v) in tp[k * width..(k + 1) * width].iter_mut().zip(&elt.p_part) {
-                    *slot = v as u16;
+                    *slot = narrow_u16(v);
                 }
             }
             (tp, tl)

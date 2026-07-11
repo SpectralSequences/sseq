@@ -1,7 +1,10 @@
 //! End-to-end timing of the GPU wire-in: resolve `S_2` (Nassau) with and without the
 //! GPU `get_partial_matrix` path and print wall times. `#[ignore]` by default (it is a
 //! benchmark, not a correctness check); run explicitly under the `gpu` dev shell:
-//! `cargo test --test nassau_gpu_timing --features gpu -- --ignored --nocapture`.
+//! `cargo test --test nassau_gpu_timing --features gpu -- --ignored --nocapture --test-threads=1`.
+//! `--test-threads=1` is required: both tests toggle the process-wide `NASSAU_GPU` env var, so
+//! running them concurrently would race (and `set_var`/`remove_var` are themselves unsound under
+//! concurrency).
 #![cfg(feature = "gpu")]
 
 use std::time::Instant;
