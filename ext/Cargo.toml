@@ -62,6 +62,8 @@ logging = []
 nassau = []
 # Enables the optional pprof-based flamegraph in the `nassau_e2e` example (set `FLAME=<path>`).
 flamegraph = ["dep:pprof"]
+# Enables the GPU Milnor-multiply backend and the `milnor_gpu_ab` A/B microbenchmark.
+gpu = ["algebra/gpu"]
 
 [workspace]
 members = [
@@ -88,4 +90,10 @@ harness = false
 
 [[bench]]
 name = "load_resolution"
+harness = false
+
+# A/B: GPU batch Milnor-multiply vs CPU get_partial_matrix on a real Nassau launch.
+# Requires the `gpu` feature and a live CUDA device (run under the `gpu` dev shell).
+[[bench]]
+name = "milnor_gpu_ab"
 harness = false

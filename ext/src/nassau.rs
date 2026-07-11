@@ -388,6 +388,42 @@ enum Magic {
     Fix = -3,
 }
 
+/// Build the partial matrix of a differential, dispatching to the GPU Milnor-multiply
+/// path when it is compiled in, opted into (`NASSAU_GPU`), applicable, and the launch is
+/// large enough to amortise the fixed per-launch GPU cost.
+///
+/// Defaults to the CPU per-term sweep, so behaviour is unchanged unless a caller sets
+/// `NASSAU_GPU`. A resolution issues thousands of small signature-masked launches (avg
+/// ~10³ term-pairs), for which the GPU's per-launch overhead (kernel launch + readback
+/// sync, ~0.7 ms) dwarfs the multiply; only launches whose `rows × cols` exceeds
+/// `NASSAU_GPU_MIN_WORK` (default 4M) are offloaded. `NASSAU_GPU_VERIFY` builds the CPU
+/// matrix too and asserts they agree. Without the `gpu` feature this is exactly
+/// `diff.get_partial_matrix(t, mask)`.
+fn build_partial_matrix(
+    diff: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+    t: i32,
+    mask: &[usize],
+) -> Matrix {
+    #[cfg(feature = "gpu")]
+    {
+        if std::env::var_os("NASSAU_GPU").is_some() && crate::nassau_gpu::applicable(diff) {
+            let min_work: u64 = std::env::var("NASSAU_GPU_MIN_WORK")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(4_000_000);
+            let work = mask.len() as u64 * diff.target().dimension(t) as u64;
+            if work >= min_work {
+                return if std::env::var_os("NASSAU_GPU_VERIFY").is_some() {
+                    crate::nassau_gpu::get_partial_matrix_verified(diff, t, mask)
+                } else {
+                    crate::nassau_gpu::get_partial_matrix(diff, t, mask)
+                };
+            }
+        }
+    }
+    diff.get_partial_matrix(t, mask)
+}
+
 /// A resolution of `S_2` using Nassau's algorithm.
 ///
 /// This aims to have an API similar to that of
@@ -618,7 +654,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+            build_partial_matrix(&self.differentials[b.s() - 1], b.t(), &target_mask)
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -687,8 +723,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
-                self.differential(b.s() - 1)
-                    .get_partial_matrix(b.t(), &target_mask)
+                build_partial_matrix(&self.differential(b.s() - 1), b.t(), &target_mask)
             };
 
             let mut masked_matrix =

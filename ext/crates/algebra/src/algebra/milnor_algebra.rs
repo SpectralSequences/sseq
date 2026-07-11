@@ -1452,6 +1452,61 @@ impl MilnorAlgebra {
         rank
     }
 
+    /// Snapshot of the flat seqno `g` table as `u32`, for GPU upload: returns
+    /// `(width, g)` with `g[e * width + h]` row-major (see [`Self::seqno`]).
+    ///
+    /// Requires [`Self::compute_seqno_tables`] to have been built to at least the
+    /// degrees that will be indexed; panics if any entry exceeds `u32` (the device
+    /// representation).
+    /// Whether the GPU multiply path ([`crate::algebra::milnor_gpu`]) applies: exactly
+    /// the [`Self::seqno_applicable`] regime (`p = 2`, trivial profile, stable), since
+    /// the kernel indexes its output with the table-based `seqno`. Public so the
+    /// resolution can gate its GPU dispatch without reaching into private state.
+    #[cfg(feature = "gpu")]
+    pub fn gpu_multiply_applicable(&self) -> bool {
+        self.seqno_applicable()
+    }
+
+    #[cfg(feature = "gpu")]
+    pub(crate) fn seqno_table_u32(&self) -> (usize, Vec<u32>) {
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_ref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        let g =
+            t.g.iter()
+                .map(|&x| u32::try_from(x).expect("seqno g table entry exceeds u32"))
+                .collect();
+        (t.width, g)
+    }
+
+    /// Enumerate every admissible matrix of `Sq(R)` (for non-empty `r_p_part`) for
+    /// GPU upload. Returns `(cs_len, mk_len, col_sums, masks)`: `col_sums` and
+    /// `masks` are row-major flattenings (`num_matrices × cs_len` and
+    /// `num_matrices × mk_len`) in enumeration order — exactly the per-matrix data
+    /// the multiply kernel's term test consumes (see
+    /// [`Self::multiply_basis_element_by_element_2`]). Every matrix of a fixed `R`
+    /// shares the same `cs_len`/`mk_len`, so the flattening is rectangular.
+    #[cfg(feature = "gpu")]
+    pub(crate) fn admissible_matrices(
+        &self,
+        r_p_part: &[PPartEntry],
+    ) -> (usize, usize, Vec<u32>, Vec<u32>) {
+        let mut matrix = AdmissibleMatrix::new(r_p_part);
+        let cs_len = matrix.col_sums.len();
+        let mk_len = matrix.masks.len();
+        let mut col_sums = Vec::new();
+        let mut masks = Vec::new();
+        loop {
+            col_sums.extend_from_slice(&matrix.col_sums);
+            masks.extend_from_slice(&matrix.masks);
+            if !matrix.next() {
+                break;
+            }
+        }
+        (cs_len, mk_len, col_sums, masks)
+    }
+
     fn generate_basis_generic(&self, max_degree: i32) {
         let q = 2 * self.prime() - 2;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
