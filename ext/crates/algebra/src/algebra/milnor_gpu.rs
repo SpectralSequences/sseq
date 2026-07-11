@@ -35,6 +35,17 @@ use cubecl::{
     cuda::{CudaDevice, CudaRuntime},
     prelude::*,
 };
+use cubecl_common::stream_id::StreamId;
+
+/// The single CUDA stream all GPU work is pinned to (via [`StreamId::executes`]).
+///
+/// CubeCL's memory pools are per-stream, and the resolution issues launches from many
+/// rayon worker threads (each its own stream). Left alone, each stream's pool retains its
+/// freed per-launch buffers (chiefly the hundreds-of-MB `out_h`), and across ~16 streams
+/// they accumulate until the 4 GB card OOMs — `memory_cleanup` only trims the *calling*
+/// stream's pool. Pinning every launch to one stream gives one pool that each launch's
+/// `memory_cleanup` fully reclaims. Value 0 is a valid stream id (the first thread's).
+const GPU_STREAM: StreamId = StreamId { value: 0 };
 
 use crate::algebra::{
     Algebra, MilnorAlgebra,
@@ -64,6 +75,75 @@ pub fn take_batch_stats() -> (u64, u64, u64, u64) {
         BATCH_PAIRS.swap(0, Ordering::Relaxed),
     )
 }
+
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
+
+use cubecl::server::Handle;
+
+use crate::algebra::milnor_algebra::PPartEntry;
+
+/// Where one `R`'s admissible-matrix data lives inside the resident master buffers.
+#[derive(Clone, Copy)]
+struct RInfo {
+    cs_off: u32,
+    mk_off: u32,
+    cs_len: u32,
+    mk_len: u32,
+    num_mats: u32,
+}
+
+/// Process-global resident store of admissible-matrix data, both host- and device-side.
+///
+/// Admissible-matrix enumeration is a pure function of `R`'s p-part and the same
+/// low-degree `R`s recur in essentially every bidegree, so the host master (`col_sums` /
+/// `masks`, append-only, keyed by p-part in `index`) is enumerated once per distinct `R`
+/// and never recomputed. The device copies (`cs_handle` / `mk_handle`) mirror the master
+/// and are re-uploaded *only when it grows* — after the `R`s saturate (early in a
+/// resolution) launches upload no admissible data at all, cutting the dominant transfer.
+///
+/// Guarded by a `Mutex` so the device section serializes across rayon worker threads: each
+/// launch runs to its blocking readback before releasing, giving a happens-before edge and
+/// no concurrent access — which is what CubeCL's single-device-thread managed-memory model
+/// (its `unsafe impl Sync`) requires for a handle created on one thread to be reused on
+/// another. Safe as a global because in the GPU path's regime (`p = 2`, trivial profile)
+/// `admissible_matrices` depends only on the p-part, not on the algebra instance.
+#[derive(Default)]
+struct Resident {
+    col_sums: Vec<u16>,
+    masks: Vec<u16>,
+    index: HashMap<Vec<PPartEntry>, RInfo>,
+    cs_handle: Option<Handle>,
+    mk_handle: Option<Handle>,
+    cs_uploaded: usize,
+    mk_uploaded: usize,
+}
+
+impl Resident {
+    /// Global offsets/lengths of `R`'s admissible matrices in the master, enumerating and
+    /// appending them on first sight (the append order fixes the offsets forever).
+    fn ensure(&mut self, algebra: &MilnorAlgebra, p_part: &[PPartEntry]) -> RInfo {
+        if let Some(info) = self.index.get(p_part) {
+            return *info;
+        }
+        let (cs_len, mk_len, cs, mk) = algebra.admissible_matrices(p_part);
+        let info = RInfo {
+            cs_off: self.col_sums.len() as u32,
+            mk_off: self.masks.len() as u32,
+            cs_len: cs_len as u32,
+            mk_len: mk_len as u32,
+            num_mats: (mk.len() / mk_len) as u32,
+        };
+        self.col_sums.extend(cs.iter().map(|&v| v as u16));
+        self.masks.extend(mk.iter().map(|&v| v as u16));
+        self.index.insert(p_part.to_vec(), info);
+        info
+    }
+}
+
+static RESIDENT: LazyLock<Mutex<Resident>> = LazyLock::new(|| Mutex::new(Resident::default()));
 
 /// Elementwise F₂ addition of two bit-packed vectors: `out[i] = a[i] ^ b[i]`.
 ///
@@ -602,40 +682,11 @@ pub fn multiply_batch_on_gpu(
         prod_r_index.push(ri);
     }
 
-    // Parallel: each distinct `R`'s admissible matrices. Values ship as u16 (p-part
-    // magnitudes ≤ the output degree, far below 65535) to halve the transfer.
-    let r_mats: Vec<(usize, usize, Vec<u16>, Vec<u16>)> = (0..distinct_r.len())
-        .into_maybe_par_iter()
-        .map(|i| {
-            let (rd, ridx) = distinct_r[i];
-            let r = algebra.basis_element_from_index(rd, ridx);
-            assert!(!r.p_part.is_empty(), "each R must be non-empty");
-            let (cs_len, mk_len, cs, mk) = algebra.admissible_matrices(&r.p_part);
-            let cs16 = cs.iter().map(|&v| v as u16).collect();
-            let mk16 = mk.iter().map(|&v| v as u16).collect();
-            (cs_len, mk_len, cs16, mk16)
-        })
-        .collect();
-
-    // Lay out per-`R` matrix data (sequential concat + offsets).
-    let mut col_sums: Vec<u16> = Vec::new();
-    let mut masks: Vec<u16> = Vec::new();
-    let mut r_cs_offset: Vec<u32> = Vec::with_capacity(r_mats.len());
-    let mut r_mk_offset: Vec<u32> = Vec::with_capacity(r_mats.len());
-    let mut r_cs_len: Vec<u32> = Vec::with_capacity(r_mats.len());
-    let mut r_mk_len: Vec<u32> = Vec::with_capacity(r_mats.len());
-    let mut r_num_matrices: Vec<usize> = Vec::with_capacity(r_mats.len());
-    for (cs_len, mk_len, cs, mk) in &r_mats {
-        r_cs_offset.push(col_sums.len() as u32);
-        r_mk_offset.push(masks.len() as u32);
-        r_cs_len.push(*cs_len as u32);
-        r_mk_len.push(*mk_len as u32);
-        r_num_matrices.push(mk.len() / mk_len);
-        col_sums.extend_from_slice(cs);
-        masks.extend_from_slice(mk);
-    }
+    // Admissible-matrix data (`col_sums`/`masks` + per-`R` offsets) is resident (built
+    // under the `RESIDENT` lock below), so nothing to enumerate or lay out here.
 
     // Parallel: each product's term p-parts (padded to `width`) and lengths.
+    let t_terms = std::time::Instant::now();
     let per_prod: Vec<(Vec<u16>, Vec<u32>)> = (0..products.len())
         .into_maybe_par_iter()
         .map(|pi| {
@@ -653,8 +704,32 @@ pub fn multiply_batch_on_gpu(
             (tp, tl)
         })
         .collect();
+    let terms_ms = t_terms.elapsed().as_secs_f64() * 1e3;
+
+    // Resident admissible-matrix store: enumerate each new `R` once and reuse forever;
+    // the per-`R` offsets are global (into the master `col_sums`/`masks`). Taking the lock
+    // here also serializes the device section across rayon workers (see [`Resident`]).
+    let t_resident = std::time::Instant::now();
+    let mut resident = RESIDENT.lock().unwrap();
+    let mut r_cs_offset: Vec<u32> = Vec::with_capacity(distinct_r.len());
+    let mut r_mk_offset: Vec<u32> = Vec::with_capacity(distinct_r.len());
+    let mut r_cs_len: Vec<u32> = Vec::with_capacity(distinct_r.len());
+    let mut r_mk_len: Vec<u32> = Vec::with_capacity(distinct_r.len());
+    let mut r_num_matrices: Vec<usize> = Vec::with_capacity(distinct_r.len());
+    for &(rd, ridx) in &distinct_r {
+        let r = algebra.basis_element_from_index(rd, ridx);
+        assert!(!r.p_part.is_empty(), "each R must be non-empty");
+        let info = resident.ensure(algebra, &r.p_part);
+        r_cs_offset.push(info.cs_off);
+        r_mk_offset.push(info.mk_off);
+        r_cs_len.push(info.cs_len);
+        r_mk_len.push(info.mk_len);
+        r_num_matrices.push(info.num_mats as usize);
+    }
+    let resident_ms = t_resident.elapsed().as_secs_f64() * 1e3;
 
     // Lay out per-product term data + records + the pair-count prefix sum (sequential).
+    let t_glue = std::time::Instant::now();
     let mut term_pparts: Vec<u16> = Vec::new();
     let mut term_lens: Vec<u32> = Vec::new();
     let mut prod_term_start: Vec<u32> = Vec::with_capacity(products.len());
@@ -683,105 +758,130 @@ pub fn multiply_batch_on_gpu(
         return vec![vec![0u32; num_limbs]; num_rows];
     }
 
-    // Device buffers must be non-empty even when a dimension is zero for every product.
-    if col_sums.is_empty() {
-        col_sums.push(0);
-    }
-    if masks.is_empty() {
-        masks.push(0);
-    }
+    // The resident `col_sums`/`masks` are non-empty once any `R` is present (guaranteed
+    // here, since `total_pairs > 0`); only `term_pparts` needs the non-empty guard.
     if term_pparts.is_empty() {
         term_pparts.push(0);
     }
 
+    let glue_ms = t_glue.elapsed().as_secs_f64() * 1e3;
     let marshal_ms = t_marshal.elapsed().as_secs_f64() * 1e3;
 
     if timing {
+        eprintln!(
+            "  [marshal] {marshal_ms:.1}ms = terms {terms_ms:.1} + resident {resident_ms:.1} + \
+             glue {glue_ms:.1}",
+        );
         let mb = |n: usize| (n * 4) as f64 / (1024.0 * 1024.0);
         let mb16 = |n: usize| (n * 2) as f64 / (1024.0 * 1024.0);
         eprintln!(
-            "  [sizes] {} products, {} distinct R  |  upload(u16): col_sums {:.1}MB  masks \
-             {:.1}MB  term_pparts {:.1}MB  per-product {:.1}MB  (was ~{:.0}MB pair table)",
+            "  [sizes] {} products, {} distinct R  |  resident master(u16): col_sums {:.1}MB  \
+             masks {:.1}MB  |  per-launch upload: term_pparts {:.1}MB  per-product {:.1}MB",
             products.len(),
-            r_cs_len.len(),
-            mb16(col_sums.len()),
-            mb16(masks.len()),
+            distinct_r.len(),
+            mb16(resident.col_sums.len()),
+            mb16(resident.masks.len()),
             mb16(term_pparts.len()),
             mb(term_lens.len() + prod_r_index.len() * 4 + prod_pair_start.len()),
-            mb(total_pairs * 7),
         );
     }
 
     let t_device = std::time::Instant::now();
 
-    let client = CudaRuntime::client(&CudaDevice::default());
-    let t_upload = std::time::Instant::now();
-    let cs_h = client.create_from_slice(u16::as_bytes(&col_sums));
-    let mk_h = client.create_from_slice(u16::as_bytes(&masks));
-    let tp_h = client.create_from_slice(u16::as_bytes(&term_pparts));
-    let tl_h = client.create_from_slice(u32::as_bytes(&term_lens));
-    let g_h = client.create_from_slice(u32::as_bytes(&g));
-    let xi_h = client.create_from_slice(u32::as_bytes(&xi));
-    let rco_h = client.create_from_slice(u32::as_bytes(&r_cs_offset));
-    let rmo_h = client.create_from_slice(u32::as_bytes(&r_mk_offset));
-    let rcl_h = client.create_from_slice(u32::as_bytes(&r_cs_len));
-    let rml_h = client.create_from_slice(u32::as_bytes(&r_mk_len));
-    let pri_h = client.create_from_slice(u32::as_bytes(&prod_r_index));
-    let pts_h = client.create_from_slice(u32::as_bytes(&prod_term_start));
-    let pnt_h = client.create_from_slice(u32::as_bytes(&prod_num_terms));
-    let prb_h = client.create_from_slice(u32::as_bytes(&prod_row_base));
-    let poo_h = client.create_from_slice(u32::as_bytes(&prod_out_offset));
-    let pps_h = client.create_from_slice(u32::as_bytes(&prod_pair_start));
-    let zeros = vec![0u32; out_len];
-    let out_h = client.create_from_slice(u32::as_bytes(&zeros));
-    // Barrier so the upload timer excludes kernel/readback (timing runs only).
-    if timing {
-        let _ = cubecl::future::block_on(client.sync());
-    }
-    let upload_ms = t_upload.elapsed().as_secs_f64() * 1e3;
+    // Pin the whole device section to one CUDA stream (see [`GPU_STREAM`]) so a single
+    // memory pool is reclaimed by `memory_cleanup`. Held under the `resident` lock, so this
+    // stream is used by at most one thread at a time.
+    let (result, upload_ms, kernel_ms, read_ms) = GPU_STREAM.executes(|| {
+        let client = CudaRuntime::client(&CudaDevice::default());
+        let t_upload = std::time::Instant::now();
+        // Resident admissible buffers: (re-)upload the master only when it grew this
+        // launch; otherwise reuse the handle from a previous launch and upload nothing.
+        if resident.cs_handle.is_none() || resident.cs_uploaded != resident.col_sums.len() {
+            resident.cs_handle = Some(client.create_from_slice(u16::as_bytes(&resident.col_sums)));
+            resident.cs_uploaded = resident.col_sums.len();
+        }
+        if resident.mk_handle.is_none() || resident.mk_uploaded != resident.masks.len() {
+            resident.mk_handle = Some(client.create_from_slice(u16::as_bytes(&resident.masks)));
+            resident.mk_uploaded = resident.masks.len();
+        }
+        let cs_len_master = resident.col_sums.len();
+        let mk_len_master = resident.masks.len();
+        let cs_h = resident.cs_handle.clone().unwrap();
+        let mk_h = resident.mk_handle.clone().unwrap();
+        let tp_h = client.create_from_slice(u16::as_bytes(&term_pparts));
+        let tl_h = client.create_from_slice(u32::as_bytes(&term_lens));
+        let g_h = client.create_from_slice(u32::as_bytes(&g));
+        let xi_h = client.create_from_slice(u32::as_bytes(&xi));
+        let rco_h = client.create_from_slice(u32::as_bytes(&r_cs_offset));
+        let rmo_h = client.create_from_slice(u32::as_bytes(&r_mk_offset));
+        let rcl_h = client.create_from_slice(u32::as_bytes(&r_cs_len));
+        let rml_h = client.create_from_slice(u32::as_bytes(&r_mk_len));
+        let pri_h = client.create_from_slice(u32::as_bytes(&prod_r_index));
+        let pts_h = client.create_from_slice(u32::as_bytes(&prod_term_start));
+        let pnt_h = client.create_from_slice(u32::as_bytes(&prod_num_terms));
+        let prb_h = client.create_from_slice(u32::as_bytes(&prod_row_base));
+        let poo_h = client.create_from_slice(u32::as_bytes(&prod_out_offset));
+        let pps_h = client.create_from_slice(u32::as_bytes(&prod_pair_start));
+        let zeros = vec![0u32; out_len];
+        let out_h = client.create_from_slice(u32::as_bytes(&zeros));
+        // Barrier so the upload timer excludes kernel/readback (timing runs only).
+        if timing {
+            let _ = cubecl::future::block_on(client.sync());
+        }
+        let upload_ms = t_upload.elapsed().as_secs_f64() * 1e3;
 
-    let t_kernel = std::time::Instant::now();
-    const THREADS: u32 = 256;
-    let cubes = (total_pairs as u32).div_ceil(THREADS).max(1);
-    unsafe {
-        multiply_batch_kernel::launch::<CudaRuntime>(
-            &client,
-            CubeCount::Static(cubes, 1, 1),
-            CubeDim::new_1d(THREADS),
-            ArrayArg::from_raw_parts(cs_h, col_sums.len()),
-            ArrayArg::from_raw_parts(mk_h, masks.len()),
-            ArrayArg::from_raw_parts(tp_h, term_pparts.len()),
-            ArrayArg::from_raw_parts(tl_h, term_lens.len()),
-            ArrayArg::from_raw_parts(g_h, g.len()),
-            ArrayArg::from_raw_parts(xi_h, xi.len()),
-            ArrayArg::from_raw_parts(out_h.clone(), out_len),
-            ArrayArg::from_raw_parts(rco_h, r_cs_offset.len()),
-            ArrayArg::from_raw_parts(rmo_h, r_mk_offset.len()),
-            ArrayArg::from_raw_parts(rcl_h, r_cs_len.len()),
-            ArrayArg::from_raw_parts(rml_h, r_mk_len.len()),
-            ArrayArg::from_raw_parts(pri_h, prod_r_index.len()),
-            ArrayArg::from_raw_parts(pts_h, prod_term_start.len()),
-            ArrayArg::from_raw_parts(pnt_h, prod_num_terms.len()),
-            ArrayArg::from_raw_parts(prb_h, prod_row_base.len()),
-            ArrayArg::from_raw_parts(poo_h, prod_out_offset.len()),
-            ArrayArg::from_raw_parts(pps_h, prod_pair_start.len()),
-            width,
-        );
-    }
+        let t_kernel = std::time::Instant::now();
+        const THREADS: u32 = 256;
+        let cubes = (total_pairs as u32).div_ceil(THREADS).max(1);
+        unsafe {
+            multiply_batch_kernel::launch::<CudaRuntime>(
+                &client,
+                CubeCount::Static(cubes, 1, 1),
+                CubeDim::new_1d(THREADS),
+                ArrayArg::from_raw_parts(cs_h, cs_len_master),
+                ArrayArg::from_raw_parts(mk_h, mk_len_master),
+                ArrayArg::from_raw_parts(tp_h, term_pparts.len()),
+                ArrayArg::from_raw_parts(tl_h, term_lens.len()),
+                ArrayArg::from_raw_parts(g_h, g.len()),
+                ArrayArg::from_raw_parts(xi_h, xi.len()),
+                ArrayArg::from_raw_parts(out_h.clone(), out_len),
+                ArrayArg::from_raw_parts(rco_h, r_cs_offset.len()),
+                ArrayArg::from_raw_parts(rmo_h, r_mk_offset.len()),
+                ArrayArg::from_raw_parts(rcl_h, r_cs_len.len()),
+                ArrayArg::from_raw_parts(rml_h, r_mk_len.len()),
+                ArrayArg::from_raw_parts(pri_h, prod_r_index.len()),
+                ArrayArg::from_raw_parts(pts_h, prod_term_start.len()),
+                ArrayArg::from_raw_parts(pnt_h, prod_num_terms.len()),
+                ArrayArg::from_raw_parts(prb_h, prod_row_base.len()),
+                ArrayArg::from_raw_parts(poo_h, prod_out_offset.len()),
+                ArrayArg::from_raw_parts(pps_h, prod_pair_start.len()),
+                width,
+            );
+        }
 
-    // Barrier so the kernel timer excludes readback (timing runs only).
-    if timing {
-        let _ = cubecl::future::block_on(client.sync());
-    }
-    let kernel_ms = t_kernel.elapsed().as_secs_f64() * 1e3;
+        // Barrier so the kernel timer excludes readback (timing runs only).
+        if timing {
+            let _ = cubecl::future::block_on(client.sync());
+        }
+        let kernel_ms = t_kernel.elapsed().as_secs_f64() * 1e3;
 
-    let t_read = std::time::Instant::now();
-    let bytes = client.read_one(out_h).unwrap();
-    let read_ms = t_read.elapsed().as_secs_f64() * 1e3;
-    let flat = u32::from_bytes(&bytes);
-    let result = (0..num_rows)
-        .map(|r| flat[r * num_limbs..(r + 1) * num_limbs].to_vec())
-        .collect();
+        let t_read = std::time::Instant::now();
+        let bytes = client.read_one(out_h).unwrap();
+        let read_ms = t_read.elapsed().as_secs_f64() * 1e3;
+        let flat = u32::from_bytes(&bytes);
+        let result: Vec<Vec<u32>> = (0..num_rows)
+            .map(|r| flat[r * num_limbs..(r + 1) * num_limbs].to_vec())
+            .collect();
+
+        // `out_h` alone is `num_rows × num_limbs` u32 — hundreds of MB at record degrees.
+        // It (and the small per-launch buffers, now dropped) varies in size launch to
+        // launch, so CubeCL's pool cannot reuse the slab and would accumulate them until
+        // the 4 GB card OOMs. Return the freed memory to the driver each launch; the
+        // resident admissible handles stay alive (refcount > 0) so cleanup skips them.
+        client.memory_cleanup();
+
+        (result, upload_ms, kernel_ms, read_ms)
+    });
 
     // Aggregate marshal/device totals across every launch (cheap, always on) so a whole
     // resolution's GPU overhead can be split host-vs-device via [`take_batch_stats`].

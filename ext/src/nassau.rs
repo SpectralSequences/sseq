@@ -424,6 +424,38 @@ fn build_partial_matrix(
     diff.get_partial_matrix(t, mask)
 }
 
+/// Whether to compute the full differential matrix once per bidegree and reuse row slices
+/// across the signature passes, instead of relaunching the multiply once per signature.
+///
+/// Each signature's [`build_partial_matrix`] is a *row subset* of one full matrix — the
+/// masks partition the source basis, so the per-signature builds together compute every
+/// row exactly once, the same total multiply work as one all-rows build. On the CPU that
+/// restructuring is roughly neutral, but for the GPU it turns thousands of small
+/// (often sub-threshold, CPU-fallback) launches into one big launch per bidegree that
+/// amortises all fixed per-launch overhead. So it is gated on the same opt-in as the GPU
+/// path; without it the per-signature build is unchanged.
+fn reuse_full_matrix(_diff: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>) -> bool {
+    #[cfg(feature = "gpu")]
+    {
+        std::env::var_os("NASSAU_GPU").is_some() && crate::nassau_gpu::applicable(_diff)
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        false
+    }
+}
+
+/// Extract `rows` of `full` into a fresh matrix (`out.row(i) = full.row(rows[i])`),
+/// preserving the column layout. Slices a precomputed full differential matrix into one
+/// signature's partial matrix (see [`reuse_full_matrix`]).
+fn select_rows(full: &Matrix, rows: &[usize]) -> Matrix {
+    let mut out = Matrix::new(full.prime(), rows.len(), full.columns());
+    for (dst, &src) in rows.iter().enumerate() {
+        out.row_mut(dst).assign(full.row(src));
+    }
+    out
+}
+
 /// A resolution of `S_2` using Nassau's algorithm.
 ///
 /// This aims to have an API similar to that of
@@ -652,9 +684,26 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             .collect();
         let next_masked_dim = next_mask.len();
 
-        let full_matrix = {
+        // Compute the full differential matrix once when reuse is active, then slice each
+        // signature's rows out of it instead of relaunching the multiply per signature.
+        let full_reuse: Option<Matrix> = if reuse_full_matrix(&self.differentials[b.s() - 1]) {
+            let all_rows: Vec<usize> = (0..target_dim).collect();
             let _guard = ParallelGuard::new();
-            build_partial_matrix(&self.differentials[b.s() - 1], b.t(), &target_mask)
+            Some(build_partial_matrix(
+                &self.differentials[b.s() - 1],
+                b.t(),
+                &all_rows,
+            ))
+        } else {
+            None
+        };
+
+        let full_matrix = match &full_reuse {
+            Some(full) => select_rows(full, &target_mask),
+            None => {
+                let _guard = ParallelGuard::new();
+                build_partial_matrix(&self.differentials[b.s() - 1], b.t(), &target_mask)
+            }
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -721,9 +770,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
             next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
 
-            let full_matrix = {
-                let _guard = ParallelGuard::new();
-                build_partial_matrix(&self.differential(b.s() - 1), b.t(), &target_mask)
+            let full_matrix = match &full_reuse {
+                Some(full) => select_rows(full, &target_mask),
+                None => {
+                    let _guard = ParallelGuard::new();
+                    build_partial_matrix(&self.differential(b.s() - 1), b.t(), &target_mask)
+                }
             };
 
             let mut masked_matrix =

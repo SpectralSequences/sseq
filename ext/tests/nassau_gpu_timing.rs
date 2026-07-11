@@ -16,6 +16,33 @@ fn resolve_time(stem: i32, filt: i32) -> f64 {
     t0.elapsed().as_secs_f64()
 }
 
+/// GPU-only resolution (no CPU baseline) — for iterating on the GPU path at large stems
+/// without paying the multi-minute CPU run each time. `STEM`/`FILT` env, default 100/55.
+#[test]
+#[ignore = "GPU-only benchmark; run explicitly with --ignored"]
+fn gpu_only_resolution_time() {
+    let stem: i32 = std::env::var("STEM")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(100);
+    let filt: i32 = std::env::var("FILT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(55);
+    // SAFETY: single-threaded test setup; the env var only gates build_partial_matrix.
+    unsafe { std::env::set_var("NASSAU_GPU", "1") };
+    let _ = algebra::milnor_gpu::take_batch_stats();
+    let gpu = resolve_time(stem, filt);
+    let (calls, marshal_us, device_us, pairs) = algebra::milnor_gpu::take_batch_stats();
+    eprintln!("GPU-only (stem {stem}, filt {filt}): {gpu:.1}s");
+    eprintln!(
+        "GPU launches: {calls}  |  host marshal {:.2}s  device {:.2}s  |  avg {:.0} pairs/launch",
+        marshal_us as f64 / 1e6,
+        device_us as f64 / 1e6,
+        pairs as f64 / calls.max(1) as f64,
+    );
+}
+
 #[test]
 #[ignore = "timing benchmark; run explicitly with --ignored"]
 fn gpu_vs_cpu_resolution_time() {
