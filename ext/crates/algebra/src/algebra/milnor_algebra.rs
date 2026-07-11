@@ -107,6 +107,115 @@ pub mod profile {
                 .or_default() += nnz as u64;
         }
 
+        /// Per–GPU-launch accumulation of `R → element-terms`, where one launch = one
+        /// `get_partial_matrix` (matrix build). Unlike [`R_TERMS`], which sums an operation `R`
+        /// across the *whole* resolution, this asks how much same-`R` work is co-located within a
+        /// single matrix build — the largest unit a kernel could batch without buffering across the
+        /// streaming algorithm. `depth` keeps [`scope_begin`]/[`scope_end`] reentrancy-safe: only the
+        /// outermost pair clears and folds, so any nested matrix build is attributed to the outer
+        /// launch rather than corrupting it. (Measurement must be run serially — the `concurrent`
+        /// feature would let two launches interleave into one scope and inflate the batch sizes.)
+        struct ScopeState {
+            depth: u32,
+            /// `(homomorphism id, degree)` of the currently open launch — its merged-scope key.
+            key: (usize, i32),
+            map: FxHashMap<(i32, usize), u64>,
+        }
+        static SCOPE: LazyLock<Mutex<ScopeState>> = LazyLock::new(|| {
+            Mutex::new(ScopeState {
+                depth: 0,
+                key: (0, 0),
+                map: FxHashMap::default(),
+            })
+        });
+
+        /// Coarser accumulation: `R → element-terms` merged across every launch sharing a
+        /// `(homomorphism id, degree)` key — i.e. all the per-signature `get_partial_matrix` builds
+        /// of one differential at one bidegree, which all read the same matrix and so *could* be
+        /// fused into a single kernel launch (computing the full matrix once and slicing it). Held to
+        /// report time and folded there, to measure how much the realizable occupancy improves when
+        /// the launch scope is widened from one masked build to one whole bidegree.
+        #[allow(clippy::type_complexity)]
+        static MERGED: LazyLock<Mutex<FxHashMap<(usize, i32), FxHashMap<(i32, usize), u64>>>> =
+            LazyLock::new(|| Mutex::new(FxHashMap::default()));
+
+        /// Workgroup sizes for the realizable-coverage report (mirrors the global one).
+        const SCOPE_WS: [u64; 6] = [32, 64, 128, 256, 512, 1024];
+        /// Number of launch scopes (matrix builds) that did any work.
+        static SCOPE_COUNT: AtomicU64 = AtomicU64::new(0);
+        /// Sum over scopes of each scope's total element-terms (equals the global term-work).
+        static SCOPE_TERMS: AtomicU64 = AtomicU64::new(0);
+        /// Largest single-scope total element-terms.
+        static SCOPE_TERMS_MAX: AtomicU64 = AtomicU64::new(0);
+        /// Per `W`, term-work in `R`s that reach ≥ `W` terms *within their own launch*.
+        static SCOPE_COVER: [AtomicU64; 6] = [
+            AtomicU64::new(0),
+            AtomicU64::new(0),
+            AtomicU64::new(0),
+            AtomicU64::new(0),
+            AtomicU64::new(0),
+            AtomicU64::new(0),
+        ];
+
+        /// Open a launch scope around a matrix build of homomorphism `hom_id` at `degree`.
+        /// Reentrancy-safe (see [`ScopeState`]); the key is set by the outermost open.
+        pub fn scope_begin(hom_id: usize, degree: i32) {
+            let mut s = SCOPE.lock().unwrap();
+            if s.depth == 0 {
+                s.map.clear();
+                s.key = (hom_id, degree);
+            }
+            s.depth += 1;
+        }
+
+        /// Attribute `nnz` element-terms of operation `R = (r_degree, r_index)` to the open launch,
+        /// both to its per-launch histogram and to its `(hom, degree)` merged bucket.
+        pub fn scope_record(r_degree: i32, r_index: usize, nnz: usize) {
+            if nnz == 0 {
+                return;
+            }
+            let key = {
+                let mut s = SCOPE.lock().unwrap();
+                if s.depth == 0 {
+                    return;
+                }
+                *s.map.entry((r_degree, r_index)).or_default() += nnz as u64;
+                s.key
+            };
+            *MERGED
+                .lock()
+                .unwrap()
+                .entry(key)
+                .or_default()
+                .entry((r_degree, r_index))
+                .or_default() += nnz as u64;
+        }
+
+        /// Close a launch scope; the outermost close folds the scope's `R`-histogram into the
+        /// realizable-coverage accumulators.
+        pub fn scope_end() {
+            let mut s = SCOPE.lock().unwrap();
+            if s.depth == 0 {
+                return;
+            }
+            s.depth -= 1;
+            if s.depth > 0 {
+                return;
+            }
+            let total: u64 = s.map.values().sum();
+            if total == 0 {
+                return;
+            }
+            SCOPE_COUNT.fetch_add(1, Relaxed);
+            SCOPE_TERMS.fetch_add(total, Relaxed);
+            SCOPE_TERMS_MAX.fetch_max(total, Relaxed);
+            for (i, &w) in SCOPE_WS.iter().enumerate() {
+                let work: u64 = s.map.values().filter(|&&t| t >= w).sum();
+                SCOPE_COVER[i].fetch_add(work, Relaxed);
+            }
+            s.map.clear();
+        }
+
         pub fn admissible() {
             MBE_ADMISSIBLE.fetch_add(1, Relaxed);
         }
@@ -250,6 +359,64 @@ pub mod profile {
                     100.0 * n_r as f64 / distinct.max(1) as f64,
                     100.0 * work as f64 / total_terms.max(1) as f64
                 );
+            }
+
+            // The number above aggregates each R across the *whole* resolution. A kernel can only
+            // batch work that is co-located in one launch, so this is the realizable version: R-work
+            // is re-counted per `get_partial_matrix` (matrix build), the largest unit batchable
+            // without buffering across the streaming algorithm. If these percentages collapse
+            // relative to the global ones, the amortization-by-R shape does not survive at launch
+            // granularity, and a GPU kernel must lean on raw parallel width (many independent
+            // products per launch) rather than on many terms sharing one R.
+            let scopes = SCOPE_COUNT.load(Relaxed);
+            if scopes > 0 {
+                let scope_terms = SCOPE_TERMS.load(Relaxed);
+                eprintln!(
+                    "GPU occupancy — REALIZABLE per matrix-build launch ({scopes} launches, mean \
+                     {:.1} terms/launch, max {}):",
+                    scope_terms as f64 / scopes as f64,
+                    SCOPE_TERMS_MAX.load(Relaxed)
+                );
+                eprintln!("  fraction of term-work in R's reaching ≥ W terms *within one launch*:");
+                for (i, w) in SCOPE_WS.iter().enumerate() {
+                    let work = SCOPE_COVER[i].load(Relaxed);
+                    eprintln!(
+                        "    W={w:<4} : {:>5.1}% of term-work",
+                        100.0 * work as f64 / scope_terms.max(1) as f64
+                    );
+                }
+            }
+
+            // Coarser scope: merge the per-signature builds of one differential at one bidegree into
+            // a single launch (they read the same matrix, so fusing them is free of extra multiply
+            // work). This upper-bounds the realizable occupancy for a kernel that computes the full
+            // bidegree matrix once instead of one masked slice per signature.
+            let merged = MERGED.lock().unwrap();
+            if !merged.is_empty() {
+                let n_launches = merged.len() as u64;
+                let mut total = 0u64;
+                let mut max_terms = 0u64;
+                let mut cover = [0u64; 6];
+                for hist in merged.values() {
+                    let t: u64 = hist.values().sum();
+                    total += t;
+                    max_terms = max_terms.max(t);
+                    for (i, &w) in SCOPE_WS.iter().enumerate() {
+                        cover[i] += hist.values().filter(|&&x| x >= w).sum::<u64>();
+                    }
+                }
+                eprintln!(
+                    "GPU occupancy — MERGED per (differential, bidegree) launch ({n_launches} \
+                     launches, mean {:.1} terms/launch, max {max_terms}):",
+                    total as f64 / n_launches.max(1) as f64
+                );
+                eprintln!("  fraction of term-work in R's reaching ≥ W terms *within one launch*:");
+                for (i, w) in SCOPE_WS.iter().enumerate() {
+                    eprintln!(
+                        "    W={w:<4} : {:>5.1}% of term-work",
+                        100.0 * cover[i] as f64 / total.max(1) as f64
+                    );
+                }
             }
             eprintln!("===========================================================");
         }
@@ -490,6 +657,16 @@ impl<V> MilnorHashMap<V> {
     }
 }
 
+/// Flat, contiguous storage for the "seqno" (hash-free index) computation. See
+/// [`MilnorAlgebra::compute_seqno_tables`] for how `g` is derived and [`MilnorAlgebra::seqno`] for
+/// how it is read. Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives
+/// at `g[e * width + h]`; degrees `0..=max_degree` are populated.
+struct SeqnoTables {
+    max_degree: i32,
+    width: usize,
+    g: Vec<usize>,
+}
+
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
@@ -509,6 +686,15 @@ pub struct MilnorAlgebra {
 
     /// degree -> MilnorBasisElement -> index
     basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>,
+
+    /// Table backing the "seqno" (hash-free index) computation, populated only when
+    /// [`Self::seqno_applicable`] holds (p = 2, trivial profile, stable). It holds the flat,
+    /// row-major `g` array described in [`Self::compute_seqno_tables`]; [`Self::seqno`] ranks a
+    /// `p_part` from it with plain array indexing and no hash lookup. Stored behind an
+    /// [`arc_swap::ArcSwapOption`] rather than a [`OnceVec`] so that reads on the hot path are a
+    /// single guard load followed by direct indexing — the earlier `OnceVec<Vec<_>>` layout paid two
+    /// atomics *per table access*, which is what made the table lose to the hashmap.
+    seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -538,6 +724,7 @@ impl MilnorAlgebra {
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
+            seqno_tables: arc_swap::ArcSwapOption::empty(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
         }
@@ -573,6 +760,14 @@ impl MilnorAlgebra {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
+        // NB: the table-based [`Self::seqno`] computes this same index without a hash, but it loses
+        // to this hashmap on the CPU. Even after moving its tables to flat, contiguous
+        // `arc_swap`-backed storage (removing the earlier `OnceVec` per-access atomics), the
+        // `benches/seqno` A/B still measures raw lookups at ~50 Melem/s for `seqno` vs ~115 Melem/s
+        // for this hashmap — a ~2.3× gap that is flat across degree: computing the rank (a degree
+        // sum plus two indexed table reads per populated ξ-position) is simply more work than one
+        // hash and probe. `seqno` is therefore kept as the GPU-oriented index (a GPU kernel cannot
+        // carry a hashmap, and the flat table uploads directly), not for the CPU hot path.
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
             .copied()
@@ -670,6 +865,10 @@ impl Algebra for MilnorAlgebra {
             self.generate_basis_2(max_degree);
         }
 
+        // The `seqno` tables are *not* built here: `seqno` lost to the hashmap on the CPU (see
+        // `try_basis_element_to_index`), so a normal resolution should not pay to build tables it
+        // won't use. A GPU backend that needs the hash-free index calls `compute_seqno_tables`.
+
         // Populate hash map
         self.basis_element_to_index_map
             .extend(max_degree as usize, |d| {
@@ -766,13 +965,25 @@ impl Algebra for MilnorAlgebra {
         s_degree: i32,
         s: FpSlice,
     ) {
-        // At p = 2 we use the admissible-matrix algorithm, which enumerates the admissible matrices
-        // for the fixed operation `r` *once* and tests every term of `s` against them, instead of
-        // re-running the `PPartMultiplier` sweep once per term of `s`.
-        if !self.generic() {
-            self.multiply_basis_element_by_element_2(result, coeff, r_degree, r_idx, s_degree, s);
-            return;
-        }
+        // Per-term reference sweep: run the `PPartMultiplier` multiply once for each term of `s`,
+        // reusing one `PPartAllocation`. At p = 2 the admissible-matrix algorithm
+        // ([`Self::multiply_basis_element_by_element_2`]) computes the same product by enumerating
+        // `Sq(R)`'s admissible matrices once and amortizing over the terms of `s`, but end-to-end
+        // A/Bs of Nassau's `S_2` regime measured it a consistent net regression on the CPU (~8% at
+        // stem 80, ~3% at stem 100): the regime is dominated by sparse elements (≈31% single-term),
+        // for which the up-front enumeration cannot be amortized. It is retained as the reference
+        // model for a future GPU kernel (where the enumerate-once/test-all-terms shape is ideal),
+        // not wired here. See the commit history for the measurements.
+        profile!({
+            let nnz = s.iter_nonzero().count();
+            profile::record_call(nnz, r_degree, r_idx, s_degree);
+            if r_degree == 0 {
+                profile::identity();
+            } else if nnz > 0 {
+                profile::perterm();
+            }
+            profile::scope_record(r_degree, r_idx, nnz);
+        });
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
@@ -1136,6 +1347,111 @@ impl MilnorAlgebra {
         });
     }
 
+    /// Whether the fast table-based [`Self::seqno`] can be used instead of the hashmap. It requires
+    /// `p = 2` (single-generator Milnor basis), a trivial profile (so *every* `P(R)` of a degree is
+    /// a basis element, matching the partition counts), and the stable ordering (unstable sorts the
+    /// basis by excess, breaking the enumeration-order = index correspondence).
+    fn seqno_applicable(&self) -> bool {
+        !self.generic() && !self.unstable_enabled && self.profile.is_trivial()
+    }
+
+    /// Build the flat [`SeqnoTables`] up to `max_degree`, so that [`Self::seqno`] can be used.
+    /// Requires [`Self::seqno_applicable`]. Idempotent: if the stored tables already reach
+    /// `max_degree` this returns immediately; otherwise it rebuilds the whole (cheap,
+    /// `O(max_degree · width)`) table from scratch and atomically swaps it in, so readers always see
+    /// either the old complete table or the new one.
+    ///
+    /// The `n[e][m]` intermediate — the number of `P(R)` of degree `e` using only `ξ₁ … ξ_{m+1}` —
+    /// is built locally and discarded; only the `g` row-progression it feeds is stored, since that
+    /// is all [`Self::seqno`] reads. `g[e][h]` sums `n[·][h−1]` along the arithmetic progression of
+    /// step `ξ_{h+1}`, letting `seqno` rank a `p_part` without a hash lookup.
+    pub fn compute_seqno_tables(&self, max_degree: i32) {
+        assert!(self.seqno_applicable());
+        if let Some(t) = &*self.seqno_tables.load() {
+            if t.max_degree >= max_degree {
+                return;
+            }
+        }
+
+        let xi = combinatorics::xi_degrees(self.prime());
+        let width = xi.len();
+        let rows = max_degree as usize + 1;
+
+        // n[e * width + m] = #{ P(R) of degree e using only ξ₁ … ξ_{m+1} }
+        //                  = n[e][m-1] + [ξ_{m+1} ≤ e] · n[e − ξ_{m+1}][m]
+        let mut n = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for m in 0..width {
+                // m = 0: partitions into {1} — always exactly one, P(e), for e ≥ 0.
+                let without = if m == 0 {
+                    (e == 0) as usize
+                } else {
+                    n[base + m - 1]
+                };
+                let with = if xi[m] <= e {
+                    n[(e - xi[m]) as usize * width + m]
+                } else {
+                    0
+                };
+                n[base + m] = without + with;
+            }
+        }
+
+        // g[e * width + h] = Σ_{j ≥ 0} n[e − j·ξ_{h+1}][h−1]   (h ≥ 1; g[·][0] unused)
+        //                  = n[e][h−1] + [ξ_{h+1} ≤ e] · g[e − ξ_{h+1}][h]
+        let mut g = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for h in 1..width {
+                let head = n[base + h - 1];
+                let tail = if xi[h] <= e {
+                    g[(e - xi[h]) as usize * width + h]
+                } else {
+                    0
+                };
+                g[base + h] = head + tail;
+            }
+        }
+
+        self.seqno_tables
+            .store(Some(std::sync::Arc::new(SeqnoTables {
+                max_degree,
+                width,
+                g,
+            })));
+    }
+
+    /// The index ("sequence number") of `P(p_part)` in the Milnor basis of its degree, computed in
+    /// O(number of `p_part` entries) from the precomputed tables — no hash lookup. Assumes
+    /// [`Self::seqno_applicable`] and that `p_part` is a genuine basis element (trimmed, in range).
+    ///
+    /// The basis is enumerated by increasing highest ξ-index, so the rank of `P` accumulates, for
+    /// each populated position `h`, the number of basis elements whose highest index is `< h`
+    /// together with `h` — which is exactly the `g_table` difference across the degree consumed at
+    /// that position.
+    pub fn seqno(&self, p_part: &[PPartEntry]) -> usize {
+        let xi = combinatorics::xi_degrees(self.prime());
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_ref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        let w = t.width;
+        let mut cur_d: i32 = p_part.iter().zip(xi).map(|(&r, &x)| r as i32 * x).sum();
+        let mut rank = 0;
+        // Consume positions from the highest down; position 0 contributes nothing.
+        for h in (1..p_part.len()).rev() {
+            let r = p_part[h] as i32;
+            if r == 0 {
+                continue;
+            }
+            let below = cur_d - r * xi[h];
+            rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
+            cur_d = below;
+        }
+        rank
+    }
+
     fn generate_basis_generic(&self, max_degree: i32) {
         let q = 2 * self.prime() - 2;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
@@ -1320,10 +1636,18 @@ impl MilnorAlgebra {
     /// a matrix contributes iff each column sum is at most the corresponding entry of `Sₖ` and the
     /// relevant bits are disjoint. This amortizes the (expensive) matrix enumeration over the whole
     /// element, whereas [`Self::multiply_with_allocation`] re-runs it per term of `s`.
+    ///
+    /// **Not on the CPU hot path.** End-to-end A/Bs of Nassau's `S_2` regime measured this a net
+    /// regression versus the per-term sweep in [`Self::multiply_basis_element_by_element`] (the
+    /// regime is too sparse for the up-front enumeration to pay off). It is kept as the reference
+    /// model for a future GPU kernel: enumerate `Sq(R)`'s matrices once per operation and test every
+    /// element term against them in parallel — a shape that batches extremely well on a GPU (a real
+    /// resolution presents tens of thousands of terms per distinct `R`). Exercised by the
+    /// `admissible_multiply_agrees_with_reference` test.
     // The `working`-building loops below legitimately index `basis`, `col_sums`, and `masks` by the
     // same `j`, so a range loop is clearer than zipping three slices.
     #[allow(clippy::needless_range_loop)]
-    fn multiply_basis_element_by_element_2(
+    pub fn multiply_basis_element_by_element_2(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
@@ -2310,10 +2634,34 @@ mod tests {
 
     use super::*;
 
-    /// The `p = 2` admissible-matrix multiply (`multiply_basis_element_by_element_2`, reached via
-    /// the `multiply_basis_element_by_element` override) must agree bit-for-bit with the reference
-    /// `PPartMultiplier` path (`multiply_basis_elements`), both for single basis elements and for
-    /// dense (multi-term) elements — the latter also exercising mod-2 cancellation.
+    /// The table-based [`MilnorAlgebra::seqno`] must return the position of every basis element in
+    /// its degree — i.e. agree with the enumeration order that defines the index — for the stable
+    /// `p = 2` full algebra, and reject non-basis elements via `try_`.
+    #[test]
+    fn seqno_matches_enumeration_order() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        assert!(algebra.seqno_applicable());
+        let max_degree = 100;
+        algebra.compute_basis(max_degree);
+        algebra.compute_seqno_tables(max_degree);
+        for d in 0..=max_degree {
+            let dim = algebra.dimension(d);
+            for i in 0..dim {
+                let elt = algebra.basis_element_from_index(d, i);
+                assert_eq!(
+                    algebra.seqno(&elt.p_part),
+                    i,
+                    "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                );
+            }
+        }
+    }
+
+    /// The `p = 2` admissible-matrix multiply ([`MilnorAlgebra::multiply_basis_element_by_element_2`],
+    /// retained as the GPU reference model — no longer wired into the CPU path) must agree
+    /// bit-for-bit with the reference `PPartMultiplier` path (`multiply_basis_elements`), both for
+    /// single basis elements and for dense (multi-term) elements — the latter also exercising mod-2
+    /// cancellation.
     #[test]
     fn admissible_multiply_agrees_with_reference() {
         let p = ValidPrime::new(2);
@@ -2344,11 +2692,11 @@ mod tests {
                         );
                         expected_dense.add(&expected, 1);
 
-                        // New path: element `s = e_j`.
+                        // Admissible model: element `s = e_j`.
                         let mut s = FpVector::new(p, s_dim);
                         s.set_entry(j, 1);
                         let mut got = FpVector::new(p, out_dim);
-                        algebra.multiply_basis_element_by_element(
+                        algebra.multiply_basis_element_by_element_2(
                             got.as_slice_mut(),
                             1,
                             r_degree,
@@ -2370,7 +2718,7 @@ mod tests {
                             s.set_entry(j, 1);
                         }
                         let mut got = FpVector::new(p, out_dim);
-                        algebra.multiply_basis_element_by_element(
+                        algebra.multiply_basis_element_by_element_2(
                             got.as_slice_mut(),
                             1,
                             r_degree,
