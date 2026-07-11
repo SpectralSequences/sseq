@@ -29,7 +29,7 @@ macro_rules! profile {
 ///
 /// Enable by building with `MILNOR_PROFILE=1` (e.g.
 /// `MILNOR_PROFILE=1 cargo run --release --example nassau_e2e -- 80 42 1`); otherwise every counter
-/// and hook is removed by `#[cfg]`. Call [`report`] to print a summary to stderr.
+/// and hook is removed by `#[cfg]`. Call [`profile::report`] to print a summary to stderr.
 pub mod profile {
     #[cfg(milnor_profile)]
     pub use enabled::*;
@@ -1355,8 +1355,8 @@ impl MilnorAlgebra {
         !self.generic() && !self.unstable_enabled && self.profile.is_trivial()
     }
 
-    /// Build the flat [`SeqnoTables`] up to `max_degree`, so that [`Self::seqno`] can be used.
-    /// Requires [`Self::seqno_applicable`]. Idempotent: if the stored tables already reach
+    /// Build the flat `SeqnoTables` up to `max_degree`, so that [`Self::seqno`] can be used.
+    /// Requires `seqno_applicable`. Idempotent: if the stored tables already reach
     /// `max_degree` this returns immediately; otherwise it rebuilds the whole (cheap,
     /// `O(max_degree · width)`) table from scratch and atomically swaps it in, so readers always see
     /// either the old complete table or the new one.
@@ -1367,10 +1367,10 @@ impl MilnorAlgebra {
     /// step `ξ_{h+1}`, letting `seqno` rank a `p_part` without a hash lookup.
     pub fn compute_seqno_tables(&self, max_degree: i32) {
         assert!(self.seqno_applicable());
-        if let Some(t) = &*self.seqno_tables.load() {
-            if t.max_degree >= max_degree {
-                return;
-            }
+        if let Some(t) = &*self.seqno_tables.load()
+            && t.max_degree >= max_degree
+        {
+            return;
         }
 
         let xi = combinatorics::xi_degrees(self.prime());
@@ -1424,7 +1424,7 @@ impl MilnorAlgebra {
 
     /// The index ("sequence number") of `P(p_part)` in the Milnor basis of its degree, computed in
     /// O(number of `p_part` entries) from the precomputed tables — no hash lookup. Assumes
-    /// [`Self::seqno_applicable`] and that `p_part` is a genuine basis element (trimmed, in range).
+    /// `seqno_applicable` and that `p_part` is a genuine basis element (trimmed, in range).
     ///
     /// The basis is enumerated by increasing highest ξ-index, so the rank of `P` accumulates, for
     /// each populated position `h`, the number of basis elements whose highest index is `< h`
@@ -1459,7 +1459,7 @@ impl MilnorAlgebra {
     /// degrees that will be indexed; panics if any entry exceeds `u32` (the device
     /// representation).
     /// Whether the GPU multiply path ([`crate::algebra::milnor_gpu`]) applies: exactly
-    /// the [`Self::seqno_applicable`] regime (`p = 2`, trivial profile, stable), since
+    /// the `seqno_applicable` regime (`p = 2`, trivial profile, stable), since
     /// the kernel indexes its output with the table-based `seqno`. Public so the
     /// resolution can gate its GPU dispatch without reaching into private state.
     #[cfg(feature = "gpu")]

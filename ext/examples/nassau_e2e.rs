@@ -1,6 +1,6 @@
 //! End-to-end timing harness for Nassau's algorithm on the sphere `S_2` at p = 2.
 //!
-//! Resolves `S_2` via [`construct_nassau`] and [`Resolution::compute_through_stem`] up to a given
+//! Resolves `S_2` via [`construct_nassau`] and [`ext::nassau::Resolution::compute_through_stem`] up to a given
 //! `(stem, filtration)`, reporting the fastest wall time over several fresh runs. This exercises the
 //! whole resolution — the Milnor multiplication kernel *and* the F₂ linear algebra — so it is the
 //! right tool for judging whether a change to `MilnorAlgebra` multiplication actually moves the

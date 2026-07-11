@@ -7,16 +7,16 @@
 //! `get_partial_matrix` launch.
 //!
 //! Stages landed so far:
-//! - **Stage 1 — toolchain slice.** A trivial F₂ kernel ([`xor_f2`]) proving the
+//! - **Stage 1 — toolchain slice.** A trivial F₂ kernel (`xor_f2`) proving the
 //!   CubeCL `cuda` runtime works end to end. F₂ addition is XOR of the bit-packed
 //!   limbs, the exact accumulation every multiply kernel performs.
-//! - **Stage 2 — `seqno` on device.** [`seqno_core`]/[`seqno_kernel`] port the
+//! - **Stage 2 — `seqno` on device.** `seqno_core`/`seqno_kernel` port the
 //!   hash-free index [`MilnorAlgebra::seqno`] as pure integer arithmetic over the
 //!   flat `g` table — the output-indexing primitive the multiply kernel needs.
-//! - **Stage 3 — single-`R` multiply.** [`multiply_pair`] ports the per-term test
+//! - **Stage 3 — single-`R` multiply.** `multiply_pair` ports the per-term test
 //!   + output assembly of `multiply_basis_element_by_element_2`;
-//!   [`multiply_single_r_kernel`] runs one `Sq(R)·s` product per launch.
-//! - **Stage 4 — batched launch.** [`multiply_batch_kernel`] fuses all `(R, s)`
+//!   `multiply_single_r_kernel` runs one `Sq(R)·s` product per launch.
+//! - **Stage 4 — batched launch.** `multiply_batch_kernel` fuses all `(R, s)`
 //!   products of one `get_partial_matrix` into a single launch (one thread per
 //!   `(product, matrix, term)` pair). The pair is decoded on-device from a prefix-sum
 //!   over per-product pair counts, with admissible-matrix data deduplicated by distinct
@@ -158,7 +158,7 @@ fn xor_f2(a: &Array<u32>, b: &Array<u32>, out: &mut Array<u32>) {
 
 /// Compute `a ^ b` limb-wise on the default CUDA device.
 ///
-/// Host-side driver for [`xor_f2`]: uploads both operands, launches one thread per
+/// Host-side driver for `xor_f2`: uploads both operands, launches one thread per
 /// limb, and reads the result back. Panics if the operands differ in length.
 pub fn xor_f2_on_gpu(a: &[u32], b: &[u32]) -> Vec<u32> {
     assert_eq!(a.len(), b.len(), "operands must have equal limb counts");
@@ -194,8 +194,8 @@ pub fn xor_f2_on_gpu(a: &[u32], b: &[u32]) -> Vec<u32> {
 ///
 /// Thread/array indices are `usize`; p_part and table *values* are `u32`. A degree
 /// (`cur_d`) is a value computed from `u32`s but also indexes `g`, so it is cast to
-/// `usize` at the index sites. Shared by [`seqno_kernel`] and
-/// [`multiply_single_r_kernel`] so both index outputs identically.
+/// `usize` at the index sites. Shared by `seqno_kernel` and
+/// `multiply_single_r_kernel` so both index outputs identically.
 #[cube]
 fn seqno_core(
     g: &Array<u32>,
@@ -250,9 +250,9 @@ fn seqno_kernel(
     out[idx] = seqno_core(g, xi, &working, width, width);
 }
 
-/// Run [`seqno_kernel`] over `n` padded p_parts and return their seqno indices.
+/// Run `seqno_kernel` over `n` padded p_parts and return their seqno indices.
 ///
-/// `g`/`xi` come from [`MilnorAlgebra::seqno_table_u32`] and
+/// `g`/`xi` come from `MilnorAlgebra::seqno_table_u32` and
 /// [`crate::algebra::combinatorics::xi_degrees`]; `p_parts` is `n × width` row-major,
 /// each row a p_part zero-padded to `width`.
 pub fn seqno_batch_on_gpu(
@@ -302,7 +302,7 @@ pub fn seqno_batch_on_gpu(
 /// - `j ≥ low`: reject if `cs > 0` or `b & mk`; else `working[j] = b | mk`.
 ///
 /// (For `j ≥ low` at most one of `b`, `cs` is in range, so this reproduces every
-/// branch.) [`seqno_core`] gives the output index; the F₂ bit is XORed atomically
+/// branch.) `seqno_core` gives the output index; the F₂ bit is XORed atomically
 /// (collisions cancel mod 2). No explicit trailing-zero trim is needed — `seqno_core`
 /// skips zero entries and `working` beyond the assembled length is zero, so the full
 /// `WORKING_CAP` length is equivalent to the CPU's trimmed p_part (`xi` is host-padded
@@ -385,7 +385,7 @@ fn multiply_pair(
 }
 
 /// Multiply `Sq(R) · s` for a single fixed operation `R` into one F₂ output vector.
-/// One thread per `(matrix, term)` pair; delegates the assembly to [`multiply_pair`].
+/// One thread per `(matrix, term)` pair; delegates the assembly to `multiply_pair`.
 #[cube(launch)]
 #[allow(clippy::too_many_arguments)]
 fn multiply_single_r_kernel(

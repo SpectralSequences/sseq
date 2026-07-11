@@ -6,7 +6,7 @@
 
 use std::time::Instant;
 
-use ext::{chain_complex::ChainComplex, utils::construct_nassau};
+use ext::utils::construct_nassau;
 use sseq::coordinates::Bidegree;
 
 fn resolve_time(stem: i32, filt: i32) -> f64 {
