@@ -521,6 +521,13 @@ impl Algebra for MilnorAlgebra {
         s_degree: i32,
         s: FpSlice,
     ) {
+        // At p = 2 we use the admissible-matrix algorithm, which enumerates the admissible matrices
+        // for the fixed operation `r` *once* and tests every term of `s` against them, instead of
+        // re-running the `PPartMultiplier` sweep once per term of `s`.
+        if !self.generic() {
+            self.multiply_basis_element_by_element_2(result, coeff, r_degree, r_idx, s_degree, s);
+            return;
+        }
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
@@ -1059,6 +1066,145 @@ impl MilnorAlgebra {
         });
     }
 
+    /// Compute `Sq(R) * s` for a fixed operation `Sq(R)` and a general element `s`, adding the
+    /// result to `result`. Only valid at `p = 2`.
+    ///
+    /// Algorithm due to Christian Nassau (ported from the previously disabled
+    /// `FreeModule::custom_milnor_act`). To compute `Sq(R) * (Sq(S₁) + Sq(S₂) + ⋯)` we build the
+    /// admissible matrices for `Sq(R)` once and, for each matrix, test every `Sq(Sₖ)` against it:
+    /// a matrix contributes iff each column sum is at most the corresponding entry of `Sₖ` and the
+    /// relevant bits are disjoint. This amortizes the (expensive) matrix enumeration over the whole
+    /// element, whereas [`Self::multiply_with_allocation`] re-runs it per term of `s`.
+    // The `working`-building loops below legitimately index `basis`, `col_sums`, and `masks` by the
+    // same `j`, so a range loop is clearer than zipping three slices.
+    #[allow(clippy::needless_range_loop)]
+    fn multiply_basis_element_by_element_2(
+        &self,
+        mut result: FpSliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: FpSlice,
+    ) {
+        debug_assert!(
+            !self.generic(),
+            "multiply_basis_element_by_element_2 is p = 2 only"
+        );
+        // Coefficients live in F₂, so an even coefficient kills the whole product, and every
+        // non-zero term of `s` has coefficient 1.
+        if coeff.is_multiple_of(2) {
+            return;
+        }
+
+        let r = self.basis_element_from_index(r_degree, r_idx);
+        // `Sq(∅) = 1`, so `Sq(R) * s = s`. (Also avoids an empty `AdmissibleMatrix`.) The output
+        // degree equals `s_degree`, so basis indices are unchanged.
+        if r.p_part.is_empty() {
+            for (i, _) in s.iter_nonzero() {
+                result.add_basis_element(i, 1);
+            }
+            return;
+        }
+
+        // The admissible-matrix sweep enumerates *all* matrices of `Sq(R)` up front and amortizes
+        // that over the terms of `s`. With a single term there is nothing to amortize, and for a
+        // large operation the wasted enumeration makes it several times slower than the
+        // `PPartMultiplier` path (which is constrained by `S` and so enumerates far fewer matrices).
+        // So peek the first two terms in one pass: with fewer than two, fall back to the per-term
+        // path — byte-for-byte the generic multiply, so that case never regresses.
+        let mut nonzero = s.iter_nonzero();
+        let (Some((i0, _)), second) = (nonzero.next(), nonzero.next()) else {
+            return; // s = 0
+        };
+        let Some((i1, _)) = second else {
+            PPartAllocation::with_local(|allocation| {
+                self.multiply_with_allocation(
+                    result,
+                    1,
+                    r,
+                    self.basis_element_from_index(s_degree, i0),
+                    i32::MAX,
+                    allocation,
+                )
+            });
+            return;
+        };
+
+        // Two or more terms: use the admissible-matrix sweep. Cache the (already-peeked) input
+        // basis elements once; they are reused across every admissible matrix.
+        let mut terms: Vec<&MilnorBasisElement> = Vec::with_capacity(s.len());
+        terms.push(self.basis_element_from_index(s_degree, i0));
+        terms.push(self.basis_element_from_index(s_degree, i1));
+        terms.extend(nonzero.map(|(i, _)| self.basis_element_from_index(s_degree, i)));
+
+        let out_degree = r_degree + s_degree;
+        let mut matrix = AdmissibleMatrix::new(&r.p_part);
+        let mut working = MilnorBasisElement {
+            q_part: 0,
+            p_part: PPart::new(),
+            degree: out_degree,
+        };
+
+        loop {
+            'outer: for term in &terms {
+                let basis = &term.p_part;
+                working.p_part.clear();
+
+                for j in 0..std::cmp::min(basis.len(), matrix.col_sums.len()) {
+                    if matrix.col_sums[j] > basis[j] {
+                        continue 'outer;
+                    }
+                    if (basis[j] - matrix.col_sums[j]) & matrix.masks[j] != 0 {
+                        continue 'outer;
+                    }
+                    // We should add the diagonal sum, but that equals the mask, and there are no
+                    // bit conflicts, so a bitwise-or is the same thing.
+                    working
+                        .p_part
+                        .push((basis[j] - matrix.col_sums[j]) | matrix.masks[j]);
+                }
+
+                if basis.len() < matrix.col_sums.len() {
+                    for &col_sum in &matrix.col_sums[basis.len()..] {
+                        if col_sum > 0 {
+                            continue 'outer;
+                        }
+                    }
+                    for &mask in &matrix.masks[basis.len()..] {
+                        working.p_part.push(mask);
+                    }
+                } else {
+                    for j in matrix.col_sums.len()..std::cmp::min(basis.len(), matrix.masks.len()) {
+                        if basis[j] & matrix.masks[j] != 0 {
+                            continue 'outer;
+                        }
+                        working.p_part.push(basis[j] | matrix.masks[j]);
+                    }
+                    if basis.len() < matrix.masks.len() {
+                        for &mask in &matrix.masks[basis.len()..] {
+                            working.p_part.push(mask);
+                        }
+                    } else {
+                        for &entry in &basis[matrix.masks.len()..] {
+                            working.p_part.push(entry);
+                        }
+                    }
+                }
+
+                while let Some(0) = working.p_part.last() {
+                    working.p_part.pop();
+                }
+
+                let idx = self.basis_element_to_index(&working);
+                result.add_basis_element(idx, 1);
+            }
+            if !matrix.next() {
+                break;
+            }
+        }
+    }
+
     pub fn multiply_with_allocation(
         &self,
         mut res: FpSliceMut,
@@ -1143,6 +1289,110 @@ impl MilnorAlgebra {
             );
         }
         allocation
+    }
+}
+
+/// The state for enumerating the admissible matrices of a fixed operation `Sq(R)` at `p = 2`, used
+/// by [`MilnorAlgebra::multiply_basis_element_by_element_2`]. See that method (and the original
+/// `FreeModule::custom_milnor_act`) for the algorithm. Rows are indexed by the entries of `R`; the
+/// stored `matrix` is row-major with `cols` columns.
+struct AdmissibleMatrix {
+    cols: usize,
+    rows: usize,
+    matrix: Vec<PPartEntry>,
+    totals: Vec<PPartEntry>,
+    col_sums: Vec<PPartEntry>,
+    masks: Vec<PPartEntry>,
+}
+
+impl AdmissibleMatrix {
+    fn new(ps: &[PPartEntry]) -> Self {
+        let rows = ps.len();
+        let cols = ps
+            .iter()
+            .map(|x| (PPartEntry::BITS - x.leading_zeros()) as usize)
+            .max()
+            .unwrap();
+        let mut matrix = vec![0; rows * cols];
+        for (i, &x) in ps.iter().enumerate() {
+            matrix[i * cols] = x;
+        }
+
+        let mut masks = Vec::with_capacity(rows + cols - 1);
+        masks.extend_from_slice(ps);
+        masks.resize(rows + cols - 1, 0);
+
+        Self {
+            rows,
+            cols,
+            totals: vec![0; rows], // only used by `next`; no need to initialize
+            col_sums: vec![0; cols - 1],
+            matrix,
+            masks,
+        }
+    }
+
+    #[inline]
+    fn get(&self, row: usize, col: usize) -> PPartEntry {
+        self.matrix[row * self.cols + col]
+    }
+
+    #[inline]
+    fn set(&mut self, row: usize, col: usize, val: PPartEntry) {
+        self.matrix[row * self.cols + col] = val;
+    }
+
+    /// Advance to the next admissible matrix, returning `false` when the enumeration is exhausted.
+    fn next(&mut self) -> bool {
+        for row in 0..self.rows {
+            let mut p_to_the_j: PPartEntry = 1;
+            self.totals[row] = self.get(row, 0);
+            'mid: for col in 1..self.cols {
+                p_to_the_j *= 2;
+                // Quick check before computing the bitsums.
+                if p_to_the_j <= self.totals[row] {
+                    // Compute the bitsum along the anti-diagonal to the bottom-left.
+                    let mut d = 0;
+                    for c in (row + col + 1).saturating_sub(self.rows)..col {
+                        d |= self.get(row + col - c, c);
+                    }
+                    // Magic: the next number greater than `self[row][col]` whose bitwise-and with
+                    // `d` is 0.
+                    let new_entry = ((self.get(row, col) | d) + 1) & !d;
+                    let inc = new_entry - self.get(row, col);
+                    let sub = inc * p_to_the_j;
+                    if self.totals[row] < sub {
+                        self.totals[row] += p_to_the_j * self.get(row, col);
+                        continue 'mid;
+                    }
+                    self.set(row, 0, self.totals[row] - sub);
+                    self.masks[row] = self.get(row, 0);
+                    self.col_sums[col - 1] += inc;
+                    for j in 1..col {
+                        self.masks[row + j] &= !self.get(row, j);
+                        self.col_sums[j - 1] -= self.get(row, j);
+                        self.set(row, j, 0);
+                    }
+                    self.set(row, col, new_entry);
+
+                    for i in 0..row {
+                        self.set(i, 0, self.totals[i]);
+                        self.masks[i] = self.totals[i];
+                        for j in 1..self.cols {
+                            if i + j > row {
+                                self.masks[i + j] &= !self.get(i, j);
+                            }
+                            self.col_sums[j - 1] -= self.get(i, j);
+                            self.set(i, j, 0);
+                        }
+                    }
+                    self.masks[row + col] = d | new_entry;
+                    return true;
+                }
+                self.totals[row] += p_to_the_j * self.get(row, col);
+            }
+        }
+        false
     }
 }
 
@@ -1792,6 +2042,84 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    /// The `p = 2` admissible-matrix multiply (`multiply_basis_element_by_element_2`, reached via
+    /// the `multiply_basis_element_by_element` override) must agree bit-for-bit with the reference
+    /// `PPartMultiplier` path (`multiply_basis_elements`), both for single basis elements and for
+    /// dense (multi-term) elements — the latter also exercising mod-2 cancellation.
+    #[test]
+    fn admissible_multiply_agrees_with_reference() {
+        let p = ValidPrime::new(2);
+        let algebra = MilnorAlgebra::new(p, false);
+        let max_degree = 32;
+        algebra.compute_basis(max_degree);
+
+        for r_degree in 0..=max_degree {
+            let r_dim = algebra.dimension(r_degree);
+            for s_degree in 0..=(max_degree - r_degree) {
+                let s_dim = algebra.dimension(s_degree);
+                let out_degree = r_degree + s_degree;
+                let out_dim = algebra.dimension(out_degree);
+
+                for i in 0..r_dim {
+                    let mut expected_dense = FpVector::new(p, out_dim);
+
+                    for j in 0..s_dim {
+                        // Reference: R_i * S_j via the PPartMultiplier path.
+                        let mut expected = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_elements(
+                            expected.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            j,
+                        );
+                        expected_dense.add(&expected, 1);
+
+                        // New path: element `s = e_j`.
+                        let mut s = FpVector::new(p, s_dim);
+                        s.set_entry(j, 1);
+                        let mut got = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_element_by_element(
+                            got.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            s.as_slice(),
+                        );
+                        assert_eq!(
+                            expected, got,
+                            "single-term mismatch: R(deg {r_degree}, idx {i}) * S(deg {s_degree}, \
+                             idx {j})",
+                        );
+                    }
+
+                    // Dense element (all ones): multi-term handling and mod-2 cancellation.
+                    if s_dim > 0 {
+                        let mut s = FpVector::new(p, s_dim);
+                        for j in 0..s_dim {
+                            s.set_entry(j, 1);
+                        }
+                        let mut got = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_element_by_element(
+                            got.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            s.as_slice(),
+                        );
+                        assert_eq!(
+                            expected_dense, got,
+                            "dense mismatch: R(deg {r_degree}, idx {i}) * (all of deg {s_degree})",
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[rstest]
     #[trace]
