@@ -1,29 +1,17 @@
 //! GPU offload for the Milnor multiply at `p = 2`, built on [CubeCL].
 //!
-//! This is the entry point for the staged port described in
-//! `crates/algebra/GPU_KERNEL_HANDOFF.md`: the admissible-matrix multiply
-//! ([`super::milnor_algebra::MilnorAlgebra::multiply_basis_element_by_element_2`])
-//! and the hash-free `seqno` index run as CubeCL kernels, batched per
-//! `get_partial_matrix` launch.
+//! Runs the admissible-matrix multiply
+//! ([`super::milnor_algebra::MilnorAlgebra::multiply_basis_element_by_element_2`]) and the
+//! hash-free `seqno` index as CubeCL kernels, batched per `get_partial_matrix` launch.
 //!
-//! Stages landed so far:
-//! - **Stage 1 — toolchain slice.** A trivial F₂ kernel (`xor_f2`) proving the
-//!   CubeCL `cuda` runtime works end to end. F₂ addition is XOR of the bit-packed
-//!   limbs, the exact accumulation every multiply kernel performs.
-//! - **Stage 2 — `seqno` on device.** `seqno_core`/`seqno_kernel` port the
-//!   hash-free index [`MilnorAlgebra::seqno`] as pure integer arithmetic over the
-//!   flat `g` table — the output-indexing primitive the multiply kernel needs.
-//! - **Stage 3 — single-`R` multiply.** `multiply_pair` ports the per-term test
-//!   + output assembly of `multiply_basis_element_by_element_2`;
-//!   `multiply_single_r_kernel` runs one `Sq(R)·s` product per launch.
-//! - **Stage 4 — batched launch.** `multiply_batch_kernel` fuses all `(R, s)`
-//!   products of one `get_partial_matrix` into a single launch (one thread per
-//!   `(product, matrix, term)` pair). The pair is decoded on-device from a prefix-sum
-//!   over per-product pair counts, with admissible-matrix data deduplicated by distinct
-//!   `R` — so a launch uploads compact per-`R`/per-product tables, not a per-pair table
-//!   (which at scale is gigabytes of almost-entirely-redundant data). On an RTX 3050 Ti
-//!   this made the batch ~2× faster than the CPU `get_partial_matrix` at stem 100
-//!   (`benches/milnor_gpu_ab.rs`); the naive per-pair table was ~7× slower.
+//! The batched kernel `multiply_batch_kernel` fuses all `(R, s)` products of one
+//! `get_partial_matrix` into a single launch — one thread per `(product, matrix, term)` pair,
+//! decoded on-device from a prefix-sum over per-product pair counts. Admissible-matrix data is
+//! deduplicated by distinct `R`, so a launch uploads compact per-`R`/per-product tables rather
+//! than a per-pair table (which at scale would be gigabytes of almost-entirely-redundant data).
+//! Its building blocks are the F₂ XOR accumulation (`xor_f2`), the on-device `seqno` index
+//! (`seqno_core`/`seqno_kernel`, porting [`MilnorAlgebra::seqno`] as integer arithmetic over the
+//! flat `g` table), and the single-`R` product (`multiply_pair`).
 //!
 //! Gated behind the `gpu` feature. Running needs the CUDA toolkit on `CUDA_PATH` /
 //! `LD_LIBRARY_PATH` (the `gpu` dev shell in `ext/flake.nix` sets both) and a live
@@ -630,7 +618,7 @@ pub struct GpuProduct {
 }
 
 /// Compute a whole batch of `Sq(R) · s` products in a single GPU launch — the
-/// Stage 4 unit of one `get_partial_matrix` call. `R`s may differ (each contributes its
+/// The batched unit of one `get_partial_matrix` call. `R`s may differ (each contributes its
 /// own admissible matrices). Returns `num_rows` F₂ vectors, each `⌈num_cols/32⌉`
 /// bit-packed `u32` limbs.
 ///

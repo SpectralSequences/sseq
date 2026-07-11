@@ -4,8 +4,8 @@
 //! building its (partial) matrix applies the differential to each input basis element,
 //! whose dominant cost is the Milnor multiply `Sq(R) · s` in [`FreeModule::act`]. This
 //! module batches every such multiply of one matrix build into a single GPU launch via
-//! [`algebra::milnor_gpu::multiply_batch_on_gpu`], which on an RTX 3050 Ti beats the
-//! parallel CPU per-term sweep ~2× at stem 100 (see `benches/milnor_gpu_ab.rs`).
+//! [`algebra::milnor_gpu::multiply_batch_on_gpu`]. See `benches/milnor_gpu_ab.rs` for a
+//! CPU/GPU A/B of that launch.
 //!
 //! Only the *multiply* work is offloaded. Identity operations (`Sq(∅) = 1`, i.e.
 //! `operation_degree == 0`) are plain copies with no admissible-matrix work, so they

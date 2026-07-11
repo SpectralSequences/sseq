@@ -1,8 +1,7 @@
 //! A/B microbenchmark: GPU batch Milnor-multiply vs the CPU `get_partial_matrix`.
 //!
-//! Answers the Stage 5 go/no-go question from `GPU_KERNEL_HANDOFF.md` — does offloading
-//! the Milnor multiply to the GPU beat the CPU per-term path *including* host↔device
-//! transfer — before committing to the invasive wire-in.
+//! Measures whether offloading the Milnor multiply to the GPU beats the CPU per-term path
+//! *including* host↔device transfer.
 //!
 //! It resolves `S_2` with Nassau's algorithm, finds the largest `get_partial_matrix`
 //! launch (by total element-term work), then times, best-of-N:

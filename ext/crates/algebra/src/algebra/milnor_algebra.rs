@@ -348,14 +348,11 @@ impl MilnorAlgebra {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        // NB: the table-based [`Self::seqno`] computes this same index without a hash, but it loses
-        // to this hashmap on the CPU. Even after moving its tables to flat, contiguous
-        // `arc_swap`-backed storage (removing the earlier `OnceVec` per-access atomics), the
-        // `benches/seqno` A/B still measures raw lookups at ~50 Melem/s for `seqno` vs ~115 Melem/s
-        // for this hashmap — a ~2.3× gap that is flat across degree: computing the rank (a degree
-        // sum plus two indexed table reads per populated ξ-position) is simply more work than one
-        // hash and probe. `seqno` is therefore kept as the GPU-oriented index (a GPU kernel cannot
-        // carry a hashmap, and the flat table uploads directly), not for the CPU hot path.
+        // NB: the table-based `Self::seqno` computes this same index without a hash, but computing
+        // the rank (a degree sum plus two indexed table reads per populated ξ-position) is more work
+        // than one hash and probe, so it loses to this hashmap on the CPU. `seqno` is kept as the
+        // GPU-oriented index (a GPU kernel cannot carry a hashmap, and the flat table uploads
+        // directly), not for the CPU hot path.
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
             .copied()
@@ -555,13 +552,11 @@ impl Algebra for MilnorAlgebra {
     ) {
         // Per-term reference sweep: run the `PPartMultiplier` multiply once for each term of `s`,
         // reusing one `PPartAllocation`. At p = 2 the admissible-matrix algorithm
-        // ([`Self::multiply_basis_element_by_element_2`]) computes the same product by enumerating
-        // `Sq(R)`'s admissible matrices once and amortizing over the terms of `s`, but end-to-end
-        // A/Bs of Nassau's `S_2` regime measured it a consistent net regression on the CPU (~8% at
-        // stem 80, ~3% at stem 100): the regime is dominated by sparse elements (≈31% single-term),
-        // for which the up-front enumeration cannot be amortized. It is retained as the reference
-        // model for a future GPU kernel (where the enumerate-once/test-all-terms shape is ideal),
-        // not wired here. See the commit history for the measurements.
+        // (`Self::multiply_basis_element_by_element_2`) computes the same product by enumerating
+        // `Sq(R)`'s admissible matrices once and amortizing over the terms of `s`, but Nassau's
+        // `S_2` regime is too sparse (dominated by single-term elements) for that up-front
+        // enumeration to pay off on the CPU. It is retained as the reference model for the GPU
+        // kernel, not wired here.
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
@@ -1270,13 +1265,11 @@ impl MilnorAlgebra {
     /// relevant bits are disjoint. This amortizes the (expensive) matrix enumeration over the whole
     /// element, whereas [`Self::multiply_with_allocation`] re-runs it per term of `s`.
     ///
-    /// **Not on the CPU hot path.** End-to-end A/Bs of Nassau's `S_2` regime measured this a net
-    /// regression versus the per-term sweep in [`Self::multiply_basis_element_by_element`] (the
-    /// regime is too sparse for the up-front enumeration to pay off). It is kept as the reference
-    /// model for a future GPU kernel: enumerate `Sq(R)`'s matrices once per operation and test every
-    /// element term against them in parallel — a shape that batches extremely well on a GPU (a real
-    /// resolution presents tens of thousands of terms per distinct `R`). Exercised by the
-    /// `admissible_multiply_agrees_with_reference` test.
+    /// **Not on the CPU hot path** — Nassau's `S_2` regime is too sparse for the up-front
+    /// enumeration to beat the per-term sweep in [`Self::multiply_basis_element_by_element`]. It is
+    /// kept as the reference model for the GPU kernel: enumerate `Sq(R)`'s matrices once per
+    /// operation and test every element term against them in parallel — a shape that batches well
+    /// on a GPU. Exercised by the `admissible_multiply_agrees_with_reference` test.
     // The `working`-building loops below legitimately index `basis`, `col_sums`, and `masks` by the
     // same `j`, so a range loop is clearer than zipping three slices.
     #[allow(clippy::needless_range_loop)]
