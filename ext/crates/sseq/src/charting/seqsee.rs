@@ -137,6 +137,38 @@ impl<T: io::Write> Backend for SeqSeeBackend<T> {
     }
 }
 
+impl<T: io::Write> Drop for SeqSeeBackend<T> {
+    fn drop(&mut self) {
+        // Register every referenced style as an attribute alias so that the edges validate.
+        let mut attributes = Map::new();
+        for style in &self.styles {
+            let attr = if is_differential(style) {
+                json!([{ "color": "blue" }])
+            } else {
+                json!([])
+            };
+            attributes.insert(style.clone(), attr);
+        }
+
+        let document = json!({
+            "header": {
+                "chart": {
+                    "width": { "min": 0, "max": self.max.x() },
+                    "height": { "min": 0, "max": self.max.y() },
+                },
+                "aliases": {
+                    "attributes": attributes,
+                },
+            },
+            "nodes": std::mem::take(&mut self.nodes),
+            "edges": std::mem::take(&mut self.edges),
+        });
+
+        let _ = serde_json::to_writer_pretty(&mut self.out, &document);
+        let _ = writeln!(self.out);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
@@ -244,37 +276,5 @@ mod tests {
         assert!(!is_differential("d"));
         assert!(!is_differential("h0"));
         assert!(!is_differential("delta"));
-    }
-}
-
-impl<T: io::Write> Drop for SeqSeeBackend<T> {
-    fn drop(&mut self) {
-        // Register every referenced style as an attribute alias so that the edges validate.
-        let mut attributes = Map::new();
-        for style in &self.styles {
-            let attr = if is_differential(style) {
-                json!([{ "color": "blue" }])
-            } else {
-                json!([])
-            };
-            attributes.insert(style.clone(), attr);
-        }
-
-        let document = json!({
-            "header": {
-                "chart": {
-                    "width": { "min": 0, "max": self.max.x() },
-                    "height": { "min": 0, "max": self.max.y() },
-                },
-                "aliases": {
-                    "attributes": attributes,
-                },
-            },
-            "nodes": std::mem::take(&mut self.nodes),
-            "edges": std::mem::take(&mut self.edges),
-        });
-
-        let _ = serde_json::to_writer_pretty(&mut self.out, &document);
-        let _ = writeln!(self.out);
     }
 }
