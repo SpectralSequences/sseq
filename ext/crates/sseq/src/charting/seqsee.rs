@@ -159,8 +159,6 @@ impl<T: io::Write> Drop for SeqSeeBackend<T> {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::expect;
-
     use super::*;
 
     #[test]
@@ -195,66 +193,34 @@ mod tests {
             backend.node(Bidegree::x_y(5, 5), 1).unwrap();
         }
 
-        expect![[r#"
-            {
-              "edges": [
-                {
-                  "attributes": [
-                    "h0"
-                  ],
-                  "source": "(0,0,0)",
-                  "target": "(0,1,0)"
-                },
-                {
-                  "attributes": [
-                    "d2"
-                  ],
-                  "source": "(1,1,0)",
-                  "target": "(0,1,0)"
-                }
-              ],
-              "header": {
-                "aliases": {
-                  "attributes": {
-                    "d2": [
-                      {
-                        "color": "blue"
-                      }
-                    ],
-                    "h0": []
-                  }
-                },
+        // Compare parsed values rather than the raw string so the assertion does not depend on
+        // JSON object key ordering, which varies with whether serde_json's `preserve_order`
+        // feature is enabled by feature unification in the surrounding build.
+        let produced: Value = serde_json::from_slice(&buf).unwrap();
+        let expected = json!({
+            "header": {
                 "chart": {
-                  "height": {
-                    "max": 2,
-                    "min": 0
-                  },
-                  "width": {
-                    "max": 2,
-                    "min": 0
-                  }
-                }
-              },
-              "nodes": {
-                "(0,0,0)": {
-                  "position": 0,
-                  "x": 0,
-                  "y": 0
+                    "width": { "min": 0, "max": 2 },
+                    "height": { "min": 0, "max": 2 },
                 },
-                "(0,1,0)": {
-                  "position": 0,
-                  "x": 0,
-                  "y": 1
+                "aliases": {
+                    "attributes": {
+                        "h0": [],
+                        "d2": [{ "color": "blue" }],
+                    },
                 },
-                "(1,1,0)": {
-                  "position": 0,
-                  "x": 1,
-                  "y": 1
-                }
-              }
-            }
-        "#]]
-        .assert_eq(std::str::from_utf8(&buf).unwrap());
+            },
+            "nodes": {
+                "(0,0,0)": { "x": 0, "y": 0, "position": 0 },
+                "(0,1,0)": { "x": 0, "y": 1, "position": 0 },
+                "(1,1,0)": { "x": 1, "y": 1, "position": 0 },
+            },
+            "edges": [
+                { "source": "(0,0,0)", "target": "(0,1,0)", "attributes": ["h0"] },
+                { "source": "(1,1,0)", "target": "(0,1,0)", "attributes": ["d2"] },
+            ],
+        });
+        assert_eq!(produced, expected);
     }
 
     #[test]
