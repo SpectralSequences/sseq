@@ -6,7 +6,7 @@
 //! reduction $A_C/\tau$ (a connected finite-type $\mathbb{F}_2$-algebra), and the
 //! coefficient ring $\mathbb{F}_2[\tau]$ itself.
 //!
-//! This module provides the foundation layer (see `MOTIVIC_PLAN.md`):
+//! This module provides the foundation layer for that computation:
 //!
 //! - [`Tau`] — the coefficient ring $\mathbb{F}_2[\tau]$ as a small homogeneous
 //!   scalar ([`tau`]); the whole $\tau$-tower is carried here rather than threaded
