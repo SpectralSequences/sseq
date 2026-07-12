@@ -20,17 +20,24 @@ use crate::{
     utils::{QueryModuleResolution, get_unit},
 };
 
-/// The differential of the Ext DGA: the coboundary on the cochain complex
-/// $\Hom(P_\bullet, k) = k^{\text{gens}}$ whose cohomology is the "Ext part" —
-/// the next page.
+/// The coboundary of the Ext cochain complex $\Hom(P_\bullet, k) = k^{\text{gens}}$,
+/// whose cohomology is $\Ext$.
 ///
 /// It shifts bidegree by a fixed [`shift`](ExtDifferential::shift) and, at each
-/// bidegree, gives its matrix in the generator bases. Over a field with a
-/// *minimal* resolution this differential is identically zero — $d_s$ lands in
-/// $\bar A \cdot P_{s-1}$, which every $\varphi\colon P_{s-1} \to k$ kills — so
-/// $\Ext$ is just the generators and taking cohomology is a no-op. A deformation
-/// (the motivic lift's $\delta$) or a secondary operation (the Adams $d_2$) is
-/// what makes it nonzero and the cohomology nontrivial.
+/// bidegree, gives its matrix in the generator bases. For a **minimal** resolution
+/// this coboundary is identically zero — $d_s$ lands in $\bar A \cdot P_{s-1}$,
+/// which every $\varphi\colon P_{s-1} \to k$ kills — so $\Ext$ is just the
+/// generators and taking cohomology is a no-op (no differential is attached). For a
+/// **non-minimal** resolution it is the canonical dualised differential
+/// $\Hom(d, k)$. Both are classical homological algebra.
+///
+/// The same trait is *also* how a **deformation** hangs its connecting differential
+/// on this complex — the Adams $d_2$ ([`secondary`]) or the motivic $\delta$ — as
+/// instances defined in their own modules; those are what
+/// [`ExtAlgebra::cohomology_subquotient`] reads to compute the next page of a
+/// deformation spectral sequence. That story is kept out of [`ExtAlgebra`]'s own
+/// interface on purpose: here the differential is just a pluggable coboundary,
+/// deformation or not.
 pub trait ExtDifferential: Send + Sync {
     /// The fixed bidegree shift the differential applies: $\delta\colon \Ext_b \to
     /// \Ext_{b + \mathrm{shift}}$.
@@ -42,10 +49,12 @@ pub trait ExtDifferential: Send + Sync {
     /// valid zero-size matrix, not `None`.
     fn matrix(&self, b: Bidegree) -> Option<Matrix>;
 
-    /// For a **graded** coefficient (e.g. $\mathbb{F}_2[\tau]$, graded by motivic
-    /// weight), the number of cochain generators at `b` whose grade is `≤ cap`.
-    /// The default — an ungraded (field) coefficient — returns `None`, meaning "no
-    /// grading", and the capped cohomology falls back to the full dimension.
+    /// For a coefficient **graded by a deformation base** $R$ (e.g.
+    /// $\mathbb{F}_2[\tau]$ graded by motivic weight), the number of cochain
+    /// generators at `b` whose grade is `≤ cap`; sweeping `cap` walks up the
+    /// $R$-adic tower and exposes the $R$-torsion of the Ext module. The default —
+    /// an ungraded (field) coefficient — returns `None`, meaning "no grading", and
+    /// the capped cohomology falls back to the full dimension.
     fn graded_dimension(&self, b: Bidegree, cap: i32) -> Option<usize> {
         let _ = (b, cap);
         None
@@ -315,8 +324,9 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
     ///
     /// With no differential (a field/minimal resolution, the zero coboundary) this
     /// is exactly the generator count — the cohomology *is* $\Ext$, and "taking
-    /// cohomology" degenerates to reading generators. A nonzero differential (the
-    /// motivic $\delta$, an Adams $d_2$) makes it a genuine kernel-mod-image.
+    /// cohomology" degenerates to reading generators. A nonzero differential (a
+    /// non-minimal resolution's $\Hom(d, k)$, or a deformation's connecting map)
+    /// makes it a genuine kernel-mod-image.
     ///
     /// Returns `None` if the outgoing differential at `b` is out of the computed
     /// range; a missing incoming differential (no source bidegree, or empty) counts
