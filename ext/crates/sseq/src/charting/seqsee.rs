@@ -41,14 +41,6 @@ impl<T: io::Write> SeqSeeBackend<T> {
             styles: BTreeSet::new(),
         }
     }
-
-    /// The identifier used for the `idx`-th generator in bidegree `(x, y)`.
-    ///
-    /// This must agree between [`Self::node`] (which creates the nodes) and [`Self::structline`]
-    /// (which references them as edge endpoints).
-    fn node_id(x: i32, y: i32, idx: usize) -> String {
-        format!("{x},{y},{idx}")
-    }
 }
 
 /// Whether a style name denotes a differential, i.e. it is `d` followed by a page number.
@@ -92,7 +84,9 @@ impl<T: io::Write> Backend for SeqSeeBackend<T> {
         }
 
         for k in 0..n {
-            let id = Self::node_id(b.x(), b.y(), k);
+            // The `{:#}` (alternate) form of the `Display` impl is `(x,y,idx)`. Reusing it here and
+            // in `structline` keeps node ids and edge endpoints in sync.
+            let id = format!("{:#}", BidegreeGenerator::new(b, k));
             self.nodes.insert(
                 id,
                 json!({
@@ -120,14 +114,8 @@ impl<T: io::Write> Backend for SeqSeeBackend<T> {
         }
 
         let mut edge = Map::new();
-        edge.insert(
-            "source".to_string(),
-            Value::String(Self::node_id(source.x(), source.y(), source.idx())),
-        );
-        edge.insert(
-            "target".to_string(),
-            Value::String(Self::node_id(target.x(), target.y(), target.idx())),
-        );
+        edge.insert("source".to_string(), Value::String(format!("{source:#}")));
+        edge.insert("target".to_string(), Value::String(format!("{target:#}")));
         if let Some(style) = style {
             self.styles.insert(style.to_string());
             edge.insert("attributes".to_string(), json!([style]));
@@ -214,15 +202,15 @@ mod tests {
                   "attributes": [
                     "h0"
                   ],
-                  "source": "0,0,0",
-                  "target": "0,1,0"
+                  "source": "(0,0,0)",
+                  "target": "(0,1,0)"
                 },
                 {
                   "attributes": [
                     "d2"
                   ],
-                  "source": "1,1,0",
-                  "target": "0,1,0"
+                  "source": "(1,1,0)",
+                  "target": "(0,1,0)"
                 }
               ],
               "header": {
@@ -248,17 +236,17 @@ mod tests {
                 }
               },
               "nodes": {
-                "0,0,0": {
+                "(0,0,0)": {
                   "position": 0,
                   "x": 0,
                   "y": 0
                 },
-                "0,1,0": {
+                "(0,1,0)": {
                   "position": 0,
                   "x": 0,
                   "y": 1
                 },
-                "1,1,0": {
+                "(1,1,0)": {
                   "position": 0,
                   "x": 1,
                   "y": 1

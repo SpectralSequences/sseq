@@ -27,6 +27,9 @@ fn main() -> anyhow::Result<()> {
 
     let out = std::io::stdout();
     match format.as_str() {
+        "svg" => {
+            sseq.write_to_graph(SvgBackend::new(out), 2, false, products.iter(), |_| Ok(()))?
+        }
         "tikz" => {
             sseq.write_to_graph(TikzBackend::new(out), 2, false, products.iter(), |_| Ok(()))?
         }
@@ -35,7 +38,7 @@ fn main() -> anyhow::Result<()> {
                 Ok(())
             })?
         }
-        _ => sseq.write_to_graph(SvgBackend::new(out), 2, false, products.iter(), |_| Ok(()))?,
+        _ => unreachable!(),
     }
     Ok(())
 }
