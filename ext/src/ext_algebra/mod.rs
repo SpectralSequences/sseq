@@ -35,6 +35,46 @@ use crate::{
     utils::{QueryModuleResolution, get_unit},
 };
 
+/// The differential of the Ext DGA: the coboundary on the cochain complex
+/// $\Hom(P_\bullet, k) = k^{\text{gens}}$ whose cohomology is the "Ext part" —
+/// the next page.
+///
+/// It shifts bidegree by a fixed [`shift`](ExtDifferential::shift) and, at each
+/// bidegree, gives its matrix in the generator bases. Over a field with a
+/// *minimal* resolution this differential is identically zero — $d_s$ lands in
+/// $\bar A \cdot P_{s-1}$, which every $\varphi\colon P_{s-1} \to k$ kills — so
+/// $\Ext$ is just the generators and taking cohomology is a no-op. A deformation
+/// (the motivic lift's $\delta$) or a secondary operation (the Adams $d_2$) is
+/// what makes it nonzero and the cohomology nontrivial.
+pub trait ExtDifferential: Send + Sync {
+    /// The fixed bidegree shift the differential applies: $\delta\colon \Ext_b \to
+    /// \Ext_{b + \mathrm{shift}}$.
+    fn shift(&self) -> Bidegree;
+
+    /// The matrix of $\delta$ out of bidegree `b`: rows index the generators at
+    /// `b`, columns the generators at `b + shift`. `None` if the differential out
+    /// of `b` is out of the computed range; a computed-but-empty bidegree yields a
+    /// valid zero-size matrix, not `None`.
+    fn matrix(&self, b: Bidegree) -> Option<Matrix>;
+
+    /// For a **graded** coefficient (e.g. $\mathbb{F}_2[\tau]$, graded by motivic
+    /// weight), the number of cochain generators at `b` whose grade is `≤ cap`.
+    /// The default — an ungraded (field) coefficient — returns `None`, meaning "no
+    /// grading", and the capped cohomology falls back to the full dimension.
+    fn graded_dimension(&self, b: Bidegree, cap: i32) -> Option<usize> {
+        let _ = (b, cap);
+        None
+    }
+
+    /// The differential [`matrix`](Self::matrix) restricted to generators of grade
+    /// `≤ cap` at both ends (rows and columns compacted to the kept generators).
+    /// The default ignores `cap` (ungraded), returning the full matrix.
+    fn matrix_capped(&self, b: Bidegree, cap: i32) -> Option<Matrix> {
+        let _ = cap;
+        self.matrix(b)
+    }
+}
+
 /// $\Ext(M, k)$ as a bigraded module over the bigraded algebra $\Ext(k, k)$, backed by a
 /// resolution. See the [module-level documentation](self) for conventions.
 pub struct ExtAlgebra<CC: FreeChainComplex> {
@@ -45,6 +85,9 @@ pub struct ExtAlgebra<CC: FreeChainComplex> {
     is_unit: bool,
     /// One multiplication map per generator of $\Ext(M, k)$, built and extended on demand.
     products: DashMap<BidegreeGenerator, Arc<ResolutionHomomorphism<CC, CC>>>,
+    /// The DGA differential, if any. `None` is the field/minimal case (zero
+    /// coboundary), where the cohomology is just the generators.
+    differential: Option<Arc<dyn ExtDifferential>>,
 }
 
 impl ExtAlgebra<QueryModuleResolution> {
@@ -75,6 +118,7 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             resolution,
             unit,
             products: DashMap::new(),
+            differential: None,
         }
     }
 
@@ -88,6 +132,58 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// or [`new`](Self::new) instead.
     pub fn without_unit(resolution: Arc<CC>) -> Self {
         Self::new(Arc::clone(&resolution), resolution)
+    }
+
+    /// Attach a DGA differential, turning this into the Ext DGA whose cohomology
+    /// is the next page (see [`ExtDifferential`] and [`Self::cohomology_dimension`]).
+    /// Without one, the cohomology is the field/minimal case — just the generators.
+    #[must_use]
+    pub fn with_differential(mut self, differential: Arc<dyn ExtDifferential>) -> Self {
+        self.differential = Some(differential);
+        self
+    }
+
+    /// The differential this DGA carries, if any.
+    pub fn differential(&self) -> Option<&Arc<dyn ExtDifferential>> {
+        self.differential.as_ref()
+    }
+
+    /// The dimension of the DGA's cohomology at `b` — the "Ext part":
+    /// $\dim H_b = \dim\ker(\delta \text{ out of } b) - \mathrm{rank}(\delta \text{ into } b)
+    /// = \mathrm{gens}(b) - \mathrm{rank}\,\delta_{\text{out}}(b) - \mathrm{rank}\,\delta_{\text{in}}(b)$.
+    ///
+    /// With no differential (a field/minimal resolution, the zero coboundary) this
+    /// is exactly the generator count — the cohomology *is* $\Ext$, and "taking
+    /// cohomology" degenerates to reading generators. A nonzero differential (the
+    /// motivic $\delta$, an Adams $d_2$) makes it a genuine kernel-mod-image.
+    ///
+    /// Returns `None` if the outgoing differential at `b` is out of the computed
+    /// range; a missing incoming differential (no source bidegree, or empty) counts
+    /// as rank $0$.
+    pub fn cohomology_dimension(&self, b: Bidegree) -> Option<usize> {
+        self.cohomology_dimension_capped(b, i32::MAX)
+    }
+
+    /// The dimension of the DGA's cohomology at `b` restricted to the coefficient's
+    /// weight slice `≤ cap` — for a graded coefficient like $\mathbb{F}_2[\tau]$
+    /// this is a slice of the Ext *module*, and sweeping `cap` exposes the
+    /// $\tau$-torsion (dimension above the free/`cap = ∞` rank). For an ungraded
+    /// (field) coefficient the differential reports no grading and this is just
+    /// [`cohomology_dimension`](Self::cohomology_dimension) for every `cap`.
+    pub fn cohomology_dimension_capped(&self, b: Bidegree, cap: i32) -> Option<usize> {
+        let Some(d) = &self.differential else {
+            return Some(self.dimension(b));
+        };
+        let gens = d
+            .graded_dimension(b, cap)
+            .unwrap_or_else(|| self.dimension(b));
+        let shift = d.shift();
+        let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
+        let rank_out = d.matrix_capped(b, cap)?.row_reduce();
+        let rank_in = d
+            .matrix_capped(source, cap)
+            .map_or(0, |mut m| m.row_reduce());
+        Some(gens - rank_out - rank_in)
     }
 
     pub fn resolution(&self) -> &Arc<CC> {
@@ -264,8 +360,60 @@ where
 
 #[cfg(test)]
 mod tests {
+    use fp::prime::TWO;
+
     use super::*;
     use crate::utils::construct_standard;
+
+    #[test]
+    fn test_zero_differential_cohomology_is_generators() {
+        // The field/minimal case: with no differential the DGA cohomology is just
+        // the generators — "taking the Ext" is a no-op.
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(8, 8));
+        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+        for s in 0..=8 {
+            for n in 0..=8 {
+                let b = Bidegree::n_s(n, s);
+                assert_eq!(alg.cohomology_dimension(b), Some(alg.dimension(b)));
+            }
+        }
+    }
+
+    #[test]
+    fn test_differential_cohomology_kills_kernel_and_image() {
+        // A synthetic rank-1 differential (0,2) -> (0,1) must kill both ends in
+        // cohomology: h_0^2 by the outgoing rank, h_0 by the incoming rank. An
+        // untouched bidegree (h_1) is unchanged.
+        struct MockDiff;
+        impl ExtDifferential for MockDiff {
+            fn shift(&self) -> Bidegree {
+                Bidegree::n_s(0, -1) // lowers filtration: (0,2) -> (0,1)
+            }
+            fn matrix(&self, b: Bidegree) -> Option<Matrix> {
+                if b == Bidegree::n_s(0, 2) {
+                    let mut m = Matrix::new(TWO, 1, 1);
+                    m.row_mut(0).set_entry(0, 1);
+                    Some(m)
+                } else {
+                    Some(Matrix::new(TWO, 0, 0)) // rank 0 elsewhere
+                }
+            }
+        }
+
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(8, 8));
+        let alg = ExtAlgebra::new(Arc::clone(&res), res).with_differential(Arc::new(MockDiff));
+
+        // Sanity: all three source bidegrees are 1-dimensional on the E-page.
+        assert_eq!(alg.dimension(Bidegree::n_s(0, 1)), 1); // h_0
+        assert_eq!(alg.dimension(Bidegree::n_s(0, 2)), 1); // h_0^2
+        assert_eq!(alg.dimension(Bidegree::n_s(1, 1)), 1); // h_1
+
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 2)), Some(0)); // outgoing rank 1
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 1)), Some(0)); // incoming rank 1
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(1, 1)), Some(1)); // untouched
+    }
 
     #[test]
     fn test_sphere_products() {
