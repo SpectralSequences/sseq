@@ -25,7 +25,11 @@ pub mod secondary;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
+use fp::{
+    matrix::{AugmentedMatrix, Matrix, Subquotient, Subspace},
+    prime::ValidPrime,
+    vector::FpVector,
+};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
@@ -184,6 +188,46 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             .matrix_capped(source, cap)
             .map_or(0, |mut m| m.row_reduce());
         Some(gens - rank_out - rank_in)
+    }
+
+    /// The DGA's cohomology at `b` as a [`Subquotient`] of the generators — the
+    /// actual kernel-mod-image subspace, so callers get *representatives* of the
+    /// surviving classes, not just the [dimension](Self::cohomology_dimension).
+    /// The numerator is $\ker(\delta \text{ out of } b)$, the denominator is
+    /// $\operatorname{im}(\delta \text{ into } b)$. With no differential attached
+    /// every generator survives, so this is the full space.
+    ///
+    /// `None` if the outgoing differential at `b` is out of the computed range (as
+    /// with [`cohomology_dimension`](Self::cohomology_dimension)).
+    pub fn cohomology_subquotient(&self, b: Bidegree) -> Option<Subquotient> {
+        let p = self.prime();
+        let dim = self.dimension(b);
+        let Some(d) = &self.differential else {
+            return Some(Subquotient::new_full(p, dim));
+        };
+
+        // Numerator: ker(δ out of b), via the standard augmented-identity kernel.
+        let out = d.matrix(b)?;
+        let target_dim = out.columns();
+        let mut aug = AugmentedMatrix::<2>::new(p, dim, [target_dim, dim]);
+        aug.segment(1, 1).add_identity();
+        for i in 0..dim {
+            aug.row_mut(i).slice_mut(0, target_dim).add(out.row(i), 1);
+        }
+        aug.row_reduce();
+        let numerator = aug.compute_kernel();
+
+        // Denominator: im(δ into b) = row space of δ out of the source bidegree. A
+        // well-shaped differential lands in the gens(b)-space (`dim` columns), so its
+        // rows are vectors of the right ambient; a missing source is the zero image.
+        let shift = d.shift();
+        let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
+        let denominator = match d.matrix(source) {
+            Some(m) => Subspace::from_matrix(m),
+            None => Subspace::new(p, dim),
+        };
+
+        Some(Subquotient::from_parts(numerator, denominator))
     }
 
     pub fn resolution(&self) -> &Arc<CC> {
