@@ -32,8 +32,8 @@
 //! Coefficients are homogeneous, so each one is a single power of $\tau$: a
 //! [`Tau`] scalar (see [`super::tau`]). This is the $A_C$ product **engine**,
 //! over $\mathbb{F}_2[\tau]$; the mod-$\tau$ reduction $A_C/\tau$ is presented to
-//! the resolution engine as an ordinary $\mathbb{F}_2$-algebra in
-//! [`super::ctau`].
+//! the resolution engine as an ordinary $\mathbb{F}_2$-algebra in a follow-up
+//! layer built on top of this engine.
 //!
 //! Weight convention: the motivic weight of an algebra basis element is the
 //! *negative* of the weight of the dual monomial it pairs with, so that products
@@ -892,8 +892,8 @@ pub fn multiply_closed(a: &(u32, Vec<u32>), b: &(u32, Vec<u32>)) -> DualElement 
 /// exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed), whose coefficients
 /// are [`Tau`] scalars. It is deliberately not an [`Algebra`](crate::algebra::Algebra)
 /// implementation, because that trait is over $\mathbb{F}_p$; the mod-$\tau$ reduction, which *is*
-/// such an algebra, lives in [`super::ctau`], and the honest $\mathbb{F}_2[\tau]$ resolution is
-/// built by lifting against this engine (Phase 2).
+/// such an algebra, is a follow-up layer on top of this engine, and the honest
+/// $\mathbb{F}_2[\tau]$ resolution is built by lifting against this engine (Phase 2).
 ///
 /// Weight convention: [`bidegree`](MotivicMilnorAlgebra::bidegree) returns `(t, w)` where `t` is
 /// the topological degree and `w` is the motivic weight in the presentation where $\tau$ has
