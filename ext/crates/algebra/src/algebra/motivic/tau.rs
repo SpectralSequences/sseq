@@ -8,7 +8,7 @@
 //! sentinel for zero. That is [`Tau`].
 //!
 //! This is a small, self-contained scalar type for the motivic layer only. It is
-//! deliberately **not** an [`fp`](fp) replacement threaded through the resolution
+//! deliberately **not** an [`fp`] replacement threaded through the resolution
 //! engine: the engine stays $\mathbb{F}_p$-only (see the `motivic` module docs),
 //! and `Tau` is used solely by the motivic algebra and the Phase 2 lift.
 
@@ -24,11 +24,10 @@
 pub struct Tau(Option<u32>);
 
 impl Tau {
-    /// The zero coefficient.
-    pub const ZERO: Self = Self(None);
-
     /// The unit $\tau^0 = 1$.
     pub const ONE: Self = Self(Some(0));
+    /// The zero coefficient.
+    pub const ZERO: Self = Self(None);
 
     /// The zero coefficient (method form, for symmetry with [`Tau::one`]).
     pub fn zero() -> Self {

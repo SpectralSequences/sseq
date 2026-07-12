@@ -621,11 +621,23 @@ thread_local! {
 }
 
 fn columns_eq_cached(target: u32) -> Rc<Vec<Vec<u32>>> {
-    COLS_EQ.with(|c| Rc::clone(c.borrow_mut().entry(target).or_insert_with(|| Rc::new(columns_eq(target)))))
+    COLS_EQ.with(|c| {
+        Rc::clone(
+            c.borrow_mut()
+                .entry(target)
+                .or_insert_with(|| Rc::new(columns_eq(target))),
+        )
+    })
 }
 
 fn columns_le_cached(bound: u32) -> Rc<Vec<Vec<u32>>> {
-    COLS_LE.with(|c| Rc::clone(c.borrow_mut().entry(bound).or_insert_with(|| Rc::new(columns_le(bound)))))
+    COLS_LE.with(|c| {
+        Rc::clone(
+            c.borrow_mut()
+                .entry(bound)
+                .or_insert_with(|| Rc::new(columns_le(bound))),
+        )
+    })
 }
 
 /// The column-0 options for the `X` matrix: `x_{0,0} = 0`, and `x_{i,0} ≤ R₁[i]`
@@ -737,7 +749,11 @@ impl<'a> Closed<'a> {
         let sprime: Vec<u32> = (0..self.l)
             .map(|j| if j == 0 { 0 } else { self.r1v[j] - acc.rows[j] })
             .collect();
-        let sigma2_sprime: i64 = sprime.iter().enumerate().map(|(j, &v)| (v as i64) << j).sum();
+        let sigma2_sprime: i64 = sprime
+            .iter()
+            .enumerate()
+            .map(|(j, &v)| (v as i64) << j)
+            .sum();
         let sigma_sprime: u32 = sprime.iter().sum();
 
         // RY targets: column j ≥ 1 of Y has weighted sum R₂[j] − R(X)[j].
@@ -757,7 +773,11 @@ impl<'a> Closed<'a> {
         }
 
         // The output P-part T(X) (index 0 dropped: ξ₀ = 1).
-        let out_r = trim(std::iter::once(0).chain((1..NB).map(|d| acc.sum[d])).collect());
+        let out_r = trim(
+            std::iter::once(0)
+                .chain((1..NB).map(|d| acc.sum[d]))
+                .collect(),
+        );
 
         let mut y_cands: Vec<Rc<Vec<Vec<u32>>>> = Vec::with_capacity(self.l);
         y_cands.push(columns_eq_cached(ry0 as u32));
@@ -807,7 +827,10 @@ fn enum_y<'b>(
         if e1_mask.count_ones() + 2 * sigma_sprime != sigma_sy {
             return;
         }
-        let sy_len = (0..NB).rev().find(|&i| acc.rows[i] > 0).map_or(0, |i| i + 1);
+        let sy_len = (0..NB)
+            .rev()
+            .find(|&i| acc.rows[i] > 0)
+            .map_or(0, |i| i + 1);
         if c_coeff(&acc.rows[..sy_len], sprime) == 0 {
             return;
         }
@@ -826,7 +849,11 @@ fn enum_y<'b>(
         return;
     }
     for cand in y_cands[j].iter() {
-        if !cand.iter().enumerate().all(|(i, &v)| acc.or[i + j] & v == 0) {
+        if !cand
+            .iter()
+            .enumerate()
+            .all(|(i, &v)| acc.or[i + j] & v == 0)
+        {
             continue;
         }
         for (i, &v) in cand.iter().enumerate() {
@@ -836,7 +863,16 @@ fn enum_y<'b>(
         }
         ycols.push(cand);
         enum_y(
-            y_cands, j + 1, ycols, acc, e1_mask, e2_mask, sprime, sigma_sprime, out_r, out,
+            y_cands,
+            j + 1,
+            ycols,
+            acc,
+            e1_mask,
+            e2_mask,
+            sprime,
+            sigma_sprime,
+            out_r,
+            out,
         );
         ycols.pop();
         for (i, &v) in cand.iter().enumerate() {
@@ -1094,13 +1130,7 @@ impl MotivicMilnorAlgebra {
     /// elements in degree `t1 + t2`: a list of `(coefficient, index)` pairs. The product of two
     /// homogeneous basis elements is weight-homogeneous, so each coefficient is a single power of
     /// $\tau$ — a [`Tau`] scalar.
-    pub fn product_indexed(
-        &self,
-        t1: i32,
-        idx1: usize,
-        t2: i32,
-        idx2: usize,
-    ) -> Vec<(Tau, usize)> {
+    pub fn product_indexed(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<(Tau, usize)> {
         self.product_indexed_with(t1, idx1, t2, idx2, <[_]>::to_vec)
     }
 
@@ -1196,7 +1226,10 @@ mod tests {
             .collect();
         assert_eq!(
             terms,
-            DualElement::from([((0b10, vec![]), Tau::one()), ((0b1, vec![0, 1]), Tau::one())])
+            DualElement::from([
+                ((0b10, vec![]), Tau::one()),
+                ((0b1, vec![0, 1]), Tau::one())
+            ])
         );
     }
 
@@ -1380,7 +1413,10 @@ mod tests {
                 .collect()
         };
         let a_coeff = |mu_pp: &[u32], w_pp: &[u32]| -> u32 {
-            let ap = antipode(&DualElement::from([((0u32, pp_to_paper(w_pp)), Tau::one())]));
+            let ap = antipode(&DualElement::from([(
+                (0u32, pp_to_paper(w_pp)),
+                Tau::one(),
+            )]));
             // The antipode of a pure-ξ element is pure-ξ and τ-free, so a present monomial has
             // coefficient τ^0.
             ap.get(&(0u32, pp_to_paper(mu_pp)))
@@ -1617,9 +1653,9 @@ mod tests {
         assert_eq!(
             coproduct(&xi_gen(2)),
             TensorElement::from([
-                (((0, vec![]), (0, vec![0, 0, 1])), Tau::one()),  // 1 ⊗ ξ_2
+                (((0, vec![]), (0, vec![0, 0, 1])), Tau::one()), // 1 ⊗ ξ_2
                 (((0, vec![0, 1]), (0, vec![0, 2])), Tau::one()), // ξ_1 ⊗ ξ_1^2
-                (((0, vec![0, 0, 1]), (0, vec![])), Tau::one()),  // ξ_2 ⊗ 1
+                (((0, vec![0, 0, 1]), (0, vec![])), Tau::one()), // ξ_2 ⊗ 1
             ])
         );
     }
@@ -1695,10 +1731,7 @@ mod tests {
         assert_eq!(multiply_closed(&q0, &p_xi1), multiply(&q0, &p_xi1));
 
         // The τ-generating case: P(ξ_1)² has a τ Q_0 Q_1 term.
-        assert_eq!(
-            multiply_closed(&p_xi1, &p_xi1),
-            multiply(&p_xi1, &p_xi1)
-        );
+        assert_eq!(multiply_closed(&p_xi1, &p_xi1), multiply(&p_xi1, &p_xi1));
 
         // Q_i² = 0.
         for i in 0..3 {
