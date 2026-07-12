@@ -197,7 +197,8 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
         // ker ⊇ im requires d∘d = 0; a malformed differential could underflow here.
         debug_assert!(
             rank_out + rank_in <= gens,
-            "ExtDifferential violates d∘d=0 at {b:?}: rank_out={rank_out}, rank_in={rank_in}, gens={gens}"
+            "ExtDifferential violates d∘d=0 at {b:?}: rank_out={rank_out}, rank_in={rank_in}, \
+             gens={gens}"
         );
         Some(gens - rank_out - rank_in)
     }
@@ -245,7 +246,8 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
                 assert_eq!(
                     m.columns(),
                     dim,
-                    "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} columns, got {}",
+                    "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} \
+                     columns, got {}",
                     m.columns()
                 );
                 Subspace::from_matrix(m)
@@ -467,6 +469,7 @@ mod tests {
             fn shift(&self) -> Bidegree {
                 Bidegree::n_s(0, -1) // lowers filtration: (0,2) -> (0,1)
             }
+
             fn matrix(&self, b: Bidegree) -> Option<Matrix> {
                 let rows = (self.dims)(b);
                 let cols = (self.dims)(b + self.shift());
