@@ -190,10 +190,30 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             .unwrap_or_else(|| self.dimension(b));
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
-        let rank_out = d.matrix_capped(b, cap)?.row_reduce();
-        let rank_in = d
-            .matrix_capped(source, cap)
-            .map_or(0, |mut m| m.row_reduce());
+        // The capped matrix must line up with the capped generator count `gens`, or
+        // an undersized matrix would understate a rank and overstate the cohomology
+        // (matching the shape checks in `cohomology_subquotient`).
+        let mut out = d.matrix_capped(b, cap)?;
+        assert_eq!(
+            out.rows(),
+            gens,
+            "ExtDifferential::matrix_capped({b:?}, {cap}) must have gens = {gens} rows, got {}",
+            out.rows()
+        );
+        let rank_out = out.row_reduce();
+        let rank_in = match d.matrix_capped(source, cap) {
+            Some(mut incoming) => {
+                assert_eq!(
+                    incoming.columns(),
+                    gens,
+                    "ExtDifferential::matrix_capped({source:?}, {cap}) into {b:?} must have gens \
+                     = {gens} columns, got {}",
+                    incoming.columns()
+                );
+                incoming.row_reduce()
+            }
+            None => 0,
+        };
         // ker ⊇ im requires d∘d = 0; a malformed differential could underflow here.
         debug_assert!(
             rank_out + rank_in <= gens,
