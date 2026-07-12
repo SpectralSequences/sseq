@@ -323,12 +323,10 @@ fn main() -> anyhow::Result<()> {
                     target_all_gens + prod_all_gens,
                 );
 
+                let e3_page = |bd: Bidegree| Some(get_page_data(&unit_sseq, bd).clone());
                 b.hom_k_with(
                     b_lambda.as_deref(),
-                    Some(&|bd: Bidegree| {
-                        let d = unit_sseq.page_data(bd);
-                        Some(d[std::cmp::min(3, d.len() - 1)].clone())
-                    }),
+                    Some(&e3_page as &dyn Fn(Bidegree) -> Option<fp::matrix::Subquotient>),
                     c,
                     e2_kernel.basis(),
                     product_matrix
