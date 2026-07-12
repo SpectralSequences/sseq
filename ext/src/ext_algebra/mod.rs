@@ -73,6 +73,13 @@ pub trait ExtDifferential: Send + Sync {
     /// The differential [`matrix`](Self::matrix) restricted to generators of grade
     /// `≤ cap` at both ends (rows and columns compacted to the kept generators).
     /// The default ignores `cap` (ungraded), returning the full matrix.
+    ///
+    /// A graded implementor **must override this together with
+    /// [`graded_dimension`](Self::graded_dimension)** and keep them consistent: the
+    /// capped matrix's row count must equal `graded_dimension(b, cap)` (and its
+    /// column count `graded_dimension(b + shift, cap)`). Otherwise
+    /// [`cohomology_dimension_capped`](ExtAlgebra::cohomology_dimension_capped) mixes
+    /// a capped generator count with an uncapped rank.
     fn matrix_capped(&self, b: Bidegree, cap: i32) -> Option<Matrix> {
         let _ = cap;
         self.matrix(b)
@@ -187,6 +194,11 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
         let rank_in = d
             .matrix_capped(source, cap)
             .map_or(0, |mut m| m.row_reduce());
+        // ker ⊇ im requires d∘d = 0; a malformed differential could underflow here.
+        debug_assert!(
+            rank_out + rank_in <= gens,
+            "ExtDifferential violates d∘d=0 at {b:?}: rank_out={rank_out}, rank_in={rank_in}, gens={gens}"
+        );
         Some(gens - rank_out - rank_in)
     }
 
@@ -208,6 +220,12 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
         // Numerator: ker(δ out of b), via the standard augmented-identity kernel.
         let out = d.matrix(b)?;
+        assert_eq!(
+            out.rows(),
+            dim,
+            "ExtDifferential::matrix({b:?}) must have gens(b) = {dim} rows, got {}",
+            out.rows()
+        );
         let target_dim = out.columns();
         let mut aug = AugmentedMatrix::<2>::new(p, dim, [target_dim, dim]);
         aug.segment(1, 1).add_identity();
@@ -223,7 +241,15 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
         let denominator = match d.matrix(source) {
-            Some(m) => Subspace::from_matrix(m),
+            Some(m) => {
+                assert_eq!(
+                    m.columns(),
+                    dim,
+                    "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} columns, got {}",
+                    m.columns()
+                );
+                Subspace::from_matrix(m)
+            }
             None => Subspace::new(p, dim),
         };
 
@@ -407,7 +433,7 @@ mod tests {
     use fp::prime::TWO;
 
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
 
     #[test]
     fn test_zero_differential_cohomology_is_generators() {
@@ -429,25 +455,43 @@ mod tests {
         // A synthetic rank-1 differential (0,2) -> (0,1) must kill both ends in
         // cohomology: h_0^2 by the outgoing rank, h_0 by the incoming rank. An
         // untouched bidegree (h_1) is unchanged.
-        struct MockDiff;
+        // A differential shaped per the `matrix` contract: `gens(b)` rows,
+        // `gens(b + shift)` columns (0 off the first quadrant), with the single
+        // nonzero d2 entry d(h_0^2) = h_0 at (0,2) → (0,1). Sizing from the real
+        // generator counts keeps it a valid reference for `cohomology_subquotient`,
+        // not just the rank-only `cohomology_dimension`.
+        struct MockDiff {
+            dims: Arc<dyn Fn(Bidegree) -> usize + Send + Sync>,
+        }
         impl ExtDifferential for MockDiff {
             fn shift(&self) -> Bidegree {
                 Bidegree::n_s(0, -1) // lowers filtration: (0,2) -> (0,1)
             }
             fn matrix(&self, b: Bidegree) -> Option<Matrix> {
-                if b == Bidegree::n_s(0, 2) {
-                    let mut m = Matrix::new(TWO, 1, 1);
+                let rows = (self.dims)(b);
+                let cols = (self.dims)(b + self.shift());
+                let mut m = Matrix::new(TWO, rows, cols);
+                if b == Bidegree::n_s(0, 2) && rows == 1 && cols == 1 {
                     m.row_mut(0).set_entry(0, 1);
-                    Some(m)
-                } else {
-                    Some(Matrix::new(TWO, 0, 0)) // rank 0 elsewhere
                 }
+                Some(m)
             }
         }
 
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(8, 8));
-        let alg = ExtAlgebra::new(Arc::clone(&res), res).with_differential(Arc::new(MockDiff));
+        let dims: Arc<dyn Fn(Bidegree) -> usize + Send + Sync> = {
+            let res = Arc::clone(&res);
+            Arc::new(move |b: Bidegree| {
+                if b.n() >= 0 && b.s() >= 0 && res.has_computed_bidegree(b) {
+                    res.number_of_gens_in_bidegree(b)
+                } else {
+                    0
+                }
+            })
+        };
+        let alg = ExtAlgebra::new(Arc::clone(&res), Arc::clone(&res))
+            .with_differential(Arc::new(MockDiff { dims }));
 
         // Sanity: all three source bidegrees are 1-dimensional on the E-page.
         assert_eq!(alg.dimension(Bidegree::n_s(0, 1)), 1); // h_0
@@ -457,6 +501,27 @@ mod tests {
         assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 2)), Some(0)); // outgoing rank 1
         assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 1)), Some(0)); // incoming rank 1
         assert_eq!(alg.cohomology_dimension(Bidegree::n_s(1, 1)), Some(1)); // untouched
+
+        // The shape-correct mock drives `cohomology_subquotient` too: same answers,
+        // now with representatives.
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(0, 2))
+                .unwrap()
+                .dimension(),
+            0
+        );
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(0, 1))
+                .unwrap()
+                .dimension(),
+            0
+        );
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(1, 1))
+                .unwrap()
+                .dimension(),
+            1
+        );
     }
 
     #[test]
