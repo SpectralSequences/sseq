@@ -63,7 +63,22 @@ where
         // in-quadrant target — contributes to the ambient-`b` image) are genuinely
         // different and both matter to `cohomology_subquotient`, so size each end at
         // its own bidegree. Off the first quadrant Ext vanishes (0 generators, a
-        // *known* zero); in the first quadrant but unresolved is unknown (`None`).
+        // *known* zero).
+        //
+        // The source and target ends differ when the bidegree is in the first
+        // quadrant but unresolved:
+        //   * Source `b` (rows): the page at `b` is then unknown, so the whole
+        //     differential is unavailable — `None`.
+        //   * Target (cols): the secondary resolution simply records no d2 landing
+        //     there yet. The E3-page convention (`SecondaryResolution::e3_page`)
+        //     treats an uncomputed outgoing differential as zero, so we give a
+        //     `rows × 0` matrix — the whole source is a *provisional* d2-cycle —
+        //     rather than `None`. (This `rows × 0` matrix is never consumed as an
+        //     incoming differential: the target bidegree's own subquotient short-
+        //     circuits to `None` at its numerator, since its rows are unresolved.)
+        //
+        // `gens` gives the generator count at an end, or `None` when the bidegree is
+        // in the first quadrant but unresolved (a known zero off the quadrant).
         let gens = |x: Bidegree| -> Option<usize> {
             if x.n() < 0 || x.s() < 0 {
                 Some(0)
@@ -73,8 +88,10 @@ where
                 None
             }
         };
+        // Source unresolved ⇒ unknown page ⇒ no differential; target unresolved ⇒ no
+        // d2 recorded yet ⇒ provisional cycle (`rows × 0`).
         let rows = gens(b)?;
-        let cols = gens(target)?;
+        let cols = gens(target).unwrap_or(0);
 
         let mut mat = Matrix::new(p, rows, cols);
         // Fill only when both ends carry generators; `m[i]` is the d2 of the i-th
