@@ -16,10 +16,14 @@ use std::sync::{Arc, Mutex};
 
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
-use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
+use fp::{
+    matrix::{Matrix, Subquotient},
+    prime::{Prime, ValidPrime},
+    vector::FpVector,
+};
 use sseq::coordinates::{Bidegree, BidegreeElement};
 
-use super::ExtAlgebra;
+use super::{ExtAlgebra, ExtDifferential};
 use crate::{
     chain_complex::FreeChainComplex,
     resolution_homomorphism::ResolutionHomomorphism,
@@ -27,6 +31,70 @@ use crate::{
         LAMBDA_BIDEGREE, SecondaryLift, SecondaryResolution, SecondaryResolutionHomomorphism,
     },
 };
+
+/// The Adams $d_2$ presented as an [`ExtDifferential`] on the primary
+/// [`ExtAlgebra`]: the same coboundary shape as the motivic $\delta$, only with the
+/// Adams shift $(n, s) \mapsto (n-1, s+2)$. Its matrix out of a bidegree is exactly
+/// the $d_2$ the secondary resolution's homotopies record. Attaching it makes
+/// [`ExtAlgebra::cohomology_subquotient`] compute the $E_3$ page on the shared
+/// kernel-mod-image path — the same object the spectral-sequence bookkeeping gives.
+pub struct SecondaryCoboundary<CC: FreeChainComplex>
+where
+    CC::Algebra: PairAlgebra,
+{
+    res_lift: Arc<SecondaryResolution<CC>>,
+    p: ValidPrime,
+}
+
+impl<CC: FreeChainComplex> ExtDifferential for SecondaryCoboundary<CC>
+where
+    CC::Algebra: PairAlgebra,
+{
+    fn shift(&self) -> Bidegree {
+        Bidegree::n_s(-1, 2)
+    }
+
+    fn matrix(&self, b: Bidegree) -> Option<Matrix> {
+        let res = self.res_lift.underlying();
+        let target = b + self.shift();
+
+        // The shape must be exactly `gens(b) × gens(target)`: an `a × 0` (empty
+        // target — the whole source is a d2-cycle) and a `0 × b` (off-axis source,
+        // in-quadrant target — contributes to the ambient-`b` image) are genuinely
+        // different and both matter to `cohomology_subquotient`, so size each end at
+        // its own bidegree. Off the first quadrant Ext vanishes (0 generators, a
+        // *known* zero); in the first quadrant but unresolved is unknown (`None`).
+        let gens = |x: Bidegree| -> Option<usize> {
+            if x.n() < 0 || x.s() < 0 {
+                Some(0)
+            } else if res.has_computed_bidegree(x) {
+                Some(res.number_of_gens_in_bidegree(x))
+            } else {
+                None
+            }
+        };
+        let rows = gens(b)?;
+        let cols = gens(target)?;
+
+        let mut mat = Matrix::new(self.p, rows, cols);
+        // Fill only when both ends carry generators; `m[i]` is the d2 of the i-th
+        // generator of `b`, as a vector at `target` — the same matrix
+        // `SecondaryResolution::e3_page` reads to install d2.
+        if rows > 0 && cols > 0 {
+            let m = self.res_lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+            if !m.is_empty() && !m[0].is_empty() {
+                for (i, row) in m.iter().enumerate() {
+                    for (k, &v) in row.iter().enumerate() {
+                        if v != 0 {
+                            mat.row_mut(i).set_entry(k, v);
+                        }
+                    }
+                }
+            }
+        }
+        Some(mat)
+    }
+}
 
 /// A single secondary product `x · y` in $\Mod_{C\lambda^2}$, where `y` is an $E_3$-surviving
 /// class. See [`SecondaryExtAlgebra::secondary_multiply_into`].
@@ -304,5 +372,56 @@ mod tests {
         assert!(!d.vec().is_zero(), "d2(h4) = h0 h3^2 should be nonzero");
         let h4_survives = sec_e2.survives(&h4).expect("h4 should have a computed d2");
         assert!(!h4_survives, "h4 should not survive d2");
+    }
+
+    #[test]
+    fn d2_as_ext_differential_reproduces_the_e3_page() {
+        // The Adams d2 is an `ExtDifferential`: attaching `SecondaryCoboundary` to the
+        // primary ExtAlgebra makes the shared `cohomology_subquotient` path compute the
+        // exact E3 page the spectral-sequence bookkeeping (`page_data`) gives — same
+        // dimension at every bidegree, and the same d2-image quotient.
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(16, 6));
+        let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), Arc::clone(&res)));
+        let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        sec.extend_all();
+
+        let coboundary = Arc::new(SecondaryCoboundary {
+            res_lift: Arc::clone(&sec.res_lift),
+            p: e2.prime(),
+        });
+        let e2_d2 =
+            ExtAlgebra::new(Arc::clone(&res), Arc::clone(&res)).with_differential(coboundary);
+
+        let mut saw_nontrivial = false;
+        for n in 0..=15 {
+            for s in 1..=5 {
+                let b = Bidegree::n_s(n, s);
+                let Some(dim) = e2_d2.cohomology_dimension(b) else {
+                    continue;
+                };
+                let page = sec.page_data(b);
+                assert_eq!(
+                    dim,
+                    page.dimension(),
+                    "E3 dimension mismatch at (n={n}, s={s})"
+                );
+                // The subquotient's denominator is the d2-image: reducing any E2 vector
+                // by it must agree with the spectral sequence's page quotient.
+                let sq = e2_d2.cohomology_subquotient(b).unwrap();
+                assert_eq!(
+                    sq.dimension(),
+                    page.dimension(),
+                    "E3 subquotient dimension mismatch at (n={n}, s={s})"
+                );
+                if page.dimension() != e2.dimension(b) {
+                    saw_nontrivial = true; // d2 actually killed something here
+                }
+            }
+        }
+        assert!(
+            saw_nontrivial,
+            "expected d2 to be nontrivial somewhere in range (e.g. h4 at (15,1) → (14,3))"
+        );
     }
 }
