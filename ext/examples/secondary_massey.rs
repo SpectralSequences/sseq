@@ -325,7 +325,10 @@ fn main() -> anyhow::Result<()> {
 
                 b.hom_k_with(
                     b_lambda.as_deref(),
-                    Some(&unit_sseq),
+                    Some(&|bd: Bidegree| {
+                        let d = unit_sseq.page_data(bd);
+                        Some(d[std::cmp::min(3, d.len() - 1)].clone())
+                    }),
                     c,
                     e2_kernel.basis(),
                     product_matrix
