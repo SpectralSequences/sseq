@@ -2,9 +2,11 @@ use std::fmt::Display;
 
 use crate::coordinates::{Bidegree, BidegreeGenerator};
 
+pub mod seqsee;
 pub mod svg;
 pub mod tikz;
 
+pub use seqsee::SeqSeeBackend;
 pub use svg::SvgBackend;
 pub use tikz::TikzBackend;
 
