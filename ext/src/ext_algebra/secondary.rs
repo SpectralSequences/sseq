@@ -231,7 +231,10 @@ where
                 .expect("call extend_all() first"),
         );
 
-        let ext_dim = self.module.resolution().number_of_gens_in_bidegree(b + shift);
+        let ext_dim = self
+            .module
+            .resolution()
+            .number_of_gens_in_bidegree(b + shift);
         let lambda_dim = self
             .module
             .resolution()
