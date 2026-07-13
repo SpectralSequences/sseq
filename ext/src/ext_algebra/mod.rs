@@ -31,7 +31,7 @@
 //! up to a sign (as `y · x` where convenient), matching the existing example scripts.
 //!
 //! The secondary differential ($d_2$) and the $\Mod_{C\lambda^2}$ secondary product live in the
-//! [`secondary`] submodule ([`SecondaryExtAlgebra`]).
+//! [`secondary`] submodule ([`SecondaryExtAlgebra`] / [`SecondaryExtModule`]).
 
 pub mod massey;
 pub mod secondary;
@@ -42,7 +42,7 @@ use dashmap::DashMap;
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
-pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
+pub use self::secondary::{SecondaryExtAlgebra, SecondaryExtModule, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
