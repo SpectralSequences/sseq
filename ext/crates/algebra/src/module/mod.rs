@@ -22,7 +22,7 @@ pub use free_module::{
     UnstableFreeModule,
 };
 pub use hom_module::HomModule;
-pub use module_trait::{ActError, Module, ModuleFailedRelationError};
+pub use module_trait::{ActError, Module, ModuleExt, ModuleFailedRelationError};
 pub use quotient_module::QuotientModule;
 pub use rpn::RealProjectiveSpace;
 pub use steenrod_module::SteenrodModule;

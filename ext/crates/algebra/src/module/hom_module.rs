@@ -3,10 +3,11 @@ use std::sync::Arc;
 use bivec::BiVec;
 use fp::vector::FpSliceMut;
 use once::OnceBiVec;
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::Field,
-    module::{FreeModule, Module, block_structure::BlockStructure},
+    module::{FreeModule, Module, ModuleExt, block_structure::BlockStructure},
 };
 
 /// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
@@ -76,7 +77,8 @@ impl<M: Module> Module for HomModule<M> {
         self.source.max_computed_degree() - self.target.max_degree().unwrap()
     }
 
-    fn compute_basis(&self, degree: i32) {
+    fn compute_basis_multi(&self, degree: MultiDegree<1>) {
+        let degree = i32::from(degree);
         self.source
             .compute_basis(degree + self.target.max_degree().unwrap());
         self.block_structures.extend(degree, |d| {
@@ -95,25 +97,28 @@ impl<M: Module> Module for HomModule<M> {
         });
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         self.block_structures[degree].total_dimension()
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        _mod_degree: i32,
+        _mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
         assert_eq!(op_degree, 0);
         assert_eq!(op_index, 0);
         result.add_basis_element(mod_index, coeff);
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         let gen_basis_elt = self.block_structures[degree].index_to_generator_basis_elt(idx);
         let gen_deg = gen_basis_elt.generator_degree;
         let gen_idx = gen_basis_elt.generator_index;

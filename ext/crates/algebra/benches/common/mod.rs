@@ -15,7 +15,7 @@ use std::{hint::black_box, path::PathBuf, sync::Arc};
 
 use algebra::{
     Algebra, AlgebraType, SteenrodAlgebra,
-    module::{Module, SteenrodModule, steenrod_module},
+    module::{Module, ModuleExt, SteenrodModule, steenrod_module},
 };
 use criterion::{BenchmarkGroup, Throughput, measurement::WallTime};
 use fp::{

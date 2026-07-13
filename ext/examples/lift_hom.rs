@@ -41,7 +41,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use algebra::module::Module;
+use algebra::module::{Module, ModuleExt};
 use anyhow::{Context, anyhow};
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},

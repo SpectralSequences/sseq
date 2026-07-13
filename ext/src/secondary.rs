@@ -3,7 +3,7 @@ use std::{io, sync::Arc};
 use algebra::{
     Algebra,
     module::{
-        FreeModule, Module,
+        FreeModule, Module, ModuleExt,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
     pair_algebra::PairAlgebra,
