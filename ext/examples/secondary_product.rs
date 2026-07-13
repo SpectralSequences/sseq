@@ -56,7 +56,9 @@ fn main() -> anyhow::Result<()> {
             resolution.module(0).max_computed_degree(),
             resolution.next_homological_degree() - 1,
         );
-        e2.algebra().resolution().compute_through_stem(res_max - shift);
+        e2.algebra()
+            .resolution()
+            .compute_through_stem(res_max - shift);
     }
 
     let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));

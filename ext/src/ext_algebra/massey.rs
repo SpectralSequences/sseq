@@ -61,9 +61,10 @@ where
     }
 
     /// The multiplication-by-`b` chain self-map of the unit (`res(k) → res(k)`), extended far enough
-    /// for brackets landing at `shift`. This comes from the shared ring cache in the
-    /// [`ExtAlgebra`](super::ExtAlgebra) (see [`ExtAlgebra::class_product_map`](super::ExtAlgebra::class_product_map)),
-    /// so the multiply-by-`b` map is built once and reused across brackets and modules.
+    /// for brackets landing at `shift`. This comes from
+    /// [`ExtAlgebra::class_product_map`](super::ExtAlgebra::class_product_map), which caches and
+    /// shares the per-*generator* product maps; a general (multi-generator) class assembles a fresh
+    /// combined map from them on every call.
     fn massey_b_hom(
         &self,
         b: &BidegreeElement,
@@ -292,8 +293,9 @@ where
         let bc_shift = b.degree() + c.degree() - Bidegree::s_t(1, 0);
 
         // `f_c` realises `c` (resolution of `M` → unit); `f_b` is multiplication by `b` (in the
-        // unit), taken from the shared ring cache. The single null-homotopy `s_bc` of `b ∘ c` is
-        // reused for every first factor.
+        // unit), from `class_product_map` (per-generator maps are cached and shared, but a
+        // multi-generator `b` assembles a fresh combined map here). The single null-homotopy `s_bc`
+        // of `b ∘ c` is reused for every first factor.
         let c_coords: Vec<u32> = c.vec().iter().collect();
         let f_c = Arc::new(ResolutionHomomorphism::from_class(
             String::new(),
@@ -381,7 +383,9 @@ where
         b_hom.extend_through_stem(ab_deg);
         let mut ab = FpVector::new(
             self.prime(),
-            self.algebra().resolution().number_of_gens_in_bidegree(ab_deg),
+            self.algebra()
+                .resolution()
+                .number_of_gens_in_bidegree(ab_deg),
         );
         for (j, coef) in a.vec().iter_nonzero() {
             b_hom.act(
