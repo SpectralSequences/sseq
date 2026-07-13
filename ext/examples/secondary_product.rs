@@ -25,7 +25,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, SecondaryExtAlgebra},
+    ext_algebra::{ExtModule, SecondaryExtAlgebra},
     secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };
@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
-    let e2 = Arc::new(ExtAlgebra::from_resolution(Arc::clone(&resolution))?);
+    let e2 = Arc::new(ExtModule::from_resolution(Arc::clone(&resolution))?);
 
     let name: String = query::raw("Name of product", str::parse);
     let shift = Bidegree::n_s(
@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
             resolution.module(0).max_computed_degree(),
             resolution.next_homological_degree() - 1,
         );
-        e2.unit().compute_through_stem(res_max - shift);
+        e2.algebra().resolution().compute_through_stem(res_max - shift);
     }
 
     let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));
@@ -80,7 +80,7 @@ fn main() -> anyhow::Result<()> {
     let disp = format!("[{name}]");
 
     // Iterate through the multiplicand.
-    for b in e2.unit().iter_nonzero_stem() {
+    for b in e2.algebra().resolution().iter_nonzero_stem() {
         // The potential target has to be hit, and we need to have computed (the data needed for)
         // the d2 that hits the potential target.
         if !resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
