@@ -50,7 +50,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtModule, secondary::SecondaryExtAlgebra},
+    ext_algebra::{ExtModule, secondary::SecondaryExtModule},
     utils::query_module,
 };
 use sseq::coordinates::Bidegree;
@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
 
     // The d2 differential is intrinsic to the resolution and needs no unit, so we avoid the unit
     // setup with `ExtModule::intrinsic` (the module is its own `k`).
-    let sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtModule::intrinsic(resolution)));
+    let sec_e2 = SecondaryExtModule::from_module(Arc::new(ExtModule::intrinsic(resolution)));
 
     if let Some(s) = ext::utils::secondary_job() {
         sec_e2.compute_partial(s);

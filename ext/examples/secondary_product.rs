@@ -25,7 +25,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtModule, SecondaryExtAlgebra},
+    ext_algebra::{ExtModule, SecondaryExtModule},
     secondary::{LAMBDA_BIDEGREE, SecondaryLift},
     utils::query_module,
 };
@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
             .compute_through_stem(res_max - shift);
     }
 
-    let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));
+    let sec_e2 = Arc::new(SecondaryExtModule::from_module(Arc::clone(&e2)));
     sec_e2.extend_all();
 
     // Check that the class survives to E3 (supports no d2).
@@ -98,7 +98,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let page = sec_e2.unit_page_data(b);
+        let page = sec_e2.algebra().page_data(b);
 
         // First the products with non-surviving classes: these are just λ times the (primary)
         // product, read off the multiplication map.
