@@ -1,6 +1,6 @@
-//! The secondary ($d_2$) layer of [`ExtAlgebra`].
+//! The secondary ($d_2$) layer of [`ExtModule`].
 //!
-//! [`SecondaryExtAlgebra`] composes an [`ExtAlgebra`] with the secondary resolutions of `M` and
+//! [`SecondaryExtAlgebra`] composes an [`ExtModule`] with the secondary resolutions of `M` and
 //! the unit `k`, and exposes:
 //! - the secondary differential [`d2`](SecondaryExtAlgebra::d2) (and the survival check
 //!   [`survives`](SecondaryExtAlgebra::survives)),
@@ -9,7 +9,7 @@
 //!   [`secondary_multiply_into`](SecondaryExtAlgebra::secondary_multiply_into).
 //!
 //! These wrap [`SecondaryResolution`] and [`SecondaryResolutionHomomorphism`]; no new linear
-//! algebra is implemented here. The layer is split out from [`ExtAlgebra`] because the secondary
+//! algebra is implemented here. The layer is split out from [`ExtModule`] because the secondary
 //! machinery requires `CC::Algebra: PairAlgebra`, a bound the primary layer does not impose.
 
 use std::sync::{Arc, Mutex};
@@ -19,7 +19,7 @@ use dashmap::DashMap;
 use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
 use sseq::coordinates::{Bidegree, BidegreeElement};
 
-use super::ExtAlgebra;
+use super::ExtModule;
 use crate::{
     chain_complex::FreeChainComplex,
     resolution_homomorphism::ResolutionHomomorphism,
@@ -40,13 +40,13 @@ pub struct SecondaryProduct {
     pub lambda_part: FpVector,
 }
 
-/// The secondary layer over an [`ExtAlgebra`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
+/// The secondary layer over an [`ExtModule`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
 /// product. See the [module documentation](self).
 pub struct SecondaryExtAlgebra<CC: FreeChainComplex>
 where
     CC::Algebra: PairAlgebra,
 {
-    alg: Arc<ExtAlgebra<CC>>,
+    module: Arc<ExtModule<CC>>,
     res_lift: Arc<SecondaryResolution<CC>>,
     /// `Arc`-shared with `res_lift` when `M == k`.
     unit_lift: Arc<SecondaryResolution<CC>>,
@@ -62,17 +62,19 @@ impl<CC: FreeChainComplex> SecondaryExtAlgebra<CC>
 where
     CC::Algebra: PairAlgebra,
 {
-    /// Build the secondary layer over `alg`. Construction is cheap; call [`extend_all`](Self::extend_all)
+    /// Build the secondary layer over `module`. Construction is cheap; call [`extend_all`](Self::extend_all)
     /// to actually compute the secondary resolutions and $E_3$ pages.
-    pub fn new(alg: Arc<ExtAlgebra<CC>>) -> Self {
-        let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(alg.resolution())));
-        let unit_lift = if alg.is_unit() {
+    pub fn new(module: Arc<ExtModule<CC>>) -> Self {
+        let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(module.resolution())));
+        let unit_lift = if module.is_unit() {
             Arc::clone(&res_lift)
         } else {
-            Arc::new(SecondaryResolution::new(Arc::clone(alg.unit())))
+            Arc::new(SecondaryResolution::new(Arc::clone(
+                module.algebra().resolution(),
+            )))
         };
         Self {
-            alg,
+            module,
             res_lift,
             unit_lift,
             res_sseq: Mutex::new(None),
@@ -86,12 +88,12 @@ where
     /// [`secondary_multiply_into`](Self::secondary_multiply_into).
     pub fn extend_all(&self) {
         self.res_lift.extend_all();
-        if !self.alg.is_unit() {
+        if !self.module.is_unit() {
             self.unit_lift.extend_all();
         }
 
         *self.res_sseq.lock().unwrap() = Some(Arc::new(self.res_lift.e3_page()));
-        let unit = if self.alg.is_unit() {
+        let unit = if self.module.is_unit() {
             Arc::clone(self.res_sseq.lock().unwrap().as_ref().unwrap())
         } else {
             Arc::new(self.unit_lift.e3_page())
@@ -104,18 +106,18 @@ where
     /// Mirrors [`SecondaryLift::compute_partial`]. Returns before any $E_3$ page is built.
     pub fn compute_partial(&self, s: i32) {
         self.res_lift.compute_partial(s);
-        if !self.alg.is_unit() {
+        if !self.module.is_unit() {
             self.unit_lift.compute_partial(s);
         }
     }
 
-    /// The primary [`ExtAlgebra`] this is built on.
-    pub fn ext_algebra(&self) -> &Arc<ExtAlgebra<CC>> {
-        &self.alg
+    /// The primary [`ExtModule`] this is built on.
+    pub fn module(&self) -> &Arc<ExtModule<CC>> {
+        &self.module
     }
 
     fn prime(&self) -> fp::prime::ValidPrime {
-        self.alg.prime()
+        self.module.prime()
     }
 
     /// The secondary differential $d_2(x)$, a class in bidegree `(n - 1, s + 2)`.
@@ -189,8 +191,8 @@ where
         let name = format!("prod_{x}",);
         let underlying = Arc::new(ResolutionHomomorphism::from_class(
             name,
-            Arc::clone(self.alg.resolution()),
-            Arc::clone(self.alg.unit()),
+            Arc::clone(self.module.resolution()),
+            Arc::clone(self.module.algebra().resolution()),
             x.degree(),
             &x.vec().iter().collect::<Vec<_>>(),
         ));
@@ -229,9 +231,9 @@ where
                 .expect("call extend_all() first"),
         );
 
-        let ext_dim = self.alg.resolution().number_of_gens_in_bidegree(b + shift);
+        let ext_dim = self.module.resolution().number_of_gens_in_bidegree(b + shift);
         let lambda_dim = self
-            .alg
+            .module
             .resolution()
             .number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
@@ -276,7 +278,7 @@ mod tests {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         // Far enough to reach the first Adams differential d2(h4) = h0 h3^2 at (14, 3).
         res.compute_through_stem(Bidegree::n_s(16, 6));
-        let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), res));
+        let e2 = Arc::new(ExtModule::intrinsic(res));
         let sec_e2 = SecondaryExtAlgebra::new(Arc::clone(&e2));
         sec_e2.extend_all();
 
