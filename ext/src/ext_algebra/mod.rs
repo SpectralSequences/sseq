@@ -125,29 +125,51 @@ where
     ///
     /// This is the single home for the ring-side multiplication maps that Massey products need
     /// (`massey_b_hom`). For a single generator it returns the cached
-    /// [`generator_product_map`](Self::generator_product_map); for a general class it realises the
-    /// class directly via [`ResolutionHomomorphism::from_class`].
+    /// [`generator_product_map`](Self::generator_product_map); for a general class it *adds* the
+    /// cached generator maps via [`ResolutionHomomorphism::linear_combination`] (no quasi-inverse
+    /// lift). The degenerate zero class falls back to [`ResolutionHomomorphism::from_class`].
     pub fn class_product_map(
         &self,
         x: &BidegreeElement,
         max: Bidegree,
     ) -> Arc<ResolutionHomomorphism<CC, CC>> {
         let nonzero: Vec<(usize, u32)> = x.vec().iter_nonzero().collect();
-        if let [(idx, 1)] = nonzero[..] {
-            let map = self.generator_product_map(BidegreeGenerator::new(x.degree(), idx));
-            map.extend_through_stem(max);
-            return map;
+        match nonzero.as_slice() {
+            [(idx, 1)] => {
+                let map = self.generator_product_map(BidegreeGenerator::new(x.degree(), *idx));
+                map.extend_through_stem(max);
+                map
+            }
+            [_, _, ..] => {
+                let summands: Vec<(u32, Arc<ResolutionHomomorphism<CC, CC>>)> = nonzero
+                    .iter()
+                    .map(|&(idx, c)| {
+                        let map =
+                            self.generator_product_map(BidegreeGenerator::new(x.degree(), idx));
+                        map.extend_through_stem(max);
+                        (c, map)
+                    })
+                    .collect();
+                Arc::new(ResolutionHomomorphism::linear_combination(
+                    String::new(),
+                    &summands,
+                    max,
+                ))
+            }
+            _ => {
+                // Zero class, or a single generator with coefficient != 1.
+                let coords: Vec<u32> = x.vec().iter().collect();
+                let hom = Arc::new(ResolutionHomomorphism::from_class(
+                    String::new(),
+                    Arc::clone(&self.resolution),
+                    Arc::clone(&self.resolution),
+                    x.degree(),
+                    &coords,
+                ));
+                hom.extend_through_stem(max);
+                hom
+            }
         }
-        let coords: Vec<u32> = x.vec().iter().collect();
-        let hom = Arc::new(ResolutionHomomorphism::from_class(
-            String::new(),
-            Arc::clone(&self.resolution),
-            Arc::clone(&self.resolution),
-            x.degree(),
-            &coords,
-        ));
-        hom.extend_through_stem(max);
-        hom
     }
 
     /// Left-multiplication by `x ∈ Ext(k, k)`, applied to every basis generator of $\Ext(k, k)$ at
@@ -171,7 +193,12 @@ where
         y: &BidegreeElement,
     ) -> Option<BidegreeElement> {
         let matrix = self.multiply_into(x, y.degree())?;
-        Some(combine_product(&matrix, y, x.degree() + y.degree(), self.prime()))
+        Some(combine_product(
+            &matrix,
+            y,
+            x.degree() + y.degree(),
+            self.prime(),
+        ))
     }
 
     /// The ring product `x · y`, both in $\Ext(k, k)$. Panics if out of the computed range; use
@@ -357,7 +384,12 @@ where
         y: &BidegreeElement,
     ) -> Option<BidegreeElement> {
         let matrix = self.multiply_into(x, y.degree())?;
-        Some(combine_product(&matrix, y, x.degree() + y.degree(), self.prime()))
+        Some(combine_product(
+            &matrix,
+            y,
+            x.degree() + y.degree(),
+            self.prime(),
+        ))
     }
 
     /// The product `x · y`, where `x ∈ Ext(M, k)` and `y ∈ Ext(k, k)`. When `M == k` both operands
@@ -428,7 +460,12 @@ where
     let mut matrix = Matrix::new(prime, mult_dim, res_dim);
 
     for (i, c) in x.vec().iter_nonzero() {
-        let map = cached_generator_product_map(products, source, target, BidegreeGenerator::new(shift, i));
+        let map = cached_generator_product_map(
+            products,
+            source,
+            target,
+            BidegreeGenerator::new(shift, i),
+        );
         map.extend_all();
 
         // `hom_k(b.t())[j][k]`: `j` indexes the multiplicand generator of `Ext(k, k)` at `b`, `k`
@@ -533,7 +570,9 @@ where
     /// generic `Module::is_unit` default, which inspects `min_degree`/`max_degree`, is meaningless
     /// for a bigraded `Ext`).
     fn is_unit(&self) -> bool {
-        ExtModule::is_unit(self)
+        // Method-call syntax resolves to the inherent `ExtModule::is_unit` (inherent methods take
+        // priority over trait methods), so this is the `Arc::ptr_eq` check, not a recursion.
+        self.is_unit()
     }
 
     /// `Ext` is bigraded, so there is no single meaningful `t`-bound. Per the crate's convention
@@ -546,8 +585,8 @@ where
     }
 
     /// The maximum filtration `s` for which the resolution of `M` is defined (an `s`-bound, not the
-    /// `t`-bound the [`Module`](algebra::module::Module) trait's prose describes — see
-    /// [`min_degree`](Self::min_degree) for the bigraded convention).
+    /// `t`-bound the [`Module`](algebra::module::Module) trait's prose describes — see the
+    /// `min_degree` note above for the bigraded convention).
     fn max_computed_degree(&self) -> i32 {
         self.resolution.next_homological_degree() - 1
     }
@@ -575,7 +614,9 @@ where
         mod_degree: Bidegree,
         mod_index: usize,
     ) {
-        let op = self.algebra.generator(BidegreeGenerator::new(op_degree, op_index));
+        let op = self
+            .algebra
+            .generator(BidegreeGenerator::new(op_degree, op_index));
         let mod_elt = self.generator(BidegreeGenerator::new(mod_degree, mod_index));
         let prod = self.multiply(&mod_elt, &op);
         result.add(prod.vec(), coeff);
@@ -674,7 +715,9 @@ mod tests {
         // The unit class 1 ∈ Ext^{0,0}(k, k).
         let unit_deg = Bidegree::n_s(0, 0);
         assert_eq!(module.algebra().dimension(unit_deg), 1);
-        let one = module.algebra().generator(BidegreeGenerator::new(unit_deg, 0));
+        let one = module
+            .algebra()
+            .generator(BidegreeGenerator::new(unit_deg, 0));
 
         // The bottom class of Ext(C2, k) at (0, 0); x · 1 = x.
         assert_eq!(module.dimension(Bidegree::n_s(0, 0)), 1);
@@ -706,5 +749,49 @@ mod tests {
             !a0_sq.vec().is_zero(),
             "a_0^2 should be nonzero at p = 3 (up to sign)"
         );
+    }
+
+    /// `class_product_map` on a multi-generator class assembles the multiply-by-a-class map by
+    /// *adding* the cached per-generator maps at the chain level
+    /// ([`ResolutionHomomorphism::linear_combination`]). This must induce the same products as
+    /// [`ExtModule::multiply_into`], which instead sums the per-generator maps at the `hom_k` level.
+    /// The two independent linear-combination strategies agreeing pins `linear_combination`.
+    #[test]
+    fn test_class_product_map_matches_multiply_into() {
+        let max = Bidegree::n_s(20, 9);
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(max);
+        let module = ExtModule::intrinsic(res);
+        let algebra = module.algebra();
+
+        // (n = 15, s = 5) is the first bidegree of Ext(F_2, F_2) with two generators, so this
+        // exercises the genuine multi-generator `linear_combination` path.
+        let x_deg = Bidegree::n_s(15, 5);
+        assert_eq!(
+            algebra.dimension(x_deg),
+            2,
+            "expected a 2-dimensional bidegree"
+        );
+        let x = algebra.element(x_deg, &[1, 1]);
+
+        let map = algebra.class_product_map(&x, max);
+        map.extend_all();
+
+        let mut compared = 0;
+        for b in algebra.resolution().iter_nonzero_stem() {
+            // `multiply_into` returns `None` once `b + x_deg` is out of the computed range.
+            let Some(reference) = module.multiply_into(&x, b) else {
+                continue;
+            };
+            let target = b + x_deg;
+            let hom_k = map.get_map(target.s()).hom_k(b.t());
+            assert_eq!(reference.rows(), hom_k.len());
+            for (j, row) in hom_k.iter().enumerate() {
+                let via_ref: Vec<u32> = reference.row(j).iter().collect();
+                assert_eq!(&via_ref, row, "product mismatch at multiplicand {b}");
+                compared += 1;
+            }
+        }
+        assert!(compared > 0, "expected at least one product comparison");
     }
 }
