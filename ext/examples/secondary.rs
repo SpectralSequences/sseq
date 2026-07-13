@@ -50,7 +50,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+    ext_algebra::{ExtModule, secondary::SecondaryExtAlgebra},
     utils::query_module,
 };
 use sseq::coordinates::Bidegree;
@@ -61,8 +61,8 @@ fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     // The d2 differential is intrinsic to the resolution and needs no unit, so we avoid the unit
-    // setup with `without_unit`.
-    let sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtAlgebra::without_unit(resolution)));
+    // setup with `ExtModule::intrinsic` (the module is its own `k`).
+    let sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtModule::intrinsic(resolution)));
 
     if let Some(s) = ext::utils::secondary_job() {
         sec_e2.compute_partial(s);
@@ -71,7 +71,7 @@ fn main() -> anyhow::Result<()> {
 
     sec_e2.extend_all();
 
-    let e2 = sec_e2.ext_algebra();
+    let e2 = sec_e2.module();
     let d2_shift = Bidegree::n_s(-1, 2);
 
     // Iterate through the target of the d2, in the same order as before.
