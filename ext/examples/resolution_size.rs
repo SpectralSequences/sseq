@@ -1,4 +1,4 @@
-use algebra::module::Module;
+use algebra::module::{Module, ModuleExt};
 use ext::{chain_complex::ChainComplex, utils::query_module};
 
 fn main() -> anyhow::Result<()> {

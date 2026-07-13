@@ -144,11 +144,12 @@ mod double {
     pub mod double_module {
         use std::sync::Arc;
 
-        use algebra::module::{Module, homomorphism::ModuleHomomorphism};
+        use algebra::module::{Module, ModuleExt, homomorphism::ModuleHomomorphism};
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
             vector::{FpSlice, FpSliceMut},
         };
+        use sseq::coordinates::MultiDegree;
 
         use super::DoubleAlgebra;
 
@@ -189,7 +190,8 @@ mod double {
                 self.inner.max_computed_degree() * 2
             }
 
-            fn dimension(&self, degree: i32) -> usize {
+            fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+                let degree = i32::from(degree);
                 if degree % 2 == 0 {
                     self.inner.dimension(degree / 2)
                 } else {
@@ -197,15 +199,17 @@ mod double {
                 }
             }
 
-            fn act_on_basis(
+            fn act_on_basis_multi(
                 &self,
                 result: fp::vector::FpSliceMut,
                 coeff: u32,
-                op_degree: i32,
+                op_degree: MultiDegree<1>,
                 op_index: usize,
-                mod_degree: i32,
+                mod_degree: MultiDegree<1>,
                 mod_index: usize,
             ) {
+                let op_degree = i32::from(op_degree);
+                let mod_degree = i32::from(mod_degree);
                 if op_degree % 2 == 1 {
                     return;
                 }
@@ -221,7 +225,8 @@ mod double {
                 }
             }
 
-            fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+            fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+                let degree = i32::from(degree);
                 self.inner.basis_element_to_string(degree / 2, idx)
             }
 
@@ -251,15 +256,17 @@ mod double {
             /// This flexibility is useful when resolving to a stem. The point is that we have elements in
             /// degree `t` that are guaranteed to not contain generators of degree `t`, and we don't know
             /// what generators will be added in degree `t` yet.
-            fn act(
+            fn act_multi(
                 &self,
                 result: FpSliceMut,
                 coeff: u32,
-                op_degree: i32,
+                op_degree: MultiDegree<1>,
                 op_index: usize,
-                input_degree: i32,
+                input_degree: MultiDegree<1>,
                 input: FpSlice,
             ) {
+                let op_degree = i32::from(op_degree);
+                let input_degree = i32::from(input_degree);
                 if op_degree % 2 == 1 {
                     return;
                 }
@@ -277,8 +284,9 @@ mod double {
 
             /// Gives the name of an element. The default implementation is derived from
             /// [`Module::basis_element_to_string`] in the obvious way.
-            fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
-                self.inner.element_to_string(degree, element)
+            fn element_to_string_multi(&self, degree: MultiDegree<1>, element: FpSlice) -> String {
+                let degree = i32::from(degree);
+                self.inner.element_to_string(degree / 2, element)
             }
         }
 

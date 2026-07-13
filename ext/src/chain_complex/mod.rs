@@ -6,7 +6,7 @@ use std::sync::Arc;
 use algebra::{
     Algebra, MuAlgebra,
     module::{
-        Module, MuFreeModule,
+        Module, ModuleExt, MuFreeModule,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
 };
