@@ -7,6 +7,7 @@ use fp::{
 };
 use serde::Deserialize;
 use serde_json::Value;
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra},
@@ -53,7 +54,10 @@ impl std::str::FromStr for AlgebraType {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
+// `Algebra` is now generic (`Algebra<const N>`), which `enum_dispatch` cannot handle, so it is
+// dispatched by hand below via `dispatch_steenrod!`. The remaining (non-generic) traits still use
+// `enum_dispatch`.
+#[enum_dispatch::enum_dispatch(Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
     MilnorAlgebra(MilnorAlgebra),
@@ -140,6 +144,22 @@ macro_rules! dispatch_steenrod {
         }
         dispatch_steenrod!{$($tail)*}
     };
+}
+
+impl Algebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn prime(&self) -> ValidPrime;
+        fn prefix(&self) -> &str;
+        fn magic(&self) -> u32;
+        fn compute_basis(&self, degree: impl Into<MultiDegree<1>>);
+        fn dimension(&self, degree: impl Into<MultiDegree<1>>) -> usize;
+        fn multiply_basis_elements(&self, result: FpSliceMut, coeff: u32, r_degree: impl Into<MultiDegree<1>>, r_idx: usize, s_degree: impl Into<MultiDegree<1>>, s_idx: usize);
+        fn multiply_basis_element_by_element(&self, result: FpSliceMut, coeff: u32, r_degree: impl Into<MultiDegree<1>>, r_idx: usize, s_degree: impl Into<MultiDegree<1>>, s: FpSlice);
+        fn multiply_element_by_element(&self, result: FpSliceMut, coeff: u32, r_degree: impl Into<MultiDegree<1>>, r: FpSlice, s_degree: impl Into<MultiDegree<1>>, s: FpSlice);
+        fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
+        fn basis_element_to_string(&self, degree: impl Into<MultiDegree<1>>, idx: usize) -> String;
+        fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
+    }
 }
 
 impl PairAlgebra for AdemAlgebra {
