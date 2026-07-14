@@ -411,6 +411,16 @@ impl std::fmt::Display for MilnorBasisElement {
     }
 }
 
+/// Flat, contiguous storage for the "seqno" (hash-free index) computation. See
+/// [`MilnorAlgebra::compute_seqno_tables`] for how `g` is derived and [`MilnorAlgebra::seqno`] for
+/// how it is read. Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives
+/// at `g[e * width + h]`; degrees `0..=max_degree` are populated.
+struct SeqnoTables {
+    max_degree: i32,
+    width: usize,
+    g: Vec<usize>,
+}
+
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
@@ -434,6 +444,15 @@ pub struct MilnorAlgebra {
 
     /// degree -> MilnorBasisElement -> index
     basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>,
+
+    /// Table backing the "seqno" (hash-free index) computation, populated only when
+    /// [`Self::seqno_applicable`] holds (p = 2, trivial profile, stable). It holds the flat,
+    /// row-major `g` array described in [`Self::compute_seqno_tables`]; [`Self::seqno`] ranks a
+    /// `p_part` from it with plain array indexing and no hash lookup. Stored behind an
+    /// [`arc_swap::ArcSwapOption`] rather than a [`OnceVec`] so that reads on the hot path are a
+    /// single guard load followed by direct indexing — the earlier `OnceVec<Vec<_>>` layout paid two
+    /// atomics *per table access*, which is what made the table lose to the hashmap.
+    seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -463,6 +482,7 @@ impl MilnorAlgebra {
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
+            seqno_tables: arc_swap::ArcSwapOption::empty(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
         }
@@ -511,6 +531,11 @@ impl MilnorAlgebra {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
+        // NB: the table-based `Self::seqno` computes this same index without a hash, but computing
+        // the rank (a degree sum plus two indexed table reads per populated ξ-position) is more work
+        // than one hash and probe, so it loses to this hashmap on the CPU. `seqno` is kept as the
+        // GPU-oriented index (a GPU kernel cannot carry a hashmap, and the flat table uploads
+        // directly), not for the CPU hot path.
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
             .copied()
@@ -614,6 +639,10 @@ impl Algebra for MilnorAlgebra {
         } else {
             self.generate_basis_2(max_degree);
         }
+
+        // The `seqno` tables are *not* built here: `seqno` lost to the hashmap on the CPU (see
+        // `try_basis_element_to_index`), so a normal resolution should not pay to build tables it
+        // won't use. A GPU backend that needs the hash-free index calls `compute_seqno_tables`.
 
         // Populate hash map
         self.basis_element_to_index_map
@@ -1083,6 +1112,118 @@ impl MilnorAlgebra {
             }
             new_row
         });
+    }
+
+    /// Whether the fast table-based [`Self::seqno`] can be used instead of the hashmap. It requires
+    /// `p = 2` (single-generator Milnor basis), a trivial profile (so *every* `P(R)` of a degree is
+    /// a basis element, matching the partition counts), and the stable ordering (unstable sorts the
+    /// basis by excess, breaking the enumeration-order = index correspondence).
+    fn seqno_applicable(&self) -> bool {
+        !self.generic() && !self.unstable_enabled && self.profile.is_trivial()
+    }
+
+    /// Build the flat `SeqnoTables` up to `max_degree`, so that [`Self::seqno`] can be used.
+    /// Requires `seqno_applicable`. Idempotent: if the stored tables already reach
+    /// `max_degree` this returns immediately; otherwise it rebuilds the whole (cheap,
+    /// `O(max_degree · width)`) table from scratch and atomically swaps it in, so readers always see
+    /// either the old complete table or the new one.
+    ///
+    /// The `n[e][m]` intermediate — the number of `P(R)` of degree `e` using only `ξ₁ … ξ_{m+1}` —
+    /// is built locally and discarded; only the `g` row-progression it feeds is stored, since that
+    /// is all [`Self::seqno`] reads. `g[e][h]` sums `n[·][h−1]` along the arithmetic progression of
+    /// step `ξ_{h+1}`, letting `seqno` rank a `p_part` without a hash lookup.
+    pub fn compute_seqno_tables(&self, max_degree: i32) {
+        assert!(self.seqno_applicable());
+        if let Some(t) = &*self.seqno_tables.load()
+            && t.max_degree >= max_degree
+        {
+            return;
+        }
+
+        let xi = combinatorics::xi_degrees(self.prime());
+        let width = xi.len();
+        let rows = max_degree as usize + 1;
+
+        // n[e * width + m] = #{ P(R) of degree e using only ξ₁ … ξ_{m+1} }
+        //                  = n[e][m-1] + [ξ_{m+1} ≤ e] · n[e − ξ_{m+1}][m]
+        let mut n = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for m in 0..width {
+                // m = 0: partitions into {1} — always exactly one, P(e), for e ≥ 0.
+                let without = if m == 0 {
+                    (e == 0) as usize
+                } else {
+                    n[base + m - 1]
+                };
+                let with = if xi[m] <= e {
+                    n[(e - xi[m]) as usize * width + m]
+                } else {
+                    0
+                };
+                n[base + m] = without + with;
+            }
+        }
+
+        // g[e * width + h] = Σ_{j ≥ 0} n[e − j·ξ_{h+1}][h−1]   (h ≥ 1; g[·][0] unused)
+        //                  = n[e][h−1] + [ξ_{h+1} ≤ e] · g[e − ξ_{h+1}][h]
+        let mut g = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for h in 1..width {
+                let head = n[base + h - 1];
+                let tail = if xi[h] <= e {
+                    g[(e - xi[h]) as usize * width + h]
+                } else {
+                    0
+                };
+                g[base + h] = head + tail;
+            }
+        }
+
+        // Guard the publish: under `concurrent`, parallel `get_partial_matrix` builds can race here,
+        // and an unconditional store would let a smaller table clobber a larger one already in place
+        // — after which `seqno` would index past the shrunken `g` and panic. Only replace when ours
+        // reaches at least as far, so the cached `max_degree` is monotonic.
+        let new_tables = std::sync::Arc::new(SeqnoTables {
+            max_degree,
+            width,
+            g,
+        });
+        self.seqno_tables.rcu(|current| match current.as_deref() {
+            Some(t) if t.max_degree >= max_degree => current.clone(),
+            _ => Some(new_tables.clone()),
+        });
+    }
+
+    /// The index ("sequence number") of `P(p_part)` in the Milnor basis of its degree, computed in
+    /// O(number of `p_part` entries) from the precomputed tables — no hash lookup. Assumes
+    /// `seqno_applicable` and that `p_part` is a genuine basis element (trimmed, in range).
+    ///
+    /// The basis is enumerated by increasing highest ξ-index, so the rank of `P` accumulates, for
+    /// each populated position `h`, the number of basis elements whose highest index is `< h`
+    /// together with `h` — which is exactly the `g_table` difference across the degree consumed at
+    /// that position.
+    pub fn seqno(&self, p_part: PPart) -> usize {
+        let xi = combinatorics::xi_degrees(self.prime());
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_ref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        let w = t.width;
+        let mut cur_d: i32 = p_part.iter().zip(xi).map(|(r, &x)| r as i32 * x).sum();
+        let mut rank = 0;
+        // Consume positions from the highest down; position 0 contributes nothing.
+        for h in (1..p_part.len()).rev() {
+            let r = p_part.get(h) as i32;
+            if r == 0 {
+                continue;
+            }
+            let below = cur_d - r * xi[h];
+            rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
+            cur_d = below;
+        }
+        rank
     }
 
     fn generate_basis_generic(&self, max_degree: i32) {
@@ -2002,6 +2143,29 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    /// The table-based [`MilnorAlgebra::seqno`] must return the position of every basis element in
+    /// its degree — i.e. agree with the enumeration order that defines the index — for the stable
+    /// `p = 2` full algebra, and reject non-basis elements via `try_`.
+    #[test]
+    fn seqno_matches_enumeration_order() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        assert!(algebra.seqno_applicable());
+        let max_degree = 100;
+        algebra.compute_basis(max_degree);
+        algebra.compute_seqno_tables(max_degree);
+        for d in 0..=max_degree {
+            let dim = algebra.dimension(d);
+            for i in 0..dim {
+                let elt = algebra.basis_element_from_index(d, i);
+                assert_eq!(
+                    algebra.seqno(elt.p_part),
+                    i,
+                    "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                );
+            }
+        }
+    }
 
     #[rstest]
     #[trace]
