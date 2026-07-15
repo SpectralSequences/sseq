@@ -1212,6 +1212,14 @@ impl MilnorAlgebra {
             .expect("seqno tables not built; call compute_seqno_tables first");
         let w = t.width;
         let mut cur_d: i32 = p_part.iter().zip(xi).map(|(r, &x)| r as i32 * x).sum();
+        // `cur_d` only decreases in the loop below, so this bounds every `t.g` index. A raw
+        // out-of-bounds panic here means the tables were not built far enough for this element.
+        debug_assert!(
+            cur_d <= t.max_degree,
+            "p_part degree {cur_d} exceeds seqno tables built to {}; call compute_seqno_tables \
+             first",
+            t.max_degree
+        );
         let mut rank = 0;
         // Consume positions from the highest down; position 0 contributes nothing.
         for h in (1..p_part.len()).rev() {
@@ -2153,18 +2161,33 @@ mod tests {
         assert!(algebra.seqno_applicable());
         let max_degree = 100;
         algebra.compute_basis(max_degree);
-        algebra.compute_seqno_tables(max_degree);
-        for d in 0..=max_degree {
-            let dim = algebra.dimension(d);
-            for i in 0..dim {
-                let elt = algebra.basis_element_from_index(d, i);
-                assert_eq!(
-                    algebra.seqno(elt.p_part),
-                    i,
-                    "seqno mismatch at degree {d}, index {i}: {elt:?}"
-                );
+
+        // `seqno` must return the enumeration index of every basis element in `0..=upto`.
+        let check = |upto: i32| {
+            for d in 0..=upto {
+                let dim = algebra.dimension(d);
+                for i in 0..dim {
+                    let elt = algebra.basis_element_from_index(d, i);
+                    assert_eq!(
+                        algebra.seqno(elt.p_part),
+                        i,
+                        "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                    );
+                }
             }
-        }
+        };
+
+        // Exercise the idempotent, monotonic (non-shrinking) publish documented on
+        // `compute_seqno_tables`: build partially, rebuild identically (no-op), grow, then request
+        // a smaller degree (must not shrink the cached table).
+        algebra.compute_seqno_tables(50);
+        check(50);
+        algebra.compute_seqno_tables(50);
+        check(50);
+        algebra.compute_seqno_tables(max_degree);
+        check(max_degree);
+        algebra.compute_seqno_tables(50);
+        check(max_degree);
     }
 
     #[rstest]
