@@ -4,7 +4,7 @@ use algebra::milnor_algebra::{PPartAllocation, PPartEntry, PPartMultiplier};
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
-use fp::prime::{Prime, ValidPrime};
+use fp::prime::ValidPrime;
 use pprof::criterion::{Output, PProfProfiler};
 
 fn bench_ppart<const MOD4: bool>(
@@ -16,24 +16,18 @@ fn bench_ppart<const MOD4: bool>(
 ) {
     let p = ValidPrime::new(p);
     g.bench_function(name, |bench| {
-        bench.iter(|| {
-            let m = PPartMultiplier::<MOD4>::new_from_allocation(
-                p,
-                &r,
-                &s,
-                PPartAllocation::default(),
-                0,
-                0,
-            );
-
-            for c in m {
-                if MOD4 {
-                    assert!(c < 4);
-                } else {
-                    assert!(c < p.as_u32());
+        // Hoist the allocation into the (untimed) setup so only the multiplier's iteration is
+        // measured; `black_box` the yielded coefficients so the loop can't be optimized away.
+        bench.iter_batched(
+            PPartAllocation::default,
+            |alloc| {
+                let m = PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, alloc, 0, 0);
+                for c in m {
+                    std::hint::black_box(c);
                 }
-            }
-        });
+            },
+            criterion::BatchSize::SmallInput,
+        );
     });
 }
 

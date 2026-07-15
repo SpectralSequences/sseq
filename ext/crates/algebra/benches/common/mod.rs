@@ -228,10 +228,13 @@ pub fn bench_module_action(
             let mut scratch = FpVector::new(p, 0);
             group.bench_function(format!("{label}/act/op{op_degree}"), |b| {
                 b.iter(|| {
-                    for op_idx in 0..op_dim {
-                        for (mod_degree, input, out_dim) in &inputs {
-                            scratch.set_scratch_vector_size(*out_dim);
-                            scratch.set_to_zero();
+                    // Match the `act_on_basis` loop nesting: size/zero `scratch` and `black_box`
+                    // once per degree slice (not per operation), so both benchmarks pay identical
+                    // harness overhead and stay directly comparable.
+                    for (mod_degree, input, out_dim) in &inputs {
+                        scratch.set_scratch_vector_size(*out_dim);
+                        scratch.set_to_zero();
+                        for op_idx in 0..op_dim {
                             module.act(
                                 scratch.as_slice_mut(),
                                 1,
@@ -240,8 +243,8 @@ pub fn bench_module_action(
                                 *mod_degree,
                                 input.as_slice(),
                             );
-                            black_box(&scratch);
                         }
+                        black_box(&scratch);
                     }
                 });
             });

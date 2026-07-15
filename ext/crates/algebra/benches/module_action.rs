@@ -28,6 +28,9 @@ fn module_action(c: &mut Criterion) {
             continue;
         }
 
+        // One group per module so the Milnor and Adem bases share a report (side-by-side plot)
+        // instead of landing in separate same-named runs.
+        let mut g = c.benchmark_group(format!("module_action/{}", spec.name));
         for ty in [AlgebraType::Milnor, AlgebraType::Adem] {
             if !common::module_supports(&spec.json, ty) {
                 continue;
@@ -41,10 +44,9 @@ fn module_action(c: &mut Criterion) {
                 }
             };
 
-            let mut g = c.benchmark_group(format!("module_action/{}", spec.name));
             common::bench_module_action(&mut g, &basis, &*module, DEGREE_CAP);
-            g.finish();
         }
+        g.finish();
     }
 }
 
