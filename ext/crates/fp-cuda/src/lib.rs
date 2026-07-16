@@ -34,6 +34,77 @@ const KL: usize = TILE_K / 64;
 const THREADS: u32 = (2 * THREADS_PER_WG) as u32; // producer warpgroup + consumer warpgroup
 const NG: u32 = (NB / 64) as u32; // output column-limbs per CTA
 
+/// Opt-in per-phase GPU timing for the row reduction (`FP_CUDA_PROF=1`).
+///
+/// When enabled, [`timed_phase!`] brackets each kernel group with a stream
+/// synchronize + host `Instant` and accumulates the elapsed time by label; the
+/// accumulator is printed by [`GpuContext::row_reduce_dev`]. The extra syncs
+/// serialize the pipeline, so the *absolute* numbers under `FP_CUDA_PROF` run
+/// slower than production — only the **relative** per-phase split is meaningful.
+/// When disabled the macro expands to the bare body: zero overhead, no extra
+/// syncs, the exact pipelined hot path.
+mod prof {
+    use std::sync::{Mutex, OnceLock};
+
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    static ACC: OnceLock<Mutex<Vec<(String, u64)>>> = OnceLock::new();
+
+    pub fn enabled() -> bool {
+        *ENABLED.get_or_init(|| std::env::var("FP_CUDA_PROF").is_ok())
+    }
+
+    pub fn add(label: &str, nanos: u64) {
+        let mut v = ACC.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
+        match v.iter_mut().find(|(l, _)| l == label) {
+            Some(e) => e.1 += nanos,
+            None => v.push((label.to_string(), nanos)),
+        }
+    }
+
+    pub fn report(tag: &str) {
+        if !enabled() {
+            return;
+        }
+        let v = ACC.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
+        let total: u64 = v.iter().map(|(_, n)| *n).sum::<u64>().max(1);
+        eprintln!("[fp-cuda PROF] {tag} — per-phase GPU time (ms), extra syncs on:");
+        for (l, n) in v.iter() {
+            eprintln!(
+                "    {:<16} {:>10.3}  {:>5.1}%",
+                l,
+                *n as f64 / 1e6,
+                100.0 * *n as f64 / total as f64
+            );
+        }
+        eprintln!("    {:<16} {:>10.3}", "TOTAL", total as f64 / 1e6);
+    }
+
+    pub fn reset() {
+        if let Some(m) = ACC.get() {
+            m.lock().unwrap().clear();
+        }
+    }
+}
+
+/// Bracket a kernel group with a sync + timer when `FP_CUDA_PROF` is set,
+/// accumulating GPU time under `$label`; otherwise expand to the bare body with
+/// no added synchronization. The body may use `?` (it runs in the caller's
+/// `Result` context).
+macro_rules! timed_phase {
+    ($stream:expr, $label:expr, $body:expr) => {{
+        if $crate::prof::enabled() {
+            $stream.synchronize()?;
+            let __t = std::time::Instant::now();
+            let __r = $body;
+            $stream.synchronize()?;
+            $crate::prof::add($label, __t.elapsed().as_nanos() as u64);
+            __r
+        } else {
+            $body
+        }
+    }};
+}
+
 /// A `CUtensorMap` passed by value as a (grid-constant) kernel argument.
 ///
 /// `repr(transparent)` so the pointer cudarc's typed launch builder pushes is the address of the
@@ -82,6 +153,7 @@ pub struct GpuContext {
     pack_b: CudaFunction,
     xor_into: CudaFunction,
     panel_factor: CudaFunction,
+    panel_factor_coop: CudaFunction,
     promote_pivots: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
@@ -104,6 +176,7 @@ impl GpuContext {
         let pack_b = module.load_function("pack_b")?;
         let xor_into = module.load_function("xor_into")?;
         let panel_factor = module.load_function("panel_factor")?;
+        let panel_factor_coop = module.load_function("panel_factor_coop")?;
         let promote_pivots = module.load_function("promote_pivots")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
@@ -119,6 +192,7 @@ impl GpuContext {
             pack_b,
             xor_into,
             panel_factor,
+            panel_factor_coop,
             promote_pivots,
             zero_pivot_l,
             gather_rows,
@@ -696,6 +770,83 @@ impl GpuContext {
         Ok((pr, cols[..pr].to_vec()))
     }
 
+    /// Grid-parallel (cooperative) equivalent of [`panel_factor`](Self::panel_factor):
+    /// identical math, but each of the 64 sequential bit-steps spreads its
+    /// find-first and masked-XOR across the whole grid, with a self-contained
+    /// atomic grid barrier between steps. The single-CTA `panel_factor` uses one
+    /// SM of ~132 and dominates the forward pass (~76% of GPU time profiled); this
+    /// removes that bottleneck. Launched via `cuLaunchCooperativeKernel` with all
+    /// CTAs co-resident (required by the spin barrier). Same `(pr, pivcols)`
+    /// read-back.
+    pub fn panel_factor_coop(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &mut CudaSlice<u32>,
+        l: &mut DeviceMatrix,
+        plimb: usize,
+        r: usize,
+    ) -> anyhow::Result<(usize, Vec<u32>)> {
+        assert_eq!(perm.len(), m.rows, "perm length must equal rows");
+        assert_eq!(l.rows, m.rows, "L rows must equal M rows");
+        let stream = self.ctx.default_stream();
+
+        const THREADS: u32 = 256;
+        let smem = THREADS * std::mem::size_of::<i32>() as u32;
+        let pivcols = stream.alloc_zeros::<u32>(64)?;
+        let pr_out = stream.alloc_zeros::<u32>(1)?;
+        // scratch = [barrier(0), g_min, g_pr]; alloc_zeros gives barrier == 0.
+        let scratch = stream.alloc_zeros::<u32>(3)?;
+        let g_pivword = stream.alloc_zeros::<u64>(1)?;
+
+        // Co-resident grid: at most occ×SMs CTAs (cooperative launch cap), and no
+        // more than needed to cover the rows once.
+        let sms = self
+            .ctx
+            .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+            as u32;
+        let occ = self
+            .panel_factor_coop
+            .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem as usize, None)?
+            .max(1);
+        let rows_worth = (m.rows as u32).div_ceil(THREADS).max(1);
+        let num_ctas = (occ * sms).min(rows_worth).max(1);
+
+        let (plimb_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
+            plimb as u32,
+            r as u32,
+            m.cols as u32,
+            m.rows as u32,
+            m.stride as u32,
+            l.stride as u32,
+            num_ctas,
+        );
+        let cfg = LaunchConfig {
+            grid_dim: (num_ctas, 1, 1),
+            block_dim: (THREADS, 1, 1),
+            shared_mem_bytes: smem,
+        };
+        let mut lb = stream.launch_builder(&self.panel_factor_coop);
+        lb.arg(&mut m.buf)
+            .arg(perm)
+            .arg(&mut l.buf)
+            .arg(&pivcols)
+            .arg(&pr_out)
+            .arg(&scratch)
+            .arg(&g_pivword)
+            .arg(&plimb_u)
+            .arg(&r_u)
+            .arg(&n_u)
+            .arg(&m_u)
+            .arg(&stride_u)
+            .arg(&l_stride_u)
+            .arg(&tc);
+        unsafe { lb.launch_cooperative(cfg) }?;
+
+        let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
+        let cols = stream.clone_dtoh(&pivcols)?;
+        Ok((pr, cols[..pr].to_vec()))
+    }
+
     /// Forward pass of the blocked row reduction over the persistent device
     /// buffer (design §4): sweep 64-bit panels left to right, and for each —
     /// factor it ([`panel_factor`](Self::panel_factor)), promote the pivot rows'
@@ -715,6 +866,9 @@ impl GpuContext {
         let mut perm = self.identity_perm(rows)?;
         let mut r = 0usize;
         let mut pivot_cols = Vec::new();
+        // The cooperative multi-CTA panel factor is the default; set
+        // FP_CUDA_NO_COOP=1 to fall back to the single-CTA kernel (A/B testing).
+        let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err();
 
         for plimb in 0..stride {
             // Fresh multiplier matrix L (m × 64, one limb/row) per panel.
@@ -724,7 +878,15 @@ impl GpuContext {
                 cols: 64,
                 stride: 1,
             };
-            let (pr, pivcols) = self.panel_factor(m, &mut perm, &mut l, plimb, r)?;
+            let (pr, pivcols) = timed_phase!(
+                stream,
+                "panel_factor",
+                if use_coop {
+                    self.panel_factor_coop(m, &mut perm, &mut l, plimb, r)
+                } else {
+                    self.panel_factor(m, &mut perm, &mut l, plimb, r)
+                }
+            )?;
             if pr == 0 {
                 continue;
             }
@@ -732,8 +894,9 @@ impl GpuContext {
             let trailing_limbs = stride - first_limb;
             if trailing_limbs > 0 {
                 let t = n - first_limb * 64;
-                // (1) promote pivot rows' trailing (triangular, one CTA).
-                {
+                // (1) promote pivot rows' trailing (triangular, one CTA), then
+                // (2) zero pivot rows' L so the GEMM leaves them untouched.
+                timed_phase!(stream, "promote", {
                     let (r_u, pr_u, fl, tl, st, ls) = (
                         r as u32,
                         pr as u32,
@@ -758,17 +921,14 @@ impl GpuContext {
                         .arg(&st)
                         .arg(&ls);
                     unsafe { lb.launch(cfg) }?;
-                }
-                // (2) zero pivot rows' L so the GEMM leaves them untouched.
-                {
                     let (r_u, pr_u, ls) = (r as u32, pr as u32, l.stride as u32);
                     let mut lb = stream.launch_builder(&self.zero_pivot_l);
                     lb.arg(&perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
                     unsafe { lb.launch(cfg_1d(pr)) }?;
-                }
+                });
                 // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
                 let u_buf = stream.alloc_zeros::<u64>(pr * trailing_limbs)?;
-                {
+                timed_phase!(stream, "gather_u", {
                     let (r_u, fl, pr_u, nc, st) = (
                         r as u32,
                         first_limb as u32,
@@ -786,18 +946,26 @@ impl GpuContext {
                         .arg(&nc)
                         .arg(&st);
                     unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
-                }
+                });
                 // (4) trailing GEMM: C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
-                let (c_dev, n_padded_lim) = self.matmul_b1_dev(&l.buf, rows, pr, &u_buf, t)?;
-                self.xor_into_region(
-                    &stream,
-                    &mut m.buf,
-                    &c_dev,
-                    rows,
-                    trailing_limbs,
-                    stride,
-                    first_limb,
-                    n_padded_lim,
+                let (c_dev, n_padded_lim) = timed_phase!(
+                    stream,
+                    "gemm",
+                    self.matmul_b1_dev(&l.buf, rows, pr, &u_buf, t)
+                )?;
+                timed_phase!(
+                    stream,
+                    "xor",
+                    self.xor_into_region(
+                        &stream,
+                        &mut m.buf,
+                        &c_dev,
+                        rows,
+                        trailing_limbs,
+                        stride,
+                        first_limb,
+                        n_padded_lim,
+                    )
                 )?;
             }
             for &q in &pivcols {
@@ -843,7 +1011,7 @@ impl GpuContext {
             let bp_eff = e - s;
 
             // (1) reduce the block [s, e) to RREF among itself.
-            {
+            timed_phase!(stream, "bs.block_reduce", {
                 let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
                 let mut lb = stream.launch_builder(&self.block_reduce_rref);
                 lb.arg(&mut m.buf)
@@ -853,7 +1021,7 @@ impl GpuContext {
                     .arg(&e_u)
                     .arg(&st);
                 unsafe { lb.launch(one_cta) }?;
-            }
+            });
 
             // (2) clear the block's pivot columns from all rows above [0, s).
             if s > 0 {
@@ -864,7 +1032,7 @@ impl GpuContext {
 
                 // X = above rows gathered at the block's pivot columns (s × bp_eff).
                 let x_buf = stream.alloc_zeros::<u64>(s * x_stride)?;
-                {
+                timed_phase!(stream, "bs.gather_x", {
                     let (cs, s_u, cnt, st, xs) = (
                         s as u32,
                         s as u32,
@@ -883,11 +1051,11 @@ impl GpuContext {
                         .arg(&st)
                         .arg(&xs);
                     unsafe { lb.launch(cfg_1d(s * x_stride)) }?;
-                }
+                });
 
                 // U = the (now RREF) block rows, limbs [start_limb, stride).
                 let u_buf = stream.alloc_zeros::<u64>(bp_eff * trailing_limbs)?;
-                {
+                timed_phase!(stream, "bs.gather_u", {
                     let (s_u, fl, pr_u, nc, st) = (
                         s as u32,
                         start_limb as u32,
@@ -905,12 +1073,15 @@ impl GpuContext {
                         .arg(&nc)
                         .arg(&st);
                     unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
-                }
+                });
 
                 // G = X · U (s × width_cols); scatter-XOR into rows above via perm.
-                let (c_dev, n_padded_lim) =
-                    self.matmul_b1_dev(&x_buf, s, bp_eff, &u_buf, width_cols)?;
-                {
+                let (c_dev, n_padded_lim) = timed_phase!(
+                    stream,
+                    "bs.gemm",
+                    self.matmul_b1_dev(&x_buf, s, bp_eff, &u_buf, width_cols)
+                )?;
+                timed_phase!(stream, "bs.xor", {
                     let (s_u, w, st, fl, cs) = (
                         s as u32,
                         trailing_limbs as u32,
@@ -928,7 +1099,7 @@ impl GpuContext {
                         .arg(&fl)
                         .arg(&cs);
                     unsafe { lb.launch(cfg_1d(s * trailing_limbs)) }?;
-                }
+                });
             }
             e = s;
         }
@@ -946,8 +1117,10 @@ impl GpuContext {
         &self,
         m: &mut DeviceMatrix,
     ) -> anyhow::Result<(CudaSlice<u32>, usize, Vec<usize>)> {
+        prof::reset();
         let (perm, r, pivot_cols) = self.forward_reduce(m)?;
         self.back_substitute(m, &perm, r, &pivot_cols)?;
+        prof::report("row_reduce_dev");
         Ok((perm, r, pivot_cols))
     }
 }
