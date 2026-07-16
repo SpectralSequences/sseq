@@ -14,13 +14,41 @@
 > - **Phase 7** — `fp::Matrix::row_reduce` dispatches to the GPU above
 >   `FP_CUDA_THRESHOLD`. Test: `tests/cuda_dispatch::gpu_row_reduce_matches_cpu`.
 >
-> Rough timing (`reduce_timing`, half-rank square, single-thread CPU baseline):
-> device beats CPU BLAS3 from n≥2048 with a widening lead (1.5× @ 2048 → 3.4× @
-> 8192). **Still open: Phase 6** — active-row compaction (§8.2), the wider-panel
-> intra-panel GEMM (§5(2)), fusing the XOR into the GEMM store, and profiling the
-> single-CTA panel/promote/back-sub kernels (they use 1 SM; lower-order today but
-> the next optimization target). All build with CUDA 12.4 nvcc; `cargo run -p
-> fp-cuda --example <name>` for each gate.
+> **Phase 6 — optimization passes (done, H200-validated).** Profiling
+> (`FP_CUDA_PROF` per-phase timers + `probe_pr` flat-K microbench) showed the
+> single-CTA `panel_factor` — not the trailing GEMM — dominated the forward pass
+> (~76% of GPU time). The passes, each kept bit-exact against the CPU oracle:
+> - **Multi-CTA `panel_factor_coop`** — grid-parallel find-first + masked-XOR with
+>   a self-contained atomic grid barrier between the 64 bit-steps, cooperative
+>   launch (no cudadevrt). 76% → ~21%.
+> - **Multi-CTA `promote_pivots`** (embarrassingly parallel over columns) and a
+>   low-barrier `block_reduce_rref` (~bp² → ~2·bp `__syncthreads`).
+> - **Wide forward panels** — `panel_factor_coop` factors a bl-limb panel natively
+>   (inline intra-panel Schur update across all bl limbs), so one wide trailing
+>   GEMM (K=pr≤b) reclaims the K-padding waste. Width is adaptive
+>   (`adaptive_bl(stride)=clamp(stride/256,1,16)`; env `FP_CUDA_BL`).
+> - **Skip zeroing** fully-overwritten GEMM/gather buffers (uninitialized alloc).
+> - **Active-row compaction** (§8.2) + rank-exhaustion early-exit (`mark_live` /
+>   `compact_perm`; env `FP_CUDA_NO_COMPACT`).
+> - **Separate, higher row-reduce dispatch threshold** (`FP_CUDA_RR_THRESHOLD`,
+>   default 8192 — the measured H200 crossover vs multi-threaded M4RI).
+>
+> Results (half-rank square, bit-exact vs CPU `row_reduce`; device incl. up/download
+> excluded), vs the pre-Phase-6 device baseline and multi-threaded CPU:
+>
+> | n | device before | device after | vs M4RI | vs CPU BLAS3 | Tbop/s |
+> |------|------|------|------|------|------|
+> | 32768 | 2.69 s | 0.62 s | 16.8× | 18.4× | 56 |
+> | 65536 | 11.9 s | 2.69 s | — | 24.3× | 105 |
+> | 131072 | 74.9 s | 13.1 s | — | — | 172 |
+>
+> Speedup grows with size (≈3–6× device-over-device, larger vs CPU). Full-rank
+> 32768² is 21× vs M4RI. The profile is now balanced (panel/gemm/promote/
+> block_reduce/bs-gemm ≈ 27/21/20/17/11 %). **Still open (diminishing returns,
+> rising risk):** pipelining the per-panel host sync (Pass 7), a shared-memory
+> bit-transpose `pack_b` (Pass 8), and fusing the XOR into the GEMM store
+> (Pass 9). All build with CUDA 12.4 nvcc; `cargo run -p fp-cuda --example <name>`
+> for each gate.
 
 ---
 

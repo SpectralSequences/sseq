@@ -170,6 +170,7 @@ pub struct GpuContext {
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
     block_reduce_rref: CudaFunction,
+    block_reduce_coop: CudaFunction,
     gather_cols: CudaFunction,
     xor_into_perm: CudaFunction,
 }
@@ -194,6 +195,7 @@ impl GpuContext {
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
         let block_reduce_rref = module.load_function("block_reduce_rref")?;
+        let block_reduce_coop = module.load_function("block_reduce_coop")?;
         let gather_cols = module.load_function("gather_cols")?;
         let xor_into_perm = module.load_function("xor_into_perm")?;
         Ok(Self {
@@ -211,6 +213,7 @@ impl GpuContext {
             zero_pivot_l,
             gather_rows,
             block_reduce_rref,
+            block_reduce_coop,
             gather_cols,
             xor_into_perm,
         })
@@ -1158,6 +1161,27 @@ impl GpuContext {
             shared_mem_bytes: 0,
         };
         const BP: usize = 64; // pivots per block (bl * 64 with bl = 1)
+
+        // Cooperative multi-CTA block reduction: spreads each block's per-pivot
+        // clear across the whole grid. The per-block cooperative launch + grid
+        // barriers only pay once the block work (≈ bp·stride) is large, so gate on
+        // a wide matrix; below that the single-CTA kernel wins. Measured (H200):
+        // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷. Set
+        // FP_CUDA_NO_COOP=1 to force the single-CTA kernel.
+        let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err() && stride >= 1024;
+        const BR_THREADS: u32 = 256;
+        let sms = self
+            .ctx
+            .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+            as u32;
+        let br_occ = self
+            .block_reduce_coop
+            .occupancy_max_active_blocks_per_multiprocessor(BR_THREADS, 0, None)?
+            .max(1);
+        let br_ctas = (br_occ * sms).max(1);
+        let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
+        let br_cond = unsafe { stream.alloc::<u32>(BP) }?;
+
         let mut e = r;
         while e > 0 {
             let s = e - e.min(BP);
@@ -1165,15 +1189,36 @@ impl GpuContext {
 
             // (1) reduce the block [s, e) to RREF among itself.
             timed_phase!(stream, "bs.block_reduce", {
-                let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
-                let mut lb = stream.launch_builder(&self.block_reduce_rref);
-                lb.arg(&mut m.buf)
-                    .arg(perm)
-                    .arg(&piv_dev)
-                    .arg(&s_u)
-                    .arg(&e_u)
-                    .arg(&st);
-                unsafe { lb.launch(one_cta) }?;
+                if use_coop {
+                    stream.memset_zeros(&mut br_barrier)?;
+                    let (s_u, e_u, st, tc) = (s as u32, e as u32, stride as u32, br_ctas);
+                    let cfg = LaunchConfig {
+                        grid_dim: (br_ctas, 1, 1),
+                        block_dim: (BR_THREADS, 1, 1),
+                        shared_mem_bytes: 0,
+                    };
+                    let mut lb = stream.launch_builder(&self.block_reduce_coop);
+                    lb.arg(&mut m.buf)
+                        .arg(perm)
+                        .arg(&piv_dev)
+                        .arg(&s_u)
+                        .arg(&e_u)
+                        .arg(&st)
+                        .arg(&br_barrier)
+                        .arg(&br_cond)
+                        .arg(&tc);
+                    unsafe { lb.launch_cooperative(cfg) }?;
+                } else {
+                    let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
+                    let mut lb = stream.launch_builder(&self.block_reduce_rref);
+                    lb.arg(&mut m.buf)
+                        .arg(perm)
+                        .arg(&piv_dev)
+                        .arg(&s_u)
+                        .arg(&e_u)
+                        .arg(&st);
+                    unsafe { lb.launch(one_cta) }?;
+                }
             });
 
             // (2) clear the block's pivot columns from all rows above [0, s).
