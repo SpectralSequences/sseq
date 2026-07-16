@@ -672,7 +672,18 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
     pub fn row_reduce(&mut self) -> usize {
+        self.row_reduce_cpu()
+    }
+
+    /// Row-reduce on the CPU, never consulting the device.
+    ///
+    /// [`Self::row_reduce`] is the entry point callers want; this is the same M4RI reduction it
+    /// falls back to, exposed because the GPU context is a process-wide `OnceLock`. Once it is
+    /// built, `row_reduce` cannot be talked out of the device within the same process, so a test
+    /// comparing the two paths needs a CPU reduction it can name directly.
+    pub fn row_reduce_cpu(&mut self) -> usize {
         let p = self.prime();
+
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());
