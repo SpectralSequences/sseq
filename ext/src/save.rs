@@ -457,6 +457,18 @@ impl<A: Algebra> SaveFile<A> {
         }
     }
 
+    /// Open `p` for writing, creating it (and failing if it already exists unless `overwrite`).
+    /// Shared by [`create_file`](Self::create_file) and [`try_create_file`](Self::try_create_file),
+    /// which differ only in how they react to the resulting error.
+    fn open_for_write(p: &Path, overwrite: bool) -> io::Result<std::fs::File> {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(!overwrite)
+            .create(true)
+            .truncate(true)
+            .open(p)
+    }
+
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write + use<A> {
@@ -471,12 +483,7 @@ impl<A: Algebra> SaveFile<A> {
             "File {p:?} is already opened"
         );
 
-        let f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(!overwrite)
-            .create(true)
-            .truncate(true)
-            .open(&p)
+        let f = Self::open_for_write(&p, overwrite)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
         let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
@@ -493,7 +500,11 @@ impl<A: Algebra> SaveFile<A> {
     /// This avoids a check-then-create race: two threads can both observe a save file as absent
     /// (see the empty-file handling in [`open_file`]) and then both try to create it; with
     /// [`create_file`](Self::create_file) the loser panics with `File exists`.
-    pub fn try_create_file(&self, dir: PathBuf, overwrite: bool) -> Option<impl io::Write + use<A>> {
+    pub fn try_create_file(
+        &self,
+        dir: PathBuf,
+        overwrite: bool,
+    ) -> Option<impl io::Write + use<A>> {
         let p = self.get_save_path(dir);
         tracing::info!(file = ?p, "try open for writing");
 
@@ -504,13 +515,7 @@ impl<A: Algebra> SaveFile<A> {
             return None;
         }
 
-        let f = match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(!overwrite)
-            .create(true)
-            .truncate(true)
-            .open(&p)
-        {
+        let f = match Self::open_for_write(&p, overwrite) {
             Ok(f) => f,
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 open_files().lock().unwrap().remove(&p);
