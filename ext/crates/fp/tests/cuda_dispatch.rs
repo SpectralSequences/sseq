@@ -89,10 +89,15 @@ fn gpu_matmul_concurrent() {
     });
 }
 
-/// The dispatched `row_reduce` (GPU, feature on, sizes above the 2048 threshold)
-/// must be bit-identical to the CPU BLAS3 reducer — RREF, rank, and pivots.
+/// The dispatched `row_reduce` (GPU, feature on) must be bit-identical to the CPU
+/// BLAS3 reducer — RREF, rank, and pivots. The production row-reduce threshold is
+/// 8192 (below that the CPU wins); force it down here so these small, fast test
+/// shapes still exercise the GPU path. This test uses `FP_CUDA_RR_THRESHOLD`,
+/// distinct from the matmul test's `FP_CUDA_THRESHOLD`, so the two don't collide.
 #[test]
 fn gpu_row_reduce_matches_cpu() {
+    // SAFETY: set once at the start of the test, before any threshold() read.
+    unsafe { std::env::set_var("FP_CUDA_RR_THRESHOLD", "2048") };
     for &(rows, cols, rank) in &[
         (2048, 2048, 0),
         (4096, 2560, 0),
