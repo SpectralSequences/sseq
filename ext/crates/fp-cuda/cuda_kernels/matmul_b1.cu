@@ -683,3 +683,77 @@ extern "C" __global__ void gather_rows(
     unsigned k = idx / ncols, c = idx % ncols;
     dst[idx] = m_buf[(u64_t)perm[r + k] * stride + first_limb + c];
 }
+
+// ── Back-substitution kernels (BLAS3 GPU row-reduction port, design §4.6) ─────
+//
+// Echelon → RREF, blocked right-to-left over pivot blocks. For a block of pivots
+// at perm positions [s, e): (1) reduce the block among itself, then (2) clear
+// the block's pivot columns from all rows above [0, s) via one X·U GEMM.
+
+// (1) Reduce the pivot block [s, e) to RREF among itself: process pivots
+// high-to-low, clearing pivot column pivcols[k] from the earlier block rows
+// [s, k). One CTA; threads parallelize over limbs. Sequential in k (a row used
+// as a source must already be fully reduced) — a __syncthreads separates the k
+// steps, and one inside the j-loop orders every row's condition-read before any
+// write to that row (the pivot bit itself is cleared by the XOR).
+extern "C" __global__ void block_reduce_rref(
+    u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    const unsigned* __restrict__ pivcols,
+    unsigned s, unsigned e, unsigned stride)
+{
+    const int tid = threadIdx.x;
+    const int nt = blockDim.x;
+    for (unsigned k = e; k-- > s;) {
+        unsigned qk = pivcols[k];
+        unsigned qlimb = qk >> 6, qbit = qk & 63;
+        unsigned rowk = perm[k];
+        for (unsigned j = s; j < k; ++j) {
+            unsigned rowj = perm[j];
+            bool cond = (m_buf[(u64_t)rowj * stride + qlimb] >> qbit) & 1ULL;
+            __syncthreads(); // all reads of rowj[qlimb] before any write to it
+            if (cond) {
+                for (unsigned c = tid; c < stride; c += nt)
+                    m_buf[(u64_t)rowj * stride + c] ^= m_buf[(u64_t)rowk * stride + c];
+            }
+            __syncthreads(); // finish rowj before the next j
+        }
+    }
+}
+
+// (2a) Gather X: for rows at perm positions [0, s), the bits at the `count`
+// block pivot columns pivcols[col_start .. col_start+count). One thread per
+// (row, dst-limb) builds a full limb, so no atomics. dst is s × dst_stride.
+extern "C" __global__ void gather_cols(
+    u64_t* __restrict__ dst, const u64_t* __restrict__ m_buf,
+    const unsigned* __restrict__ perm, const unsigned* __restrict__ pivcols,
+    unsigned col_start, unsigned s, unsigned count,
+    unsigned stride, unsigned dst_stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= s * dst_stride) return;
+    unsigned jpos = idx / dst_stride, dl = idx % dst_stride;
+    unsigned row = perm[jpos];
+    u64_t val = 0;
+    for (unsigned bb = 0; bb < 64; ++bb) {
+        unsigned i = dl * 64 + bb;
+        if (i >= count) break;
+        unsigned q = pivcols[col_start + i];
+        if ((m_buf[(u64_t)row * stride + (q >> 6)] >> (q & 63)) & 1ULL)
+            val |= (1ULL << bb);
+    }
+    dst[idx] = val;
+}
+
+// (2b) Scatter-XOR the GEMM result C (s × c_stride) into rows at perm positions
+// [0, s): M[perm[jpos]][first_limb + col] ^= C[jpos][col].
+extern "C" __global__ void xor_into_perm(
+    u64_t* __restrict__ m_buf, const u64_t* __restrict__ c,
+    const unsigned* __restrict__ perm,
+    unsigned s, unsigned width, unsigned stride, unsigned first_limb,
+    unsigned c_stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= s * width) return;
+    unsigned jpos = idx / width, col = idx % width;
+    m_buf[(u64_t)perm[jpos] * stride + first_limb + col] ^= c[(u64_t)jpos * c_stride + col];
+}
