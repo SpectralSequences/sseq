@@ -1,10 +1,12 @@
 //! GPU dispatch for the F₂ linear algebra `fp-cuda` provides.
 //!
-//! [`gemm`] is the one entry point today. What lives here is what any additional subprogram would
-//! also need: one device context, one driver thread, and the host-side limb marshalling. Anything
-//! specific to a subprogram, its dispatch threshold included, belongs in that subprogram's module.
+//! Two independent entry points live under here — [`gemm`] for the matrix product and [`rref`]
+//! for the row reduction. They share only what has to be shared: one device context, one driver
+//! thread, and the host-side limb marshalling. Everything specific to a subprogram, including its
+//! dispatch threshold, belongs in its own module.
 
 pub(crate) mod gemm;
+pub(crate) mod rref;
 
 use std::sync::OnceLock;
 

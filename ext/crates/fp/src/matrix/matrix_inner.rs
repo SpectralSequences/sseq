@@ -672,6 +672,17 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
     pub fn row_reduce(&mut self) -> usize {
+
+        // For large p = 2 matrices, try the device-resident GPU reduction; it
+        // produces the identical canonical RREF + pivots. Falls back to the CPU
+        // M4RI path below when the GPU is unavailable or below threshold.
+        #[cfg(feature = "gpu")]
+        if self.prime() == 2
+            && let Some(rank) = crate::blas::cuda::rref::try_row_reduce(self)
+        {
+            return rank;
+        }
+
         self.row_reduce_cpu()
     }
 
