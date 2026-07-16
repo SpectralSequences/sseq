@@ -552,8 +552,11 @@ impl GpuContext {
         let stream = self.ctx.default_stream();
 
         // Pack A → interleaved row-major K-major tiles (m_padded × k_padded/64).
+        // pack_a/pack_b/the GEMM fully overwrite these buffers (padding written as
+        // explicit zeros), so allocate uninitialized and skip the memset — the
+        // per-call zeroing of the multi-GB C output is pure waste at large n.
         let a_int_len = m_padded * (k_padded / 64);
-        let a_int = stream.alloc_zeros::<u64>(a_int_len)?;
+        let a_int = unsafe { stream.alloc::<u64>(a_int_len) }?;
         {
             let (m_orig, sa_orig, a_str, mt, total) = (
                 m as u32,
@@ -575,7 +578,7 @@ impl GpuContext {
 
         // Pack B → bit-transposed K-major tiles.
         let bt_len = k_chunks * n_groups * (NG as usize * 64 * KL);
-        let bt = stream.alloc_zeros::<u64>(bt_len)?;
+        let bt = unsafe { stream.alloc::<u64>(bt_len) }?;
         {
             let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
             let mut lb = stream.launch_builder(&self.pack_b);
@@ -588,7 +591,10 @@ impl GpuContext {
             unsafe { lb.launch(cfg_1d(bt_len)) }?;
         }
 
-        let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
+        // The GEMM writes C with a bulk-tensor store (overwrite, not accumulate),
+        // covering every output tile; xor_into only reads the first m rows and
+        // trailing_limbs columns, all written. So C needs no pre-zeroing.
+        let c_dev = unsafe { stream.alloc::<u64>(m_padded * n_padded_lim) }?;
         run_gemm_kernel(
             self,
             &stream,
@@ -990,7 +996,7 @@ impl GpuContext {
                     unsafe { lb.launch(cfg_1d(pr)) }?;
                 });
                 // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
-                let u_buf = stream.alloc_zeros::<u64>(pr * trailing_limbs)?;
+                let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?; // gather fills it
                 timed_phase!(stream, "gather_u", {
                     let (r_u, fl, pr_u, nc, st) = (
                         r as u32,
@@ -1097,7 +1103,7 @@ impl GpuContext {
                 let x_stride = bp_eff.div_ceil(64);
 
                 // X = above rows gathered at the block's pivot columns (s × bp_eff).
-                let x_buf = stream.alloc_zeros::<u64>(s * x_stride)?;
+                let x_buf = unsafe { stream.alloc::<u64>(s * x_stride) }?; // gather_cols fills it
                 timed_phase!(stream, "bs.gather_x", {
                     let (cs, s_u, cnt, st, xs) = (
                         s as u32,
@@ -1120,7 +1126,7 @@ impl GpuContext {
                 });
 
                 // U = the (now RREF) block rows, limbs [start_limb, stride).
-                let u_buf = stream.alloc_zeros::<u64>(bp_eff * trailing_limbs)?;
+                let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?; // gather fills it
                 timed_phase!(stream, "bs.gather_u", {
                     let (s_u, fl, pr_u, nc, st) = (
                         s as u32,
