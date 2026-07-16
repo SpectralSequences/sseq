@@ -483,6 +483,48 @@ impl<A: Algebra> SaveFile<A> {
         self.write_header(&mut f).unwrap();
         f
     }
+
+    /// Like [`create_file`](Self::create_file), but yields `None` instead of panicking when the
+    /// file is already being produced — either it already exists on disk (a `create_new`
+    /// collision) or another thread currently holds it open for writing. Intended for
+    /// deterministically-computed save data, where a concurrent writer producing the identical
+    /// file makes our own write redundant and safely skippable.
+    ///
+    /// This avoids a check-then-create race: two threads can both observe a save file as absent
+    /// (see the empty-file handling in [`open_file`]) and then both try to create it; with
+    /// [`create_file`](Self::create_file) the loser panics with `File exists`.
+    pub fn try_create_file(&self, dir: PathBuf, overwrite: bool) -> Option<impl io::Write + use<A>> {
+        let p = self.get_save_path(dir);
+        tracing::info!(file = ?p, "try open for writing");
+
+        // See [`create_file`](Self::create_file) for why this must happen before touching the file.
+        // A failure here means another thread is already writing this exact path, so the write is
+        // redundant for deterministic data — treat it the same as an already-existing file.
+        if !open_files().lock().unwrap().insert(p.clone()) {
+            return None;
+        }
+
+        let f = match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(!overwrite)
+            .create(true)
+            .truncate(true)
+            .open(&p)
+        {
+            Ok(f) => f,
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                open_files().lock().unwrap().remove(&p);
+                return None;
+            }
+            Err(e) => {
+                open_files().lock().unwrap().remove(&p);
+                panic!("Failed to create save file {p:?}: {e}");
+            }
+        };
+        let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
+        self.write_header(&mut f).unwrap();
+        Some(f)
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

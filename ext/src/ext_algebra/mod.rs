@@ -228,7 +228,14 @@ where
         let shift = x.degree();
         let target = b + shift;
 
-        if !self.unit.has_computed_bidegree(b) || !self.resolution.has_computed_bidegree(target) {
+        // Reading `hom_k` at `target` requires the product map to be extended there, which lifts
+        // through the unit's quasi-inverse at `b`. For lazily-computed quasi-inverses (e.g. Nassau)
+        // that can be unavailable even when `b` itself is resolved, so check it explicitly rather
+        // than treat the product as zero.
+        if !self.unit.has_computed_bidegree(b)
+            || !self.resolution.has_computed_bidegree(target)
+            || self.unit.max_computed_quasi_inverse_degree(b.s()) < b.t()
+        {
             return None;
         }
 

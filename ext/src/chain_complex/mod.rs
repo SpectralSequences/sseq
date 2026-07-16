@@ -220,6 +220,18 @@ pub trait ChainComplex: Send + Sync {
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
 
+    /// The largest internal degree `t` for which [`apply_quasi_inverse`](Self::apply_quasi_inverse)
+    /// at homological degree `s` is guaranteed to succeed (and hence also for every smaller `t`).
+    /// Returns `min_degree() - 1` when no quasi-inverse at homological degree `s` is available.
+    ///
+    /// The default assumes the quasi-inverse is computed alongside the differential, so it extends
+    /// as far as the module at homological degree `s` has been computed. Resolutions that compute
+    /// quasi-inverses lazily — such as [`Nassau`](crate::nassau::Resolution), which only writes the
+    /// quasi-inverse for `(s, t)` while stepping to `(s + 1, t)` — override this.
+    fn max_computed_quasi_inverse_degree(&self, s: i32) -> i32 {
+        self.module(s).max_computed_degree()
+    }
+
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {

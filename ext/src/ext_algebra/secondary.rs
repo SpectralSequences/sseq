@@ -47,27 +47,30 @@ pub struct SecondaryProduct {
 
 /// A conical basis generator of $\pi(S/\lambda^2)$.
 ///
-/// Each Ext generator at bidegree $(n, s)$ contributes to the conical basis at one or both weights,
-/// determined by its Adams BZE classification (see
-/// [`classify`](SecondaryExtAlgebra::classify)):
+/// Each B/Z/E class of $\Ext$ at bidegree $(n, s)$ contributes to the conical basis at one or both
+/// weights (Condition 3.2 of the paper):
 /// - **B**: weight 0 only (killed at weight 1 by $d_2$ boundaries).
 /// - **Z**: both weights (permanent cycle).
 /// - **E**: weight 1 only (killed at weight 0 by supporting $d_2$).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// The class is carried as [`rep`](Self::rep), an ambient representative in the **original**
+/// generator basis; [`Display`](fmt::Display) expands it over the original generators rather than
+/// naming it by a leading generator.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PiGenerator {
     bidegree: Bidegree,
     weight: Weight,
     bze: BZE,
-    idx: usize,
+    rep: FpVector,
 }
 
 impl PiGenerator {
-    pub fn new(bidegree: Bidegree, weight: Weight, bze: BZE, idx: usize) -> Self {
+    pub fn new(bidegree: Bidegree, weight: Weight, bze: BZE, rep: FpVector) -> Self {
         Self {
             bidegree,
             weight,
             bze,
-            idx,
+            rep,
         }
     }
 
@@ -83,32 +86,35 @@ impl PiGenerator {
         self.bze
     }
 
-    pub fn idx(&self) -> usize {
-        self.idx
+    /// The class as an ambient representative in the original generator basis.
+    pub fn rep(&self) -> fp::vector::FpSlice<'_> {
+        self.rep.as_slice()
     }
 }
 
 impl fmt::Display for PiGenerator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let g = BidegreeGenerator::new(self.bidegree, self.idx);
-        let w = self.weight.as_i32();
-        write!(f, "{} x_{g}^{w}", self.bze)
+        write!(f, "{} ", self.bze)?;
+        write_original_basis(f, self.bidegree, self.weight, self.rep.as_slice())
     }
 }
 
 /// An element in the $E_3 = E_\infty$ page of $\pi(S/\lambda^2)$ at a specific weight.
 ///
-/// The coordinates are in the [`Subquotient`] generator basis of $E_3$ at the given bidegree and
-/// weight: `coords()[k]` is the coefficient of the `k`-th surviving $E_3$ basis class. Each such
-/// class is named by its *leading* (pivot) ambient Ext generator, recorded in
-/// [`basis_indices`](Self::basis_indices)`[k]`. The two run in lockstep — `basis_indices` is the
-/// list of generator-subspace pivot columns, which is exactly the indexing
-/// [`Subquotient::reduce`] returns coefficients for. A class that survives as a non-unit vector is
-/// thus displayed by its leading generator, not expanded into ambient coordinates.
+/// The class is carried as [`rep`](Self::rep): an ambient representative in the **original** Ext
+/// generator basis at the given bidegree, reduced by the image of $d_2$ (so two representatives
+/// differing by a boundary give the same `rep`). [`Display`](fmt::Display) expands it as a linear
+/// combination of the original generators, not by its leading generator.
+///
+/// [`coords`](Self::coords)/[`basis_indices`](Self::basis_indices) additionally expose the same
+/// class in the reduced [`Subquotient`] generator basis, for callers that want $E_3$ coordinates
+/// rather than ambient ones.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PiElement {
     bidegree: Bidegree,
     weight: Weight,
+    /// Ambient representative in the original generator basis (reduced mod $d_2$-boundary).
+    rep: FpVector,
     coords: Vec<u32>,
     basis_indices: Vec<usize>,
 }
@@ -134,35 +140,48 @@ impl PiElement {
         &self.basis_indices
     }
 
+    /// The ambient representative in the original generator basis (reduced mod $d_2$-boundary).
+    pub fn rep(&self) -> fp::vector::FpSlice<'_> {
+        self.rep.as_slice()
+    }
+
     pub fn is_zero(&self) -> bool {
-        self.coords.iter().all(|&c| c == 0)
+        self.rep.is_zero()
     }
 }
 
 impl fmt::Display for PiElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let w = self.weight.as_i32();
-        let mut first = true;
-        for (&c, &idx) in self.coords.iter().zip(&self.basis_indices) {
-            if c == 0 {
-                continue;
-            }
-            if !first {
-                write!(f, " + ")?;
-            }
-            first = false;
-            let g = BidegreeGenerator::new(self.bidegree, idx);
-            if c == 1 {
-                write!(f, "x_{g}^{w}")?;
-            } else {
-                write!(f, "{c} x_{g}^{w}")?;
-            }
-        }
-        if first {
-            write!(f, "0")?;
-        }
-        Ok(())
+        write_original_basis(f, self.bidegree, self.weight, self.rep.as_slice())
     }
+}
+
+/// Render an ambient vector at `bidegree` as a linear combination of the original Ext generators,
+/// tagged with the weight, e.g. `x_(38, 6, 0) + x_(38, 6, 1)^0`. Writes `0` when the vector is zero.
+fn write_original_basis(
+    f: &mut fmt::Formatter,
+    bidegree: Bidegree,
+    weight: Weight,
+    v: fp::vector::FpSlice,
+) -> fmt::Result {
+    let w = weight.as_i32();
+    let mut first = true;
+    for (i, c) in v.iter_nonzero() {
+        if !first {
+            write!(f, " + ")?;
+        }
+        first = false;
+        let g = BidegreeGenerator::new(bidegree, i);
+        if c == 1 {
+            write!(f, "x_{g}^{w}")?;
+        } else {
+            write!(f, "{c} x_{g}^{w}")?;
+        }
+    }
+    if first {
+        write!(f, "0")?;
+    }
+    Ok(())
 }
 
 /// The secondary layer over an [`ExtAlgebra`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
@@ -452,27 +471,95 @@ where
         BZE::Z
     }
 
-    /// The conical basis of $\pi(S/\lambda^2)$ at bidegree `b` (Condition 3.2 of the paper).
+    /// The **Z** part at bidegree `b` as actual $d_2$-cycles, each paired with the generator index
+    /// that labels it.
     ///
-    /// Each Ext generator at `b` is classified by [`classify`](Self::classify), then placed at the
-    /// weights it contributes to:
+    /// [`classify`](Self::classify) partitions generator *indices*: index `i` is **Z** when it is
+    /// the echelon pivot of the cycle subspace. That records a choice of splitting
+    /// $\Ext = B \oplus Z \oplus E$ and gets the dimensions right, but it does **not** say the
+    /// standard generator $e_i$ is itself a cycle — the cycle with pivot `i` is generally $e_i$
+    /// plus a correction supported on the **E** indices. For example, if $\Ext$ is two-dimensional
+    /// at `b` with $d_2(e_0) = d_2(e_1) \neq 0$, then index 0 classifies as **Z**, but the cycle it
+    /// labels is $e_0 + e_1$, and $e_0$ alone supports a nonzero $d_2$.
+    ///
+    /// Use this wherever a genuine cycle is required rather than
+    /// [`ExtAlgebra::generator`](crate::ext_algebra::ExtAlgebra::generator):
+    /// [`secondary_product_lift`](Self::secondary_product_lift) only exists for $d_2$-cycles, and
+    /// feeding it a non-cycle makes the obstruction fail to lift deep inside
+    /// [`SecondaryLift::compute_homotopies`].
+    ///
+    /// Returns nothing when the $\lambda^2$ spectral sequence is not defined at `b` — without a
+    /// known $d_2$ out of `b` we cannot certify any class there as a cycle, and
+    /// [`classify`](Self::classify) reports **Z** by default in that case.
+    pub fn z_cycles(&self, b: Bidegree) -> Vec<(BidegreeGenerator, FpVector)> {
+        let [n, s] = b.coords();
+        let Some(page) = self.lambda2_page_data(MultiDegree::new([n, s, 0])) else {
+            return Vec::new();
+        };
+        // Every basis vector of the cycle subspace is a cycle, so take all of `subspace_gens()`
+        // and let `classify` pick out the Z ones. Both halves are row-reduced and their pivots are
+        // disjoint, so each row's first nonzero entry is its pivot column — which is the index
+        // `classify` labels it by.
+        page.subspace_gens()
+            .filter_map(|v| {
+                let (i, _) = v.first_nonzero()?;
+                let g = BidegreeGenerator::new(b, i);
+                (self.classify(g) == BZE::Z).then(|| (g, v.to_owned()))
+            })
+            .collect()
+    }
+
+    /// The **B** part at bidegree `b`: a basis of the $d_2$-boundary subspace (the image of the
+    /// incoming $d_2$), as ambient vectors in the original generator basis. Empty when the
+    /// $\lambda^2$ spectral sequence is not defined at `b`.
+    pub fn b_boundaries(&self, b: Bidegree) -> Vec<FpVector> {
+        let [n, s] = b.coords();
+        let Some(sq) = self.lambda2_page_data(MultiDegree::new([n, s, 1])) else {
+            return Vec::new();
+        };
+        // The weight-1 subquotient quotients out exactly the incoming-d2 image.
+        sq.zeros().iter().map(|v| v.to_owned()).collect()
+    }
+
+    /// The **E** part at bidegree `b`: representatives of classes that support a nonzero $d_2$, each
+    /// paired with the generator index labeling it. Taken as the weight-0 complement pivots, so each
+    /// representative is a single original generator $e_i$ (with $d_2(e_i) \neq 0$). Empty when the
+    /// $\lambda^2$ spectral sequence is not defined at `b`.
+    pub fn e_supports(&self, b: Bidegree) -> Vec<(BidegreeGenerator, FpVector)> {
+        let [n, s] = b.coords();
+        let p = self.prime();
+        let Some(sq) = self.lambda2_page_data(MultiDegree::new([n, s, 0])) else {
+            return Vec::new();
+        };
+        sq.complement_pivots()
+            .map(|i| {
+                let mut v = FpVector::new(p, sq.ambient_dimension());
+                v.set_entry(i, 1);
+                (BidegreeGenerator::new(b, i), v)
+            })
+            .collect()
+    }
+
+    /// The conical basis of $\pi(S/\lambda^2)$ at bidegree `b` (Condition 3.2 of the paper),
+    /// with each class carried as an ambient representative in the original generator basis.
+    ///
+    /// The B/Z/E parts come from [`b_boundaries`](Self::b_boundaries), [`z_cycles`](Self::z_cycles),
+    /// and [`e_supports`](Self::e_supports), placed at the weights they contribute to:
     /// - **B**: weight 0 only.
     /// - **Z**: both weights.
     /// - **E**: weight 1 only.
     pub fn pi_basis(&self, b: Bidegree) -> Vec<PiGenerator> {
-        let dim = self.alg.dimension(b);
         let mut result = Vec::new();
 
-        for i in 0..dim {
-            let g = BidegreeGenerator::new(b, i);
-            let bze = self.classify(g);
-
-            if bze != BZE::E {
-                result.push(PiGenerator::new(b, Weight::Ext, bze, i));
-            }
-            if bze != BZE::B {
-                result.push(PiGenerator::new(b, Weight::Lambda, bze, i));
-            }
+        for v in self.b_boundaries(b) {
+            result.push(PiGenerator::new(b, Weight::Ext, BZE::B, v));
+        }
+        for (_, v) in self.z_cycles(b) {
+            result.push(PiGenerator::new(b, Weight::Ext, BZE::Z, v.clone()));
+            result.push(PiGenerator::new(b, Weight::Lambda, BZE::Z, v));
+        }
+        for (_, v) in self.e_supports(b) {
+            result.push(PiGenerator::new(b, Weight::Lambda, BZE::E, v));
         }
 
         result
@@ -514,9 +601,21 @@ where
                 .filter(|&i| sq.zeros().pivots()[i] < 0 && !complement.contains(&i))
                 .collect();
 
+            // Ambient representative in the original basis: sum the `Subquotient` generator rows
+            // weighted by `coords`. `gens()` iterates rows in the same ascending-pivot order as
+            // `coords`, so they line up. This is the reduced-mod-boundary representative of the
+            // class, expressed over the original generators.
+            let mut rep = FpVector::new(self.prime(), sq.ambient_dimension());
+            for (row, &c) in sq.gens().zip(&coords) {
+                if c != 0 {
+                    rep.as_slice_mut().add(row, c);
+                }
+            }
+
             PiElement {
                 bidegree,
                 weight,
+                rep,
                 coords,
                 basis_indices,
             }
@@ -524,6 +623,7 @@ where
             PiElement {
                 bidegree,
                 weight,
+                rep: FpVector::new(self.prime(), 0),
                 coords: vec![],
                 basis_indices: vec![],
             }

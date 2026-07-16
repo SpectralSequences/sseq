@@ -21,7 +21,7 @@ use fp::{
 };
 use maybe_rayon::prelude::*;
 use once::OnceBiVec;
-use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator, BidegreeRange};
 use tracing::Level;
 
 // This module holds the shared machinery for secondary lifts (the `SecondaryLift` trait,
@@ -697,9 +697,13 @@ pub trait SecondaryLift: Sync + Sized {
         let result = self.compute_intermediate(g);
 
         if let Some(dir) = self.save_dir().write() {
-            let mut f = save_file.create_file(dir.to_owned(), false);
-            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
-            result.to_bytes(&mut f).unwrap();
+            // Intermediates are deterministic in `g`, so a concurrent task racing to compute the
+            // same one produces an identical file. If it beat us to creating it, our write is
+            // redundant — skip it rather than panicking on the `create_new` collision.
+            if let Some(mut f) = save_file.try_create_file(dir.to_owned(), false) {
+                f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
+                result.to_bytes(&mut f).unwrap();
+            }
         }
 
         result

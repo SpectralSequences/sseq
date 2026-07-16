@@ -19,11 +19,12 @@ use std::sync::Arc;
 
 use ext::{
     chain_complex::FreeChainComplex,
-    ext_algebra::{BZE, ExtAlgebra, secondary::SecondaryExtAlgebra},
+    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
     secondary::LAMBDA_BIDEGREE,
     utils::query_module,
 };
-use sseq::coordinates::{Bidegree, BidegreeGenerator};
+use fp::vector::FpVector;
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
@@ -74,32 +75,35 @@ fn main() -> anyhow::Result<()> {
 
 /// Table I: B/Z/E decomposition of Ext adapted to d2.
 ///
-/// For each bidegree (n, s), classifies each Ext generator as:
-/// - **Z** (d2-cycle, not a boundary) — survives to E3.
+/// For each bidegree (n, s), lists the classes of the decomposition — each expressed in the
+/// original generator basis (a class that is a non-trivial combination is written out in full, not
+/// named by a leading generator):
 /// - **B** (boundary) — in the image of d2.
-/// - **E** (supports d2) — d2(x) ≠ 0; prints the d2 value.
+/// - **Z** (d2-cycle, not a boundary) — survives to E3.
+/// - **E** (supports d2) — d2(x) ≠ 0; prints the d2 value, also in the original basis.
 fn print_table_i<CC>(e2: &ExtAlgebra<CC>, sec_e2: &SecondaryExtAlgebra<CC>)
 where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
     for b in e2.resolution().iter_nonzero_stem() {
-        let dim = e2.dimension(b);
-        for i in 0..dim {
-            let g = BidegreeGenerator::new(b, i);
-            match sec_e2.classify(g) {
-                BZE::Z => println!("Z  x_{g}"),
-                BZE::B => println!("B  x_{g}"),
-                BZE::E => {
-                    let elem = e2.generator(g);
-                    if let Some(d2) = sec_e2.d2(&elem) {
-                        let target: Vec<u32> = d2.vec().iter().collect();
-                        println!("E  x_{g}  d2 = {target:?}");
-                    } else {
-                        println!("E  x_{g}  d2 = (not computed)");
-                    }
-                }
-            }
+        if e2.dimension(b) == 0 {
+            continue;
+        }
+        for v in sec_e2.b_boundaries(b) {
+            println!("B  {}", BidegreeElement::new(b, v).to_basis_string());
+        }
+        for (_, v) in sec_e2.z_cycles(b) {
+            println!("Z  {}", BidegreeElement::new(b, v).to_basis_string());
+        }
+        for (_, v) in sec_e2.e_supports(b) {
+            let elem = BidegreeElement::new(b, v);
+            let d2str = match sec_e2.d2(&elem) {
+                Some(d2) if !d2.vec().is_zero() => d2.to_basis_string(),
+                Some(_) => "0".to_string(),
+                None => "(not computed)".to_string(),
+            };
+            println!("E  {}  d2 = {}", elem.to_basis_string(), d2str);
         }
     }
 }
@@ -152,8 +156,8 @@ where
         for g in sec_e2.pi_basis(b) {
             let [n, s] = g.bidegree().coords();
             let bock = g.weight().as_i32();
-            let x = BidegreeGenerator::new(g.bidegree(), g.idx());
-            println!("{}  x_{x}^{bock}  ({n}, {s}, {bock})", g.bze());
+            // `g` displays as "BZE  <combination in the original basis>^weight".
+            println!("{g}  ({n}, {s}, {bock})");
         }
     }
 }
@@ -171,20 +175,17 @@ where
     CC: FreeChainComplex + ext::chain_complex::AugmentedChainComplex,
     CC::Algebra: algebra::pair_algebra::PairAlgebra,
 {
-    let z_gens: Vec<BidegreeGenerator> = e2
+    // The multiplier must be an actual d_2-cycle, not the generator `e_i` sharing its index: the
+    // secondary lift only exists for cycles. See `SecondaryExtAlgebra::z_cycles`.
+    let z_classes: Vec<(BidegreeGenerator, FpVector)> = e2
         .resolution()
         .iter_nonzero_stem()
         .filter(|b| b.s() >= 1)
-        .flat_map(|b| {
-            let dim = e2.dimension(b);
-            (0..dim)
-                .filter(move |&i| sec_e2.classify(BidegreeGenerator::new(b, i)) == BZE::Z)
-                .map(move |i| BidegreeGenerator::new(b, i))
-        })
+        .flat_map(|b| sec_e2.z_cycles(b))
         .collect();
 
-    for &x_gen in &z_gens {
-        let x = e2.generator(x_gen);
+    for (x_gen, x_vec) in &z_classes {
+        let x = BidegreeElement::new(x_gen.degree(), x_vec.clone());
         let shift = x.degree();
 
         for b in e2.unit().iter_nonzero_stem() {
