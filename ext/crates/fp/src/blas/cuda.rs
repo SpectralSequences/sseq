@@ -11,12 +11,28 @@ use crate::{matrix::Matrix, prime::TWO};
 /// Below this the host marshalling (bit-repack into TMA tiles + copies) costs more than it saves.
 const DEFAULT_THRESHOLD: usize = 2048;
 
-/// The threshold in use, overridable via the `FP_CUDA_THRESHOLD` environment variable.
+/// Smallest `min(rows, cols)` for which we attempt the GPU row reduction. Higher
+/// than the matmul threshold: a full reduction is many dependent panel steps, not
+/// one GEMM, so its CPU crossover is later. Measured on an H200 (random square,
+/// device incl. upload/download vs multi-threaded M4RI `row_reduce`): the GPU
+/// first wins at n≈8192 (n=4096 still ~1.7× slower), so 8192 is the crossover.
+/// Override with `FP_CUDA_RR_THRESHOLD`.
+const DEFAULT_RR_THRESHOLD: usize = 8192;
+
+/// The matmul threshold in use, overridable via the `FP_CUDA_THRESHOLD` environment variable.
 fn threshold() -> usize {
     std::env::var("FP_CUDA_THRESHOLD")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(DEFAULT_THRESHOLD)
+}
+
+/// The row-reduction threshold in use, overridable via `FP_CUDA_RR_THRESHOLD`.
+fn rr_threshold() -> usize {
+    std::env::var("FP_CUDA_RR_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(DEFAULT_RR_THRESHOLD)
 }
 
 /// The process-wide GPU context, created lazily on first use.
@@ -90,7 +106,7 @@ pub(super) fn try_mul(a: &Matrix, b: &Matrix) -> Option<Matrix> {
 pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     debug_assert_eq!(m.prime(), TWO);
     let (rows, cols) = (m.rows(), m.columns());
-    let t = threshold();
+    let t = rr_threshold();
     if rows < t || cols < t {
         return None;
     }
