@@ -74,6 +74,7 @@ pub struct GpuContext {
     pack_a: CudaFunction,
     pack_b: CudaFunction,
     xor_into: CudaFunction,
+    panel_factor: CudaFunction,
 }
 
 impl GpuContext {
@@ -85,6 +86,7 @@ impl GpuContext {
         let pack_a = module.load_function("pack_a")?;
         let pack_b = module.load_function("pack_b")?;
         let xor_into = module.load_function("xor_into")?;
+        let panel_factor = module.load_function("panel_factor")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
@@ -93,6 +95,7 @@ impl GpuContext {
             pack_a,
             pack_b,
             xor_into,
+            panel_factor,
         })
     }
 
@@ -562,6 +565,11 @@ impl GpuContext {
         Ok(self.ctx.default_stream().clone_dtoh(&dm.buf)?)
     }
 
+    /// Download a device `u32` buffer (e.g. a `perm` vector) to host.
+    pub fn download_u32(&self, s: &CudaSlice<u32>) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+        Ok(self.ctx.default_stream().clone_dtoh(s)?)
+    }
+
     /// The fused trailing-update / back-substitution epilogue over persistent
     /// device buffers (design §4.4/§4.6): `dst[:, col_off:] ^= L · U`, in place,
     /// where `L` is `dst.rows × k` and `U` is `k × t` (`k = l.cols = u.rows`,
@@ -609,6 +617,74 @@ impl GpuContext {
         )?;
         stream.synchronize()?;
         Ok(())
+    }
+
+    /// Allocate the identity virtual-row permutation `perm = [0, 1, …, m-1]` on
+    /// device (design §4.3). Kernels dereference rows as `M[perm[i]]`; row swaps
+    /// are `perm` swaps, so the matrix bytes never move.
+    pub fn identity_perm(&self, m: usize) -> Result<CudaSlice<u32>, Box<dyn std::error::Error>> {
+        let host: Vec<u32> = (0..m as u32).collect();
+        Ok(self.ctx.default_stream().clone_htod(&host)?)
+    }
+
+    /// Factor one 64-bit column panel (limb `plimb`) in place over the
+    /// persistent buffer, forward-only, starting from pivot row `r` (design §5,
+    /// the b=64 base kernel). Rows are addressed through `perm`; a pivot is
+    /// promoted by swapping its `perm` entry to position `r + pivot_index`. The
+    /// multiplier bits captured while clearing rows *below* each pivot are ORed
+    /// into `l` (indexed by original row id, so `l` needs no permutation).
+    ///
+    /// `l` must be an `m × (≥64-column)` device matrix (one limb per row is
+    /// enough since a panel yields ≤ 64 pivots); the caller zeroes the panel's
+    /// pivot-index bits before the call. Returns `(pr, pivcols)` — the pivots
+    /// found and their absolute columns — read back to host (a few hundred
+    /// bytes); everything else stays on device.
+    pub fn panel_factor(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &mut CudaSlice<u32>,
+        l: &mut DeviceMatrix,
+        plimb: usize,
+        r: usize,
+    ) -> Result<(usize, Vec<u32>), Box<dyn std::error::Error>> {
+        assert_eq!(perm.len(), m.rows, "perm length must equal rows");
+        assert_eq!(l.rows, m.rows, "L rows must equal M rows");
+        let stream = self.ctx.default_stream();
+
+        const THREADS: u32 = 256;
+        let pivcols = stream.alloc_zeros::<u32>(64)?;
+        let pr_out = stream.alloc_zeros::<u32>(1)?;
+
+        let (plimb_u, r_u, n_u, m_u, stride_u, l_stride_u) = (
+            plimb as u32,
+            r as u32,
+            m.cols as u32,
+            m.rows as u32,
+            m.stride as u32,
+            l.stride as u32,
+        );
+        let cfg = LaunchConfig {
+            grid_dim: (1, 1, 1),
+            block_dim: (THREADS, 1, 1),
+            shared_mem_bytes: THREADS * std::mem::size_of::<i32>() as u32,
+        };
+        let mut lb = stream.launch_builder(&self.panel_factor);
+        lb.arg(&mut m.buf)
+            .arg(perm)
+            .arg(&mut l.buf)
+            .arg(&pivcols)
+            .arg(&pr_out)
+            .arg(&plimb_u)
+            .arg(&r_u)
+            .arg(&n_u)
+            .arg(&m_u)
+            .arg(&stride_u)
+            .arg(&l_stride_u);
+        unsafe { lb.launch(cfg) }?;
+
+        let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
+        let cols = stream.clone_dtoh(&pivcols)?;
+        Ok((pr, cols[..pr].to_vec()))
     }
 }
 
