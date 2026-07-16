@@ -889,6 +889,46 @@ extern "C" __global__ void block_reduce_rref(
     }
 }
 
+// Cooperative multi-CTA version of block_reduce_rref: identical math, but the
+// per-pivot clear is spread across the whole grid instead of one SM (the
+// single-CTA kernel was ~22% of GPU time at n=2^16). Same structure — gather the
+// clear-conditions for pivot k, barrier, XOR rowk into the flagged block rows
+// across all limbs, barrier — but with a global `cond` buffer and the atomic grid
+// barrier (grid-uniform k-loop, so arrival counts always match). The (j, limb)
+// work is flattened over the grid for full-machine parallelism. `barrier` must be
+// 0 at launch; `cond` holds ≥ (e-s) unsigned. Launch cooperatively.
+extern "C" __global__ void block_reduce_coop(
+    u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    const unsigned* __restrict__ pivcols,
+    unsigned s, unsigned e, unsigned stride,
+    unsigned* __restrict__ barrier, unsigned* __restrict__ cond,
+    unsigned total_ctas)
+{
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    unsigned goal = 0;
+    for (unsigned k = e; k-- > s;) {
+        unsigned qk = pivcols[k];
+        unsigned qlimb = qk >> 6, qbit = qk & 63;
+        unsigned rowk = perm[k];
+        unsigned nj = k - s; // earlier block rows [s, k)
+
+        for (unsigned j = gtid; j < nj; j += gnt)
+            cond[j] = (unsigned)((m_buf[(u64_t)perm[s + j] * stride + qlimb] >> qbit) & 1ULL);
+        goal += total_ctas; grid_sync(barrier, goal); // [A] conds visible pre-XOR
+
+        // XOR rowk into each flagged rowj, flattened over (j, limb) across the grid.
+        unsigned total = nj * stride; // ≤ 64 · stride, fits u32
+        for (unsigned idx = gtid; idx < total; idx += gnt) {
+            unsigned j = idx / stride;
+            if (!cond[j]) continue;
+            unsigned c = idx - j * stride;
+            m_buf[(u64_t)perm[s + j] * stride + c] ^= m_buf[(u64_t)rowk * stride + c];
+        }
+        goal += total_ctas; grid_sync(barrier, goal); // [B] finish k before next reads
+    }
+}
+
 // (2a) Gather X: for rows at perm positions [0, s), the bits at the `count`
 // block pivot columns pivcols[col_start .. col_start+count). One thread per
 // (row, dst-limb) builds a full limb, so no atomics. dst is s × dst_stride.
