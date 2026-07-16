@@ -199,23 +199,87 @@ impl Matrix {
         // ---- Back-substitution: echelon form → reduced row echelon form ----
         // The forward sweep left the R = `r` pivot rows in echelon form (rows
         // [0, r), pivot k in increasing column order, each already reduced by
-        // *earlier* pivots). Clear each pivot column from the rows above it,
-        // processing pivots high-to-low so every source row is already fully
-        // reduced (RREF) before it is used — adding it back never reintroduces a
-        // later pivot column.
+        // *earlier* pivots). We now clear the *later* pivot columns from the rows
+        // above them, blocked into the same `X·U` GEMM shape as the forward
+        // trailing update — the mirror image, walking pivot blocks right-to-left.
         //
-        // TODO(phase 2): this is O(R² · n) row operations; block it into the
-        // same L·U GEMM shape as the forward trailing update (mirror image,
-        // right-to-left) so the back-substitution is BLAS3 too.
+        // For a block of pivots (rows [s, e)): (1) reduce the block to RREF among
+        // itself with a few full-width row ops, then (2) clear the block's pivot
+        // columns from every row above via one GEMM. Blocks to the right are done
+        // first, so a block's rows are already clear of every pivot column to
+        // their right when we reach them, and rows above are reduced by the block
+        // in one shot. Same O(R²·n) work as the naive sweep, but as GEMMs.
         let pivot_cols: Vec<usize> = (0..n).filter(|&q| self.pivots()[q] >= 0).collect();
         debug_assert_eq!(pivot_cols.len(), r);
-        for k in (0..r).rev() {
-            let qk = pivot_cols[k];
-            for j in 0..k {
-                if self.row(j).entry(qk) != 0 {
-                    self.safe_row_op(j, k, 1);
+        let bp = bl * 64; // pivots per back-substitution block
+
+        let mut e = r;
+        while e > 0 {
+            let s = e.saturating_sub(bp);
+            let bp_eff = e - s;
+
+            // (1) Reduce block rows [s, e) to RREF among themselves: clear each
+            // block pivot column from the earlier block rows. Processing high-to-
+            // low keeps every source row fully reduced before it is used.
+            for k in (s..e).rev() {
+                let qk = pivot_cols[k];
+                for j in s..k {
+                    if self.row(j).entry(qk) != 0 {
+                        self.safe_row_op(j, k, 1);
+                    }
                 }
             }
+
+            // (2) Clear the block's pivot columns from all rows above [0, s) with
+            // one GEMM: `M[0..s, :] ^= X · U`, where `X[j][i] = M[j, q_{s+i}]` and
+            // `U` is the (now RREF) block rows. The block rows are zero below
+            // column `q_s`, so the update starts at that limb boundary.
+            if s > 0 {
+                let start_limb = pivot_cols[s] / 64;
+                let trailing_limbs = stride - start_limb;
+                let width = n - start_limb * 64;
+
+                // X = rows above, gathered at this block's pivot columns (s × bp_eff).
+                let mut x = Matrix::new(TWO, s, bp_eff);
+                for j in 0..s {
+                    for i in 0..bp_eff {
+                        let bit = self.row(j).entry(pivot_cols[s + i]);
+                        if bit != 0 {
+                            x.row_mut(j).add_basis_element(i, bit);
+                        }
+                    }
+                }
+
+                // U = block rows [s, e), limbs [start_limb, stride) (bp_eff × width).
+                let mut u = Matrix::new(TWO, bp_eff, width);
+                {
+                    let u_stride = u.stride(); // == trailing_limbs
+                    debug_assert_eq!(u_stride, trailing_limbs);
+                    let src = self.data();
+                    let dst = u.data_mut();
+                    for i in 0..bp_eff {
+                        let base = (s + i) * stride + start_limb;
+                        dst[i * u_stride..i * u_stride + trailing_limbs]
+                            .copy_from_slice(&src[base..base + trailing_limbs]);
+                    }
+                }
+
+                let g = &x * &u;
+                let g_stride = g.stride(); // == trailing_limbs
+                {
+                    let src = g.data();
+                    let dst = self.data_mut();
+                    for j in 0..s {
+                        let m_base = j * stride + start_limb;
+                        let g_base = j * g_stride;
+                        for col in 0..trailing_limbs {
+                            dst[m_base + col] ^= src[g_base + col];
+                        }
+                    }
+                }
+            }
+
+            e = s;
         }
 
         r
