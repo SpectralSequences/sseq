@@ -753,6 +753,28 @@ extern "C" __global__ void panel_factor_coop(
     if (gtid == 0) *pr_out = *g_pr;
 }
 
+// ── Active-row compaction (design §8.2) ──────────────────────────────────────
+//
+// A below row that is entirely zero across the remaining columns [start_limb,
+// stride) can never become a pivot and never contributes to a trailing update
+// (its multiplier bits are always zero), so it is permanently dead. At half rank
+// ~half the rows die during elimination. Marking them lets the driver shrink the
+// row range panel_factor scans. `live[idx]` (idx over rows [r, m)) = 1 iff row
+// perm[r+idx] has any set bit in limbs [start_limb, stride).
+extern "C" __global__ void mark_live(
+    unsigned* __restrict__ live, const u64_t* __restrict__ m_buf,
+    const unsigned* __restrict__ perm,
+    unsigned r, unsigned m, unsigned start_limb, unsigned stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= m - r) return;
+    unsigned row = perm[r + idx];
+    u64_t acc = 0;
+    for (unsigned c = start_limb; c < stride; ++c)
+        acc |= m_buf[(u64_t)row * stride + c];
+    live[idx] = (acc != 0) ? 1u : 0u;
+}
+
 // ── Forward-pass driver kernels (BLAS3 GPU row-reduction port, design §4.4) ───
 //
 // After panel_factor establishes `pr` pivots at perm positions [r, r+pr), the

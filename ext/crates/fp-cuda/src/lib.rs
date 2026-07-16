@@ -158,6 +158,7 @@ pub struct GpuContext {
     xor_into: CudaFunction,
     panel_factor: CudaFunction,
     panel_factor_coop: CudaFunction,
+    mark_live: CudaFunction,
     promote_pivots: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
@@ -177,6 +178,7 @@ impl GpuContext {
         let xor_into = module.load_function("xor_into")?;
         let panel_factor = module.load_function("panel_factor")?;
         let panel_factor_coop = module.load_function("panel_factor_coop")?;
+        let mark_live = module.load_function("mark_live")?;
         let promote_pivots = module.load_function("promote_pivots")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
@@ -193,6 +195,7 @@ impl GpuContext {
             xor_into,
             panel_factor,
             panel_factor_coop,
+            mark_live,
             promote_pivots,
             zero_pivot_l,
             gather_rows,
@@ -838,10 +841,12 @@ impl GpuContext {
         ppanel: usize,
         bl: usize,
         r: usize,
+        m_active: usize,
     ) -> Result<(usize, Vec<u32>), Box<dyn std::error::Error>> {
         assert_eq!(perm.len(), m.rows, "perm length must equal rows");
         assert_eq!(l.rows, m.rows, "L rows must equal M rows");
         assert!(l.stride >= bl, "L stride must be at least bl");
+        assert!(m_active <= m.rows && m_active >= r, "m_active out of range");
         let stream = self.ctx.default_stream();
 
         const THREADS: u32 = 256;
@@ -863,7 +868,9 @@ impl GpuContext {
             .panel_factor_coop
             .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem as usize, None)?
             .max(1);
-        let rows_worth = (m.rows as u32).div_ceil(THREADS).max(1);
+        // Only rows [r, m_active) are scanned/updated (dead rows excluded), so
+        // size the grid and the kernel's row bound to m_active.
+        let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
 
         let (ppanel_u, bl_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
@@ -871,7 +878,7 @@ impl GpuContext {
             bl as u32,
             r as u32,
             m.cols as u32,
-            m.rows as u32,
+            m_active as u32,
             m.stride as u32,
             l.stride as u32,
             num_ctas,
@@ -902,6 +909,65 @@ impl GpuContext {
         let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
         let cols = stream.clone_dtoh(&pivcols)?;
         Ok((pr, cols[..pr].to_vec()))
+    }
+
+    /// Active-row compaction (design §8.2): mark the below rows [r, m_active)
+    /// that are entirely zero across the remaining columns [start_limb·64, n) —
+    /// permanently dead (they can never pivot and carry no multiplier) — and
+    /// stable-partition `perm[r..m_active]` so the live rows come first. Returns
+    /// the new active count `r + live`. The dead rows are parked in
+    /// [new_active, m_active) and never scanned again; pivot rows [0, r) are
+    /// untouched. The partition is done on the host (a few hundred KB of perm +
+    /// flags per call), which is negligible beside the panel work it saves.
+    fn compact_perm(
+        &self,
+        m: &DeviceMatrix,
+        perm: &mut CudaSlice<u32>,
+        r: usize,
+        m_active: usize,
+        start_limb: usize,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        if m_active <= r {
+            return Ok(m_active);
+        }
+        let stream = self.ctx.default_stream();
+        let n_scan = m_active - r;
+        let live = unsafe { stream.alloc::<u32>(n_scan) }?;
+        {
+            let (r_u, m_u, sl, st) = (
+                r as u32,
+                m_active as u32,
+                start_limb as u32,
+                m.stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.mark_live);
+            lb.arg(&live)
+                .arg(&m.buf)
+                .arg(&*perm)
+                .arg(&r_u)
+                .arg(&m_u)
+                .arg(&sl)
+                .arg(&st);
+            unsafe { lb.launch(cfg_1d(n_scan)) }?;
+        }
+        let live_host = stream.clone_dtoh(&live)?;
+        let perm_host = stream.clone_dtoh(&perm.slice(r..m_active))?;
+        // Stable partition: live rows first (preserve order), dead rows after.
+        let mut ordered: Vec<u32> = Vec::with_capacity(n_scan);
+        for (i, &lv) in live_host.iter().enumerate() {
+            if lv != 0 {
+                ordered.push(perm_host[i]);
+            }
+        }
+        let new_active = r + ordered.len();
+        for (i, &lv) in live_host.iter().enumerate() {
+            if lv == 0 {
+                ordered.push(perm_host[i]);
+            }
+        }
+        let mut view = perm.slice_mut(r..m_active);
+        stream.memcpy_htod(&ordered, &mut view)?;
+        Ok(new_active)
     }
 
     /// Forward pass of the blocked row reduction over the persistent device
@@ -939,9 +1005,31 @@ impl GpuContext {
             1
         };
 
+        // Active-row compaction: park permanently-dead below rows past m_active
+        // so panel_factor stops scanning them. Default on (coop only); disable
+        // with FP_CUDA_NO_COMPACT. Re-scanned every COMPACT_PERIOD panels to
+        // amortize the mark-and-partition cost.
+        let use_compact = use_coop && std::env::var("FP_CUDA_NO_COMPACT").is_err();
+        const COMPACT_PERIOD: usize = 4;
+        let mut m_active = rows;
+
         let mut ppanel = 0usize;
+        let mut panel_idx = 0usize;
         while ppanel < stride {
             let bl_eff = bl.min(stride - ppanel);
+            if use_compact && panel_idx.is_multiple_of(COMPACT_PERIOD) {
+                m_active = timed_phase!(
+                    stream,
+                    "compact",
+                    self.compact_perm(m, &mut perm, r, m_active, ppanel)
+                )?;
+                // No live below rows left ⇒ no column past here can have a pivot;
+                // the remaining panels would all be empty. Stop the forward sweep
+                // (huge win for low-rank / rank-deficient inputs).
+                if m_active <= r {
+                    break;
+                }
+            }
             // Fresh multiplier matrix L (m × bl_eff limbs/row) per wide panel.
             let mut l = DeviceMatrix {
                 buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
@@ -953,13 +1041,14 @@ impl GpuContext {
                 stream,
                 "panel_factor",
                 if use_coop {
-                    self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r)
+                    self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)
                 } else {
                     self.panel_factor(m, &mut perm, &mut l, ppanel, r)
                 }
             )?;
             if pr == 0 {
                 ppanel += bl_eff;
+                panel_idx += 1;
                 continue;
             }
             // The whole panel is factored; the trailing starts after it.
@@ -1044,6 +1133,7 @@ impl GpuContext {
             }
             r += pr;
             ppanel += bl_eff;
+            panel_idx += 1;
         }
         stream.synchronize()?;
         Ok((perm, r, pivot_cols))
