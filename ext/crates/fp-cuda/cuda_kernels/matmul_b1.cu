@@ -625,3 +625,61 @@ extern "C" __global__ void panel_factor(
     }
     if (tid == 0) *pr_out = s_pr;
 }
+
+// ── Forward-pass driver kernels (BLAS3 GPU row-reduction port, design §4.4) ───
+//
+// After panel_factor establishes `pr` pivots at perm positions [r, r+pr), the
+// driver (1) promotes the pivot rows' trailing, (2) drops them from the
+// multiplier matrix, (3) gathers them into a contiguous U for the trailing GEMM.
+
+// (1) Promote pivot-row trailings: realize the deferred trailing of each pivot
+// by replaying the earlier this-panel pivots recorded in L. Sequential in k
+// (pivot k uses the already-promoted pivots i<k), parallel over trailing limbs.
+// One CTA; L is indexed by original row id (perm[r+k]).
+extern "C" __global__ void promote_pivots(
+    u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    const u64_t* __restrict__ l_buf,
+    unsigned r, unsigned pr, unsigned first_limb, unsigned trailing_limbs,
+    unsigned stride, unsigned l_stride)
+{
+    const int tid = threadIdx.x;
+    const int nt = blockDim.x;
+    for (unsigned k = 0; k < pr; ++k) {
+        unsigned row_k = perm[r + k];
+        for (unsigned c = tid; c < trailing_limbs; c += nt) {
+            u64_t acc = m_buf[(u64_t)row_k * stride + first_limb + c];
+            for (unsigned i = 0; i < k; ++i) {
+                if ((l_buf[(u64_t)row_k * l_stride + (i >> 6)] >> (i & 63)) & 1ULL)
+                    acc ^= m_buf[(u64_t)perm[r + i] * stride + first_limb + c];
+            }
+            m_buf[(u64_t)row_k * stride + first_limb + c] = acc;
+        }
+        __syncthreads(); // row_k fully written before pivot k+1 reads it
+    }
+}
+
+// (2) Zero the L rows of the pr pivot rows so the trailing GEMM (which runs over
+// all m rows) leaves them untouched — their trailing is already promoted.
+extern "C" __global__ void zero_pivot_l(
+    const unsigned* __restrict__ perm, u64_t* __restrict__ l_buf,
+    unsigned r, unsigned pr, unsigned l_stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= pr) return;
+    unsigned row = perm[r + idx];
+    for (unsigned c = 0; c < l_stride; ++c)
+        l_buf[(u64_t)row * l_stride + c] = 0;
+}
+
+// (3) Gather the pr pivot rows' trailing limbs [first_limb, first_limb+ncols)
+// (through perm) into a contiguous pr × ncols buffer — the GEMM operand U.
+extern "C" __global__ void gather_rows(
+    u64_t* __restrict__ dst, const u64_t* __restrict__ m_buf,
+    const unsigned* __restrict__ perm,
+    unsigned r, unsigned first_limb, unsigned pr, unsigned ncols, unsigned stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= pr * ncols) return;
+    unsigned k = idx / ncols, c = idx % ncols;
+    dst[idx] = m_buf[(u64_t)perm[r + k] * stride + first_limb + c];
+}
