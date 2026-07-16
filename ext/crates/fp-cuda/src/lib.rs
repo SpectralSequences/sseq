@@ -905,11 +905,7 @@ impl GpuContext {
                         stride as u32,
                         l.stride as u32,
                     );
-                    let cfg = LaunchConfig {
-                        grid_dim: (1, 1, 1),
-                        block_dim: (256, 1, 1),
-                        shared_mem_bytes: 0,
-                    };
+                    // Grid-strided over trailing limbs (columns are independent).
                     let mut lb = stream.launch_builder(&self.promote_pivots);
                     lb.arg(&mut m.buf)
                         .arg(&perm)
@@ -920,7 +916,7 @@ impl GpuContext {
                         .arg(&tl)
                         .arg(&st)
                         .arg(&ls);
-                    unsafe { lb.launch(cfg) }?;
+                    unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
                     let (r_u, pr_u, ls) = (r as u32, pr as u32, l.stride as u32);
                     let mut lb = stream.launch_builder(&self.zero_pivot_l);
                     lb.arg(&perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
