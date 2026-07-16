@@ -85,6 +85,9 @@ pub struct GpuContext {
     promote_pivots: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
+    block_reduce_rref: CudaFunction,
+    gather_cols: CudaFunction,
+    xor_into_perm: CudaFunction,
 }
 
 impl GpuContext {
@@ -104,6 +107,9 @@ impl GpuContext {
         let promote_pivots = module.load_function("promote_pivots")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
+        let block_reduce_rref = module.load_function("block_reduce_rref")?;
+        let gather_cols = module.load_function("gather_cols")?;
+        let xor_into_perm = module.load_function("xor_into_perm")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
@@ -116,6 +122,9 @@ impl GpuContext {
             promote_pivots,
             zero_pivot_l,
             gather_rows,
+            block_reduce_rref,
+            gather_cols,
+            xor_into_perm,
         })
     }
 
@@ -797,6 +806,148 @@ impl GpuContext {
             r += pr;
         }
         stream.synchronize()?;
+        Ok((perm, r, pivot_cols))
+    }
+
+    /// Back-substitution: turn the row-echelon form left by
+    /// [`forward_reduce`](Self::forward_reduce) into full RREF (design §4.6),
+    /// blocked right-to-left over pivot blocks. For each block of ≤ 64 pivots
+    /// (perm positions `[s, e)`): reduce it among itself, then clear its pivot
+    /// columns from every row above `[0, s)` with one `X·U` GEMM. In place over
+    /// the persistent buffer through `perm`; `pivot_cols` is the ascending pivot
+    /// column list from the forward pass.
+    pub fn back_substitute(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        r: usize,
+        pivot_cols: &[usize],
+    ) -> anyhow::Result<()> {
+        if r == 0 {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        let (stride, n) = (m.stride, m.cols);
+        let piv_dev =
+            stream.clone_htod(&pivot_cols.iter().map(|&q| q as u32).collect::<Vec<_>>())?;
+
+        let one_cta = LaunchConfig {
+            grid_dim: (1, 1, 1),
+            block_dim: (256, 1, 1),
+            shared_mem_bytes: 0,
+        };
+        const BP: usize = 64; // pivots per block (bl * 64 with bl = 1)
+        let mut e = r;
+        while e > 0 {
+            let s = e - e.min(BP);
+            let bp_eff = e - s;
+
+            // (1) reduce the block [s, e) to RREF among itself.
+            {
+                let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
+                let mut lb = stream.launch_builder(&self.block_reduce_rref);
+                lb.arg(&mut m.buf)
+                    .arg(perm)
+                    .arg(&piv_dev)
+                    .arg(&s_u)
+                    .arg(&e_u)
+                    .arg(&st);
+                unsafe { lb.launch(one_cta) }?;
+            }
+
+            // (2) clear the block's pivot columns from all rows above [0, s).
+            if s > 0 {
+                let start_limb = pivot_cols[s] / 64;
+                let trailing_limbs = stride - start_limb;
+                let width_cols = n - start_limb * 64;
+                let x_stride = bp_eff.div_ceil(64);
+
+                // X = above rows gathered at the block's pivot columns (s × bp_eff).
+                let x_buf = stream.alloc_zeros::<u64>(s * x_stride)?;
+                {
+                    let (cs, s_u, cnt, st, xs) = (
+                        s as u32,
+                        s as u32,
+                        bp_eff as u32,
+                        stride as u32,
+                        x_stride as u32,
+                    );
+                    let mut lb = stream.launch_builder(&self.gather_cols);
+                    lb.arg(&x_buf)
+                        .arg(&m.buf)
+                        .arg(perm)
+                        .arg(&piv_dev)
+                        .arg(&cs)
+                        .arg(&s_u)
+                        .arg(&cnt)
+                        .arg(&st)
+                        .arg(&xs);
+                    unsafe { lb.launch(cfg_1d(s * x_stride)) }?;
+                }
+
+                // U = the (now RREF) block rows, limbs [start_limb, stride).
+                let u_buf = stream.alloc_zeros::<u64>(bp_eff * trailing_limbs)?;
+                {
+                    let (s_u, fl, pr_u, nc, st) = (
+                        s as u32,
+                        start_limb as u32,
+                        bp_eff as u32,
+                        trailing_limbs as u32,
+                        stride as u32,
+                    );
+                    let mut lb = stream.launch_builder(&self.gather_rows);
+                    lb.arg(&u_buf)
+                        .arg(&m.buf)
+                        .arg(perm)
+                        .arg(&s_u)
+                        .arg(&fl)
+                        .arg(&pr_u)
+                        .arg(&nc)
+                        .arg(&st);
+                    unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
+                }
+
+                // G = X · U (s × width_cols); scatter-XOR into rows above via perm.
+                let (c_dev, n_padded_lim) =
+                    self.matmul_b1_dev(&x_buf, s, bp_eff, &u_buf, width_cols)?;
+                {
+                    let (s_u, w, st, fl, cs) = (
+                        s as u32,
+                        trailing_limbs as u32,
+                        stride as u32,
+                        start_limb as u32,
+                        n_padded_lim as u32,
+                    );
+                    let mut lb = stream.launch_builder(&self.xor_into_perm);
+                    lb.arg(&mut m.buf)
+                        .arg(&c_dev)
+                        .arg(perm)
+                        .arg(&s_u)
+                        .arg(&w)
+                        .arg(&st)
+                        .arg(&fl)
+                        .arg(&cs);
+                    unsafe { lb.launch(cfg_1d(s * trailing_limbs)) }?;
+                }
+            }
+            e = s;
+        }
+        stream.synchronize()?;
+        Ok(())
+    }
+
+    /// Full device-resident F₂ row reduction to RREF over one persistent buffer:
+    /// [`forward_reduce`](Self::forward_reduce) then
+    /// [`back_substitute`](Self::back_substitute). Mutates `m` to the reduced row
+    /// echelon form (addressed through the returned `perm`) and returns
+    /// `(perm, rank, pivot_cols)`. Bit-for-bit equal to
+    /// `fp::Matrix::row_reduce_blas3` / `row_reduce` (validated in the examples).
+    pub fn row_reduce_dev(
+        &self,
+        m: &mut DeviceMatrix,
+    ) -> anyhow::Result<(CudaSlice<u32>, usize, Vec<usize>)> {
+        let (perm, r, pivot_cols) = self.forward_reduce(m)?;
+        self.back_substitute(m, &perm, r, &pivot_cols)?;
         Ok((perm, r, pivot_cols))
     }
 }
