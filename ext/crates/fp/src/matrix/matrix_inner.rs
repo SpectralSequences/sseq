@@ -673,6 +673,17 @@ impl Matrix {
     /// ```
     pub fn row_reduce(&mut self) -> usize {
         let p = self.prime();
+
+        // For large p = 2 matrices, try the device-resident GPU reduction; it
+        // produces the identical canonical RREF + pivots. Falls back to the CPU
+        // M4RI path below when the GPU is unavailable or below threshold.
+        #[cfg(feature = "gpu")]
+        if p == 2
+            && let Some(rank) = crate::blas::cuda::try_row_reduce(self)
+        {
+            return rank;
+        }
+
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());

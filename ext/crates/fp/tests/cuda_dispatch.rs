@@ -15,6 +15,23 @@ fn random_matrix(rows: usize, cols: usize) -> Matrix {
     Matrix::from_data(TWO, rows, cols, data)
 }
 
+/// Well-formed 0/1 matrix (bits past the last column masked), of rank ≤ `rank`
+/// when `rank > 0`, else full-random.
+fn clean_matrix(rows: usize, cols: usize, rank: usize) -> Matrix {
+    let mut rng = rand::rng();
+    let mut rand_vec = |r: usize, c: usize| -> Matrix {
+        let v: Vec<Vec<u32>> = (0..r)
+            .map(|_| (0..c).map(|_| rng.random::<bool>() as u32).collect())
+            .collect();
+        Matrix::from_vec(TWO, &v)
+    };
+    if rank == 0 {
+        rand_vec(rows, cols)
+    } else {
+        &rand_vec(rows, rank) * &rand_vec(rank, cols)
+    }
+}
+
 /// The dispatched product must be bit-identical to the CPU BLAS kernel. Sizes
 /// are chosen above the default 2048 threshold so the GPU path is attempted.
 #[test]
@@ -70,4 +87,34 @@ fn gpu_matmul_concurrent() {
             });
         }
     });
+}
+
+/// The dispatched `row_reduce` (GPU, feature on, sizes above the 2048 threshold)
+/// must be bit-identical to the CPU BLAS3 reducer — RREF, rank, and pivots.
+#[test]
+fn gpu_row_reduce_matches_cpu() {
+    for &(rows, cols, rank) in &[
+        (2048, 2048, 0),
+        (4096, 2560, 0),
+        (2048, 3000, 0),
+        (3000, 2048, 500), // rank-deficient
+    ] {
+        let base = clean_matrix(rows, cols, rank);
+
+        let mut gpu = base.clone();
+        let rank_gpu = gpu.row_reduce(); // GPU dispatch (feature on, above threshold)
+        let mut cpu = base.clone();
+        let rank_cpu = cpu.row_reduce_blas3(); // CPU oracle, never dispatches
+
+        assert_eq!(
+            rank_gpu, rank_cpu,
+            "rank mismatch at {rows}x{cols} rank={rank}"
+        );
+        assert_eq!(
+            gpu.pivots(),
+            cpu.pivots(),
+            "pivot mismatch at {rows}x{cols}"
+        );
+        assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
+    }
 }
