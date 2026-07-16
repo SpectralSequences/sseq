@@ -626,6 +626,122 @@ extern "C" __global__ void panel_factor(
     if (tid == 0) *pr_out = s_pr;
 }
 
+// ── Multi-CTA (cooperative) panel factorization ──────────────────────────────
+//
+// The single-CTA `panel_factor` above uses one SM of ~132 and is the dominant
+// cost of the forward pass (profiled ~76% of GPU time at n=2^15 half-rank). This
+// version does the identical math but spreads each bit-step's find-first and
+// masked-XOR across the *whole grid*: the launch is cooperative (all CTAs
+// co-resident), so we can barrier the grid between the 64 sequential bit-steps.
+//
+// Grid barrier is a self-contained sense-counting spin (no cooperative_groups /
+// cudadevrt dependency, so it compiles under `nvcc -ptx`): each CTA's leader
+// thread __threadfence()s its global writes, atomically arrives at a shared
+// counter, and spins until all `total_ctas` CTAs of the current round have
+// arrived. `goal` (= round · total_ctas) is tracked in a register that every
+// thread advances identically — control flow is grid-uniform (all CTAs branch
+// on the same broadcast `g_min`), so the arrival counts always match. Requires
+// co-residency, which the cooperative launch guarantees; `barrier` must be 0 at
+// launch.
+__device__ __forceinline__ void grid_sync(unsigned* barrier, unsigned goal) {
+    __syncthreads();
+    __threadfence();
+    if (threadIdx.x == 0) {
+        atomicAdd(barrier, 1u);
+        while (atomicAdd(barrier, 0u) < goal) { /* spin until the grid arrives */ }
+    }
+    __syncthreads();
+}
+
+// Same contract as `panel_factor` (factor one 64-bit panel `plimb` in place,
+// forward-only from pivot row `r`, capturing multipliers into `l_buf`), but
+// grid-parallel. `scratch` is 3 u32: [0]=barrier (must be 0), [1]=g_min (pivot
+// position, reinterpreted as int), [2]=g_pr (pivots so far). Launch cooperatively
+// with `total_ctas` = gridDim.x.
+extern "C" __global__ void panel_factor_coop(
+    u64_t* __restrict__ m_buf,
+    unsigned* __restrict__ perm,
+    u64_t* __restrict__ l_buf,
+    unsigned* __restrict__ pivcols,
+    unsigned* __restrict__ pr_out,
+    unsigned* __restrict__ scratch,   // [barrier, g_min(int), g_pr]
+    u64_t* __restrict__ g_pivword,    // broadcast pivot panel word (1 u64)
+    unsigned plimb, unsigned r, unsigned n,
+    unsigned m, unsigned stride, unsigned l_stride,
+    unsigned total_ctas)
+{
+    extern __shared__ int s_red[]; // blockDim ints for the CTA-local min-reduction
+    const int tid = threadIdx.x;
+    const int nt = blockDim.x;
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+
+    unsigned* barrier = &scratch[0];
+    int* g_min = (int*)&scratch[1];
+    unsigned* g_pr = &scratch[2];
+
+    if (gtid == 0) { *g_min = 0x7fffffff; *g_pr = 0; }
+    unsigned goal = 0;
+    goal += total_ctas; grid_sync(barrier, goal); // init visible grid-wide
+
+    for (unsigned j = 0; j < 64; ++j) {
+        unsigned q = plimb * 64 + j;
+        if (q >= n) break;
+        unsigned pr = *g_pr;
+
+        // find-first: smallest position p in [r+pr, m) whose row has bit j set.
+        int local_min = 0x7fffffff;
+        for (unsigned p = r + pr + gtid; p < m; p += gnt) {
+            unsigned row = perm[p];
+            if ((m_buf[(u64_t)row * stride + plimb] >> j) & 1ULL)
+                local_min = min(local_min, (int)p);
+        }
+        s_red[tid] = local_min;
+        __syncthreads();
+        for (int off = nt / 2; off > 0; off >>= 1) {
+            if (tid < off) s_red[tid] = min(s_red[tid], s_red[tid + off]);
+            __syncthreads();
+        }
+        if (tid == 0) atomicMin(g_min, s_red[0]);
+        goal += total_ctas; grid_sync(barrier, goal); // [A] all atomicMin done
+
+        int pivpos = *g_min;
+        if (pivpos != 0x7fffffff) {
+            // Only thread 0 touches perm[pivpos]/g_min here: it reads the pivot
+            // row's panel word (broadcast via g_pivword), swaps the pivot up to
+            // position r+pr (perm swap only), and resets g_min/advances g_pr.
+            // The displaced row lands at position pivpos and is handled by the
+            // XOR loop below (which, after [B], reads a now-stable perm and never
+            // touches perm[pivpos] concurrently with the swap).
+            if (gtid == 0) {
+                unsigned pivrow = perm[pivpos];
+                *g_pivword = m_buf[(u64_t)pivrow * stride + plimb];
+                unsigned a = r + pr;
+                perm[pivpos] = perm[a]; perm[a] = pivrow;
+                pivcols[pr] = q;
+                *g_min = 0x7fffffff; // reset for next bit
+                *g_pr = pr + 1;
+            }
+            goal += total_ctas; grid_sync(barrier, goal); // [B] swap + pivword + resets visible
+
+            u64_t pivword = *g_pivword;
+            // masked XOR of the rows *below* the pivot (now at position r+pr).
+            for (unsigned p = r + pr + 1 + gtid; p < m; p += gnt) {
+                unsigned row = perm[p];
+                u64_t* cell = &m_buf[(u64_t)row * stride + plimb];
+                if ((*cell >> j) & 1ULL) {
+                    l_buf[(u64_t)row * l_stride + (pr >> 6)] |= (1ULL << (pr & 63));
+                    *cell ^= pivword;
+                }
+            }
+            goal += total_ctas; grid_sync(barrier, goal); // [C] XOR done before next find
+        }
+        // free column (pivpos == INT_MAX): g_min already INT_MAX, g_pr unchanged;
+        // no extra barriers — the branch is grid-uniform so all CTAs agree.
+    }
+    if (gtid == 0) *pr_out = *g_pr;
+}
+
 // ── Forward-pass driver kernels (BLAS3 GPU row-reduction port, design §4.4) ───
 //
 // After panel_factor establishes `pr` pivots at perm positions [r, r+pr), the
