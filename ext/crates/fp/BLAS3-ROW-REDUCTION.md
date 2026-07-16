@@ -382,7 +382,7 @@ laptop before a single device kernel is written.
 |---|---|---|---|
 | 0 | `fp` | This document | ✅ done |
 | 1 | `fp` | CPU blocked forward-echelon (§4) + back-sub (§4.6) vs `row_reduce`; proptest + rank-deficient generators | ✅ done (`blas3.rs`) |
-| 1b | `fp` | Block the back-substitution (§4.6) into the same `L·U` GEMM shape (right-to-left over pivot rows) | next |
+| 1b | `fp` | Block the back-substitution (§4.6) into the same `X·U` GEMM shape (right-to-left over pivot rows) | ✅ done (§10.3) |
 | 2 | `fp` | criterion bench; choose default `b`; measure M4RI crossover | gated by 1 |
 | 3 | `fp-cuda` | Device-resident `DeviceMatrix` + persistent-buffer glue; `gemm_xor_into` fused epilogue (§6) | gated by 1,1b |
 | 4 | `fp-cuda` | `panel_factor` kernel §5(1) (b=64) + virtual `perm` | gated by 3 |
@@ -483,6 +483,40 @@ sequential, cache-bound dead-end at scale; the GEMM path is not.**
 Caveats: single-shot (not averaged); blas3 is still slower than M4RI at every
 size *measured on 4 cores*; and its serial `O(R²·n)` back-substitution (Phase 1b)
 is an increasing drag — blocking it would bend the blas3 curve further down.
+
+### 10.3 Phase 1b: blocked back-substitution, re-measured
+
+After blocking the back-substitution into `X·U` GEMMs (§4.6, same harness,
+4-core AVX-512 host):
+
+| n     | M4RI    | blas3 pre-1b | blas3 **1b** | ratio pre-1b | ratio **1b** |
+|-------|--------:|-------------:|-------------:|-------------:|-------------:|
+| 4096  | 28 ms   | 299 ms       | 207 ms       | 10.6×        | 7.3×         |
+| 8192  | 217 ms  | 1.12 s       | 1.30 s       | 5.0×         | 6.0× ⚠       |
+| 16384 | 1.93 s  | 8.16 s       | **5.48 s**   | 4.2×         | **2.8×**     |
+| 32768 | 25.8 s  | 76.0 s       | **57.2 s**   | 3.07×        | **2.22×**    |
+
+blas3 thread scaling (1→4 threads), pre-1b → 1b:
+
+| n     | pre-1b | **1b** |
+|-------|-------:|-------:|
+| 4096  | 1.10×  | 1.75×  |
+| 8192  | 1.72×  | 1.23× ⚠ |
+| 16384 | 1.23×  | **1.89×** |
+
+The blocked back-substitution did what it was meant to at the sizes where it
+matters: 16384 dropped 8.16 s → 5.48 s and its 4-core scaling rose 1.23× → 1.89×
+(≈ 63 % parallel fraction by Amdahl), and 32768 dropped 76 s → 57 s with the ratio
+falling 3.07× → 2.22×. The `⚠` at 8192 (blas3 slightly *slower*, scaling *lower*)
+is single-shot noise — it sits between two points that both improved, and these
+are un-averaged one-shot runs. The ratio still collapses with size (7.3× → 2.22×);
+extrapolating the 1b ratio (~0.78× per doubling in the last step) puts the 4-core
+crossover near `n ≈ 2.5 · 10⁵`, and 100 000 rows lands around ratio ≈ 1.5× — close
+enough that a modest many-core CPU crosses it, and a GPU crosses it far earlier.
+
+Remaining serial drag (the next lever): the panel factorization's per-`entry()`
+scan and the back-sub's `X` column-gather. Making the panel limb-wise (§5) is the
+CPU follow-up; on the GPU it becomes the on-device panel kernel.
 
 **Reading this honestly:** on CPU the blocked algorithm is ~an order of magnitude
 *slower* than M4RI, and it is **not GEMM-bound** — the block-width independence is

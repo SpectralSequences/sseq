@@ -28,7 +28,7 @@
 //! proportional to rank — so the highly rank-deficient matrices this targets are
 //! cheaper for free.
 
-use crate::{matrix::Matrix, prime::TWO};
+use crate::{limb::Limb, matrix::Matrix, prime::TWO};
 
 /// Default panel width in columns. A multiple of 64; wide enough that the
 /// trailing GEMM's inner (`k`) dimension is a healthy number of pivots, narrow
@@ -69,6 +69,10 @@ impl Matrix {
         let stride = self.stride(); // limbs per row
         let bl = (block_cols.max(64) & !63) / 64; // panel width in limbs
 
+        // Reused scratch for a pivot row's panel limbs, so the inner elimination
+        // loop is a plain limb XOR with no per-row re-borrow.
+        let mut piv_panel = vec![0 as Limb; bl];
+
         let mut r = 0usize; // pivots found so far; pivot rows sit at [0, r)
         let mut limb_lo = 0usize; // current panel's first limb
         while limb_lo < stride {
@@ -87,17 +91,23 @@ impl Matrix {
             let mut l = Matrix::new(TWO, m, col_hi - col_lo);
             let mut pr = 0usize; // pivots found in this panel
 
+            let panel_w = limb_hi - limb_lo;
             for q in col_lo..col_hi {
                 let piv_row = r_start + pr;
+                let qlimb = q / 64; // absolute limb of column q (in [limb_lo, limb_hi))
+                let qbit = q % 64;
 
-                // Pivot search: the only column-indexed scan. Rows [piv_row, m)
-                // have already had this panel's earlier pivot columns cleared, so
-                // a non-zero here is a genuine pivot.
+                // Pivot search (raw-limb): first row in [piv_row, m) with bit q
+                // set. Rows [piv_row, m) already had this panel's earlier pivot
+                // columns cleared, so a non-zero here is a genuine pivot.
                 let mut found = None;
-                for i in piv_row..m {
-                    if self.row(i).entry(q) != 0 {
-                        found = Some(i);
-                        break;
+                {
+                    let data = self.data();
+                    for i in piv_row..m {
+                        if (data[i * stride + qlimb] >> qbit) & 1 == 1 {
+                            found = Some(i);
+                            break;
+                        }
                     }
                 }
                 let Some(i) = found else { continue };
@@ -116,24 +126,40 @@ impl Matrix {
                 // elimination never reduces a pivot by a *later* one — so their
                 // trailing is final and this catch-up is correct. Its panel limbs
                 // were already reduced while it was a below row.
-                for kp in 0..pr {
-                    if l.row(piv_row).entry(kp) != 0 {
-                        xor_limb_range(self, piv_row, r_start + kp, limb_hi, stride);
+                {
+                    let lstride = l.stride();
+                    for kp in 0..pr {
+                        if (l.data()[piv_row * lstride + kp / 64] >> (kp % 64)) & 1 == 1 {
+                            xor_limb_range(self, piv_row, r_start + kp, limb_hi, stride);
+                        }
                     }
                 }
                 zero_row(&mut l, piv_row);
 
-                // Forward elimination: clear column q from the rows *below* the
-                // pivot only, recording the multiplier and touching just the panel
-                // limbs (trailing deferred to the GEMM). Rows above (earlier
-                // pivots, this panel's or previous panels') are left for the
-                // back-substitution pass — reducing them here would destabilize
-                // the pivot trailings the promotion above relies on.
-                for j in piv_row + 1..m {
-                    let coef = self.row(j).entry(q);
-                    if coef != 0 {
-                        l.row_mut(j).add_basis_element(pr, coef);
-                        xor_limb_range(self, j, piv_row, limb_lo, limb_hi);
+                // Forward elimination (raw-limb): clear column q from the rows
+                // *below* the pivot only, recording the multiplier and touching
+                // just the panel limbs (trailing deferred to the GEMM). Rows above
+                // are left for the back-substitution pass — reducing them here
+                // would destabilize the pivot trailings the promotion relies on.
+                {
+                    let piv_base = piv_row * stride;
+                    piv_panel[..panel_w]
+                        .copy_from_slice(&self.data()[piv_base + limb_lo..piv_base + limb_hi]);
+                }
+                {
+                    let lstride = l.stride();
+                    let lword = pr / 64;
+                    let lmask: Limb = 1 << (pr % 64);
+                    let ldata = l.data_mut();
+                    let data = self.data_mut();
+                    for j in piv_row + 1..m {
+                        let jbase = j * stride;
+                        if (data[jbase + qlimb] >> qbit) & 1 == 1 {
+                            ldata[j * lstride + lword] |= lmask;
+                            for t in 0..panel_w {
+                                data[jbase + limb_lo + t] ^= piv_panel[t];
+                            }
+                        }
                     }
                 }
 
@@ -239,13 +265,19 @@ impl Matrix {
                 let trailing_limbs = stride - start_limb;
                 let width = n - start_limb * 64;
 
-                // X = rows above, gathered at this block's pivot columns (s × bp_eff).
+                // X = rows above, gathered at this block's pivot columns (s ×
+                // bp_eff), raw-limb: read bit `q_{s+i}` of row j, set bit i of X.
                 let mut x = Matrix::new(TWO, s, bp_eff);
-                for j in 0..s {
-                    for i in 0..bp_eff {
-                        let bit = self.row(j).entry(pivot_cols[s + i]);
-                        if bit != 0 {
-                            x.row_mut(j).add_basis_element(i, bit);
+                {
+                    let x_stride = x.stride();
+                    let src = self.data();
+                    let dst = x.data_mut();
+                    for j in 0..s {
+                        for i in 0..bp_eff {
+                            let qc = pivot_cols[s + i];
+                            if (src[j * stride + qc / 64] >> (qc % 64)) & 1 == 1 {
+                                dst[j * x_stride + i / 64] |= 1 << (i % 64);
+                            }
                         }
                     }
                 }
