@@ -82,6 +82,9 @@ pub struct GpuContext {
     pack_b: CudaFunction,
     xor_into: CudaFunction,
     panel_factor: CudaFunction,
+    promote_pivots: CudaFunction,
+    zero_pivot_l: CudaFunction,
+    gather_rows: CudaFunction,
 }
 
 impl GpuContext {
@@ -98,6 +101,9 @@ impl GpuContext {
         let pack_b = module.load_function("pack_b")?;
         let xor_into = module.load_function("xor_into")?;
         let panel_factor = module.load_function("panel_factor")?;
+        let promote_pivots = module.load_function("promote_pivots")?;
+        let zero_pivot_l = module.load_function("zero_pivot_l")?;
+        let gather_rows = module.load_function("gather_rows")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
@@ -107,6 +113,9 @@ impl GpuContext {
             pack_b,
             xor_into,
             panel_factor,
+            promote_pivots,
+            zero_pivot_l,
+            gather_rows,
         })
     }
 
@@ -676,6 +685,119 @@ impl GpuContext {
         let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
         let cols = stream.clone_dtoh(&pivcols)?;
         Ok((pr, cols[..pr].to_vec()))
+    }
+
+    /// Forward pass of the blocked row reduction over the persistent device
+    /// buffer (design §4): sweep 64-bit panels left to right, and for each —
+    /// factor it ([`panel_factor`](Self::panel_factor)), promote the pivot rows'
+    /// deferred trailing, drop the pivots from the multiplier matrix, and apply
+    /// the trailing update `M[:, c+b:] ^= L·U` as one wgmma GEMM. Leaves `m` in
+    /// **row-echelon** form addressed through `perm`: the `rank` pivot rows at
+    /// perm positions `[0, rank)`, each reduced by earlier pivots; the rest zero.
+    ///
+    /// Returns `(perm, rank, pivot_cols)`. Back-substitution to RREF is a
+    /// separate pass (the mirror-image blocked update over the pivot rows).
+    pub fn forward_reduce(
+        &self,
+        m: &mut DeviceMatrix,
+    ) -> anyhow::Result<(CudaSlice<u32>, usize, Vec<usize>)> {
+        let stream = self.ctx.default_stream();
+        let (rows, stride, n) = (m.rows, m.stride, m.cols);
+        let mut perm = self.identity_perm(rows)?;
+        let mut r = 0usize;
+        let mut pivot_cols = Vec::new();
+
+        for plimb in 0..stride {
+            // Fresh multiplier matrix L (m × 64, one limb/row) per panel.
+            let mut l = DeviceMatrix {
+                buf: stream.alloc_zeros::<u64>(rows)?,
+                rows,
+                cols: 64,
+                stride: 1,
+            };
+            let (pr, pivcols) = self.panel_factor(m, &mut perm, &mut l, plimb, r)?;
+            if pr == 0 {
+                continue;
+            }
+            let first_limb = plimb + 1;
+            let trailing_limbs = stride - first_limb;
+            if trailing_limbs > 0 {
+                let t = n - first_limb * 64;
+                // (1) promote pivot rows' trailing (triangular, one CTA).
+                {
+                    let (r_u, pr_u, fl, tl, st, ls) = (
+                        r as u32,
+                        pr as u32,
+                        first_limb as u32,
+                        trailing_limbs as u32,
+                        stride as u32,
+                        l.stride as u32,
+                    );
+                    let cfg = LaunchConfig {
+                        grid_dim: (1, 1, 1),
+                        block_dim: (256, 1, 1),
+                        shared_mem_bytes: 0,
+                    };
+                    let mut lb = stream.launch_builder(&self.promote_pivots);
+                    lb.arg(&mut m.buf)
+                        .arg(&perm)
+                        .arg(&l.buf)
+                        .arg(&r_u)
+                        .arg(&pr_u)
+                        .arg(&fl)
+                        .arg(&tl)
+                        .arg(&st)
+                        .arg(&ls);
+                    unsafe { lb.launch(cfg) }?;
+                }
+                // (2) zero pivot rows' L so the GEMM leaves them untouched.
+                {
+                    let (r_u, pr_u, ls) = (r as u32, pr as u32, l.stride as u32);
+                    let mut lb = stream.launch_builder(&self.zero_pivot_l);
+                    lb.arg(&perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
+                    unsafe { lb.launch(cfg_1d(pr)) }?;
+                }
+                // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
+                let u_buf = stream.alloc_zeros::<u64>(pr * trailing_limbs)?;
+                {
+                    let (r_u, fl, pr_u, nc, st) = (
+                        r as u32,
+                        first_limb as u32,
+                        pr as u32,
+                        trailing_limbs as u32,
+                        stride as u32,
+                    );
+                    let mut lb = stream.launch_builder(&self.gather_rows);
+                    lb.arg(&u_buf)
+                        .arg(&m.buf)
+                        .arg(&perm)
+                        .arg(&r_u)
+                        .arg(&fl)
+                        .arg(&pr_u)
+                        .arg(&nc)
+                        .arg(&st);
+                    unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
+                }
+                // (4) trailing GEMM: C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
+                let (c_dev, n_padded_lim) = self.matmul_b1_dev(&l.buf, rows, pr, &u_buf, t)?;
+                self.xor_into_region(
+                    &stream,
+                    &mut m.buf,
+                    &c_dev,
+                    rows,
+                    trailing_limbs,
+                    stride,
+                    first_limb,
+                    n_padded_lim,
+                )?;
+            }
+            for &q in &pivcols {
+                pivot_cols.push(q as usize);
+            }
+            r += pr;
+        }
+        stream.synchronize()?;
+        Ok((perm, r, pivot_cols))
     }
 }
 
