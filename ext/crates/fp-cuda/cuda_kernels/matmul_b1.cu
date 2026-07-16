@@ -476,9 +476,13 @@ typedef unsigned long long u64_t;
 // A: gather the natural row-major (m_orig × sa_orig) limb array into row-major
 // K-major tiles (TM rows × KL u64), ordered K-chunk-major then M-tile-major.
 // Rows/limbs past the real extent (padding M→m_padded, K→k_padded) read as zero.
+// `sa_orig` is the logical K-limb count (columns to pack); `a_stride` is the
+// source row stride in limbs, which may exceed sa_orig when A is a sub-block of
+// a wider buffer (e.g. a wide-panel multiplier matrix L stored with stride bl
+// but used with only ceil(pr/64) occupied limbs).
 extern "C" __global__ void pack_a(
     u64_t* __restrict__ out, const u64_t* __restrict__ a,
-    unsigned m_orig, unsigned sa_orig, unsigned m_tiles, unsigned total)
+    unsigned m_orig, unsigned sa_orig, unsigned a_stride, unsigned m_tiles, unsigned total)
 {
     unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= total) return;
@@ -493,7 +497,7 @@ extern "C" __global__ void pack_a(
     unsigned global_kl  = kk * KL + kl;
     u64_t val = 0;
     if (global_row < m_orig && global_kl < sa_orig)
-        val = a[(u64_t)global_row * sa_orig + global_kl];
+        val = a[(u64_t)global_row * a_stride + global_kl];
     out[idx] = val;
 }
 
@@ -653,11 +657,18 @@ __device__ __forceinline__ void grid_sync(unsigned* barrier, unsigned goal) {
     __syncthreads();
 }
 
-// Same contract as `panel_factor` (factor one 64-bit panel `plimb` in place,
-// forward-only from pivot row `r`, capturing multipliers into `l_buf`), but
-// grid-parallel. `scratch` is 3 u32: [0]=barrier (must be 0), [1]=g_min (pivot
-// position, reinterpreted as int), [2]=g_pr (pivots so far). Launch cooperatively
-// with `total_ctas` = gridDim.x.
+// Wide-panel factorization (design §5(2) / CPU blas3.rs Step A): factor the b=bl·64
+// column panel at limbs [ppanel, ppanel+bl) in place, forward-only from pivot row
+// r, grid-parallel across all bl·64 columns. Unlike a single-limb panel, the
+// masked XOR clears each pivot from the below rows across **all bl panel limbs**
+// (the intra-panel Schur update, done inline), so a later sub-column's find-first
+// sees fully reduced bits and one wide trailing GEMM (K = pr ≤ b) fixes up the
+// columns beyond the panel. Multipliers go into a bl-limb-wide L (indexed by pr).
+//
+// `scratch` is 3 u32: [0]=barrier (must be 0), [1]=g_min (int), [2]=g_pr.
+// `g_pivword` is bl u64 (the pivot row's panel limbs, broadcast). Launch
+// cooperatively with `total_ctas` = gridDim.x. bl==1 reproduces the single-limb
+// kernel exactly.
 extern "C" __global__ void panel_factor_coop(
     u64_t* __restrict__ m_buf,
     unsigned* __restrict__ perm,
@@ -665,8 +676,8 @@ extern "C" __global__ void panel_factor_coop(
     unsigned* __restrict__ pivcols,
     unsigned* __restrict__ pr_out,
     unsigned* __restrict__ scratch,   // [barrier, g_min(int), g_pr]
-    u64_t* __restrict__ g_pivword,    // broadcast pivot panel word (1 u64)
-    unsigned plimb, unsigned r, unsigned n,
+    u64_t* __restrict__ g_pivword,    // broadcast pivot panel limbs (bl u64)
+    unsigned ppanel, unsigned bl, unsigned r, unsigned n,
     unsigned m, unsigned stride, unsigned l_stride,
     unsigned total_ctas)
 {
@@ -684,12 +695,14 @@ extern "C" __global__ void panel_factor_coop(
     unsigned goal = 0;
     goal += total_ctas; grid_sync(barrier, goal); // init visible grid-wide
 
-    for (unsigned j = 0; j < 64; ++j) {
-        unsigned q = plimb * 64 + j;
+    for (unsigned cc = 0; cc < bl * 64; ++cc) {
+        unsigned q = ppanel * 64 + cc;
         if (q >= n) break;
+        unsigned plimb = ppanel + cc / 64; // absolute limb of column q
+        unsigned j = cc & 63;              // bit within that limb
         unsigned pr = *g_pr;
 
-        // find-first: smallest position p in [r+pr, m) whose row has bit j set.
+        // find-first: smallest position p in [r+pr, m) whose row has bit q set.
         int local_min = 0x7fffffff;
         for (unsigned p = r + pr + gtid; p < m; p += gnt) {
             unsigned row = perm[p];
@@ -707,37 +720,35 @@ extern "C" __global__ void panel_factor_coop(
 
         int pivpos = *g_min;
         if (pivpos != 0x7fffffff) {
-            // Only thread 0 touches perm[pivpos]/g_min here: it reads the pivot
-            // row's panel word (broadcast via g_pivword), swaps the pivot up to
-            // position r+pr (perm swap only), and resets g_min/advances g_pr.
-            // The displaced row lands at position pivpos and is handled by the
-            // XOR loop below (which, after [B], reads a now-stable perm and never
-            // touches perm[pivpos] concurrently with the swap).
+            // Thread 0 reads the pivot row's bl panel limbs (broadcast via
+            // g_pivword), swaps the pivot up to position r+pr, resets g_min and
+            // advances g_pr. The displaced row lands at pivpos and is handled by
+            // the XOR loop (which reads a now-stable perm after [B]).
             if (gtid == 0) {
                 unsigned pivrow = perm[pivpos];
-                *g_pivword = m_buf[(u64_t)pivrow * stride + plimb];
+                for (unsigned t = 0; t < bl; ++t)
+                    g_pivword[t] = m_buf[(u64_t)pivrow * stride + ppanel + t];
                 unsigned a = r + pr;
                 perm[pivpos] = perm[a]; perm[a] = pivrow;
                 pivcols[pr] = q;
-                *g_min = 0x7fffffff; // reset for next bit
+                *g_min = 0x7fffffff; // reset for next column
                 *g_pr = pr + 1;
             }
             goal += total_ctas; grid_sync(barrier, goal); // [B] swap + pivword + resets visible
 
-            u64_t pivword = *g_pivword;
-            // masked XOR of the rows *below* the pivot (now at position r+pr).
+            // masked XOR of the rows *below* the pivot, across ALL bl panel limbs.
             for (unsigned p = r + pr + 1 + gtid; p < m; p += gnt) {
                 unsigned row = perm[p];
-                u64_t* cell = &m_buf[(u64_t)row * stride + plimb];
-                if ((*cell >> j) & 1ULL) {
+                u64_t* base = &m_buf[(u64_t)row * stride + ppanel];
+                if ((base[cc / 64] >> j) & 1ULL) {
                     l_buf[(u64_t)row * l_stride + (pr >> 6)] |= (1ULL << (pr & 63));
-                    *cell ^= pivword;
+                    for (unsigned t = 0; t < bl; ++t)
+                        base[t] ^= g_pivword[t];
                 }
             }
             goal += total_ctas; grid_sync(barrier, goal); // [C] XOR done before next find
         }
-        // free column (pivpos == INT_MAX): g_min already INT_MAX, g_pr unchanged;
-        // no extra barriers — the branch is grid-uniform so all CTAs agree.
+        // free column (pivpos == INT_MAX): grid-uniform, no extra barriers.
     }
     if (gtid == 0) *pr_out = *g_pr;
 }

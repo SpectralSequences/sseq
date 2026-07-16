@@ -104,6 +104,17 @@ const NG: u32 = 2; // output column-limbs per CTA (NB/64 = 128/64); must match t
 const STAGES: usize = 4; // K-loop pipeline depth; must match the kernel
 const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match the kernel
 
+/// Adaptive forward-pass panel width in limbs (b = 64·bl columns). Wider panels
+/// raise the trailing GEMM's contraction dimension toward b, reclaiming the
+/// K-padding waste (Loss 1) — but the promotion replay is O(pr²)/panel = O(bl)
+/// total and the inline intra-panel XOR is O(bl), so past a point wider panels
+/// lose. The optimum grows with the trailing width; measured (half-rank,
+/// reduce_pow2_half) at bl ≈ stride/256: bl=2 @ n=2¹⁵, 4 @ 2¹⁶, 8 @ 2¹⁷. Capped
+/// at 16 (bl=16 regressed at every tested size). Override with `FP_CUDA_BL`.
+fn adaptive_bl(stride: usize) -> usize {
+    (stride / 256).clamp(1, 16)
+}
+
 /// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
 /// through cudarc's typed launch builder. `repr(transparent)` so the pointer
 /// cudarc pushes is the address of the 128-byte descriptor itself.
@@ -507,8 +518,28 @@ impl GpuContext {
         n: usize,
     ) -> Result<(CudaSlice<u64>, usize), Box<dyn std::error::Error>> {
         let sa = k.div_ceil(64);
+        self.matmul_b1_dev_strided(a_dev, m, k, sa, b_dev, n)
+    }
+
+    /// Like [`matmul_b1_dev`](Self::matmul_b1_dev) but A may be a row-sub-block of
+    /// a wider device buffer: `a_row_stride` is A's actual per-row limb stride
+    /// (≥ `k.div_ceil(64)`), while only the first `k.div_ceil(64)` limbs of each
+    /// row are the operand. Used by the wide-panel forward update, whose
+    /// multiplier matrix L is stored with stride `bl` but has only `ceil(pr/64)`
+    /// occupied limbs.
+    pub fn matmul_b1_dev_strided(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        a_row_stride: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> Result<(CudaSlice<u64>, usize), Box<dyn std::error::Error>> {
+        let sa = k.div_ceil(64);
         let n_lim = n.div_ceil(64);
-        assert_eq!(a_dev.len(), m * sa, "A limb count mismatch");
+        assert!(a_row_stride >= sa, "a_row_stride must cover k limbs");
+        assert_eq!(a_dev.len(), m * a_row_stride, "A limb count mismatch");
         assert_eq!(b_dev.len(), k * n_lim, "B limb count mismatch");
 
         let k_padded = k.next_multiple_of(TILE_K);
@@ -524,13 +555,19 @@ impl GpuContext {
         let a_int_len = m_padded * (k_padded / 64);
         let a_int = stream.alloc_zeros::<u64>(a_int_len)?;
         {
-            let (m_orig, sa_orig, mt, total) =
-                (m as u32, sa as u32, m_tiles as u32, a_int_len as u32);
+            let (m_orig, sa_orig, a_str, mt, total) = (
+                m as u32,
+                sa as u32,
+                a_row_stride as u32,
+                m_tiles as u32,
+                a_int_len as u32,
+            );
             let mut lb = stream.launch_builder(&self.pack_a);
             lb.arg(&a_int)
                 .arg(a_dev)
                 .arg(&m_orig)
                 .arg(&sa_orig)
+                .arg(&a_str)
                 .arg(&mt)
                 .arg(&total);
             unsafe { lb.launch(cfg_1d(a_int_len)) }?;
@@ -792,20 +829,23 @@ impl GpuContext {
         m: &mut DeviceMatrix,
         perm: &mut CudaSlice<u32>,
         l: &mut DeviceMatrix,
-        plimb: usize,
+        ppanel: usize,
+        bl: usize,
         r: usize,
     ) -> Result<(usize, Vec<u32>), Box<dyn std::error::Error>> {
         assert_eq!(perm.len(), m.rows, "perm length must equal rows");
         assert_eq!(l.rows, m.rows, "L rows must equal M rows");
+        assert!(l.stride >= bl, "L stride must be at least bl");
         let stream = self.ctx.default_stream();
 
         const THREADS: u32 = 256;
         let smem = THREADS * std::mem::size_of::<i32>() as u32;
-        let pivcols = stream.alloc_zeros::<u32>(64)?;
+        // Up to bl·64 pivots in a wide panel.
+        let pivcols = stream.alloc_zeros::<u32>(bl * 64)?;
         let pr_out = stream.alloc_zeros::<u32>(1)?;
         // scratch = [barrier(0), g_min, g_pr]; alloc_zeros gives barrier == 0.
         let scratch = stream.alloc_zeros::<u32>(3)?;
-        let g_pivword = stream.alloc_zeros::<u64>(1)?;
+        let g_pivword = stream.alloc_zeros::<u64>(bl)?;
 
         // Co-resident grid: at most occ×SMs CTAs (cooperative launch cap), and no
         // more than needed to cover the rows once.
@@ -820,8 +860,9 @@ impl GpuContext {
         let rows_worth = (m.rows as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
 
-        let (plimb_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
-            plimb as u32,
+        let (ppanel_u, bl_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
+            ppanel as u32,
+            bl as u32,
             r as u32,
             m.cols as u32,
             m.rows as u32,
@@ -842,7 +883,8 @@ impl GpuContext {
             .arg(&pr_out)
             .arg(&scratch)
             .arg(&g_pivword)
-            .arg(&plimb_u)
+            .arg(&ppanel_u)
+            .arg(&bl_u)
             .arg(&r_u)
             .arg(&n_u)
             .arg(&m_u)
@@ -878,28 +920,44 @@ impl GpuContext {
         // The cooperative multi-CTA panel factor is the default; set
         // FP_CUDA_NO_COOP=1 to fall back to the single-CTA kernel (A/B testing).
         let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err();
+        // Panel width in limbs (b = 64·bl columns). Wider panels raise the
+        // trailing GEMM's contraction dimension pr toward b, reclaiming the ~16×
+        // K-padding waste (Loss 1). The single-CTA fallback stays at bl=1.
+        let bl = if use_coop {
+            std::env::var("FP_CUDA_BL")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or_else(|| adaptive_bl(stride))
+                .clamp(1, stride.max(1))
+        } else {
+            1
+        };
 
-        for plimb in 0..stride {
-            // Fresh multiplier matrix L (m × 64, one limb/row) per panel.
+        let mut ppanel = 0usize;
+        while ppanel < stride {
+            let bl_eff = bl.min(stride - ppanel);
+            // Fresh multiplier matrix L (m × bl_eff limbs/row) per wide panel.
             let mut l = DeviceMatrix {
-                buf: stream.alloc_zeros::<u64>(rows)?,
+                buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
                 rows,
-                cols: 64,
-                stride: 1,
+                cols: bl_eff * 64,
+                stride: bl_eff,
             };
             let (pr, pivcols) = timed_phase!(
                 stream,
                 "panel_factor",
                 if use_coop {
-                    self.panel_factor_coop(m, &mut perm, &mut l, plimb, r)
+                    self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r)
                 } else {
-                    self.panel_factor(m, &mut perm, &mut l, plimb, r)
+                    self.panel_factor(m, &mut perm, &mut l, ppanel, r)
                 }
             )?;
             if pr == 0 {
+                ppanel += bl_eff;
                 continue;
             }
-            let first_limb = plimb + 1;
+            // The whole panel is factored; the trailing starts after it.
+            let first_limb = ppanel + bl_eff;
             let trailing_limbs = stride - first_limb;
             if trailing_limbs > 0 {
                 let t = n - first_limb * 64;
@@ -953,10 +1011,12 @@ impl GpuContext {
                     unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
                 });
                 // (4) trailing GEMM: C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
+                // L is stored with stride l.stride (= bl_eff) but only ceil(pr/64)
+                // limbs are occupied, so use the strided GEMM.
                 let (c_dev, n_padded_lim) = timed_phase!(
                     stream,
                     "gemm",
-                    self.matmul_b1_dev(&l.buf, rows, pr, &u_buf, t)
+                    self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)
                 )?;
                 timed_phase!(
                     stream,
@@ -977,6 +1037,7 @@ impl GpuContext {
                 pivot_cols.push(q as usize);
             }
             r += pr;
+            ppanel += bl_eff;
         }
         stream.synchronize()?;
         Ok((perm, r, pivot_cols))
