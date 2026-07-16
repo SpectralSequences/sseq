@@ -12,8 +12,10 @@ use std::{
 use anyhow::{Context, bail};
 
 const KERNEL_SRC: &str = "cuda_kernels/matmul_b1.cu";
+const RREF_SRC: &str = "cuda_kernels/row_reduce.cu";
 const PARAMS_HEADER: &str = "cuda_kernels/params.h";
 const PTX_NAME: &str = "matmul_b1.ptx";
+const RREF_PTX_NAME: &str = "row_reduce.ptx";
 const PARAMS_NAME: &str = "params.rs";
 const ARCH: &str = "sm_90a";
 
@@ -68,6 +70,8 @@ fn emit_params(out_dir: &Path) -> Vec<(String, usize)> {
 }
 
 /// Compile one `.cu` to PTX, passing `defines` through to nvcc.
+///
+/// Only the GEMM source has tuning knobs to verify, so `defines` is empty for the other.
 fn compile(nvcc: &str, src: &str, out: &Path, defines: &[String]) -> anyhow::Result<()> {
     let status = Command::new(nvcc)
         .args([
@@ -98,6 +102,7 @@ fn compile(nvcc: &str, src: &str, out: &Path, defines: &[String]) -> anyhow::Res
 
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-changed={KERNEL_SRC}");
+    println!("cargo:rerun-if-changed={RREF_SRC}");
     println!("cargo:rerun-if-changed={PARAMS_HEADER}");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=NVCC");
@@ -116,6 +121,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     compile(&nvcc, KERNEL_SRC, &out_dir.join(PTX_NAME), &defines)?;
+    compile(&nvcc, RREF_SRC, &out_dir.join(RREF_PTX_NAME), &[])?;
 
     Ok(())
 }

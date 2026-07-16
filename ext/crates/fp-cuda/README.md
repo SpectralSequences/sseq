@@ -91,13 +91,23 @@ cd ext/crates/fp-cuda
 cargo build
 ```
 
-`build.rs` invokes nvcc on `cuda_kernels/matmul_b1.cu` and emits
-`matmul_b1.ptx` into the cargo `OUT_DIR`. `src/lib.rs` embeds it via
-`include_bytes!` and loads it at runtime through cudarc.
+`build.rs` invokes nvcc on each of the two kernel sources and emits a PTX image
+per source into the cargo `OUT_DIR`:
 
-The kernel's tuning knobs live in `cuda_kernels/params.h`. The kernel includes
-that header directly, and `build.rs` parses it to generate the Rust mirror, so
-the host and device cannot disagree about a tile size.
+| source | image | holds |
+|---|---|---|
+| `cuda_kernels/matmul_b1.cu` | `matmul_b1.ptx` | the GEMM, its operand packing and XOR epilogue |
+| `cuda_kernels/row_reduce.cu` | `row_reduce.ptx` | the row reduction to RREF |
+
+They are separate translation units because they share no device code,
+constants or types. `src/lib.rs` embeds both via `include_bytes!` and loads both
+modules at runtime through cudarc, into one `GpuContext`, which is what lets the
+reduction drive its trailing update through the GEMM kernels.
+
+The GEMM's tuning knobs live in `cuda_kernels/params.h`. That source includes
+the header directly, and `build.rs` parses it to generate the Rust mirror, so
+the host and device cannot disagree about a tile size. The row reduction uses
+none of those knobs and does not include the header.
 
 **When nvcc is absent** (CI, or a contributor without the CUDA Toolkit) the
 build fails. Nothing in the workspace's own `just` recipes builds this crate: it
