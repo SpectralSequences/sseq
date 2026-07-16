@@ -342,10 +342,10 @@ fn f3_scale_groups(dst: &mut [Limb], c: u32) {
 }
 
 // ---------------------------------------------------------------------------------------
-// F5 specialization (k = 3). Planes are bits 0,1,2 of the value `v in {0,..,4}`. Both the
-// add and the scalar multiply are built as flat "indicator" circuits — one-hot lane masks
-// `is_v` for each operand value, recombined into the result with no carry/borrow chain — so
-// they keep the wide instruction-level parallelism the sequential generic circuit loses.
+// F5 specialization (k = 3). Planes are bits 0,1,2 of the value `v in {0,..,4}`. Addition is a
+// flat 17-gate boolean circuit; scalar multiplication is an "indicator" circuit — one-hot lane
+// masks `is_v` for each operand value, recombined into the result with no carry/borrow chain.
+// Both keep the wide instruction-level parallelism the sequential generic circuit loses.
 // ---------------------------------------------------------------------------------------
 
 /// One-hot lane masks: `out[v]` has the bits of the lanes whose value is `v` (for `v in 0..5`).
@@ -381,18 +381,37 @@ fn f5_mul_planes(p0: Limb, p1: Limb, p2: Limb, c: u32) -> (Limb, Limb, Limb) {
     f5_compose(sel)
 }
 
-/// `(a + b) mod 5` on the three planes, as a flat indicator circuit.
+/// `(a + b) mod 5` on the three planes, as a flat 17-gate circuit (planes are bits 0,1,2 of the
+/// value). Four gate layers with an all-`andn` output layer, so the dependency chains stay short.
+/// Verified exhaustively against `(a + b) % 5` for all reduced inputs. `andnot(x, y) = x & !y`
+/// maps onto x86 `andn`.
+///
+/// This circuit was contributed by Carl McTague.
 #[inline(always)]
 fn f5_add_planes(a0: Limb, a1: Limb, a2: Limb, b0: Limb, b1: Limb, b2: Limb) -> (Limb, Limb, Limb) {
-    let ia = f5_indicators(a0, a1, a2);
-    let ib = f5_indicators(b0, b1, b2);
-    let mut sel = [0 as Limb; 5];
-    for av in 0..5usize {
-        for bv in 0..5usize {
-            sel[(av + bv) % 5] |= ia[av] & ib[bv];
-        }
-    }
-    f5_compose(sel)
+    // Layer 1
+    let g0 = a0 & b0;
+    let g1 = a0 | b0;
+    let g2 = a1 ^ b1;
+    let g3 = a1 | b1;
+    let g4 = a2 | b2;
+    let g5 = a2 ^ b2;
+    // Layer 2
+    let g6 = g0 ^ g2;
+    let g7 = g3 | g5;
+    let g8 = g4 ^ g1;
+    let g9 = g1 & !g2;
+    let g10 = g4 & !g1;
+    // Layer 3
+    let g11 = g2 ^ g7;
+    let g12 = g6 ^ g10;
+    let g13 = g6 ^ g7;
+    // Layer 4
+    let g14 = g12 & !g11;
+    let g15 = g13 & !g9;
+    let g16 = g8 & !g13;
+    // m0 = g16, m1 = g14, m2 = g15
+    (g16, g14, g15)
 }
 
 fn f5_add_groups(dst: &mut [Limb], src: &[Limb], c: u32) {
