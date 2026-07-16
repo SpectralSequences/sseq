@@ -750,19 +750,25 @@ extern "C" __global__ void panel_factor_coop(
 
 // (1) Promote pivot-row trailings: realize the deferred trailing of each pivot
 // by replaying the earlier this-panel pivots recorded in L. Sequential in k
-// (pivot k uses the already-promoted pivots i<k), parallel over trailing limbs.
-// One CTA; L is indexed by original row id (perm[r+k]).
+// (pivot k uses the already-promoted pivots i<k), but **embarrassingly parallel
+// over trailing limbs** — each column c runs its own full k-loop and never
+// touches another column, so no cross-thread ordering is needed. Grid-strided
+// over columns: launch as many CTAs as fill the machine (the old version used a
+// single CTA and was ~18% of GPU time). Only pivot rows' columns are written,
+// each by exactly one thread, so there are no races and no __syncthreads.
 extern "C" __global__ void promote_pivots(
     u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
     const u64_t* __restrict__ l_buf,
     unsigned r, unsigned pr, unsigned first_limb, unsigned trailing_limbs,
     unsigned stride, unsigned l_stride)
 {
-    const int tid = threadIdx.x;
-    const int nt = blockDim.x;
-    for (unsigned k = 0; k < pr; ++k) {
-        unsigned row_k = perm[r + k];
-        for (unsigned c = tid; c < trailing_limbs; c += nt) {
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    for (unsigned c = gtid; c < trailing_limbs; c += gnt) {
+        // Ascending k: when pivot k reads pivot i<k at column c, that value was
+        // already written by this same thread at its earlier k=i step.
+        for (unsigned k = 0; k < pr; ++k) {
+            unsigned row_k = perm[r + k];
             u64_t acc = m_buf[(u64_t)row_k * stride + first_limb + c];
             for (unsigned i = 0; i < k; ++i) {
                 if ((l_buf[(u64_t)row_k * l_stride + (i >> 6)] >> (i & 63)) & 1ULL)
@@ -770,7 +776,6 @@ extern "C" __global__ void promote_pivots(
             }
             m_buf[(u64_t)row_k * stride + first_limb + c] = acc;
         }
-        __syncthreads(); // row_k fully written before pivot k+1 reads it
     }
 }
 
@@ -817,22 +822,37 @@ extern "C" __global__ void block_reduce_rref(
     const unsigned* __restrict__ pivcols,
     unsigned s, unsigned e, unsigned stride)
 {
+    // The block has ≤64 pivot rows. For pivot k (processed high-to-low) we clear
+    // its pivot column from every earlier block row j∈[s,k) that has the bit set,
+    // XORing rowk into rowj across the full row width. The condition for every
+    // such j is read at once into shared memory *before* any XOR (rowj[qlimb] is
+    // itself cleared by the XOR), then the (j, limb) work is flattened across all
+    // threads — two __syncthreads per pivot k instead of the previous ~bp² (one
+    // per (k,j) pair). Still one CTA; parallel over (j × limb).
+    __shared__ unsigned char cond[64]; // block size ≤ 64
     const int tid = threadIdx.x;
     const int nt = blockDim.x;
     for (unsigned k = e; k-- > s;) {
         unsigned qk = pivcols[k];
         unsigned qlimb = qk >> 6, qbit = qk & 63;
         unsigned rowk = perm[k];
-        for (unsigned j = s; j < k; ++j) {
-            unsigned rowj = perm[j];
-            bool cond = (m_buf[(u64_t)rowj * stride + qlimb] >> qbit) & 1ULL;
-            __syncthreads(); // all reads of rowj[qlimb] before any write to it
-            if (cond) {
-                for (unsigned c = tid; c < stride; c += nt)
-                    m_buf[(u64_t)rowj * stride + c] ^= m_buf[(u64_t)rowk * stride + c];
-            }
-            __syncthreads(); // finish rowj before the next j
+        unsigned nj = k - s; // earlier block rows [s, k)
+
+        // Gather the pivot-k bit of every earlier block row (pre-XOR).
+        for (unsigned j = tid; j < nj; j += nt)
+            cond[j] = (unsigned char)((m_buf[(u64_t)perm[s + j] * stride + qlimb] >> qbit) & 1ULL);
+        __syncthreads();
+
+        // Limb-parallel: each thread owns a set of columns c, loads rowk[c] once
+        // and XORs it into every flagged rowj at that column. No 64-bit division;
+        // rowk[c] reused across all ≤64 rows. Distinct c per thread ⇒ no races.
+        for (unsigned c = tid; c < stride; c += nt) {
+            u64_t rowk_c = m_buf[(u64_t)rowk * stride + c];
+            for (unsigned j = 0; j < nj; ++j)
+                if (cond[j])
+                    m_buf[(u64_t)perm[s + j] * stride + c] ^= rowk_c;
         }
+        __syncthreads(); // finish this k before the next reads the bits again
     }
 }
 
