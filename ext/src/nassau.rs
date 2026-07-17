@@ -143,19 +143,19 @@ impl MilnorSubalgebra {
                           start: [offset],
                           end: _,
                       }| {
-                algebra
-                    .ppart_table(degree - gen_deg)
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(n, op)| {
-                        if self.has_signature(op, signature) {
-                            Some(offset + n)
-                        } else {
-                            None
-                        }
-                    })
-            },
-        )
+                    algebra
+                        .ppart_table(degree - gen_deg)
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(n, op)| {
+                            if self.has_signature(op, signature) {
+                                Some(offset + n)
+                            } else {
+                                None
+                            }
+                        })
+                },
+            )
     }
 
     /// The number of basis elements in `degree` coming from generators of `module` of degree
@@ -766,9 +766,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
-            target_mask
-                .extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature, target_bound));
-            next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature, next_bound));
+            target_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                target,
+                b.t(),
+                &signature,
+                target_bound,
+            ));
+            next_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                next,
+                b.t(),
+                &signature,
+                next_bound,
+            ));
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
@@ -1037,8 +1048,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let max_s = max.s();
         let max_n = max.n();
 
-        let in_region =
-            |s: i32, t: i32| -> bool { (0..=max_s).contains(&s) && t >= min_degree && t - s <= max_n };
+        let in_region = |s: i32, t: i32| -> bool {
+            (0..=max_s).contains(&s) && t >= min_degree && t - s <= max_n
+        };
 
         // `(s, t)` may be computed once its same-row predecessor `(s, t - 1)` and its diagonal
         // predecessor are committed. For `s >= 2` the diagonal predecessor is `(s - 1, t - 1)` (the
@@ -1238,7 +1250,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature(), i32::MAX)
+                .signature_mask(
+                    &algebra,
+                    target,
+                    b.t(),
+                    &subalgebra.zero_signature(),
+                    i32::MAX,
+                )
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -1270,7 +1288,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature, i32::MAX));
+                mask.extend(subalgebra.signature_mask(
+                    &algebra,
+                    source,
+                    b.t(),
+                    &signature,
+                    i32::MAX,
+                ));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem
@@ -1441,7 +1465,8 @@ mod tests {
         assert_eq!(
             d2_chart(&nassau_lift),
             d2_chart(&standard_lift),
-            "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and standard"
+            "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and \
+             standard"
         );
     }
 
