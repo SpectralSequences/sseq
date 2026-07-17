@@ -17,8 +17,8 @@ use std::{
 
 use cudarc::{
     driver::{
-        CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
-        PushKernelArg, sys,
+        CudaContext, CudaFunction, CudaModule, CudaSlice, CudaStream, DevicePtr, DeviceRepr,
+        LaunchConfig, PushKernelArg, sys,
     },
     nvrtc::Ptx,
 };
@@ -40,6 +40,26 @@ const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match 
 struct TmaArg(sys::CUtensorMap);
 unsafe impl DeviceRepr for TmaArg {}
 
+/// A bit-packed F₂ matrix resident in device memory, in the natural row-major,
+/// K-major limb layout `fp::Matrix` uses: `stride = cols.div_ceil(64)` u64 per
+/// row, `rows * stride` u64 total, one bit per entry, bits past `cols` zero.
+///
+/// This is the persistent buffer the row-reduction port operates over: uploaded
+/// once, mutated in place by device kernels, downloaded once (design §6). It is
+/// `fp`-agnostic (raw limbs) so `fp-cuda` stays free of a dependency on `fp`.
+pub struct DeviceMatrix {
+    pub buf: CudaSlice<u64>,
+    pub rows: usize,
+    pub cols: usize,
+    pub stride: usize,
+}
+
+impl DeviceMatrix {
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+}
+
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
     /// Per-thread CUDA streams for *this* context, created lazily (see [`Self::stream`]). Owned by
@@ -50,6 +70,10 @@ pub struct GpuContext {
     #[allow(dead_code)]
     module: Arc<CudaModule>,
     kernel: CudaFunction,
+    // Device-resident packing/epilogue kernels for the row-reduction port.
+    pack_a: CudaFunction,
+    pack_b: CudaFunction,
+    xor_into: CudaFunction,
 }
 
 impl GpuContext {
@@ -58,11 +82,17 @@ impl GpuContext {
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
+        let pack_a = module.load_function("pack_a")?;
+        let pack_b = module.load_function("pack_b")?;
+        let xor_into = module.load_function("xor_into")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
             module,
             kernel,
+            pack_a,
+            pack_b,
+            xor_into,
         })
     }
 
@@ -170,8 +200,6 @@ fn matmul_b1_inner(
     // rank has a valid M-tile; the extra padded rows produce zeros that the
     // `take(m)` readback trims.
     let m_padded = m.next_multiple_of(TILE_M * CLUSTER);
-    let m_tiles = m_padded / TILE_M;
-    let k_chunks = k_padded / TILE_K;
     // Each CTA computes a TILE_M×(NG*64) output block via MSTRIPS m64n128 wgmmas,
     // so B (and the C output) are grouped/padded to whole NG-limb column tiles.
     let n_groups = n_lim.div_ceil(NG as usize);
@@ -191,11 +219,55 @@ fn matmul_b1_inner(
     let bt_dev = stream.clone_htod(&bt)?;
     let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
 
+    let kernel_secs = run_gemm_kernel(
+        gpu,
+        &stream,
+        &a_dev,
+        &bt_dev,
+        &c_dev,
+        m_padded,
+        k_padded,
+        n_groups,
+        n_padded_lim,
+        time_iters,
+    )?;
+
+    let c_all = stream.clone_dtoh(&c_dev)?;
+    let c_limbs: Vec<u64> = c_all
+        .chunks_exact(n_padded_lim)
+        .take(m)
+        .flat_map(|row| row[..n_lim].iter().copied())
+        .collect();
+    Ok((c_limbs, kernel_secs))
+}
+
+/// Encode the TMA descriptors and launch the `wgmma.b1` GEMM over operands that
+/// are **already interleaved/transposed and resident on device**. Shared by the
+/// host round-trip path ([`matmul_b1_inner`]) and the device-resident path
+/// ([`GpuContext::matmul_b1_dev`]) — the only difference between them is where
+/// the packed operands come from and whether `C` is downloaded. Returns the
+/// average kernel-only wall time over `time_iters` launches.
+#[allow(clippy::too_many_arguments)]
+fn run_gemm_kernel(
+    gpu: &GpuContext,
+    stream: &Arc<CudaStream>,
+    a_dev: &cudarc::driver::CudaSlice<u64>,
+    bt_dev: &cudarc::driver::CudaSlice<u64>,
+    c_dev: &cudarc::driver::CudaSlice<u64>,
+    m_padded: usize,
+    k_padded: usize,
+    n_groups: usize,
+    n_padded_lim: usize,
+    time_iters: usize,
+) -> Result<f64, Box<dyn std::error::Error>> {
+    let m_tiles = m_padded / TILE_M;
+    let k_chunks = k_padded / TILE_K;
+
     // Raw device addresses for the TMA descriptors. The returned guards keep the
     // reads ordered on the stream; hold them until after the launch.
-    let (a_ptr, _ga) = a_dev.device_ptr(&stream);
-    let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
-    let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+    let (a_ptr, _ga) = a_dev.device_ptr(stream);
+    let (b_ptr, _gb) = bt_dev.device_ptr(stream);
+    let (c_ptr, _gc) = c_dev.device_ptr(stream);
 
     // TMA tensor maps. A: TILE_M-row block per (k_chunk, M-block), split into
     // MSTRIPS m64 strips by the consumer. B: (NG*64)-column tile per (k_chunk,
@@ -304,13 +376,240 @@ fn matmul_b1_inner(
     stream.synchronize()?;
     let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
 
-    let c_all = stream.clone_dtoh(&c_dev)?;
-    let c_limbs: Vec<u64> = c_all
-        .chunks_exact(n_padded_lim)
-        .take(m)
-        .flat_map(|row| row[..n_lim].iter().copied())
-        .collect();
-    Ok((c_limbs, kernel_secs))
+    Ok(kernel_secs)
+}
+
+/// A 1D launch config: `ceil(total / 256)` blocks of 256 threads.
+fn cfg_1d(total: usize) -> LaunchConfig {
+    const T: u32 = 256;
+    let blocks = total.div_ceil(T as usize).max(1) as u32;
+    LaunchConfig {
+        grid_dim: (blocks, 1, 1),
+        block_dim: (T, 1, 1),
+        shared_mem_bytes: 0,
+    }
+}
+
+impl GpuContext {
+    /// Device-resident F₂ GEMM. Both operands live on device in the **natural**
+    /// row-major, K-major limb layout that `fp::Matrix` stores (`a_dev`: `m ×
+    /// k.div_ceil(64)` u64; `b_dev`: `k × n.div_ceil(64)` u64). The pack into the
+    /// wgmma tile layout (interleave A, bit-transpose B) runs on device, so there
+    /// is no host round-trip — this is the persistent-buffer primitive the
+    /// row-reduction port needs (design §6).
+    ///
+    /// Returns `C = A·B` as a **padded** device buffer of `m_padded ×
+    /// n_padded_lim` u64 (valid data in the first `m` rows and first
+    /// `n.div_ceil(64)` limbs of each row), plus its row stride `n_padded_lim`.
+    /// The padded stride is what [`GpuContext::xor_into_region`] consumes; a
+    /// standalone caller trims it on readback.
+    pub fn matmul_b1_dev(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> Result<(CudaSlice<u64>, usize), Box<dyn std::error::Error>> {
+        let sa = k.div_ceil(64);
+        let n_lim = n.div_ceil(64);
+        assert_eq!(a_dev.len(), m * sa, "A limb count mismatch");
+        assert_eq!(b_dev.len(), k * n_lim, "B limb count mismatch");
+
+        let k_padded = k.next_multiple_of(TILE_K);
+        let m_padded = m.next_multiple_of(TILE_M * CLUSTER);
+        let m_tiles = m_padded / TILE_M;
+        let k_chunks = k_padded / TILE_K;
+        let n_groups = n_lim.div_ceil(NG as usize);
+        let n_padded_lim = n_groups * NG as usize;
+
+        let stream = self.ctx.default_stream();
+
+        // Pack A → interleaved row-major K-major tiles (m_padded × k_padded/64).
+        let a_int_len = m_padded * (k_padded / 64);
+        let a_int = stream.alloc_zeros::<u64>(a_int_len)?;
+        {
+            let (m_orig, sa_orig, mt, total) =
+                (m as u32, sa as u32, m_tiles as u32, a_int_len as u32);
+            let mut lb = stream.launch_builder(&self.pack_a);
+            lb.arg(&a_int)
+                .arg(a_dev)
+                .arg(&m_orig)
+                .arg(&sa_orig)
+                .arg(&mt)
+                .arg(&total);
+            unsafe { lb.launch(cfg_1d(a_int_len)) }?;
+        }
+
+        // Pack B → bit-transposed K-major tiles.
+        let bt_len = k_chunks * n_groups * (NG as usize * 64 * KL);
+        let bt = stream.alloc_zeros::<u64>(bt_len)?;
+        {
+            let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
+            let mut lb = stream.launch_builder(&self.pack_b);
+            lb.arg(&bt)
+                .arg(b_dev)
+                .arg(&k_orig)
+                .arg(&nl)
+                .arg(&ng)
+                .arg(&total);
+            unsafe { lb.launch(cfg_1d(bt_len)) }?;
+        }
+
+        let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
+        run_gemm_kernel(
+            self,
+            &stream,
+            &a_int,
+            &bt,
+            &c_dev,
+            m_padded,
+            k_padded,
+            n_groups,
+            n_padded_lim,
+            1,
+        )?;
+
+        Ok((c_dev, n_padded_lim))
+    }
+
+    /// XOR a padded GEMM output `c_dev` (`m × c_stride` u64/row, as returned by
+    /// [`GpuContext::matmul_b1_dev`]) into a region of a persistent device matrix
+    /// `dst`: `dst[j][dst_limb + col] ^= c_dev[j][col]` for `j < m`, `col <
+    /// width`. This is the fused trailing-update / back-sub epilogue (design
+    /// §4.4/§4.6): the `M[region] ^= L·U` update with no fresh C alloc + D2H.
+    #[allow(clippy::too_many_arguments)]
+    pub fn xor_into_region(
+        &self,
+        stream: &Arc<CudaStream>,
+        dst: &mut CudaSlice<u64>,
+        c_dev: &CudaSlice<u64>,
+        m: usize,
+        width: usize,
+        dst_stride: usize,
+        dst_limb: usize,
+        c_stride: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let total = m * width;
+        let (mm, w, ds, dl, cs) = (
+            m as u32,
+            width as u32,
+            dst_stride as u32,
+            dst_limb as u32,
+            c_stride as u32,
+        );
+        let mut lb = stream.launch_builder(&self.xor_into);
+        lb.arg(dst)
+            .arg(c_dev)
+            .arg(&mm)
+            .arg(&w)
+            .arg(&ds)
+            .arg(&dl)
+            .arg(&cs);
+        unsafe { lb.launch(cfg_1d(total)) }?;
+        Ok(())
+    }
+
+    /// Convenience wrapper: upload two host operands, run [`matmul_b1_dev`], and
+    /// download the trimmed `m × n.div_ceil(64)` product. Same signature and
+    /// result as [`matmul_b1_raw`] but exercising the device-resident packing +
+    /// GEMM path end to end — used to validate that path bit-for-bit against the
+    /// host oracle.
+    ///
+    /// [`matmul_b1_dev`]: GpuContext::matmul_b1_dev
+    pub fn matmul_b1_dev_roundtrip(
+        &self,
+        a: &[u64],
+        m: usize,
+        k: usize,
+        b: &[u64],
+        n: usize,
+    ) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+        let n_lim = n.div_ceil(64);
+        let stream = self.ctx.default_stream();
+        let a_dev = stream.clone_htod(a)?;
+        let b_dev = stream.clone_htod(b)?;
+        let (c_dev, n_padded_lim) = self.matmul_b1_dev(&a_dev, m, k, &b_dev, n)?;
+        let c_all = stream.clone_dtoh(&c_dev)?;
+        Ok(c_all
+            .chunks_exact(n_padded_lim)
+            .take(m)
+            .flat_map(|row| row[..n_lim].iter().copied())
+            .collect())
+    }
+
+    /// Upload a bit-packed F₂ matrix (natural row-major limb layout, `rows *
+    /// cols.div_ceil(64)` u64) to device memory. One H2D copy.
+    pub fn upload(
+        &self,
+        data: &[u64],
+        rows: usize,
+        cols: usize,
+    ) -> Result<DeviceMatrix, Box<dyn std::error::Error>> {
+        let stride = cols.div_ceil(64);
+        assert_eq!(data.len(), rows * stride, "limb count mismatch");
+        let buf = self.ctx.default_stream().clone_htod(data)?;
+        Ok(DeviceMatrix {
+            buf,
+            rows,
+            cols,
+            stride,
+        })
+    }
+
+    /// Download a [`DeviceMatrix`] back to host limbs (natural layout). One D2H.
+    pub fn download(&self, dm: &DeviceMatrix) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+        Ok(self.ctx.default_stream().clone_dtoh(&dm.buf)?)
+    }
+
+    /// The fused trailing-update / back-substitution epilogue over persistent
+    /// device buffers (design §4.4/§4.6): `dst[:, col_off:] ^= L · U`, in place,
+    /// where `L` is `dst.rows × k` and `U` is `k × t` (`k = l.cols = u.rows`,
+    /// `t = u.cols`). `col_off` must be a limb boundary (multiple of 64) and the
+    /// trailing region `[col_off, dst.cols)` must be exactly `t` columns wide —
+    /// i.e. `col_off + t == dst.cols` — so the whole-limb XOR lands correctly.
+    ///
+    /// Runs [`matmul_b1_dev`](Self::matmul_b1_dev) into a scratch device C and
+    /// XORs it into `dst` with [`xor_into_region`](Self::xor_into_region) — no
+    /// host round-trip, no D2H of the product.
+    pub fn gemm_xor_into(
+        &self,
+        dst: &mut DeviceMatrix,
+        l: &DeviceMatrix,
+        u: &DeviceMatrix,
+        col_off: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(col_off % 64, 0, "col_off must be a limb boundary");
+        assert_eq!(l.rows, dst.rows, "L rows must match dst rows");
+        assert_eq!(
+            l.cols, u.rows,
+            "inner dimension mismatch (L.cols != U.rows)"
+        );
+        assert_eq!(
+            col_off + u.cols,
+            dst.cols,
+            "trailing region must be U.cols wide"
+        );
+        let (m, k, t) = (dst.rows, l.cols, u.cols);
+        if m == 0 || k == 0 || t == 0 {
+            return Ok(());
+        }
+        let (c_dev, _n_padded_lim) = self.matmul_b1_dev(&l.buf, m, k, &u.buf, t)?;
+        let width = t.div_ceil(64); // == dst.stride - col_off/64
+        let stream = self.ctx.default_stream();
+        self.xor_into_region(
+            &stream,
+            &mut dst.buf,
+            &c_dev,
+            m,
+            width,
+            dst.stride,
+            col_off / 64,
+            _n_padded_lim,
+        )?;
+        stream.synchronize()?;
+        Ok(())
+    }
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.

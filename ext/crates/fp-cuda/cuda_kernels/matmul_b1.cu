@@ -461,3 +461,83 @@ extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
     // Drain the last outstanding output store before the CTA exits.
     if (t == 0) tma_store_wait();
 }
+
+// ── Device-resident packing kernels (BLAS3 GPU row-reduction port) ───────────
+//
+// These reproduce, on device, the host operand pre-arrangement in src/lib.rs
+// (pad_2d + interleave_a for A; pad_2d + transpose_b for B) so a GEMM can run
+// over persistent device buffers with no host round-trip. One thread per output
+// u64. Packing is lower-order work, so these favor clarity over peak bandwidth.
+// They reference the tiling constants (TM, KL, NG, TK) above — the single source
+// of truth shared with the compute kernel.
+
+typedef unsigned long long u64_t;
+
+// A: gather the natural row-major (m_orig × sa_orig) limb array into row-major
+// K-major tiles (TM rows × KL u64), ordered K-chunk-major then M-tile-major.
+// Rows/limbs past the real extent (padding M→m_padded, K→k_padded) read as zero.
+extern "C" __global__ void pack_a(
+    u64_t* __restrict__ out, const u64_t* __restrict__ a,
+    unsigned m_orig, unsigned sa_orig, unsigned m_tiles, unsigned total)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+    const unsigned tile_u64s = TM * KL;
+    unsigned tile_idx = idx / tile_u64s;
+    unsigned within   = idx % tile_u64s;
+    unsigned row = within / KL;
+    unsigned kl  = within % KL;
+    unsigned bi = tile_idx % m_tiles;
+    unsigned kk = tile_idx / m_tiles;
+    unsigned global_row = bi * TM + row;
+    unsigned global_kl  = kk * KL + kl;
+    u64_t val = 0;
+    if (global_row < m_orig && global_kl < sa_orig)
+        val = a[(u64_t)global_row * sa_orig + global_kl];
+    out[idx] = val;
+}
+
+// B: pad_2d(K→k_padded) + transpose_b. Natural (k_orig × n_lim) limb array →
+// K-major bit-transposed tiles (NG*64 operand rows × KL u64), ordered K-chunk-
+// major then column-group-major. Column groups whose limb ≥ n_lim stay zero.
+extern "C" __global__ void pack_b(
+    u64_t* __restrict__ out, const u64_t* __restrict__ b,
+    unsigned k_orig, unsigned n_lim, unsigned n_groups, unsigned total)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+    const unsigned tile = NG * 64 * KL;
+    unsigned tile_idx = idx / tile;
+    unsigned within   = idx % tile;
+    unsigned j  = within / KL;   // operand row within the NG*64-row tile
+    unsigned kl = within % KL;
+    unsigned cg = tile_idx % n_groups;
+    unsigned kk = tile_idx / n_groups;
+    unsigned lg = j / 64;
+    unsigned jj = j % 64;
+    unsigned limb = cg * NG + lg;
+    if (limb >= n_lim) { out[idx] = 0; return; }
+    u64_t val = 0;
+    #pragma unroll
+    for (unsigned bit = 0; bit < 64; ++bit) {
+        unsigned br = kk * TK + kl * 64 + bit;
+        u64_t word = (br < k_orig) ? b[(u64_t)br * n_lim + limb] : 0;
+        val |= ((word >> jj) & 1ULL) << bit;
+    }
+    out[idx] = val;
+}
+
+// Fused XOR-accumulate the padded GEMM output C (m × c_stride limbs/row) into a
+// destination region of a persistent matrix (dst_stride limbs/row) starting at
+// limb dst_limb: dst[j][dst_limb + col] ^= C[j][col], for j<m, col<width.
+extern "C" __global__ void xor_into(
+    u64_t* __restrict__ dst, const u64_t* __restrict__ c,
+    unsigned m, unsigned width, unsigned dst_stride, unsigned dst_limb,
+    unsigned c_stride)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= m * width) return;
+    unsigned j   = idx / width;
+    unsigned col = idx % width;
+    dst[(u64_t)j * dst_stride + dst_limb + col] ^= c[(u64_t)j * c_stride + col];
+}

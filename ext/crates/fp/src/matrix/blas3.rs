@@ -88,7 +88,7 @@ impl Matrix {
             // Multiplier bits, one column per pivot found. Only *deferred* rows
             // (rows below the pivots) get an entry; the pivot rows are made exact
             // by the promotion step instead.
-            let mut l = Matrix::new(TWO, m, col_hi - col_lo);
+            let mut l = Self::new(TWO, m, col_hi - col_lo);
             let mut pr = 0usize; // pivots found in this panel
 
             let panel_w = limb_hi - limb_lo;
@@ -176,7 +176,7 @@ impl Matrix {
                 // Trim L to its m × pr occupied columns so the GEMM's inner
                 // dimension is the pivots actually found, not the panel width.
                 let n_l = pr.div_ceil(64);
-                let mut l_trim = Matrix::new(TWO, m, pr);
+                let mut l_trim = Self::new(TWO, m, pr);
                 {
                     let l_stride = l.stride();
                     let lt_stride = l_trim.stride();
@@ -189,7 +189,7 @@ impl Matrix {
                 }
 
                 // U = pivot rows' trailing part, a contiguous limb slice.
-                let mut u = Matrix::new(TWO, pr, t);
+                let mut u = Self::new(TWO, pr, t);
                 {
                     let u_stride = u.stride(); // == trailing_limbs
                     debug_assert_eq!(u_stride, trailing_limbs);
@@ -267,7 +267,7 @@ impl Matrix {
 
                 // X = rows above, gathered at this block's pivot columns (s ×
                 // bp_eff), raw-limb: read bit `q_{s+i}` of row j, set bit i of X.
-                let mut x = Matrix::new(TWO, s, bp_eff);
+                let mut x = Self::new(TWO, s, bp_eff);
                 {
                     let x_stride = x.stride();
                     let src = self.data();
@@ -283,7 +283,7 @@ impl Matrix {
                 }
 
                 // U = block rows [s, e), limbs [start_limb, stride) (bp_eff × width).
-                let mut u = Matrix::new(TWO, bp_eff, width);
+                let mut u = Self::new(TWO, bp_eff, width);
                 {
                     let u_stride = u.stride(); // == trailing_limbs
                     debug_assert_eq!(u_stride, trailing_limbs);
