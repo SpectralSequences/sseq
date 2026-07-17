@@ -991,6 +991,233 @@ impl GpuContext {
         Ok(new_active)
     }
 
+    /// Elementwise promote of pivot sub-block `[lo, lo+pr)` (perm positions
+    /// `[r_piv, r_piv+pr)`): the cooperative forward-substitution replay of `L`
+    /// onto those rows' trailing. `l_limb_off = lo/64` shifts the L read so bit `i`
+    /// maps to global multiplier bit `lo+i`. Base case of
+    /// [`promote_rec`](Self::promote_rec); also the whole-panel promote when
+    /// blocked TRSM is off.
+    #[allow(clippy::too_many_arguments)]
+    fn promote_elem(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        l: &DeviceMatrix,
+        r_piv: usize,
+        pr: usize,
+        first_limb: usize,
+        trailing_limbs: usize,
+        l_limb_off: usize,
+        pc_barrier: &mut CudaSlice<u32>,
+        pc_cond: &CudaSlice<u32>,
+        pc_ctas: u32,
+    ) -> anyhow::Result<()> {
+        if pr == 0 || trailing_limbs == 0 {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        stream.memset_zeros(pc_barrier)?;
+        let (r_u, pr_u, fl, tl, st, ls, llo, tc) = (
+            r_piv as u32,
+            pr as u32,
+            first_limb as u32,
+            trailing_limbs as u32,
+            m.stride as u32,
+            l.stride as u32,
+            l_limb_off as u32,
+            pc_ctas,
+        );
+        let cfg = LaunchConfig {
+            grid_dim: (pc_ctas, 1, 1),
+            block_dim: (256, 1, 1),
+            shared_mem_bytes: 0,
+        };
+        let mut lb = stream.launch_builder(&self.promote_coop);
+        lb.arg(&mut m.buf)
+            .arg(perm)
+            .arg(&l.buf)
+            .arg(&r_u)
+            .arg(&pr_u)
+            .arg(&fl)
+            .arg(&tl)
+            .arg(&st)
+            .arg(&ls)
+            .arg(&llo)
+            .arg(pc_barrier)
+            .arg(pc_cond)
+            .arg(&tc);
+        unsafe { lb.launch_cooperative(cfg) }?;
+        Ok(())
+    }
+
+    /// Inter-block step of the blocked-TRSM promote: apply the left pivot
+    /// sub-block `[lo, mid)` to the right pivot rows `[mid, hi)`'s trailing as one
+    /// `X·U` GEMM. `X` = the right rows' L-bits at columns `[lo, mid)` (gathered
+    /// straight from `L` — no M-column gather needed), `U` = the left pivot rows'
+    /// (already-promoted) trailing; `M[right rows] ^= X·U`. `lo`/`mid` are
+    /// 64-aligned so `X` is a contiguous L limb-range. No promote-of-promote: the
+    /// left rows are already reduced, so this is clean BLAS3.
+    #[allow(clippy::too_many_arguments)]
+    fn promote_clear(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        l: &DeviceMatrix,
+        r_piv: usize,
+        lo: usize,
+        mid: usize,
+        hi: usize,
+        first_limb: usize,
+        trailing_limbs: usize,
+    ) -> anyhow::Result<()> {
+        let (n_left, n_right) = (mid - lo, hi - mid);
+        if n_left == 0 || n_right == 0 || trailing_limbs == 0 {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        let (stride, n) = (m.stride, m.cols);
+        let k_limbs = n_left / 64; // lo, mid 64-aligned
+        let t = ((first_limb + trailing_limbs) * 64).min(n) - first_limb * 64;
+
+        // X = right rows' L bits [lo, mid) — gather_rows straight from L.
+        let x_buf = unsafe { stream.alloc::<u64>(n_right * k_limbs) }?;
+        {
+            let (rp, fl, cnt, nc, ls) = (
+                (r_piv + mid) as u32,
+                (lo / 64) as u32,
+                n_right as u32,
+                k_limbs as u32,
+                l.stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.gather_rows);
+            lb.arg(&x_buf)
+                .arg(&l.buf)
+                .arg(perm)
+                .arg(&rp)
+                .arg(&fl)
+                .arg(&cnt)
+                .arg(&nc)
+                .arg(&ls);
+            unsafe { lb.launch(cfg_1d(n_right * k_limbs)) }?;
+        }
+        // U = left pivot rows' trailing.
+        let u_buf = unsafe { stream.alloc::<u64>(n_left * trailing_limbs) }?;
+        {
+            let (rp, fl, cnt, nc, st) = (
+                (r_piv + lo) as u32,
+                first_limb as u32,
+                n_left as u32,
+                trailing_limbs as u32,
+                stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.gather_rows);
+            lb.arg(&u_buf)
+                .arg(&m.buf)
+                .arg(perm)
+                .arg(&rp)
+                .arg(&fl)
+                .arg(&cnt)
+                .arg(&nc)
+                .arg(&st);
+            unsafe { lb.launch(cfg_1d(n_left * trailing_limbs)) }?;
+        }
+        // C = X·U (n_right × t); scatter-XOR into the right pivot rows' trailing.
+        let (c_dev, n_padded_lim) = self.matmul_b1_dev(&x_buf, n_right, n_left, &u_buf, t)?;
+        let perm_right = perm.slice((r_piv + mid)..(r_piv + hi));
+        let (s_u, w, st, fl, cs) = (
+            n_right as u32,
+            trailing_limbs as u32,
+            stride as u32,
+            first_limb as u32,
+            n_padded_lim as u32,
+        );
+        let mut lb = stream.launch_builder(&self.xor_into_perm);
+        lb.arg(&mut m.buf)
+            .arg(&c_dev)
+            .arg(&perm_right)
+            .arg(&s_u)
+            .arg(&w)
+            .arg(&st)
+            .arg(&fl)
+            .arg(&cs);
+        unsafe { lb.launch(cfg_1d(n_right * trailing_limbs)) }?;
+        Ok(())
+    }
+
+    /// Blocked-TRSM promote (design §4.4): the forward-substitution replay of `L`
+    /// on the `pr` pivot rows' trailing is a triangular solve. Recurse it into
+    /// 64-aligned halves — factor the left, apply it to the right with one large
+    /// `X·U` GEMM ([`promote_clear`](Self::promote_clear)), factor the right — so
+    /// the O(pr²·trailing) cross-elimination runs on the tensor cores instead of
+    /// the elementwise per-pivot replay, with only `base`-narrow strips left
+    /// elementwise. Correct because a pivot row only ever receives contributions
+    /// from *earlier* pivots (no double counting across the split).
+    #[allow(clippy::too_many_arguments)]
+    fn promote_rec(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        l: &DeviceMatrix,
+        r_piv: usize,
+        lo: usize,
+        hi: usize,
+        first_limb: usize,
+        trailing_limbs: usize,
+        base: usize,
+        pc_barrier: &mut CudaSlice<u32>,
+        pc_cond: &CudaSlice<u32>,
+        pc_ctas: u32,
+    ) -> anyhow::Result<()> {
+        if hi - lo <= base {
+            return self.promote_elem(
+                m,
+                perm,
+                l,
+                r_piv + lo,
+                hi - lo,
+                first_limb,
+                trailing_limbs,
+                lo / 64,
+                pc_barrier,
+                pc_cond,
+                pc_ctas,
+            );
+        }
+        // 64-aligned split (≥64 on the left so X is a whole L limb-range).
+        let half = (((hi - lo) / 2) / 64) * 64;
+        let mid = lo + if half == 0 { 64 } else { half };
+        self.promote_rec(
+            m,
+            perm,
+            l,
+            r_piv,
+            lo,
+            mid,
+            first_limb,
+            trailing_limbs,
+            base,
+            pc_barrier,
+            pc_cond,
+            pc_ctas,
+        )?;
+        self.promote_clear(m, perm, l, r_piv, lo, mid, hi, first_limb, trailing_limbs)?;
+        self.promote_rec(
+            m,
+            perm,
+            l,
+            r_piv,
+            mid,
+            hi,
+            first_limb,
+            trailing_limbs,
+            base,
+            pc_barrier,
+            pc_cond,
+            pc_ctas,
+        )?;
+        Ok(())
+    }
+
     /// One trailing update `M[:, first_limb·64 : end_limb·64) ^= L · U` (design
     /// §4.4): promote the `pr` pivot rows at perm positions `[r_piv, r_piv+pr)`
     /// over the column range, drop them from `l`, gather them into `U`, run the
@@ -1032,27 +1259,57 @@ impl GpuContext {
                 l.stride as u32,
             );
             if promote_coop {
-                stream.memset_zeros(pc_barrier)?;
-                let tc = pc_ctas;
-                let cfg = LaunchConfig {
-                    grid_dim: (pc_ctas, 1, 1),
-                    block_dim: (256, 1, 1),
-                    shared_mem_bytes: 0,
-                };
-                let mut lb = stream.launch_builder(&self.promote_coop);
-                lb.arg(&mut m.buf)
-                    .arg(perm)
-                    .arg(&l.buf)
-                    .arg(&r_u)
-                    .arg(&pr_u)
-                    .arg(&fl)
-                    .arg(&tl)
-                    .arg(&st)
-                    .arg(&ls)
-                    .arg(pc_barrier)
-                    .arg(pc_cond)
-                    .arg(&tc);
-                unsafe { lb.launch_cooperative(cfg) }?;
+                // Blocked-TRSM promote (FP_CUDA_PROM_TRSM): the promote is a
+                // forward-substitution triangular solve (≈18% of the reduction).
+                // Recurse it to base strips + X·U GEMMs so the O(pr²·trailing)
+                // cross-elimination runs on the tensor cores.
+                //
+                // MEASURED (2^16, FP_CUDA_PROF): a WASH — promote drops 176→107 ms
+                // in isolation, but end-to-end is flat-to-slightly-worse (best
+                // +1.4% at base=512). Unlike back-sub's clear-above GEMM (which
+                // spans all the ABOVE rows → large m), promote only ever touches
+                // the pr≤bl·64≤1024 PIVOT rows, so its GEMMs are small-m AND
+                // small-K (n_left,n_right ≤ pr/2) — too small to feed the tensor
+                // cores, and the many small kernels/panel pipeline worse than the
+                // one elementwise sweep. The grid-cap on promote_elem (+6%) already
+                // captured the real win; promote is intrinsically a small op. Kept
+                // behind the flag as the definitive experiment.
+                let use_prom_trsm = std::env::var("FP_CUDA_PROM_TRSM").is_ok();
+                if use_prom_trsm {
+                    let base: usize = std::env::var("FP_CUDA_PROM_BASE")
+                        .ok()
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(64)
+                        .max(64);
+                    self.promote_rec(
+                        m,
+                        perm,
+                        l,
+                        r_piv,
+                        0,
+                        pr,
+                        first_limb,
+                        trailing_limbs,
+                        base,
+                        pc_barrier,
+                        pc_cond,
+                        pc_ctas,
+                    )?;
+                } else {
+                    self.promote_elem(
+                        m,
+                        perm,
+                        l,
+                        r_piv,
+                        pr,
+                        first_limb,
+                        trailing_limbs,
+                        0,
+                        pc_barrier,
+                        pc_cond,
+                        pc_ctas,
+                    )?;
+                }
             } else {
                 let mut lb = stream.launch_builder(&self.promote_pivots);
                 lb.arg(&mut m.buf)
