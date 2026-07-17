@@ -830,27 +830,25 @@ extern "C" __global__ void promote_coop(
 {
     const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned gnt = gridDim.x * blockDim.x;
+    (void)cond; // multiplier bits are read straight from L (never mutated here)
     unsigned goal = 0;
     for (unsigned i = 0; i < pr; ++i) {
         unsigned rowi = perm[r + i];
         unsigned nk = pr - i - 1; // later pivots k in (i, pr)
-        // cond[krel] = does pivot k = i+1+krel carry multiplier bit i?
-        for (unsigned krel = gtid; krel < nk; krel += gnt) {
-            unsigned rowk = perm[r + i + 1 + krel];
-            cond[krel] = (unsigned)((l_buf[(u64_t)rowk * l_stride + (i >> 6)] >> (i & 63)) & 1ULL);
-        }
-        goal += total_ctas; grid_sync(barrier, goal); // [A] conds visible
-
+        // The clear-condition reads L, which the XOR never writes, so we test it
+        // inline instead of gathering it under a separate barrier — one grid
+        // barrier per pivot instead of two (these kernels are barrier-bound).
         unsigned total = nk * trailing_limbs; // fits u32
         for (unsigned idx = gtid; idx < total; idx += gnt) {
             unsigned krel = idx / trailing_limbs;
-            if (!cond[krel]) continue;
-            unsigned c = idx - krel * trailing_limbs;
             unsigned rowk = perm[r + i + 1 + krel];
+            if (!((l_buf[(u64_t)rowk * l_stride + (i >> 6)] >> (i & 63)) & 1ULL))
+                continue;
+            unsigned c = idx - krel * trailing_limbs;
             m_buf[(u64_t)rowk * stride + first_limb + c] ^=
                 m_buf[(u64_t)rowi * stride + first_limb + c];
         }
-        goal += total_ctas; grid_sync(barrier, goal); // [B] finish i before next
+        goal += total_ctas; grid_sync(barrier, goal); // finish i before next reads M[i+1]
     }
 }
 
