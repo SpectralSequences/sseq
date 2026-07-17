@@ -1,0 +1,33 @@
+[package]
+name = "fp-cuda"
+version = "0.1.0"
+edition = "2024"
+authors = ["Joey Beauvais-Feisthauer <joeybf@wayne.edu>"]
+description = "CUDA backend for fp's F_2 BLAS routines (Hopper wgmma.b1 via inline PTX)"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# This crate ships a CUDA C++ kernel (cuda_kernels/matmul_b1.cu) that is
+# compiled to PTX by nvcc at build time. The Rust side links against
+# cuda-oxide's `cuda-core` for an untyped module/launch path.
+#
+# Build with:
+#   cargo build -p fp-cuda
+#
+# Prerequisites: nvcc (CUDA Toolkit 12.x+) on PATH, Hopper GPU at runtime.
+# Plain `cargo build` from the workspace root skips this crate via the
+# `default-members` entry in the workspace Cargo.toml.
+
+build = "build.rs"
+
+[dependencies]
+fp = { path = "../fp", default-features = false }
+cuda-core = { git = "https://github.com/NVlabs/cuda-oxide" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+rand = "0.9"
+
+[[bench]]
+name = "matmul_b1"
+harness = false

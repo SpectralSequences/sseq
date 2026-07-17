@@ -65,6 +65,20 @@ members = [
     "crates/algebra",
     "crates/bivec",
     "crates/fp",
+    "crates/fp-cuda",
+    "crates/maybe-rayon",
+    "crates/once",
+    "crates/query",
+    "crates/sseq",
+]
+# `fp-cuda` requires cuda-oxide's custom rustc backend (`cargo oxide build`)
+# and is opt-in. Default workspace commands (`cargo build`, `cargo test`,
+# `nix run .#test`) skip it via this list.
+default-members = [
+    ".",
+    "crates/algebra",
+    "crates/bivec",
+    "crates/fp",
     "crates/maybe-rayon",
     "crates/once",
     "crates/query",
