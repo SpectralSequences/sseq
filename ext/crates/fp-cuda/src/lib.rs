@@ -167,6 +167,7 @@ pub struct GpuContext {
     panel_factor_coop: CudaFunction,
     mark_live: CudaFunction,
     promote_pivots: CudaFunction,
+    promote_coop: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
     block_reduce_rref: CudaFunction,
@@ -192,6 +193,7 @@ impl GpuContext {
         let panel_factor_coop = module.load_function("panel_factor_coop")?;
         let mark_live = module.load_function("mark_live")?;
         let promote_pivots = module.load_function("promote_pivots")?;
+        let promote_coop = module.load_function("promote_coop")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
         let block_reduce_rref = module.load_function("block_reduce_rref")?;
@@ -210,6 +212,7 @@ impl GpuContext {
             panel_factor_coop,
             mark_live,
             promote_pivots,
+            promote_coop,
             zero_pivot_l,
             gather_rows,
             block_reduce_rref,
@@ -1007,6 +1010,28 @@ impl GpuContext {
         const COMPACT_PERIOD: usize = 4;
         let mut m_active = rows;
 
+        // Cooperative multi-CTA promotion (right-looking) replaces the single-CTA
+        // triangular replay when the matrix is wide enough to amortize the grid
+        // barriers; otherwise the grid-strided promote_pivots kernel is used.
+        let use_promote_coop = use_coop && stride >= 1024;
+        let (pc_ctas, mut pc_barrier, pc_cond) = if use_promote_coop {
+            let sms = self
+                .ctx
+                .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+                as u32;
+            let occ = self
+                .promote_coop
+                .occupancy_max_active_blocks_per_multiprocessor(256, 0, None)?
+                .max(1);
+            ((occ * sms).max(1), stream.alloc_zeros::<u32>(1)?, unsafe {
+                stream.alloc::<u32>(bl * 64)
+            }?)
+        } else {
+            (0, stream.alloc_zeros::<u32>(1)?, unsafe {
+                stream.alloc::<u32>(1)
+            }?)
+        };
+
         let mut ppanel = 0usize;
         let mut panel_idx = 0usize;
         while ppanel < stride {
@@ -1061,18 +1086,42 @@ impl GpuContext {
                         stride as u32,
                         l.stride as u32,
                     );
-                    // Grid-strided over trailing limbs (columns are independent).
-                    let mut lb = stream.launch_builder(&self.promote_pivots);
-                    lb.arg(&mut m.buf)
-                        .arg(&perm)
-                        .arg(&l.buf)
-                        .arg(&r_u)
-                        .arg(&pr_u)
-                        .arg(&fl)
-                        .arg(&tl)
-                        .arg(&st)
-                        .arg(&ls);
-                    unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
+                    if use_promote_coop {
+                        stream.memset_zeros(&mut pc_barrier)?;
+                        let tc = pc_ctas;
+                        let cfg = LaunchConfig {
+                            grid_dim: (pc_ctas, 1, 1),
+                            block_dim: (256, 1, 1),
+                            shared_mem_bytes: 0,
+                        };
+                        let mut lb = stream.launch_builder(&self.promote_coop);
+                        lb.arg(&mut m.buf)
+                            .arg(&perm)
+                            .arg(&l.buf)
+                            .arg(&r_u)
+                            .arg(&pr_u)
+                            .arg(&fl)
+                            .arg(&tl)
+                            .arg(&st)
+                            .arg(&ls)
+                            .arg(&pc_barrier)
+                            .arg(&pc_cond)
+                            .arg(&tc);
+                        unsafe { lb.launch_cooperative(cfg) }?;
+                    } else {
+                        // Grid-strided over trailing limbs (columns independent).
+                        let mut lb = stream.launch_builder(&self.promote_pivots);
+                        lb.arg(&mut m.buf)
+                            .arg(&perm)
+                            .arg(&l.buf)
+                            .arg(&r_u)
+                            .arg(&pr_u)
+                            .arg(&fl)
+                            .arg(&tl)
+                            .arg(&st)
+                            .arg(&ls);
+                        unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
+                    }
                     let (r_u, pr_u, ls) = (r as u32, pr as u32, l.stride as u32);
                     let mut lb = stream.launch_builder(&self.zero_pivot_l);
                     lb.arg(&perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
