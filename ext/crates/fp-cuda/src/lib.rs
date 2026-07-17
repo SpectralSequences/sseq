@@ -1842,37 +1842,47 @@ impl GpuContext {
             .block_reduce_coop
             .occupancy_max_active_blocks_per_multiprocessor(BR_THREADS, 0, None)?
             .max(1);
-        let br_ctas = (br_occ * sms).max(1);
-        let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
-        let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
-
-        // Blocked-TRSM within-block reduce (FP_CUDA_BS_TRSM): back-substitution's
-        // "reduce the block among itself" is a triangular solve, done elementwise
-        // (bp sequential per-pivot clears, ≈29% of the whole reduction at 2^16).
-        // Recurse it into halved sub-blocks + large X·U GEMMs — a clean BLAS3 TRSM
-        // with NO promote (source/target rows are disjoint and already reduced),
-        // so unlike the forward-pass recursion it has no promote explosion.
-        // FP_CUDA_BS_BASE sets the elementwise base width (≤64).
-        //
-        // MEASURED (2^16, FP_CUDA_PROF): NEUTRAL. The recursion moves the XOR
-        // *work* onto the tensor cores (bs.gemm 29→65 ms) but block_reduce barely
-        // moves (334→296 ms), because the cost is grid BARRIERS, not work:
-        // block_reduce_coop does 2 grid syncs per pivot (≈2·r syncs), and the
-        // recursion with a coop base keeps every one of them. Forcing the narrow
-        // base onto the barrier-free single-CTA kernel removes the syncs but is
-        // worse (485 ms) — one SM of 132 can't cover the full trailing width. The
-        // real fix is a shared-memory 64×64 triangular-solve base kernel: reduce
-        // the base block within one CTA's shared memory (64 steps, no grid sync),
-        // then apply over the full width via GEMM — that removes the per-pivot grid
-        // barriers without the SM starvation. Bounded ~1.2× (block_reduce is 29%).
-        // Kept behind the flag as the correct BLAS3 scaffolding for that kernel.
-        let use_trsm = std::env::var("FP_CUDA_BS_TRSM").is_ok();
+        // Blocked-TRSM within-block reduce is the DEFAULT on the coop path (it
+        // recurses each block to narrow base blocks + X·U GEMMs). Disable with
+        // FP_CUDA_NO_BS_TRSM (falls back to the elementwise full-block reduce).
+        let use_trsm = use_coop && std::env::var("FP_CUDA_NO_BS_TRSM").is_err();
         // Base ≤ 64: the single-CTA block_reduce_rref's shared cond[] is sized 64.
         let base_bp: usize = std::env::var("FP_CUDA_BS_BASE")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(64)
             .clamp(1, 64);
+
+        // The block reduce is grid-barrier-bound (2 grid syncs/pivot), and a
+        // grid_sync's cost scales with the CTA count. With TRSM the reduces are
+        // narrow base blocks whose per-pivot XOR needs little width, so a small
+        // grid gives far cheaper barriers — measured bs.block_reduce 334→115 ms
+        // (2.9×) at 2^16, +12% end-to-end. Cap to 128 CTAs there (the plateau of
+        // the sweep). Without TRSM the reduce is the full bp=1024 block, whose XOR
+        // genuinely needs the whole grid, so keep full occupancy. FP_CUDA_BR_CTAS
+        // overrides.
+        let br_cap = if use_trsm { 128 } else { br_occ * sms };
+        let br_ctas = std::env::var("FP_CUDA_BR_CTAS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(br_cap)
+            .clamp(1, br_occ * sms);
+        let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
+        let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
+
+        // Blocked-TRSM within-block reduce (default on the coop path): back-sub's
+        // "reduce the block among itself" is a triangular solve, elementwise ≈29%
+        // of the whole reduction at 2^16 (bp sequential per-pivot clears). It is
+        // grid-barrier-bound — block_reduce_coop does 2 grid syncs/pivot, and a
+        // grid_sync's cost scales with CTA count. The fix (two parts): (1) recurse
+        // the block into narrow base blocks + large X·U GEMMs (block_reduce_rec /
+        // bs_clear_above) — a clean BLAS3 TRSM with NO promote (source/target rows
+        // disjoint and already reduced); (2) run those narrow base reduces on a
+        // small grid (br_ctas≈128) so the per-pivot barrier is cheap while the
+        // little XOR width is still covered. Together: bs.block_reduce 334→115 ms
+        // (2.9×), +12% at 2^16 / +6% at 2^17. Neither part helps alone — the
+        // recursion with a full grid keeps every barrier (neutral), and a small
+        // grid on the full 1024-block starves its large XOR (worse).
 
         let mut e = r;
         while e > 0 {
