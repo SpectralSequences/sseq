@@ -23,7 +23,6 @@ publish = false
 build = "build.rs"
 
 [dependencies]
-fp = { path = "../fp", default-features = false }
 # Driver API only; dynamic-loading means the crate builds with no CUDA present
 # (we still need nvcc at build time to produce the PTX, and a driver at runtime).
 # cuda-12080 only selects which pre-generated driver bindings to compile; with
@@ -38,6 +37,11 @@ cudarc = { version = "0.19", default-features = false, features = [
 ] }
 
 [dev-dependencies]
+# `fp` is a dev-dependency only: the library API is fp-agnostic (raw limbs), so
+# the higher-level `fp` crate can depend on `fp-cuda` without a cycle. The
+# examples/benches still use `fp::Matrix` for random generation and CPU
+# cross-checks (dev-dependency cycles are permitted by Cargo).
+fp = { path = "../fp", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 rand = "0.9"
 

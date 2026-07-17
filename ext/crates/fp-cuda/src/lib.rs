@@ -15,7 +15,6 @@ use cudarc::{
     },
     nvrtc::Ptx,
 };
-use fp::{matrix::Matrix, prime::TWO};
 
 static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
 
@@ -73,47 +72,64 @@ impl GpuContext {
     }
 }
 
-pub fn matmul_b1(
+/// Multiply two bit-packed F₂ matrices on the GPU.
+///
+/// Operands are plain **row-major, K-major** limb arrays — the exact layout
+/// `fp::Matrix::to_bytes` produces (little-endian `u64` limbs, one bit per
+/// entry, `columns.div_ceil(64)` limbs per row, no inter-row padding):
+///
+/// - `a`: the `m`×`k` left operand, `m * k.div_ceil(64)` limbs.
+/// - `b`: the `k`×`n` right operand, `k * n.div_ceil(64)` limbs.
+///
+/// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to
+/// hand to `fp::Matrix::from_data`. This keeps `fp-cuda` free of any dependency
+/// on `fp` (the higher-level crate depends on this one, not the reverse).
+pub fn matmul_b1_raw(
     gpu: &GpuContext,
-    a: &Matrix,
-    b: &Matrix,
-) -> Result<Matrix, Box<dyn std::error::Error>> {
-    Ok(matmul_b1_inner(gpu, a, b, 1)?.0)
+    a: &[u64],
+    m: usize,
+    k: usize,
+    b: &[u64],
+    n: usize,
+) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+    Ok(matmul_b1_inner(gpu, a, m, k, b, n, 1)?.0)
 }
 
-/// Like [`matmul_b1`], but also returns the average **kernel-only** wall time
-/// (seconds) over `time_iters` back-to-back launches, excluding host
+/// Like [`matmul_b1_raw`], but also returns the average **kernel-only** wall
+/// time (seconds) over `time_iters` back-to-back launches, excluding host
 /// (de)serialization, the TMA-layout pre-arrangement, and the H2D/D2H copies.
 ///
 /// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor
 /// *store* (overwrite, not accumulate), so repeated launches against the same
-/// device buffers are idempotent and the returned `Matrix` is the correct
+/// device buffers are idempotent and the returned limbs are the correct
 /// product. Use this to compare against the ~100-binary-TOPS pre-swizzle
 /// kernel baseline; the end-to-end `cargo bench` figures are dominated by host
 /// serialization and understate kernel throughput.
-pub fn matmul_b1_timed(
+pub fn matmul_b1_raw_timed(
     gpu: &GpuContext,
-    a: &Matrix,
-    b: &Matrix,
+    a: &[u64],
+    m: usize,
+    k: usize,
+    b: &[u64],
+    n: usize,
     time_iters: usize,
-) -> Result<(Matrix, f64), Box<dyn std::error::Error>> {
-    matmul_b1_inner(gpu, a, b, time_iters.max(1))
+) -> Result<(Vec<u64>, f64), Box<dyn std::error::Error>> {
+    matmul_b1_inner(gpu, a, m, k, b, n, time_iters.max(1))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn matmul_b1_inner(
     gpu: &GpuContext,
-    a: &Matrix,
-    b: &Matrix,
+    a: &[u64],
+    m: usize,
+    k: usize,
+    b: &[u64],
+    n: usize,
     time_iters: usize,
-) -> Result<(Matrix, f64), Box<dyn std::error::Error>> {
-    assert_eq!(a.prime(), TWO);
-    assert_eq!(b.prime(), TWO);
-    assert_eq!(a.columns(), b.rows());
-
-    let m = a.rows();
-    let k = a.columns();
-    let n = b.columns();
+) -> Result<(Vec<u64>, f64), Box<dyn std::error::Error>> {
     let n_lim = n.div_ceil(64);
+    assert_eq!(a.len(), m * k.div_ceil(64), "A limb count mismatch");
+    assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
 
     let k_padded = k.next_multiple_of(TILE_K);
     // Pad M to a whole number of clusters (CLUSTER M-tiles) so every cluster
@@ -129,11 +145,8 @@ fn matmul_b1_inner(
 
     let stream = gpu.ctx.default_stream();
 
-    let a_limbs = matrix_to_u64s(a);
-    let b_limbs = matrix_to_u64s(b);
-
-    let a_padded = pad_2d(&a_limbs, m, k.div_ceil(64), m_padded, k_padded / 64);
-    let b_padded = pad_2d(&b_limbs, k, n_lim, k_padded, n_lim);
+    let a_padded = pad_2d(a, m, k.div_ceil(64), m_padded, k_padded / 64);
+    let b_padded = pad_2d(b, k, n_lim, k_padded, n_lim);
 
     // Gather A into row-major K-major tiles; the TMA applies the 128B swizzle.
     let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
@@ -263,7 +276,7 @@ fn matmul_b1_inner(
         .take(m)
         .flat_map(|row| row[..n_lim].iter().copied())
         .collect();
-    Ok((Matrix::from_data(TWO, m, n, c_limbs), kernel_secs))
+    Ok((c_limbs, kernel_secs))
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.
@@ -357,9 +370,9 @@ fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
                 if limb >= n_lim {
                     continue; // padded column group → leave zeros
                 }
-                for i in 0..TILE_K {
+                for (i, slot) in buf.iter_mut().enumerate() {
                     let br = kk * TILE_K + i;
-                    buf[i] = if br < k { b[br * n_lim + limb] } else { 0 };
+                    *slot = if br < k { b[br * n_lim + limb] } else { 0 };
                 }
                 for jj in 0..64usize {
                     let j = lg * 64 + jj; // operand row within the 256-col tile
@@ -387,14 +400,4 @@ fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<
         out[r * ns..r * ns + n].copy_from_slice(&src[r * stride..r * stride + n]);
     }
     out
-}
-
-fn matrix_to_u64s(m: &Matrix) -> Vec<u64> {
-    let stride = m.columns().div_ceil(64);
-    let mut bytes = Vec::with_capacity(m.rows() * stride * 8);
-    m.to_bytes(&mut bytes).expect("Vec writes never fail");
-    bytes
-        .chunks_exact(8)
-        .map(|c| u64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]))
-        .collect()
 }

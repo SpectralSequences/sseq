@@ -21,6 +21,12 @@ serde_json = "1.0.141"
 maybe-rayon = { path = "../maybe-rayon" }
 query = { path = "../query" }
 
+# GPU backend (Hopper wgmma.b1). Optional and off by default: gated behind the
+# `gpu` feature. `fp-cuda`'s library is fp-agnostic (raw limbs), so this
+# dependency does not form a cycle. Building it requires nvcc at build time (a
+# stub PTX is emitted otherwise) and a Hopper GPU + driver at runtime.
+fp-cuda = { path = "../fp-cuda", optional = true }
+
 [dev-dependencies]
 # We use the proptest harness for our own tests
 fp = { path = ".", default-features = false, features = ["proptest"] }
@@ -38,6 +44,8 @@ build_const = "0.2.2"
 default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
+# Dispatch large p=2 matrix products to the Hopper GPU backend (`fp-cuda`).
+gpu = ["dep:fp-cuda"]
 
 [[bench]]
 name = "mul"

@@ -2,7 +2,11 @@ use std::time::Instant;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::{GpuContext, matmul_b1};
+use fp_cuda::GpuContext;
+
+#[path = "../examples/common/mod.rs"]
+mod common;
+use common::matmul_b1;
 use rand::Rng;
 
 const SIZES: &[usize] = &[128, 256, 512, 1024, 2048, 4096, 8192];
