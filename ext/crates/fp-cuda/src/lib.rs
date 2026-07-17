@@ -1169,8 +1169,6 @@ impl GpuContext {
             block_dim: (256, 1, 1),
             shared_mem_bytes: 0,
         };
-        const BP: usize = 64; // pivots per block (bl * 64 with bl = 1)
-
         // Cooperative multi-CTA block reduction: spreads each block's per-pivot
         // clear across the whole grid. The per-block cooperative launch + grid
         // barriers only pay once the block work (≈ bp·stride) is large, so gate on
@@ -1178,6 +1176,23 @@ impl GpuContext {
         // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷. Set
         // FP_CUDA_NO_COOP=1 to force the single-CTA kernel.
         let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err() && stride >= 1024;
+
+        // Pivots per back-substitution block. Wider blocks raise the X·U GEMM's
+        // contraction dimension bp toward TILE_K, cutting its K-padding waste
+        // (K=64 pads 16×). block_reduce_coop's cost is ~bp-independent (its
+        // compute and barrier counts both scale with r, not bp), so on the coop
+        // path we widen bp for free; the single-CTA fallback keeps bp=64 (its
+        // shared cond[] is sized 64). Override with FP_CUDA_BP.
+        let bp = if use_coop {
+            std::env::var("FP_CUDA_BP")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(512)
+        } else {
+            64
+        }
+        .clamp(1, r);
+
         const BR_THREADS: u32 = 256;
         let sms = self
             .ctx
@@ -1189,11 +1204,11 @@ impl GpuContext {
             .max(1);
         let br_ctas = (br_occ * sms).max(1);
         let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
-        let br_cond = unsafe { stream.alloc::<u32>(BP) }?;
+        let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
 
         let mut e = r;
         while e > 0 {
-            let s = e - e.min(BP);
+            let s = e - e.min(bp);
             let bp_eff = e - s;
 
             // (1) reduce the block [s, e) to RREF among itself.
