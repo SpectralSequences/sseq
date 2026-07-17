@@ -42,6 +42,10 @@ __device__ __forceinline__ void mbar_wait(uint64_t* b, uint32_t phase) {
         "  @!p bra L;\n"
         "}\n" :: "r"(a), "r"(phase) : "memory");
 }
+__device__ __forceinline__ void mbar_arrive(uint64_t* b) {
+    asm volatile("mbarrier.arrive.shared::cta.b64 _, [%0];\n"
+        :: "r"((uint32_t)__cvta_generic_to_shared(b)) : "memory");
+}
 __device__ __forceinline__ void tma_2d(
     void* dst, const CUtensorMap* tm, int x, int y, uint64_t* b) {
     asm volatile(
@@ -76,99 +80,185 @@ __device__ __forceinline__ void wgmma_wait()   { asm volatile("wgmma.wait_group.
 
 constexpr int TM = 64, TK = 256, KL = TK/64, TILE = TM*KL; // 256 u64s
 constexpr int NG = 4;
+constexpr int STAGES = 2;          // K-loop pipeline depth (full/empty buffers)
+constexpr int THREADS_PER_WG = 128;
 
 // ── Kernel ──────────────────────────────────────────────────────────────────
 
+// Producer-consumer kernel: 2 warpgroups (256 threads/CTA).
+//   Warpgroup 0 (t in [0, 128))  = PRODUCER: issues TMA loads in a tight
+//                                  K-loop into a STAGES-deep circular
+//                                  SMEM buffer.
+//   Warpgroup 1 (t in [128, 256)) = CONSUMER: waits for each stage to be
+//                                   full, runs NG wgmmas against it,
+//                                   signals the stage empty so producer
+//                                   can refill.
+//
+// SMEM per CTA:
+//   sA[STAGES][TILE]       = STAGES * 2048 B
+//   sB[STAGES][NG][TILE]   = STAGES * NG * 2048 B
+//   sC[NG][TM]             =  4 * 64 * 8 = 2048 B (consumer-only)
+//   mbar_full[STAGES] + mbar_empty[STAGES]
+//
+// With STAGES=2 and NG=4:  4096 + 16384 + 2048 + 32 = 22.5 KB (well below
+// the 99 KB static-SMEM Hopper default).
 extern "C" __global__ void matmul_b1_kernel(
     const __grid_constant__ CUtensorMap tma_a,
+    const __grid_constant__ CUtensorMap tma_b,
     uint32_t m_tiles,
-    const uint64_t* __restrict__ Bt,
     uint32_t M, uint32_t K, uint32_t nlim,
     uint64_t* __restrict__ C)
 {
-    __shared__ alignas(128) uint64_t sA[TILE];   // 2048 B — filled by TMA
-    __shared__ alignas(128) uint64_t sB[TILE];   // 2048 B — filled by threads
+    __shared__ alignas(128) uint64_t sA[STAGES][TILE];
+    __shared__ alignas(128) uint64_t sB[STAGES][NG][TILE];
     __shared__ uint64_t sC[NG][TM];
-    __shared__ alignas(8) uint64_t mbar[1];
+    __shared__ alignas(8) uint64_t mbar_full[STAGES];
+    __shared__ alignas(8) uint64_t mbar_empty[STAGES];
 
     const int bi = blockIdx.y, bj = blockIdx.x, t = threadIdx.x;
     const int row0 = bi * TM, col0 = bj * NG;
     if (row0 >= (int)M) return;
 
-    if (t == 0) mbar_init(mbar, 1);
-    for (int g = 0; g < NG; ++g)
-        if (t < TM) sC[g][t] = 0;
-    __syncthreads();
+    const int wg = t / THREADS_PER_WG;      // 0 = producer, 1 = consumer
+    const int t_wg = t - wg * THREADS_PER_WG; // 0..127 within warpgroup
 
-    const int nchunks = (K + TK - 1) / TK;
-
+    // How many of the NG column groups are in-bounds for this CTA?
+    int active_ng = 0;
+    #pragma unroll
     for (int g = 0; g < NG; ++g) {
-        int col = col0 + g;
-        if (col >= (int)nlim) continue;
+        if (col0 + g < (int)nlim) ++active_ng;
+    }
 
-        int32_t tot[32];
+    if (t == 0) {
         #pragma unroll
-        for (int r = 0; r < 32; ++r) tot[r] = 0;
-
-        for (int kk = 0; kk < nchunks; ++kk) {
-            uint32_t phase = kk & 1;
-
-            // TMA load A (thread 0 only, all others just wait).
-            if (t == 0) {
-                mbar_tx(mbar, 2048);
-                tma_2d(sA, &tma_a, 0, (kk * m_tiles + bi) * 16, mbar);
-            }
-
-            // Load pre-transposed B tile (all threads).
-            const uint64_t* tile = &Bt[(kk * nlim + col) * TILE];
-            for (int i = t; i < TILE; i += blockDim.x)
-                sB[i] = tile[i];
-
-            // Wait for TMA to finish writing sA.
-            mbar_wait(mbar, phase);
-            // Ensure thread stores to sB are visible to wgmma async proxy.
-            __syncthreads();
-            asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory");
-
-            // Fire wgmma. A uses 128B swizzle (layout_type=1), B uses none.
-            int32_t acc[32];
-            #pragma unroll
-            for (int r = 0; r < 32; ++r) acc[r] = 0;
-            uint64_t da = make_desc(sA, 128, 256, 0);
-            uint64_t db = make_desc(sB, 128, 256, 0);  // no swizzle
-            wgmma_fence();
-            wgmma_go(acc, da, db);
-            wgmma_commit();
-            wgmma_wait();
-            wgmma_fence();
-
-            #pragma unroll
-            for (int r = 0; r < 32; ++r) tot[r] += acc[r];
+        for (int s = 0; s < STAGES; ++s) {
+            mbar_init(&mbar_full[s], 1);
+            mbar_init(&mbar_empty[s], 1);
+            // Pre-arrive each empty barrier so the producer's first
+            // `mbar_wait(empty, 0)` succeeds immediately — the stage is
+            // logically "free" before iteration 0.
+            mbar_arrive(&mbar_empty[s]);
         }
-
-        // Pack this column group's output.
-        const int wid = t >> 5, lane = t & 31;
-        const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
-        uint64_t b0 = 0, b8 = 0;
+    }
+    if (t_wg < TM && wg == 1) {
         #pragma unroll
-        for (int gi = 0; gi < 8; ++gi) {
-            int c0 = cb + gi*8, c1 = c0+1;
-            b0 |= (uint64_t)(tot[gi*4+0]&1) << c0;
-            b0 |= (uint64_t)(tot[gi*4+1]&1) << c1;
-            b8 |= (uint64_t)(tot[gi*4+2]&1) << c0;
-            b8 |= (uint64_t)(tot[gi*4+3]&1) << c1;
-        }
-        uint32_t* c32 = reinterpret_cast<uint32_t*>(sC[g]);
-        atomicXor(&c32[rb*2],     (uint32_t)b0);
-        atomicXor(&c32[rb*2+1],   (uint32_t)(b0>>32));
-        atomicXor(&c32[(rb+8)*2], (uint32_t)b8);
-        atomicXor(&c32[(rb+8)*2+1],(uint32_t)(b8>>32));
+        for (int g = 0; g < NG; ++g) sC[g][t_wg] = 0;
     }
     __syncthreads();
 
-    for (int g = 0; g < NG; ++g) {
-        int col = col0 + g;
-        if (t < TM && row0+t < (int)M && col < (int)nlim)
-            C[(row0+t)*nlim + col] = sC[g][t];
+    const int nchunks = (K + TK - 1) / TK;
+    const uint32_t expected_tx = (1 + active_ng) * 2048u; // A + active Bs
+
+    if (wg == 0) {
+        // ===================== PRODUCER =====================
+        uint32_t phase_empty[STAGES] = {0, 0};
+
+        for (int kk = 0; kk < nchunks; ++kk) {
+            const int s = kk % STAGES;
+
+            // Wait for the consumer to release this stage. Pre-arrival in
+            // the init block makes the first STAGES iterations no-wait.
+            if (t_wg == 0) {
+                mbar_wait(&mbar_empty[s], phase_empty[s]);
+            }
+            phase_empty[s] ^= 1;
+
+            // Set expected transaction bytes for this stage's full barrier
+            // and issue all the TMAs (A + the active B's).
+            if (t_wg == 0) {
+                mbar_tx(&mbar_full[s], expected_tx);
+                tma_2d(sA[s], &tma_a, 0,
+                       (kk * m_tiles + bi) * 16, &mbar_full[s]);
+                #pragma unroll
+                for (int g = 0; g < NG; ++g) {
+                    int col = col0 + g;
+                    if (col < (int)nlim) {
+                        tma_2d(sB[s][g], &tma_b, 0,
+                               (kk * nlim + col) * 16, &mbar_full[s]);
+                    }
+                }
+            }
+        }
+    } else {
+        // ===================== CONSUMER =====================
+        uint32_t phase_full[STAGES] = {0, 0};
+
+        // NG accumulators stay resident across the K loop. ~128 s32
+        // regs/thread for `tot`, +32 for per-wgmma `acc` scratch.
+        int32_t tot[NG][32];
+        #pragma unroll
+        for (int g = 0; g < NG; ++g) {
+            #pragma unroll
+            for (int r = 0; r < 32; ++r) tot[g][r] = 0;
+        }
+
+        for (int kk = 0; kk < nchunks; ++kk) {
+            const int s = kk % STAGES;
+
+            // Wait for the producer's TMAs to finish populating this stage.
+            mbar_wait(&mbar_full[s], phase_full[s]);
+            phase_full[s] ^= 1;
+
+            #pragma unroll
+            for (int g = 0; g < NG; ++g) {
+                int col = col0 + g;
+                if (col >= (int)nlim) continue;
+
+                int32_t acc[32];
+                #pragma unroll
+                for (int r = 0; r < 32; ++r) acc[r] = 0;
+                uint64_t da = make_desc(sA[s],    128, 256, 0);
+                uint64_t db = make_desc(sB[s][g], 128, 256, 0);
+                wgmma_fence();
+                wgmma_go(acc, da, db);
+                wgmma_commit();
+                wgmma_wait();
+                wgmma_fence();
+
+                #pragma unroll
+                for (int r = 0; r < 32; ++r) tot[g][r] += acc[r];
+            }
+
+            // Signal that this stage's SMEM can be reused.
+            if (t_wg == 0) mbar_arrive(&mbar_empty[s]);
+        }
+
+        // Pack each column group's accumulator into sC. Layout uses the
+        // warpgroup-local thread id since this is consumer-only.
+        const int wid = t_wg >> 5, lane = t_wg & 31;
+        const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
+        #pragma unroll
+        for (int g = 0; g < NG; ++g) {
+            int col = col0 + g;
+            if (col >= (int)nlim) continue;
+
+            uint64_t b0 = 0, b8 = 0;
+            #pragma unroll
+            for (int gi = 0; gi < 8; ++gi) {
+                int c0 = cb + gi*8, c1 = c0+1;
+                b0 |= (uint64_t)(tot[g][gi*4+0]&1) << c0;
+                b0 |= (uint64_t)(tot[g][gi*4+1]&1) << c1;
+                b8 |= (uint64_t)(tot[g][gi*4+2]&1) << c0;
+                b8 |= (uint64_t)(tot[g][gi*4+3]&1) << c1;
+            }
+            uint32_t* c32 = reinterpret_cast<uint32_t*>(sC[g]);
+            atomicXor(&c32[rb*2],       (uint32_t)b0);
+            atomicXor(&c32[rb*2+1],     (uint32_t)(b0>>32));
+            atomicXor(&c32[(rb+8)*2],   (uint32_t)b8);
+            atomicXor(&c32[(rb+8)*2+1], (uint32_t)(b8>>32));
+        }
+    }
+
+    // Both warpgroups meet here before the global write.
+    __syncthreads();
+
+    // Consumer's first TM threads write the output rows back to global.
+    if (wg == 1 && t_wg < TM) {
+        #pragma unroll
+        for (int g = 0; g < NG; ++g) {
+            int col = col0 + g;
+            if (row0 + t_wg < (int)M && col < (int)nlim)
+                C[(row0 + t_wg) * nlim + col] = sC[g][t_wg];
+        }
     }
 }
