@@ -59,34 +59,11 @@ where
         input_degree: i32,
         input_index: usize,
     ) {
-        assert!(input_degree >= self.source.min_degree());
-        assert!(input_index < self.source.dimension(input_degree));
-        let output_degree = input_degree - self.degree_shift;
-        // The result buffer is usually exactly the target dimension, but callers are allowed to
-        // pass a shorter buffer that only spans a prefix of the target basis (the basis elements
-        // coming from a prefix of the generators). This is used by Nassau's algorithm to compute a
-        // bidegree while treating the target module as if its top-degree generators — which may be
-        // added concurrently — do not yet exist. `act` only ever writes as far as the (matching,
-        // equally truncated) stored differential reaches, so it never writes past `result`.
-        assert!(result.as_slice().len() <= self.target.dimension(output_degree));
-        let OperationGeneratorPair {
-            operation_degree,
-            generator_degree,
-            operation_index,
-            generator_index,
-        } = *self.source.index_to_op_gen(input_degree, input_index);
-
-        if generator_degree >= self.min_degree() {
-            let output_on_generator = self.output(generator_degree, generator_index);
-            self.target.act(
-                result,
-                coeff,
-                operation_degree,
-                operation_index,
-                generator_degree - self.degree_shift,
-                output_on_generator.as_slice(),
-            );
-        }
+        assert_eq!(
+            self.target.dimension(input_degree - self.degree_shift),
+            result.as_slice().len()
+        );
+        self.apply_to_basis_element_inner(result, coeff, input_degree, input_index);
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
@@ -163,6 +140,60 @@ where
             self.source.number_of_gens_in_degree(generator_degree)
         );
         &self.outputs[generator_degree][generator_index]
+    }
+
+    /// A truncating variant of [`ModuleHomomorphism::apply_to_basis_element`] that allows `result`
+    /// to span only a prefix of the target's degree-`(input_degree - degree_shift)` basis, rather
+    /// than the whole thing.
+    ///
+    /// The caller must guarantee that the image of the basis element is supported within that
+    /// prefix; otherwise `act` will panic on an out-of-bounds write. This is used by [Nassau's
+    /// algorithm](crate::module::homomorphism), which stores each differential truncated to the same
+    /// prefix (valid by minimality, since a generator's differential lands in the radical), so `act`
+    /// stops before writing past `result`. This lets a bidegree be computed while treating the
+    /// target module as if the generators added concurrently in the current internal degree do not
+    /// yet exist.
+    pub fn apply_to_basis_element_restricted(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
+        assert!(result.as_slice().len() <= self.target.dimension(input_degree - self.degree_shift));
+        self.apply_to_basis_element_inner(result, coeff, input_degree, input_index);
+    }
+
+    /// The shared body of [`Self::apply_to_basis_element_restricted`] and
+    /// [`ModuleHomomorphism::apply_to_basis_element`], with no check on the length of `result` (the
+    /// two callers check it differently).
+    fn apply_to_basis_element_inner(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
+        assert!(input_degree >= self.source.min_degree());
+        assert!(input_index < self.source.dimension(input_degree));
+        let OperationGeneratorPair {
+            operation_degree,
+            generator_degree,
+            operation_index,
+            generator_index,
+        } = *self.source.index_to_op_gen(input_degree, input_index);
+
+        if generator_degree >= self.min_degree() {
+            let output_on_generator = self.output(generator_degree, generator_index);
+            self.target.act(
+                result,
+                coeff,
+                operation_degree,
+                operation_index,
+                generator_degree - self.degree_shift,
+                output_on_generator.as_slice(),
+            );
+        }
     }
 
     pub fn differential_density(&self, degree: i32) -> f32 {
