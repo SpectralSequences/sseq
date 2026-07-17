@@ -42,8 +42,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "pr", "kernel(ms)", "Tbop/s", "vs pr=64"
     );
 
-    // B (= U) at the widest pr, sliced per sweep; A (= L) is m×pr.
-    let pr_list = [64usize, 128, 256, 512, 1024];
+    // Small pr (≤1024) all pad to TILE_K=1024, so time is flat — the K-padding
+    // signature. Large pr (≥1024) uses nchunks = pr/1024 real K-tiles: if kernel
+    // time then scales ~linearly with pr, the kernel is K-work bound (each K-tile
+    // costs a fixed load+compute), which means a native small-TILE_K kernel would
+    // cut time proportionally — the payoff that justifies the fork. If large-pr
+    // time is instead sublinear/flat, a fixed per-launch overhead dominates and
+    // the fork would not help.
+    let pr_list = std::env::var("PROBE_LARGE")
+        .map(|_| vec![1024usize, 2048, 3072])
+        .unwrap_or_else(|_| vec![64, 128, 256, 512, 1024]);
     let mut base_ms = 0.0f64;
     for (i, &pr) in pr_list.iter().enumerate() {
         let a_lim = pr.div_ceil(64);
