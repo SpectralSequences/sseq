@@ -21,12 +21,21 @@
 > - **Multi-CTA `panel_factor_coop`** — grid-parallel find-first + masked-XOR with
 >   a self-contained atomic grid barrier between the 64 bit-steps, cooperative
 >   launch (no cudadevrt). 76% → ~21%.
-> - **Multi-CTA `promote_pivots`** (embarrassingly parallel over columns) and a
->   low-barrier `block_reduce_rref` (~bp² → ~2·bp `__syncthreads`).
-> - **Wide forward panels** — `panel_factor_coop` factors a bl-limb panel natively
+ - **Wide forward panels** — `panel_factor_coop` factors a bl-limb panel natively
 >   (inline intra-panel Schur update across all bl limbs), so one wide trailing
 >   GEMM (K=pr≤b) reclaims the K-padding waste. Width is adaptive
->   (`adaptive_bl(stride)=clamp(stride/256,1,16)`; env `FP_CUDA_BL`).
+>   (`adaptive_bl(stride)` = stride/128 on the coop-promote path, stride/256 below;
+>   env `FP_CUDA_BL`).
+> - **Cooperative multi-CTA back-substitution kernels** — `block_reduce_coop` (each
+>   block's clear spread over the grid) and, since its cost is ~block-width-
+>   independent, a **wide back-sub block** `bp = 512` (K=64 → 512, cutting the X·U
+>   GEMM's 16× K-padding; env `FP_CUDA_BP`).
+> - **Cooperative right-looking `promote_coop`** — the O(pr²) triangular replay,
+>   reformulated so each pivot's contribution to later pivots is one grid-parallel
+>   XOR (grid barrier between pivots) instead of a few-CTA per-column serial loop.
+> - **Multi-CTA `promote_pivots`** (parallel over columns) and a low-barrier
+>   `block_reduce_rref` (~bp² → ~2·bp `__syncthreads`) — the single-CTA fallbacks
+>   used below the coop threshold (stride < 1024). `FP_CUDA_NO_COOP` forces them.
 > - **Skip zeroing** fully-overwritten GEMM/gather buffers (uninitialized alloc).
 > - **Active-row compaction** (§8.2) + rank-exhaustion early-exit (`mark_live` /
 >   `compact_perm`; env `FP_CUDA_NO_COMPACT`).
@@ -38,17 +47,17 @@
 >
 > | n | device before | device after | vs M4RI | vs CPU BLAS3 | Tbop/s |
 > |------|------|------|------|------|------|
-> | 32768 | 2.69 s | 0.62 s | 16.8× | 18.4× | 56 |
-> | 65536 | 11.9 s | 2.69 s | — | 24.3× | 105 |
-> | 131072 | 74.9 s | 13.1 s | — | — | 172 |
+> | 32768 | 2.69 s | 0.59 s | 18.0× | 18.0× | 60 |
+> | 65536 | 11.9 s | 1.79 s | — | 36.6× | 157 |
+> | 131072 | 74.9 s | 5.93 s | — | — | 380 |
 >
-> Speedup grows with size (≈3–6× device-over-device, larger vs CPU). Full-rank
-> 32768² is 21× vs M4RI. The profile is now balanced (panel/gemm/promote/
-> block_reduce/bs-gemm ≈ 27/21/20/17/11 %). **Still open (diminishing returns,
-> rising risk):** pipelining the per-panel host sync (Pass 7), a shared-memory
-> bit-transpose `pack_b` (Pass 8), and fusing the XOR into the GEMM store
-> (Pass 9). All build with CUDA 12.4 nvcc; `cargo run -p fp-cuda --example <name>`
-> for each gate.
+> Speedup grows with size (≈4.5–12.6× device-over-device, larger vs CPU). Full-rank
+> 32768² is 21× vs M4RI. The profile is again balanced (panel/gemm/promote/
+> block_reduce/bs-gemm ≈ 33/19/18/17/9 % at n=2¹⁷). **Still open (need major
+> restructures for the last balanced slices):** an intra-panel *GEMM* (tensor cores
+> for the inline panel XOR, now the top cost at wide bl) and a blocked TRSM for
+> promotion; plus the smaller pipeline/pack/fused-epilogue passes. All build with
+> CUDA 12.4 nvcc; `cargo run -p fp-cuda --example <name>` for each gate.
 
 ---
 
