@@ -812,6 +812,48 @@ extern "C" __global__ void promote_pivots(
     }
 }
 
+// Cooperative multi-CTA promotion (right-looking): identical result to
+// promote_pivots but grid-parallel. Processing pivots i = 0..pr in order, once
+// pivot i's trailing is final we add it to every later pivot k>i that carries its
+// multiplier (L[perm[r+k]][i]) — M[k] ^= M[i] across all trailing limbs — so by
+// the time we reach pivot i it is already fully promoted. Sequential in i (grid
+// barrier between steps), but each step's XOR is flattened over (later-pivot ×
+// limb) across the whole grid, replacing the single-CTA kernel's ~pr² per-column
+// serial replay. `barrier` must be 0 at launch; `cond` holds ≥ pr unsigned.
+extern "C" __global__ void promote_coop(
+    u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    const u64_t* __restrict__ l_buf,
+    unsigned r, unsigned pr, unsigned first_limb, unsigned trailing_limbs,
+    unsigned stride, unsigned l_stride,
+    unsigned* __restrict__ barrier, unsigned* __restrict__ cond,
+    unsigned total_ctas)
+{
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    unsigned goal = 0;
+    for (unsigned i = 0; i < pr; ++i) {
+        unsigned rowi = perm[r + i];
+        unsigned nk = pr - i - 1; // later pivots k in (i, pr)
+        // cond[krel] = does pivot k = i+1+krel carry multiplier bit i?
+        for (unsigned krel = gtid; krel < nk; krel += gnt) {
+            unsigned rowk = perm[r + i + 1 + krel];
+            cond[krel] = (unsigned)((l_buf[(u64_t)rowk * l_stride + (i >> 6)] >> (i & 63)) & 1ULL);
+        }
+        goal += total_ctas; grid_sync(barrier, goal); // [A] conds visible
+
+        unsigned total = nk * trailing_limbs; // fits u32
+        for (unsigned idx = gtid; idx < total; idx += gnt) {
+            unsigned krel = idx / trailing_limbs;
+            if (!cond[krel]) continue;
+            unsigned c = idx - krel * trailing_limbs;
+            unsigned rowk = perm[r + i + 1 + krel];
+            m_buf[(u64_t)rowk * stride + first_limb + c] ^=
+                m_buf[(u64_t)rowi * stride + first_limb + c];
+        }
+        goal += total_ctas; grid_sync(barrier, goal); // [B] finish i before next
+    }
+}
+
 // (2) Zero the L rows of the pr pivot rows so the trailing GEMM (which runs over
 // all m rows) leaves them untouched — their trailing is already promoted.
 extern "C" __global__ void zero_pivot_l(
