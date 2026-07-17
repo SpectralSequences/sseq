@@ -651,8 +651,12 @@ __device__ __forceinline__ void grid_sync(unsigned* barrier, unsigned goal) {
     __syncthreads();
     __threadfence();
     if (threadIdx.x == 0) {
-        atomicAdd(barrier, 1u);
-        while (atomicAdd(barrier, 0u) < goal) { /* spin until the grid arrives */ }
+        atomicAdd(barrier, 1u); // arrive (one RMW per CTA)
+        // Spin on a *plain* volatile load, not atomicAdd(...,0): a read-modify-
+        // write acquires the cache line exclusively every iteration, serializing
+        // ~1000 spinning CTAs on one line and making each barrier cost ~µs. A
+        // volatile load leaves the line shared, so the spin is nearly free.
+        while (*((volatile unsigned*)barrier) < goal) { /* wait for the grid */ }
     }
     __syncthreads();
 }
