@@ -444,7 +444,17 @@ fn run_gemm_kernel(
         .kernel
         .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem_bytes as usize, None)?
         .max(1);
-    let num_ctas = (occ * sms).max(1);
+    let mut num_ctas = (occ * sms).max(1);
+    // Diagnostic: cap the persistent grid to probe how much of a small GEMM's
+    // time is the persistent-grid startup (mbar init + pipeline fill across
+    // occ×SMs CTAs). The persistent loop handles any grid size; fewer CTAs just
+    // do more tile-iterations each.
+    if let Some(cap) = std::env::var("FP_CUDA_GEMM_CTAS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+    {
+        num_ctas = cap.max(1);
+    }
     if std::env::var("FP_CUDA_DEBUG").is_ok() {
         eprintln!("[fp-cuda] occ={occ}/SM sms={sms} num_ctas={num_ctas} smem={smem_bytes}B");
     }
@@ -1132,6 +1142,131 @@ impl GpuContext {
         Ok(())
     }
 
+    /// Deep (halving) recursive factorization of a `sub_bl`-limb panel starting
+    /// at column-limb `start_limb` (design §5, the recursive-LU shape). Splits the
+    /// panel in half, factors the left half, applies its pivots to the right half
+    /// via one **large-K** intra-panel `trailing_update` (K = left-half pivots),
+    /// then factors the right half — recursing until the sub-panel is `≤ base_bl`
+    /// limbs, where the elementwise [`panel_factor_coop`](Self::panel_factor_coop)
+    /// runs. The far update over the columns *right of the whole panel* is left to
+    /// the caller (one GEMM with K = total panel pivots).
+    ///
+    /// Why halving beats the linear micro-sweep: it turns the panel's own
+    /// factorization triangle into a cascade of GEMMs whose contraction dimension
+    /// is `sub_bl/2·64, sub_bl/4·64, …` (large) rather than a run of tiny
+    /// `base·64` GEMMs — so the intra-panel work runs on the tensor cores at their
+    /// large-K rate instead of the K≈256 floor. Combined with a wide top panel
+    /// (`bl` = 64–128 limbs) this raises K everywhere: the dominant far update hits
+    /// K≈4096 (~2.3× the K=1024 rate) while the elementwise strips stay `base`-narrow.
+    ///
+    /// Returns `(l, pr)` where `l` is the combined multiplier matrix of this
+    /// sub-panel's `pr` pivots, packed at bits `[0, pr)` (stride `sub_bl` limbs),
+    /// with the pivot rows **not yet zeroed** — the caller's `trailing_update`
+    /// zeroes them when it consumes `l`. Advances `*r` and appends to `pivot_cols`
+    /// in ascending column order.
+    #[allow(clippy::too_many_arguments)]
+    fn factor_panel_rec(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &mut CudaSlice<u32>,
+        start_limb: usize,
+        sub_bl: usize,
+        base_bl: usize,
+        r: &mut usize,
+        pivot_cols: &mut Vec<usize>,
+        m_active: usize,
+        use_promote_coop: bool,
+        pc_barrier: &mut CudaSlice<u32>,
+        pc_cond: &CudaSlice<u32>,
+        pc_ctas: u32,
+    ) -> anyhow::Result<(DeviceMatrix, usize)> {
+        let stream = self.ctx.default_stream();
+        let rows = m.rows;
+
+        // ── Base case: elementwise cooperative factor over the narrow strip. ──
+        if sub_bl <= base_bl {
+            let mut l = DeviceMatrix {
+                buf: stream.alloc_zeros::<u64>(rows * sub_bl)?,
+                rows,
+                cols: sub_bl * 64,
+                stride: sub_bl,
+            };
+            let (pr, pivcols) = timed_phase!(
+                stream,
+                "panel_factor",
+                self.panel_factor_coop(m, perm, &mut l, start_limb, sub_bl, *r, m_active)
+            )?;
+            *r += pr;
+            for &q in &pivcols {
+                pivot_cols.push(q as usize);
+            }
+            return Ok((l, pr));
+        }
+
+        // ── Recursive split: left half, intra-panel update, right half. ──
+        let h = sub_bl / 2;
+        let r_left = *r;
+        let (mut l_left, pr_left) = self.factor_panel_rec(
+            m,
+            perm,
+            start_limb,
+            h,
+            base_bl,
+            r,
+            pivot_cols,
+            m_active,
+            use_promote_coop,
+            pc_barrier,
+            pc_cond,
+            pc_ctas,
+        )?;
+
+        // Combined panel L: copy the (un-zeroed) left block in at bit offset 0
+        // BEFORE the intra-update mutates l_left's pivot rows.
+        let mut l_self = DeviceMatrix {
+            buf: stream.alloc_zeros::<u64>(rows * sub_bl)?,
+            rows,
+            cols: sub_bl * 64,
+            stride: sub_bl,
+        };
+        self.l_shift_or(&mut l_self, &l_left, 0, pr_left)?;
+
+        // Apply the left half's pivots to the right half of the panel so the
+        // right-half factor sees reduced bits. K = pr_left (grows toward h·64).
+        self.trailing_update(
+            m,
+            perm,
+            &mut l_left,
+            r_left,
+            pr_left,
+            start_limb + h,
+            start_limb + sub_bl,
+            use_promote_coop,
+            pc_barrier,
+            pc_cond,
+            pc_ctas,
+        )?;
+        drop(l_left);
+
+        let (l_right, pr_right) = self.factor_panel_rec(
+            m,
+            perm,
+            start_limb + h,
+            sub_bl - h,
+            base_bl,
+            r,
+            pivot_cols,
+            m_active,
+            use_promote_coop,
+            pc_barrier,
+            pc_cond,
+            pc_ctas,
+        )?;
+        self.l_shift_or(&mut l_self, &l_right, pr_left, pr_right)?;
+
+        Ok((l_self, pr_left + pr_right))
+    }
+
     /// Forward pass of the blocked row reduction over the persistent device
     /// buffer (design §4): sweep 64-bit panels left to right, and for each —
     /// factor it ([`panel_factor`](Self::panel_factor)), promote the pivot rows'
@@ -1157,14 +1292,48 @@ impl GpuContext {
         // Panel width in limbs (b = 64·bl columns). Wider panels raise the
         // trailing GEMM's contraction dimension pr toward b, reclaiming the ~16×
         // K-padding waste (Loss 1). The single-CTA fallback stays at bl=1.
-        let bl = if use_coop {
-            std::env::var("FP_CUDA_BL")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or_else(|| adaptive_bl(stride))
-                .clamp(1, stride.max(1))
-        } else {
+        // Deep (halving) recursive factorization with WIDE panels: factor each
+        // bl-limb panel by recursively splitting it in half (large-K intra-panel
+        // GEMMs) down to `base_bl`-limb elementwise strips, so the dominant far
+        // update runs at K = bl·64 ≈ 4096. Enable with FP_CUDA_DEEP; FP_CUDA_BASE
+        // sets the elementwise base width (default 16 limbs).
+        //
+        // MEASURED (2^16, FP_CUDA_PROF): this WORKS on the GEMM — the far update
+        // drops from 225 ms (K=1024) to 47 ms (K=4096), a 4.8× compute win that
+        // confirms the K-scaling thesis. But it is a NET LOSS: the trailing GEMM
+        // is only ~20% of the row reduction; the other ~80% is elementwise
+        // (panel_factor 31%, back-sub block_reduce 29%, promote 15%). Each
+        // intra-panel GEMM needs a `promote` wrapper, so promote explodes
+        // (175→426 ms) and swamps the GEMM saving. The row reduction is
+        // elementwise/latency-bound, NOT compute-bound: the O(m·B²) intra-panel
+        // elimination is irreducible work that either sits in panel_factor
+        // (elementwise, cheap per-op but grows ∝ panel width B) or in intra GEMMs
+        // (fast compute but an expensive promote each). Panel-width sweeps confirm
+        // a flat optimum at bl≈12–16 (adaptive_bl), so the non-deep default is
+        // already near-best. Kept behind the flag as the definitive experiment:
+        // if `promote` is ever made cheap, deep recursion becomes a net win.
+        let deep = use_coop && std::env::var("FP_CUDA_DEEP").is_ok();
+        // Base-case width: the elementwise panel_factor is efficient up to the
+        // current non-recursive panel width (~16 limbs / 1024 bits), so recursion
+        // only *splits above* that — few, large-K intra updates, proven-good base.
+        let base_bl: usize = std::env::var("FP_CUDA_BASE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(16)
+            .max(1);
+        let bl = if !use_coop {
             1
+        } else if let Some(v) = std::env::var("FP_CUDA_BL")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+        {
+            v.clamp(1, stride.max(1))
+        } else if deep {
+            // Wide panel for large matrices (64 limbs = 4096-wide, K≈4096); fall
+            // back to the whole width for small ones.
+            64usize.min(stride).max(1)
+        } else {
+            adaptive_bl(stride).clamp(1, stride.max(1))
         };
         // Recursive panel width in limbs (EXPERIMENTAL, `FP_CUDA_MICRO`, off by
         // default). When set (< bl), each bl-wide macro panel is factored as
@@ -1227,6 +1396,45 @@ impl GpuContext {
                 if m_active <= r {
                     break;
                 }
+            }
+            if deep {
+                // ── Deep halving recursion over a wide panel (K high everywhere) ──
+                let r_before = r;
+                let (mut l_panel, pr_panel) = self.factor_panel_rec(
+                    m,
+                    &mut perm,
+                    ppanel,
+                    bl_eff,
+                    base_bl,
+                    &mut r,
+                    &mut pivot_cols,
+                    m_active,
+                    use_promote_coop,
+                    &mut pc_barrier,
+                    &pc_cond,
+                    pc_ctas,
+                )?;
+                // One wide far update over [ppanel+bl_eff, stride) with K = panel pivots.
+                if pr_panel > 0 {
+                    self.trailing_update(
+                        m,
+                        &perm,
+                        &mut l_panel,
+                        r_before,
+                        pr_panel,
+                        ppanel + bl_eff,
+                        stride,
+                        use_promote_coop,
+                        &mut pc_barrier,
+                        &pc_cond,
+                        pc_ctas,
+                    )?;
+                }
+                // Reclaim the recursion's nested scratch once per wide panel.
+                stream.synchronize()?;
+                ppanel += bl_eff;
+                panel_idx += 1;
+                continue;
             }
             match bl_micro.filter(|&mm| use_coop && mm < bl_eff) {
                 // ── Recursive macro panel: micro sub-panels + intra-macro GEMMs ──
