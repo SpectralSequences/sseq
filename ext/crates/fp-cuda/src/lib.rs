@@ -26,7 +26,7 @@ static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.pt
 const TILE_M: usize = 64;
 const TILE_K: usize = 256;
 const KL: usize = TILE_K / 64; // 4
-const THREADS: u32 = 128;
+const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
 const NG: u32 = 4;
 
 pub struct GpuContext {
@@ -97,16 +97,15 @@ pub fn matmul_b1(
     let bt_dev = DeviceBuffer::from_host(&stream, &bt)?;
     let c_dev = DeviceBuffer::<u64>::zeroed(&stream, m_padded * n_lim)?;
 
-    // TMA tensor map for A.
-    // The interleaved A is a 2D array of UINT32 elements:
-    //   dim[0] = 32 (32 × 4 bytes = 128 bytes per super-row)
-    //   dim[1] = k_chunks × m_tiles × 16 (16 super-rows per tile)
-    //   stride[0] = 128 bytes (tightly packed)
-    //   box = [32, 16] → 2048 bytes per TMA load
-    let tma_a = {
+    // TMA tensor maps for A and B. Both views match the CM-blocked tile
+    // layout (2048 bytes = 16 super-rows × 32 UINT32 elements). The only
+    // difference is the source pointer and the outer-dim length: number of
+    // tiles indexed by (k_chunk, M-tile) for A, (k_chunk, col-limb) for B.
+    let encode_tile_tma = |dev_ptr: CUdeviceptr,
+                           outer_tiles: u64|
+     -> Result<CUtensorMap, Box<dyn std::error::Error>> {
         let mut tmap = MaybeUninit::<CUtensorMap>::uninit();
-        let total_rows = (k_chunks * m_tiles * 16) as u64;
-        let gdim: [u64; 2] = [32, total_rows];
+        let gdim: [u64; 2] = [32, outer_tiles * 16];
         let gstride: [u64; 1] = [128]; // bytes per row
         let boxdim: [u32; 2] = [32, 16];
         let elemstride: [u32; 2] = [1, 1];
@@ -115,7 +114,7 @@ pub fn matmul_b1(
                 tmap.as_mut_ptr(),
                 DATA_UINT32,
                 2,
-                a_dev.cu_deviceptr() as *mut c_void,
+                dev_ptr as *mut c_void,
                 gdim.as_ptr(),
                 gstride.as_ptr(),
                 boxdim.as_ptr(),
@@ -129,21 +128,24 @@ pub fn matmul_b1(
         if res != CUDA_SUCCESS {
             return Err(format!("cuTensorMapEncodeTiled failed: {res:?}").into());
         }
-        unsafe { tmap.assume_init() }
+        Ok(unsafe { tmap.assume_init() })
     };
 
-    let mut tma_storage = tma_a;
+    let tma_a = encode_tile_tma(a_dev.cu_deviceptr(), (k_chunks * m_tiles) as u64)?;
+    let tma_b = encode_tile_tma(bt_dev.cu_deviceptr(), (k_chunks * n_lim) as u64)?;
+
+    let mut tma_a_storage = tma_a;
+    let mut tma_b_storage = tma_b;
     let mut mt: u32 = m_tiles as u32;
-    let mut bt_ptr: CUdeviceptr = bt_dev.cu_deviceptr();
     let mut m_val: u32 = m_padded as u32;
     let mut k_val: u32 = k_padded as u32;
     let mut nl: u32 = n_lim as u32;
     let mut c_ptr: CUdeviceptr = c_dev.cu_deviceptr();
 
     let mut params: [*mut c_void; 7] = [
-        &mut tma_storage as *mut _ as *mut c_void,
+        &mut tma_a_storage as *mut _ as *mut c_void,
+        &mut tma_b_storage as *mut _ as *mut c_void,
         &mut mt as *mut _ as *mut c_void,
-        &mut bt_ptr as *mut _ as *mut c_void,
         &mut m_val as *mut _ as *mut c_void,
         &mut k_val as *mut _ as *mut c_void,
         &mut nl as *mut _ as *mut c_void,
