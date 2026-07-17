@@ -34,7 +34,12 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
-#[cfg(feature = "concurrent")]
+// If `concurrent` is enabled, the `enumerate`/`for_each` used in `restricted_partial_matrix` come
+// from `rayon::prelude::IndexedParallelIterator`, loaded via the `maybe_rayon` prelude. If it is
+// disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and those methods come from
+// `std::iter::Iterator` instead, leaving this import unused — the same single code path either way.
+// Mirrors `algebra::module::homomorphism`.
+#[allow(unused_imports)]
 use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
