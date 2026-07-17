@@ -62,10 +62,13 @@ where
         assert!(input_degree >= self.source.min_degree());
         assert!(input_index < self.source.dimension(input_degree));
         let output_degree = input_degree - self.degree_shift;
-        assert_eq!(
-            self.target.dimension(output_degree),
-            result.as_slice().len()
-        );
+        // The result buffer is usually exactly the target dimension, but callers are allowed to
+        // pass a shorter buffer that only spans a prefix of the target basis (the basis elements
+        // coming from a prefix of the generators). This is used by Nassau's algorithm to compute a
+        // bidegree while treating the target module as if its top-degree generators — which may be
+        // added concurrently — do not yet exist. `act` only ever writes as far as the (matching,
+        // equally truncated) stored differential reaches, so it never writes past `result`.
+        assert!(result.as_slice().len() <= self.target.dimension(output_degree));
         let OperationGeneratorPair {
             operation_degree,
             generator_degree,
