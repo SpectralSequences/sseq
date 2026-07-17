@@ -25,77 +25,6 @@ use cudarc::{
 
 static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
 
-/// Opt-in per-phase GPU timing for the row reduction (`FP_CUDA_PROF=1`).
-///
-/// When enabled, [`timed_phase!`] brackets each kernel group with a stream
-/// synchronize + host `Instant` and accumulates the elapsed time by label; the
-/// accumulator is printed by [`GpuContext::row_reduce_dev`]. The extra syncs
-/// serialize the pipeline, so the *absolute* numbers under `FP_CUDA_PROF` run
-/// slower than production — only the **relative** per-phase split is meaningful.
-/// When disabled the macro expands to the bare body: zero overhead, no extra
-/// syncs, the exact pipelined hot path.
-mod prof {
-    use std::sync::{Mutex, OnceLock};
-
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    static ACC: OnceLock<Mutex<Vec<(String, u64)>>> = OnceLock::new();
-
-    pub fn enabled() -> bool {
-        *ENABLED.get_or_init(|| std::env::var("FP_CUDA_PROF").is_ok())
-    }
-
-    pub fn add(label: &str, nanos: u64) {
-        let mut v = ACC.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
-        match v.iter_mut().find(|(l, _)| l == label) {
-            Some(e) => e.1 += nanos,
-            None => v.push((label.to_string(), nanos)),
-        }
-    }
-
-    pub fn report(tag: &str) {
-        if !enabled() {
-            return;
-        }
-        let v = ACC.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
-        let total: u64 = v.iter().map(|(_, n)| *n).sum::<u64>().max(1);
-        eprintln!("[fp-cuda PROF] {tag} — per-phase GPU time (ms), extra syncs on:");
-        for (l, n) in v.iter() {
-            eprintln!(
-                "    {:<16} {:>10.3}  {:>5.1}%",
-                l,
-                *n as f64 / 1e6,
-                100.0 * *n as f64 / total as f64
-            );
-        }
-        eprintln!("    {:<16} {:>10.3}", "TOTAL", total as f64 / 1e6);
-    }
-
-    pub fn reset() {
-        if let Some(m) = ACC.get() {
-            m.lock().unwrap().clear();
-        }
-    }
-}
-
-/// Bracket a kernel group with a sync + timer when `FP_CUDA_PROF` is set,
-/// accumulating GPU time under `$label`; otherwise expand to the bare body with
-/// no added synchronization. The body may use `?` (it runs in the caller's
-/// `Result` context).
-macro_rules! timed_phase {
-    ($stream:expr, $label:expr, $body:expr) => {{
-        if $crate::prof::enabled() {
-            $stream.synchronize()?;
-            let __t = std::time::Instant::now();
-            let __r = $body;
-            $stream.synchronize()?;
-            $crate::prof::add($label, __t.elapsed().as_nanos() as u64);
-            __r
-        } else {
-            $body
-        }
-    }};
-}
-
 const TILE_M: usize = 192; // MW*MSTRIPS in the kernel; must match
 const TILE_K: usize = 1024;
 const KL: usize = TILE_K / 64; // 16
@@ -166,7 +95,6 @@ pub struct GpuContext {
     promote_coop: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
-    l_shift_or: CudaFunction,
     block_reduce_rref: CudaFunction,
     block_reduce_coop: CudaFunction,
     gather_cols: CudaFunction,
@@ -189,7 +117,6 @@ impl GpuContext {
         let promote_coop = module.load_function("promote_coop")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
-        let l_shift_or = module.load_function("l_shift_or")?;
         let block_reduce_rref = module.load_function("block_reduce_rref")?;
         let block_reduce_coop = module.load_function("block_reduce_coop")?;
         let gather_cols = module.load_function("gather_cols")?;
@@ -209,7 +136,6 @@ impl GpuContext {
             promote_coop,
             zero_pivot_l,
             gather_rows,
-            l_shift_or,
             block_reduce_rref,
             block_reduce_coop,
             gather_cols,
@@ -462,9 +388,6 @@ fn run_gemm_kernel(
         .and_then(|v| v.parse::<u32>().ok())
     {
         num_ctas = (cap / CLUSTER as u32).max(1) * CLUSTER as u32;
-    }
-    if std::env::var("FP_CUDA_DEBUG").is_ok() {
-        eprintln!("[fp-cuda] occ={occ}/SM sms={sms} num_ctas={num_ctas} smem={smem_bytes}B");
     }
 
     let ta = TmaArg(tma_a);
@@ -1000,12 +923,10 @@ impl GpuContext {
         Ok(new_active)
     }
 
-    /// Elementwise promote of pivot sub-block `[lo, lo+pr)` (perm positions
+    /// Elementwise promote of the `pr` pivot rows (perm positions
     /// `[r_piv, r_piv+pr)`): the cooperative forward-substitution replay of `L`
-    /// onto those rows' trailing. `l_limb_off = lo/64` shifts the L read so bit `i`
-    /// maps to global multiplier bit `lo+i`. Base case of
-    /// [`promote_rec`](Self::promote_rec); also the whole-panel promote when
-    /// blocked TRSM is off.
+    /// onto those rows' trailing. `l_limb_off` shifts the L read so bit `i` maps
+    /// to global multiplier bit `l_limb_off·64 + i` (0 for the whole-panel promote).
     #[allow(clippy::too_many_arguments)]
     fn promote_elem(
         &self,
@@ -1059,174 +980,6 @@ impl GpuContext {
         Ok(())
     }
 
-    /// Inter-block step of the blocked-TRSM promote: apply the left pivot
-    /// sub-block `[lo, mid)` to the right pivot rows `[mid, hi)`'s trailing as one
-    /// `X·U` GEMM. `X` = the right rows' L-bits at columns `[lo, mid)` (gathered
-    /// straight from `L` — no M-column gather needed), `U` = the left pivot rows'
-    /// (already-promoted) trailing; `M[right rows] ^= X·U`. `lo`/`mid` are
-    /// 64-aligned so `X` is a contiguous L limb-range. No promote-of-promote: the
-    /// left rows are already reduced, so this is clean BLAS3.
-    #[allow(clippy::too_many_arguments)]
-    fn promote_clear(
-        &self,
-        m: &mut DeviceMatrix,
-        perm: &CudaSlice<u32>,
-        l: &DeviceMatrix,
-        r_piv: usize,
-        lo: usize,
-        mid: usize,
-        hi: usize,
-        first_limb: usize,
-        trailing_limbs: usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let (n_left, n_right) = (mid - lo, hi - mid);
-        if n_left == 0 || n_right == 0 || trailing_limbs == 0 {
-            return Ok(());
-        }
-        let stream = self.ctx.default_stream();
-        let (stride, n) = (m.stride, m.cols);
-        let k_limbs = n_left / 64; // lo, mid 64-aligned
-        let t = ((first_limb + trailing_limbs) * 64).min(n) - first_limb * 64;
-
-        // X = right rows' L bits [lo, mid) — gather_rows straight from L.
-        let x_buf = unsafe { stream.alloc::<u64>(n_right * k_limbs) }?;
-        {
-            let (rp, fl, cnt, nc, ls) = (
-                (r_piv + mid) as u32,
-                (lo / 64) as u32,
-                n_right as u32,
-                k_limbs as u32,
-                l.stride as u32,
-            );
-            let mut lb = stream.launch_builder(&self.gather_rows);
-            lb.arg(&x_buf)
-                .arg(&l.buf)
-                .arg(perm)
-                .arg(&rp)
-                .arg(&fl)
-                .arg(&cnt)
-                .arg(&nc)
-                .arg(&ls);
-            unsafe { lb.launch(cfg_1d(n_right * k_limbs)) }?;
-        }
-        // U = left pivot rows' trailing.
-        let u_buf = unsafe { stream.alloc::<u64>(n_left * trailing_limbs) }?;
-        {
-            let (rp, fl, cnt, nc, st) = (
-                (r_piv + lo) as u32,
-                first_limb as u32,
-                n_left as u32,
-                trailing_limbs as u32,
-                stride as u32,
-            );
-            let mut lb = stream.launch_builder(&self.gather_rows);
-            lb.arg(&u_buf)
-                .arg(&m.buf)
-                .arg(perm)
-                .arg(&rp)
-                .arg(&fl)
-                .arg(&cnt)
-                .arg(&nc)
-                .arg(&st);
-            unsafe { lb.launch(cfg_1d(n_left * trailing_limbs)) }?;
-        }
-        // C = X·U (n_right × t); scatter-XOR into the right pivot rows' trailing.
-        let (c_dev, n_padded_lim) = self.matmul_b1_dev(&x_buf, n_right, n_left, &u_buf, t)?;
-        let perm_right = perm.slice((r_piv + mid)..(r_piv + hi));
-        let (s_u, w, st, fl, cs) = (
-            n_right as u32,
-            trailing_limbs as u32,
-            stride as u32,
-            first_limb as u32,
-            n_padded_lim as u32,
-        );
-        let mut lb = stream.launch_builder(&self.xor_into_perm);
-        lb.arg(&mut m.buf)
-            .arg(&c_dev)
-            .arg(&perm_right)
-            .arg(&s_u)
-            .arg(&w)
-            .arg(&st)
-            .arg(&fl)
-            .arg(&cs);
-        unsafe { lb.launch(cfg_1d(n_right * trailing_limbs)) }?;
-        Ok(())
-    }
-
-    /// Blocked-TRSM promote (design §4.4): the forward-substitution replay of `L`
-    /// on the `pr` pivot rows' trailing is a triangular solve. Recurse it into
-    /// 64-aligned halves — factor the left, apply it to the right with one large
-    /// `X·U` GEMM ([`promote_clear`](Self::promote_clear)), factor the right — so
-    /// the O(pr²·trailing) cross-elimination runs on the tensor cores instead of
-    /// the elementwise per-pivot replay, with only `base`-narrow strips left
-    /// elementwise. Correct because a pivot row only ever receives contributions
-    /// from *earlier* pivots (no double counting across the split).
-    #[allow(clippy::too_many_arguments)]
-    fn promote_rec(
-        &self,
-        m: &mut DeviceMatrix,
-        perm: &CudaSlice<u32>,
-        l: &DeviceMatrix,
-        r_piv: usize,
-        lo: usize,
-        hi: usize,
-        first_limb: usize,
-        trailing_limbs: usize,
-        base: usize,
-        pc_barrier: &mut CudaSlice<u32>,
-        pc_cond: &CudaSlice<u32>,
-        pc_ctas: u32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if hi - lo <= base {
-            return self.promote_elem(
-                m,
-                perm,
-                l,
-                r_piv + lo,
-                hi - lo,
-                first_limb,
-                trailing_limbs,
-                lo / 64,
-                pc_barrier,
-                pc_cond,
-                pc_ctas,
-            );
-        }
-        // 64-aligned split (≥64 on the left so X is a whole L limb-range).
-        let half = (((hi - lo) / 2) / 64) * 64;
-        let mid = lo + if half == 0 { 64 } else { half };
-        self.promote_rec(
-            m,
-            perm,
-            l,
-            r_piv,
-            lo,
-            mid,
-            first_limb,
-            trailing_limbs,
-            base,
-            pc_barrier,
-            pc_cond,
-            pc_ctas,
-        )?;
-        self.promote_clear(m, perm, l, r_piv, lo, mid, hi, first_limb, trailing_limbs)?;
-        self.promote_rec(
-            m,
-            perm,
-            l,
-            r_piv,
-            mid,
-            hi,
-            first_limb,
-            trailing_limbs,
-            base,
-            pc_barrier,
-            pc_cond,
-            pc_ctas,
-        )?;
-        Ok(())
-    }
-
     /// One trailing update `M[:, first_limb·64 : end_limb·64) ^= L · U` (design
     /// §4.4): promote the `pr` pivot rows at perm positions `[r_piv, r_piv+pr)`
     /// over the column range, drop them from `l`, gather them into `U`, run the
@@ -1258,7 +1011,7 @@ impl GpuContext {
         let t = (end_limb * 64).min(n) - first_limb * 64;
 
         // (1) promote pivot rows' trailing, then (2) zero their L rows.
-        timed_phase!(stream, "promote", {
+        {
             let (r_u, pr_u, fl, tl, st, ls) = (
                 r_piv as u32,
                 pr as u32,
@@ -1268,57 +1021,19 @@ impl GpuContext {
                 l.stride as u32,
             );
             if promote_coop {
-                // Blocked-TRSM promote (FP_CUDA_PROM_TRSM): the promote is a
-                // forward-substitution triangular solve (≈18% of the reduction).
-                // Recurse it to base strips + X·U GEMMs so the O(pr²·trailing)
-                // cross-elimination runs on the tensor cores.
-                //
-                // MEASURED (2^16, FP_CUDA_PROF): a WASH — promote drops 176→107 ms
-                // in isolation, but end-to-end is flat-to-slightly-worse (best
-                // +1.4% at base=512). Unlike back-sub's clear-above GEMM (which
-                // spans all the ABOVE rows → large m), promote only ever touches
-                // the pr≤bl·64≤1024 PIVOT rows, so its GEMMs are small-m AND
-                // small-K (n_left,n_right ≤ pr/2) — too small to feed the tensor
-                // cores, and the many small kernels/panel pipeline worse than the
-                // one elementwise sweep. The grid-cap on promote_elem (+6%) already
-                // captured the real win; promote is intrinsically a small op. Kept
-                // behind the flag as the definitive experiment.
-                let use_prom_trsm = std::env::var("FP_CUDA_PROM_TRSM").is_ok();
-                if use_prom_trsm {
-                    let base: usize = std::env::var("FP_CUDA_PROM_BASE")
-                        .ok()
-                        .and_then(|v| v.parse().ok())
-                        .unwrap_or(64)
-                        .max(64);
-                    self.promote_rec(
-                        m,
-                        perm,
-                        l,
-                        r_piv,
-                        0,
-                        pr,
-                        first_limb,
-                        trailing_limbs,
-                        base,
-                        pc_barrier,
-                        pc_cond,
-                        pc_ctas,
-                    )?;
-                } else {
-                    self.promote_elem(
-                        m,
-                        perm,
-                        l,
-                        r_piv,
-                        pr,
-                        first_limb,
-                        trailing_limbs,
-                        0,
-                        pc_barrier,
-                        pc_cond,
-                        pc_ctas,
-                    )?;
-                }
+                self.promote_elem(
+                    m,
+                    perm,
+                    l,
+                    r_piv,
+                    pr,
+                    first_limb,
+                    trailing_limbs,
+                    0,
+                    pc_barrier,
+                    pc_cond,
+                    pc_ctas,
+                )?;
             } else {
                 let mut lb = stream.launch_builder(&self.promote_pivots);
                 lb.arg(&mut m.buf)
@@ -1336,11 +1051,11 @@ impl GpuContext {
             let mut lb = stream.launch_builder(&self.zero_pivot_l);
             lb.arg(perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
             unsafe { lb.launch(cfg_1d(pr)) }?;
-        });
+        }
 
         // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
         let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?;
-        timed_phase!(stream, "gather_u", {
+        {
             let (r_u, fl, pr_u, nc, st) = (
                 r_piv as u32,
                 first_limb as u32,
@@ -1358,187 +1073,22 @@ impl GpuContext {
                 .arg(&nc)
                 .arg(&st);
             unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
-        });
+        }
 
         // (4) GEMM C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
-        let (c_dev, n_padded_lim) = timed_phase!(
-            stream,
-            "gemm",
-            self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)
-        )?;
-        timed_phase!(
-            stream,
-            "xor",
-            self.xor_into_region(
-                &stream,
-                &mut m.buf,
-                &c_dev,
-                rows,
-                trailing_limbs,
-                stride,
-                first_limb,
-                n_padded_lim
-            )
-        )?;
-        Ok(())
-    }
-
-    /// Accumulate the per-micro multiplier block `l_micro` (bits `[0, pr_micro)`)
-    /// into the macro multiplier `l_macro` at bit offset `off` (`l_macro |=
-    /// l_micro << off`), for the recursive forward pass.
-    fn l_shift_or(
-        &self,
-        l_macro: &mut DeviceMatrix,
-        l_micro: &DeviceMatrix,
-        off: usize,
-        pr_micro: usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if pr_micro == 0 {
-            return Ok(());
-        }
-        let stream = self.ctx.default_stream();
-        let (o, sl, mm, macs, mics) = (
-            off as u32,
-            pr_micro.div_ceil(64) as u32,
-            l_macro.rows as u32,
-            l_macro.stride as u32,
-            l_micro.stride as u32,
-        );
-        let mut lb = stream.launch_builder(&self.l_shift_or);
-        lb.arg(&mut l_macro.buf)
-            .arg(&l_micro.buf)
-            .arg(&o)
-            .arg(&sl)
-            .arg(&mm)
-            .arg(&macs)
-            .arg(&mics);
-        unsafe { lb.launch(cfg_1d(l_macro.rows)) }?;
-        Ok(())
-    }
-
-    /// Deep (halving) recursive factorization of a `sub_bl`-limb panel starting
-    /// at column-limb `start_limb` (design §5, the recursive-LU shape). Splits the
-    /// panel in half, factors the left half, applies its pivots to the right half
-    /// via one **large-K** intra-panel `trailing_update` (K = left-half pivots),
-    /// then factors the right half — recursing until the sub-panel is `≤ base_bl`
-    /// limbs, where the elementwise [`panel_factor_coop`](Self::panel_factor_coop)
-    /// runs. The far update over the columns *right of the whole panel* is left to
-    /// the caller (one GEMM with K = total panel pivots).
-    ///
-    /// Why halving beats the linear micro-sweep: it turns the panel's own
-    /// factorization triangle into a cascade of GEMMs whose contraction dimension
-    /// is `sub_bl/2·64, sub_bl/4·64, …` (large) rather than a run of tiny
-    /// `base·64` GEMMs — so the intra-panel work runs on the tensor cores at their
-    /// large-K rate instead of the K≈256 floor. Combined with a wide top panel
-    /// (`bl` = 64–128 limbs) this raises K everywhere: the dominant far update hits
-    /// K≈4096 (~2.3× the K=1024 rate) while the elementwise strips stay `base`-narrow.
-    ///
-    /// Returns `(l, pr)` where `l` is the combined multiplier matrix of this
-    /// sub-panel's `pr` pivots, packed at bits `[0, pr)` (stride `sub_bl` limbs),
-    /// with the pivot rows **not yet zeroed** — the caller's `trailing_update`
-    /// zeroes them when it consumes `l`. Advances `*r` and appends to `pivot_cols`
-    /// in ascending column order.
-    #[allow(clippy::too_many_arguments)]
-    fn factor_panel_rec(
-        &self,
-        m: &mut DeviceMatrix,
-        perm: &mut CudaSlice<u32>,
-        start_limb: usize,
-        sub_bl: usize,
-        base_bl: usize,
-        r: &mut usize,
-        pivot_cols: &mut Vec<usize>,
-        m_active: usize,
-        use_promote_coop: bool,
-        pc_barrier: &mut CudaSlice<u32>,
-        pc_cond: &CudaSlice<u32>,
-        pc_ctas: u32,
-    ) -> Result<(DeviceMatrix, usize), Box<dyn std::error::Error>> {
-        let stream = self.ctx.default_stream();
-        let rows = m.rows;
-
-        // ── Base case: elementwise cooperative factor over the narrow strip. ──
-        if sub_bl <= base_bl {
-            let mut l = DeviceMatrix {
-                buf: stream.alloc_zeros::<u64>(rows * sub_bl)?,
-                rows,
-                cols: sub_bl * 64,
-                stride: sub_bl,
-            };
-            let (pr, pivcols) = timed_phase!(
-                stream,
-                "panel_factor",
-                self.panel_factor_coop(m, perm, &mut l, start_limb, sub_bl, *r, m_active)
-            )?;
-            *r += pr;
-            for &q in &pivcols {
-                pivot_cols.push(q as usize);
-            }
-            return Ok((l, pr));
-        }
-
-        // ── Recursive split: left half, intra-panel update, right half. ──
-        let h = sub_bl / 2;
-        let r_left = *r;
-        let (mut l_left, pr_left) = self.factor_panel_rec(
-            m,
-            perm,
-            start_limb,
-            h,
-            base_bl,
-            r,
-            pivot_cols,
-            m_active,
-            use_promote_coop,
-            pc_barrier,
-            pc_cond,
-            pc_ctas,
-        )?;
-
-        // Combined panel L: copy the (un-zeroed) left block in at bit offset 0
-        // BEFORE the intra-update mutates l_left's pivot rows.
-        let mut l_self = DeviceMatrix {
-            buf: stream.alloc_zeros::<u64>(rows * sub_bl)?,
+        let (c_dev, n_padded_lim) =
+            self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)?;
+        self.xor_into_region(
+            &stream,
+            &mut m.buf,
+            &c_dev,
             rows,
-            cols: sub_bl * 64,
-            stride: sub_bl,
-        };
-        self.l_shift_or(&mut l_self, &l_left, 0, pr_left)?;
-
-        // Apply the left half's pivots to the right half of the panel so the
-        // right-half factor sees reduced bits. K = pr_left (grows toward h·64).
-        self.trailing_update(
-            m,
-            perm,
-            &mut l_left,
-            r_left,
-            pr_left,
-            start_limb + h,
-            start_limb + sub_bl,
-            use_promote_coop,
-            pc_barrier,
-            pc_cond,
-            pc_ctas,
+            trailing_limbs,
+            stride,
+            first_limb,
+            n_padded_lim,
         )?;
-        drop(l_left);
-
-        let (l_right, pr_right) = self.factor_panel_rec(
-            m,
-            perm,
-            start_limb + h,
-            sub_bl - h,
-            base_bl,
-            r,
-            pivot_cols,
-            m_active,
-            use_promote_coop,
-            pc_barrier,
-            pc_cond,
-            pc_ctas,
-        )?;
-        self.l_shift_or(&mut l_self, &l_right, pr_left, pr_right)?;
-
-        Ok((l_self, pr_left + pr_right))
+        Ok(())
     }
 
     /// Forward pass of the blocked row reduction over the persistent device
@@ -1560,82 +1110,29 @@ impl GpuContext {
         let mut perm = self.identity_perm(rows)?;
         let mut r = 0usize;
         let mut pivot_cols = Vec::new();
-        // The cooperative multi-CTA panel factor is the default; set
-        // FP_CUDA_NO_COOP=1 to fall back to the single-CTA kernel (A/B testing).
-        let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err();
         // Panel width in limbs (b = 64·bl columns). Wider panels raise the
         // trailing GEMM's contraction dimension pr toward b, reclaiming the ~16×
-        // K-padding waste (Loss 1). The single-CTA fallback stays at bl=1.
-        // Deep (halving) recursive factorization with WIDE panels: factor each
-        // bl-limb panel by recursively splitting it in half (large-K intra-panel
-        // GEMMs) down to `base_bl`-limb elementwise strips, so the dominant far
-        // update runs at K = bl·64 ≈ 4096. Enable with FP_CUDA_DEEP; FP_CUDA_BASE
-        // sets the elementwise base width (default 16 limbs).
-        //
-        // MEASURED (2^16, FP_CUDA_PROF): this WORKS on the GEMM — the far update
-        // drops from 225 ms (K=1024) to 47 ms (K=4096), a 4.8× compute win that
-        // confirms the K-scaling thesis. But it is a NET LOSS: the trailing GEMM
-        // is only ~20% of the row reduction; the other ~80% is elementwise
-        // (panel_factor 31%, back-sub block_reduce 29%, promote 15%). Each
-        // intra-panel GEMM needs a `promote` wrapper, so promote explodes
-        // (175→426 ms) and swamps the GEMM saving. The row reduction is
-        // elementwise/latency-bound, NOT compute-bound: the O(m·B²) intra-panel
-        // elimination is irreducible work that either sits in panel_factor
-        // (elementwise, cheap per-op but grows ∝ panel width B) or in intra GEMMs
-        // (fast compute but an expensive promote each). Panel-width sweeps confirm
-        // a flat optimum at bl≈12–16 (adaptive_bl), so the non-deep default is
-        // already near-best. Kept behind the flag as the definitive experiment:
-        // if `promote` is ever made cheap, deep recursion becomes a net win.
-        let deep = use_coop && std::env::var("FP_CUDA_DEEP").is_ok();
-        // Base-case width: the elementwise panel_factor is efficient up to the
-        // current non-recursive panel width (~16 limbs / 1024 bits), so recursion
-        // only *splits above* that — few, large-K intra updates, proven-good base.
-        let base_bl: usize = std::env::var("FP_CUDA_BASE")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(16)
-            .max(1);
-        let bl = if !use_coop {
-            1
-        } else if let Some(v) = std::env::var("FP_CUDA_BL")
+        // K-padding waste. Override with FP_CUDA_BL; otherwise adaptive_bl picks
+        // the measured optimum (flat at bl≈12–16).
+        let bl = if let Some(v) = std::env::var("FP_CUDA_BL")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
         {
             v.clamp(1, stride.max(1))
-        } else if deep {
-            // Wide panel for large matrices (64 limbs = 4096-wide, K≈4096); fall
-            // back to the whole width for small ones.
-            64usize.min(stride).max(1)
         } else {
             adaptive_bl(stride).clamp(1, stride.max(1))
         };
-        // Recursive panel width in limbs (EXPERIMENTAL, `FP_CUDA_MICRO`, off by
-        // default). When set (< bl), each bl-wide macro panel is factored as
-        // bl_micro-wide micro sub-panels + intra-macro GEMMs, keeping the
-        // elementwise panel_factor narrow while the far GEMM still has K = macro
-        // pivots. Measured ~6% at n=2¹⁷ (micro=4), but the intra-macro GEMMs still
-        // pad K (≤ bl_micro·64 → TILE_K=1024), which caps the win with this
-        // kernel — the full payoff needs a small-TILE_K GEMM variant. It also
-        // allocates per-sub-panel scratch (no persistent reuse yet), so at small
-        // micro + large n the async-malloc high-water mark can exhaust memory;
-        // production use wants the buffer-reuse pass first.
-        let bl_micro: Option<usize> = std::env::var("FP_CUDA_MICRO")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .filter(|&mm: &usize| mm >= 1);
 
         // Active-row compaction: park permanently-dead below rows past m_active
-        // so panel_factor stops scanning them. Default on (coop only); disable
-        // with FP_CUDA_NO_COMPACT. Re-scanned every COMPACT_PERIOD panels to
-        // amortize the mark-and-partition cost.
-        let use_compact = use_coop && std::env::var("FP_CUDA_NO_COMPACT").is_err();
+        // so panel_factor stops scanning them. Re-scanned every COMPACT_PERIOD
+        // panels to amortize the mark-and-partition cost.
         const COMPACT_PERIOD: usize = 4;
         let mut m_active = rows;
 
         // Cooperative multi-CTA promotion (right-looking) replaces the single-CTA
         // triangular replay when the matrix is wide enough to amortize the grid
         // barriers; otherwise the grid-strided promote_pivots kernel is used.
-        let use_promote_coop = use_coop && stride >= 1024;
+        let use_promote_coop = stride >= 1024;
         let (pc_ctas, mut pc_barrier, pc_cond) = if use_promote_coop {
             let sms = self
                 .ctx
@@ -1668,12 +1165,8 @@ impl GpuContext {
         let mut panel_idx = 0usize;
         while ppanel < stride {
             let bl_eff = bl.min(stride - ppanel);
-            if use_compact && panel_idx.is_multiple_of(COMPACT_PERIOD) {
-                m_active = timed_phase!(
-                    stream,
-                    "compact",
-                    self.compact_perm(m, &mut perm, r, m_active, ppanel)
-                )?;
+            if panel_idx.is_multiple_of(COMPACT_PERIOD) {
+                m_active = self.compact_perm(m, &mut perm, r, m_active, ppanel)?;
                 // No live below rows left ⇒ no column past here can have a pivot;
                 // the remaining panels would all be empty. Stop the forward sweep
                 // (huge win for low-rank / rank-deficient inputs).
@@ -1681,168 +1174,33 @@ impl GpuContext {
                     break;
                 }
             }
-            if deep {
-                // ── Deep halving recursion over a wide panel (K high everywhere) ──
-                let r_before = r;
-                let (mut l_panel, pr_panel) = self.factor_panel_rec(
+            // Single wide panel: elementwise cooperative factor + far GEMM.
+            let mut l = DeviceMatrix {
+                buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
+                rows,
+                cols: bl_eff * 64,
+                stride: bl_eff,
+            };
+            let (pr, pivcols) =
+                self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)?;
+            if pr > 0 {
+                for &q in &pivcols {
+                    pivot_cols.push(q as usize);
+                }
+                r += pr;
+                self.trailing_update(
                     m,
-                    &mut perm,
-                    ppanel,
-                    bl_eff,
-                    base_bl,
-                    &mut r,
-                    &mut pivot_cols,
-                    m_active,
+                    &perm,
+                    &mut l,
+                    r - pr,
+                    pr,
+                    ppanel + bl_eff,
+                    stride,
                     use_promote_coop,
                     &mut pc_barrier,
                     &pc_cond,
                     pc_ctas,
                 )?;
-                // One wide far update over [ppanel+bl_eff, stride) with K = panel pivots.
-                if pr_panel > 0 {
-                    self.trailing_update(
-                        m,
-                        &perm,
-                        &mut l_panel,
-                        r_before,
-                        pr_panel,
-                        ppanel + bl_eff,
-                        stride,
-                        use_promote_coop,
-                        &mut pc_barrier,
-                        &pc_cond,
-                        pc_ctas,
-                    )?;
-                }
-                // Reclaim the recursion's nested scratch once per wide panel.
-                stream.synchronize()?;
-                ppanel += bl_eff;
-                panel_idx += 1;
-                continue;
-            }
-            match bl_micro.filter(|&mm| use_coop && mm < bl_eff) {
-                // ── Recursive macro panel: micro sub-panels + intra-macro GEMMs ──
-                Some(micro) => {
-                    let mut l_macro = DeviceMatrix {
-                        buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
-                        rows,
-                        cols: bl_eff * 64,
-                        stride: bl_eff,
-                    };
-                    let r0 = r;
-                    let macro_end = ppanel + bl_eff;
-                    let mut mlimb = ppanel;
-                    while mlimb < macro_end {
-                        let micro_eff = micro.min(macro_end - mlimb);
-                        let mut l_micro = DeviceMatrix {
-                            buf: stream.alloc_zeros::<u64>(rows * micro_eff)?,
-                            rows,
-                            cols: micro_eff * 64,
-                            stride: micro_eff,
-                        };
-                        let off = r - r0;
-                        let (pr_m, pivcols_m) = timed_phase!(
-                            stream,
-                            "panel_factor",
-                            self.panel_factor_coop(
-                                m,
-                                &mut perm,
-                                &mut l_micro,
-                                mlimb,
-                                micro_eff,
-                                r,
-                                m_active
-                            )
-                        )?;
-                        let micro_end = mlimb + micro_eff;
-                        if pr_m > 0 {
-                            r += pr_m;
-                            for &q in &pivcols_m {
-                                pivot_cols.push(q as usize);
-                            }
-                            // Accumulate this micro's L into l_macro (for the far GEMM),
-                            // then apply its pivots to the rest of the macro panel so the
-                            // next micro's find-first sees reduced bits.
-                            timed_phase!(
-                                stream,
-                                "lshift",
-                                self.l_shift_or(&mut l_macro, &l_micro, off, pr_m)
-                            )?;
-                            self.trailing_update(
-                                m,
-                                &perm,
-                                &mut l_micro,
-                                r - pr_m,
-                                pr_m,
-                                micro_end,
-                                macro_end,
-                                use_promote_coop,
-                                &mut pc_barrier,
-                                &pc_cond,
-                                pc_ctas,
-                            )?;
-                        }
-                        mlimb = micro_end;
-                    }
-                    // One wide far update over [macro_end, stride) with K = macro pivots.
-                    self.trailing_update(
-                        m,
-                        &perm,
-                        &mut l_macro,
-                        r0,
-                        r - r0,
-                        macro_end,
-                        stride,
-                        use_promote_coop,
-                        &mut pc_barrier,
-                        &pc_cond,
-                        pc_ctas,
-                    )?;
-                    // The recursion enqueues many per-sub-panel scratch allocations;
-                    // sync once per macro so the async malloc pool reclaims them
-                    // (otherwise the in-flight high-water mark can exhaust memory at
-                    // large m). Negligible cost — one sync per 64·bl columns.
-                    stream.synchronize()?;
-                }
-                // ── Single wide panel (default): elementwise panel + far GEMM ──
-                None => {
-                    let mut l = DeviceMatrix {
-                        buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
-                        rows,
-                        cols: bl_eff * 64,
-                        stride: bl_eff,
-                    };
-                    let (pr, pivcols) = timed_phase!(
-                        stream,
-                        "panel_factor",
-                        if use_coop {
-                            self.panel_factor_coop(
-                                m, &mut perm, &mut l, ppanel, bl_eff, r, m_active,
-                            )
-                        } else {
-                            self.panel_factor(m, &mut perm, &mut l, ppanel, r)
-                        }
-                    )?;
-                    if pr > 0 {
-                        for &q in &pivcols {
-                            pivot_cols.push(q as usize);
-                        }
-                        r += pr;
-                        self.trailing_update(
-                            m,
-                            &perm,
-                            &mut l,
-                            r - pr,
-                            pr,
-                            ppanel + bl_eff,
-                            stride,
-                            use_promote_coop,
-                            &mut pc_barrier,
-                            &pc_cond,
-                            pc_ctas,
-                        )?;
-                    }
-                }
             }
             ppanel += bl_eff;
             panel_idx += 1;
@@ -1891,7 +1249,7 @@ impl GpuContext {
 
         // X = above rows gathered at the block's pivot columns (above_count × bp_eff).
         let x_buf = unsafe { stream.alloc::<u64>(above_count * x_stride) }?;
-        timed_phase!(stream, "bs.gather_x", {
+        {
             let (cs, s_u, cnt, st, xs) = (
                 block_s as u32,
                 above_count as u32,
@@ -1910,11 +1268,11 @@ impl GpuContext {
                 .arg(&st)
                 .arg(&xs);
             unsafe { lb.launch(cfg_1d(above_count * x_stride)) }?;
-        });
+        }
 
         // U = the (now RREF) block rows, limbs [start_limb, stride).
         let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?;
-        timed_phase!(stream, "bs.gather_u", {
+        {
             let (s_u, fl, pr_u, nc, st) = (
                 block_s as u32,
                 start_limb as u32,
@@ -1932,15 +1290,12 @@ impl GpuContext {
                 .arg(&nc)
                 .arg(&st);
             unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
-        });
+        }
 
         // G = X · U (above_count × width_cols); scatter-XOR into the above rows.
-        let (c_dev, n_padded_lim) = timed_phase!(
-            stream,
-            "bs.gemm",
-            self.matmul_b1_dev(&x_buf, above_count, bp_eff, &u_buf, width_cols)
-        )?;
-        timed_phase!(stream, "bs.xor", {
+        let (c_dev, n_padded_lim) =
+            self.matmul_b1_dev(&x_buf, above_count, bp_eff, &u_buf, width_cols)?;
+        {
             let (s_u, w, st, fl, cs) = (
                 above_count as u32,
                 trailing_limbs as u32,
@@ -1958,7 +1313,7 @@ impl GpuContext {
                 .arg(&fl)
                 .arg(&cs);
             unsafe { lb.launch(cfg_1d(above_count * trailing_limbs)) }?;
-        });
+        }
         Ok(())
     }
 
@@ -1984,7 +1339,7 @@ impl GpuContext {
         }
         let stream = self.ctx.default_stream();
         let stride = m.stride;
-        timed_phase!(stream, "bs.block_reduce", {
+        {
             if use_coop {
                 stream.memset_zeros(br_barrier)?;
                 let (s_u, e_u, st, tc) = (s as u32, e as u32, stride as u32, br_ctas);
@@ -2020,7 +1375,7 @@ impl GpuContext {
                     .arg(&st);
                 unsafe { lb.launch(cfg) }?;
             }
-        });
+        }
         Ok(())
     }
 
@@ -2095,9 +1450,8 @@ impl GpuContext {
         // clear across the whole grid. The per-block cooperative launch + grid
         // barriers only pay once the block work (≈ bp·stride) is large, so gate on
         // a wide matrix; below that the single-CTA kernel wins. Measured (H200):
-        // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷. Set
-        // FP_CUDA_NO_COOP=1 to force the single-CTA kernel.
-        let use_coop = std::env::var("FP_CUDA_NO_COOP").is_err() && stride >= 1024;
+        // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷.
+        let use_coop = stride >= 1024;
 
         // Pivots per back-substitution block. Wider blocks raise the X·U GEMM's
         // contraction dimension bp toward TILE_K, cutting its K-padding waste
@@ -2126,10 +1480,9 @@ impl GpuContext {
             .block_reduce_coop
             .occupancy_max_active_blocks_per_multiprocessor(BR_THREADS, 0, None)?
             .max(1);
-        // Blocked-TRSM within-block reduce is the DEFAULT on the coop path (it
-        // recurses each block to narrow base blocks + X·U GEMMs). Disable with
-        // FP_CUDA_NO_BS_TRSM (falls back to the elementwise full-block reduce).
-        let use_trsm = use_coop && std::env::var("FP_CUDA_NO_BS_TRSM").is_err();
+        // Blocked-TRSM within-block reduce (coop path): recurse each block to
+        // narrow base blocks + X·U GEMMs.
+        let use_trsm = use_coop;
         // Base ≤ 64: the single-CTA block_reduce_rref's shared cond[] is sized 64.
         let base_bp: usize = std::env::var("FP_CUDA_BS_BASE")
             .ok()
@@ -2153,20 +1506,6 @@ impl GpuContext {
             .clamp(1, br_occ * sms);
         let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
         let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
-
-        // Blocked-TRSM within-block reduce (default on the coop path): back-sub's
-        // "reduce the block among itself" is a triangular solve, elementwise ≈29%
-        // of the whole reduction at 2^16 (bp sequential per-pivot clears). It is
-        // grid-barrier-bound — block_reduce_coop does 2 grid syncs/pivot, and a
-        // grid_sync's cost scales with CTA count. The fix (two parts): (1) recurse
-        // the block into narrow base blocks + large X·U GEMMs (block_reduce_rec /
-        // bs_clear_above) — a clean BLAS3 TRSM with NO promote (source/target rows
-        // disjoint and already reduced); (2) run those narrow base reduces on a
-        // small grid (br_ctas≈128) so the per-pivot barrier is cheap while the
-        // little XOR width is still covered. Together: bs.block_reduce 334→115 ms
-        // (2.9×), +12% at 2^16 / +6% at 2^17. Neither part helps alone — the
-        // recursion with a full grid keeps every barrier (neutral), and a small
-        // grid on the full 1024-block starves its large XOR (worse).
 
         let mut e = r;
         while e > 0 {
@@ -2220,10 +1559,8 @@ impl GpuContext {
         &self,
         m: &mut DeviceMatrix,
     ) -> Result<(CudaSlice<u32>, usize, Vec<usize>), Box<dyn std::error::Error>> {
-        prof::reset();
         let (perm, r, pivot_cols) = self.forward_reduce(m)?;
         self.back_substitute(m, &perm, r, &pivot_cols)?;
-        prof::report("row_reduce_dev");
         Ok((perm, r, pivot_cols))
     }
 }

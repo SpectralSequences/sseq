@@ -26,10 +26,14 @@ const DEFAULT_THRESHOLD: usize = 2048;
 
 /// Smallest `min(rows, cols)` for which we attempt the GPU row reduction. Higher
 /// than the matmul threshold: a full reduction is many dependent panel steps, not
-/// one GEMM, so its CPU crossover is later. Measured on an H200 (random square,
-/// device incl. upload/download vs multi-threaded M4RI `row_reduce`): the GPU
-/// first wins at n≈8192 (n=4096 still ~1.7× slower), so 8192 is the crossover.
-/// Override with `FP_CUDA_RR_THRESHOLD`.
+/// one GEMM, so its CPU crossover is later. Re-validated on an H200 post-
+/// optimization (half-rank square, device incl. upload/reduce vs M4RI
+/// `row_reduce`): GPU is 0.57× at n=4096 (a loss) and 1.57× at n=8192 (a win),
+/// so the crossover sits just below 8192. The small-n crossover is bound by fixed
+/// launch/transfer overhead, not the trailing GEMM, so the recent throughput wins
+/// (which scale with n²) did not move it. Measured against single-thread M4RI;
+/// the concurrent CPU path is faster, which only pushes the crossover up — so
+/// 8192 is the safe floor. Override with `FP_CUDA_RR_THRESHOLD`.
 const DEFAULT_RR_THRESHOLD: usize = 8192;
 
 fn threshold() -> usize {
