@@ -1567,6 +1567,224 @@ impl GpuContext {
         Ok((perm, r, pivot_cols))
     }
 
+    /// Clear a pivot block's columns from a set of rows *above* it, as one
+    /// `X·U` GEMM (the back-substitution Schur update, design §4.6). Clears the
+    /// pivot columns of block `[block_s, block_e)` from the rows at perm positions
+    /// `[above_start, above_start+above_count)`: gather `X` = those rows' bits at
+    /// the block's pivot columns, `U` = the (already-RREF) block rows over their
+    /// trailing, `G = X·U`, then scatter-XOR `G` into the above rows.
+    ///
+    /// Unlike the forward trailing update this needs **no promote**: the source
+    /// (block) rows are already fully reduced and disjoint from the target (above)
+    /// rows, so it is a clean BLAS3 triangular-solve step. Shared by the outer
+    /// back-sub loop (`above = [0, s)`) and the recursive within-block TRSM
+    /// (`above` = the left sub-block).
+    #[allow(clippy::too_many_arguments)]
+    fn bs_clear_above(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        piv_dev: &CudaSlice<u32>,
+        pivot_cols: &[usize],
+        block_s: usize,
+        block_e: usize,
+        above_start: usize,
+        above_count: usize,
+    ) -> anyhow::Result<()> {
+        if above_count == 0 || block_e <= block_s {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        let (stride, n) = (m.stride, m.cols);
+        let bp_eff = block_e - block_s;
+        let start_limb = pivot_cols[block_s] / 64;
+        let trailing_limbs = stride - start_limb;
+        let width_cols = n - start_limb * 64;
+        let x_stride = bp_eff.div_ceil(64);
+        // View of the target rows so gather_cols/xor_into_perm read perm at the
+        // right offset (they index perm[jpos] for jpos < above_count).
+        let perm_above = perm.slice(above_start..above_start + above_count);
+
+        // X = above rows gathered at the block's pivot columns (above_count × bp_eff).
+        let x_buf = unsafe { stream.alloc::<u64>(above_count * x_stride) }?;
+        timed_phase!(stream, "bs.gather_x", {
+            let (cs, s_u, cnt, st, xs) = (
+                block_s as u32,
+                above_count as u32,
+                bp_eff as u32,
+                stride as u32,
+                x_stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.gather_cols);
+            lb.arg(&x_buf)
+                .arg(&m.buf)
+                .arg(&perm_above)
+                .arg(piv_dev)
+                .arg(&cs)
+                .arg(&s_u)
+                .arg(&cnt)
+                .arg(&st)
+                .arg(&xs);
+            unsafe { lb.launch(cfg_1d(above_count * x_stride)) }?;
+        });
+
+        // U = the (now RREF) block rows, limbs [start_limb, stride).
+        let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?;
+        timed_phase!(stream, "bs.gather_u", {
+            let (s_u, fl, pr_u, nc, st) = (
+                block_s as u32,
+                start_limb as u32,
+                bp_eff as u32,
+                trailing_limbs as u32,
+                stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.gather_rows);
+            lb.arg(&u_buf)
+                .arg(&m.buf)
+                .arg(perm)
+                .arg(&s_u)
+                .arg(&fl)
+                .arg(&pr_u)
+                .arg(&nc)
+                .arg(&st);
+            unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
+        });
+
+        // G = X · U (above_count × width_cols); scatter-XOR into the above rows.
+        let (c_dev, n_padded_lim) = timed_phase!(
+            stream,
+            "bs.gemm",
+            self.matmul_b1_dev(&x_buf, above_count, bp_eff, &u_buf, width_cols)
+        )?;
+        timed_phase!(stream, "bs.xor", {
+            let (s_u, w, st, fl, cs) = (
+                above_count as u32,
+                trailing_limbs as u32,
+                stride as u32,
+                start_limb as u32,
+                n_padded_lim as u32,
+            );
+            let mut lb = stream.launch_builder(&self.xor_into_perm);
+            lb.arg(&mut m.buf)
+                .arg(&c_dev)
+                .arg(&perm_above)
+                .arg(&s_u)
+                .arg(&w)
+                .arg(&st)
+                .arg(&fl)
+                .arg(&cs);
+            unsafe { lb.launch(cfg_1d(above_count * trailing_limbs)) }?;
+        });
+        Ok(())
+    }
+
+    /// Reduce a pivot block `[s, e)` to RREF **among itself**, elementwise: the
+    /// triangular solve done as `(e-s)` sequential per-pivot column clears (the
+    /// `block_reduce_coop` / `block_reduce_rref` kernels). Cheap for a narrow
+    /// block; the base case of [`block_reduce_rec`](Self::block_reduce_rec).
+    #[allow(clippy::too_many_arguments)]
+    fn block_reduce_elem(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        piv_dev: &CudaSlice<u32>,
+        s: usize,
+        e: usize,
+        use_coop: bool,
+        br_barrier: &mut CudaSlice<u32>,
+        br_cond: &CudaSlice<u32>,
+        br_ctas: u32,
+    ) -> anyhow::Result<()> {
+        if e <= s {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        let stride = m.stride;
+        timed_phase!(stream, "bs.block_reduce", {
+            if use_coop {
+                stream.memset_zeros(br_barrier)?;
+                let (s_u, e_u, st, tc) = (s as u32, e as u32, stride as u32, br_ctas);
+                let cfg = LaunchConfig {
+                    grid_dim: (br_ctas, 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                };
+                let mut lb = stream.launch_builder(&self.block_reduce_coop);
+                lb.arg(&mut m.buf)
+                    .arg(perm)
+                    .arg(piv_dev)
+                    .arg(&s_u)
+                    .arg(&e_u)
+                    .arg(&st)
+                    .arg(br_barrier)
+                    .arg(br_cond)
+                    .arg(&tc);
+                unsafe { lb.launch_cooperative(cfg) }?;
+            } else {
+                let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
+                let cfg = LaunchConfig {
+                    grid_dim: (1, 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                };
+                let mut lb = stream.launch_builder(&self.block_reduce_rref);
+                lb.arg(&mut m.buf)
+                    .arg(perm)
+                    .arg(piv_dev)
+                    .arg(&s_u)
+                    .arg(&e_u)
+                    .arg(&st);
+                unsafe { lb.launch(cfg) }?;
+            }
+        });
+        Ok(())
+    }
+
+    /// Recursive **blocked TRSM** reduction of a pivot block `[s, e)` to RREF
+    /// among itself: split at the midpoint, recurse on the right half, clear its
+    /// pivots from the left half with one large `X·U` GEMM
+    /// ([`bs_clear_above`](Self::bs_clear_above)), then recurse on the left half.
+    /// Below `base_bp` the elementwise
+    /// [`block_reduce_elem`](Self::block_reduce_elem) runs.
+    ///
+    /// This is the BLAS3 form of back-substitution's within-block reduce (design
+    /// §4.6): it moves the O(bp²·width) triangular work off the elementwise
+    /// per-pivot clears and onto the tensor cores. Because the source and target
+    /// rows are disjoint and already reduced, there is **no promote** — the
+    /// overhead that made the forward-pass recursion a net loss is absent here.
+    #[allow(clippy::too_many_arguments)]
+    fn block_reduce_rec(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        piv_dev: &CudaSlice<u32>,
+        pivot_cols: &[usize],
+        s: usize,
+        e: usize,
+        base_bp: usize,
+        use_coop: bool,
+        br_barrier: &mut CudaSlice<u32>,
+        br_cond: &CudaSlice<u32>,
+        br_ctas: u32,
+    ) -> anyhow::Result<()> {
+        if e - s <= base_bp {
+            return self.block_reduce_elem(
+                m, perm, piv_dev, s, e, use_coop, br_barrier, br_cond, br_ctas,
+            );
+        }
+        let mid = s + (e - s) / 2;
+        // Right half to RREF, then clear its pivots from the left half (K = e-mid).
+        self.block_reduce_rec(
+            m, perm, piv_dev, pivot_cols, mid, e, base_bp, use_coop, br_barrier, br_cond, br_ctas,
+        )?;
+        self.bs_clear_above(m, perm, piv_dev, pivot_cols, mid, e, s, mid - s)?;
+        // Left half to RREF (its rows now carry no right-half pivot bits).
+        self.block_reduce_rec(
+            m, perm, piv_dev, pivot_cols, s, mid, base_bp, use_coop, br_barrier, br_cond, br_ctas,
+        )?;
+        Ok(())
+    }
+
     /// Back-substitution: turn the row-echelon form left by
     /// [`forward_reduce`](Self::forward_reduce) into full RREF (design §4.6),
     /// blocked right-to-left over pivot blocks. For each block of ≤ 64 pivots
@@ -1585,15 +1803,10 @@ impl GpuContext {
             return Ok(());
         }
         let stream = self.ctx.default_stream();
-        let (stride, n) = (m.stride, m.cols);
+        let stride = m.stride;
         let piv_dev =
             stream.clone_htod(&pivot_cols.iter().map(|&q| q as u32).collect::<Vec<_>>())?;
 
-        let one_cta = LaunchConfig {
-            grid_dim: (1, 1, 1),
-            block_dim: (256, 1, 1),
-            shared_mem_bytes: 0,
-        };
         // Cooperative multi-CTA block reduction: spreads each block's per-pivot
         // clear across the whole grid. The per-block cooperative launch + grid
         // barriers only pay once the block work (≈ bp·stride) is large, so gate on
@@ -1633,123 +1846,70 @@ impl GpuContext {
         let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
         let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
 
+        // Blocked-TRSM within-block reduce (FP_CUDA_BS_TRSM): back-substitution's
+        // "reduce the block among itself" is a triangular solve, done elementwise
+        // (bp sequential per-pivot clears, ≈29% of the whole reduction at 2^16).
+        // Recurse it into halved sub-blocks + large X·U GEMMs — a clean BLAS3 TRSM
+        // with NO promote (source/target rows are disjoint and already reduced),
+        // so unlike the forward-pass recursion it has no promote explosion.
+        // FP_CUDA_BS_BASE sets the elementwise base width (≤64).
+        //
+        // MEASURED (2^16, FP_CUDA_PROF): NEUTRAL. The recursion moves the XOR
+        // *work* onto the tensor cores (bs.gemm 29→65 ms) but block_reduce barely
+        // moves (334→296 ms), because the cost is grid BARRIERS, not work:
+        // block_reduce_coop does 2 grid syncs per pivot (≈2·r syncs), and the
+        // recursion with a coop base keeps every one of them. Forcing the narrow
+        // base onto the barrier-free single-CTA kernel removes the syncs but is
+        // worse (485 ms) — one SM of 132 can't cover the full trailing width. The
+        // real fix is a shared-memory 64×64 triangular-solve base kernel: reduce
+        // the base block within one CTA's shared memory (64 steps, no grid sync),
+        // then apply over the full width via GEMM — that removes the per-pivot grid
+        // barriers without the SM starvation. Bounded ~1.2× (block_reduce is 29%).
+        // Kept behind the flag as the correct BLAS3 scaffolding for that kernel.
+        let use_trsm = std::env::var("FP_CUDA_BS_TRSM").is_ok();
+        // Base ≤ 64: the single-CTA block_reduce_rref's shared cond[] is sized 64.
+        let base_bp: usize = std::env::var("FP_CUDA_BS_BASE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(64)
+            .clamp(1, 64);
+
         let mut e = r;
         while e > 0 {
             let s = e - e.min(bp);
-            let bp_eff = e - s;
 
             // (1) reduce the block [s, e) to RREF among itself.
-            timed_phase!(stream, "bs.block_reduce", {
-                if use_coop {
-                    stream.memset_zeros(&mut br_barrier)?;
-                    let (s_u, e_u, st, tc) = (s as u32, e as u32, stride as u32, br_ctas);
-                    let cfg = LaunchConfig {
-                        grid_dim: (br_ctas, 1, 1),
-                        block_dim: (BR_THREADS, 1, 1),
-                        shared_mem_bytes: 0,
-                    };
-                    let mut lb = stream.launch_builder(&self.block_reduce_coop);
-                    lb.arg(&mut m.buf)
-                        .arg(perm)
-                        .arg(&piv_dev)
-                        .arg(&s_u)
-                        .arg(&e_u)
-                        .arg(&st)
-                        .arg(&br_barrier)
-                        .arg(&br_cond)
-                        .arg(&tc);
-                    unsafe { lb.launch_cooperative(cfg) }?;
-                } else {
-                    let (s_u, e_u, st) = (s as u32, e as u32, stride as u32);
-                    let mut lb = stream.launch_builder(&self.block_reduce_rref);
-                    lb.arg(&mut m.buf)
-                        .arg(perm)
-                        .arg(&piv_dev)
-                        .arg(&s_u)
-                        .arg(&e_u)
-                        .arg(&st);
-                    unsafe { lb.launch(one_cta) }?;
-                }
-            });
+            if use_trsm {
+                self.block_reduce_rec(
+                    m,
+                    perm,
+                    &piv_dev,
+                    pivot_cols,
+                    s,
+                    e,
+                    base_bp,
+                    use_coop,
+                    &mut br_barrier,
+                    &br_cond,
+                    br_ctas,
+                )?;
+            } else {
+                self.block_reduce_elem(
+                    m,
+                    perm,
+                    &piv_dev,
+                    s,
+                    e,
+                    use_coop,
+                    &mut br_barrier,
+                    &br_cond,
+                    br_ctas,
+                )?;
+            }
 
             // (2) clear the block's pivot columns from all rows above [0, s).
-            if s > 0 {
-                let start_limb = pivot_cols[s] / 64;
-                let trailing_limbs = stride - start_limb;
-                let width_cols = n - start_limb * 64;
-                let x_stride = bp_eff.div_ceil(64);
+            self.bs_clear_above(m, perm, &piv_dev, pivot_cols, s, e, 0, s)?;
 
-                // X = above rows gathered at the block's pivot columns (s × bp_eff).
-                let x_buf = unsafe { stream.alloc::<u64>(s * x_stride) }?; // gather_cols fills it
-                timed_phase!(stream, "bs.gather_x", {
-                    let (cs, s_u, cnt, st, xs) = (
-                        s as u32,
-                        s as u32,
-                        bp_eff as u32,
-                        stride as u32,
-                        x_stride as u32,
-                    );
-                    let mut lb = stream.launch_builder(&self.gather_cols);
-                    lb.arg(&x_buf)
-                        .arg(&m.buf)
-                        .arg(perm)
-                        .arg(&piv_dev)
-                        .arg(&cs)
-                        .arg(&s_u)
-                        .arg(&cnt)
-                        .arg(&st)
-                        .arg(&xs);
-                    unsafe { lb.launch(cfg_1d(s * x_stride)) }?;
-                });
-
-                // U = the (now RREF) block rows, limbs [start_limb, stride).
-                let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?; // gather fills it
-                timed_phase!(stream, "bs.gather_u", {
-                    let (s_u, fl, pr_u, nc, st) = (
-                        s as u32,
-                        start_limb as u32,
-                        bp_eff as u32,
-                        trailing_limbs as u32,
-                        stride as u32,
-                    );
-                    let mut lb = stream.launch_builder(&self.gather_rows);
-                    lb.arg(&u_buf)
-                        .arg(&m.buf)
-                        .arg(perm)
-                        .arg(&s_u)
-                        .arg(&fl)
-                        .arg(&pr_u)
-                        .arg(&nc)
-                        .arg(&st);
-                    unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
-                });
-
-                // G = X · U (s × width_cols); scatter-XOR into rows above via perm.
-                let (c_dev, n_padded_lim) = timed_phase!(
-                    stream,
-                    "bs.gemm",
-                    self.matmul_b1_dev(&x_buf, s, bp_eff, &u_buf, width_cols)
-                )?;
-                timed_phase!(stream, "bs.xor", {
-                    let (s_u, w, st, fl, cs) = (
-                        s as u32,
-                        trailing_limbs as u32,
-                        stride as u32,
-                        start_limb as u32,
-                        n_padded_lim as u32,
-                    );
-                    let mut lb = stream.launch_builder(&self.xor_into_perm);
-                    lb.arg(&mut m.buf)
-                        .arg(&c_dev)
-                        .arg(perm)
-                        .arg(&s_u)
-                        .arg(&w)
-                        .arg(&st)
-                        .arg(&fl)
-                        .arg(&cs);
-                    unsafe { lb.launch(cfg_1d(s * trailing_limbs)) }?;
-                });
-            }
             e = s;
         }
         stream.synchronize()?;
