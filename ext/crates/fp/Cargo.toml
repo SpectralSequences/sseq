@@ -56,5 +56,9 @@ name = "reduce"
 harness = false
 
 [[bench]]
+name = "reduce_blas3"
+harness = false
+
+[[bench]]
 name = "smallfq"
 harness = false
