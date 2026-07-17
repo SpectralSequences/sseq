@@ -107,13 +107,16 @@ macro_rules! timed_phase {
 
 /// Adaptive forward-pass panel width in limbs (b = 64·bl columns). Wider panels
 /// raise the trailing GEMM's contraction dimension toward b, reclaiming the
-/// K-padding waste (Loss 1) — but the promotion replay is O(pr²)/panel = O(bl)
-/// total and the inline intra-panel XOR is O(bl), so past a point wider panels
-/// lose. The optimum grows with the trailing width; measured (half-rank,
-/// reduce_pow2_half) at bl ≈ stride/256: bl=2 @ n=2¹⁵, 4 @ 2¹⁶, 8 @ 2¹⁷. Capped
-/// at 16 (bl=16 regressed at every tested size). Override with `FP_CUDA_BL`.
+/// K-padding waste (Loss 1). The counter-pressure is the promotion cost: with the
+/// single-CTA promote_pivots it is O(bl) total, so narrow panels win; but the
+/// cooperative promote_coop (used at stride ≥ 1024) is ~bl-independent, so there
+/// the panel can be widened until the forward GEMM stops padding (bl=16 ⇒ K=1024
+/// exactly). Measured optima (half-rank, H200): bl=2 @ n=2¹⁵ (stride 512, single-
+/// CTA), 8 @ 2¹⁶ (1024), 16 @ 2¹⁷ (2048) — i.e. stride/256 without the coop
+/// promote, stride/128 with it. Capped at 16. Override with `FP_CUDA_BL`.
 fn adaptive_bl(stride: usize) -> usize {
-    (stride / 256).clamp(1, 16)
+    let div = if stride >= 1024 { 128 } else { 256 };
+    (stride / div).clamp(1, 16)
 }
 
 /// A `CUtensorMap` passed by value as a (grid-constant) kernel argument.
