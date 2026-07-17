@@ -869,6 +869,33 @@ extern "C" __global__ void zero_pivot_l(
         l_buf[(u64_t)row * l_stride + c] = 0;
 }
 
+// Accumulate a per-micro multiplier block L_micro (bits [0, pr_micro) of each
+// row, `src_limbs` limbs/row) into the running macro multiplier L_macro at bit
+// offset `off`, ORing: L_macro[row] |= L_micro[row] << off. Bit-granular, so a
+// source limb straddles two destination limbs. One thread per row; L_macro is
+// zeroed once per macro panel and each micro's l_shift_or is stream-ordered, so
+// the |= into a shared boundary limb is race-free.
+extern "C" __global__ void l_shift_or(
+    u64_t* __restrict__ l_macro, const u64_t* __restrict__ l_micro,
+    unsigned off, unsigned src_limbs, unsigned m,
+    unsigned macro_stride, unsigned micro_stride)
+{
+    unsigned row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= m) return;
+    for (unsigned s = 0; s < src_limbs; ++s) {
+        u64_t w = l_micro[(u64_t)row * micro_stride + s];
+        if (!w) continue;
+        unsigned bitpos = off + s * 64;
+        unsigned dl = bitpos >> 6, db = bitpos & 63;
+        l_macro[(u64_t)row * macro_stride + dl] |= w << db;
+        // The carry lands in limb dl+1; when that is past the macro width the
+        // carried bits are all zero (no pivot bit ≥ macro_stride·64 exists), so
+        // the guarded skip is exact and avoids an out-of-bounds store.
+        if (db && dl + 1 < macro_stride)
+            l_macro[(u64_t)row * macro_stride + dl + 1] |= w >> (64 - db);
+    }
+}
+
 // (3) Gather the pr pivot rows' trailing limbs [first_limb, first_limb+ncols)
 // (through perm) into a contiguous pr × ncols buffer — the GEMM operand U.
 extern "C" __global__ void gather_rows(
