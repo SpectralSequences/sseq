@@ -1236,10 +1236,12 @@ impl GpuContext {
         // path we widen bp for free; the single-CTA fallback keeps bp=64 (its
         // shared cond[] is sized 64). Override with FP_CUDA_BP.
         let bp = if use_coop {
+            // K=1024 makes the X·U GEMM's contraction an exact TILE_K multiple —
+            // zero K-padding — and block_reduce_coop is bp-independent.
             std::env::var("FP_CUDA_BP")
                 .ok()
                 .and_then(|v| v.parse().ok())
-                .unwrap_or(512)
+                .unwrap_or(1024)
         } else {
             64
         }
