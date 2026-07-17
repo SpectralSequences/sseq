@@ -173,6 +173,7 @@ pub struct GpuContext {
     promote_coop: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
+    l_shift_or: CudaFunction,
     block_reduce_rref: CudaFunction,
     block_reduce_coop: CudaFunction,
     gather_cols: CudaFunction,
@@ -199,6 +200,7 @@ impl GpuContext {
         let promote_coop = module.load_function("promote_coop")?;
         let zero_pivot_l = module.load_function("zero_pivot_l")?;
         let gather_rows = module.load_function("gather_rows")?;
+        let l_shift_or = module.load_function("l_shift_or")?;
         let block_reduce_rref = module.load_function("block_reduce_rref")?;
         let block_reduce_coop = module.load_function("block_reduce_coop")?;
         let gather_cols = module.load_function("gather_cols")?;
@@ -218,6 +220,7 @@ impl GpuContext {
             promote_coop,
             zero_pivot_l,
             gather_rows,
+            l_shift_or,
             block_reduce_rref,
             block_reduce_coop,
             gather_cols,
@@ -970,6 +973,165 @@ impl GpuContext {
         Ok(new_active)
     }
 
+    /// One trailing update `M[:, first_limb·64 : end_limb·64) ^= L · U` (design
+    /// §4.4): promote the `pr` pivot rows at perm positions `[r_piv, r_piv+pr)`
+    /// over the column range, drop them from `l`, gather them into `U`, run the
+    /// GEMM, and XOR the product into the region. Shared by the single-wide-panel
+    /// far update and the recursive intra-panel updates; `l` carries the pivots'
+    /// multipliers at bits `[0, pr)` (stride `l.stride`). `pc_*` are the
+    /// cooperative-promote scaffolding, created once by the caller.
+    #[allow(clippy::too_many_arguments)]
+    fn trailing_update(
+        &self,
+        m: &mut DeviceMatrix,
+        perm: &CudaSlice<u32>,
+        l: &mut DeviceMatrix,
+        r_piv: usize,
+        pr: usize,
+        first_limb: usize,
+        end_limb: usize,
+        promote_coop: bool,
+        pc_barrier: &mut CudaSlice<u32>,
+        pc_cond: &CudaSlice<u32>,
+        pc_ctas: u32,
+    ) -> anyhow::Result<()> {
+        let stream = self.ctx.default_stream();
+        let (rows, stride, n) = (m.rows, m.stride, m.cols);
+        let trailing_limbs = end_limb - first_limb;
+        if pr == 0 || trailing_limbs == 0 {
+            return Ok(());
+        }
+        let t = (end_limb * 64).min(n) - first_limb * 64;
+
+        // (1) promote pivot rows' trailing, then (2) zero their L rows.
+        timed_phase!(stream, "promote", {
+            let (r_u, pr_u, fl, tl, st, ls) = (
+                r_piv as u32,
+                pr as u32,
+                first_limb as u32,
+                trailing_limbs as u32,
+                stride as u32,
+                l.stride as u32,
+            );
+            if promote_coop {
+                stream.memset_zeros(pc_barrier)?;
+                let tc = pc_ctas;
+                let cfg = LaunchConfig {
+                    grid_dim: (pc_ctas, 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                };
+                let mut lb = stream.launch_builder(&self.promote_coop);
+                lb.arg(&mut m.buf)
+                    .arg(perm)
+                    .arg(&l.buf)
+                    .arg(&r_u)
+                    .arg(&pr_u)
+                    .arg(&fl)
+                    .arg(&tl)
+                    .arg(&st)
+                    .arg(&ls)
+                    .arg(pc_barrier)
+                    .arg(pc_cond)
+                    .arg(&tc);
+                unsafe { lb.launch_cooperative(cfg) }?;
+            } else {
+                let mut lb = stream.launch_builder(&self.promote_pivots);
+                lb.arg(&mut m.buf)
+                    .arg(perm)
+                    .arg(&l.buf)
+                    .arg(&r_u)
+                    .arg(&pr_u)
+                    .arg(&fl)
+                    .arg(&tl)
+                    .arg(&st)
+                    .arg(&ls);
+                unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
+            }
+            let (r_u, pr_u, ls) = (r_piv as u32, pr as u32, l.stride as u32);
+            let mut lb = stream.launch_builder(&self.zero_pivot_l);
+            lb.arg(perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
+            unsafe { lb.launch(cfg_1d(pr)) }?;
+        });
+
+        // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
+        let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?;
+        timed_phase!(stream, "gather_u", {
+            let (r_u, fl, pr_u, nc, st) = (
+                r_piv as u32,
+                first_limb as u32,
+                pr as u32,
+                trailing_limbs as u32,
+                stride as u32,
+            );
+            let mut lb = stream.launch_builder(&self.gather_rows);
+            lb.arg(&u_buf)
+                .arg(&m.buf)
+                .arg(perm)
+                .arg(&r_u)
+                .arg(&fl)
+                .arg(&pr_u)
+                .arg(&nc)
+                .arg(&st);
+            unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
+        });
+
+        // (4) GEMM C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
+        let (c_dev, n_padded_lim) = timed_phase!(
+            stream,
+            "gemm",
+            self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)
+        )?;
+        timed_phase!(
+            stream,
+            "xor",
+            self.xor_into_region(
+                &stream,
+                &mut m.buf,
+                &c_dev,
+                rows,
+                trailing_limbs,
+                stride,
+                first_limb,
+                n_padded_lim
+            )
+        )?;
+        Ok(())
+    }
+
+    /// Accumulate the per-micro multiplier block `l_micro` (bits `[0, pr_micro)`)
+    /// into the macro multiplier `l_macro` at bit offset `off` (`l_macro |=
+    /// l_micro << off`), for the recursive forward pass.
+    fn l_shift_or(
+        &self,
+        l_macro: &mut DeviceMatrix,
+        l_micro: &DeviceMatrix,
+        off: usize,
+        pr_micro: usize,
+    ) -> anyhow::Result<()> {
+        if pr_micro == 0 {
+            return Ok(());
+        }
+        let stream = self.ctx.default_stream();
+        let (o, sl, mm, macs, mics) = (
+            off as u32,
+            pr_micro.div_ceil(64) as u32,
+            l_macro.rows as u32,
+            l_macro.stride as u32,
+            l_micro.stride as u32,
+        );
+        let mut lb = stream.launch_builder(&self.l_shift_or);
+        lb.arg(&mut l_macro.buf)
+            .arg(&l_micro.buf)
+            .arg(&o)
+            .arg(&sl)
+            .arg(&mm)
+            .arg(&macs)
+            .arg(&mics);
+        unsafe { lb.launch(cfg_1d(l_macro.rows)) }?;
+        Ok(())
+    }
+
     /// Forward pass of the blocked row reduction over the persistent device
     /// buffer (design §4): sweep 64-bit panels left to right, and for each —
     /// factor it ([`panel_factor`](Self::panel_factor)), promote the pivot rows'
@@ -985,7 +1147,7 @@ impl GpuContext {
         m: &mut DeviceMatrix,
     ) -> anyhow::Result<(CudaSlice<u32>, usize, Vec<usize>)> {
         let stream = self.ctx.default_stream();
-        let (rows, stride, n) = (m.rows, m.stride, m.cols);
+        let (rows, stride) = (m.rows, m.stride);
         let mut perm = self.identity_perm(rows)?;
         let mut r = 0usize;
         let mut pivot_cols = Vec::new();
@@ -1004,6 +1166,20 @@ impl GpuContext {
         } else {
             1
         };
+        // Recursive panel width in limbs (EXPERIMENTAL, `FP_CUDA_MICRO`, off by
+        // default). When set (< bl), each bl-wide macro panel is factored as
+        // bl_micro-wide micro sub-panels + intra-macro GEMMs, keeping the
+        // elementwise panel_factor narrow while the far GEMM still has K = macro
+        // pivots. Measured ~6% at n=2¹⁷ (micro=4), but the intra-macro GEMMs still
+        // pad K (≤ bl_micro·64 → TILE_K=1024), which caps the win with this
+        // kernel — the full payoff needs a small-TILE_K GEMM variant. It also
+        // allocates per-sub-panel scratch (no persistent reuse yet), so at small
+        // micro + large n the async-malloc high-water mark can exhaust memory;
+        // production use wants the buffer-reuse pass first.
+        let bl_micro: Option<usize> = std::env::var("FP_CUDA_MICRO")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .filter(|&mm: &usize| mm >= 1);
 
         // Active-row compaction: park permanently-dead below rows past m_active
         // so panel_factor stops scanning them. Default on (coop only); disable
@@ -1052,132 +1228,130 @@ impl GpuContext {
                     break;
                 }
             }
-            // Fresh multiplier matrix L (m × bl_eff limbs/row) per wide panel.
-            let mut l = DeviceMatrix {
-                buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
-                rows,
-                cols: bl_eff * 64,
-                stride: bl_eff,
-            };
-            let (pr, pivcols) = timed_phase!(
-                stream,
-                "panel_factor",
-                if use_coop {
-                    self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)
-                } else {
-                    self.panel_factor(m, &mut perm, &mut l, ppanel, r)
-                }
-            )?;
-            if pr == 0 {
-                ppanel += bl_eff;
-                panel_idx += 1;
-                continue;
-            }
-            // The whole panel is factored; the trailing starts after it.
-            let first_limb = ppanel + bl_eff;
-            let trailing_limbs = stride - first_limb;
-            if trailing_limbs > 0 {
-                let t = n - first_limb * 64;
-                // (1) promote pivot rows' trailing (triangular, one CTA), then
-                // (2) zero pivot rows' L so the GEMM leaves them untouched.
-                timed_phase!(stream, "promote", {
-                    let (r_u, pr_u, fl, tl, st, ls) = (
-                        r as u32,
-                        pr as u32,
-                        first_limb as u32,
-                        trailing_limbs as u32,
-                        stride as u32,
-                        l.stride as u32,
-                    );
-                    if use_promote_coop {
-                        stream.memset_zeros(&mut pc_barrier)?;
-                        let tc = pc_ctas;
-                        let cfg = LaunchConfig {
-                            grid_dim: (pc_ctas, 1, 1),
-                            block_dim: (256, 1, 1),
-                            shared_mem_bytes: 0,
-                        };
-                        let mut lb = stream.launch_builder(&self.promote_coop);
-                        lb.arg(&mut m.buf)
-                            .arg(&perm)
-                            .arg(&l.buf)
-                            .arg(&r_u)
-                            .arg(&pr_u)
-                            .arg(&fl)
-                            .arg(&tl)
-                            .arg(&st)
-                            .arg(&ls)
-                            .arg(&pc_barrier)
-                            .arg(&pc_cond)
-                            .arg(&tc);
-                        unsafe { lb.launch_cooperative(cfg) }?;
-                    } else {
-                        // Grid-strided over trailing limbs (columns independent).
-                        let mut lb = stream.launch_builder(&self.promote_pivots);
-                        lb.arg(&mut m.buf)
-                            .arg(&perm)
-                            .arg(&l.buf)
-                            .arg(&r_u)
-                            .arg(&pr_u)
-                            .arg(&fl)
-                            .arg(&tl)
-                            .arg(&st)
-                            .arg(&ls);
-                        unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
-                    }
-                    let (r_u, pr_u, ls) = (r as u32, pr as u32, l.stride as u32);
-                    let mut lb = stream.launch_builder(&self.zero_pivot_l);
-                    lb.arg(&perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
-                    unsafe { lb.launch(cfg_1d(pr)) }?;
-                });
-                // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
-                let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?; // gather fills it
-                timed_phase!(stream, "gather_u", {
-                    let (r_u, fl, pr_u, nc, st) = (
-                        r as u32,
-                        first_limb as u32,
-                        pr as u32,
-                        trailing_limbs as u32,
-                        stride as u32,
-                    );
-                    let mut lb = stream.launch_builder(&self.gather_rows);
-                    lb.arg(&u_buf)
-                        .arg(&m.buf)
-                        .arg(&perm)
-                        .arg(&r_u)
-                        .arg(&fl)
-                        .arg(&pr_u)
-                        .arg(&nc)
-                        .arg(&st);
-                    unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
-                });
-                // (4) trailing GEMM: C = L(m×pr)·U(pr×t); M[:, first_limb:] ^= C.
-                // L is stored with stride l.stride (= bl_eff) but only ceil(pr/64)
-                // limbs are occupied, so use the strided GEMM.
-                let (c_dev, n_padded_lim) = timed_phase!(
-                    stream,
-                    "gemm",
-                    self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)
-                )?;
-                timed_phase!(
-                    stream,
-                    "xor",
-                    self.xor_into_region(
-                        &stream,
-                        &mut m.buf,
-                        &c_dev,
+            match bl_micro.filter(|&mm| use_coop && mm < bl_eff) {
+                // ── Recursive macro panel: micro sub-panels + intra-macro GEMMs ──
+                Some(micro) => {
+                    let mut l_macro = DeviceMatrix {
+                        buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
                         rows,
-                        trailing_limbs,
+                        cols: bl_eff * 64,
+                        stride: bl_eff,
+                    };
+                    let r0 = r;
+                    let macro_end = ppanel + bl_eff;
+                    let mut mlimb = ppanel;
+                    while mlimb < macro_end {
+                        let micro_eff = micro.min(macro_end - mlimb);
+                        let mut l_micro = DeviceMatrix {
+                            buf: stream.alloc_zeros::<u64>(rows * micro_eff)?,
+                            rows,
+                            cols: micro_eff * 64,
+                            stride: micro_eff,
+                        };
+                        let off = r - r0;
+                        let (pr_m, pivcols_m) = timed_phase!(
+                            stream,
+                            "panel_factor",
+                            self.panel_factor_coop(
+                                m,
+                                &mut perm,
+                                &mut l_micro,
+                                mlimb,
+                                micro_eff,
+                                r,
+                                m_active
+                            )
+                        )?;
+                        let micro_end = mlimb + micro_eff;
+                        if pr_m > 0 {
+                            r += pr_m;
+                            for &q in &pivcols_m {
+                                pivot_cols.push(q as usize);
+                            }
+                            // Accumulate this micro's L into l_macro (for the far GEMM),
+                            // then apply its pivots to the rest of the macro panel so the
+                            // next micro's find-first sees reduced bits.
+                            timed_phase!(
+                                stream,
+                                "lshift",
+                                self.l_shift_or(&mut l_macro, &l_micro, off, pr_m)
+                            )?;
+                            self.trailing_update(
+                                m,
+                                &perm,
+                                &mut l_micro,
+                                r - pr_m,
+                                pr_m,
+                                micro_end,
+                                macro_end,
+                                use_promote_coop,
+                                &mut pc_barrier,
+                                &pc_cond,
+                                pc_ctas,
+                            )?;
+                        }
+                        mlimb = micro_end;
+                    }
+                    // One wide far update over [macro_end, stride) with K = macro pivots.
+                    self.trailing_update(
+                        m,
+                        &perm,
+                        &mut l_macro,
+                        r0,
+                        r - r0,
+                        macro_end,
                         stride,
-                        first_limb,
-                        n_padded_lim,
-                    )
-                )?;
+                        use_promote_coop,
+                        &mut pc_barrier,
+                        &pc_cond,
+                        pc_ctas,
+                    )?;
+                    // The recursion enqueues many per-sub-panel scratch allocations;
+                    // sync once per macro so the async malloc pool reclaims them
+                    // (otherwise the in-flight high-water mark can exhaust memory at
+                    // large m). Negligible cost — one sync per 64·bl columns.
+                    stream.synchronize()?;
+                }
+                // ── Single wide panel (default): elementwise panel + far GEMM ──
+                None => {
+                    let mut l = DeviceMatrix {
+                        buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
+                        rows,
+                        cols: bl_eff * 64,
+                        stride: bl_eff,
+                    };
+                    let (pr, pivcols) = timed_phase!(
+                        stream,
+                        "panel_factor",
+                        if use_coop {
+                            self.panel_factor_coop(
+                                m, &mut perm, &mut l, ppanel, bl_eff, r, m_active,
+                            )
+                        } else {
+                            self.panel_factor(m, &mut perm, &mut l, ppanel, r)
+                        }
+                    )?;
+                    if pr > 0 {
+                        for &q in &pivcols {
+                            pivot_cols.push(q as usize);
+                        }
+                        r += pr;
+                        self.trailing_update(
+                            m,
+                            &perm,
+                            &mut l,
+                            r - pr,
+                            pr,
+                            ppanel + bl_eff,
+                            stride,
+                            use_promote_coop,
+                            &mut pc_barrier,
+                            &pc_cond,
+                            pc_ctas,
+                        )?;
+                    }
+                }
             }
-            for &q in &pivcols {
-                pivot_cols.push(q as usize);
-            }
-            r += pr;
             ppanel += bl_eff;
             panel_idx += 1;
         }
