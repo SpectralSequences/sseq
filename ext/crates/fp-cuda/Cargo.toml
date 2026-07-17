@@ -41,7 +41,10 @@ cudarc = { version = "0.19", default-features = false, features = [
 # the higher-level `fp` crate can depend on `fp-cuda` without a cycle. The
 # examples/benches still use `fp::Matrix` for random generation and CPU
 # cross-checks (dev-dependency cycles are permitted by Cargo).
-fp = { path = "../fp", default-features = false }
+# `concurrent` (not `cuda`) so the CPU cross-checks/baselines in the timing
+# examples run multi-threaded — a fair baseline against the GPU path — while the
+# device path is reached directly through fp-cuda, never through fp's dispatch.
+fp = { path = "../fp", default-features = false, features = ["concurrent"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 rand = "0.9"
 

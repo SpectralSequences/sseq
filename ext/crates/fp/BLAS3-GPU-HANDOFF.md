@@ -1,5 +1,29 @@
 # BLAS3 F₂ row reduction — GPU handoff (for an H200-enabled agent)
 
+> **STATUS (device port done, H200-validated).** Phases 3–5 and 7 are
+> implemented and validated bit-exact on an H200 NVL (sm_90):
+> - **Phase 3** — `DeviceMatrix` + persistent-buffer glue; `matmul_b1_dev`
+>   (device-in/device-out GEMM, on-device packing) + `xor_into_region`/
+>   `gemm_xor_into` fused epilogue. Gates: `matmul_b1_dev_demo`,
+>   `gemm_xor_into_demo`.
+> - **Phase 4** — `panel_factor` base kernel (b=64, virtual `perm`). Gate:
+>   `panel_factor_demo` (vs a CPU transliteration; full- and low-rank panels).
+> - **Phase 5** — `forward_reduce` (forward echelon) + `back_substitute` → full
+>   RREF `row_reduce_dev`, all device-resident. Gates: `forward_reduce_demo`,
+>   `row_reduce_demo` (`row_reduce_dev == fp::Matrix::row_reduce`, bit-exact).
+> - **Phase 7** — `fp::Matrix::row_reduce` dispatches to the GPU above
+>   `FP_CUDA_THRESHOLD`. Test: `tests/cuda_dispatch::gpu_row_reduce_matches_cpu`.
+>
+> Rough timing (`reduce_timing`, half-rank square, single-thread CPU baseline):
+> device beats CPU BLAS3 from n≥2048 with a widening lead (1.5× @ 2048 → 3.4× @
+> 8192). **Still open: Phase 6** — active-row compaction (§8.2), the wider-panel
+> intra-panel GEMM (§5(2)), fusing the XOR into the GEMM store, and profiling the
+> single-CTA panel/promote/back-sub kernels (they use 1 SM; lower-order today but
+> the next optimization target). All build with CUDA 12.4 nvcc; `cargo run -p
+> fp-cuda --example <name>` for each gate.
+
+---
+
 > **TL;DR.** The CPU algorithm is done, proptested bit-exact against
 > `Matrix::row_reduce`, and benchmarked: on 4 CPU cores its cost crosses M4RI
 > around `n ≈ 1.2·10⁵` (the real workload). Your job is the **device-resident
