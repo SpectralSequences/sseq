@@ -5,7 +5,10 @@
 //! `ncu --set basic --launch-count 2 target/release/examples/prof_sizes`
 
 use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::{GpuContext, matmul_b1};
+use fp_cuda::GpuContext;
+
+mod common;
+use common::matmul_b1;
 use rand::Rng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

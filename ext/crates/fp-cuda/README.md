@@ -39,8 +39,16 @@ cargo build -p fp-cuda
 
 `build.rs` invokes nvcc on `cuda_kernels/matmul_b1.cu` and emits
 `matmul_b1.ptx` into the cargo `OUT_DIR`. `src/lib.rs` embeds it via
-`include_bytes!` and loads it at runtime through `cuda-core`'s
-`CudaContext::load_module_from_image`.
+`include_bytes!` and loads it at runtime through cudarc.
+
+**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit)
+`build.rs` emits a *stub* PTX and prints a warning instead of failing, so the
+crate stays `cargo check`/`clippy`-able everywhere — including under
+`cargo check --workspace --all-features`, which the workspace CI runs on a
+machine with no CUDA. The stub carries no kernel, so at runtime
+`GpuContext::new` returns an error and callers (e.g. `fp`'s `cuda` dispatch)
+fall back to the CPU path. An nvcc that *is* present but fails to compile is
+still a hard build error.
 
 ## Running
 
@@ -184,12 +192,19 @@ Done:
 
 Phases 8–9 were validated on hardware (H200 NVL) alongside 10–12.
 
+- **Wired into `fp`** — the `fp` crate has an optional `cuda` feature
+  (`cargo …--features fp/gpu`) that pulls in `fp-cuda` and dispatches large
+  `p = 2` products from `<&Matrix as Mul>::mul` to the GPU, falling back to the
+  CPU BLAS kernel when no device is present, the size is below
+  `FP_CUDA_THRESHOLD` (default 2048), or a launch fails. `fp-cuda`'s library API
+  is fp-agnostic (raw row-major limb slices) so the dependency is acyclic; the
+  `Matrix` glue lives on the `fp` side (`src/blas/cuda.rs`) and in the
+  examples/benches (a dev-dependency on `fp`). `FP_CUDA_DISABLE` forces the CPU
+  path. See the `gpu_dispatch_matches_cpu` integration test.
+
 Remaining (now TMA-latency bound — the consumer out-runs per-tile TMA latency and
 pipeline depth is SMEM-capped at `STAGES`=4):
 
-- Add a `cuda` feature on the `fp` crate that pulls in `fp-cuda` and
-  inserts a runtime device check at the top of `impl Mul for &Matrix`,
-  dispatching to the GPU for matrices above a size threshold and keeping
-  operands resident on the device across `step_resolution`'s successive
-  multiplications.
+- Keep operands resident on the device across `step_resolution`'s successive
+  multiplications (the current dispatch re-marshals and re-copies each product).
 - Extend the parent Nix flake to provide nvcc when the user opts in.

@@ -1,7 +1,10 @@
 use std::time::Instant;
 
 use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::{GpuContext, matmul_b1};
+use fp_cuda::GpuContext;
+
+mod common;
+use common::matmul_b1;
 use rand::Rng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,12 +19,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Focus on compute-bound regime: large K maximizes wgmma fraction
     for &(m, k, n) in &[
-        (8192usize, 8192, 8192),
+        (8192usize, 8192usize, 8192usize),
         (16384, 16384, 16384),
         (32768, 32768, 32768),
     ] {
-        let stride_a = (k + 63) / 64;
-        let stride_b = (n + 63) / 64;
+        let stride_a = k.div_ceil(64);
+        let stride_b = n.div_ceil(64);
         let a_bytes = m * stride_a * 8;
         let b_bytes = k * stride_b * 8;
 
@@ -76,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             host_ser_ms,
             host_ser_ms / (best * 1e3) * 100.0
         );
-        println!("  K-chunks per CTA: {}", (k + 255) / 256);
+        println!("  K-chunks per CTA: {}", k.div_ceil(256));
         println!();
     }
 

@@ -59,6 +59,8 @@ concurrent = [
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
 nassau = []
+# Dispatch large p=2 matrix products to the Hopper GPU backend via `fp`.
+gpu = ["fp/gpu"]
 
 [workspace]
 members = [
@@ -71,9 +73,11 @@ members = [
     "crates/query",
     "crates/sseq",
 ]
-# `fp-cuda` requires cuda-oxide's custom rustc backend (`cargo oxide build`)
-# and is opt-in. Default workspace commands (`cargo build`, `cargo test`,
-# `nix run .#test`) skip it via this list.
+# `fp-cuda` builds its CUDA kernel with nvcc (falling back to a stub PTX when
+# nvcc is absent) and is opt-in. It stays out of the default member set so plain
+# workspace commands (`cargo build`, `cargo test`, `nix run .#test`) don't pull
+# it in; `fp`'s `cuda` feature depends on it explicitly when the GPU backend is
+# wanted.
 default-members = [
     ".",
     "crates/algebra",

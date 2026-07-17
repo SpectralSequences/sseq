@@ -1,7 +1,10 @@
 use std::time::Instant;
 
 use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::{GpuContext, matmul_b1};
+use fp_cuda::GpuContext;
+
+mod common;
+use common::matmul_b1;
 use rand::Rng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,15 +32,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //   N=262144, K=65536:  2 GB each (4 GB pair)
     //   N=262144, K=131072: 4 GB each (8 GB pair)
     for &(m, k_actual, n) in &[
-        (32768usize, 32768, 32768), // 128 MB each, warmup
-        (65536, 65536, 65536),      // 512 MB each
-        (131072, 65536, 131072),    // 1 GB each
-        (131072, 131072, 131072),   // 2 GB each
-        (262144, 65536, 262144),    // 2 GB + 2 GB
-        (262144, 131072, 262144),   // 4 GB each
+        (32768usize, 32768usize, 32768usize), // 128 MB each, warmup
+        (65536, 65536, 65536),                // 512 MB each
+        (131072, 65536, 131072),              // 1 GB each
+        (131072, 131072, 131072),             // 2 GB each
+        (262144, 65536, 262144),              // 2 GB + 2 GB
+        (262144, 131072, 262144),             // 4 GB each
     ] {
-        let stride_a = (k_actual + 63) / 64;
-        let stride_c = (n + 63) / 64;
+        let stride_a = k_actual.div_ceil(64);
+        let stride_c = n.div_ceil(64);
         let a_elems = m * stride_a;
         let b_elems = k_actual * stride_c;
         let a_bytes = a_elems * 8;

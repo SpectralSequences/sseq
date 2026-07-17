@@ -9,7 +9,10 @@
 //! Run: `cargo run --release -p fp-cuda --example bench_shapes`.
 
 use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::{GpuContext, matmul_b1_timed};
+use fp_cuda::GpuContext;
+
+mod common;
+use common::matmul_b1_timed;
 use rand::Rng;
 
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
@@ -66,8 +69,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     println!(
-        "{:>7} {:>7} {:>7} | {:>9} {:>6} | {:>9} | {}",
-        "M", "K", "N", "B (MB)", "fits", "TOPS", "note"
+        "{:>7} {:>7} {:>7} | {:>9} {:>6} | {:>9} | note",
+        "M", "K", "N", "B (MB)", "fits", "TOPS"
     );
     for &(m, k, n, iters, note) in &shapes {
         let b_mb = (k as f64) * (n as f64) / 8.0 / 1e6;
