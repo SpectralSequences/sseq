@@ -894,6 +894,14 @@ impl GpuContext {
         // size the grid and the kernel's row bound to m_active.
         let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
+        // panel_factor is partly grid-barrier-bound (a grid_sync per pivot bit),
+        // so a smaller grid gives cheaper barriers while still covering the panel
+        // work — measured +3% at 2^16. Cap at 128 (H200 sweet spot); overridable.
+        let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(128)
+            .clamp(1, num_ctas);
 
         let (ppanel_u, bl_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
             ppanel as u32,
@@ -1380,7 +1388,17 @@ impl GpuContext {
                 .promote_coop
                 .occupancy_max_active_blocks_per_multiprocessor(256, 0, None)?
                 .max(1);
-            ((occ * sms).max(1), stream.alloc_zeros::<u32>(1)?, unsafe {
+            // promote is a forward-substitution TRSM (1 grid_sync/pivot), partly
+            // barrier-bound: a smaller grid gives cheaper barriers while still
+            // covering the per-pivot trailing XOR — measured +6% at 2^16, +5% at
+            // 2^17. Cap at 384 (broad H200 optimum); overridable.
+            let full = (occ * sms).max(1);
+            let capped = std::env::var("FP_CUDA_PROM_CTAS")
+                .ok()
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(384)
+                .clamp(1, full);
+            (capped, stream.alloc_zeros::<u32>(1)?, unsafe {
                 stream.alloc::<u32>(bl * 64)
             }?)
         } else {
