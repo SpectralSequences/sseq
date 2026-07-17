@@ -824,11 +824,14 @@ extern "C" __global__ void promote_pivots(
 // barrier between steps), but each step's XOR is flattened over (later-pivot ×
 // limb) across the whole grid, replacing the single-CTA kernel's ~pr² per-column
 // serial replay. `barrier` must be 0 at launch; `cond` holds ≥ pr unsigned.
+// `l_limb_off` offsets the L read so this can promote a sub-block [lo, lo+pr):
+// the caller passes r = r0+lo and l_limb_off = lo/64 (lo is 64-aligned), so bit i
+// here maps to global multiplier bit lo+i. Zero for a full-panel promote.
 extern "C" __global__ void promote_coop(
     u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
     const u64_t* __restrict__ l_buf,
     unsigned r, unsigned pr, unsigned first_limb, unsigned trailing_limbs,
-    unsigned stride, unsigned l_stride,
+    unsigned stride, unsigned l_stride, unsigned l_limb_off,
     unsigned* __restrict__ barrier, unsigned* __restrict__ cond,
     unsigned total_ctas)
 {
@@ -846,7 +849,7 @@ extern "C" __global__ void promote_coop(
         for (unsigned idx = gtid; idx < total; idx += gnt) {
             unsigned krel = idx / trailing_limbs;
             unsigned rowk = perm[r + i + 1 + krel];
-            if (!((l_buf[(u64_t)rowk * l_stride + (i >> 6)] >> (i & 63)) & 1ULL))
+            if (!((l_buf[(u64_t)rowk * l_stride + l_limb_off + (i >> 6)] >> (i & 63)) & 1ULL))
                 continue;
             unsigned c = idx - krel * trailing_limbs;
             m_buf[(u64_t)rowk * stride + first_limb + c] ^=
