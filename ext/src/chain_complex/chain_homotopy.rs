@@ -292,7 +292,11 @@ impl<
     }
 
     /// Complete a homotopy step: persist and register the lifted `outputs`.
-    fn finish_step(&self, pending: &mut PendingHomotopy, outputs: &[FpVector]) -> std::ops::Range<i32> {
+    fn finish_step(
+        &self,
+        pending: &mut PendingHomotopy,
+        outputs: &[FpVector],
+    ) -> std::ops::Range<i32> {
         if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .left

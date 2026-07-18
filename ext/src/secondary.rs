@@ -548,7 +548,8 @@ pub trait SecondaryLift: Sync + Sized {
                         pending.target_b,
                         &pending.intermediates,
                     ),
-                    "secondary: failed to apply quasi-inverse at {b}; the input likely does not lift"
+                    "secondary: failed to apply quasi-inverse at {b}; the input likely does not \
+                     lift"
                 );
                 self.finish_homotopy_step(pending, &results)
             }
@@ -561,7 +562,7 @@ pub trait SecondaryLift: Sync + Sized {
     /// intermediates to lift and returns [`SecondaryHomotopyPrep::NeedsLift`], to be completed by
     /// [`Self::finish_homotopy_step`].
     ///
-    /// Splitting the step this way lets [`MultiLift`](crate::resolution_homomorphism::MultiLift)
+    /// Splitting the step this way lets [`MultiLift`]
     /// gather the intermediates of many secondary lifts sharing a target at a common bidegree and
     /// solve them with a single batched `apply_quasi_inverse`. Assumes the intermediates have
     /// already been computed (via [`compute_intermediates`](Self::compute_intermediates)).
@@ -730,7 +731,7 @@ pub trait SecondaryLift: Sync + Sized {
     /// composites and intermediates, and seed the zero row. None of this consumes the target's
     /// quasi-inverse. After calling this on each of several secondary lifts sharing a target, their
     /// homotopy lifts can be batched together through
-    /// [`MultiLift`](crate::resolution_homomorphism::MultiLift) (see
+    /// [`MultiLift`] (see
     /// [`batch_extend_secondary`]).
     fn prepare_homotopies(&self) {
         self.initialize_homotopies();
