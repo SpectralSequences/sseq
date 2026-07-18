@@ -325,6 +325,11 @@ where
             }
         }
 
+        // No valid third factors: nothing to read, and in particular no reason to extend `b_hom`.
+        if pending.is_empty() {
+            return Vec::new();
+        }
+
         // First batch: `b_hom` and every `f_c` against the unit. The homotopies read these maps, so
         // they must be fully extended before the homotopies are lifted.
         let mut map_liftables: Vec<Arc<dyn Liftable>> = Vec::with_capacity(f_cs.len() + 1);

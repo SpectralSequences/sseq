@@ -405,8 +405,9 @@ pub(crate) struct PendingStep {
 /// Something built by a sequence of quasi-inverse solves against a common target complex, one
 /// target bidegree at a time.
 ///
-/// Implemented today by chain-map extension ([`MuResolutionHomomorphism`]); the intended future
-/// implementors are the chain-homotopy lifts of the secondary and Massey machinery. They all lift
+/// Implemented by chain-map extension ([`MuResolutionHomomorphism`]), the chain-homotopy lifts of
+/// the Massey machinery ([`ChainHomotopy`](crate::chain_complex::ChainHomotopy)), and the secondary
+/// lifts (via [`batch_extend_secondary`](crate::secondary::batch_extend_secondary)). They all lift
 /// through the *same* target quasi-inverse at a given bidegree, so [`MultiLift`] can gather a batch
 /// across implementors of different kinds and solve it once.
 ///
