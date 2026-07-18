@@ -838,6 +838,15 @@ where
     if lifts.is_empty() {
         return;
     }
+    // Every request is solved against `target`'s quasi-inverse, so a lift through a different target
+    // would be silently wrong. Enforce the shared-target contract before any preparation side
+    // effects, matching the `Arc::ptr_eq` checks the lift constructors already use.
+    for lift in &lifts {
+        assert!(
+            Arc::ptr_eq(&target, &lift.target()),
+            "batch_extend_secondary: every lift must share the supplied target"
+        );
+    }
     for lift in &lifts {
         lift.prepare_homotopies();
     }
