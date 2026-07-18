@@ -514,15 +514,18 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
             }
         }
 
+        // Every liftable at output `b` lifts through the same quasi-inverse, so all results have the
+        // target's module dimension at `b`.
+        let fx_dim = self.target.module(b.s()).dimension(b.t());
+        let mut results = vec![FpVector::new(p, fx_dim); inputs.len()];
         if !inputs.is_empty() {
-            // Every liftable at output `b` lifts through the same quasi-inverse, so all results have
-            // the target's module dimension at `b`.
-            let fx_dim = self.target.module(b.s()).dimension(b.t());
-            let mut results = vec![FpVector::new(p, fx_dim); inputs.len()];
             assert!(self.target.apply_quasi_inverse(&mut results, b, &inputs));
-            for (finish, range) in finishers {
-                finish(&results[range]);
-            }
+        }
+        // Run every finisher, even when a liftable contributed no inputs (a zero-dimensional step):
+        // its finish still has to register/extend the step so later reads of that bidegree see it.
+        // A no-input finisher receives an empty `results` slice.
+        for (finish, range) in finishers {
+            finish(&results[range]);
         }
 
         let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
