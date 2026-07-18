@@ -15,8 +15,8 @@ use fp::{
     vector::{FpSliceMut, FpVector},
 };
 use maybe_rayon::prelude::*;
-use once::OnceBiVec;
-use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+use once::{OnceBiVec, OnceVec};
+use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange, iter_s_t};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
@@ -201,12 +201,48 @@ where
     /// The user should call this function explicitly to manually define the chain map where the
     /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
+    ///
+    /// This is the single-map path: it recomputes/reads its own quasi-inverse inline. Callers
+    /// extending *several* maps with a common target should instead drive them through
+    /// [`MultiLift`], which batches the quasi-inverse solve at each output bidegree so it is
+    /// computed once and shared across all maps.
     #[tracing::instrument(skip(self, extra_images), fields(self = self.name, %input))]
     pub fn extend_step_raw(
         &self,
         input: Bidegree,
         extra_images: Option<Vec<FpVector>>,
     ) -> Range<i32> {
+        match self.prepare_step(input, extra_images) {
+            StepPrep::Done(range) => range,
+            StepPrep::NeedsLift(mut pending) => {
+                let p = self.source.prime();
+                let mut results =
+                    vec![FpVector::new(p, pending.fx_dimension); pending.fdx_vectors.len()];
+                if !pending.fdx_vectors.is_empty() {
+                    assert!(self.target.apply_quasi_inverse(
+                        &mut results,
+                        pending.output,
+                        &pending.fdx_vectors
+                    ));
+                }
+                self.finish_step(&mut pending, &results)
+            }
+        }
+    }
+
+    /// The part of a lift step *before* the quasi-inverse solve: it resolves the cases that need no
+    /// quasi-inverse (already computed, loaded from the save store, zero-dimensional, or an
+    /// augmentation step) itself, returning [`StepPrep::Done`]; otherwise it returns
+    /// [`StepPrep::NeedsLift`] carrying the fdx vectors to lift at `output = input - shift` and the
+    /// partially-filled outputs, to be completed by [`Self::finish_step`].
+    ///
+    /// Splitting the step this way lets [`MultiLift`] gather the fdx vectors of many maps at a
+    /// common output bidegree and issue a single batched `apply_quasi_inverse`.
+    pub(crate) fn prepare_step(
+        &self,
+        input: Bidegree,
+        extra_images: Option<Vec<FpVector>>,
+    ) -> StepPrep {
         let output = input - self.shift;
         assert!(self.target.has_computed_bidegree(output));
         assert!(self.source.has_computed_bidegree(input));
@@ -216,7 +252,7 @@ where
         if input.t() < f_cur.next_degree() {
             assert!(extra_images.is_none());
             // We need to signal to compute the dependents of this
-            return input.t()..input.t() + 1;
+            return StepPrep::Done(input.t()..input.t() + 1);
         }
 
         let p = self.source.prime();
@@ -225,45 +261,33 @@ where
         let fx_dimension = f_cur.target().dimension(output.t());
 
         if num_gens == 0 || fx_dimension == 0 {
-            return f_cur.add_generators_from_rows_ooo(
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(
                 input.t(),
                 vec![FpVector::new(p, fx_dimension); num_gens],
-            );
+            ));
         }
 
-        if let Some(dir) = self.save_dir.read() {
-            let mut outputs = Vec::with_capacity(num_gens);
-
-            if let Some(mut f) = self
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self
                 .source
                 .save_file(SaveKind::ChainMap, input)
                 .open_file(dir.to_owned())
-            {
-                let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
-                for _ in 0..num_gens {
-                    outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
-                }
-                return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
+        {
+            let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+            let mut outputs = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
             }
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(input.t(), outputs));
         }
 
         if output.s() == 0 {
             let outputs =
                 extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
-
-            if let Some(dir) = self.save_dir.write() {
-                let mut f = self
-                    .source
-                    .save_file(SaveKind::ChainMap, input)
-                    .create_file(dir.clone(), false);
-                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-                for row in &outputs {
-                    row.to_bytes(&mut f).unwrap();
-                }
-            }
-
-            return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
+            self.save_chain_map(input, fx_dimension, &outputs);
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(input.t(), outputs));
         }
+
         let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         let d_source = self.source.differential(input.s());
         let d_target = self.target.differential(output.s());
@@ -284,60 +308,225 @@ where
             }
         }
 
-        // Now do the rest
+        // Now compute the fdx vectors to lift, and remember which output row each fills.
         d_target.compute_auxiliary_data_through_degree(output.t());
 
-        let compute_fdx_vector = |k| {
+        let qi_rows: Vec<usize> = (0..num_gens)
+            .filter(|&k| !d_source.output(input.t(), k).is_zero())
+            .collect();
+
+        let compute_fdx_vector = |k: usize| {
             let dx_vector = d_source.output(input.t(), k);
             if dx_vector.is_zero() {
                 None
             } else {
                 let mut fdx_vector = FpVector::new(p, fdx_dimension);
-                f_prev.apply(
-                    fdx_vector.as_slice_mut(),
-                    1,
-                    input.t(),
-                    dx_vector.as_slice(),
-                );
+                f_prev.apply(fdx_vector.as_slice_mut(), 1, input.t(), dx_vector.as_slice());
                 Some(fdx_vector)
             }
         };
 
+        // Same order as `qi_rows` (ascending generator index over non-zero differentials).
         let fdx_vectors: Vec<FpVector> = (0..num_gens)
             .into_maybe_par_iter()
             .filter_map(compute_fdx_vector)
             .collect();
 
-        let mut qi_outputs: Vec<_> = outputs
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(k, v)| {
-                if d_source.output(input.t(), k).is_zero() {
-                    None
-                } else {
-                    Some(v.as_slice_mut())
-                }
-            })
-            .collect();
+        StepPrep::NeedsLift(PendingStep {
+            input,
+            output,
+            outputs,
+            fdx_vectors,
+            qi_rows,
+            fx_dimension,
+        })
+    }
 
-        if !fdx_vectors.is_empty() {
-            assert!(
-                self.target
-                    .apply_quasi_inverse(&mut qi_outputs, output, &fdx_vectors)
-            );
+    /// Complete a lift step: scatter the lifted `results` into the pending outputs, persist the
+    /// chain map, and register the generators. `results[i]` is the lift of `pending.fdx_vectors[i]`
+    /// and fills output row `pending.qi_rows[i]`.
+    pub(crate) fn finish_step(&self, pending: &mut PendingStep, results: &[FpVector]) -> Range<i32> {
+        assert_eq!(results.len(), pending.qi_rows.len());
+        for (&k, result) in pending.qi_rows.iter().zip(results) {
+            pending.outputs[k].assign(result);
         }
+        self.save_chain_map(pending.input, pending.fx_dimension, &pending.outputs);
+        self.get_map(pending.input.s())
+            .add_generators_from_rows_ooo(pending.input.t(), std::mem::take(&mut pending.outputs))
+    }
 
+    fn save_chain_map(&self, input: Bidegree, fx_dimension: usize, outputs: &[FpVector]) {
         if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .source
                 .save_file(SaveKind::ChainMap, input)
                 .create_file(dir.clone(), false);
             f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-            for row in &outputs {
+            for row in outputs {
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        f_cur.add_generators_from_rows_ooo(input.t(), outputs)
+    }
+}
+
+/// Outcome of [`MuResolutionHomomorphism::prepare_step`].
+pub(crate) enum StepPrep {
+    /// The step needed no quasi-inverse and is already finished; carries the range of
+    /// newly-contiguous input degrees (as [`MuResolutionHomomorphism::extend_step_raw`] returns).
+    Done(Range<i32>),
+    /// The step needs a quasi-inverse solve at `output`; complete it with
+    /// [`MuResolutionHomomorphism::finish_step`].
+    NeedsLift(PendingStep),
+}
+
+/// A lift step awaiting its quasi-inverse solve; see [`MuResolutionHomomorphism::prepare_step`].
+pub(crate) struct PendingStep {
+    input: Bidegree,
+    output: Bidegree,
+    /// Outputs with the extra-image rows filled and the quasi-inverse rows left zero.
+    outputs: Vec<FpVector>,
+    /// The vectors to lift (`d(f(x))` preimages), one per non-zero-differential generator.
+    fdx_vectors: Vec<FpVector>,
+    /// `qi_rows[i]` is the output row that `fdx_vectors[i]`'s lift fills.
+    qi_rows: Vec<usize>,
+    /// Dimension of each lifted result (the target module dimension at `output`).
+    fx_dimension: usize,
+}
+
+/// Something built by a sequence of quasi-inverse solves against a common target complex, one
+/// target bidegree at a time.
+///
+/// Implemented today by chain-map extension ([`MuResolutionHomomorphism`]); the intended future
+/// implementors are the chain-homotopy lifts of the secondary and Massey machinery. They all lift
+/// through the *same* target quasi-inverse at a given bidegree, so [`MultiLift`] can gather a batch
+/// across implementors of different kinds and solve it once.
+///
+/// The interface is deliberately free of the target/source type parameters: `prepare` returns plain
+/// vectors to lift plus a boxed continuation, so the driver never needs to name a liftable's
+/// internal state.
+pub trait Liftable: Sync + Send {
+    /// Prepare the lift at target bidegree `b`. Returns `None` if this liftable has no quasi-inverse
+    /// work at `b` — out of range, already computed, or a step (augmentation, zero-dimensional) it
+    /// finished itself. Otherwise returns the vectors to lift at `b` and a continuation that
+    /// finishes the step once their lifts are known.
+    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>>;
+}
+
+/// The inputs to lift at one bidegree together with a continuation to finish the step; see
+/// [`Liftable::prepare`].
+pub struct LiftRequest<'a> {
+    /// Vectors to lift, i.e. the `inputs` passed to `apply_quasi_inverse` at this bidegree.
+    pub inputs: Vec<FpVector>,
+    /// Called exactly once with the lifted `results` (`results[i]` lifts `inputs[i]`) to complete
+    /// the step (scatter the results, record generators).
+    pub finish: Box<dyn FnOnce(&[FpVector]) + 'a>,
+}
+
+impl<const U: bool, CC1, CC2> Liftable for MuResolutionHomomorphism<U, CC1, CC2>
+where
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
+    CC2: ChainComplex<Algebra = CC1::Algebra>,
+{
+    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>> {
+        let input = b + self.shift;
+        if input.s() < self.shift.s()
+            || !self.source.has_computed_bidegree(input)
+            || !self.target.has_computed_bidegree(b)
+        {
+            return None;
+        }
+        match self.prepare_step(input, None) {
+            StepPrep::Done(_) => None,
+            StepPrep::NeedsLift(mut pending) => {
+                let inputs = std::mem::take(&mut pending.fdx_vectors);
+                Some(LiftRequest {
+                    inputs,
+                    finish: Box::new(move |results| {
+                        self.finish_step(&mut pending, results);
+                    }),
+                })
+            }
+        }
+    }
+}
+
+/// Extends several [`Liftable`]s that share one target complex, together, in bidegree-major order.
+///
+/// At each output bidegree the inputs of every participating liftable are gathered and lifted with
+/// a single [`ChainComplex::apply_quasi_inverse`], so the target's quasi-inverse there is solved
+/// once and shared across all of them rather than recomputed once per liftable. This is what makes
+/// recompute-on-demand (no saved quasi-inverses) cost ~1x across a many-map computation instead of
+/// scaling with the number of maps. Concurrency across the plane is provided by
+/// [`iter_s_t`], exactly as for a single map.
+///
+/// Single-map callers do not need this — one map hits each bidegree once, so it already recomputes
+/// each quasi-inverse once. Use [`MuResolutionHomomorphism::extend_all`] for those.
+pub struct MultiLift<CC> {
+    target: Arc<CC>,
+    liftables: Vec<Arc<dyn Liftable>>,
+}
+
+impl<CC: ChainComplex + Sync> MultiLift<CC> {
+    /// Build a driver over `liftables`, all of which must lift through `target`.
+    pub fn new(target: Arc<CC>, liftables: Vec<Arc<dyn Liftable>>) -> Self {
+        Self { target, liftables }
+    }
+
+    /// Extend every liftable as far as the shared target is resolved, batching the quasi-inverse
+    /// solve at each output bidegree.
+    pub fn extend_all(&self) {
+        let max_s = self.target.next_homological_degree();
+        if max_s <= 0 || self.liftables.is_empty() {
+            return;
+        }
+        let min_t = self.target.min_degree();
+        let min = Bidegree::s_t(0, min_t);
+
+        // Per-output-row completion frontier, so `iter_s_t` can tell how far each row is done. Cell
+        // (s, t) is recorded at index `t - min_t` of row `s`; `push_ooo` returns the contiguous
+        // frontier that `iter_s_t` expects.
+        let completion: OnceVec<OnceVec<()>> = OnceVec::new();
+        for _ in 0..max_s {
+            completion.push(OnceVec::new());
+        }
+
+        let max = BidegreeRange::new(self, max_s, &|selff: &Self, s| {
+            selff.target.module(s).max_computed_degree() + 1
+        });
+
+        iter_s_t(&|b| self.step_cell(b, &completion, min_t), min, max);
+    }
+
+    /// Process one output bidegree: gather every participating liftable's inputs, do one batched
+    /// lift, then finish each. Returns the newly-contiguous frontier of this output row.
+    fn step_cell(&self, b: Bidegree, completion: &OnceVec<OnceVec<()>>, min_t: i32) -> Range<i32> {
+        let p = self.target.prime();
+
+        let mut inputs: Vec<FpVector> = Vec::new();
+        let mut finishers: Vec<(Box<dyn FnOnce(&[FpVector]) + '_>, Range<usize>)> = Vec::new();
+
+        for liftable in &self.liftables {
+            if let Some(mut req) = liftable.prepare(b) {
+                let start = inputs.len();
+                inputs.append(&mut req.inputs);
+                finishers.push((req.finish, start..inputs.len()));
+            }
+        }
+
+        if !inputs.is_empty() {
+            // Every liftable at output `b` lifts through the same quasi-inverse, so all results have
+            // the target's module dimension at `b`.
+            let fx_dim = self.target.module(b.s()).dimension(b.t());
+            let mut results = vec![FpVector::new(p, fx_dim); inputs.len()];
+            assert!(self.target.apply_quasi_inverse(&mut results, b, &inputs));
+            for (finish, range) in finishers {
+                finish(&results[range]);
+            }
+        }
+
+        let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
+        (frontier.start as i32 + min_t)..(frontier.end as i32 + min_t)
     }
 }
 

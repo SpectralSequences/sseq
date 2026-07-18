@@ -31,7 +31,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
-    resolution_homomorphism::ResolutionHomomorphism,
+    resolution_homomorphism::{Liftable, MultiLift, ResolutionHomomorphism},
     utils::{QueryModuleResolution, get_unit},
 };
 
@@ -194,6 +194,33 @@ where
         ));
 
         Arc::clone(self.products.entry(g).or_insert(hom).value())
+    }
+
+    /// Build the product map for every generator of $\Ext(M, k)$ in the computed range and extend
+    /// them all together, in bidegree-major order, via [`MultiLift`].
+    ///
+    /// All the product maps share the unit resolution as target, so lifting them together means the
+    /// unit's quasi-inverse at each output bidegree is solved once and reused across every product,
+    /// rather than once per product. With quasi-inverses recomputed on demand this keeps the cost of
+    /// computing all products at ~1x the on-disk-quasi-inverse baseline instead of scaling with the
+    /// number of generators.
+    pub fn extend_all_products(&self)
+    where
+        CC: Sync + 'static,
+    {
+        let liftables: Vec<Arc<dyn Liftable>> = self
+            .resolution
+            .iter_stem()
+            .flat_map(|b| {
+                (0..self.resolution.number_of_gens_in_bidegree(b))
+                    .map(move |i| BidegreeGenerator::new(b, i))
+            })
+            .map(|g| self.generator_product_map(g) as Arc<dyn Liftable>)
+            .collect();
+        if liftables.is_empty() {
+            return;
+        }
+        MultiLift::new(Arc::clone(&self.unit), liftables).extend_all();
     }
 
     /// Left-multiplication by the class `x` (in $\Ext(M, k)$), applied to every basis generator of
