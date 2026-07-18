@@ -288,13 +288,19 @@ impl<
     }
 
     /// Complete a homotopy step: persist and register the lifted `outputs`.
-    fn finish_step(&self, pending: &mut PendingHomotopy, outputs: &[FpVector]) -> std::ops::Range<i32> {
+    fn finish_step(
+        &self,
+        pending: &mut PendingHomotopy,
+        outputs: &[FpVector],
+    ) -> std::ops::Range<i32> {
         if let Some(store) = self.save_dir.store() {
             let mut buf = Vec::new();
             for row in outputs {
                 row.to_bytes(&mut buf).unwrap();
             }
-            store.write(SaveKind::ChainHomotopy, pending.source, &buf).unwrap();
+            store
+                .write(SaveKind::ChainHomotopy, pending.source, &buf)
+                .unwrap();
         }
         self.homotopies[pending.source.s()]
             .add_generators_from_rows_ooo(pending.source.t(), outputs.to_vec())
