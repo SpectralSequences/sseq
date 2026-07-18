@@ -486,7 +486,26 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
     /// Extend every liftable as far as the shared target is resolved, batching the quasi-inverse
     /// solve at each output bidegree.
     pub fn extend_all(&self) {
-        let max_s = self.target.next_homological_degree();
+        self.extend_bounded(None);
+    }
+
+    /// Like [`extend_all`](Self::extend_all), but only through the stem profile of `bound` — output
+    /// bidegrees `(s, t)` with `s <= bound.s()` and `n <= bound.n()`, the same shape
+    /// [`MuResolutionHomomorphism::extend_through_stem`] uses for a single map. Use this when the
+    /// batch's results are read only up to a known bidegree, so each liftable is extended to just
+    /// what it needs instead of across the whole computed plane.
+    pub fn extend_through_stem(&self, bound: Bidegree) {
+        self.extend_bounded(Some(bound));
+    }
+
+    /// Shared driver for [`extend_all`](Self::extend_all) and
+    /// [`extend_through_stem`](Self::extend_through_stem). `bound`, when present, caps the swept
+    /// output bidegrees to its stem profile (intersected with the target's computed range).
+    fn extend_bounded(&self, bound: Option<Bidegree>) {
+        let mut max_s = self.target.next_homological_degree();
+        if let Some(bound) = bound {
+            max_s = std::cmp::min(max_s, bound.s() + 1);
+        }
         if max_s <= 0 || self.liftables.is_empty() {
             return;
         }
@@ -501,9 +520,15 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
             completion.push(OnceVec::new());
         }
 
-        let max = BidegreeRange::new(self, max_s, &|selff: &Self, s| {
-            selff.target.module(s).max_computed_degree() + 1
-        });
+        let max_t = move |selff: &Self, s: i32| {
+            let mut t = selff.target.module(s).max_computed_degree() + 1;
+            if let Some(bound) = bound {
+                // Stem profile `n <= bound.n()`, i.e. `t <= bound.n() + s`, exclusive upper bound.
+                t = std::cmp::min(t, bound.n() + s + 1);
+            }
+            t
+        };
+        let max = BidegreeRange::new(self, max_s, &max_t);
 
         iter_s_t(&|b| self.step_cell(b, &completion, min_t), min, max);
     }
