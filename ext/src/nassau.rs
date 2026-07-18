@@ -611,9 +611,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         // Skip writing the quasi-inverse when `EXT_NASSAU_NO_SAVE_QI` is set; `apply_quasi_inverse`
         // recomputes it on demand from the differential (see `RecomputeReader`).
-        let mut f = if *SAVE_QI
-            && let Some(dir) = self.save_dir().write()
-        {
+        let mut f = if *SAVE_QI && let Some(dir) = self.save_dir().write() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
@@ -1281,8 +1279,9 @@ impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
         let t = b.t();
         // The subalgebra is chosen deterministically, as in `step_resolution_with_result` for the
         // step that computed `(s + 1, t)` (the step that wrote this qi).
-        let subalgebra =
-            MilnorSubalgebra::optimal_for(Bidegree::s_t(s + 1, t) - Bidegree::s_t(0, res.max_degree));
+        let subalgebra = MilnorSubalgebra::optimal_for(
+            Bidegree::s_t(s + 1, t) - Bidegree::s_t(0, res.max_degree),
+        );
         // `src` is the source of `d_s` (= F_s), `tgt` its target (= F_{s-1}).
         let src = &res.modules[s];
         let tgt = &res.modules[s - 1];
@@ -1348,7 +1347,9 @@ impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, src_mask.len(), [tgt_mask.len(), src_mask.len()]);
-        masked_matrix.segment(0, 0).add_masked(&full_matrix, &tgt_mask);
+        masked_matrix
+            .segment(0, 0)
+            .add_masked(&full_matrix, &tgt_mask);
         masked_matrix.segment(1, 1).add_identity();
         masked_matrix.row_reduce();
 

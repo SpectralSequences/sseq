@@ -210,7 +210,7 @@ where
     }
 
     /// Build the secondary product lift for every generator of $\Ext(M, k)$ in the computed range
-    /// and extend them all together, in bidegree-major order, via [`MultiLift`] — the secondary
+    /// and extend them all together, in bidegree-major order, via [`MultiLift`](crate::resolution_homomorphism::MultiLift) — the secondary
     /// analogue of [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products). Must be
     /// called after [`extend_all`](Self::extend_all).
     ///
@@ -349,7 +349,7 @@ mod tests {
         assert!(!h4_survives, "h4 should not survive d2");
     }
 
-    /// Batching every secondary product together through [`MultiLift`]
+    /// Batching every secondary product together through [`MultiLift`](crate::resolution_homomorphism::MultiLift)
     /// ([`extend_all_secondary_products`](SecondaryExtAlgebra::extend_all_secondary_products)) must
     /// give the same $\Mod_{C\lambda^2}$ products as extending each lift on its own (the per-call
     /// path inside [`secondary_multiply_into`](SecondaryExtAlgebra::secondary_multiply_into)). This
@@ -389,9 +389,16 @@ mod tests {
                 // Reference extends this lift on its own; batched reuses the pre-extended one.
                 let pr = sec_ref.secondary_multiply_into(&x_ref, b);
                 let pb = sec_bat.secondary_multiply_into(&x_bat, b);
-                assert_eq!(pr.len(), pb.len(), "product count differs at x={x_ref}, b={b}");
+                assert_eq!(
+                    pr.len(),
+                    pb.len(),
+                    "product count differs at x={x_ref}, b={b}"
+                );
                 for (r, t) in pr.iter().zip(&pb) {
-                    assert_eq!(r.ext_part, t.ext_part, "ext part differs at x={x_ref}, b={b}");
+                    assert_eq!(
+                        r.ext_part, t.ext_part,
+                        "ext part differs at x={x_ref}, b={b}"
+                    );
                     assert_eq!(
                         r.lambda_part, t.lambda_part,
                         "lambda part differs at x={x_ref}, b={b}"

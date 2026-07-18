@@ -321,7 +321,12 @@ where
                 None
             } else {
                 let mut fdx_vector = FpVector::new(p, fdx_dimension);
-                f_prev.apply(fdx_vector.as_slice_mut(), 1, input.t(), dx_vector.as_slice());
+                f_prev.apply(
+                    fdx_vector.as_slice_mut(),
+                    1,
+                    input.t(),
+                    dx_vector.as_slice(),
+                );
                 Some(fdx_vector)
             }
         };
@@ -345,7 +350,11 @@ where
     /// Complete a lift step: scatter the lifted `results` into the pending outputs, persist the
     /// chain map, and register the generators. `results[i]` is the lift of `pending.fdx_vectors[i]`
     /// and fills output row `pending.qi_rows[i]`.
-    pub(crate) fn finish_step(&self, pending: &mut PendingStep, results: &[FpVector]) -> Range<i32> {
+    pub(crate) fn finish_step(
+        &self,
+        pending: &mut PendingStep,
+        results: &[FpVector],
+    ) -> Range<i32> {
         assert_eq!(results.len(), pending.qi_rows.len());
         for (&k, result) in pending.qi_rows.iter().zip(results) {
             pending.outputs[k].assign(result);
