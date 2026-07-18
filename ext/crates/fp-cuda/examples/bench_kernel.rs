@@ -10,9 +10,8 @@ use rand::Rng;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gpu = GpuContext::new(0)?;
     let (major, minor) = gpu.compute_capability()?;
-    println!("GPU: sm_{major}{minor} (H100)");
+    println!("GPU: sm_{major}{minor}");
     println!("Timing includes host serialization + H2D + kernel + D2H.");
-    println!("The scalar B transpose in the kernel dominates; wgmma itself is starved.");
     println!();
 
     let mut rng = rand::rng();
@@ -82,11 +81,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  K-chunks per CTA: {}", k.div_ceil(256));
         println!();
     }
-
-    println!("Note: The H100 peak for binary tensor ops is ~360,000 TOPS.");
-    println!("Current utilization is <0.1% due to the scalar B transpose");
-    println!("dominating kernel runtime. Phase 2 (warp-shuffle transpose +");
-    println!("double-buffering) is needed to approach peak.");
 
     Ok(())
 }

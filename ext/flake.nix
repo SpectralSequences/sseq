@@ -44,35 +44,28 @@
         ]
         ++ super.defaultPackages.devTools.${system};
 
-      # CUDA toolkit is only needed for `cargo build -p fp-cuda` (the Hopper
-      # wgmma.b1 backend). Kept out of `commonPackages` to avoid pulling
-      # multi-GB CUDA into the `apps.test` closure used by CI.
-      cudaPackages = [
-        pkgs.cudaPackages.cudatoolkit
-        # cuda-oxide's `cuda-bindings` crate runs `bindgen` against cuda.h,
-        # which needs libclang at build time.
-        pkgs.llvmPackages.libclang.lib
-      ];
+      # CUDA toolkit for building fp-cuda's Hopper wgmma.b1 kernel: nvcc + headers
+      # at build time. Kept out of `commonPackages` (and the default shell) so
+      # contributors and the `apps.test`/CI closure don't fetch the multi-GB unfree
+      # CUDA tree for the opt-in backend. cudarc dlopens libcuda at runtime, so
+      # only running — not building the Rust — needs the host driver.
+      cudatoolkit = pkgs.cudaPackages.cudatoolkit;
     in {
       devShells.default = pkgs.mkShell {
-        packages = commonPackages ++ cudaPackages;
+        packages = commonPackages;
         shellHook = ''
           export RUST_LOG=info
+        '';
+      };
 
-          # CUDA: make nvcc find headers + libs, and satisfy cuda-oxide's
-          # cuda-bindings build.rs (which reads CUDA_TOOLKIT_PATH, defaulting
-          # to /usr/local/cuda otherwise).
-          export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
-          export CUDA_TOOLKIT_PATH=${pkgs.cudaPackages.cudatoolkit}
-          export CPATH="$CUDA_PATH/include''${CPATH:+:$CPATH}"
-          export LIBRARY_PATH="$CUDA_PATH/lib64''${LIBRARY_PATH:+:$LIBRARY_PATH}"
-
-          # libclang for bindgen (used by cuda-oxide's cuda-bindings crate).
-          # libclang loaded as a .so doesn't pick up the wrapped clang's
-          # auto-discovered libc/gcc include paths the way the clang binary
-          # does, so we feed them via BINDGEN_EXTRA_CLANG_ARGS.
-          export LIBCLANG_PATH=${pkgs.llvmPackages.libclang.lib}/lib
-          export BINDGEN_EXTRA_CLANG_ARGS="$(< ${pkgs.stdenv.cc}/nix-support/libc-crt1-cflags) $(< ${pkgs.stdenv.cc}/nix-support/libc-cflags) $(< ${pkgs.stdenv.cc}/nix-support/cc-cflags) $(< ${pkgs.stdenv.cc}/nix-support/libcxx-cxxflags 2>/dev/null || true)"
+      # GPU dev shell: `nix develop .#gpu`. Adds the CUDA toolkit (nvcc + headers)
+      # and points the loader at both it and the host driver's libcuda.
+      devShells.gpu = pkgs.mkShell {
+        packages = commonPackages ++ [cudatoolkit];
+        shellHook = ''
+          export RUST_LOG=info
+          export CUDA_PATH="${cudatoolkit}"
+          export LD_LIBRARY_PATH="${cudatoolkit}/lib:/run/opengl-driver/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         '';
       };
 

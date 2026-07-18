@@ -56,9 +56,9 @@ fn main() {
             "nvcc failed to compile {KERNEL_SRC} (exit status: {s}).\nCheck that your CUDA \
              Toolkit supports {ARCH} (Hopper sm_90a)."
         ),
-        // nvcc not found: degrade to a stub so the crate still builds. The GPU
-        // backend is simply unavailable at runtime.
-        Err(e) => {
+        // nvcc genuinely absent: degrade to a stub so the crate still builds.
+        // The GPU backend is simply unavailable at runtime.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             println!(
                 "cargo:warning=fp-cuda: nvcc not found ('{nvcc}': {e}); emitting a stub PTX. The \
                  GPU backend will be unavailable at runtime. Install the CUDA Toolkit (12.x+) and \
@@ -66,5 +66,11 @@ fn main() {
             );
             fs::write(&ptx_out, STUB_PTX).expect("failed to write stub PTX to OUT_DIR");
         }
+        // nvcc is present but couldn't be executed (permissions, a broken exec,
+        // etc.): fail fast rather than silently hiding a broken CUDA setup.
+        Err(e) => panic!(
+            "failed to run nvcc ('{nvcc}': {e}). Set the NVCC env var to a working nvcc, or unset \
+             it to fall back to a stub only when nvcc is absent."
+        ),
     }
 }

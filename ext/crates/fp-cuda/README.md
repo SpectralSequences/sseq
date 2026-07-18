@@ -23,9 +23,11 @@ nvcc on `PATH` and (at runtime) a Hopper-class GPU.
 1. **nvcc** (CUDA Toolkit 12.x+, since TMA + wgmma require 12.0+) on `PATH`,
    with Hopper (sm_90a) support. Override the binary location with the
    `NVCC` env var if needed.
-2. A **Hopper or newer GPU** at runtime (sm_90 / sm_90a / sm_100). PTX load
-   will fail on pre-Hopper devices because the kernel emits `wgmma.*` and
-   `cp.async.bulk.tensor.*` instructions that only exist on sm_90+.
+2. A **Hopper GPU** at runtime (sm_90a). The kernel is built for `sm_90a`, an
+   architecture-specific target that is **not** forward-compatible, so the PTX
+   runs only on Hopper — not on pre-Hopper devices (which lack the `wgmma.*` and
+   `cp.async.bulk.tensor.*` instructions it emits) nor on newer architectures
+   such as Blackwell (`sm_100`).
 
 Builds on **stable** Rust — no nightly toolchain required. (`nvcc` is still
 needed at build time to compile the kernel to PTX, and a CUDA driver at runtime.)
@@ -192,7 +194,7 @@ Done:
 
 Phases 8–9 were validated on hardware (H200 NVL) alongside 10–12.
 
-- **Wired into `fp`** — the `fp` crate has an optional `cuda` feature
+- **Wired into `fp`** — the `fp` crate has an optional `gpu` feature
   (`cargo …--features fp/gpu`) that pulls in `fp-cuda` and dispatches large
   `p = 2` products from `<&Matrix as Mul>::mul` to the GPU, falling back to the
   CPU BLAS kernel when no device is present, the size is below

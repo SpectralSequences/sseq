@@ -1,6 +1,6 @@
 //! GPU dispatch for F₂ matrix multiplication (Hopper `wgmma.b1`).
 //!
-//! Compiled only under the `cuda` feature. [`try_mul`] is consulted by
+//! Compiled only under the `gpu` feature. [`try_mul`] is consulted by
 //! `<&Matrix as Mul>::mul` before the CPU BLAS path: for large enough `p = 2`
 //! products it converts the operands to the raw row-major limb layout
 //! `fp-cuda` expects, runs the kernel, and rebuilds a [`Matrix`]. Anything that

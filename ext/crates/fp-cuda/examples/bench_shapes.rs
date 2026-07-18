@@ -21,8 +21,13 @@ fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gpu = GpuContext::new(0)?;
-    let l2_mb = 50.0; // H100 NVL L2
-    println!("GPU L2 ~= {l2_mb} MB. B in L2 (bytes = K*N/8) governs cross-M-tile reuse.\n");
+    // Assumed L2 capacity (H100 / H200 NVL ≈ 50 MB); not read from the device.
+    // Override when profiling a card with a different L2 size.
+    let l2_mb = 50.0;
+    println!(
+        "Assumed GPU L2 ~= {l2_mb} MB (H100/H200 NVL). B in L2 (bytes = K*N/8) governs \
+         cross-M-tile reuse.\n"
+    );
 
     let mut rng = rand::rng();
     let mut make = |rows: usize, cols: usize| {

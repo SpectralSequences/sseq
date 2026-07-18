@@ -76,7 +76,7 @@ members = [
 # `fp-cuda` builds its CUDA kernel with nvcc (falling back to a stub PTX when
 # nvcc is absent) and is opt-in. It stays out of the default member set so plain
 # workspace commands (`cargo build`, `cargo test`, `nix run .#test`) don't pull
-# it in; `fp`'s `cuda` feature depends on it explicitly when the GPU backend is
+# it in; `fp`'s `gpu` feature depends on it explicitly when the GPU backend is
 # wanted.
 default-members = [
     ".",
