@@ -595,13 +595,31 @@ pub use logging::{LogWriter, ext_tracing_subscriber, init_logging};
 
 pub(crate) mod parallel {
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::cell::Cell;
 
-    static PARALLEL_DEPTH: AtomicUsize = AtomicUsize::new(0);
+    thread_local! {
+        /// Depth of `par_iter_mut` critical sections currently entered *on this thread*.
+        ///
+        /// The priority inversion we guard against is narrow: a `step_resolution` job initiates a
+        /// `par_iter` on some rayon worker, which then blocks in the join and work-steals to stay
+        /// busy. If that blocked worker steals another (heavy, itself nested-parallel) resolution
+        /// step, that step runs on it and stalls the critical section it is blocked on. A stolen
+        /// job runs on the *same* OS thread as the worker that stole it, so a per-thread depth is
+        /// exactly the right signal: [`is_in_parallel`] reports whether *this* worker is a blocked
+        /// guard holder. A job picked up by any other worker — idle, or busy on non-critical work —
+        /// reads zero and is free to run, which is what lets independent bidegrees resolve
+        /// concurrently.
+        ///
+        /// Deliberately per-thread rather than a global count of active critical sections: a global
+        /// flag blocks *all* new work whenever *any* thread is in a critical section, which under
+        /// the relaxed wavefront (many bidegrees in flight) is nearly always, producing a retry
+        /// storm that pegs every core doing no useful work.
+        static PARALLEL_DEPTH: Cell<usize> = const { Cell::new(0) };
+    }
 
-    /// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
-    /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
-    /// inversion and retry.
+    /// RAII guard that increments this thread's [`PARALLEL_DEPTH`] on creation and decrements it on
+    /// drop. Used to mark regions where `par_iter_mut` work is active, so that a `step_resolution`
+    /// job stolen onto a blocked guard holder can detect the priority inversion and retry.
     pub(crate) struct ParallelGuard {
         #[allow(dead_code)]
         span: tracing::span::EnteredSpan,
@@ -609,8 +627,11 @@ pub(crate) mod parallel {
 
     impl ParallelGuard {
         pub(crate) fn new() -> Self {
-            // We use Release to synchronize with `is_in_parallel`
-            let counter_start = PARALLEL_DEPTH.fetch_add(1, Ordering::Release);
+            let counter_start = PARALLEL_DEPTH.with(|d| {
+                let v = d.get();
+                d.set(v + 1);
+                v
+            });
             Self {
                 span: tracing::info_span!(
                     "parallel_guard",
@@ -624,14 +645,20 @@ pub(crate) mod parallel {
 
     impl Drop for ParallelGuard {
         fn drop(&mut self) {
-            // We use Release to synchronize with `is_in_parallel`
-            let counter_end = PARALLEL_DEPTH.fetch_sub(1, Ordering::Release);
-            self.span.record("counter_end", counter_end - 1);
+            let counter_end = PARALLEL_DEPTH.with(|d| {
+                let v = d.get() - 1;
+                d.set(v);
+                v
+            });
+            self.span.record("counter_end", counter_end);
         }
     }
 
+    /// Whether the *current* thread is inside a `par_iter_mut` critical section, i.e. whether it is
+    /// a blocked guard holder onto which stealing a resolution step would cause a priority
+    /// inversion. See [`PARALLEL_DEPTH`].
     pub(crate) fn is_in_parallel() -> bool {
-        PARALLEL_DEPTH.load(Ordering::Acquire) > 0
+        PARALLEL_DEPTH.with(|d| d.get() > 0)
     }
 }
 
