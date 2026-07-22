@@ -1083,7 +1083,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
             let (sender, receiver) = mpsc::channel();
 
-            let f = |b: Bidegree, sender: mpsc::Sender<SenderData>| {
+            let spawn_bidegree = |b: Bidegree, sender: mpsc::Sender<SenderData>| {
                 if self.has_computed_bidegree(b) {
                     SenderData::send(b, sender);
                 } else {
@@ -1105,14 +1105,70 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             // diagonal predecessor `(0, min_degree)` is in region, so we let it be spawned instead.
             for s in 0..=max_s {
                 if s != 1 {
-                    f(Bidegree::s_t(s, min_degree), sender.clone());
+                    spawn_bidegree(Bidegree::s_t(s, min_degree), sender.clone());
                 }
             }
             drop(sender);
 
-            while let Ok(SenderData { b, retry, sender }) = receiver.recv() {
+            // Bidegrees whose spawned job found the linear-algebra critical section busy (see
+            // `ParallelGuard` and `is_in_parallel`) and bounced back a retry, parked here until it
+            // frees. The relaxed wavefront keeps many bidegrees in flight at once, so at any instant
+            // it is fairly likely that *some* job is inside a critical section. The original design
+            // re-spawned a bounced job immediately, which just re-checked `is_in_parallel`, found it
+            // still busy, and bounced again — a whole rayon job spawned per re-check, pegging every
+            // core on a retry storm that does no useful work. Instead the receiver checks the flag
+            // itself (a cheap atomic load) and only parks when busy.
+            //
+            // A job acquires and releases its guards many times and spends most of its time outside
+            // them, so the critical section frees far more often than jobs complete — it is *not*
+            // safe to only re-check parked bidegrees on completions (that both wastes the free
+            // windows between guards and can deadlock if every completion happens to observe the
+            // flag set). Instead, whenever anything is parked we wait on the channel with a short
+            // timeout and re-check the flag each time it elapses, so a parked bidegree is re-spawned
+            // as soon as the section frees. Incoming messages are still handled the instant they
+            // arrive; the timeout only governs how promptly we notice a free window while idle.
+            let mut deferred: Vec<(Bidegree, mpsc::Sender<SenderData>)> = Vec::new();
+            // How long to wait for a message before re-checking `is_in_parallel` while bidegrees are
+            // parked. Small enough that a freed critical section is noticed promptly, large enough
+            // that the poll itself is negligible; it only ticks while something is parked.
+            const RETRY_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_micros(100);
+
+            loop {
+                // Re-spawn parked bidegrees as soon as the critical section is free. If a job is
+                // still inside one, leave them parked; the timed wait below re-checks shortly. This
+                // cannot deadlock: a bidegree is only ever parked while `is_in_parallel` holds, and
+                // the flag drops to free whenever the running jobs are all outside their guards (in
+                // particular once they finish), at which point a re-check wakes the parked work.
+                if !deferred.is_empty() && !crate::utils::parallel::is_in_parallel() {
+                    for (b, sender) in std::mem::take(&mut deferred) {
+                        spawn_bidegree(b, sender);
+                    }
+                }
+
+                let SenderData { b, retry, sender } = if deferred.is_empty() {
+                    // Nothing parked: block until a message arrives or all senders drop.
+                    match receiver.recv() {
+                        Ok(data) => data,
+                        Err(_) => break,
+                    }
+                } else {
+                    // Something parked: wake periodically to re-check the flag. Parked entries hold
+                    // senders, so the channel cannot be disconnected here.
+                    match receiver.recv_timeout(RETRY_POLL_INTERVAL) {
+                        Ok(data) => data,
+                        Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    }
+                };
+
                 if retry {
-                    f(b, sender);
+                    if crate::utils::parallel::is_in_parallel() {
+                        // Still busy: park until the critical section frees.
+                        deferred.push((b, sender));
+                    } else {
+                        // Free now: re-spawn right away.
+                        spawn_bidegree(b, sender);
+                    }
                     continue;
                 }
                 assert!(progress[b.s() as usize] == b.t() - 1);
@@ -1130,7 +1186,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
                 for cand in [same_row, diagonal] {
                     if ready(cand.s(), cand.t(), &progress) {
-                        f(cand, sender.clone());
+                        spawn_bidegree(cand, sender.clone());
                     }
                 }
             }
