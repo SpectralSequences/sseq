@@ -660,6 +660,43 @@ pub(crate) mod parallel {
     pub(crate) fn is_in_parallel() -> bool {
         PARALLEL_DEPTH.with(|d| d.get() > 0)
     }
+
+    #[cfg(test)]
+    mod tests {
+        use std::sync::mpsc;
+
+        use super::{ParallelGuard, is_in_parallel};
+
+        /// A [`ParallelGuard`] held on one thread must not be visible on another: the whole point of
+        /// making `PARALLEL_DEPTH` thread-local is that a resolution step stolen onto a free worker
+        /// reads zero. Guards against a regression to a shared counter.
+        #[test]
+        fn parallel_guard_is_thread_local() {
+            assert!(!is_in_parallel());
+
+            let (held_tx, held_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+
+            let handle = std::thread::spawn(move || {
+                let guard = ParallelGuard::new();
+                // Visible on the thread that holds it.
+                assert!(is_in_parallel());
+                held_tx.send(()).unwrap();
+                // Keep the guard alive until the main thread has checked.
+                release_rx.recv().unwrap();
+                drop(guard);
+                // Cleared once dropped.
+                assert!(!is_in_parallel());
+            });
+
+            // Once the other thread holds the guard, it must be invisible here.
+            held_rx.recv().unwrap();
+            assert!(!is_in_parallel());
+            release_tx.send(()).unwrap();
+
+            handle.join().unwrap();
+        }
+    }
 }
 
 /// The value of the SECONDARY_JOB environment variable.
