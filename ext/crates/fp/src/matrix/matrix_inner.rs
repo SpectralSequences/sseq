@@ -677,11 +677,45 @@ impl Matrix {
         // For large p = 2 matrices, try the device-resident GPU reduction; it
         // produces the identical canonical RREF + pivots. Falls back to the CPU
         // M4RI path below when the GPU is unavailable or below threshold.
+        //
+        // Instrumentation: for every p=2 reduction of a non-trivial matrix
+        // (min(rows,cols) >= 1024) we emit a `fp::rr` tracing event recording the
+        // dimensions and whether the GPU path was taken (`path="gpu"`) or it fell
+        // back to CPU M4RI (`path="cpu"` — either below the 8192 threshold or a
+        // launch failure; the logged dims disambiguate). The event inherits the
+        // active nassau span, so it carries the bidegree/signature context.
         #[cfg(feature = "gpu")]
-        if p == 2
-            && let Some(rank) = crate::blas::cuda::try_row_reduce(self)
-        {
-            return rank;
+        if p == 2 {
+            let (rr_rows, rr_cols) = (self.rows(), self.columns());
+            let rr_big = rr_rows.min(rr_cols) >= 1024;
+            match crate::blas::cuda::try_row_reduce(self) {
+                Some(rank) => {
+                    if rr_big {
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "gpu",
+                            rank,
+                            "row_reduce"
+                        );
+                    }
+                    return rank;
+                }
+                None => {
+                    if rr_big {
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "cpu",
+                            "row_reduce"
+                        );
+                    }
+                }
+            }
         }
 
         self.initialize_pivots();
