@@ -124,8 +124,7 @@ pub struct GpuContext {
     xor_into: CudaFunction,
     panel_factor: CudaFunction,
     panel_factor_coop: CudaFunction,
-    pf_find: CudaFunction,
-    pf_swap: CudaFunction,
+    pf_find_swap: CudaFunction,
     pf_xor: CudaFunction,
     mark_live: CudaFunction,
     promote_pivots: CudaFunction,
@@ -155,8 +154,7 @@ impl GpuContext {
         let xor_into = module.load_function("xor_into")?;
         let panel_factor = module.load_function("panel_factor")?;
         let panel_factor_coop = module.load_function("panel_factor_coop")?;
-        let pf_find = module.load_function("pf_find")?;
-        let pf_swap = module.load_function("pf_swap")?;
+        let pf_find_swap = module.load_function("pf_find_swap")?;
         let pf_xor = module.load_function("pf_xor")?;
         let mark_live = module.load_function("mark_live")?;
         let promote_pivots = module.load_function("promote_pivots")?;
@@ -179,8 +177,7 @@ impl GpuContext {
             xor_into,
             panel_factor,
             panel_factor_coop,
-            pf_find,
-            pf_swap,
+            pf_find_swap,
             pf_xor,
             mark_live,
             promote_pivots,
@@ -933,13 +930,15 @@ impl GpuContext {
         let smem = THREADS * std::mem::size_of::<i32>() as u32;
 
         // Device-resident per-step state: pivot count, find-first result (INF =
-        // none), this step's pivot position (pf_xor's guard), and the pivot row's
-        // bl panel limbs. g_min starts INF; g_pr starts 0.
+        // none), this step's pivot position (pf_xor's guard), the pivot row's bl
+        // panel limbs, and the last-CTA-finalize arrival counter. g_min starts INF;
+        // g_pr and arrival start 0 (arrival self-resets to 0 each step).
         let pivcols = stream.alloc_zeros::<u32>(bl * 64)?;
         let mut g_pr = stream.alloc_zeros::<u32>(1)?;
         let mut g_min = stream.clone_htod(&[INF])?;
         let g_pivpos = stream.alloc_zeros::<i32>(1)?;
         let mut g_pivword = stream.alloc_zeros::<u64>(bl)?;
+        let mut arrival = stream.alloc_zeros::<u32>(1)?;
 
         // Regular launches wave-schedule, so the grid can be sized purely to cover
         // the active rows once; cap at occ×SMs for launch efficiency.
@@ -953,10 +952,20 @@ impl GpuContext {
             .max(1);
         let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
+        // Each step's grid-wide min-reduce + last-CTA finalize contends on g_min /
+        // arrival across all CTAs, so — like the cooperative kernel's FP_CUDA_PF_CTAS
+        // — a smaller grid makes every step cheaper once it still covers the rows.
+        // Cap at 128 (H200 sweet spot); overridable.
+        let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(128)
+            .clamp(1, num_ctas);
 
-        let (r_u, m_u, stride_u, l_stride_u, ppanel_u, bl_u) = (
+        let (r_u, m_u, n_u, stride_u, l_stride_u, ppanel_u, bl_u) = (
             r as u32,
             m_active as u32,
+            m.cols as u32,
             m.stride as u32,
             l.stride as u32,
             ppanel as u32,
@@ -972,56 +981,37 @@ impl GpuContext {
             block_dim: (THREADS, 1, 1),
             shared_mem_bytes: 0,
         };
-        let one_cfg = LaunchConfig {
-            grid_dim: (1, 1, 1),
-            block_dim: (1, 1, 1),
-            shared_mem_bytes: 0,
-        };
 
         for cc in 0..(bl * 64) {
-            let q = ppanel * 64 + cc;
-            if q >= m.cols {
+            if ppanel * 64 + cc >= m.cols {
                 break;
             }
-            let (plimb_u, j_u, cc_u, q_u) = (
-                (ppanel + cc / 64) as u32,
-                (cc & 63) as u32,
-                cc as u32,
-                q as u32,
-            );
+            let (plimb_u, j_u, cc_u) = ((ppanel + cc / 64) as u32, (cc & 63) as u32, cc as u32);
 
-            // (1) find-first pivot for column q → g_min.
+            // (1) find-first pivot for column q and swap it up — one launch, its
+            // grid-wide min finalized by the last CTA to arrive (no barrier).
             {
-                let mut lb = stream.launch_builder(&self.pf_find);
-                lb.arg(&m.buf)
-                    .arg(&*perm)
-                    .arg(&g_pr)
-                    .arg(&mut g_min)
-                    .arg(&plimb_u)
-                    .arg(&j_u)
-                    .arg(&r_u)
-                    .arg(&m_u)
-                    .arg(&stride_u);
-                unsafe { lb.launch(find_cfg) }?;
-            }
-            // (2) swap the pivot up, record it, bump g_pr, reset g_min (1 thread).
-            {
-                let mut lb = stream.launch_builder(&self.pf_swap);
-                lb.arg(&m.buf)
+                let mut lb = stream.launch_builder(&self.pf_find_swap);
+                lb.arg(&mut m.buf)
                     .arg(&mut *perm)
                     .arg(&pivcols)
                     .arg(&mut g_pivword)
                     .arg(&mut g_min)
                     .arg(&mut g_pr)
                     .arg(&g_pivpos)
+                    .arg(&mut arrival)
                     .arg(&ppanel_u)
                     .arg(&bl_u)
+                    .arg(&j_u)
+                    .arg(&plimb_u)
+                    .arg(&cc_u)
                     .arg(&r_u)
+                    .arg(&m_u)
                     .arg(&stride_u)
-                    .arg(&q_u);
-                unsafe { lb.launch(one_cfg) }?;
+                    .arg(&n_u);
+                unsafe { lb.launch(find_cfg) }?;
             }
-            // (3) clear the pivot from the rows below, across all bl panel limbs.
+            // (2) clear the pivot from the rows below, across all bl panel limbs.
             {
                 let mut lb = stream.launch_builder(&self.pf_xor);
                 lb.arg(&mut m.buf)
@@ -1807,6 +1797,19 @@ impl GpuContext {
         &self,
         m: &mut DeviceMatrix,
     ) -> anyhow::Result<(CudaSlice<u32>, usize, Vec<usize>)> {
+        if std::env::var_os("FP_CUDA_RR_TIMING").is_some() {
+            let t0 = std::time::Instant::now();
+            let (perm, r, pivot_cols) = self.forward_reduce(m)?;
+            let t1 = std::time::Instant::now();
+            self.back_substitute(m, &perm, r, &pivot_cols)?;
+            let t2 = std::time::Instant::now();
+            eprintln!(
+                "[rr_timing] forward={:.3}s back={:.3}s (r={r})",
+                (t1 - t0).as_secs_f64(),
+                (t2 - t1).as_secs_f64(),
+            );
+            return Ok((perm, r, pivot_cols));
+        }
         let (perm, r, pivot_cols) = self.forward_reduce(m)?;
         self.back_substitute(m, &perm, r, &pivot_cols)?;
         Ok((perm, r, pivot_cols))
