@@ -47,6 +47,29 @@ fn adaptive_bl(stride: usize) -> usize {
     (stride / div).clamp(1, 16)
 }
 
+/// Whether the row reduction uses its **cooperative** kernels — `panel_factor_coop`,
+/// `promote_coop`, `block_reduce_coop` — launched with `cuLaunchCooperativeKernel`
+/// and synchronized by a hand-rolled grid-wide spin barrier.
+///
+/// The cooperative launch requires **all** the grid's CTAs to be co-resident at once
+/// (the barrier spins waiting for every CTA to arrive). That holds only when this
+/// process owns the whole GPU: a kernel from another CUDA runtime sharing the device
+/// — e.g. `cubecl`'s Milnor multiply in the `algebra` crate — can occupy SMs and
+/// prevent co-residency, so the missing CTAs never reach the barrier and the resident
+/// ones spin forever (the intermittent stem-150 wedge, flat sm=100%).
+///
+/// **Off by default**, so the reduction composes safely with concurrent GPU work: the
+/// forward pass runs the single-CTA `panel_factor` over one limb at a time, promotion
+/// uses the grid-strided `promote_pivots`, and back-substitution uses the single-CTA
+/// `block_reduce_rref` — none of which launch cooperatively. Set `FP_CUDA_RR_COOP=1`
+/// to opt into the faster cooperative path on a GPU dedicated to this process
+/// (measured +5–18% on the wide reductions).
+fn rr_coop() -> bool {
+    std::env::var("FP_CUDA_RR_COOP")
+        .map(|v| v != "0" && !v.is_empty())
+        .unwrap_or(false)
+}
+
 /// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
 /// through cudarc's typed launch builder. `repr(transparent)` so the pointer
 /// cudarc pushes is the address of the 128-byte descriptor itself.
@@ -1110,11 +1133,20 @@ impl GpuContext {
         let mut perm = self.identity_perm(rows)?;
         let mut r = 0usize;
         let mut pivot_cols = Vec::new();
+        // Cooperative vs. composable kernels (see [`rr_coop`]). The non-cooperative
+        // path never launches a cooperative grid, so it composes with concurrent GPU
+        // work at the cost of the single-CTA panel factor; the cooperative path is the
+        // faster exclusive-GPU mode.
+        let coop = rr_coop();
+
         // Panel width in limbs (b = 64·bl columns). Wider panels raise the
         // trailing GEMM's contraction dimension pr toward b, reclaiming the ~16×
         // K-padding waste. Override with FP_CUDA_BL; otherwise adaptive_bl picks
-        // the measured optimum (flat at bl≈12–16).
-        let bl = if let Some(v) = std::env::var("FP_CUDA_BL")
+        // the measured optimum (flat at bl≈12–16). The single-CTA `panel_factor`
+        // used on the non-cooperative path handles exactly one limb, so force bl=1.
+        let bl = if !coop {
+            1
+        } else if let Some(v) = std::env::var("FP_CUDA_BL")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
         {
@@ -1132,7 +1164,7 @@ impl GpuContext {
         // Cooperative multi-CTA promotion (right-looking) replaces the single-CTA
         // triangular replay when the matrix is wide enough to amortize the grid
         // barriers; otherwise the grid-strided promote_pivots kernel is used.
-        let use_promote_coop = stride >= 1024;
+        let use_promote_coop = coop && stride >= 1024;
         let (pc_ctas, mut pc_barrier, pc_cond) = if use_promote_coop {
             let sms = self
                 .ctx
@@ -1181,8 +1213,13 @@ impl GpuContext {
                 cols: bl_eff * 64,
                 stride: bl_eff,
             };
-            let (pr, pivcols) =
-                self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)?;
+            let (pr, pivcols) = if coop {
+                self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)?
+            } else {
+                // Single-CTA factor of this one limb (bl_eff == 1). Scans all rows
+                // [r, rows); compaction still parks dead rows and drives the break.
+                self.panel_factor(m, &mut perm, &mut l, ppanel, r)?
+            };
             if pr > 0 {
                 for &q in &pivcols {
                     pivot_cols.push(q as usize);
@@ -1450,8 +1487,10 @@ impl GpuContext {
         // clear across the whole grid. The per-block cooperative launch + grid
         // barriers only pay once the block work (≈ bp·stride) is large, so gate on
         // a wide matrix; below that the single-CTA kernel wins. Measured (H200):
-        // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷.
-        let use_coop = stride >= 1024;
+        // neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷. Only when the
+        // cooperative path is enabled (see [`rr_coop`]); otherwise the single-CTA
+        // block_reduce_rref runs so back-substitution launches no cooperative grid.
+        let use_coop = rr_coop() && stride >= 1024;
 
         // Pivots per back-substitution block. Wider blocks raise the X·U GEMM's
         // contraction dimension bp toward TILE_K, cutting its K-padding waste
