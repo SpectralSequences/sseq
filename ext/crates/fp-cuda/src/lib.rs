@@ -61,13 +61,15 @@ fn adaptive_bl(stride: usize) -> usize {
 /// **Off by default**, so the reduction composes safely with concurrent GPU work.
 /// The default path keeps the cooperative kernels' all-SM parallelism but replaces
 /// their in-grid `grid_sync` with kernel-boundary (stream-ordered) synchronization:
-/// the forward pass runs the streamed `pf_find`/`pf_swap`/`pf_xor` triplet per bit-
-/// step, promotion uses the grid-strided `promote_pivots`, and back-substitution the
-/// streamed `br_cond`/`br_xor` pair (single-CTA `block_reduce_rref` below stride
-/// 1024). None launch cooperatively, so none can deadlock. Measured within ~1.1–1.2×
-/// of cooperative through stride 512 (the Nassau regime), widening to ~1.9× only past
-/// stride 1024 where cooperative also fuses promote and block-reduce. Set
-/// `FP_CUDA_RR_COOP=1` to opt into the cooperative path on a dedicated GPU.
+/// the forward pass runs `pf_find_swap` then a fused `pf_step` per column (each a
+/// grid-wide reduction finalized by the last CTA to arrive — no barrier, no co-
+/// residency), promotion uses the grid-strided `promote_pivots`, and back-
+/// substitution the streamed `br_cond`/`br_xor` pair (single-CTA `block_reduce_rref`
+/// below stride 1024). None launch cooperatively, so none can deadlock. The residual
+/// cost is the forward pass's per-column relaunch vs the persistent cooperative grid:
+/// ~2× at n≈2¹⁷, shrinking with size (~1.4× total at 2¹⁸, converging as the O(cols)
+/// launch term is dwarfed by the O(cols²) work). Set `FP_CUDA_RR_COOP=1` to opt into
+/// the cooperative path on a dedicated GPU.
 fn rr_coop() -> bool {
     std::env::var("FP_CUDA_RR_COOP")
         .map(|v| v != "0" && !v.is_empty())
@@ -118,6 +120,7 @@ pub struct GpuContext {
     panel_factor: CudaFunction,
     panel_factor_coop: CudaFunction,
     pf_find_swap: CudaFunction,
+    pf_step: CudaFunction,
     pf_xor: CudaFunction,
     mark_live: CudaFunction,
     promote_pivots: CudaFunction,
@@ -144,6 +147,7 @@ impl GpuContext {
         let panel_factor = module.load_function("panel_factor")?;
         let panel_factor_coop = module.load_function("panel_factor_coop")?;
         let pf_find_swap = module.load_function("pf_find_swap")?;
+        let pf_step = module.load_function("pf_step")?;
         let pf_xor = module.load_function("pf_xor")?;
         let mark_live = module.load_function("mark_live")?;
         let promote_pivots = module.load_function("promote_pivots")?;
@@ -167,6 +171,7 @@ impl GpuContext {
             panel_factor,
             panel_factor_coop,
             pf_find_swap,
+            pf_step,
             pf_xor,
             mark_live,
             promote_pivots,
@@ -988,55 +993,77 @@ impl GpuContext {
             shared_mem_bytes: 0,
         };
 
-        for cc in 0..(bl * 64) {
-            if ppanel * 64 + cc >= m.cols {
-                break;
-            }
-            let (plimb_u, j_u, cc_u) =
-                ((ppanel + cc / 64) as u32, (cc & 63) as u32, cc as u32);
+        // Valid columns in this panel (the last panel may be short).
+        let ncols = (bl * 64).min(m.cols - ppanel * 64);
 
-            // (1) find-first pivot for column q and swap it up — one launch, its
-            // grid-wide min finalized by the last CTA to arrive (no barrier).
-            {
-                let mut lb = stream.launch_builder(&self.pf_find_swap);
-                lb.arg(&mut m.buf)
-                    .arg(&mut *perm)
-                    .arg(&pivcols)
-                    .arg(&mut g_pivword)
-                    .arg(&mut g_min)
-                    .arg(&mut g_pr)
-                    .arg(&g_pivpos)
-                    .arg(&mut arrival)
-                    .arg(&ppanel_u)
-                    .arg(&bl_u)
-                    .arg(&j_u)
-                    .arg(&plimb_u)
-                    .arg(&cc_u)
-                    .arg(&r_u)
-                    .arg(&m_u)
-                    .arg(&stride_u)
-                    .arg(&n_u);
-                unsafe { lb.launch(find_cfg) }?;
-            }
-            // (2) clear the pivot from the rows below, across all bl panel limbs.
-            {
-                let mut lb = stream.launch_builder(&self.pf_xor);
-                lb.arg(&mut m.buf)
-                    .arg(&*perm)
-                    .arg(&mut l.buf)
-                    .arg(&g_pivword)
-                    .arg(&g_pivpos)
-                    .arg(&g_pr)
-                    .arg(&ppanel_u)
-                    .arg(&bl_u)
-                    .arg(&cc_u)
-                    .arg(&j_u)
-                    .arg(&r_u)
-                    .arg(&m_u)
-                    .arg(&stride_u)
-                    .arg(&l_stride_u);
-                unsafe { lb.launch(grid_cfg) }?;
-            }
+        // (0) find+swap the first column's pivot (no trailing XOR yet).
+        {
+            let (plimb_u, j_u, cc_u) = (ppanel_u, 0u32, 0u32);
+            let mut lb = stream.launch_builder(&self.pf_find_swap);
+            lb.arg(&mut m.buf)
+                .arg(&mut *perm)
+                .arg(&pivcols)
+                .arg(&mut g_pivword)
+                .arg(&mut g_min)
+                .arg(&mut g_pr)
+                .arg(&g_pivpos)
+                .arg(&mut arrival)
+                .arg(&ppanel_u)
+                .arg(&bl_u)
+                .arg(&j_u)
+                .arg(&plimb_u)
+                .arg(&cc_u)
+                .arg(&r_u)
+                .arg(&m_u)
+                .arg(&stride_u)
+                .arg(&n_u);
+            unsafe { lb.launch(find_cfg) }?;
+        }
+
+        // (1) fused lookahead: each step clears column cc-1 and finds+swaps column
+        // cc — one launch per column instead of two, with the row read once.
+        for cc in 1..ncols {
+            let cc_u = cc as u32;
+            let mut lb = stream.launch_builder(&self.pf_step);
+            lb.arg(&mut m.buf)
+                .arg(&mut *perm)
+                .arg(&mut l.buf)
+                .arg(&pivcols)
+                .arg(&mut g_pivword)
+                .arg(&mut g_min)
+                .arg(&mut g_pr)
+                .arg(&g_pivpos)
+                .arg(&mut arrival)
+                .arg(&ppanel_u)
+                .arg(&bl_u)
+                .arg(&cc_u)
+                .arg(&r_u)
+                .arg(&m_u)
+                .arg(&stride_u)
+                .arg(&l_stride_u)
+                .arg(&n_u);
+            unsafe { lb.launch(find_cfg) }?;
+        }
+
+        // (2) clear the final column's pivot from the rows below.
+        {
+            let (cc_u, j_u) = ((ncols - 1) as u32, ((ncols - 1) & 63) as u32);
+            let mut lb = stream.launch_builder(&self.pf_xor);
+            lb.arg(&mut m.buf)
+                .arg(&*perm)
+                .arg(&mut l.buf)
+                .arg(&g_pivword)
+                .arg(&g_pivpos)
+                .arg(&g_pr)
+                .arg(&ppanel_u)
+                .arg(&bl_u)
+                .arg(&cc_u)
+                .arg(&j_u)
+                .arg(&r_u)
+                .arg(&m_u)
+                .arg(&stride_u)
+                .arg(&l_stride_u);
+            unsafe { lb.launch(grid_cfg) }?;
         }
 
         let pr = stream.clone_dtoh(&g_pr)?[0] as usize;

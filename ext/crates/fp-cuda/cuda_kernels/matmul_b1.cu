@@ -840,6 +840,97 @@ extern "C" __global__ void pf_find_swap(
     *g_pr = pr + 1;
 }
 
+// Fused lookahead step: clear the PREVIOUS column (cc-1) from the below rows AND
+// find+swap the pivot of the CURRENT column (cc), in one launch. Because the
+// forward sweep alternates xor(col j) then find(col j+1) over the *same* below-row
+// range, fusing them halves the panel factor's launches and — since each thread
+// owns the same rows in both phases (grid-stride) — lets it read each row once and
+// see its own XOR before scanning, cutting memory traffic. Correctness rests on:
+// (A) the previous pivot sits above the shared below-row range, (B) g_pivword /
+// g_pivpos / g_pr are read by every CTA in phase A before the last-CTA finalize
+// overwrites them (the arrival counter orders all phase-A reads before the single
+// finalize write). g_min INF, arrival 0 on entry; q ≥ n ⇒ find is skipped.
+extern "C" __global__ void pf_step(
+    u64_t* __restrict__ m_buf,
+    unsigned* __restrict__ perm,
+    u64_t* __restrict__ l_buf,
+    unsigned* __restrict__ pivcols,
+    u64_t* __restrict__ g_pivword,
+    int* __restrict__ g_min,
+    unsigned* __restrict__ g_pr,
+    int* __restrict__ g_pivpos,
+    unsigned* __restrict__ arrival,
+    unsigned ppanel, unsigned bl, unsigned cc,
+    unsigned r, unsigned m, unsigned stride, unsigned l_stride, unsigned n)
+{
+    extern __shared__ int s_red[];
+    const int tid = threadIdx.x;
+    const int nt = blockDim.x;
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+
+    const unsigned pr_now = *g_pr;      // pivots found through column cc-1
+    const int prev_pivpos = *g_pivpos;  // pivot position of column cc-1 (INF = free)
+
+    // ── Phase A: clear column cc-1 from the below rows [r+pr_now, m) ──
+    // (skipped if cc-1 was a free column). The previous pivot is at r+pr_now-1,
+    // above this range, so it is untouched.
+    if (prev_pivpos != 0x7fffffff) {
+        const unsigned prev_cc = cc - 1;
+        const unsigned pj = prev_cc & 63;
+        const unsigned prev_pr = pr_now - 1; // L index of the previous pivot
+        for (unsigned p = r + pr_now + gtid; p < m; p += gnt) {
+            unsigned row = perm[p];
+            u64_t* base = &m_buf[(u64_t)row * stride + ppanel];
+            if ((base[prev_cc / 64] >> pj) & 1ULL) {
+                l_buf[(u64_t)row * l_stride + (prev_pr >> 6)] |= (1ULL << (prev_pr & 63));
+                for (unsigned t = 0; t < bl; ++t)
+                    base[t] ^= g_pivword[t];
+            }
+        }
+    }
+
+    // ── Phase B: find-first for column cc over the same below rows ──
+    // Same thread owns the same rows as phase A, so its XORs are visible here.
+    const unsigned q = ppanel * 64 + cc;
+    const unsigned plimb = ppanel + cc / 64;
+    const unsigned j = cc & 63;
+    int local_min = 0x7fffffff;
+    if (q < n) {
+        for (unsigned p = r + pr_now + gtid; p < m; p += gnt) {
+            unsigned row = perm[p];
+            if ((m_buf[(u64_t)row * stride + plimb] >> j) & 1ULL)
+                local_min = min(local_min, (int)p);
+        }
+    }
+    s_red[tid] = local_min;
+    __syncthreads();
+    for (int off = nt / 2; off > 0; off >>= 1) {
+        if (tid < off) s_red[tid] = min(s_red[tid], s_red[tid + off]);
+        __syncthreads();
+    }
+    if (tid == 0) atomicMin(g_min, s_red[0]);
+    __threadfence();
+
+    __shared__ bool am_last;
+    if (tid == 0) am_last = (atomicInc(arrival, gridDim.x - 1) == gridDim.x - 1);
+    __syncthreads();
+    if (!am_last || tid != 0) return;
+
+    int pivpos = *g_min;
+    *g_pivpos = pivpos;
+    if (pivpos == 0x7fffffff) return; // free column
+    unsigned pivrow = perm[pivpos];
+    for (unsigned t = 0; t < bl; ++t)
+        g_pivword[t] = m_buf[(u64_t)pivrow * stride + ppanel + t];
+    unsigned a = r + pr_now;
+    perm[pivpos] = perm[a];
+    perm[a] = pivrow;
+    pivcols[pr_now] = q;
+    *g_min = 0x7fffffff;
+    *g_pr = pr_now + 1;
+}
+
 // masked XOR of the pivot row into the rows *below* it, across all bl panel limbs,
 // recording the multiplier bit into L. No-op on a free column (g_pivpos == INF).
 // g_pr has already been bumped by pf_swap, so this pivot's index is *g_pr - 1.
