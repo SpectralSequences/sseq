@@ -757,6 +757,110 @@ extern "C" __global__ void panel_factor_coop(
     if (gtid == 0) *pr_out = *g_pr;
 }
 
+// ── Streamed (kernel-boundary) panel factorization ───────────────────────────
+//
+// Same all-SM parallelism as panel_factor_coop, but WITHOUT a cooperative launch:
+// each of the ≤ bl·64 sequential bit-steps is three ordinary grid-wide kernels
+// (pf_find → pf_swap → pf_xor), and the *kernel boundary* — stream ordering —
+// replaces the in-grid `grid_sync`. This is how cuSOLVER/cuBLAS build grid-wide
+// multi-step algorithms: no all-CTAs-co-resident requirement, so it composes with
+// a concurrent kernel from another CUDA runtime (cubecl's Milnor multiply) instead
+// of deadlocking its grid barrier (the intermittent stem-150 wedge).
+//
+// All state stays on the device — g_pr (pivots so far), g_min (find-first result),
+// g_pivpos (this step's pivot position, for pf_xor's guard), g_pivword (the pivot
+// row's bl panel limbs). The host never reads back inside the loop, so it races
+// ahead queuing launches and their latency hides behind the GPU work. Bit-for-bit
+// identical to panel_factor_coop; g_min must be INF and g_pr 0 at entry.
+
+// find-first: smallest perm position p in [r+g_pr, m) whose row has bit q set;
+// atomicMin into g_min. Grid-strided over rows.
+extern "C" __global__ void pf_find(
+    const u64_t* __restrict__ m_buf,
+    const unsigned* __restrict__ perm,
+    const unsigned* __restrict__ g_pr,
+    int* __restrict__ g_min,
+    unsigned plimb, unsigned j, unsigned r, unsigned m, unsigned stride)
+{
+    extern __shared__ int s_red[];
+    const int tid = threadIdx.x;
+    const int nt = blockDim.x;
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    const unsigned pr = *g_pr;
+
+    int local_min = 0x7fffffff;
+    for (unsigned p = r + pr + gtid; p < m; p += gnt) {
+        unsigned row = perm[p];
+        if ((m_buf[(u64_t)row * stride + plimb] >> j) & 1ULL)
+            local_min = min(local_min, (int)p);
+    }
+    s_red[tid] = local_min;
+    __syncthreads();
+    for (int off = nt / 2; off > 0; off >>= 1) {
+        if (tid < off) s_red[tid] = min(s_red[tid], s_red[tid + off]);
+        __syncthreads();
+    }
+    if (tid == 0) atomicMin(g_min, s_red[0]);
+}
+
+// One thread: if a pivot was found, read its bl panel limbs into g_pivword, swap
+// it up to position r+g_pr (perm swap), record its column, bump g_pr, and reset
+// g_min to INF for the next step. Publishes the pivot position (or INF) to
+// g_pivpos so pf_xor knows whether to run. Free column ⇒ everything untouched.
+extern "C" __global__ void pf_swap(
+    const u64_t* __restrict__ m_buf,
+    unsigned* __restrict__ perm,
+    unsigned* __restrict__ pivcols,
+    u64_t* __restrict__ g_pivword,
+    int* __restrict__ g_min,
+    unsigned* __restrict__ g_pr,
+    int* __restrict__ g_pivpos,
+    unsigned ppanel, unsigned bl, unsigned r, unsigned stride, unsigned q)
+{
+    int pivpos = *g_min;
+    *g_pivpos = pivpos;
+    if (pivpos == 0x7fffffff) return; // free column
+    unsigned pr = *g_pr;
+    unsigned pivrow = perm[pivpos];
+    for (unsigned t = 0; t < bl; ++t)
+        g_pivword[t] = m_buf[(u64_t)pivrow * stride + ppanel + t];
+    unsigned a = r + pr;
+    perm[pivpos] = perm[a];
+    perm[a] = pivrow;
+    pivcols[pr] = q;
+    *g_min = 0x7fffffff; // reset for the next column
+    *g_pr = pr + 1;
+}
+
+// masked XOR of the pivot row into the rows *below* it, across all bl panel limbs,
+// recording the multiplier bit into L. No-op on a free column (g_pivpos == INF).
+// g_pr has already been bumped by pf_swap, so this pivot's index is *g_pr - 1.
+extern "C" __global__ void pf_xor(
+    u64_t* __restrict__ m_buf,
+    const unsigned* __restrict__ perm,
+    u64_t* __restrict__ l_buf,
+    const u64_t* __restrict__ g_pivword,
+    const int* __restrict__ g_pivpos,
+    const unsigned* __restrict__ g_pr,
+    unsigned ppanel, unsigned bl, unsigned cc, unsigned j,
+    unsigned r, unsigned m, unsigned stride, unsigned l_stride)
+{
+    if (*g_pivpos == 0x7fffffff) return; // free column: nothing to clear
+    const unsigned pr = *g_pr - 1;       // index of the pivot just placed
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    for (unsigned p = r + pr + 1 + gtid; p < m; p += gnt) {
+        unsigned row = perm[p];
+        u64_t* base = &m_buf[(u64_t)row * stride + ppanel];
+        if ((base[cc / 64] >> j) & 1ULL) {
+            l_buf[(u64_t)row * l_stride + (pr >> 6)] |= (1ULL << (pr & 63));
+            for (unsigned t = 0; t < bl; ++t)
+                base[t] ^= g_pivword[t];
+        }
+    }
+}
+
 // ── Active-row compaction (design §8.2) ──────────────────────────────────────
 //
 // A below row that is entirely zero across the remaining columns [start_limb,
@@ -973,6 +1077,50 @@ extern "C" __global__ void block_reduce_coop(
             m_buf[(u64_t)perm[s + j] * stride + c] ^= m_buf[(u64_t)rowk * stride + c];
         }
         goal += total_ctas; grid_sync(barrier, goal); // [B] finish k before next reads
+    }
+}
+
+// ── Streamed (kernel-boundary) block reduction ───────────────────────────────
+//
+// Non-cooperative equivalent of block_reduce_coop: the same grid-wide per-pivot
+// clear, but each of block_reduce_coop's two grid_syncs becomes a kernel boundary
+// (br_cond → br_xor per pivot k, high-to-low). No cooperative launch, so it
+// composes with concurrent GPU work. `cond` holds ≥ (e-s) unsigned; both are
+// launched per pivot with the same block-relative index k. Bit-identical to
+// block_reduce_coop / block_reduce_rref.
+
+// Gather the pivot-k bit of every earlier block row j ∈ [s, k) into cond[j-s],
+// *before* any XOR clears it. Grid-strided over the ≤64 earlier rows.
+extern "C" __global__ void br_cond(
+    const u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    const unsigned* __restrict__ pivcols,
+    unsigned s, unsigned k, unsigned stride, unsigned* __restrict__ cond)
+{
+    unsigned qk = pivcols[k];
+    unsigned qlimb = qk >> 6, qbit = qk & 63;
+    unsigned nj = k - s;
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    for (unsigned j = gtid; j < nj; j += gnt)
+        cond[j] = (unsigned)((m_buf[(u64_t)perm[s + j] * stride + qlimb] >> qbit) & 1ULL);
+}
+
+// XOR row k into every flagged earlier block row across all limbs, flattened over
+// (j, limb) across the grid.
+extern "C" __global__ void br_xor(
+    u64_t* __restrict__ m_buf, const unsigned* __restrict__ perm,
+    unsigned s, unsigned k, unsigned stride, const unsigned* __restrict__ cond)
+{
+    unsigned rowk = perm[k];
+    unsigned nj = k - s;
+    unsigned total = nj * stride;
+    const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned gnt = gridDim.x * blockDim.x;
+    for (unsigned idx = gtid; idx < total; idx += gnt) {
+        unsigned j = idx / stride;
+        if (!cond[j]) continue;
+        unsigned c = idx - j * stride;
+        m_buf[(u64_t)perm[s + j] * stride + c] ^= m_buf[(u64_t)rowk * stride + c];
     }
 }
 
