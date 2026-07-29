@@ -67,6 +67,30 @@ impl GpuContext {
         self.ctx.default_stream()
     }
 
+    /// A CUDA stream **private to the calling OS thread**, created lazily on first use and reused
+    /// thereafter. Submitting GPU work through this instead of the context's single `default_stream()`
+    /// lets calls from different threads run on distinct streams — overlapping transfers and kernels
+    /// concurrently instead of serializing — while all sub-steps of one call share one stream (correct
+    /// ordering within a thread). This is what lets `try_mul` (and, downstream, the row-reduce) run
+    /// lock-free from many threads at once.
+    ///
+    /// Assumes a single process-wide `GpuContext` (the `OnceLock` in `fp::blas::cuda`).
+    pub fn stream(&self) -> Arc<CudaStream> {
+        use std::cell::RefCell;
+        thread_local! {
+            static TLS: RefCell<Option<Arc<CudaStream>>> = const { RefCell::new(None) };
+        }
+        TLS.with(|cell| {
+            let mut slot = cell.borrow_mut();
+            // Fall back to the context default stream if creation fails (e.g. a poisoned context),
+            // so the caller sees a normal Err and degrades to CPU rather than panicking.
+            slot.get_or_insert_with(|| {
+                self.ctx.new_stream().unwrap_or_else(|_| self.ctx.default_stream())
+            })
+            .clone()
+        })
+    }
+
     pub fn kernel(&self) -> &CudaFunction {
         &self.kernel
     }
@@ -143,7 +167,7 @@ fn matmul_b1_inner(
     let n_groups = n_lim.div_ceil(NG as usize);
     let n_padded_lim = n_groups * NG as usize;
 
-    let stream = gpu.ctx.default_stream();
+    let stream = gpu.stream();
 
     let a_padded = pad_2d(a, m, k.div_ceil(64), m_padded, k_padded / 64);
     let b_padded = pad_2d(b, k, n_lim, k_padded, n_lim);
