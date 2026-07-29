@@ -773,27 +773,44 @@ extern "C" __global__ void panel_factor_coop(
 // ahead queuing launches and their latency hides behind the GPU work. Bit-for-bit
 // identical to panel_factor_coop; g_min must be INF and g_pr 0 at entry.
 
-// find-first: smallest perm position p in [r+g_pr, m) whose row has bit q set;
-// atomicMin into g_min. Grid-strided over rows.
-extern "C" __global__ void pf_find(
-    const u64_t* __restrict__ m_buf,
-    const unsigned* __restrict__ perm,
-    const unsigned* __restrict__ g_pr,
+// find-first + swap, fused into one launch. Every CTA reduces its row slice and
+// atomicMin's into g_min; then a threadfence "last-CTA finalize" (the CTA whose
+// leader increments the arrival counter last) reads the grid-wide minimum and does
+// the swap. This is a grid-wide *reduction*, not a barrier — the last CTA to run
+// finalizes, so it needs NO co-residency (unlike a spin barrier) and cannot
+// deadlock against concurrent GPU work; `arrival` self-resets to 0 via atomicInc's
+// wrap at gridDim-1. On a pivot: read its bl panel limbs into g_pivword, swap it up
+// to r+g_pr (perm swap), record the column, bump g_pr, reset g_min for the next
+// step. Publishes the pivot position (or INF) to g_pivpos so pf_xor knows whether
+// to run. `arrival` and g_min must be 0 / INF at the first step. q ≥ n ⇒ no-op
+// (lets a fixed-length step sequence cover a short final panel).
+extern "C" __global__ void pf_find_swap(
+    u64_t* __restrict__ m_buf,
+    unsigned* __restrict__ perm,
+    unsigned* __restrict__ pivcols,
+    u64_t* __restrict__ g_pivword,
     int* __restrict__ g_min,
-    unsigned plimb, unsigned j, unsigned r, unsigned m, unsigned stride)
+    unsigned* __restrict__ g_pr,
+    int* __restrict__ g_pivpos,
+    unsigned* __restrict__ arrival,
+    unsigned ppanel, unsigned bl, unsigned j, unsigned plimb, unsigned cc,
+    unsigned r, unsigned m, unsigned stride, unsigned n)
 {
     extern __shared__ int s_red[];
     const int tid = threadIdx.x;
     const int nt = blockDim.x;
     const unsigned gtid = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned gnt = gridDim.x * blockDim.x;
+    const unsigned q = ppanel * 64 + cc;
     const unsigned pr = *g_pr;
 
     int local_min = 0x7fffffff;
-    for (unsigned p = r + pr + gtid; p < m; p += gnt) {
-        unsigned row = perm[p];
-        if ((m_buf[(u64_t)row * stride + plimb] >> j) & 1ULL)
-            local_min = min(local_min, (int)p);
+    if (q < n) {
+        for (unsigned p = r + pr + gtid; p < m; p += gnt) {
+            unsigned row = perm[p];
+            if ((m_buf[(u64_t)row * stride + plimb] >> j) & 1ULL)
+                local_min = min(local_min, (int)p);
+        }
     }
     s_red[tid] = local_min;
     __syncthreads();
@@ -802,26 +819,16 @@ extern "C" __global__ void pf_find(
         __syncthreads();
     }
     if (tid == 0) atomicMin(g_min, s_red[0]);
-}
+    __threadfence();
 
-// One thread: if a pivot was found, read its bl panel limbs into g_pivword, swap
-// it up to position r+g_pr (perm swap), record its column, bump g_pr, and reset
-// g_min to INF for the next step. Publishes the pivot position (or INF) to
-// g_pivpos so pf_xor knows whether to run. Free column ⇒ everything untouched.
-extern "C" __global__ void pf_swap(
-    const u64_t* __restrict__ m_buf,
-    unsigned* __restrict__ perm,
-    unsigned* __restrict__ pivcols,
-    u64_t* __restrict__ g_pivword,
-    int* __restrict__ g_min,
-    unsigned* __restrict__ g_pr,
-    int* __restrict__ g_pivpos,
-    unsigned ppanel, unsigned bl, unsigned r, unsigned stride, unsigned q)
-{
+    __shared__ bool am_last;
+    if (tid == 0) am_last = (atomicInc(arrival, gridDim.x - 1) == gridDim.x - 1);
+    __syncthreads();
+    if (!am_last || tid != 0) return;
+
     int pivpos = *g_min;
     *g_pivpos = pivpos;
-    if (pivpos == 0x7fffffff) return; // free column
-    unsigned pr = *g_pr;
+    if (pivpos == 0x7fffffff) return; // free column: g_min stays INF for next step
     unsigned pivrow = perm[pivpos];
     for (unsigned t = 0; t < bl; ++t)
         g_pivword[t] = m_buf[(u64_t)pivrow * stride + ppanel + t];
