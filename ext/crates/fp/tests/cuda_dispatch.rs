@@ -123,3 +123,33 @@ fn gpu_row_reduce_matches_cpu() {
         assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
     }
 }
+
+
+/// Many threads row-reducing on the GPU AT ONCE must each stay bit-identical to the CPU — the
+/// concurrency the per-thread-stream refactor enables. Isolates the GPU RREF path: if concurrent
+/// reductions shared any device state (a `__device__` global, a fixed scratch), this would corrupt
+/// or LAUNCH_FAILED; independent per-stream buffers make it pass.
+#[test]
+fn gpu_row_reduce_concurrent() {
+    // SAFETY: set once before any threshold() read; same value as the sibling test.
+    unsafe { std::env::set_var("FP_CUDA_RR_THRESHOLD", "2048") };
+    const THREADS: usize = 16;
+    const ITERS: usize = 8;
+    std::thread::scope(|s| {
+        for t in 0..THREADS {
+            s.spawn(move || {
+                for i in 0..ITERS {
+                    let rows = 2048 + 256 * (t % 8);
+                    let cols = 2048 + 256 * (i % 6);
+                    let base = clean_matrix(rows, cols, 0);
+                    let mut gpu = base.clone();
+                    let rank_gpu = gpu.row_reduce();
+                    let mut cpu = base.clone();
+                    let rank_cpu = cpu.row_reduce_blas3();
+                    assert_eq!(rank_gpu, rank_cpu, "concurrent rank mismatch {rows}x{cols} (t{t} i{i})");
+                    assert_eq!(gpu, cpu, "concurrent RREF mismatch {rows}x{cols} (t{t} i{i})");
+                }
+            });
+        }
+    });
+}

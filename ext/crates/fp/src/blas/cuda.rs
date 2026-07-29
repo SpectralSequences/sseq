@@ -54,9 +54,9 @@ fn rr_threshold() -> usize {
 /// usable device is present (no driver, no Hopper GPU, or the kernel PTX is the
 /// nvcc-absent build stub). Shared as `&'static` — no lock: `GpuContext` is
 /// `Send + Sync` (its cudarc handles are), and every submission goes through a
-/// per-thread stream ([`GpuContext::stream`]), so concurrent callers run on
+/// per-thread stream ([`GpuContext::stream`]), so concurrent workers run on
 /// independent streams (overlapping transfers + kernels) instead of serializing.
-/// Device buffers are per-call and thread-local, so there is no shared state to guard.
+/// Buffers are per-call and thread-local, so there is no shared device state to guard.
 fn context() -> Option<&'static GpuContext> {
     static GPU: OnceLock<Option<GpuContext>> = OnceLock::new();
     GPU.get_or_init(|| {
@@ -127,6 +127,9 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     let limbs = to_limbs(m);
 
     let (dev_limbs, perm, r, pivot_cols) = {
+        // Lock-free, per-thread stream (see [`context`]): the row-reduce is composable (no
+        // cooperative launch) and allocates device buffers per call, so concurrent workers reduce
+        // different matrices on independent streams instead of serializing.
         let mut dm = ctx.upload(&limbs, rows, cols).ok()?;
         let (perm, r, pivot_cols) = ctx.row_reduce_dev(&mut dm).ok()?;
         let dev_limbs = ctx.download(&dm).ok()?;

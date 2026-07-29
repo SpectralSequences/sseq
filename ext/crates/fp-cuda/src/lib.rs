@@ -541,7 +541,7 @@ impl GpuContext {
         let n_groups = n_lim.div_ceil(NG as usize);
         let n_padded_lim = n_groups * NG as usize;
 
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
 
         // Pack A → interleaved row-major K-major tiles (m_padded × k_padded/64).
         // pack_a/pack_b/the GEMM fully overwrite these buffers (padding written as
@@ -656,7 +656,7 @@ impl GpuContext {
         n: usize,
     ) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
         let n_lim = n.div_ceil(64);
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let a_dev = stream.clone_htod(a)?;
         let b_dev = stream.clone_htod(b)?;
         let (c_dev, n_padded_lim) = self.matmul_b1_dev(&a_dev, m, k, &b_dev, n)?;
@@ -678,7 +678,7 @@ impl GpuContext {
     ) -> Result<DeviceMatrix, Box<dyn std::error::Error>> {
         let stride = cols.div_ceil(64);
         assert_eq!(data.len(), rows * stride, "limb count mismatch");
-        let buf = self.ctx.default_stream().clone_htod(data)?;
+        let buf = self.stream().clone_htod(data)?;
         Ok(DeviceMatrix {
             buf,
             rows,
@@ -689,12 +689,12 @@ impl GpuContext {
 
     /// Download a [`DeviceMatrix`] back to host limbs (natural layout). One D2H.
     pub fn download(&self, dm: &DeviceMatrix) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
-        Ok(self.ctx.default_stream().clone_dtoh(&dm.buf)?)
+        Ok(self.stream().clone_dtoh(&dm.buf)?)
     }
 
     /// Download a device `u32` buffer (e.g. a `perm` vector) to host.
     pub fn download_u32(&self, s: &CudaSlice<u32>) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-        Ok(self.ctx.default_stream().clone_dtoh(s)?)
+        Ok(self.stream().clone_dtoh(s)?)
     }
 
     /// The fused trailing-update / back-substitution epilogue over persistent
@@ -731,7 +731,7 @@ impl GpuContext {
         }
         let (c_dev, _n_padded_lim) = self.matmul_b1_dev(&l.buf, m, k, &u.buf, t)?;
         let width = t.div_ceil(64); // == dst.stride - col_off/64
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         self.xor_into_region(
             &stream,
             &mut dst.buf,
@@ -751,7 +751,7 @@ impl GpuContext {
     /// are `perm` swaps, so the matrix bytes never move.
     pub fn identity_perm(&self, m: usize) -> Result<CudaSlice<u32>, Box<dyn std::error::Error>> {
         let host: Vec<u32> = (0..m as u32).collect();
-        Ok(self.ctx.default_stream().clone_htod(&host)?)
+        Ok(self.stream().clone_htod(&host)?)
     }
 
     /// Factor one 64-bit column panel (limb `plimb`) in place over the
@@ -776,7 +776,7 @@ impl GpuContext {
     ) -> Result<(usize, Vec<u32>), Box<dyn std::error::Error>> {
         assert_eq!(perm.len(), m.rows, "perm length must equal rows");
         assert_eq!(l.rows, m.rows, "L rows must equal M rows");
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
 
         const THREADS: u32 = 256;
         let pivcols = stream.alloc_zeros::<u32>(64)?;
@@ -836,7 +836,7 @@ impl GpuContext {
         assert_eq!(l.rows, m.rows, "L rows must equal M rows");
         assert!(l.stride >= bl, "L stride must be at least bl");
         assert!(m_active <= m.rows && m_active >= r, "m_active out of range");
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
 
         const THREADS: u32 = 256;
         let smem = THREADS * std::mem::size_of::<i32>() as u32;
@@ -934,7 +934,7 @@ impl GpuContext {
         assert_eq!(l.rows, m.rows, "L rows must equal M rows");
         assert!(l.stride >= bl, "L stride must be at least bl");
         assert!(m_active <= m.rows && m_active >= r, "m_active out of range");
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
 
         const THREADS: u32 = 256;
         const INF: i32 = 0x7fff_ffff;
@@ -1090,7 +1090,7 @@ impl GpuContext {
         if m_active <= r {
             return Ok(m_active);
         }
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let n_scan = m_active - r;
         let live = unsafe { stream.alloc::<u32>(n_scan) }?;
         {
@@ -1152,7 +1152,7 @@ impl GpuContext {
         if pr == 0 || trailing_limbs == 0 {
             return Ok(());
         }
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         stream.memset_zeros(pc_barrier)?;
         let (r_u, pr_u, fl, tl, st, ls, llo, tc) = (
             r_piv as u32,
@@ -1209,7 +1209,7 @@ impl GpuContext {
         pc_cond: &CudaSlice<u32>,
         pc_ctas: u32,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let (rows, stride, n) = (m.rows, m.stride, m.cols);
         let trailing_limbs = end_limb - first_limb;
         if pr == 0 || trailing_limbs == 0 {
@@ -1312,7 +1312,7 @@ impl GpuContext {
         &self,
         m: &mut DeviceMatrix,
     ) -> Result<(CudaSlice<u32>, usize, Vec<usize>), Box<dyn std::error::Error>> {
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let (rows, stride) = (m.rows, m.stride);
         let mut perm = self.identity_perm(rows)?;
         let mut r = 0usize;
@@ -1456,7 +1456,7 @@ impl GpuContext {
         if above_count == 0 || block_e <= block_s {
             return Ok(());
         }
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let (stride, n) = (m.stride, m.cols);
         let bp_eff = block_e - block_s;
         let start_limb = pivot_cols[block_s] / 64;
@@ -1558,7 +1558,7 @@ impl GpuContext {
         if e <= s {
             return Ok(());
         }
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let stride = m.stride;
         {
             if use_coop {
@@ -1703,7 +1703,7 @@ impl GpuContext {
         if r == 0 {
             return Ok(());
         }
-        let stream = self.ctx.default_stream();
+        let stream = self.stream();
         let stride = m.stride;
         let piv_dev =
             stream.clone_htod(&pivot_cols.iter().map(|&q| q as u32).collect::<Vec<_>>())?;
