@@ -14,7 +14,7 @@
 //!   CPU path is used. Defaults to 2048; the GPU only wins once the kernel work
 //!   dwarfs the H2D/D2H + TMA-layout marshalling, which dominates small sizes.
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 use fp_cuda::GpuContext;
 
@@ -33,18 +33,18 @@ fn threshold() -> usize {
 
 /// The process-wide GPU context, created lazily on first use. `None` if no
 /// usable device is present (no driver, no Hopper GPU, or the kernel PTX is the
-/// nvcc-absent build stub). Wrapped in a `Mutex` because a single CUDA context
-/// serialises submission anyway and `GpuContext` is not shared concurrently.
-fn context() -> Option<&'static Mutex<GpuContext>> {
-    static GPU: OnceLock<Option<Mutex<GpuContext>>> = OnceLock::new();
+/// nvcc-absent build stub). Shared as `&'static` — no lock: `GpuContext` is
+/// `Send + Sync` (its cudarc handles are), and every submission goes through a
+/// per-thread stream ([`GpuContext::stream`]), so concurrent callers run on
+/// independent streams (overlapping transfers + kernels) instead of serializing.
+/// Device buffers are per-call and thread-local, so there is no shared state to guard.
+fn context() -> Option<&'static GpuContext> {
+    static GPU: OnceLock<Option<GpuContext>> = OnceLock::new();
     GPU.get_or_init(|| {
         if std::env::var_os("FP_CUDA_DISABLE").is_some() {
             return None;
         }
-        match GpuContext::new(0) {
-            Ok(ctx) => Some(Mutex::new(ctx)),
-            Err(_) => None,
-        }
+        GpuContext::new(0).ok()
     })
     .as_ref()
 }
@@ -81,9 +81,8 @@ pub(super) fn try_mul(a: &Matrix, b: &Matrix) -> Option<Matrix> {
     let a_limbs = to_limbs(a);
     let b_limbs = to_limbs(b);
 
-    let c = {
-        let guard = ctx.lock().ok()?;
-        fp_cuda::matmul_b1_raw(&guard, &a_limbs, m, k, &b_limbs, n).ok()?
-    };
+    // Lock-free: `matmul_b1_raw` submits on the calling thread's own stream with per-call device
+    // buffers, so concurrent callers do not interfere (see [`context`]).
+    let c = fp_cuda::matmul_b1_raw(ctx, &a_limbs, m, k, &b_limbs, n).ok()?;
     Some(Matrix::from_data(TWO, m, n, c))
 }
