@@ -1,4 +1,4 @@
-//! Phase 3 gate (BLAS3-GPU-HANDOFF §5): the fused trailing-update epilogue
+//! The fused trailing-update epilogue
 //! `gemm_xor_into` must reproduce the CPU blas3 Step B — `M[:, off:] ^= L·U`,
 //! in place over a persistent device buffer — bit-for-bit.
 //!

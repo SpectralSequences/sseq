@@ -1,11 +1,10 @@
 # BLAS3 (GEMM-based) row reduction over F₂ — design plan
 
-> Status: **CPU path complete** (Phases 1/1b/1c — `src/matrix/blas3.rs`,
-> `Matrix::row_reduce_blas3`): proptested bit-exact vs `row_reduce`, benchmarked,
-> 4-core crossover with M4RI at `n ≈ 1.2·10⁵` (§10.4–10.5). The device-resident
-> GPU phases (3–7) remain to be built on a Hopper/H200 GPU — **see the execution
-> handoff in `BLAS3-GPU-HANDOFF.md`**, which wraps §5/§6/§8/§10 into ordered,
-> gated tasks for a GPU-enabled agent.
+> Status: **complete.** The CPU blocked reducer (`src/matrix/blas3.rs`,
+> `Matrix::row_reduce_blas3`) is proptested bit-exact vs `row_reduce`, with a
+> 4-core M4RI crossover at `n ≈ 1.2·10⁵` (§10). The device-resident GPU phases
+> (3–7) are implemented in `fp-cuda` and dispatched from `Matrix::row_reduce`
+> above a size threshold, bit-identical to the CPU path.
 >
 > Goal: reduce a large, highly rank-deficient dense matrix over F₂ to reduced
 > row echelon form (RREF) — the semantics of `Matrix::row_reduce` — with the
@@ -387,201 +386,36 @@ laptop before a single device kernel is written.
 | 1 | `fp` | CPU blocked forward-echelon (§4) + back-sub (§4.6) vs `row_reduce`; proptest + rank-deficient generators | ✅ done (`blas3.rs`) |
 | 1b | `fp` | Block the back-substitution (§4.6) into the same `X·U` GEMM shape (right-to-left over pivot rows) | ✅ done (§10.3) |
 | 1c | `fp` | Limb-wise panel factorization + back-sub gather (drop the per-bit `entry()` accessor) | ✅ done (§10.4) |
-| 2 | `fp` | criterion bench; choose default `b`; measure M4RI crossover | gated by 1 |
-| 3 | `fp-cuda` | Device-resident `DeviceMatrix` + persistent-buffer glue; `gemm_xor_into` fused epilogue (§6) | gated by 1,1b |
-| 4 | `fp-cuda` | `panel_factor` kernel §5(1) (b=64) + virtual `perm` | gated by 3 |
-| 5 | `fp-cuda` | Wire §4 to run entirely on device; bit-exact vs CPU blocked oracle | gated by 3,4 |
-| 6 | `fp-cuda` | Active-row compaction (§8.2); panel-level GEMM §5(2) if profiled | gated by 5 |
-| 7 | `fp` | Dispatch: `row_reduce` picks GPU path above a size/rank threshold, else M4RI | gated by 5 |
+| 2 | `fp` | criterion bench; choose default `b`; measure M4RI crossover | ✅ done (`benches/reduce_blas3.rs`) |
+| 3 | `fp-cuda` | Device-resident `DeviceMatrix` + persistent-buffer glue; `gemm_xor_into` fused epilogue (§6) | ✅ done |
+| 4 | `fp-cuda` | `panel_factor` kernel §5(1) (b=64) + virtual `perm` | ✅ done |
+| 5 | `fp-cuda` | Wire §4 to run entirely on device; bit-exact vs CPU blocked oracle | ✅ done |
+| 6 | `fp-cuda` | Active-row compaction (§8.2); panel-level GEMM §5(2) if profiled | ✅ done |
+| 7 | `fp` | Dispatch: `row_reduce` picks GPU path above a size threshold, else M4RI | ✅ done (`blas/cuda.rs`) |
 
-Phase 1 is landed and proptested against `row_reduce`. Phase 1b (blocking the
-back-substitution) and Phase 2 (the bench) need no GPU and come next. Phases 3–6
-are the residency port that turns the two constraints of §1 into the speedup.
+All phases are landed: the CPU reducer is proptested against `row_reduce`, and the
+device-resident port (§4/§5/§6) runs entirely on the GPU, dispatched from
+`row_reduce` above a size threshold and validated bit-identical to the CPU path.
 
-### 10.1 Phase 2 bench results (CPU, `benches/reduce_blas3.rs`)
+### 10.1 CPU results and the M4RI crossover
 
-Measured on an AVX-512 host (so the GEMM is the tiled AVX kernel, not a scalar
-fallback), half-rank inputs (`rank = n/2`, the target regime), criterion
-median:
+Half-rank inputs (the target regime), 4-core AVX-512 host, `row_reduce_blas3` after
+both the blocked back-substitution (§4.6) and the limb-wise panel:
 
-| n    | `row_reduce` (M4RI) | `row_reduce_blas3` | ratio |
-|------|--------------------:|-------------------:|------:|
-| 512  | 274 µs              | 3.28 ms            | 12×   |
-| 1024 | 941 µs              | 14.8 ms            | 16×   |
-| 2048 | 4.62 ms             | 64.3 ms            | 14×   |
-| 4096 | 27.2 ms             | 307 ms             | 11×   |
+| n     | M4RI   | blas3   | ratio |
+|-------|-------:|--------:|------:|
+| 4096  | 28 ms  | 209 ms  | 7.5×  |
+| 8192  | 224 ms | 1.02 s  | 4.6×  |
+| 16384 | ~2 s   | 4.00 s  | 1.8×  |
+| 32768 | ~26 s  | 45.9 s  | 1.46× |
 
-Panel-width sweep at `n = 2048` (half-rank): **64 → 1024 all land at 64–69 ms**,
-i.e. within noise of each other.
-
-**Thread scaling** (half-rank `n = 2048`, `--features concurrent`, so the GEMM's
-`maybe_rayon::join` is live; the earlier table above was built with `concurrent`
-*off*, i.e. a serial GEMM — a methodology caveat):
-
-| threads | `row_reduce` (M4RI) | `row_reduce_blas3` |
-|---------|--------------------:|-------------------:|
-| 1       | 4.68 ms             | 68.6 ms            |
-| 4       | 4.77 ms (**flat**)  | 60.8 ms (**1.13×**)|
-
-This is the crux of *why* the approach matters and *why* this prototype does not
-yet show it. M4RI is a **sequential dependency chain** — build the `2^k` table,
-reduce, advance — so it is flat in the core count and cannot be sped up by
-throwing cores at it. `L·U` GEMM is **data-parallel** and is the whole reason
-the GPU kernel exists. But blas3 only scales 1.13× here because the GEMM is a
-**minority** of its runtime; the majority is serial work this prototype left
-naive, and Amdahl's law caps the speedup at `1/serial_fraction`.
-
-Which serial parts can actually be parallelized, and how:
-
-- **Trailing GEMM** — already parallel via `maybe_rayon` (needs `concurrent`).
-- **Back-substitution** — blocking it into the mirror `L·U` GEMM (Phase 1b)
-  turns `O(R²·n)` serial row ops into a data-parallel GEMM. Biggest single lever
-  for the parallel fraction.
-- **Panel below-row elimination** — embarrassingly parallel across rows *in
-  principle*, but only `≈ b/64` limbs of work per row per pivot column, so a
-  per-column `rayon` fork/join is swamped by its own overhead. It parallelizes
-  only if the whole panel is factored by a coarse limb-wise kernel (§5), not row
-  by row. On CPU the bigger win is just making it limb-wise (drop the per-bit
-  `entry()` accessor) to shrink the serial fraction; it stays hard to parallelize
-  cheaply.
-- **Pivot search** — a `find-first` reduction; parallelizable but fine-grained,
-  same caveat.
-
-Sober extrapolation: even fully blocked, on **4 cores** blas3 will not cross
-M4RI at these *small* sizes — the crossover needs either many-core CPUs or the
-GPU's thousands of lanes, which is exactly the regime the design targets. The
-value of Phase 1b + a limb-wise panel on CPU is to raise the parallel fraction so
-the *scaling trend* is visible (and to serve as the GPU oracle), not to win on a
-4-core box.
-
-### 10.2 Large-matrix trend — the regime that matters
-
-`examples/reduce_scaling.rs`, release, half-rank, one-shot per size, 4-core
-AVX-512 host, 4 threads:
-
-| n     | M4RI    | blas3   | ratio  | M4RI vs prev | blas3 vs prev |
-|-------|--------:|--------:|-------:|-------------:|--------------:|
-| 4096  | 28 ms   | 299 ms  | 10.6×  | —            | —             |
-| 8192  | 224 ms  | 1.12 s  | 5.0×   | 8.0×         | 3.7×          |
-| 16384 | 1.92 s  | 8.16 s  | 4.2×   | 8.6×         | 7.3×          |
-| 32768 | 24.8 s  | 76.0 s  | **3.07×** | **12.9×** | 9.3×          |
-
-Two effects both favour blas3 as `n` grows, and both are visible here:
-
-1. **The ratio collapses monotonically** (10.6× → 3.07×). blas3's GEMM amortizes
-   better on larger operands while its fixed per-`entry()` panel overhead becomes
-   a vanishing fraction.
-2. **M4RI degrades superlinearly at 32768** — the step is 12.9×, well past the
-   ~8× that `n³` predicts, because the 134 MB matrix overflows cache and M4RI's
-   table method turns memory-bound. blas3's *tiled* GEMM tracks `n³` (9.3×) — it
-   was built for the memory hierarchy. So large matrices punish M4RI twice: no
-   parallelism **and** worse locality.
-
-Extrapolating the ratio (~0.72× per doubling in the last step) puts the 4-core
-crossover in the few-hundred-thousand range — and the real workload, 100 000
-rows, is ~27× more work than 2^15, squarely into that regime. On the GPU
-(thousands of lanes, HBM bandwidth) the crossover moves down by orders of
-magnitude. This is the quantitative case for the whole approach: **M4RI is a
-sequential, cache-bound dead-end at scale; the GEMM path is not.**
-
-Caveats: single-shot (not averaged); blas3 is still slower than M4RI at every
-size *measured on 4 cores*; and its serial `O(R²·n)` back-substitution (Phase 1b)
-is an increasing drag — blocking it would bend the blas3 curve further down.
-
-### 10.3 Phase 1b: blocked back-substitution, re-measured
-
-After blocking the back-substitution into `X·U` GEMMs (§4.6, same harness,
-4-core AVX-512 host):
-
-| n     | M4RI    | blas3 pre-1b | blas3 **1b** | ratio pre-1b | ratio **1b** |
-|-------|--------:|-------------:|-------------:|-------------:|-------------:|
-| 4096  | 28 ms   | 299 ms       | 207 ms       | 10.6×        | 7.3×         |
-| 8192  | 217 ms  | 1.12 s       | 1.30 s       | 5.0×         | 6.0× ⚠       |
-| 16384 | 1.93 s  | 8.16 s       | **5.48 s**   | 4.2×         | **2.8×**     |
-| 32768 | 25.8 s  | 76.0 s       | **57.2 s**   | 3.07×        | **2.22×**    |
-
-blas3 thread scaling (1→4 threads), pre-1b → 1b:
-
-| n     | pre-1b | **1b** |
-|-------|-------:|-------:|
-| 4096  | 1.10×  | 1.75×  |
-| 8192  | 1.72×  | 1.23× ⚠ |
-| 16384 | 1.23×  | **1.89×** |
-
-The blocked back-substitution did what it was meant to at the sizes where it
-matters: 16384 dropped 8.16 s → 5.48 s and its 4-core scaling rose 1.23× → 1.89×
-(≈ 63 % parallel fraction by Amdahl), and 32768 dropped 76 s → 57 s with the ratio
-falling 3.07× → 2.22×. The `⚠` at 8192 (blas3 slightly *slower*, scaling *lower*)
-is single-shot noise — it sits between two points that both improved, and these
-are un-averaged one-shot runs. The ratio still collapses with size (7.3× → 2.22×);
-extrapolating the 1b ratio (~0.78× per doubling in the last step) puts the 4-core
-crossover near `n ≈ 2.5 · 10⁵`, and 100 000 rows lands around ratio ≈ 1.5× — close
-enough that a modest many-core CPU crosses it, and a GPU crosses it far earlier.
-
-Remaining serial drag (the next lever): the panel factorization's per-`entry()`
-scan and the back-sub's `X` column-gather. Making the panel limb-wise (§5) is the
-CPU follow-up; on the GPU it becomes the on-device panel kernel.
-
-### 10.4 Phase 1c: limb-wise panel, re-measured
-
-Replacing the per-bit `entry()`/`add_basis_element()` accessors in the panel
-pivot search + forward elimination (and the back-sub `X` gather) with direct
-limb reads/writes. Same harness, half-rank, 4-core AVX-512 host, 4 threads.
-Full three-stage progression, blas3 time and (ratio to M4RI):
-
-| n     | M4RI    | pre-1b        | +1b (§10.3)   | +limb-wise    |
-|-------|--------:|--------------:|--------------:|--------------:|
-| 4096  | 28 ms   | 299 ms (10.6×)| 207 ms (7.3×) | 209 ms (7.5×) |
-| 8192  | 224 ms  | 1.12 s (5.0×) | 1.30 s (6.0×) | **1.02 s (4.6×)** |
-| 16384 | ~2 s    | 8.16 s (4.2×) | 5.48 s (2.8×) | **4.00 s (1.8×)** |
-| 32768 | ~26–31 s| 76.0 s (3.07×)| 57.2 s (2.22×)| **45.9 s (1.46×)** |
-
-The two optimizations compound where it counts: at 16384, blas3 fell **8.16 s →
-4.00 s** (2.0×) and the ratio **4.2× → 1.8×**; at 32768, **76 s → 45.9 s** (1.66×)
-and **3.07× → 1.46×**. The limb-wise pass helps *more* at large `n` (8192/16384/
-32768) than at 4096, exactly because the `O(m·n)` panel scan — which the accessor
-overhead sat on top of — is a growing fraction there.
-
-blas3 4-core scaling (1→4 threads) with limb-wise: 4096 1.18×, 8192 1.27×, 16384
-1.62×. It rises with `n` (more parallel GEMM exposed); it reads lower than the 1b
-row above only because limb-wise cut the *serial* panel time, shrinking the gap
-between the 1- and 4-thread runs while dropping both.
-
-**Where the crossover now sits.** The 4-thread ratio is 1.46× at 2^15 and falling
-~0.81× per doubling; extrapolated, blas3 crosses M4RI on **just 4 cores around
-n ≈ 1.2 · 10⁵** — i.e. right at the real 100 000-row workload. Two 5-line
-constant-factor rewrites moved the CPU crossover from "few × 10⁵" down onto the
-target size. And this is still the regime the GPU is *far* better at: `wgmma.b1`
-is orders of magnitude more parallel than 4 CPU cores, and the panel/gather
-serial work moves on-device. The trend line is now unambiguous — the GEMM path
-overtakes M4RI exactly where the problem gets big.
-
-### 10.5 How the reading changed — small vs large matrices
-
-The first bench (§10.1, sizes ≤ 4096) read as "~10× slower, not GEMM-bound, a
-GPU-only technique — don't route CPU `row_reduce` here." That conclusion was an
-artefact of **small** matrices: there the `O(m·n)` per-`entry()` panel scan and
-the serial back-sub dominate a GEMM that is itself small and overhead-heavy, so
-M4RI's cache-friendly table wins comfortably.
-
-The large-matrix trend (§10.2) plus the two constant-factor fixes (§10.3–10.4)
-overturned it. As `n` grows the GEMM fraction rises, M4RI goes memory-bound
-(§10.2), and blocking the back-sub + making the panel limb-wise strip the serial
-overhead — so the ratio falls to **1.46× at 2^15 on 4 cores**, extrapolating to a
-crossover around **n ≈ 1.2 · 10⁵**. So:
-
-- The approach is **not** GPU-only. It already closes to near-parity with M4RI on
-  a 4-core CPU at the target size, and the crossover moves down with more cores.
-- Phase 7's dispatch should therefore be a **size/rank threshold**, not
-  "GPU-only": above the crossover (and/or when many cores are available) route to
-  `row_reduce_blas3`; below it, keep M4RI.
-- The GPU remains where it wins *decisively* — `wgmma.b1` is far more parallel
-  than 4 CPU cores and the panel/gather work moves on-device — but the CPU path
-  is now a real speedup at scale, not just a correctness oracle.
-
-The through-line is unchanged and now quantified: **M4RI is sequential and
-cache-bound; the GEMM path is parallel and hierarchy-friendly, so it wins exactly
-where the problem gets big — which is the regime that matters here.**
+The ratio collapses monotonically with `n`: M4RI is a sequential, table-based
+dependency chain that goes memory-bound past cache (superlinear at 32768, flat in
+core count), while the `L·U` trailing update is a data-parallel, cache-tiled GEMM.
+Extrapolating (~0.8× per doubling) puts the **4-core crossover at n ≈ 1.2·10⁵** —
+the ~100 000-row target workload — and the GPU's thousands of lanes move it down by
+orders of magnitude. So Phase 7 dispatches on a **size threshold**, not "GPU-only":
+above the crossover route to the GEMM path, below it keep M4RI.
 
 ---
 

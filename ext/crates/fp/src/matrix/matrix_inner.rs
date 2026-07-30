@@ -674,16 +674,10 @@ impl Matrix {
     pub fn row_reduce(&mut self) -> usize {
         let p = self.prime();
 
-        // For large p = 2 matrices, try the device-resident GPU reduction; it
-        // produces the identical canonical RREF + pivots. Falls back to the CPU
-        // M4RI path below when the GPU is unavailable or below threshold.
-        //
-        // Instrumentation: for every p=2 reduction of a non-trivial matrix
-        // (min(rows,cols) >= 1024) we emit a `fp::rr` tracing event recording the
-        // dimensions and whether the GPU path was taken (`path="gpu"`) or it fell
-        // back to CPU M4RI (`path="cpu"` — either below the 8192 threshold or a
-        // launch failure; the logged dims disambiguate). The event inherits the
-        // active nassau span, so it carries the bidegree/signature context.
+        // For large p = 2 matrices, try the device-resident GPU reduction (identical
+        // canonical RREF + pivots), falling back to CPU M4RI when unavailable or below
+        // threshold. Non-trivial reductions (min dim >= 1024) emit a `fp::rr` tracing
+        // event with the dims and path taken (gpu/cpu), under the active nassau span.
         #[cfg(feature = "gpu")]
         if p == 2 {
             let (rr_rows, rr_cols) = (self.rows(), self.columns());

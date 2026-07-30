@@ -1,4 +1,4 @@
-//! Phase 5a gate (BLAS3-GPU-HANDOFF §5): the device forward pass
+//! The device forward pass
 //! (`forward_reduce`) must produce a correct row-echelon form over the
 //! persistent buffer. Validated against an independent oracle — `row_reduce`:
 //!
@@ -8,7 +8,7 @@
 //!  3. the non-pivot rows (perm positions `[r, m)`) are zeroed.
 //!
 //! No hand-written mirror reference — the check is against the ground-truth CPU
-//! reducer. (Phase 5b adds back-substitution and validates full RREF equality.)
+//! reducer.
 //!
 //! Run with `cargo run -p fp-cuda --example forward_reduce_demo`.
 

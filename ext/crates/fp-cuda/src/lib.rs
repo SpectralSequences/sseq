@@ -39,9 +39,8 @@ const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match 
 /// single-CTA promote_pivots it is O(bl) total, so narrow panels win; but the
 /// cooperative promote_coop (used at stride ≥ 1024) is ~bl-independent, so there
 /// the panel can be widened until the forward GEMM stops padding (bl=16 ⇒ K=1024
-/// exactly). Measured optima (half-rank, H200): bl=2 @ n=2¹⁵ (stride 512, single-
-/// CTA), 8 @ 2¹⁶ (1024), 16 @ 2¹⁷ (2048) — i.e. stride/256 without the coop
-/// promote, stride/128 with it. Capped at 16. Override with `FP_CUDA_BL`.
+/// exactly). So the width scales with stride — stride/256 without the coop promote,
+/// stride/128 with it — capped at 16. Override with `FP_CUDA_BL`.
 fn adaptive_bl(stride: usize) -> usize {
     let div = if stride >= 1024 { 128 } else { 256 };
     (stride / div).clamp(1, 16)
@@ -65,11 +64,10 @@ fn adaptive_bl(stride: usize) -> usize {
 /// grid-wide reduction finalized by the last CTA to arrive — no barrier, no co-
 /// residency), promotion uses the grid-strided `promote_pivots`, and back-
 /// substitution the streamed `br_cond`/`br_xor` pair (single-CTA `block_reduce_rref`
-/// below stride 1024). None launch cooperatively, so none can deadlock. The residual
-/// cost is the forward pass's per-column relaunch vs the persistent cooperative grid:
-/// ~2× at n≈2¹⁷, shrinking with size (~1.4× total at 2¹⁸, converging as the O(cols)
-/// launch term is dwarfed by the O(cols²) work). Set `FP_CUDA_RR_COOP=1` to opt into
-/// the cooperative path on a dedicated GPU.
+/// below stride 1024). None launch cooperatively, so none can deadlock. The cost is
+/// the forward pass's per-column relaunch (vs a persistent cooperative grid): ~1.4–2×
+/// slower at large `n`, shrinking as the O(cols) launch term is dwarfed by the O(cols²)
+/// work. Set `FP_CUDA_RR_COOP=1` to opt into the cooperative path on a dedicated GPU.
 fn rr_coop() -> bool {
     std::env::var("FP_CUDA_RR_COOP")
         .map(|v| v != "0" && !v.is_empty())
@@ -861,9 +859,9 @@ impl GpuContext {
         // size the grid and the kernel's row bound to m_active.
         let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
-        // panel_factor is partly grid-barrier-bound (a grid_sync per pivot bit),
-        // so a smaller grid gives cheaper barriers while still covering the panel
-        // work — measured +3% at 2^16. Cap at 128 (H200 sweet spot); overridable.
+        // panel_factor is partly grid-barrier-bound (a grid_sync per pivot bit), so a
+        // smaller grid gives cheaper barriers while still covering the panel work; cap
+        // at 128 (H200). Override with `FP_CUDA_PF_CTAS`.
         let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
@@ -966,7 +964,7 @@ impl GpuContext {
         // Each step's grid-wide min-reduce + last-CTA finalize contends on g_min /
         // arrival across all CTAs, so — like the cooperative kernel's FP_CUDA_PF_CTAS
         // — a smaller grid makes every step cheaper once it still covers the rows.
-        // Cap at 128 (H200 sweet spot); overridable.
+        // Cap at 128 (H200); overridable.
         let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
@@ -1358,9 +1356,8 @@ impl GpuContext {
                 .occupancy_max_active_blocks_per_multiprocessor(256, 0, None)?
                 .max(1);
             // promote is a forward-substitution TRSM (1 grid_sync/pivot), partly
-            // barrier-bound: a smaller grid gives cheaper barriers while still
-            // covering the per-pivot trailing XOR — measured +6% at 2^16, +5% at
-            // 2^17. Cap at 384 (broad H200 optimum); overridable.
+            // barrier-bound: a smaller grid gives cheaper barriers while still covering
+            // the per-pivot trailing XOR. Cap at 384 (H200). Override with `FP_CUDA_PROM_CTAS`.
             let full = (occ * sms).max(1);
             let capped = std::env::var("FP_CUDA_PROM_CTAS")
                 .ok()
@@ -1710,8 +1707,7 @@ impl GpuContext {
 
         // Multi-CTA block reduction spreads each block's per-pivot clear across the
         // whole grid. It only pays once the block work (≈ bp·stride) is large, so
-        // gate on a wide matrix; below that the single-CTA kernel wins. Measured
-        // (H200): neutral at n=2¹⁵ (stride 512), +6% at 2¹⁶, +18% at 2¹⁷.
+        // gate on a wide matrix; below that the single-CTA kernel wins.
         //
         // Two grid-parallel variants (see [`rr_coop`]): `use_coop` = the cooperative
         // block_reduce_coop (dedicated GPU); `streamed` = the kernel-boundary
@@ -1762,12 +1758,10 @@ impl GpuContext {
 
         // The block reduce is grid-barrier-bound (2 grid syncs/pivot), and a
         // grid_sync's cost scales with the CTA count. With TRSM the reduces are
-        // narrow base blocks whose per-pivot XOR needs little width, so a small
-        // grid gives far cheaper barriers — measured bs.block_reduce 334→115 ms
-        // (2.9×) at 2^16, +12% end-to-end. Cap to 128 CTAs there (the plateau of
-        // the sweep). Without TRSM the reduce is the full bp=1024 block, whose XOR
-        // genuinely needs the whole grid, so keep full occupancy. FP_CUDA_BR_CTAS
-        // overrides.
+        // narrow base blocks whose per-pivot XOR needs little width, so a small grid
+        // gives far cheaper barriers — cap to 128 CTAs. Without TRSM the reduce is the
+        // full bp=1024 block, whose XOR genuinely needs the whole grid, so keep full
+        // occupancy. Override with `FP_CUDA_BR_CTAS`.
         let br_cap = if use_trsm { 128 } else { br_occ * sms };
         let br_ctas = std::env::var("FP_CUDA_BR_CTAS")
             .ok()

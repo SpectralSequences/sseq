@@ -1,11 +1,10 @@
-//! Phase 4 gate (BLAS3-GPU-HANDOFF §4): the device `panel_factor` base kernel
+//! The device `panel_factor` base kernel
 //! (one 64-bit panel, forward-only, virtual perm) must match a CPU reference of
 //! the identical panel-limb operation bit-for-bit — the reduced panel limb, the
 //! `perm` ordering, the multiplier matrix `L`, and `(pr, pivcols)`.
 //!
 //! The CPU reference below is a direct transliteration of the CUDA kernel, so
-//! this pins the kernel to an executable spec. (Phase 5 wires it, promotion, and
-//! gemm_xor_into into the full row reduction and validates against `row_reduce`.)
+//! this pins the kernel to an executable spec.
 //!
 //! Run with `cargo run -p fp-cuda --example panel_factor_demo`.
 

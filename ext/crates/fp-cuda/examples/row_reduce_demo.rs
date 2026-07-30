@@ -1,4 +1,4 @@
-//! Phase 5 gate (BLAS3-GPU-HANDOFF §5, the decisive one): the full device
+//! The full device
 //! reduction `row_reduce_dev` (forward pass + back-substitution over one
 //! persistent buffer) must equal `fp::Matrix::row_reduce` bit-for-bit — the RREF
 //! matrix *and* the pivot list.
