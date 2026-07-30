@@ -124,7 +124,6 @@ fn gpu_row_reduce_matches_cpu() {
     }
 }
 
-
 /// Many threads row-reducing on the GPU AT ONCE must each stay bit-identical to the CPU — the
 /// concurrency the per-thread-stream refactor enables. Isolates the GPU RREF path: if concurrent
 /// reductions shared any device state (a `__device__` global, a fixed scratch), this would corrupt
@@ -146,8 +145,14 @@ fn gpu_row_reduce_concurrent() {
                     let rank_gpu = gpu.row_reduce();
                     let mut cpu = base.clone();
                     let rank_cpu = cpu.row_reduce_blas3();
-                    assert_eq!(rank_gpu, rank_cpu, "concurrent rank mismatch {rows}x{cols} (t{t} i{i})");
-                    assert_eq!(gpu, cpu, "concurrent RREF mismatch {rows}x{cols} (t{t} i{i})");
+                    assert_eq!(
+                        rank_gpu, rank_cpu,
+                        "concurrent rank mismatch {rows}x{cols} (t{t} i{i})"
+                    );
+                    assert_eq!(
+                        gpu, cpu,
+                        "concurrent RREF mismatch {rows}x{cols} (t{t} i{i})"
+                    );
                 }
             });
         }
