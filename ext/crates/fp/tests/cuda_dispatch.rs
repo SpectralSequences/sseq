@@ -44,7 +44,6 @@ fn gpu_dispatch_matches_cpu() {
     }
 }
 
-
 /// Many threads matmul-ing on the GPU AT ONCE must each stay bit-identical to the CPU — the
 /// concurrency the per-thread-stream refactor enables. If concurrent matmuls shared device state this
 /// would corrupt or LAUNCH_FAILED; independent per-stream buffers make it pass.
@@ -63,7 +62,10 @@ fn gpu_matmul_concurrent() {
                     let b = random_matrix(k, n);
                     let dispatched = &a * &b;
                     let reference = a.fast_mul_concurrent(&b);
-                    assert_eq!(dispatched, reference, "concurrent matmul mismatch {m}x{k}*{k}x{n} (t{t} i{i})");
+                    assert_eq!(
+                        dispatched, reference,
+                        "concurrent matmul mismatch {m}x{k}*{k}x{n} (t{t} i{i})"
+                    );
                 }
             });
         }

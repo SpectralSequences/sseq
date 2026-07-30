@@ -81,7 +81,7 @@ impl GpuContext {
     }
 
     /// A CUDA stream **private to the calling OS thread**, created lazily on first use and reused
-    /// thereafter (see [`GpuContext::streams`]). Submitting through this instead of the context's
+    /// thereafter (cached per thread in this context's `streams` map). Submitting through this instead of the context's
     /// single `default_stream()` lets calls from different threads run on distinct streams —
     /// overlapping transfers and kernels instead of serializing — while all sub-steps of one call
     /// share one stream (correct ordering within a thread). This is what lets `try_mul` (and the
@@ -93,7 +93,11 @@ impl GpuContext {
             .entry(std::thread::current().id())
             // Fall back to the context default stream if creation fails (e.g. a poisoned context),
             // so the caller sees a normal Err and degrades to CPU rather than panicking.
-            .or_insert_with(|| self.ctx.new_stream().unwrap_or_else(|_| self.ctx.default_stream()))
+            .or_insert_with(|| {
+                self.ctx
+                    .new_stream()
+                    .unwrap_or_else(|_| self.ctx.default_stream())
+            })
             .clone()
     }
 
@@ -434,7 +438,27 @@ fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<
 
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
     use super::*;
+
+    /// `true` iff a usable CUDA device is present, probed once for the whole test binary.
+    ///
+    /// `GpuContext::new` initializes the CUDA driver through cudarc, which *panics* (rather than
+    /// returning `Err`) when no driver library is present — as on GPU-less CI. We silence the panic
+    /// hook and catch the unwind so the probe reports "no GPU" instead of aborting the run. Every
+    /// device-touching test gates on this and returns early when it is `false`, so the whole GPU
+    /// test suite is disabled cleanly (rather than failing) wherever there is no device.
+    fn gpu_available() -> bool {
+        static AVAIL: OnceLock<bool> = OnceLock::new();
+        *AVAIL.get_or_init(|| {
+            let prev_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(|_| {}));
+            let ok = std::panic::catch_unwind(|| GpuContext::new(0).is_ok()).unwrap_or(false);
+            std::panic::set_hook(prev_hook);
+            ok
+        })
+    }
 
     /// Regression for the per-thread stream cache being scoped to its context. A single thread that
     /// builds two `GpuContext`s must get two *distinct* streams — the cache was once keyed by thread
@@ -443,16 +467,23 @@ mod tests {
     /// so distinct streams, without needing a second GPU.)
     #[test]
     fn stream_is_scoped_per_context() {
-        let (a, b) = match (GpuContext::new(0), GpuContext::new(0)) {
-            (Ok(a), Ok(b)) => (a, b),
-            _ => return, // no usable GPU in this environment — nothing to exercise
-        };
+        if !gpu_available() {
+            return; // no usable GPU/driver in this environment — nothing to exercise
+        }
+        let a = GpuContext::new(0).expect("GPU is available");
+        let b = GpuContext::new(0).expect("GPU is available");
         let (sa, sb) = (a.stream(), b.stream());
         assert!(
             !Arc::ptr_eq(&sa, &sb),
             "distinct GpuContexts must not share a per-thread stream"
         );
-        assert!(Arc::ptr_eq(&sa, &a.stream()), "a context must reuse its own cached stream");
-        assert!(Arc::ptr_eq(&sb, &b.stream()), "a context must reuse its own cached stream");
+        assert!(
+            Arc::ptr_eq(&sa, &a.stream()),
+            "a context must reuse its own cached stream"
+        );
+        assert!(
+            Arc::ptr_eq(&sb, &b.stream()),
+            "a context must reuse its own cached stream"
+        );
     }
 }
