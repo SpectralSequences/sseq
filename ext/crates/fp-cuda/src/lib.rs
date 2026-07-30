@@ -6,7 +6,14 @@
 //! TILE_M×(NG*64) output tile per CTA out of MSTRIPS m64n128 wgmma.b1 strips
 //! that share each loaded B tile (cuts operand-refill bandwidth, the bottleneck).
 
-use std::{ffi::c_void, mem::MaybeUninit, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    ffi::c_void,
+    mem::MaybeUninit,
+    sync::{Arc, Mutex},
+    thread::ThreadId,
+    time::Instant,
+};
 
 use cudarc::{
     driver::{
@@ -35,6 +42,11 @@ unsafe impl DeviceRepr for TmaArg {}
 
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
+    /// Per-thread CUDA streams for *this* context, created lazily (see [`Self::stream`]). Owned by
+    /// the context so a thread using several contexts (e.g. one per device) gets a distinct stream
+    /// per context. The mutex is held only for the map lookup, never across a GPU submission, so it
+    /// does not serialize device work — unlike the whole-op lock this design replaced.
+    streams: Mutex<HashMap<ThreadId, Arc<CudaStream>>>,
     #[allow(dead_code)]
     module: Arc<CudaModule>,
     kernel: CudaFunction,
@@ -48,6 +60,7 @@ impl GpuContext {
         let kernel = module.load_function("matmul_b1_kernel")?;
         Ok(Self {
             ctx,
+            streams: Mutex::new(HashMap::new()),
             module,
             kernel,
         })
@@ -68,27 +81,20 @@ impl GpuContext {
     }
 
     /// A CUDA stream **private to the calling OS thread**, created lazily on first use and reused
-    /// thereafter. Submitting GPU work through this instead of the context's single `default_stream()`
-    /// lets calls from different threads run on distinct streams — overlapping transfers and kernels
-    /// concurrently instead of serializing — while all sub-steps of one call share one stream (correct
-    /// ordering within a thread). This is what lets `try_mul` (and, downstream, the row-reduce) run
-    /// lock-free from many threads at once.
-    ///
-    /// Assumes a single process-wide `GpuContext` (the `OnceLock` in `fp::blas::cuda`).
+    /// thereafter (see [`GpuContext::streams`]). Submitting through this instead of the context's
+    /// single `default_stream()` lets calls from different threads run on distinct streams —
+    /// overlapping transfers and kernels instead of serializing — while all sub-steps of one call
+    /// share one stream (correct ordering within a thread). This is what lets `try_mul` (and the
+    /// row-reduce) run lock-free from many threads at once.
     pub fn stream(&self) -> Arc<CudaStream> {
-        use std::cell::RefCell;
-        thread_local! {
-            static TLS: RefCell<Option<Arc<CudaStream>>> = const { RefCell::new(None) };
-        }
-        TLS.with(|cell| {
-            let mut slot = cell.borrow_mut();
+        self.streams
+            .lock()
+            .expect("stream cache poisoned")
+            .entry(std::thread::current().id())
             // Fall back to the context default stream if creation fails (e.g. a poisoned context),
             // so the caller sees a normal Err and degrades to CPU rather than panicking.
-            slot.get_or_insert_with(|| {
-                self.ctx.new_stream().unwrap_or_else(|_| self.ctx.default_stream())
-            })
+            .or_insert_with(|| self.ctx.new_stream().unwrap_or_else(|_| self.ctx.default_stream()))
             .clone()
-        })
     }
 
     pub fn kernel(&self) -> &CudaFunction {
@@ -424,4 +430,29 @@ fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<
         out[r * ns..r * ns + n].copy_from_slice(&src[r * stride..r * stride + n]);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression for the per-thread stream cache being scoped to its context. A single thread that
+    /// builds two `GpuContext`s must get two *distinct* streams — the cache was once keyed by thread
+    /// alone, so the second context silently reused the first's stream (wrong context/device). The
+    /// same context must still reuse its own cached stream. (Uses device 0 twice: distinct instances,
+    /// so distinct streams, without needing a second GPU.)
+    #[test]
+    fn stream_is_scoped_per_context() {
+        let (a, b) = match (GpuContext::new(0), GpuContext::new(0)) {
+            (Ok(a), Ok(b)) => (a, b),
+            _ => return, // no usable GPU in this environment — nothing to exercise
+        };
+        let (sa, sb) = (a.stream(), b.stream());
+        assert!(
+            !Arc::ptr_eq(&sa, &sb),
+            "distinct GpuContexts must not share a per-thread stream"
+        );
+        assert!(Arc::ptr_eq(&sa, &a.stream()), "a context must reuse its own cached stream");
+        assert!(Arc::ptr_eq(&sb, &b.stream()), "a context must reuse its own cached stream");
+    }
 }
