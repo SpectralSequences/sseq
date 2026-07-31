@@ -60,7 +60,7 @@ fn rate_milnor_operation(algebra: &MilnorAlgebra, deg: i32, idx: usize) -> i32 {
     elt.p_part
         .iter()
         .enumerate()
-        .map(|(i, &r)| r.count_ones() << i)
+        .map(|(i, r)| r.count_ones() << i)
         .sum::<u32>() as i32
 }
 

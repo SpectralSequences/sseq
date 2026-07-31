@@ -8,7 +8,7 @@ use fp::{
 
 use crate::{
     algebra::{AdemAlgebra, Algebra, MilnorAlgebra, adem_algebra::AdemBasisElement},
-    milnor_algebra::{MilnorBasisElement, PPartEntry},
+    milnor_algebra::{MilnorBasisElement, PPart, PPartEntry},
     steenrod_parser::*,
 };
 
@@ -157,7 +157,7 @@ impl SteenrodEvaluator {
                     * q;
                 let elt = MilnorBasisElement {
                     degree,
-                    p_part: p_list,
+                    p_part: PPart::from_slice(&p_list),
                     q_part: 0,
                 };
 
@@ -270,9 +270,9 @@ impl SteenrodEvaluator {
             return;
         }
         let mut t: Vec<u32> = vec![0; elt.p_part.len()];
-        t[elt.p_part.len() - 1] = elt.p_part[elt.p_part.len() - 1];
+        t[elt.p_part.len() - 1] = elt.p_part.get(elt.p_part.len() - 1);
         for i in (0..elt.p_part.len() - 1).rev() {
-            t[i] = elt.p_part[i] + 2 * t[i + 1];
+            t[i] = elt.p_part.get(i) + 2 * t[i + 1];
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
@@ -307,19 +307,10 @@ impl SteenrodEvaluator {
             (31u32.saturating_sub(elt.q_part.leading_zeros())) as usize,
         );
         let mut t = vec![0; t_len];
-        let last_p_part = if t_len <= elt.p_part.len() {
-            elt.p_part[t_len - 1]
-        } else {
-            0
-        };
-        t[t_len - 1] = last_p_part + ((elt.q_part >> (t_len)) & 1);
+        // `PPart::get` already reads past the end as zero.
+        t[t_len - 1] = elt.p_part.get(t_len - 1) + ((elt.q_part >> (t_len)) & 1);
         for i in (0..t_len - 1).rev() {
-            let p_part = if i < elt.p_part.len() {
-                elt.p_part[i]
-            } else {
-                0
-            };
-            t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + p * t[i + 1];
+            t[i] = elt.p_part.get(i) + ((elt.q_part >> (i + 1)) & 1) + p * t[i + 1];
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
@@ -344,11 +335,11 @@ impl SteenrodEvaluator {
             MilnorBasisElement {
                 degree,
                 q_part: 1 << qi,
-                p_part: vec![],
+                p_part: PPart::zero(),
             }
         } else {
-            let mut p_part = vec![0; qi as usize + 1];
-            p_part[qi as usize] = 1;
+            let mut p_part = PPart::zero();
+            p_part.set(qi as usize, 1);
             MilnorBasisElement {
                 degree,
                 q_part: 0,

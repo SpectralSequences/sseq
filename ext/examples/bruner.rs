@@ -25,7 +25,7 @@ use std::{
 
 use algebra::{
     Algebra, MilnorAlgebra,
-    milnor_algebra::MilnorBasisElement,
+    milnor_algebra::{MilnorBasisElement, PPartEntry},
     module::{FreeModule as FM, Module, homomorphism::FreeModuleHomomorphism as FMH},
 };
 use anyhow::{Context, Error, Result};
@@ -95,7 +95,10 @@ fn get_algebra_element<'a>(
         let entry = &entry[1..];
         let elt = MilnorBasisElement {
             q_part: 0,
-            p_part: entry.split(',').map(|x| x.parse().unwrap()).collect(),
+            p_part: entry
+                .split(',')
+                .map(|x| x.parse::<PPartEntry>().unwrap())
+                .collect(),
             degree: t,
         };
         a.basis_element_to_index(&elt)
