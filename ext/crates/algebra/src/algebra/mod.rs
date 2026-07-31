@@ -18,6 +18,11 @@ pub use field::Field;
 pub mod milnor_algebra;
 pub use milnor_algebra::MilnorAlgebra;
 
+/// Opt-in: an arithmetic alternative to the Milnor basis index map. Not wired in; see the module
+/// docs for what it costs and what it would take to adopt.
+#[cfg(feature = "milnor-rank")]
+pub mod milnor_rank;
+
 mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra};
 
