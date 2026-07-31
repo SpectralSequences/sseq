@@ -436,7 +436,14 @@ pub struct MilnorAlgebra {
     /// degree `q * i`.
     ppart_table: OnceVec<Vec<PPart>>,
 
-    /// A list of all basis elements of each degree, constructed from [`Self::ppart_table`]
+    /// A list of all basis elements of each degree, constructed from [`Self::ppart_table`].
+    ///
+    /// Only populated when [`Self::stores_basis_table`] holds. At `p = 2` with unstable support
+    /// off, the basis element at index `i` of degree `t` is exactly
+    /// `MilnorBasisElement::from_p(ppart_table[t][i], t)`, so storing it repeats the p-part with a
+    /// known q-part and degree bolted on -- 16 bytes per element, about a quarter of the algebra's
+    /// footprint. [`Self::basis_element_from_index`] reconstructs it instead, which is free now
+    /// that the type is `Copy` and fits in registers.
     basis_table: OnceVec<Vec<MilnorBasisElement>>,
 
     excess_table: OnceVec<Vec<usize>>,
@@ -502,8 +509,21 @@ impl MilnorAlgebra {
         &self.profile
     }
 
-    pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &MilnorBasisElement {
-        &self.basis_table[degree as usize][idx]
+    /// Whether the basis of each degree has to be stored rather than derived.
+    ///
+    /// At odd primes the q-part varies within a degree, and with unstable support enabled the
+    /// basis is re-sorted by excess; in both cases the basis is not a re-wrapping of
+    /// [`Self::ppart_table`] and must be kept.
+    fn stores_basis_table(&self) -> bool {
+        self.generic() || self.unstable_enabled
+    }
+
+    pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> MilnorBasisElement {
+        if self.stores_basis_table() {
+            self.basis_table[degree as usize][idx]
+        } else {
+            MilnorBasisElement::from_p(self.ppart_table[degree as usize][idx], degree)
+        }
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
@@ -614,11 +634,12 @@ impl Algebra for MilnorAlgebra {
         // Populate hash map
         self.basis_element_to_index_map
             .extend(max_degree as usize, |d| {
-                let basis = &self.basis_table[d];
                 let mut map = MilnorHashMap::default();
-                map.reserve(basis.len());
-                for (i, b) in basis.iter().enumerate() {
-                    assert!(map.insert(*b, i).is_none(), "Duplicate entry for {b}");
+                let dim = self.dimension(d as i32);
+                map.reserve(dim);
+                for i in 0..dim {
+                    let b = self.basis_element_from_index(d as i32, i);
+                    assert!(map.insert(b, i).is_none(), "Duplicate entry for {b}");
                 }
                 map
             });
@@ -639,8 +660,8 @@ impl Algebra for MilnorAlgebra {
                                     self.multiply(
                                         res.as_slice_mut(),
                                         1,
-                                        &self.basis_table[d][i],
-                                        &self.basis_table[e][j],
+                                        &self.basis_element_from_index(d as i32, i),
+                                        &self.basis_element_from_index(e as i32, j),
                                     );
                                     res
                                 })
@@ -660,7 +681,11 @@ impl Algebra for MilnorAlgebra {
         if degree < 0 {
             return 0;
         }
-        self.basis_table[degree as usize].len()
+        if self.stores_basis_table() {
+            self.basis_table[degree as usize].len()
+        } else {
+            self.ppart_table[degree as usize].len()
+        }
     }
 
     #[cfg(not(feature = "cache-multiplication"))]
@@ -837,7 +862,7 @@ impl UnstableAlgebra for MilnorAlgebra {
         } else if excess < degree {
             self.excess_table[degree as usize][excess as usize]
         } else {
-            self.basis_table[degree as usize].len()
+            self.dimension(degree)
         }
     }
 
@@ -1132,14 +1157,16 @@ impl MilnorAlgebra {
     }
 
     fn generate_basis_2(&self, max_degree: i32) {
+        if !self.stores_basis_table() {
+            // Derived on demand from `ppart_table`; see the field docs.
+            return;
+        }
         self.basis_table.extend(max_degree as usize, |d| {
             let mut table: Vec<_> = self.ppart_table[d]
                 .iter()
                 .map(|&p| MilnorBasisElement::from_p(p, d as i32))
                 .collect();
-            if self.unstable_enabled {
-                table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
-            }
+            table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
             table
         });
     }
@@ -1189,8 +1216,8 @@ impl MilnorAlgebra {
         self.try_beps_pn(e, x).unwrap()
     }
 
-    fn multiply_qpart(&self, m1: &MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
-        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, *m1)];
+    fn multiply_qpart(&self, m1: MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
+        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, m1)];
         let mut old_result: Vec<(u32, MilnorBasisElement)> = Vec::new();
 
         for k in BitflagIterator::set_bit_iterator(f as u64) {
@@ -1251,8 +1278,8 @@ impl MilnorAlgebra {
         &self,
         res: FpSliceMut,
         coef: u32,
-        m1: &MilnorBasisElement,
-        m2: &MilnorBasisElement,
+        m1: MilnorBasisElement,
+        m2: MilnorBasisElement,
     ) {
         PPartAllocation::with_local(|allocation| {
             self.multiply_with_allocation(res, coef, m1, m2, i32::MAX, allocation)
@@ -1263,8 +1290,8 @@ impl MilnorAlgebra {
         &self,
         mut res: FpSliceMut,
         coef: u32,
-        m1: &MilnorBasisElement,
-        m2: &MilnorBasisElement,
+        m1: MilnorBasisElement,
+        m2: MilnorBasisElement,
         excess: i32,
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
@@ -1314,7 +1341,7 @@ impl MilnorAlgebra {
         &self,
         res: FpSliceMut,
         coef: u32,
-        m1: &MilnorBasisElement,
+        m1: MilnorBasisElement,
         s_deg: i32,
         s: FpSlice,
     ) {
@@ -1327,7 +1354,7 @@ impl MilnorAlgebra {
         &self,
         mut res: FpSliceMut,
         coef: u32,
-        m1: &MilnorBasisElement,
+        m1: MilnorBasisElement,
         s_deg: i32,
         s: FpSlice,
         mut allocation: PPartAllocation,
@@ -2309,11 +2336,60 @@ mod tests {
                     PPart::from_slice(&elt.p_part.iter().collect::<Vec<_>>()),
                     elt.p_part
                 );
-                assert_eq!(algebra.basis_element_to_index(elt), i);
+                assert_eq!(algebra.basis_element_to_index(&elt), i);
                 // The degree really is recoverable from the entries.
-                let mut recomputed = *elt;
+                let mut recomputed = elt;
                 recomputed.compute_degree(ValidPrime::new(p));
                 assert_eq!(recomputed.degree, t);
+            }
+        }
+    }
+
+    /// At `p = 2` with unstable support off, the basis is not stored: it is derived from
+    /// `ppart_table`. Check the derivation reproduces exactly what the table used to hold, so the
+    /// redundancy this relies on is asserted rather than assumed.
+    #[test]
+    fn basis_is_derived_at_p2() {
+        let p = fp::prime::TWO;
+        let algebra = MilnorAlgebra::new(p, false);
+        algebra.compute_basis(120);
+        assert!(
+            !algebra.stores_basis_table(),
+            "p = 2 stable should not be storing the basis"
+        );
+
+        for t in 0..=120 {
+            let pparts = algebra.ppart_table(t);
+            assert_eq!(algebra.dimension(t), pparts.len());
+            for (i, &p_part) in pparts.iter().enumerate() {
+                // This is precisely what `generate_basis_2` used to store.
+                let expected = MilnorBasisElement {
+                    q_part: 0,
+                    p_part,
+                    degree: t,
+                };
+                let actual = algebra.basis_element_from_index(t, i);
+                assert_eq!(actual.p_part, expected.p_part, "degree {t}, index {i}");
+                assert_eq!(actual.q_part, expected.q_part, "degree {t}, index {i}");
+                assert_eq!(actual.degree, expected.degree, "degree {t}, index {i}");
+            }
+        }
+    }
+
+    /// The two configurations that still need the table really do differ from `ppart_table`, so
+    /// the exemption in `stores_basis_table` is not over-broad.
+    #[rstest]
+    #[case(3, false)]
+    #[case(2, true)]
+    fn basis_is_stored_when_it_must_be(#[case] p: u32, #[case] unstable: bool) {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(p), unstable);
+        algebra.compute_basis(60);
+        assert!(algebra.stores_basis_table());
+        // Every stored element still round-trips through the index map.
+        for t in 0..=60 {
+            for i in 0..algebra.dimension(t) {
+                let elt = algebra.basis_element_from_index(t, i);
+                assert_eq!(algebra.basis_element_to_index(&elt), i);
             }
         }
     }
