@@ -24,8 +24,11 @@ pub struct MilnorProfile {
     #[serde(default = "q_part_default")]
     pub q_part: u32,
     /// The profile function for the Q part.
+    ///
+    /// Unlike the exponent sequence of a basis element (see [`PPart`]), these are *exponents* of
+    /// the profile function and use [`PPartEntry::MAX`] to mean infinity, so they stay unpacked.
     #[serde(default)]
-    pub p_part: PPart,
+    pub p_part: Vec<PPartEntry>,
 }
 
 impl MilnorProfile {
@@ -99,9 +102,207 @@ impl Default for MilnorProfile {
 }
 
 pub type PPartEntry = u32;
-pub type PPart = Vec<PPartEntry>;
 
-#[derive(Debug, Clone, Default)]
+/// The exponent sequence $(r_1, r_2, \ldots)$ of a Milnor basis element $P(r_1, r_2, \ldots)$,
+/// bit-packed into a single `u64`.
+///
+/// Entry $r_{i+1}$ occupies [`Self::WIDTHS`]`[i]` bits starting at bit [`Self::SHIFTS`]`[i]`. The
+/// widths are forced by the degree bound: at $p = 2$ the internal degree of $P(R)$ is
+/// $\sum_i r_i (2^i - 1)$ and every term is non-negative, so an element of degree at most
+/// [`Self::MAX_DEGREE`] has $r_i \le \mathrm{MAX\\_DEGREE}/(2^i - 1)$. At an odd prime the same
+/// argument bounds $r_i$ by that quantity divided by $q = 2(p-1)$, so the $p = 2$ widths are valid
+/// for every prime and this type is prime-agnostic.
+///
+/// Trailing zeros are not represented: $P(2, 1)$ and $P(2, 1, 0)$ have the same packed value. That
+/// is what makes the packed value a canonical key, and it makes [`Self::len`] the position of the
+/// highest non-zero entry rather than a stored field.
+///
+/// # Invariant
+///
+/// Every entry fits in its field. This holds for any element of degree at most
+/// [`Self::MAX_DEGREE`], which [`MilnorAlgebra::compute_basis`] enforces up front, so the packing
+/// can never silently truncate. [`Self::set`] asserts it anyway, and [`Self::try_from_slice`]
+/// reports failure instead of panicking for input that has not been through that gate.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct PPart(u64);
+
+impl PPart {
+    /// The largest internal degree whose exponent sequences are guaranteed to fit.
+    ///
+    /// This is the largest bound for which [`Self::WIDTHS`] sums to at most 64. It is far beyond
+    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
+    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
+    pub const MAX_DEGREE: i32 = 2045;
+
+    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
+    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
+    pub const MAX_LEN: usize = 10;
+
+    /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
+    /// `MAX_DEGREE / (2^(i+1) - 1)`.
+    const WIDTHS: [u32; Self::MAX_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1];
+
+    /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
+    const SHIFTS: [u32; Self::MAX_LEN + 1] = {
+        let mut shifts = [0; Self::MAX_LEN + 1];
+        let mut i = 0;
+        while i < Self::MAX_LEN {
+            shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
+            i += 1;
+        }
+        shifts
+    };
+
+    /// `FIELD_OF_BIT[b]` is the index of the entry owning bit `b`, letting [`Self::len`] turn a
+    /// `leading_zeros` into an entry index without looping.
+    const FIELD_OF_BIT: [u8; 64] = {
+        let mut table = [0; 64];
+        let mut i = 0;
+        while i < Self::MAX_LEN {
+            let mut b = Self::SHIFTS[i];
+            while b < Self::SHIFTS[i + 1] {
+                table[b as usize] = i as u8;
+                b += 1;
+            }
+            i += 1;
+        }
+        table
+    };
+
+    /// The largest value entry `i` can hold.
+    pub const fn max_entry(i: usize) -> PPartEntry {
+        ((1u64 << Self::WIDTHS[i]) - 1) as PPartEntry
+    }
+
+    /// The number of bits holding entry `i`. Together with [`Self::shift`] this lets callers build
+    /// a mask over [`Self::bits`] directly, e.g. to test many entries in one comparison.
+    pub const fn width(i: usize) -> u32 {
+        Self::WIDTHS[i]
+    }
+
+    /// The bit offset of entry `i` within [`Self::bits`].
+    pub const fn shift(i: usize) -> u32 {
+        Self::SHIFTS[i]
+    }
+
+    const fn mask(i: usize) -> u64 {
+        ((1u64 << Self::WIDTHS[i]) - 1) << Self::SHIFTS[i]
+    }
+
+    pub const fn zero() -> Self {
+        Self(0)
+    }
+
+    /// The raw packed value. Two exponent sequences are equal exactly when their bits are, so this
+    /// is a complete hash key, and it can be compared against a packed mask in one operation (see
+    /// `MilnorSubalgebra::has_signature` in `ext`).
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    /// Entry `i`, or 0 if `i` is past the end.
+    #[inline]
+    pub const fn get(self, i: usize) -> PPartEntry {
+        if i >= Self::MAX_LEN {
+            return 0;
+        }
+        ((self.0 >> Self::SHIFTS[i]) & ((1 << Self::WIDTHS[i]) - 1)) as PPartEntry
+    }
+
+    /// Set entry `i` to `v`.
+    ///
+    /// # Panics
+    ///
+    /// If `i >= MAX_LEN`, or `v` does not fit in entry `i`. Both are unreachable for elements of
+    /// degree at most [`Self::MAX_DEGREE`].
+    #[inline]
+    pub fn set(&mut self, i: usize, v: PPartEntry) {
+        assert!(i < Self::MAX_LEN, "p-part index {i} out of range");
+        assert!(
+            v <= Self::max_entry(i),
+            "p-part entry {v} does not fit in the {} bits at index {i}",
+            Self::WIDTHS[i],
+        );
+        self.0 = (self.0 & !Self::mask(i)) | ((v as u64) << Self::SHIFTS[i]);
+    }
+
+    /// The number of entries up to and including the last non-zero one.
+    #[inline]
+    pub const fn len(self) -> usize {
+        if self.0 == 0 {
+            0
+        } else {
+            Self::FIELD_OF_BIT[63 - self.0.leading_zeros() as usize] as usize + 1
+        }
+    }
+
+    #[inline]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Zero every entry from `n` onwards, i.e. the packed form of `self[..n]`.
+    #[inline]
+    pub const fn truncate(self, n: usize) -> Self {
+        if n >= Self::MAX_LEN {
+            self
+        } else {
+            Self(self.0 & ((1 << Self::SHIFTS[n]) - 1))
+        }
+    }
+
+    pub fn iter(self) -> impl DoubleEndedIterator<Item = PPartEntry> + ExactSizeIterator {
+        (0..self.len()).map(move |i| self.get(i))
+    }
+
+    /// Pack `entries`, returning `None` if they do not fit. Use this for anything derived from
+    /// user input; use [`Self::from_slice`] when the degree bound already guarantees a fit.
+    pub fn try_from_slice(entries: &[PPartEntry]) -> Option<Self> {
+        let mut result = Self::zero();
+        for (i, &entry) in entries.iter().enumerate() {
+            // A zero past the end is just padding, which the packed form drops anyway.
+            if entry == 0 {
+                continue;
+            }
+            if i >= Self::MAX_LEN || entry > Self::max_entry(i) {
+                return None;
+            }
+            result.set(i, entry);
+        }
+        Some(result)
+    }
+
+    /// Pack `entries`, panicking if they do not fit.
+    pub fn from_slice(entries: &[PPartEntry]) -> Self {
+        Self::try_from_slice(entries).unwrap_or_else(|| {
+            panic!(
+                "p-part {entries:?} exceeds the degree {} bound",
+                Self::MAX_DEGREE
+            )
+        })
+    }
+}
+
+impl FromIterator<PPartEntry> for PPart {
+    fn from_iter<I: IntoIterator<Item = PPartEntry>>(iter: I) -> Self {
+        let mut result = Self::zero();
+        for (i, entry) in iter.into_iter().enumerate() {
+            if entry != 0 {
+                result.set(i, entry);
+            }
+        }
+        result
+    }
+}
+
+impl std::fmt::Debug for PPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+/// A Milnor basis element. This is `Copy` and entirely inline: 16 bytes, no heap.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct MilnorBasisElement {
     pub q_part: u32,
     pub p_part: PPart,
@@ -126,10 +327,7 @@ impl MilnorBasisElement {
     }
 
     pub fn clone_into(&self, other: &mut Self) {
-        other.q_part = self.q_part;
-        other.degree = self.degree;
-        other.p_part.clear();
-        other.p_part.extend_from_slice(&self.p_part);
+        *other = *self;
     }
 
     /// Update the degree component to the correct degree
@@ -138,8 +336,8 @@ impl MilnorBasisElement {
         let xi_degrees = combinatorics::xi_degrees(p);
         let tau_degrees = combinatorics::tau_degrees(p);
 
-        self.degree = q * std::iter::zip(xi_degrees, &self.p_part)
-            .map(|(&a, &b)| a * b as i32)
+        self.degree = q * std::iter::zip(xi_degrees, self.p_part.iter())
+            .map(|(&a, b)| a * b as i32)
             .sum::<i32>()
             + BitflagIterator::set_bit_iterator(self.q_part as u64)
                 .map(|k| tau_degrees[k])
@@ -161,7 +359,9 @@ impl std::cmp::Eq for MilnorBasisElement {}
 
 impl std::hash::Hash for MilnorBasisElement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.p_part.hash(state);
+        // The p-part is a single `u64`, so this is one hasher round rather than a pointer chase
+        // plus a variable-length slice hash.
+        self.p_part.bits().hash(state);
         #[cfg(feature = "odd-primes")]
         self.q_part.hash(state);
     }
@@ -189,61 +389,12 @@ impl std::fmt::Display for MilnorBasisElement {
     }
 }
 
-/// A version of `HashMap<MilnorBasisElement, T>` that is more efficient at the prime 2.
-#[cfg(feature = "odd-primes")]
+/// A map from the basis elements of a single degree to their indices.
+///
+/// [`MilnorBasisElement`] hashes and compares on its p-part (and, at odd primes, its q-part), both
+/// of which are now single machine words, so a plain `HashMap` is already the specialised form
+/// this used to hand-roll for `p = 2`.
 type MilnorHashMap<V> = HashMap<MilnorBasisElement, V>;
-
-#[cfg(not(feature = "odd-primes"))]
-struct MilnorHashMap<V> {
-    degree: i32,
-    inner: HashMap<u64, V>,
-}
-
-#[cfg(not(feature = "odd-primes"))]
-impl<V> Default for MilnorHashMap<V> {
-    fn default() -> Self {
-        Self {
-            degree: -1,
-            inner: HashMap::default(),
-        }
-    }
-}
-
-#[cfg(not(feature = "odd-primes"))]
-impl<V> MilnorHashMap<V> {
-    /// Encode a [`MilnorBasisElement`] of a known degree into a `u64`. This is achieved by packing
-    /// the PPart into a single `u64`, where we omit the first entry since it can be derived from
-    /// the degree. This currently supports elements up to degree 2^9 * 3 = 1536.
-    fn code(x: &MilnorBasisElement) -> u64 {
-        let mut counter = 0;
-        let mut shift = 0;
-        for (idx, &entry) in x.p_part.iter().skip(1).enumerate() {
-            counter += (entry as u64) << shift;
-            shift += 9 - idx;
-        }
-        counter
-    }
-
-    fn reserve(&mut self, additional: usize) {
-        self.inner.reserve(additional);
-    }
-
-    fn insert(&mut self, k: MilnorBasisElement, v: V) {
-        if self.degree == -1 {
-            self.degree = k.degree;
-        }
-        assert_eq!(k.degree, self.degree);
-        assert!(
-            self.inner.insert(Self::code(&k), v).is_none(),
-            "Duplicate entry for {k}"
-        );
-    }
-
-    fn get(&self, k: &MilnorBasisElement) -> Option<&V> {
-        assert_eq!(k.degree, self.degree);
-        self.inner.get(&Self::code(k))
-    }
-}
 
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
@@ -371,7 +522,7 @@ impl Algebra for MilnorAlgebra {
                     MilnorBasisElement {
                         degree: 1,
                         q_part: 1,
-                        p_part: vec![],
+                        p_part: PPart::zero(),
                     },
                 ));
             }
@@ -383,7 +534,7 @@ impl Algebra for MilnorAlgebra {
                     MilnorBasisElement {
                         degree: (2 * self.prime() - 2) as i32,
                         q_part: 0,
-                        p_part: vec![1],
+                        p_part: PPart::from_iter([1]),
                     },
                 ));
             }
@@ -402,7 +553,7 @@ impl Algebra for MilnorAlgebra {
                     MilnorBasisElement {
                         degree,
                         q_part: 0,
-                        p_part: vec![1 << i],
+                        p_part: PPart::from_iter([1 << i]),
                     },
                 ));
             }
@@ -417,6 +568,13 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn compute_basis(&self, max_degree: i32) {
+        // This is the single gate that makes [`PPart`]'s packing safe: past this degree an
+        // exponent could outgrow its field. Everything downstream may then assume entries fit.
+        assert!(
+            max_degree <= PPart::MAX_DEGREE,
+            "Milnor basis elements are only supported up to degree {}, got {max_degree}",
+            PPart::MAX_DEGREE,
+        );
         self.compute_ppart(max_degree);
 
         if self.generic() {
@@ -432,7 +590,7 @@ impl Algebra for MilnorAlgebra {
                 let mut map = MilnorHashMap::default();
                 map.reserve(basis.len());
                 for (i, b) in basis.iter().enumerate() {
-                    map.insert(b.clone(), i);
+                    assert!(map.insert(*b, i).is_none(), "Duplicate entry for {b}");
                 }
                 map
             });
@@ -585,19 +743,29 @@ impl Algebra for MilnorAlgebra {
             map(char('1'), |_| Some((0, 0))),
             map(char('b'), |_| Some((1, 0))),
             map(preceded(p_or_sq, digits), |i| self.try_beps_pn(0, i)),
-            map((tag("P^"), digits, char('_'), digits), |(_, s, _, t)| {
-                let entry = p.pow(s);
-                let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
-                let mut elt = MilnorBasisElement {
-                    degree,
-                    q_part: 0,
-                    p_part: vec![0; t],
-                };
-                elt.p_part[t - 1] = entry as PPartEntry;
-                self.compute_basis(degree);
-                self.try_basis_element_to_index(&elt)
-                    .map(|idx| (degree, idx))
-            }),
+            map(
+                (tag("P^"), digits, char('_'), digits::<usize>),
+                |(_, s, _, t)| {
+                    if t == 0 || t > PPart::MAX_LEN {
+                        return None;
+                    }
+                    let entry = p.pow(s) as PPartEntry;
+                    let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
+                    if degree > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
+                        return None;
+                    }
+                    let mut p_part = PPart::zero();
+                    p_part.set(t - 1, entry);
+                    let elt = MilnorBasisElement {
+                        degree,
+                        q_part: 0,
+                        p_part,
+                    };
+                    self.compute_basis(degree);
+                    self.try_basis_element_to_index(&elt)
+                        .map(|idx| (degree, idx))
+                },
+            ),
             map(
                 (
                     many0(preceded(tag("Q_"), digits::<u32>)),
@@ -608,12 +776,16 @@ impl Algebra for MilnorAlgebra {
                 ),
                 |(q_list, p_list)| {
                     let q_part = q_list.into_iter().fold(0, |acc, q| acc + (1 << q));
+                    let p_part = PPart::try_from_slice(&p_list.unwrap_or_default())?;
                     let mut elt = MilnorBasisElement {
                         degree: 0,
                         q_part,
-                        p_part: p_list.unwrap_or_default(),
+                        p_part,
                     };
                     elt.compute_degree(p);
+                    if elt.degree > PPart::MAX_DEGREE {
+                        return None;
+                    }
                     self.compute_basis(elt.degree);
 
                     self.try_basis_element_to_index(&elt)
@@ -715,7 +887,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
                     return vec![self.basis_element_to_index(&MilnorBasisElement {
                         degree,
                         q_part,
-                        p_part: vec![],
+                        p_part: PPart::zero(),
                     })];
                 }
             }
@@ -734,7 +906,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
                 return vec![self.basis_element_to_index(&MilnorBasisElement {
                     degree,
                     q_part: 0,
-                    p_part: vec![(degree as u32 / q) as PPartEntry],
+                    p_part: PPart::from_iter([(degree as u32 / q) as PPartEntry]),
                 })];
             }
             vec![]
@@ -753,8 +925,8 @@ impl GeneratedAlgebra for MilnorAlgebra {
                 if self.profile.get_p_part(j as usize - 1) <= k as PPartEntry {
                     return vec![];
                 }
-                let mut p_part = vec![0; j as usize];
-                p_part[j as usize - 1] = p.pow(k) as PPartEntry;
+                let mut p_part = PPart::zero();
+                p_part.set(j as usize - 1, p.pow(k) as PPartEntry);
                 return vec![self.basis_element_to_index(&MilnorBasisElement {
                     degree,
                     q_part: 0,
@@ -833,7 +1005,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
 // Compute basis functions
 impl MilnorAlgebra {
     fn compute_ppart(&self, max_degree: i32) {
-        self.ppart_table.extend(0, |_| vec![Vec::new()]);
+        self.ppart_table.extend(0, |_| vec![PPart::zero()]);
 
         let p = self.prime().as_i32();
         let q = if p == 2 { 1 } else { 2 * p - 2 };
@@ -863,20 +1035,19 @@ impl MilnorAlgebra {
                 }
 
                 let rem = (d - xi_degrees[i]) as usize;
-                for old in &self.ppart_table[rem] {
+                for &old in &self.ppart_table[rem] {
                     // ppart_table[rem] is arranged in increasing order of highest
                     // xi_i. If we get something too large, we may abort;
                     if old.len() > i + 1 {
                         break;
                     }
-                    if old.len() == i + 1 && old[i] == profile_list[i] {
+                    // `profile_list[i]` is non-zero here, so `old.get(i) == profile_list[i]`
+                    // already implies `old.len() == i + 1`.
+                    if old.get(i) == profile_list[i] {
                         continue;
                     }
-                    let mut new = old.clone();
-                    if new.len() < i + 1 {
-                        new.resize(i + 1, 0);
-                    }
-                    new[i] += 1;
+                    let mut new = old;
+                    new.set(i, old.get(i) + 1);
                     new_row.push(new);
                 }
             }
@@ -918,8 +1089,8 @@ impl MilnorAlgebra {
                 table.extend(
                     self.ppart_table[(d - q_degree as usize) / q as usize]
                         .iter()
-                        .map(|p_part| MilnorBasisElement {
-                            p_part: p_part.clone(),
+                        .map(|&p_part| MilnorBasisElement {
+                            p_part,
                             q_part,
                             degree: d as i32,
                         }),
@@ -936,7 +1107,7 @@ impl MilnorAlgebra {
         self.basis_table.extend(max_degree as usize, |d| {
             let mut table: Vec<_> = self.ppart_table[d]
                 .iter()
-                .map(|p| MilnorBasisElement::from_p(p.clone(), d as i32))
+                .map(|&p| MilnorBasisElement::from_p(p, d as i32))
                 .collect();
             if self.unstable_enabled {
                 table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
@@ -973,11 +1144,14 @@ impl MilnorAlgebra {
     pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
         let q = self.q() as u32;
         let degree = (q * x + e) as i32;
+        if degree > PPart::MAX_DEGREE || x > PPart::max_entry(0) {
+            return None;
+        }
         self.compute_basis(degree);
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part: e,
-            p_part: vec![x as PPartEntry],
+            p_part: PPart::from_iter([x]),
         })
         .map(|index| (degree, index))
     }
@@ -988,7 +1162,7 @@ impl MilnorAlgebra {
     }
 
     fn multiply_qpart(&self, m1: &MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
-        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
+        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, *m1)];
         let mut old_result: Vec<(u32, MilnorBasisElement)> = Vec::new();
 
         for k in BitflagIterator::set_bit_iterator(f as u64) {
@@ -1011,23 +1185,21 @@ impl MilnorAlgebra {
                     if term.q_part & (1 << (k + i as u32)) != 0 {
                         continue;
                     }
-                    // Check if R - p^k e_i < 0. Only do this from the first term onwards.
-                    if i > 0 && term.p_part[i - 1] < pk {
-                        continue;
-                    }
-
-                    let mut new_p = term.p_part.clone();
+                    let mut new_p = term.p_part;
                     if i > 0 {
-                        new_p[i - 1] -= pk;
+                        // Check if R - p^k e_i < 0. Only do this from the first term onwards.
+                        let entry = new_p.get(i - 1);
+                        if entry < pk {
+                            continue;
+                        }
+                        new_p.set(i - 1, entry - pk);
                     }
 
                     // Now calculate the number of Q's we are moving past
                     let larger_q = (term.q_part >> (k + i as u32 + 1)).count_ones();
 
-                    // If new_p ends with 0, drop them
-                    while let Some(0) = new_p.last() {
-                        new_p.pop();
-                    }
+                    // Trailing zeros are not represented in a packed p-part, so there is nothing
+                    // to trim here.
                     // Now put everything together
                     let m = MilnorBasisElement {
                         p_part: new_p,
@@ -1074,8 +1246,8 @@ impl MilnorAlgebra {
             for (cc, basis) in m1f {
                 let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
                     self.prime(),
-                    &basis.p_part,
-                    &m2.p_part,
+                    basis.p_part,
+                    m2.p_part,
                     allocation,
                     basis.q_part,
                     target_deg,
@@ -1092,8 +1264,8 @@ impl MilnorAlgebra {
         } else {
             let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
                 self.prime(),
-                &m1.p_part,
-                &m2.p_part,
+                m1.p_part,
+                m2.p_part,
                 allocation,
                 0,
                 target_deg,
@@ -1149,7 +1321,7 @@ impl MilnorAlgebra {
 #[derive(Debug, Default)]
 struct Matrix2D {
     cols: usize,
-    inner: PPart,
+    inner: Vec<PPartEntry>,
 }
 
 impl std::fmt::Display for Matrix2D {
@@ -1202,8 +1374,7 @@ impl std::ops::IndexMut<usize> for Matrix2D {
 pub struct PPartAllocation {
     m: Matrix2D,
     #[cfg(feature = "odd-primes")]
-    diagonal: PPart,
-    p_part: PPart,
+    diagonal: Vec<PPartEntry>,
 }
 
 thread_local! {
@@ -1218,9 +1389,6 @@ impl PPartAllocation {
             m: Matrix2D::with_capacity(n + 1, n),
             #[cfg(feature = "odd-primes")]
             diagonal: Vec::with_capacity(n),
-            // This size should be the number of diagonals. Even though the answer cannot be that
-            // long, we still insert zeros then pop them out later.
-            p_part: Vec::with_capacity(2 * n),
         }
     }
 
@@ -1232,21 +1400,21 @@ impl PPartAllocation {
 }
 
 #[allow(non_snake_case)]
-pub struct PPartMultiplier<'a, const MOD4: bool> {
+pub struct PPartMultiplier<const MOD4: bool> {
     p: ValidPrime,
     M: Matrix2D,
-    r: &'a PPart,
+    r: PPart,
     rows: usize,
     cols: usize,
     diag_num: usize,
     init: bool,
     pub ans: MilnorBasisElement,
     #[cfg(feature = "odd-primes")]
-    diagonal: PPart,
+    diagonal: Vec<PPartEntry>,
 }
 
 #[allow(non_snake_case)]
-impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
+impl<const MOD4: bool> PPartMultiplier<MOD4> {
     fn prime(&self) -> ValidPrime {
         self.p
     }
@@ -1254,8 +1422,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     #[allow(unused_mut)] // Mut is only used with odd primes
     pub fn new_from_allocation(
         p: ValidPrime,
-        r: &'a PPart,
-        s: &'a PPart,
+        r: PPart,
+        s: PPart,
         mut allocation: PPartAllocation,
         q_part: u32,
         degree: i32,
@@ -1276,20 +1444,18 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         M.reset(rows, cols);
 
         for i in 1..rows {
-            M[i][0] = r[i - 1];
+            M[i][0] = r.get(i - 1);
         }
-        // This is somehow quite significantly faster than copy_from_slice
-        #[allow(clippy::manual_memcpy)]
         for k in 1..cols {
-            M[0][k] = s[k - 1];
+            M[0][k] = s.get(k - 1);
         }
 
         let ans = MilnorBasisElement {
             q_part,
-            p_part: allocation.p_part,
+            p_part: PPart::zero(),
             degree,
         };
-        PPartMultiplier {
+        Self {
             #[cfg(feature = "odd-primes")]
             diagonal: allocation.diagonal,
             p,
@@ -1308,7 +1474,6 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
             m: self.M,
             #[cfg(feature = "odd-primes")]
             diagonal: self.diagonal,
-            p_part: self.ans.p_part,
         }
     }
 
@@ -1392,7 +1557,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 if inc <= max_inc {
                     // If so, we found our next matrix.
                     for row in 1..i {
-                        self.M[row][0] = self.r[row - 1];
+                        self.M[row][0] = self.r.get(row - 1);
                         for col in 1..self.cols {
                             self.M[0][col] += self.M[row][col];
                             self.M[row][col] = 0;
@@ -1416,13 +1581,13 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 }
 
-impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
+impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
     type Item = u32;
 
     fn next(&mut self) -> Option<u32> {
         let p = self.prime().as_u32() as PPartEntry;
         'outer: loop {
-            self.ans.p_part.clear();
+            self.ans.p_part = PPart::zero();
             let mut coef = 1;
 
             if self.init {
@@ -1443,27 +1608,19 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
                         continue 'outer;
                     }
                 }
-                self.ans
-                    .p_part
-                    .reserve(std::cmp::max(self.cols, self.rows) - 1);
-                self.ans.p_part.extend(&self.M[0][1..self.cols]);
-
-                if self.rows > self.cols {
-                    self.ans.p_part.resize(self.r.len(), 0);
-                }
-                self.ans
-                    .p_part
-                    .iter_mut()
-                    .zip(self.r.iter())
-                    .for_each(|(l, r)| *l += r);
-
-                // If new_p ends with 0, drop them
-                while let Some(0) = self.ans.p_part.last() {
-                    self.ans.p_part.pop();
+                // The answer is the top row of the matrix plus `r`, entrywise. Writing a zero
+                // is a no-op on a packed p-part, so trailing zeros need no trimming.
+                for i in 0..std::cmp::max(self.cols, self.rows) - 1 {
+                    let mut entry = self.r.get(i);
+                    if i + 1 < self.cols {
+                        entry += self.M[0][i + 1];
+                    }
+                    if entry != 0 {
+                        self.ans.p_part.set(i, entry);
+                    }
                 }
                 return Some(coef);
             } else if self.update() {
-                self.ans.p_part.reserve(self.diag_num);
                 for diag_idx in 1..=self.diag_num {
                     let i_min = (diag_idx + 1).saturating_sub(self.cols);
                     let i_max = std::cmp::min(diag_idx + 1, self.rows);
@@ -1510,11 +1667,12 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
                             }
                         }
                     }
-                    self.ans.p_part.push(sum);
-                }
-                // If new_p ends with 0, drop them
-                while let Some(0) = self.ans.p_part.last() {
-                    self.ans.p_part.pop();
+                    // `diag_num` counts diagonals of the working matrix, which can exceed the
+                    // number of entries a p-part of this degree can have; those trailing
+                    // diagonals are necessarily zero and need not be stored.
+                    if sum != 0 {
+                        self.ans.p_part.set(diag_idx - 1, sum);
+                    }
                 }
 
                 return Some(coef);
@@ -1543,7 +1701,7 @@ impl MilnorAlgebra {
 
             let p_idx = self
                 .basis_element_to_index(&MilnorBasisElement::from_p(
-                    vec![ppow as PPartEntry],
+                    PPart::from_iter([ppow as PPartEntry]),
                     p_degree,
                 ))
                 .to_owned();
@@ -1551,7 +1709,7 @@ impl MilnorAlgebra {
             let q_idx = self
                 .basis_element_to_index(&MilnorBasisElement {
                     q_part: 1 << (i - 1),
-                    p_part: Vec::new(),
+                    p_part: PPart::zero(),
                     degree: q_degree,
                 })
                 .to_owned();
@@ -1567,13 +1725,13 @@ impl MilnorAlgebra {
 
             let first_idx = self.basis_element_to_index(&MilnorBasisElement {
                 q_part: 1 << i,
-                p_part: Vec::new(),
+                p_part: PPart::zero(),
                 degree: first_degree,
             });
 
             let second_idx = self.basis_element_to_index(&MilnorBasisElement {
                 q_part: basis.q_part ^ (1 << i),
-                p_part: basis.p_part.clone(),
+                p_part: basis.p_part,
                 degree: second_degree,
             });
 
@@ -1607,9 +1765,9 @@ impl MilnorAlgebra {
             let b = self.basis_element_from_index(degree, idx);
             let len = b.p_part.len();
 
-            if b.p_part[0..len - 1].iter().all(|&x| x == 0) {
+            if b.p_part.truncate(len - 1).is_empty() {
                 // There is only one entry
-                let entry = b.p_part[len - 1];
+                let entry = b.p_part.get(len - 1);
                 let (k, m) = factor_pk(p, entry);
 
                 // This is a power of p
@@ -1625,12 +1783,12 @@ impl MilnorAlgebra {
                         let l_degree = l_entry as i32 * self.q();
                         let l_index = self.basis_element_to_index(&MilnorBasisElement {
                             q_part: 0,
-                            p_part: vec![l_entry],
+                            p_part: PPart::from_iter([l_entry]),
                             degree: l_degree,
                         });
 
-                        let mut r_p_part = vec![0; len - 1];
-                        r_p_part[len - 2] = r_entry;
+                        let mut r_p_part = PPart::zero();
+                        r_p_part.set(len - 2, r_entry);
                         let r_degree =
                             r_entry as i32 * combinatorics::xi_degrees(p)[len - 2] * self.q();
 
@@ -1654,15 +1812,15 @@ impl MilnorAlgebra {
                     let mut elt = MilnorBasisElement {
                         q_part: 0,
                         degree: 0,
-                        p_part: vec![0; len],
+                        p_part: PPart::zero(),
                     };
 
-                    elt.p_part[len - 1] = pk;
-                    elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                    elt.p_part.set(len - 1, pk);
+                    elt.degree = entry_deg * pk as i32;
                     let first = (elt.degree, self.basis_element_to_index(&elt));
 
-                    elt.p_part[len - 1] = rem_entry;
-                    elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                    elt.p_part.set(len - 1, rem_entry);
+                    elt.degree = entry_deg * rem_entry as i32;
                     let second = (elt.degree, self.basis_element_to_index(&elt));
 
                     let coef =
@@ -1671,22 +1829,18 @@ impl MilnorAlgebra {
                 }
             } else {
                 // There is more than one entry. Just separate out the last entry.
-                let last_entry = b.p_part[len - 1];
+                let last_entry = b.p_part.get(len - 1);
                 let last_deg = combinatorics::xi_degrees(p)[len - 1] * self.q() * last_entry as i32;
                 let mut elt = MilnorBasisElement {
                     q_part: 0,
-                    p_part: vec![0; len],
+                    p_part: PPart::zero(),
                     degree: last_deg,
                 };
-                elt.p_part[len - 1] = last_entry;
+                elt.p_part.set(len - 1, last_entry);
                 let first = (elt.degree, self.basis_element_to_index(&elt));
 
                 elt.degree = degree - last_deg;
-                elt.p_part.clear();
-                elt.p_part.extend_from_slice(&b.p_part[0..len - 1]);
-                while let Some(0) = elt.p_part.last() {
-                    elt.p_part.pop();
-                }
+                elt.p_part = b.p_part.truncate(len - 1);
                 let second = (elt.degree, self.basis_element_to_index(&elt));
                 buffer.extend([(p - c, first, second)]);
             };
@@ -1708,16 +1862,23 @@ impl MilnorAlgebra {
 }
 
 impl MilnorAlgebra {
-    /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut PPart, max: &[PPartEntry]) -> bool {
-        element[0] += 1;
-        for i in 0..element.len() - 1 {
-            if element[i] > max[i] {
-                element[i] = 0;
-                element[i + 1] += 1;
+    /// Advance `element` to the next p-part bounded entrywise by `max`, in odometer order.
+    ///
+    /// Returns `true` once the odometer wraps, i.e. when `element` was already `max`.
+    ///
+    /// This carries *before* incrementing rather than after. The two orders enumerate the same
+    /// sequence, but incrementing first would transiently store `max[i] + 1`, which need not fit
+    /// in a packed field whose width is exactly saturated by `max[i]`.
+    fn increment_p_part(element: &mut PPart, max: PPart) -> bool {
+        for i in 0..max.len() {
+            let entry = element.get(i);
+            if entry < max.get(i) {
+                element.set(i, entry + 1);
+                return false;
             }
+            element.set(i, 0);
         }
-        element.last().unwrap() > max.last().unwrap()
+        true
     }
 }
 
@@ -1730,7 +1891,7 @@ impl Bialgebra for MilnorAlgebra {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
 
         let mut len = 1;
-        let p_part = &self.basis_element_from_index(op_deg, op_idx).p_part;
+        let p_part = self.basis_element_from_index(op_deg, op_idx).p_part;
 
         for i in p_part.iter() {
             len *= i + 1;
@@ -1738,32 +1899,23 @@ impl Bialgebra for MilnorAlgebra {
         let len = len as usize;
         let mut result = Vec::with_capacity(len);
 
-        let mut cur_ppart: PPart = vec![0; p_part.len()];
+        let n = p_part.len();
+        let mut cur_ppart = PPart::zero();
         loop {
             let mut left_degree: i32 = 0;
-            for i in 0..cur_ppart.len() {
-                left_degree += cur_ppart[i] as i32 * xi_degrees[i];
+            let mut right_ppart = PPart::zero();
+            for (i, &xi_degree) in xi_degrees.iter().enumerate().take(n) {
+                let entry = cur_ppart.get(i);
+                left_degree += entry as i32 * xi_degree;
+                // Trailing zeros are dropped by the packing, so no trimming is needed.
+                right_ppart.set(i, p_part.get(i) - entry);
             }
             let right_degree: i32 = op_deg - left_degree;
-
-            let mut left_ppart = cur_ppart.clone();
-            while let Some(0) = left_ppart.last() {
-                left_ppart.pop();
-            }
-
-            let mut right_ppart = cur_ppart
-                .iter()
-                .enumerate()
-                .map(|(i, v)| p_part[i] - *v)
-                .collect::<Vec<_>>();
-            while let Some(0) = right_ppart.last() {
-                right_ppart.pop();
-            }
 
             let left_idx = self.basis_element_to_index(&MilnorBasisElement {
                 degree: left_degree,
                 q_part: 0,
-                p_part: left_ppart,
+                p_part: cur_ppart,
             });
             let right_idx = self.basis_element_to_index(&MilnorBasisElement {
                 degree: right_degree,
@@ -1920,13 +2072,17 @@ mod tests {
             assert_eq!(algebra.basis_element_to_string(d, i), name);
         }
 
-        // Syntactically-valid names that name no basis element must return `None`
+        // "P0"/"Sq0" name the identity. A packed p-part does not represent trailing zeros, so
+        // `P(0)` and `P()` are the same value, and `try_beps_pn(0, 0)` finds the degree-0 basis
+        // element. This matches `AdemAlgebra::try_beps_pn`, which special-cases `x == 0` to
+        // `Some((0, 0))`; the previous `None` here came from `vec![0]` and `vec![]` hashing
+        // differently, which was an artifact of the unpacked representation.
+        assert_eq!(algebra.basis_element_from_string("P0"), Some((0, 0)));
+        assert_eq!(algebra.basis_element_from_string("Sq0"), Some((0, 0)));
+
+        // Syntactically-valid names that name no basis element must still return `None`
         // (they previously panicked in `basis_element_to_index`).
         //
-        // "P0"/"Sq0" parse via `try_beps_pn(0, 0)`, building the element
-        // {q_part: 0, p_part: [0]} in degree 0, which is not a basis element.
-        assert_eq!(algebra.basis_element_from_string("P0"), None);
-        assert_eq!(algebra.basis_element_from_string("Sq0"), None);
         // "Q_5" parses via the Q/P branch into a candidate element (degree 63)
         // whose basis lookup finds nothing at p = 2.
         assert_eq!(algebra.basis_element_from_string("Q_5"), None);
@@ -2001,6 +2157,133 @@ mod tests {
         }
     }
 
+    /// The packing is only sound because each field is wide enough for every entry that can occur
+    /// at degree at most `MAX_DEGREE`. Check that against the $\xi$-degrees directly, so that
+    /// changing `MAX_DEGREE` or `WIDTHS` without the other fails loudly.
+    #[test]
+    fn ppart_widths_cover_max_degree() {
+        let xi_degrees = combinatorics::xi_degrees(fp::prime::TWO);
+        for (i, &xi_degree) in xi_degrees.iter().enumerate().take(PPart::MAX_LEN) {
+            // deg P(R) = sum_i r_i (2^i - 1) with non-negative terms, so r_i <= deg / (2^i - 1).
+            let bound = PPart::MAX_DEGREE / xi_degree;
+            assert!(
+                bound <= PPart::max_entry(i) as i32,
+                "entry {i} needs to hold {bound} but only holds up to {}",
+                PPart::max_entry(i),
+            );
+        }
+        // There is no entry beyond `MAX_LEN` to store: the xi-degree table itself stops there, so
+        // `compute_ppart` cannot produce a longer p-part. If `fp` ever raises
+        // `MAX_MULTINOMIAL_LEN`, this fires and `WIDTHS` has to be revisited.
+        assert_eq!(xi_degrees.len(), PPart::MAX_LEN);
+        // ... and the layout uses the whole word, so `MAX_DEGREE` is as large as it can be.
+        assert_eq!(
+            PPart::shift(PPart::MAX_LEN - 1) + PPart::width(PPart::MAX_LEN - 1),
+            64
+        );
+    }
+
+    #[test]
+    fn ppart_accessors() {
+        let mut p = PPart::from_slice(&[3, 0, 5]);
+        assert_eq!(p.len(), 3);
+        assert_eq!(p.iter().collect::<Vec<_>>(), vec![3, 0, 5]);
+        assert_eq!(p.get(1), 0);
+        assert_eq!(p.get(2), 5);
+        // Reading past the end is zero, not a panic.
+        assert_eq!(p.get(7), 0);
+        assert_eq!(p.get(PPart::MAX_LEN), 0);
+
+        // Trailing zeros are not represented, so they do not affect equality, length or hashing.
+        assert_eq!(PPart::from_slice(&[3, 0, 5, 0, 0]), p);
+        assert_eq!(PPart::from_slice(&[]), PPart::zero());
+        assert_eq!(PPart::from_slice(&[0, 0]), PPart::zero());
+        assert_eq!(PPart::zero().len(), 0);
+        assert!(PPart::zero().is_empty());
+
+        assert_eq!(p.truncate(2), PPart::from_slice(&[3]));
+        assert_eq!(p.truncate(0), PPart::zero());
+        assert_eq!(p.truncate(PPart::MAX_LEN + 3), p);
+
+        p.set(1, 7);
+        assert_eq!(p, PPart::from_slice(&[3, 7, 5]));
+        p.set(2, 0);
+        assert_eq!(p, PPart::from_slice(&[3, 7]));
+    }
+
+    #[test]
+    fn ppart_rejects_out_of_range() {
+        // Too many entries, and an entry too large for its field.
+        assert_eq!(PPart::try_from_slice(&[1; PPart::MAX_LEN + 1]), None);
+        assert_eq!(PPart::try_from_slice(&[0, PPart::max_entry(1) + 1]), None);
+        // ... but a zero past the end is only padding.
+        let mut padded = vec![0; PPart::MAX_LEN + 4];
+        padded[0] = 2;
+        assert_eq!(
+            PPart::try_from_slice(&padded),
+            Some(PPart::from_slice(&[2]))
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "does not fit")]
+    fn ppart_set_out_of_range_panics() {
+        PPart::zero().set(0, PPart::max_entry(0) + 1);
+    }
+
+    /// `increment_p_part` walks up to and including `max`, whose top entry may saturate its field.
+    /// Incrementing before carrying would overflow there.
+    #[test]
+    fn ppart_odometer_handles_saturated_field() {
+        let top = PPart::MAX_LEN - 1;
+        let mut max = PPart::from_slice(&[2]);
+        max.set(top, PPart::max_entry(top));
+
+        let mut count = 0;
+        let mut cur = PPart::zero();
+        loop {
+            count += 1;
+            if MilnorAlgebra::increment_p_part(&mut cur, max) {
+                break;
+            }
+        }
+        assert_eq!(count, 3 * (PPart::max_entry(top) as usize + 1));
+        // Wrapping leaves the odometer back at zero.
+        assert_eq!(cur, PPart::zero());
+    }
+
+    /// Pack every basis element the algebra actually produces and check nothing collides or is
+    /// lost. This is the property the whole representation rests on.
+    #[rstest]
+    #[case(2, 120)]
+    #[case(3, 200)]
+    fn ppart_packing_is_faithful(#[case] p: u32, #[case] max_degree: i32) {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(p), false);
+        algebra.compute_basis(max_degree);
+
+        for t in 0..=max_degree {
+            let mut seen = HashMap::default();
+            for i in 0..algebra.dimension(t) {
+                let elt = algebra.basis_element_from_index(t, i);
+                // The packed value plus the q-part identifies the element within its degree.
+                assert!(
+                    seen.insert((elt.p_part.bits(), elt.q_part), i).is_none(),
+                    "collision at degree {t} for {elt}"
+                );
+                // Round-trip through a slice, and back through the index map.
+                assert_eq!(
+                    PPart::from_slice(&elt.p_part.iter().collect::<Vec<_>>()),
+                    elt.p_part
+                );
+                assert_eq!(algebra.basis_element_to_index(elt), i);
+                // The degree really is recoverable from the entries.
+                let mut recomputed = *elt;
+                recomputed.compute_degree(ValidPrime::new(p));
+                assert_eq!(recomputed.degree, t);
+            }
+        }
+    }
+
     #[test]
     fn test_clone_into() {
         let mut other = MilnorBasisElement::default();
@@ -2012,34 +2295,34 @@ mod tests {
 
         check(&MilnorBasisElement {
             q_part: 3,
-            p_part: vec![3, 2],
+            p_part: PPart::from_slice(&[3, 2]),
             degree: 12,
         });
         check(&MilnorBasisElement {
             q_part: 1,
-            p_part: vec![3],
+            p_part: PPart::from_slice(&[3]),
             degree: 11,
         });
         check(&MilnorBasisElement {
             q_part: 5,
-            p_part: vec![1, 3, 5, 2],
+            p_part: PPart::from_slice(&[1, 3, 5, 2]),
             degree: 7,
         });
         check(&MilnorBasisElement {
             q_part: 0,
-            p_part: vec![],
+            p_part: PPart::zero(),
             degree: 2,
         });
     }
 
     #[test]
     fn test_ppart_multiplier_2() {
-        let r = vec![1, 4];
-        let s = vec![2, 4];
+        let r = PPart::from_slice(&[1, 4]);
+        let s = PPart::from_slice(&[2, 4]);
         let mut m = PPartMultiplier::<false>::new_from_allocation(
             fp::prime::TWO,
-            &r,
-            &s,
+            r,
+            s,
             PPartAllocation::default(),
             0,
             0,
@@ -2075,12 +2358,12 @@ mod tests {
 
     #[test]
     fn test_ppart_multiplier_3() {
-        let r = vec![3, 4];
-        let s = vec![1, 4];
+        let r = PPart::from_slice(&[3, 4]);
+        let s = PPart::from_slice(&[1, 4]);
         let mut m = PPartMultiplier::<false>::new_from_allocation(
             ValidPrime::new(3),
-            &r,
-            &s,
+            r,
+            s,
             PPartAllocation::default(),
             0,
             0,

@@ -20,7 +20,7 @@ use std::{
 
 use algebra::{
     Algebra, combinatorics,
-    milnor_algebra::{MilnorAlgebra, PPartEntry},
+    milnor_algebra::{MilnorAlgebra, PPart, PPartEntry},
     module::{
         FreeModule, GeneratorData, Module, ZeroModule,
         homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
@@ -100,15 +100,23 @@ impl MilnorSubalgebra {
         Self { profile: vec![] }
     }
 
-    /// Computes the signature of an element
-    fn has_signature(&self, ppart: &[PPartEntry], signature: &[PPartEntry]) -> bool {
-        for (i, (&profile, &signature)) in self.profile.iter().zip(signature).enumerate() {
-            let ppart = ppart.get(i).copied().unwrap_or(0);
-            if ppart & ((1 << profile) - 1) != signature {
-                return false;
-            }
+    /// The test "does this element have this signature" compiled into a `(mask, value)` pair to
+    /// match against the packed p-part.
+    ///
+    /// The per-entry test is `ppart[i] & ((1 << profile[i]) - 1) == signature[i]`. Because each
+    /// entry occupies a fixed field of the packed word, the low `profile[i]` bits of entry `i` are
+    /// a fixed bit range of that word, so the whole conjunction is a single `&` and `==`. Entries
+    /// past the end of the p-part read as zero, which the packing already gives us for free.
+    fn packed_signature(&self, signature: &[PPartEntry]) -> (u64, u64) {
+        let mut mask = 0;
+        let mut value = 0;
+        for (i, (&profile, &entry)) in self.profile.iter().zip(signature).enumerate() {
+            // A profile wider than the field constrains the whole field.
+            let width = std::cmp::min(profile as u32, PPart::width(i));
+            mask |= ((1u64 << width) - 1) << PPart::shift(i);
+            value |= (entry as u64) << PPart::shift(i);
         }
-        true
+        (mask, value)
     }
 
     fn zero_signature(&self) -> Vec<PPartEntry> {
@@ -131,12 +139,15 @@ impl MilnorSubalgebra {
                       start: [offset],
                       end: _,
                   }| {
+                // Hoist the mask out of the inner loop: every element in this block is tested
+                // against the same signature.
+                let (mask, value) = self.packed_signature(signature);
                 algebra
                     .ppart_table(degree - gen_deg)
                     .iter()
                     .enumerate()
                     .filter_map(move |(n, op)| {
-                        if self.has_signature(op, signature) {
+                        if op.bits() & mask == value {
                             Some(offset + n)
                         } else {
                             None

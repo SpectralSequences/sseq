@@ -1,6 +1,6 @@
 //! Benchmarks for the low-level Milnor `PPartMultiplier` kernel.
 
-use algebra::milnor_algebra::{PPartAllocation, PPartEntry, PPartMultiplier};
+use algebra::milnor_algebra::{PPart, PPartAllocation, PPartMultiplier};
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
@@ -11,8 +11,8 @@ fn bench_ppart<const MOD4: bool>(
     g: &mut BenchmarkGroup<WallTime>,
     name: &str,
     p: u32,
-    r: Vec<PPartEntry>,
-    s: Vec<PPartEntry>,
+    r: PPart,
+    s: PPart,
 ) {
     let p = ValidPrime::new(p);
     g.bench_function(name, |bench| {
@@ -21,7 +21,7 @@ fn bench_ppart<const MOD4: bool>(
         bench.iter_batched(
             PPartAllocation::default,
             |alloc| {
-                let m = PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, alloc, 0, 0);
+                let m = PPartMultiplier::<MOD4>::new_from_allocation(p, r, s, alloc, 0, 0);
                 for c in m {
                     std::hint::black_box(c);
                 }
@@ -38,30 +38,30 @@ fn ppart(c: &mut Criterion) {
         &mut g,
         "ppart_2/a",
         2,
-        vec![60, 30, 8, 2, 1],
-        vec![20, 30, 20, 4, 1, 2],
+        PPart::from_slice(&[60, 30, 8, 2, 1]),
+        PPart::from_slice(&[20, 30, 20, 4, 1, 2]),
     );
     bench_ppart::<false>(
         &mut g,
         "ppart_2/b",
         2,
-        vec![35, 12, 20, 14, 1, 3],
-        vec![60, 30, 0, 2, 1],
+        PPart::from_slice(&[35, 12, 20, 14, 1, 3]),
+        PPart::from_slice(&[60, 30, 0, 2, 1]),
     );
 
     bench_ppart::<true>(
         &mut g,
         "ppart_4/a",
         2,
-        vec![60, 30, 8, 2, 1],
-        vec![20, 30, 20, 4, 1, 2],
+        PPart::from_slice(&[60, 30, 8, 2, 1]),
+        PPart::from_slice(&[20, 30, 20, 4, 1, 2]),
     );
     bench_ppart::<true>(
         &mut g,
         "ppart_4/b",
         2,
-        vec![35, 12, 20, 14, 1, 3],
-        vec![60, 30, 0, 2, 1],
+        PPart::from_slice(&[35, 12, 20, 14, 1, 3]),
+        PPart::from_slice(&[60, 30, 0, 2, 1]),
     );
 
     #[cfg(feature = "odd-primes")]
@@ -70,15 +70,15 @@ fn ppart(c: &mut Criterion) {
             &mut g,
             "ppart_3/a",
             3,
-            vec![120, 70, 40, 2],
-            vec![60, 35, 21, 6],
+            PPart::from_slice(&[120, 70, 40, 2]),
+            PPart::from_slice(&[60, 35, 21, 6]),
         );
         bench_ppart::<false>(
             &mut g,
             "ppart_3/b",
             3,
-            vec![30, 12, 35, 24],
-            vec![100, 80, 16, 2, 3],
+            PPart::from_slice(&[30, 12, 35, 24]),
+            PPart::from_slice(&[100, 80, 16, 2, 3]),
         );
     }
 

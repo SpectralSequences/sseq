@@ -77,8 +77,9 @@ mod double {
 
     mod double_algebra {
         use algebra::{
-            AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra, adem_algebra::AdemBasisElement,
-            milnor_algebra::MilnorBasisElement,
+            AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+            adem_algebra::AdemBasisElement,
+            milnor_algebra::{MilnorBasisElement, PPart},
         };
 
         pub trait DoubleAlgebra: Algebra {
@@ -92,14 +93,14 @@ mod double {
                 let p_part = elt
                     .p_part
                     .iter()
-                    .map(|&x| {
+                    .map(|x| {
                         if x.is_multiple_of(2) {
                             Some(x / 2)
                         } else {
                             None
                         }
                     })
-                    .collect::<Option<Vec<_>>>()?;
+                    .collect::<Option<PPart>>()?;
                 Some(self.basis_element_to_index(&MilnorBasisElement {
                     degree: degree / 2,
                     p_part,
