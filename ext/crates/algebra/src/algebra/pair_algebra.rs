@@ -192,8 +192,8 @@ impl PairAlgebra for MilnorAlgebra {
         assert_eq!(r_degree + s_degree, result.degree);
 
         // First write the Y terms
-        let mut r = *self.basis_element_from_index(r_degree, r_idx);
-        let mut s = *self.basis_element_from_index(s_degree, s_idx);
+        let mut r = self.basis_element_from_index(r_degree, r_idx);
+        let mut s = self.basis_element_from_index(s_degree, s_idx);
 
         PPartAllocation::with_local(|mut allocation| {
             for k in 0..s.p_part.len() {
@@ -205,8 +205,8 @@ impl PairAlgebra for MilnorAlgebra {
                         allocation = self.multiply_with_allocation(
                             result.ys[m + k][n + k].as_slice_mut(),
                             coeff,
-                            &r,
-                            &s,
+                            r,
+                            s,
                             i32::MAX,
                             allocation,
                         );
@@ -263,12 +263,12 @@ impl PairAlgebra for MilnorAlgebra {
 
         // The twos terms
         for (r_idx, c) in r.iter_nonzero() {
-            let mut r = *self.basis_element_from_index(r_degree, r_idx);
+            let mut r = self.basis_element_from_index(r_degree, r_idx);
             sub!(r, 1, 0);
             self.multiply_basis_by_element(
                 result.copy(),
                 coeff * c,
-                &r,
+                r,
                 s_degree,
                 s.twos.as_slice(),
             );
@@ -366,7 +366,7 @@ thread_local! {
 /// [`a_y_inner`] if not available.
 fn a_y_cached(
     algebra: &MilnorAlgebra,
-    a: &MilnorElt,
+    a: MilnorElt,
     k: usize,
     l: usize,
     f: impl FnOnce(&FpVector),
@@ -379,7 +379,7 @@ fn a_y_cached(
 
         let raw_entry = cache.raw_entry();
         let result = raw_entry
-            .from_hash(hasher.finish(), |v| &v.0 == a && v.1 == (k, l))
+            .from_hash(hasher.finish(), |v| v.0 == a && v.1 == (k, l))
             .map(|(_, y)| y);
 
         match result {
@@ -387,15 +387,15 @@ fn a_y_cached(
             None => {
                 let v = a_y_inner(algebra, a, k, l);
                 f(&v);
-                cache.insert((*a, (k, l)), v);
+                cache.insert((a, (k, l)), v);
             }
         }
     })
 }
 
 /// Actually computes $A(a, Y_{k, l})$ and returns the result.
-fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVector {
-    let mut a = *a;
+fn a_y_inner(algebra: &MilnorAlgebra, a: MilnorElt, k: usize, l: usize) -> FpVector {
+    let mut a = a;
     let mut result = FpVector::new(TWO, algebra.dimension(a.degree + (1 << k) + (1 << l) - 2));
     let mut t = MilnorElt {
         q_part: 0,
@@ -420,7 +420,7 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVe
 
             // We can just read off the value of the product instead of passing through the
             // algorithm, but this is cached so problem for another day...
-            algebra.multiply(result.as_slice_mut(), 1, &t, &a);
+            algebra.multiply(result.as_slice_mut(), 1, t, a);
 
             unsub!(a, j, l);
         }
@@ -462,7 +462,7 @@ mod tests {
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg));
-            a_y_cached(&algebra, &a, k, l, |v| result.add(v, 1));
+            a_y_cached(&algebra, a, k, l, |v| result.add(v, 1));
             ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()));
         };
 
