@@ -138,13 +138,18 @@ impl PPart {
     /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
     pub const MAX_LEN: usize = 10;
 
+    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
+    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
+    /// `MAX_LEN` are given width 0, so they read as zero.
+    const TABLE_LEN: usize = 16;
+
     /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
     /// `MAX_DEGREE / (2^(i+1) - 1)`.
-    const WIDTHS: [u32; Self::MAX_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1];
+    const WIDTHS: [u32; Self::TABLE_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1, 0, 0, 0, 0, 0, 0];
 
     /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
-    const SHIFTS: [u32; Self::MAX_LEN + 1] = {
-        let mut shifts = [0; Self::MAX_LEN + 1];
+    const SHIFTS: [u32; Self::TABLE_LEN] = {
+        let mut shifts = [0; Self::TABLE_LEN];
         let mut i = 0;
         while i < Self::MAX_LEN {
             shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
@@ -195,18 +200,41 @@ impl PPart {
 
     /// The raw packed value. Two exponent sequences are equal exactly when their bits are, so this
     /// is a complete hash key, and it can be compared against a packed mask in one operation (see
-    /// `MilnorSubalgebra::has_signature` in `ext`).
+    /// `MilnorSubalgebra::packed_signature` in `ext`).
     pub const fn bits(self) -> u64 {
         self.0
     }
 
-    /// Entry `i`, or 0 if `i` is past the end.
+    /// Reinterpret a raw packed value.
+    ///
+    /// Callers that assemble entries by shifting must uphold the type invariant themselves: each
+    /// entry must lie within its field, which holds for any element of degree at most
+    /// [`Self::MAX_DEGREE`]. This exists so hot loops can accumulate into a plain `u64` and store
+    /// once, rather than read-modify-write through [`Self::set`] per entry.
+    pub(crate) const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Entry `i`, for `i < TABLE_LEN`, with no bounds check.
+    ///
+    /// Masking the index keeps the table lookups in range without a branch. Entries in
+    /// `MAX_LEN..TABLE_LEN` have width 0 and so read as zero, which is the right answer; an index
+    /// at or beyond `TABLE_LEN` would silently wrap, which is why this is private and
+    /// `debug_assert`ed. Callers in the multiplier are all bounded by `MAX_LEN`.
+    #[inline]
+    const fn entry(self, i: usize) -> PPartEntry {
+        debug_assert!(i < Self::TABLE_LEN);
+        let i = i & (Self::TABLE_LEN - 1);
+        ((self.0 >> Self::SHIFTS[i]) & ((1 << Self::WIDTHS[i]) - 1)) as PPartEntry
+    }
+
+    /// Entry `i`, or 0 if `i` is past the end. Accepts any index.
     #[inline]
     pub const fn get(self, i: usize) -> PPartEntry {
         if i >= Self::MAX_LEN {
             return 0;
         }
-        ((self.0 >> Self::SHIFTS[i]) & ((1 << Self::WIDTHS[i]) - 1)) as PPartEntry
+        self.entry(i)
     }
 
     /// Set entry `i` to `v`.
@@ -1444,10 +1472,10 @@ impl<const MOD4: bool> PPartMultiplier<MOD4> {
         M.reset(rows, cols);
 
         for i in 1..rows {
-            M[i][0] = r.get(i - 1);
+            M[i][0] = r.entry(i - 1);
         }
         for k in 1..cols {
-            M[0][k] = s.get(k - 1);
+            M[0][k] = s.entry(k - 1);
         }
 
         let ans = MilnorBasisElement {
@@ -1557,7 +1585,7 @@ impl<const MOD4: bool> PPartMultiplier<MOD4> {
                 if inc <= max_inc {
                     // If so, we found our next matrix.
                     for row in 1..i {
-                        self.M[row][0] = self.r.get(row - 1);
+                        self.M[row][0] = self.r.entry(row - 1);
                         for col in 1..self.cols {
                             self.M[0][col] += self.M[row][col];
                             self.M[row][col] = 0;
@@ -1587,7 +1615,6 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
     fn next(&mut self) -> Option<u32> {
         let p = self.prime().as_u32() as PPartEntry;
         'outer: loop {
-            self.ans.p_part = PPart::zero();
             let mut coef = 1;
 
             if self.init {
@@ -1608,19 +1635,22 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
                         continue 'outer;
                     }
                 }
-                // The answer is the top row of the matrix plus `r`, entrywise. Writing a zero
-                // is a no-op on a packed p-part, so trailing zeros need no trimming.
+                // The answer is the top row of the matrix plus `r`, entrywise. Accumulate into
+                // a plain word and store once; trailing zeros contribute nothing, so there is no
+                // trimming to do.
+                let mut ans = 0;
                 for i in 0..std::cmp::max(self.cols, self.rows) - 1 {
-                    let mut entry = self.r.get(i);
+                    let mut entry = self.r.entry(i);
                     if i + 1 < self.cols {
                         entry += self.M[0][i + 1];
                     }
-                    if entry != 0 {
-                        self.ans.p_part.set(i, entry);
-                    }
+                    debug_assert!(entry <= PPart::max_entry(i));
+                    ans |= (entry as u64) << PPart::shift(i);
                 }
+                self.ans.p_part = PPart::from_bits(ans);
                 return Some(coef);
             } else if self.update() {
+                let mut ans = 0;
                 for diag_idx in 1..=self.diag_num {
                     let i_min = (diag_idx + 1).saturating_sub(self.cols);
                     let i_max = std::cmp::min(diag_idx + 1, self.rows);
@@ -1670,10 +1700,14 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
                     // `diag_num` counts diagonals of the working matrix, which can exceed the
                     // number of entries a p-part of this degree can have; those trailing
                     // diagonals are necessarily zero and need not be stored.
-                    if sum != 0 {
-                        self.ans.p_part.set(diag_idx - 1, sum);
+                    if diag_idx <= PPart::MAX_LEN {
+                        debug_assert!(sum <= PPart::max_entry(diag_idx - 1));
+                        ans |= (sum as u64) << PPart::shift(diag_idx - 1);
+                    } else {
+                        debug_assert_eq!(sum, 0);
                     }
                 }
+                self.ans.p_part = PPart::from_bits(ans);
 
                 return Some(coef);
             } else {
