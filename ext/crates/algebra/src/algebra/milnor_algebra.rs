@@ -127,37 +127,6 @@ pub type PPartEntry = u32;
 pub struct PPart(u64);
 
 impl PPart {
-    /// The largest internal degree whose exponent sequences are guaranteed to fit.
-    ///
-    /// This is the largest bound for which the field widths sum to at most 64. It is far beyond
-    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
-    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
-    pub const MAX_DEGREE: i32 = 2045;
-
-    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
-    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
-    pub const MAX_LEN: usize = 10;
-
-    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
-    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
-    /// `MAX_LEN` are given width 0, so they read as zero.
-    const TABLE_LEN: usize = 16;
-
-    /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
-    /// `MAX_DEGREE / (2^(i+1) - 1)`.
-    const WIDTHS: [u32; Self::TABLE_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1, 0, 0, 0, 0, 0, 0];
-
-    /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
-    const SHIFTS: [u32; Self::TABLE_LEN] = {
-        let mut shifts = [0; Self::TABLE_LEN];
-        let mut i = 0;
-        while i < Self::MAX_LEN {
-            shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
-            i += 1;
-        }
-        shifts
-    };
-
     /// `FIELD_OF_BIT[b]` is the index of the entry owning bit `b`, letting [`Self::len`] turn a
     /// `leading_zeros` into an entry index without looping.
     const FIELD_OF_BIT: [u8; 64] = {
@@ -173,6 +142,32 @@ impl PPart {
         }
         table
     };
+    /// The largest internal degree whose exponent sequences are guaranteed to fit.
+    ///
+    /// This is the largest bound for which the field widths sum to at most 64. It is far beyond
+    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
+    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
+    pub const MAX_DEGREE: i32 = 2045;
+    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
+    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
+    pub const MAX_LEN: usize = 10;
+    /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
+    const SHIFTS: [u32; Self::TABLE_LEN] = {
+        let mut shifts = [0; Self::TABLE_LEN];
+        let mut i = 0;
+        while i < Self::MAX_LEN {
+            shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
+            i += 1;
+        }
+        shifts
+    };
+    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
+    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
+    /// `MAX_LEN` are given width 0, so they read as zero.
+    const TABLE_LEN: usize = 16;
+    /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
+    /// `MAX_DEGREE / (2^(i+1) - 1)`.
+    const WIDTHS: [u32; Self::TABLE_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1, 0, 0, 0, 0, 0, 0];
 
     /// The largest value entry `i` can hold.
     pub const fn max_entry(i: usize) -> PPartEntry {
