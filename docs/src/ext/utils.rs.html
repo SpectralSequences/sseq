@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><title>utils.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ext" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.0 (2d8144b78 2026-07-07)" data-channel="1.97.0" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><title>utils.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ext" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -620,60 +620,75 @@
 <a href=#595 id=595 data-nosnippet>595</a>
 <a href=#596 id=596 data-nosnippet>596</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>parallel {
 <a href=#597 id=597 data-nosnippet>597</a>
-<a href=#598 id=598 data-nosnippet>598</a>    <span class="kw">use </span>std::sync::atomic::{AtomicUsize, Ordering};
+<a href=#598 id=598 data-nosnippet>598</a>    <span class="kw">use </span>std::cell::Cell;
 <a href=#599 id=599 data-nosnippet>599</a>
-<a href=#600 id=600 data-nosnippet>600</a>    <span class="kw">static </span>PARALLEL_DEPTH: AtomicUsize = AtomicUsize::new(<span class="number">0</span>);
-<a href=#601 id=601 data-nosnippet>601</a>
-<a href=#602 id=602 data-nosnippet>602</a>    <span class="doccomment">/// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
-<a href=#603 id=603 data-nosnippet>603</a>    /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
-<a href=#604 id=604 data-nosnippet>604</a>    /// inversion and retry.
-<a href=#605 id=605 data-nosnippet>605</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParallelGuard {
-<a href=#606 id=606 data-nosnippet>606</a>        <span class="attr">#[allow(dead_code)]
-<a href=#607 id=607 data-nosnippet>607</a>        </span>span: tracing::span::EnteredSpan,
-<a href=#608 id=608 data-nosnippet>608</a>    }
-<a href=#609 id=609 data-nosnippet>609</a>
-<a href=#610 id=610 data-nosnippet>610</a>    <span class="kw">impl </span>ParallelGuard {
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
-<a href=#612 id=612 data-nosnippet>612</a>            <span class="comment">// We use Release to synchronize with `is_in_parallel`
-<a href=#613 id=613 data-nosnippet>613</a>            </span><span class="kw">let </span>counter_start = PARALLEL_DEPTH.fetch_add(<span class="number">1</span>, Ordering::Release);
-<a href=#614 id=614 data-nosnippet>614</a>            <span class="self">Self </span>{
-<a href=#615 id=615 data-nosnippet>615</a>                span: <span class="macro">tracing::info_span!</span>(
-<a href=#616 id=616 data-nosnippet>616</a>                    <span class="string">"parallel_guard"</span>,
-<a href=#617 id=617 data-nosnippet>617</a>                    counter_start,
-<a href=#618 id=618 data-nosnippet>618</a>                    counter_end = tracing::field::Empty
-<a href=#619 id=619 data-nosnippet>619</a>                )
-<a href=#620 id=620 data-nosnippet>620</a>                .entered(),
-<a href=#621 id=621 data-nosnippet>621</a>            }
-<a href=#622 id=622 data-nosnippet>622</a>        }
-<a href=#623 id=623 data-nosnippet>623</a>    }
-<a href=#624 id=624 data-nosnippet>624</a>
-<a href=#625 id=625 data-nosnippet>625</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>ParallelGuard {
-<a href=#626 id=626 data-nosnippet>626</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#627 id=627 data-nosnippet>627</a>            <span class="comment">// We use Release to synchronize with `is_in_parallel`
-<a href=#628 id=628 data-nosnippet>628</a>            </span><span class="kw">let </span>counter_end = PARALLEL_DEPTH.fetch_sub(<span class="number">1</span>, Ordering::Release);
-<a href=#629 id=629 data-nosnippet>629</a>            <span class="self">self</span>.span.record(<span class="string">"counter_end"</span>, counter_end - <span class="number">1</span>);
-<a href=#630 id=630 data-nosnippet>630</a>        }
-<a href=#631 id=631 data-nosnippet>631</a>    }
-<a href=#632 id=632 data-nosnippet>632</a>
-<a href=#633 id=633 data-nosnippet>633</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_in_parallel() -&gt; bool {
-<a href=#634 id=634 data-nosnippet>634</a>        PARALLEL_DEPTH.load(Ordering::Acquire) &gt; <span class="number">0
-<a href=#635 id=635 data-nosnippet>635</a>    </span>}
-<a href=#636 id=636 data-nosnippet>636</a>}
-<a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a><span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
-<a href=#639 id=639 data-nosnippet>639</a>///
-<a href=#640 id=640 data-nosnippet>640</a>/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
-<a href=#641 id=641 data-nosnippet>641</a>/// be computed. The minimum value of `s` is the `shift_s` of the
-<a href=#642 id=642 data-nosnippet>642</a>/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
-<a href=#643 id=643 data-nosnippet>643</a>/// maximum `s` of the resolution.
-<a href=#644 id=644 data-nosnippet>644</a></span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
-<a href=#645 id=645 data-nosnippet>645</a>    <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
-<a href=#646 id=646 data-nosnippet>646</a>    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;i32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
-<a href=#647 id=647 data-nosnippet>647</a>    <span class="kw">if </span>parsed.is_none() {
-<a href=#648 id=648 data-nosnippet>648</a>        <span class="macro">eprintln!</span>(
-<a href=#649 id=649 data-nosnippet>649</a>            <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
-<a href=#650 id=650 data-nosnippet>650</a>        </span>);
-<a href=#651 id=651 data-nosnippet>651</a>    }
-<a href=#652 id=652 data-nosnippet>652</a>    parsed
-<a href=#653 id=653 data-nosnippet>653</a>}
+<a href=#600 id=600 data-nosnippet>600</a>    <span class="macro">thread_local!</span> {
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">static </span>PARALLEL_DEPTH: Cell&lt;usize&gt; = <span class="kw">const </span>{ Cell::new(<span class="number">0</span>) };
+<a href=#602 id=602 data-nosnippet>602</a>    }
+<a href=#603 id=603 data-nosnippet>603</a>
+<a href=#604 id=604 data-nosnippet>604</a>    <span class="doccomment">/// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
+<a href=#605 id=605 data-nosnippet>605</a>    /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
+<a href=#606 id=606 data-nosnippet>606</a>    /// inversion and retry.
+<a href=#607 id=607 data-nosnippet>607</a>    ///
+<a href=#608 id=608 data-nosnippet>608</a>    /// The depth is thread-local because the priority inversion we are guarding against only happens
+<a href=#609 id=609 data-nosnippet>609</a>    /// when the guarded thread itself steals a long job: while it is blocked inside a `par_iter_mut`,
+<a href=#610 id=610 data-nosnippet>610</a>    /// rayon may hand it another job from the pool, and if that job is a `step_resolution` the parent
+<a href=#611 id=611 data-nosnippet>611</a>    /// cannot resume until the long job finishes. A stolen job always runs on the OS thread that
+<a href=#612 id=612 data-nosnippet>612</a>    /// stole it, so checking this thread's depth is exactly the condition we need. Other threads are
+<a href=#613 id=613 data-nosnippet>613</a>    /// free to pick up long jobs in the meantime.
+<a href=#614 id=614 data-nosnippet>614</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParallelGuard {
+<a href=#615 id=615 data-nosnippet>615</a>        <span class="attr">#[allow(dead_code)]
+<a href=#616 id=616 data-nosnippet>616</a>        </span>span: tracing::span::EnteredSpan,
+<a href=#617 id=617 data-nosnippet>617</a>    }
+<a href=#618 id=618 data-nosnippet>618</a>
+<a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">impl </span>ParallelGuard {
+<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#621 id=621 data-nosnippet>621</a>            <span class="kw">let </span>counter_start = PARALLEL_DEPTH.with(|depth| {
+<a href=#622 id=622 data-nosnippet>622</a>                <span class="kw">let </span>old = depth.get();
+<a href=#623 id=623 data-nosnippet>623</a>                depth.set(old + <span class="number">1</span>);
+<a href=#624 id=624 data-nosnippet>624</a>                old
+<a href=#625 id=625 data-nosnippet>625</a>            });
+<a href=#626 id=626 data-nosnippet>626</a>            <span class="self">Self </span>{
+<a href=#627 id=627 data-nosnippet>627</a>                span: <span class="macro">tracing::info_span!</span>(
+<a href=#628 id=628 data-nosnippet>628</a>                    <span class="string">"parallel_guard"</span>,
+<a href=#629 id=629 data-nosnippet>629</a>                    counter_start,
+<a href=#630 id=630 data-nosnippet>630</a>                    counter_end = tracing::field::Empty
+<a href=#631 id=631 data-nosnippet>631</a>                )
+<a href=#632 id=632 data-nosnippet>632</a>                .entered(),
+<a href=#633 id=633 data-nosnippet>633</a>            }
+<a href=#634 id=634 data-nosnippet>634</a>        }
+<a href=#635 id=635 data-nosnippet>635</a>    }
+<a href=#636 id=636 data-nosnippet>636</a>
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">impl </span>Drop <span class="kw">for </span>ParallelGuard {
+<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#639 id=639 data-nosnippet>639</a>            <span class="kw">let </span>counter_end = PARALLEL_DEPTH.with(|depth| {
+<a href=#640 id=640 data-nosnippet>640</a>                <span class="kw">let </span>new = depth.get() - <span class="number">1</span>;
+<a href=#641 id=641 data-nosnippet>641</a>                depth.set(new);
+<a href=#642 id=642 data-nosnippet>642</a>                new
+<a href=#643 id=643 data-nosnippet>643</a>            });
+<a href=#644 id=644 data-nosnippet>644</a>            <span class="self">self</span>.span.record(<span class="string">"counter_end"</span>, counter_end);
+<a href=#645 id=645 data-nosnippet>645</a>        }
+<a href=#646 id=646 data-nosnippet>646</a>    }
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_in_parallel() -&gt; bool {
+<a href=#649 id=649 data-nosnippet>649</a>        PARALLEL_DEPTH.with(|depth| depth.get()) &gt; <span class="number">0
+<a href=#650 id=650 data-nosnippet>650</a>    </span>}
+<a href=#651 id=651 data-nosnippet>651</a>}
+<a href=#652 id=652 data-nosnippet>652</a>
+<a href=#653 id=653 data-nosnippet>653</a><span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
+<a href=#654 id=654 data-nosnippet>654</a>///
+<a href=#655 id=655 data-nosnippet>655</a>/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
+<a href=#656 id=656 data-nosnippet>656</a>/// be computed. The minimum value of `s` is the `shift_s` of the
+<a href=#657 id=657 data-nosnippet>657</a>/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
+<a href=#658 id=658 data-nosnippet>658</a>/// maximum `s` of the resolution.
+<a href=#659 id=659 data-nosnippet>659</a></span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
+<a href=#660 id=660 data-nosnippet>660</a>    <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
+<a href=#661 id=661 data-nosnippet>661</a>    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;i32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
+<a href=#662 id=662 data-nosnippet>662</a>    <span class="kw">if </span>parsed.is_none() {
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="macro">eprintln!</span>(
+<a href=#664 id=664 data-nosnippet>664</a>            <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
+<a href=#665 id=665 data-nosnippet>665</a>        </span>);
+<a href=#666 id=666 data-nosnippet>666</a>    }
+<a href=#667 id=667 data-nosnippet>667</a>    parsed
+<a href=#668 id=668 data-nosnippet>668</a>}
 </code></pre></div></section></main></body></html>
