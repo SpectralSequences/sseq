@@ -2549,7 +2549,8 @@ mod heavy_tests {
     ///
     /// Run with `cargo test --release -- --ignored tensor_d2_matches_direct_c2_stem60 --nocapture`.
     #[test]
-    #[ignore = "heavy (~4.5 min): untwisted tensor resolution C2 d2 vs direct up to stem 60"]
+    #[ignore = "heavy (~30 min with `--features concurrent`): untwisted tensor resolution C2 d2 vs \
+                direct up to stem 60"]
     fn tensor_d2_matches_direct_c2_stem60() {
         let (nn, ss): (i32, i32) = (60, 18);
         let t0 = Instant::now();
