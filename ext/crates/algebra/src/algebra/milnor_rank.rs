@@ -5,11 +5,13 @@
 //! design and its measurements survive, ready to switch on when the renumbering below is worth
 //! taking on.
 //!
-//! **This is not wired into [`MilnorAlgebra`].** It computes a *different* numbering of each
-//! degree's basis than [`MilnorAlgebra::compute_basis`] produces, so adopting it would renumber
-//! the basis and invalidate every saved resolution. See [`PPartRanker`] for why the numbering
-//! cannot simply be made to match, and the crate benchmarks (`milnor_rank`) for what it costs
-//! relative to the hash map it would replace.
+//! It computes a *different* numbering of each degree's basis than [`MilnorAlgebra::compute_basis`]
+//! produces, so adopting it would renumber the basis and invalidate every saved resolution. See
+//! [`PPartRanker`] for why the numbering cannot simply be made to match, and the crate benchmarks
+//! (`milnor_rank`) for what it costs relative to the hash map it would replace.
+//!
+//! [`MilnorAlgebra`]: crate::MilnorAlgebra
+//! [`MilnorAlgebra::compute_basis`]: crate::Algebra::compute_basis
 
 use fp::prime::ValidPrime;
 

@@ -107,16 +107,33 @@ impl MilnorSubalgebra {
     /// entry occupies a fixed field of the packed word, the low `profile[i]` bits of entry `i` are
     /// a fixed bit range of that word, so the whole conjunction is a single `&` and `==`. Entries
     /// past the end of the p-part read as zero, which the packing already gives us for free.
-    fn packed_signature(&self, signature: &[PPartEntry]) -> (u64, u64) {
+    /// Returns `None` if no element can have this signature, which the caller turns into an empty
+    /// result. A profile is not bounded by [`PPart::MAX_LEN`] -- `SubalgebraIterator` grows one
+    /// without limit and `from_bytes` reads whatever length a file gives -- so both ways a
+    /// signature can fail to be representable have to be handled here rather than assumed away.
+    fn packed_signature(&self, signature: &[PPartEntry]) -> Option<(u64, u64)> {
         let mut mask = 0;
         let mut value = 0;
         for (i, (&profile, &entry)) in self.profile.iter().zip(signature).enumerate() {
+            if i >= PPart::MAX_LEN {
+                // No p-part of a representable degree has an entry this far out, so it reads as
+                // zero: a non-zero constraint is unsatisfiable and a zero one is vacuous.
+                if entry != 0 {
+                    return None;
+                }
+                continue;
+            }
             // A profile wider than the field constrains the whole field.
             let width = std::cmp::min(profile as u32, PPart::width(i));
+            // The masked entry has only `width` bits, so a signature wanting more matches nothing.
+            // Packing it anyway would spill into the neighbouring field.
+            if (entry as u64) >> width != 0 {
+                return None;
+            }
             mask |= ((1u64 << width) - 1) << PPart::shift(i);
             value |= (entry as u64) << PPart::shift(i);
         }
-        (mask, value)
+        Some((mask, value))
     }
 
     fn zero_signature(&self) -> Vec<PPartEntry> {
@@ -133,28 +150,31 @@ impl MilnorSubalgebra {
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
-        module.iter_gen_offsets([degree]).flat_map(
-            move |GeneratorData {
-                      gen_deg,
-                      start: [offset],
-                      end: _,
-                  }| {
-                // Hoist the mask out of the inner loop: every element in this block is tested
-                // against the same signature.
-                let (mask, value) = self.packed_signature(signature);
-                algebra
-                    .ppart_table(degree - gen_deg)
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(n, op)| {
-                        if op.bits() & mask == value {
-                            Some(offset + n)
-                        } else {
-                            None
-                        }
-                    })
-            },
-        )
+        // The mask depends only on the signature, so compute it once for the whole sweep. An
+        // unrepresentable signature yields no elements at all.
+        self.packed_signature(signature)
+            .into_iter()
+            .flat_map(move |(mask, value)| {
+                module.iter_gen_offsets([degree]).flat_map(
+                    move |GeneratorData {
+                              gen_deg,
+                              start: [offset],
+                              end: _,
+                          }| {
+                        algebra
+                            .ppart_table(degree - gen_deg)
+                            .iter()
+                            .enumerate()
+                            .filter_map(move |(n, op)| {
+                                if op.bits() & mask == value {
+                                    Some(offset + n)
+                                } else {
+                                    None
+                                }
+                            })
+                    },
+                )
+            })
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
@@ -1335,5 +1355,56 @@ mod tests {
             subalgebra.iter_signatures(7).collect::<Vec<_>>(),
             vec![vec![0, 1, 0, 0], vec![0, 2, 0, 0], vec![0, 0, 1, 0],]
         );
+    }
+
+    /// The packed signature test must agree with the per-entry comparison it replaced, including
+    /// on signatures that no element can have. Packing those naively would spill bits into the
+    /// neighbouring field and select unrelated elements.
+    #[test]
+    fn packed_signature_matches_per_entry_test() {
+        // The comparison the packed mask replaced, kept here as the reference.
+        fn has_signature(profile: &[u8], ppart: PPart, signature: &[PPartEntry]) -> bool {
+            for (i, (&profile, &signature)) in profile.iter().zip(signature).enumerate() {
+                if ppart.get(i) & ((1u64 << profile) - 1) as PPartEntry != signature {
+                    return false;
+                }
+            }
+            true
+        }
+
+        let algebra = MilnorAlgebra::new(TWO, false);
+        algebra.compute_basis(60);
+
+        for profile in [
+            vec![1u8, 1, 1],
+            vec![4, 3, 2, 1],
+            vec![2, 0, 3],
+            // Wider than the fields they constrain.
+            vec![9, 9, 9, 9],
+            // Longer than a p-part can be, so the tail entries can never be non-zero.
+            vec![1; PPart::MAX_LEN + 3],
+        ] {
+            let subalgebra = MilnorSubalgebra::new(profile.clone());
+            for signature in [
+                vec![0; profile.len()],
+                (0..profile.len()).map(|i| (i % 3) as PPartEntry).collect(),
+                // An entry too wide for its field, which must match nothing.
+                (0..profile.len())
+                    .map(|i| if i == profile.len() - 1 { 255 } else { 0 })
+                    .collect(),
+            ] {
+                let packed = subalgebra.packed_signature(&signature);
+                for t in 0..=60 {
+                    for &op in algebra.ppart_table(t) {
+                        let expected = has_signature(&profile, op, &signature);
+                        let actual = packed.is_some_and(|(mask, value)| op.bits() & mask == value);
+                        assert_eq!(
+                            actual, expected,
+                            "profile {profile:?}, signature {signature:?}, element {op:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }
