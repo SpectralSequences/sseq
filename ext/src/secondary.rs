@@ -183,10 +183,15 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
                     continue;
                 }
 
+                let len = algebra.dimension(module_op_deg + op_degree - 1);
+                // A non-minimal resolution can act by the identity on a same-degree generator,
+                // whose output block is empty and whose offset is out of range.
+                if len == 0 {
+                    continue;
+                }
                 let offset =
                     self.target
                         .generator_offset(self.degree + op_degree - 1, gen_deg, gen_idx);
-                let len = algebra.dimension(module_op_deg + op_degree - 1);
 
                 algebra.a_multiply(
                     result.slice_mut(offset, offset + len),
@@ -359,11 +364,31 @@ pub trait SecondaryLift: Sync + Sized {
     type Target: FreeChainComplex<Algebra = Self::Algebra>;
     type Underlying;
 
-    /// Whether the composite can hit generators. This is true for `SecondaryChainHomotopy` and
-    /// false for the rest. This is important because for [`SecondaryResolution`], we don't
-    /// actually know all the generators if we resolve up to a stem. So in composites for
-    /// [`SecondaryResolution`], we need to ignore target generators of the same degree uniformly.
+    /// The default of [`hit_generator`](Self::hit_generator): `true` for
+    /// `SecondaryChainHomotopy`, `false` for the rest.
+    ///
+    /// A [`SecondaryResolution`] resolved through a stem does not know every generator of the
+    /// target's degree, so by default its composites ignore target generators of the same degree.
     const HIT_GENERATOR: bool = false;
+
+    /// Whether composites may hit same-degree generators, as on a non-minimal resolution, whose
+    /// differential has identity components.
+    ///
+    /// Defaults to [`HIT_GENERATOR`](Self::HIT_GENERATOR). When `true`, the underlying resolution
+    /// must be computed as a full rectangle rather than through a stem, since those generators are
+    /// read.
+    fn hit_generator(&self) -> bool {
+        Self::HIT_GENERATOR
+    }
+
+    /// Whether the homotopy at `(s, t)` reads the homotopy at `(s - 1, t)`, as it does when the
+    /// source's differential has identity components.
+    ///
+    /// The homotopies are then computed by [`iter_s_t_inclusive`](sseq::coordinates::iter_s_t_inclusive)
+    /// rather than [`iter_s_t`](sseq::coordinates::iter_s_t).
+    fn same_degree_dependency(&self) -> bool {
+        false
+    }
 
     fn underlying(&self) -> Arc<Self::Underlying>;
     fn algebra(&self) -> Arc<Self::Algebra>;
@@ -390,12 +415,13 @@ pub trait SecondaryLift: Sync + Sized {
         let shift = self.shift();
         let max = self.max();
 
+        let hit_generator = self.hit_generator();
         self.homotopies().extend(max.s() - 1, |s| {
             SecondaryHomotopy::new(
                 self.source().module(s),
                 self.target().module(s - shift.s()),
                 shift.t(),
-                Self::HIT_GENERATOR,
+                hit_generator,
             )
         });
     }
@@ -628,7 +654,12 @@ pub trait SecondaryLift: Sync + Sized {
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);
         let max = self.max().restrict(s_range.end);
-        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        let f = |b| self.compute_homotopy_step(b);
+        if self.same_degree_dependency() {
+            sseq::coordinates::iter_s_t_inclusive(&f, min, max);
+        } else {
+            sseq::coordinates::iter_s_t(&f, min, max);
+        }
     }
 
     #[tracing::instrument(skip(self))]
