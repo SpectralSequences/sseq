@@ -523,8 +523,8 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
             completion.push(OnceVec::new());
         }
 
-        let max_t = move |selff: &Self, s: i32| {
-            let mut t = selff.target.module(s).max_computed_degree() + 1;
+        let max_t = move |slf: &Self, s: i32| {
+            let mut t = slf.target.module(s).max_computed_degree() + 1;
             if let Some(bound) = bound {
                 // Stem profile `n <= bound.n()`, i.e. `t <= bound.n() + s`, exclusive upper bound.
                 t = std::cmp::min(t, bound.n() + s + 1);
