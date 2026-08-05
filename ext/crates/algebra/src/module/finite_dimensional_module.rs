@@ -5,10 +5,11 @@ use bivec::BiVec;
 use fp::vector::{FpSliceMut, FpVector};
 use serde::Deserialize;
 use serde_json::{json, value::Value};
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::{Algebra, GeneratedAlgebra},
-    module::{Module, ModuleFailedRelationError, ZeroModule},
+    module::{Module, ModuleExt, ModuleFailedRelationError, ZeroModule},
 };
 
 pub struct FiniteDimensionalModule<A: Algebra> {
@@ -137,9 +138,10 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         i32::MAX
     }
 
-    fn compute_basis(&self, _degree: i32) {}
+    fn compute_basis_multi(&self, _degree: MultiDegree<1>) {}
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         if degree < self.graded_dimension.min_degree() {
             return 0;
         }
@@ -149,19 +151,22 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         self.graded_dimension[degree]
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         self.gen_names[degree][idx].clone()
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         assert!(op_index < self.algebra().dimension(op_degree));
         assert!(mod_index < self.dimension(mod_degree));
         let output_dimension = self.dimension(mod_degree + op_degree);

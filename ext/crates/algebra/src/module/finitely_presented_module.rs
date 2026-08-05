@@ -4,11 +4,12 @@ use fp::vector::{FpSliceMut, FpVector};
 use itertools::Itertools;
 use once::OnceBiVec;
 use serde_json::Value;
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::Algebra,
     module::{
-        FreeModule, Module, ZeroModule,
+        FreeModule, Module, ModuleExt, ZeroModule,
         homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
 };
@@ -185,7 +186,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         self.generators.max_computed_degree()
     }
 
-    fn compute_basis(&self, degree: i32) {
+    fn compute_basis_multi(&self, degree: MultiDegree<1>) {
+        let degree = i32::from(degree);
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
         self.map.compute_auxiliary_data_through_degree(degree);
@@ -209,20 +211,23 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         });
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         assert!(degree >= self.min_degree);
         self.index_table[degree].fp_idx_to_gen_idx.len()
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         let p = self.prime();
         let gen_idx = self.fp_idx_to_gen_idx(mod_degree, mod_index);
         let out_deg = mod_degree + op_degree;
@@ -244,7 +249,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         }
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         let gen_idx = self.fp_idx_to_gen_idx(degree, idx);
         self.generators.basis_element_to_string(degree, gen_idx)
     }

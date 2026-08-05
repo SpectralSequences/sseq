@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use algebra::{
     Algebra, MuAlgebra,
     module::{
-        Module, MuFreeModule,
+        ModuleExt, MuFreeModule,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
 };
@@ -985,7 +985,10 @@ where
 pub(crate) mod secondary {
     use std::sync::Arc;
 
-    use algebra::{module::Module, pair_algebra::PairAlgebra};
+    use algebra::{
+        module::{Module, ModuleExt},
+        pair_algebra::PairAlgebra,
+    };
     use dashmap::DashMap;
     use fp::vector::FpVector;
     use once::OnceBiVec;

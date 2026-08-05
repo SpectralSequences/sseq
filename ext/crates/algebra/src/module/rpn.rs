@@ -6,6 +6,7 @@ use fp::{
 };
 use serde::Deserialize;
 use serde_json::Value;
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::{
@@ -13,7 +14,7 @@ use crate::{
         adem_algebra::AdemBasisElement,
         milnor_algebra::{MilnorBasisElement, PPartEntry},
     },
-    module::{Module, ZeroModule},
+    module::{Module, ModuleExt, ZeroModule},
 };
 
 /// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
@@ -72,7 +73,8 @@ where
         i32::MAX
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         if degree < self.min {
             return 0;
         }
@@ -94,20 +96,23 @@ where
         1
     }
 
-    fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, _idx: usize) -> String {
+        let degree = i32::from(degree);
         // It is an error to call the function if self.dimension(degree) == 0
         format!("x^{{{degree}}}")
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         assert!(op_index < self.algebra().dimension(op_degree));
         assert!(mod_index < self.dimension(mod_degree));
 
