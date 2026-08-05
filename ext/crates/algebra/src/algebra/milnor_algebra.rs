@@ -245,6 +245,16 @@ impl<V> MilnorHashMap<V> {
     }
 }
 
+/// Flat, contiguous storage for the "seqno" (hash-free index) computation. See
+/// [`MilnorAlgebra::compute_seqno_tables`] for how `g` is derived and [`MilnorAlgebra::seqno`] for
+/// how it is read. Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives
+/// at `g[e * width + h]`; degrees `0..=max_degree` are populated.
+struct SeqnoTables {
+    max_degree: i32,
+    width: usize,
+    g: Vec<usize>,
+}
+
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
@@ -264,6 +274,15 @@ pub struct MilnorAlgebra {
 
     /// degree -> MilnorBasisElement -> index
     basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>,
+
+    /// Table backing the "seqno" (hash-free index) computation, populated only when
+    /// [`Self::seqno_applicable`] holds (p = 2, trivial profile, stable). It holds the flat,
+    /// row-major `g` array described in [`Self::compute_seqno_tables`]; [`Self::seqno`] ranks a
+    /// `p_part` from it with plain array indexing and no hash lookup. Stored behind an
+    /// [`arc_swap::ArcSwapOption`] rather than a [`OnceVec`] so that reads on the hot path are a
+    /// single guard load followed by direct indexing — the earlier `OnceVec<Vec<_>>` layout paid two
+    /// atomics *per table access*, which is what made the table lose to the hashmap.
+    seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -293,6 +312,7 @@ impl MilnorAlgebra {
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
+            seqno_tables: arc_swap::ArcSwapOption::empty(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
         }
@@ -328,6 +348,11 @@ impl MilnorAlgebra {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
+        // NB: the table-based `Self::seqno` computes this same index without a hash, but computing
+        // the rank (a degree sum plus two indexed table reads per populated ξ-position) is more work
+        // than one hash and probe, so it loses to this hashmap on the CPU. `seqno` is kept as the
+        // GPU-oriented index (a GPU kernel cannot carry a hashmap, and the flat table uploads
+        // directly), not for the CPU hot path.
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
             .copied()
@@ -425,6 +450,10 @@ impl Algebra for MilnorAlgebra {
             self.generate_basis_2(max_degree);
         }
 
+        // The `seqno` tables are *not* built here: `seqno` lost to the hashmap on the CPU (see
+        // `try_basis_element_to_index`), so a normal resolution should not pay to build tables it
+        // won't use. A GPU backend that needs the hash-free index calls `compute_seqno_tables`.
+
         // Populate hash map
         self.basis_element_to_index_map
             .extend(max_degree as usize, |d| {
@@ -521,6 +550,13 @@ impl Algebra for MilnorAlgebra {
         s_degree: i32,
         s: FpSlice,
     ) {
+        // Per-term reference sweep: run the `PPartMultiplier` multiply once for each term of `s`,
+        // reusing one `PPartAllocation`. At p = 2 the admissible-matrix algorithm
+        // (`Self::multiply_basis_element_by_element_2`) computes the same product by enumerating
+        // `Sq(R)`'s admissible matrices once and amortizing over the terms of `s`, but Nassau's
+        // `S_2` regime is too sparse (dominated by single-term elements) for that up-front
+        // enumeration to pay off on the CPU. It is retained as the reference model for the GPU
+        // kernel, not wired here.
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
@@ -884,6 +920,181 @@ impl MilnorAlgebra {
         });
     }
 
+    /// Whether the fast table-based [`Self::seqno`] can be used instead of the hashmap. It requires
+    /// `p = 2` (single-generator Milnor basis), a trivial profile (so *every* `P(R)` of a degree is
+    /// a basis element, matching the partition counts), and the stable ordering (unstable sorts the
+    /// basis by excess, breaking the enumeration-order = index correspondence).
+    fn seqno_applicable(&self) -> bool {
+        !self.generic() && !self.unstable_enabled && self.profile.is_trivial()
+    }
+
+    /// Build the flat `SeqnoTables` up to `max_degree`, so that [`Self::seqno`] can be used.
+    /// Requires `seqno_applicable`. Idempotent: if the stored tables already reach
+    /// `max_degree` this returns immediately; otherwise it rebuilds the whole (cheap,
+    /// `O(max_degree · width)`) table from scratch and atomically swaps it in, so readers always see
+    /// either the old complete table or the new one.
+    ///
+    /// The `n[e][m]` intermediate — the number of `P(R)` of degree `e` using only `ξ₁ … ξ_{m+1}` —
+    /// is built locally and discarded; only the `g` row-progression it feeds is stored, since that
+    /// is all [`Self::seqno`] reads. `g[e][h]` sums `n[·][h−1]` along the arithmetic progression of
+    /// step `ξ_{h+1}`, letting `seqno` rank a `p_part` without a hash lookup.
+    pub fn compute_seqno_tables(&self, max_degree: i32) {
+        assert!(self.seqno_applicable());
+        if let Some(t) = &*self.seqno_tables.load()
+            && t.max_degree >= max_degree
+        {
+            return;
+        }
+
+        let xi = combinatorics::xi_degrees(self.prime());
+        let width = xi.len();
+        let rows = max_degree as usize + 1;
+
+        // n[e * width + m] = #{ P(R) of degree e using only ξ₁ … ξ_{m+1} }
+        //                  = n[e][m-1] + [ξ_{m+1} ≤ e] · n[e − ξ_{m+1}][m]
+        let mut n = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for m in 0..width {
+                // m = 0: partitions into {1} — always exactly one, P(e), for e ≥ 0.
+                let without = if m == 0 {
+                    (e == 0) as usize
+                } else {
+                    n[base + m - 1]
+                };
+                let with = if xi[m] <= e {
+                    n[(e - xi[m]) as usize * width + m]
+                } else {
+                    0
+                };
+                n[base + m] = without + with;
+            }
+        }
+
+        // g[e * width + h] = Σ_{j ≥ 0} n[e − j·ξ_{h+1}][h−1]   (h ≥ 1; g[·][0] unused)
+        //                  = n[e][h−1] + [ξ_{h+1} ≤ e] · g[e − ξ_{h+1}][h]
+        let mut g = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for h in 1..width {
+                let head = n[base + h - 1];
+                let tail = if xi[h] <= e {
+                    g[(e - xi[h]) as usize * width + h]
+                } else {
+                    0
+                };
+                g[base + h] = head + tail;
+            }
+        }
+
+        // Guard the publish: under `concurrent`, parallel `get_partial_matrix` builds can race here,
+        // and an unconditional store would let a smaller table clobber a larger one already in place
+        // — after which `seqno` would index past the shrunken `g` and panic. Only replace when ours
+        // reaches at least as far, so the cached `max_degree` is monotonic.
+        let new_tables = std::sync::Arc::new(SeqnoTables {
+            max_degree,
+            width,
+            g,
+        });
+        self.seqno_tables.rcu(|current| match current.as_deref() {
+            Some(t) if t.max_degree >= max_degree => current.clone(),
+            _ => Some(new_tables.clone()),
+        });
+    }
+
+    /// The index ("sequence number") of `P(p_part)` in the Milnor basis of its degree, computed in
+    /// O(number of `p_part` entries) from the precomputed tables — no hash lookup. Assumes
+    /// `seqno_applicable` and that `p_part` is a genuine basis element (trimmed, in range).
+    ///
+    /// The basis is enumerated by increasing highest ξ-index, so the rank of `P` accumulates, for
+    /// each populated position `h`, the number of basis elements whose highest index is `< h`
+    /// together with `h` — which is exactly the `g_table` difference across the degree consumed at
+    /// that position.
+    pub fn seqno(&self, p_part: &[PPartEntry]) -> usize {
+        let xi = combinatorics::xi_degrees(self.prime());
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_ref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        let w = t.width;
+        let mut cur_d: i32 = p_part.iter().zip(xi).map(|(&r, &x)| r as i32 * x).sum();
+        // `cur_d` only decreases in the loop below, so this bounds every `t.g` index. A raw
+        // out-of-bounds panic here means the tables were not built far enough for this element.
+        debug_assert!(
+            cur_d <= t.max_degree,
+            "p_part degree {cur_d} exceeds seqno tables built to {}; call compute_seqno_tables \
+             first",
+            t.max_degree
+        );
+        let mut rank = 0;
+        // Consume positions from the highest down; position 0 contributes nothing.
+        for h in (1..p_part.len()).rev() {
+            let r = p_part[h] as i32;
+            if r == 0 {
+                continue;
+            }
+            let below = cur_d - r * xi[h];
+            rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
+            cur_d = below;
+        }
+        rank
+    }
+
+    /// Snapshot of the flat seqno `g` table as `u32`, for GPU upload: returns
+    /// `(width, g)` with `g[e * width + h]` row-major (see [`Self::seqno`]).
+    ///
+    /// Requires [`Self::compute_seqno_tables`] to have been built to at least the
+    /// degrees that will be indexed; panics if any entry exceeds `u32` (the device
+    /// representation).
+    /// Whether the GPU multiply path ([`crate::algebra::milnor_gpu`]) applies: exactly
+    /// the `seqno_applicable` regime (`p = 2`, trivial profile, stable), since
+    /// the kernel indexes its output with the table-based `seqno`. Public so the
+    /// resolution can gate its GPU dispatch without reaching into private state.
+    #[cfg(feature = "gpu")]
+    pub fn gpu_multiply_applicable(&self) -> bool {
+        self.seqno_applicable()
+    }
+
+    #[cfg(feature = "gpu")]
+    pub(crate) fn seqno_table_u32(&self) -> (usize, Vec<u32>) {
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_ref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        let g =
+            t.g.iter()
+                .map(|&x| u32::try_from(x).expect("seqno g table entry exceeds u32"))
+                .collect();
+        (t.width, g)
+    }
+
+    /// Enumerate every admissible matrix of `Sq(R)` (for non-empty `r_p_part`) for
+    /// GPU upload. Returns `(cs_len, mk_len, col_sums, masks)`: `col_sums` and
+    /// `masks` are row-major flattenings (`num_matrices × cs_len` and
+    /// `num_matrices × mk_len`) in enumeration order — exactly the per-matrix data
+    /// the multiply kernel's term test consumes (see
+    /// [`Self::multiply_basis_element_by_element_2`]). Every matrix of a fixed `R`
+    /// shares the same `cs_len`/`mk_len`, so the flattening is rectangular.
+    #[cfg(feature = "gpu")]
+    pub(crate) fn admissible_matrices(
+        &self,
+        r_p_part: &[PPartEntry],
+    ) -> (usize, usize, Vec<u32>, Vec<u32>) {
+        let mut matrix = AdmissibleMatrix::new(r_p_part);
+        let cs_len = matrix.col_sums.len();
+        let mk_len = matrix.masks.len();
+        let mut col_sums = Vec::new();
+        let mut masks = Vec::new();
+        loop {
+            col_sums.extend_from_slice(&matrix.col_sums);
+            masks.extend_from_slice(&matrix.masks);
+            if !matrix.next() {
+                break;
+            }
+        }
+        (cs_len, mk_len, col_sums, masks)
+    }
+
     fn generate_basis_generic(&self, max_degree: i32) {
         let q = 2 * self.prime() - 2;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
@@ -1059,6 +1270,151 @@ impl MilnorAlgebra {
         });
     }
 
+    /// Compute `Sq(R) * s` for a fixed operation `Sq(R)` and a general element `s`, adding the
+    /// result to `result`. Only valid at `p = 2`.
+    ///
+    /// Algorithm due to Christian Nassau (ported from the previously disabled
+    /// `FreeModule::custom_milnor_act`). To compute `Sq(R) * (Sq(S₁) + Sq(S₂) + ⋯)` we build the
+    /// admissible matrices for `Sq(R)` once and, for each matrix, test every `Sq(Sₖ)` against it:
+    /// a matrix contributes iff each column sum is at most the corresponding entry of `Sₖ` and the
+    /// relevant bits are disjoint. This amortizes the (expensive) matrix enumeration over the whole
+    /// element, whereas [`Self::multiply_with_allocation`] re-runs it per term of `s`.
+    ///
+    /// **Not on the CPU hot path** — Nassau's `S_2` regime is too sparse for the up-front
+    /// enumeration to beat the per-term sweep in [`Self::multiply_basis_element_by_element`]. It is
+    /// kept as the reference model for the GPU kernel: enumerate `Sq(R)`'s matrices once per
+    /// operation and test every element term against them in parallel — a shape that batches well
+    /// on a GPU. Exercised by the `admissible_multiply_agrees_with_reference` test.
+    // The `working`-building loops below legitimately index `basis`, `col_sums`, and `masks` by the
+    // same `j`, so a range loop is clearer than zipping three slices.
+    #[allow(clippy::needless_range_loop)]
+    pub fn multiply_basis_element_by_element_2(
+        &self,
+        mut result: FpSliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: FpSlice,
+    ) {
+        debug_assert!(
+            !self.generic(),
+            "multiply_basis_element_by_element_2 is p = 2 only"
+        );
+        // Coefficients live in F₂, so an even coefficient kills the whole product, and every
+        // non-zero term of `s` has coefficient 1.
+        if coeff.is_multiple_of(2) {
+            return;
+        }
+
+        let r = self.basis_element_from_index(r_degree, r_idx);
+        // `Sq(∅) = 1`, so `Sq(R) * s = s`. (Also avoids an empty `AdmissibleMatrix`.) The output
+        // degree equals `s_degree`, so basis indices are unchanged.
+        if r.p_part.is_empty() {
+            for (i, _) in s.iter_nonzero() {
+                result.add_basis_element(i, 1);
+            }
+            return;
+        }
+
+        // The admissible-matrix sweep enumerates *all* matrices of `Sq(R)` up front and amortizes
+        // that over the terms of `s`. With a single term there is nothing to amortize, and for a
+        // large operation the wasted enumeration makes it several times slower than the
+        // `PPartMultiplier` path (which is constrained by `S` and so enumerates far fewer matrices).
+        // So peek the first two terms in one pass: with fewer than two, fall back to the per-term
+        // path — byte-for-byte the generic multiply, so that case never regresses.
+        let mut nonzero = s.iter_nonzero();
+        let (Some((i0, _)), second) = (nonzero.next(), nonzero.next()) else {
+            return; // s = 0
+        };
+        let Some((i1, _)) = second else {
+            PPartAllocation::with_local(|allocation| {
+                self.multiply_with_allocation(
+                    result,
+                    1,
+                    r,
+                    self.basis_element_from_index(s_degree, i0),
+                    i32::MAX,
+                    allocation,
+                )
+            });
+            return;
+        };
+
+        // Two or more terms: use the admissible-matrix sweep. Cache the (already-peeked) input
+        // basis elements once; they are reused across every admissible matrix.
+        let mut terms: Vec<&MilnorBasisElement> = Vec::with_capacity(s.len());
+        terms.push(self.basis_element_from_index(s_degree, i0));
+        terms.push(self.basis_element_from_index(s_degree, i1));
+        terms.extend(nonzero.map(|(i, _)| self.basis_element_from_index(s_degree, i)));
+
+        let out_degree = r_degree + s_degree;
+        let mut matrix = AdmissibleMatrix::new(&r.p_part);
+        let mut working = MilnorBasisElement {
+            q_part: 0,
+            p_part: PPart::new(),
+            degree: out_degree,
+        };
+
+        loop {
+            'outer: for term in &terms {
+                let basis = &term.p_part;
+                working.p_part.clear();
+
+                for j in 0..std::cmp::min(basis.len(), matrix.col_sums.len()) {
+                    if matrix.col_sums[j] > basis[j] {
+                        continue 'outer;
+                    }
+                    if (basis[j] - matrix.col_sums[j]) & matrix.masks[j] != 0 {
+                        continue 'outer;
+                    }
+                    // We should add the diagonal sum, but that equals the mask, and there are no
+                    // bit conflicts, so a bitwise-or is the same thing.
+                    working
+                        .p_part
+                        .push((basis[j] - matrix.col_sums[j]) | matrix.masks[j]);
+                }
+
+                if basis.len() < matrix.col_sums.len() {
+                    for &col_sum in &matrix.col_sums[basis.len()..] {
+                        if col_sum > 0 {
+                            continue 'outer;
+                        }
+                    }
+                    for &mask in &matrix.masks[basis.len()..] {
+                        working.p_part.push(mask);
+                    }
+                } else {
+                    for j in matrix.col_sums.len()..std::cmp::min(basis.len(), matrix.masks.len()) {
+                        if basis[j] & matrix.masks[j] != 0 {
+                            continue 'outer;
+                        }
+                        working.p_part.push(basis[j] | matrix.masks[j]);
+                    }
+                    if basis.len() < matrix.masks.len() {
+                        for &mask in &matrix.masks[basis.len()..] {
+                            working.p_part.push(mask);
+                        }
+                    } else {
+                        for &entry in &basis[matrix.masks.len()..] {
+                            working.p_part.push(entry);
+                        }
+                    }
+                }
+
+                while let Some(0) = working.p_part.last() {
+                    working.p_part.pop();
+                }
+
+                let idx = self.basis_element_to_index(&working);
+                result.add_basis_element(idx, 1);
+            }
+            if !matrix.next() {
+                break;
+            }
+        }
+    }
+
     pub fn multiply_with_allocation(
         &self,
         mut res: FpSliceMut,
@@ -1069,6 +1425,11 @@ impl MilnorAlgebra {
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
+        // The unstable dimension only depends on `target_deg` and `excess`, both loop-invariant, so
+        // compute the truncation bound once instead of per output term. In Nassau's stable path
+        // (`excess = i32::MAX`) this is the full dimension and the check never fires, but keeping it
+        // hoisted is correct for the unstable callers too.
+        let dim = self.dimension_unstable(target_deg, excess);
         if self.generic() {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
@@ -1083,7 +1444,7 @@ impl MilnorAlgebra {
 
                 while let Some(c) = multiplier.next() {
                     let idx = self.basis_element_to_index(&multiplier.ans);
-                    if idx < self.dimension_unstable(target_deg, excess) {
+                    if idx < dim {
                         res.add_basis_element(idx, c * cc * coef);
                     }
                 }
@@ -1101,7 +1462,7 @@ impl MilnorAlgebra {
 
             while let Some(c) = multiplier.next() {
                 let idx = self.basis_element_to_index(&multiplier.ans);
-                if idx < self.dimension_unstable(target_deg, excess) {
+                if idx < dim {
                     res.add_basis_element(idx, c * coef);
                 }
             }
@@ -1143,6 +1504,114 @@ impl MilnorAlgebra {
             );
         }
         allocation
+    }
+}
+
+/// The state for enumerating the admissible matrices of a fixed operation `Sq(R)` at `p = 2`, used
+/// by [`MilnorAlgebra::multiply_basis_element_by_element_2`]. See that method (and the original
+/// `FreeModule::custom_milnor_act`) for the algorithm. Rows are indexed by the entries of `R`; the
+/// stored `matrix` is row-major with `cols` columns.
+struct AdmissibleMatrix {
+    cols: usize,
+    rows: usize,
+    matrix: Vec<PPartEntry>,
+    totals: Vec<PPartEntry>,
+    col_sums: Vec<PPartEntry>,
+    masks: Vec<PPartEntry>,
+}
+
+impl AdmissibleMatrix {
+    fn new(ps: &[PPartEntry]) -> Self {
+        debug_assert!(
+            !ps.is_empty(),
+            "AdmissibleMatrix::new requires a non-empty R; Sq(∅) = 1 is handled by the caller"
+        );
+        let rows = ps.len();
+        let cols = ps
+            .iter()
+            .map(|x| (PPartEntry::BITS - x.leading_zeros()) as usize)
+            .max()
+            .unwrap();
+        let mut matrix = vec![0; rows * cols];
+        for (i, &x) in ps.iter().enumerate() {
+            matrix[i * cols] = x;
+        }
+
+        let mut masks = Vec::with_capacity(rows + cols - 1);
+        masks.extend_from_slice(ps);
+        masks.resize(rows + cols - 1, 0);
+
+        Self {
+            rows,
+            cols,
+            totals: vec![0; rows], // only used by `next`; no need to initialize
+            col_sums: vec![0; cols - 1],
+            matrix,
+            masks,
+        }
+    }
+
+    #[inline]
+    fn get(&self, row: usize, col: usize) -> PPartEntry {
+        self.matrix[row * self.cols + col]
+    }
+
+    #[inline]
+    fn set(&mut self, row: usize, col: usize, val: PPartEntry) {
+        self.matrix[row * self.cols + col] = val;
+    }
+
+    /// Advance to the next admissible matrix, returning `false` when the enumeration is exhausted.
+    fn next(&mut self) -> bool {
+        for row in 0..self.rows {
+            let mut p_to_the_j: PPartEntry = 1;
+            self.totals[row] = self.get(row, 0);
+            'mid: for col in 1..self.cols {
+                p_to_the_j *= 2;
+                // Quick check before computing the bitsums.
+                if p_to_the_j <= self.totals[row] {
+                    // Compute the bitsum along the anti-diagonal to the bottom-left.
+                    let mut d = 0;
+                    for c in (row + col + 1).saturating_sub(self.rows)..col {
+                        d |= self.get(row + col - c, c);
+                    }
+                    // Magic: the next number greater than `self[row][col]` whose bitwise-and with
+                    // `d` is 0.
+                    let new_entry = ((self.get(row, col) | d) + 1) & !d;
+                    let inc = new_entry - self.get(row, col);
+                    let sub = inc * p_to_the_j;
+                    if self.totals[row] < sub {
+                        self.totals[row] += p_to_the_j * self.get(row, col);
+                        continue 'mid;
+                    }
+                    self.set(row, 0, self.totals[row] - sub);
+                    self.masks[row] = self.get(row, 0);
+                    self.col_sums[col - 1] += inc;
+                    for j in 1..col {
+                        self.masks[row + j] &= !self.get(row, j);
+                        self.col_sums[j - 1] -= self.get(row, j);
+                        self.set(row, j, 0);
+                    }
+                    self.set(row, col, new_entry);
+
+                    for i in 0..row {
+                        self.set(i, 0, self.totals[i]);
+                        self.masks[i] = self.totals[i];
+                        for j in 1..self.cols {
+                            if i + j > row {
+                                self.masks[i + j] &= !self.get(i, j);
+                            }
+                            self.col_sums[j - 1] -= self.get(i, j);
+                            self.set(i, j, 0);
+                        }
+                    }
+                    self.masks[row + col] = d | new_entry;
+                    return true;
+                }
+                self.totals[row] += p_to_the_j * self.get(row, col);
+            }
+        }
+        false
     }
 }
 
@@ -1792,6 +2261,123 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    /// The table-based [`MilnorAlgebra::seqno`] must return the position of every basis element in
+    /// its degree — i.e. agree with the enumeration order that defines the index — for the stable
+    /// `p = 2` full algebra, and reject non-basis elements via `try_`.
+    #[test]
+    fn seqno_matches_enumeration_order() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        assert!(algebra.seqno_applicable());
+        let max_degree = 100;
+        algebra.compute_basis(max_degree);
+
+        // `seqno` must return the enumeration index of every basis element in `0..=upto`.
+        let check = |upto: i32| {
+            for d in 0..=upto {
+                let dim = algebra.dimension(d);
+                for i in 0..dim {
+                    let elt = algebra.basis_element_from_index(d, i);
+                    assert_eq!(
+                        algebra.seqno(&elt.p_part),
+                        i,
+                        "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                    );
+                }
+            }
+        };
+
+        // Exercise the idempotent, monotonic (non-shrinking) publish documented on
+        // `compute_seqno_tables`: build partially, rebuild identically (no-op), grow, then request
+        // a smaller degree (must not shrink the cached table).
+        algebra.compute_seqno_tables(50);
+        check(50);
+        algebra.compute_seqno_tables(50);
+        check(50);
+        algebra.compute_seqno_tables(max_degree);
+        check(max_degree);
+        algebra.compute_seqno_tables(50);
+        check(max_degree);
+    }
+
+    /// The `p = 2` admissible-matrix multiply ([`MilnorAlgebra::multiply_basis_element_by_element_2`],
+    /// retained as the GPU reference model — no longer wired into the CPU path) must agree
+    /// bit-for-bit with the reference `PPartMultiplier` path (`multiply_basis_elements`), both for
+    /// single basis elements and for dense (multi-term) elements — the latter also exercising mod-2
+    /// cancellation.
+    #[test]
+    fn admissible_multiply_agrees_with_reference() {
+        let p = ValidPrime::new(2);
+        let algebra = MilnorAlgebra::new(p, false);
+        let max_degree = 32;
+        algebra.compute_basis(max_degree);
+
+        for r_degree in 0..=max_degree {
+            let r_dim = algebra.dimension(r_degree);
+            for s_degree in 0..=(max_degree - r_degree) {
+                let s_dim = algebra.dimension(s_degree);
+                let out_degree = r_degree + s_degree;
+                let out_dim = algebra.dimension(out_degree);
+
+                for i in 0..r_dim {
+                    let mut expected_dense = FpVector::new(p, out_dim);
+
+                    for j in 0..s_dim {
+                        // Reference: R_i * S_j via the PPartMultiplier path.
+                        let mut expected = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_elements(
+                            expected.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            j,
+                        );
+                        expected_dense.add(&expected, 1);
+
+                        // Admissible model: element `s = e_j`.
+                        let mut s = FpVector::new(p, s_dim);
+                        s.set_entry(j, 1);
+                        let mut got = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_element_by_element_2(
+                            got.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            s.as_slice(),
+                        );
+                        assert_eq!(
+                            expected, got,
+                            "single-term mismatch: R(deg {r_degree}, idx {i}) * S(deg {s_degree}, \
+                             idx {j})",
+                        );
+                    }
+
+                    // Dense element (all ones): multi-term handling and mod-2 cancellation.
+                    if s_dim > 0 {
+                        let mut s = FpVector::new(p, s_dim);
+                        for j in 0..s_dim {
+                            s.set_entry(j, 1);
+                        }
+                        let mut got = FpVector::new(p, out_dim);
+                        algebra.multiply_basis_element_by_element_2(
+                            got.as_slice_mut(),
+                            1,
+                            r_degree,
+                            i,
+                            s_degree,
+                            s.as_slice(),
+                        );
+                        assert_eq!(
+                            expected_dense, got,
+                            "dense mismatch: R(deg {r_degree}, idx {i}) * (all of deg {s_degree})",
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[rstest]
     #[trace]

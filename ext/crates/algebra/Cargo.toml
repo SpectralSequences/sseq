@@ -17,6 +17,7 @@ maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once" }
 
 anyhow = "1.0.98"
+arc-swap = "1.7.1"
 auto_impl = "1.3.0"
 hashbrown = "0.15.4"
 itertools = { version = "0.14.0", default-features = false, features = [
@@ -28,6 +29,18 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 enum_dispatch = "0.3.13"
 
+# Optional GPU backend for the Milnor multiply kernel (see src/algebra/milnor_gpu.rs).
+# `cuda` targets the local NVIDIA card via NVRTC (needs the CUDA toolkit — wired into
+# the ext dev shell in flake.nix). Kernels are runtime-agnostic, so `wgpu` (Vulkan)
+# remains a drop-in portable fallback.
+cubecl = { version = "0.10.0", optional = true, default-features = false, features = [
+    "cuda",
+] }
+# For pinning all GPU work to one CUDA stream (`StreamId`), so a single memory pool is
+# reclaimed by `memory_cleanup` — CubeCL's pools are per-stream, and rayon spreads launches
+# across threads/streams, which otherwise accumulates buffers until the card OOMs.
+cubecl-common = { version = "0.10.0", optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 expect-test = "1.5.1"
@@ -38,6 +51,7 @@ rstest = "0.25.0"
 default = ["odd-primes"]
 cache-multiplication = []
 concurrent = ["fp/concurrent", "maybe-rayon/concurrent"]
+gpu = ["dep:cubecl", "dep:cubecl-common"]
 odd-primes = ["fp/odd-primes"]
 
 [[bench]]
@@ -54,4 +68,8 @@ harness = false
 
 [[bench]]
 name = "nassau_milnor"
+harness = false
+
+[[bench]]
+name = "seqno"
 harness = false

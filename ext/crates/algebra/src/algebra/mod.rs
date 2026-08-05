@@ -18,6 +18,9 @@ pub use field::Field;
 pub mod milnor_algebra;
 pub use milnor_algebra::MilnorAlgebra;
 
+#[cfg(feature = "gpu")]
+pub mod milnor_gpu;
+
 mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra};
 
