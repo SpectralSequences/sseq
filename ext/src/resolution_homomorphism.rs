@@ -502,11 +502,14 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
     /// [`extend_through_stem`](Self::extend_through_stem). `bound`, when present, caps the swept
     /// output bidegrees to its stem profile (intersected with the target's computed range).
     fn extend_bounded(&self, bound: Option<Bidegree>) {
+        if self.liftables.is_empty() {
+            return;
+        }
         let mut max_s = self.target.next_homological_degree();
         if let Some(bound) = bound {
             max_s = std::cmp::min(max_s, bound.s() + 1);
         }
-        if max_s <= 0 || self.liftables.is_empty() {
+        if max_s <= 0 {
             return;
         }
         let min_t = self.target.min_degree();
