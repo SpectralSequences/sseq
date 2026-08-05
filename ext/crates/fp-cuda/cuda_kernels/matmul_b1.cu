@@ -1,0 +1,463 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+//
+// Hopper wgmma.b1 F_2 GEMM kernel — 128B-swizzle operands, pipelined wgmmas,
+// the widest binary MMA shape (m64n256k256), a persistent grid with grouped
+// tile rasterization (Phase 8), and thread-block clusters + TMA B-multicast
+// (Phase 9) — both target L2 residency of B at large N.
+//
+// Both operands are K-major. They are pre-arranged on the host as plain
+// row-major tiles and loaded via TMA cp.async.bulk.tensor.2d with
+// CU_TENSOR_MAP_SWIZZLE_128B: the TMA hardware applies the 128B swizzle on the
+// way into SMEM, landing the data exactly where the swizzled wgmma matrix
+// descriptor expects it — so the host emits the natural layout and there is no
+// hand-rolled interleave.
+//
+// Each loaded tile spans a full 128B K-major swizzle atom (8 rows × 1024 bits),
+// i.e. KSUB = 4 consecutive k256 sub-chunks. A CTA computes a register-blocked
+// TM×NB output block (MSTRIPS m64 row-strips × 128 columns). Each k256 step
+// loads B once and issues MSTRIPS m64n128k256 wgmmas that all reuse it — one
+// L2→SMEM read of B feeds every strip, which cuts the operand-refill bytes per
+// MAC (the measured bottleneck on Hopper: the tensor core out-runs L2→SMEM
+// bandwidth). Each strip accumulates into its own resident 64-reg accumulator
+// (scale-D = 1, popcounts summed in-hardware), all live across the whole K loop.
+//
+// The grid is persistent: ~SM-count CTAs (in clusters of CLUSTER along M) sweep
+// the output tile grid in a grouped-along-M rasterized order so each B-panel's
+// reuse distance stays short (L2-resident). Within a cluster the CLUSTER CTAs
+// share one HBM read of each B-panel via TMA multicast — each computes a
+// different M-tile but receives the same B into its own SMEM. The pipeline
+// barriers are initialized once and flow continuously across tiles; the empty
+// barrier is cluster-wide. This mirrors the proven pattern in
+// pranjalssh/fast.cu matmul_9.cuh.
+
+#include <cstdint>
+#include <cuda_runtime.h>
+#include <cuda.h>
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+// Build a wgmma SMEM matrix descriptor.
+//   p     : SMEM address of the operand sub-tile (already swizzled by TMA).
+//   lead  : leading-dimension byte offset (LBO), per CUTLASS make_gmma_desc.
+//   stride: stride-dimension byte offset (SBO).
+//   swiz  : layout_type — 0 = none, 1 = 128B, 2 = 64B, 3 = 32B.
+// Byte offsets are stored with their low 4 bits dropped (uint128 units).
+__device__ __forceinline__ uint64_t make_desc(
+    const void* p, uint32_t lead, uint32_t stride, uint32_t swiz) {
+    uint32_t a = (uint32_t)__cvta_generic_to_shared(p);
+    uint64_t d = 0;
+    d |= ((uint64_t)a >> 4) & 0x3FFFULL;
+    d |= ((uint64_t)(lead   >> 4) & 0x3FFFULL) << 16;
+    d |= ((uint64_t)(stride >> 4) & 0x3FFFULL) << 32;
+    d |= ((uint64_t)(swiz & 0x3)) << 62;
+    return d;
+}
+
+__device__ __forceinline__ void mbar_init(uint64_t* b, uint32_t cnt) {
+    asm volatile("mbarrier.init.shared::cta.b64 [%0], %1;\n"
+        :: "r"((uint32_t)__cvta_generic_to_shared(b)), "r"(cnt));
+}
+__device__ __forceinline__ void mbar_tx(uint64_t* b, uint32_t bytes) {
+    asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;\n"
+        :: "r"((uint32_t)__cvta_generic_to_shared(b)), "r"(bytes) : "memory");
+}
+__device__ __forceinline__ void mbar_wait(uint64_t* b, uint32_t phase) {
+    uint32_t a = (uint32_t)__cvta_generic_to_shared(b);
+    asm volatile(
+        "{ .reg .pred p;\n"
+        "  L: mbarrier.try_wait.parity.shared::cta.b64 p, [%0], %1;\n"
+        "  @!p bra L;\n"
+        "}\n" :: "r"(a), "r"(phase) : "memory");
+}
+__device__ __forceinline__ void tma_2d(
+    void* dst, const CUtensorMap* tm, int x, int y, uint64_t* b) {
+    asm volatile(
+        "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes"
+        " [%0], [%1, {%2,%3}], [%4];\n"
+        :: "r"((uint32_t)__cvta_generic_to_shared(dst)),
+           "l"((uint64_t)tm), "r"(x), "r"(y),
+           "r"((uint32_t)__cvta_generic_to_shared(b))
+        : "memory");
+}
+
+// ── Cluster helpers (Phase 9: clusters + TMA multicast) ───────────────────────
+// All mirror the proven pattern in pranjalssh/fast.cu matmul_9.cuh.
+
+// This CTA's rank within its cluster (0..CLUSTER-1).
+__device__ __forceinline__ uint32_t cluster_ctarank() {
+    uint32_t r;
+    asm volatile("mov.u32 %0, %cluster_ctarank;\n" : "=r"(r) :);
+    return r;
+}
+
+// Cluster-wide barrier: every thread of every CTA in the cluster must arrive.
+__device__ __forceinline__ void cluster_sync() {
+    asm volatile("barrier.cluster.arrive;\n" ::: "memory");
+    asm volatile("barrier.cluster.wait;\n" ::: "memory");
+}
+
+// Arrive (count 1) on the mbarrier `b` located in cluster-mate CTA `cta_id`,
+// using mapa to translate the local SMEM address into that CTA's window.
+__device__ __forceinline__ void arrive_cluster(uint64_t* b, uint32_t cta_id) {
+    uint32_t local = (uint32_t)__cvta_generic_to_shared(b);
+    asm volatile(
+        "{ .reg .b32 rem;\n"
+        "  mapa.shared::cluster.u32 rem, %0, %1;\n"
+        "  mbarrier.arrive.shared::cluster.b64 _, [rem], 1;\n"
+        "}\n" :: "r"(local), "r"(cta_id) : "memory");
+}
+
+// TMA load with cluster multicast: one HBM read of the source tile is fanned
+// out into the SMEM of every CTA whose bit is set in `mask` (same `dst` SMEM
+// offset and `b` mbarrier offset in each), and counts complete_tx bytes against
+// each of their barriers. Issued by a single thread of one CTA.
+__device__ __forceinline__ void tma_2d_multicast(
+    void* dst, const CUtensorMap* tm, int x, int y, uint64_t* b, uint16_t mask) {
+    asm volatile(
+        "cp.async.bulk.tensor.2d.shared::cluster.global"
+        ".mbarrier::complete_tx::bytes.multicast::cluster"
+        " [%0], [%1, {%2,%3}], [%4], %5;\n"
+        :: "r"((uint32_t)__cvta_generic_to_shared(dst)),
+           "l"((uint64_t)tm), "r"(x), "r"(y),
+           "r"((uint32_t)__cvta_generic_to_shared(b)), "h"(mask)
+        : "memory");
+}
+
+// m64n128k256 binary MMA, scale-D = 1 (accumulate into the 64 s32 regs of
+// `acc`). da/db are the swizzled operand descriptors. Half the N of the
+// widest binary shape, so MSTRIPS of these share one B tile to cut refill BW.
+__device__ __forceinline__ void wgmma_n128(int32_t acc[64], uint64_t da, uint64_t db) {
+    asm volatile(
+        "wgmma.mma_async.sync.aligned.m64n128k256.row.col.s32.b1.b1.and.popc "
+        "{" \
+        "%0,%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14,%15," \
+        "%16,%17,%18,%19,%20,%21,%22,%23,%24,%25,%26,%27,%28,%29,%30,%31," \
+        "%32,%33,%34,%35,%36,%37,%38,%39,%40,%41,%42,%43,%44,%45,%46,%47," \
+        "%48,%49,%50,%51,%52,%53,%54,%55,%56,%57,%58,%59,%60,%61,%62,%63}," \
+        "%64,%65, 1;\n"
+        : "+r"(acc[0]),"+r"(acc[1]),"+r"(acc[2]),"+r"(acc[3]),"+r"(acc[4]),"+r"(acc[5]),"+r"(acc[6]),"+r"(acc[7]),
+          "+r"(acc[8]),"+r"(acc[9]),"+r"(acc[10]),"+r"(acc[11]),"+r"(acc[12]),"+r"(acc[13]),"+r"(acc[14]),"+r"(acc[15]),
+          "+r"(acc[16]),"+r"(acc[17]),"+r"(acc[18]),"+r"(acc[19]),"+r"(acc[20]),"+r"(acc[21]),"+r"(acc[22]),"+r"(acc[23]),
+          "+r"(acc[24]),"+r"(acc[25]),"+r"(acc[26]),"+r"(acc[27]),"+r"(acc[28]),"+r"(acc[29]),"+r"(acc[30]),"+r"(acc[31]),
+          "+r"(acc[32]),"+r"(acc[33]),"+r"(acc[34]),"+r"(acc[35]),"+r"(acc[36]),"+r"(acc[37]),"+r"(acc[38]),"+r"(acc[39]),
+          "+r"(acc[40]),"+r"(acc[41]),"+r"(acc[42]),"+r"(acc[43]),"+r"(acc[44]),"+r"(acc[45]),"+r"(acc[46]),"+r"(acc[47]),
+          "+r"(acc[48]),"+r"(acc[49]),"+r"(acc[50]),"+r"(acc[51]),"+r"(acc[52]),"+r"(acc[53]),"+r"(acc[54]),"+r"(acc[55]),
+          "+r"(acc[56]),"+r"(acc[57]),"+r"(acc[58]),"+r"(acc[59]),"+r"(acc[60]),"+r"(acc[61]),"+r"(acc[62]),"+r"(acc[63])
+        : "l"(da), "l"(db));
+}
+__device__ __forceinline__ void wgmma_fence()  { asm volatile("wgmma.fence.sync.aligned;\n" ::: "memory"); }
+__device__ __forceinline__ void wgmma_commit() { asm volatile("wgmma.commit_group.sync.aligned;\n" ::: "memory"); }
+__device__ __forceinline__ void wgmma_wait()   { asm volatile("wgmma.wait_group.sync.aligned 0;\n" ::: "memory"); }
+
+// TMA bulk tensor store (SMEM → global) plus its completion group helpers and
+// the async-proxy fence that makes generic-proxy SMEM writes visible to it.
+__device__ __forceinline__ void tma_store_2d(
+    const CUtensorMap* tm, int x, int y, const void* src) {
+    asm volatile(
+        "cp.async.bulk.tensor.2d.global.shared::cta.bulk_group [%0, {%1, %2}], [%3];\n"
+        :: "l"((uint64_t)tm), "r"(x), "r"(y),
+           "r"((uint32_t)__cvta_generic_to_shared(src)) : "memory");
+}
+__device__ __forceinline__ void tma_store_commit() { asm volatile("cp.async.bulk.commit_group;\n" ::: "memory"); }
+__device__ __forceinline__ void tma_store_wait()   { asm volatile("cp.async.bulk.wait_group 0;\n" ::: "memory"); }
+// Wait until all but the most-recent store group have *read* their SMEM source
+// (`.read` = don't wait for global visibility). Lets a double-buffered sC free
+// the buffer from two tiles ago while the newest store drains in the background.
+__device__ __forceinline__ void tma_store_wait_read1() { asm volatile("cp.async.bulk.wait_group.read 1;\n" ::: "memory"); }
+__device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory"); }
+
+// Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
+// few registers, so it releases its surplus; the consumer (MSTRIPS*ACC_N-reg
+// accumulator) claims them. Counts must be multiples of 8 in [24,256]; at
+// 1 CTA/SM the SM's 64K-register budget is ample (128*(40+232) = 34816 at
+// MSTRIPS=3), so the binding limit is the 255-reg-per-thread hardware cap.
+#define SET_MAXNREG_DEC(N) asm volatile("setmaxnreg.dec.sync.aligned.u32 %0;\n" :: "n"(N))
+#define SET_MAXNREG_INC(N) asm volatile("setmaxnreg.inc.sync.aligned.u32 %0;\n" :: "n"(N))
+
+// Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
+// issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
+// load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
+// ~1/(1+NB/BM). MSTRIPS is the block knob: 2 → 128×128 block (−20% bytes/MAC,
+// 128 acc regs), 3 → 192×128 (−33%, 192 acc regs). NB is fixed at 128 (the
+// wgmma_n128 shape); acc regs per thread = MSTRIPS*ACC_N ≤ 240.
+constexpr int MSTRIPS = 3;         // m64 row-strips per CTA (block knob)
+constexpr int MW = 64;             // wgmma M extent (fixed for binary wgmma)
+constexpr int TK = 1024, KL = TK/64;
+constexpr int TM = MW*MSTRIPS;     // output rows per CTA (192 at MSTRIPS=3)
+constexpr int NB = 128;            // n128 output width (columns) per CTA
+constexpr int NG = NB/64;          // 2 output column-limbs per CTA
+constexpr int ACC_N = NB/2;        // 64 s32 accumulator regs per m64n128 strip
+constexpr int TILE_A = TM*KL;      // A tile: TM rows × 16 u64 (192 rows → 3072 u64 = 24 KB)
+constexpr int TILE_B = NB*KL;      // B tile: 128 cols × 16 u64 = 2048 u64 = 16 KB
+constexpr int STROW = MW*KL;       // u64 per m64 strip in sA (64*16 = 1024 = 8 KB)
+constexpr int SC_STRIDE = NG*TM;   // u64 per sC output buffer (double-buffered)
+constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
+constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
+// K-loop pipeline depth. Cap is 4 under CLUSTER>1: each stage is 40 KB, so
+// STAGES=5 needs ~206 KB, which is under the 227 KB opt-in cap BUT a cluster
+// launch reserves extra shared memory (distributed-SMEM / cluster-barrier
+// bookkeeping), so 206 KB intermittently over-commits and the kernel faults
+// with a flaky "unspecified launch failure" (verified 2026-07-07 H200; the
+// sanitizers miss it because it is an async/resource fault). STAGES=5 is stable
+// only with CLUSTER=1, and gives no large-N speedup there, so 4 it is.
+constexpr int STAGES = 4;          // K-loop pipeline depth (full/empty buffers)
+constexpr int THREADS_PER_WG = 128;
+constexpr int GROUP_M = 16;        // M-tiles per rasterization group (L2 reuse knob)
+constexpr int CLUSTER = 2;         // CTAs per cluster along M (multicast B; reuse knob)
+constexpr int PRODUCER_REGS = 40;
+// Consumer holds MSTRIPS*ACC_N accumulator regs live across K, plus addressing;
+// round up to a multiple of 8, ≤ 240. 1 CTA/SM so the SM reg budget is ample.
+constexpr int CONSUMER_REGS = ((MSTRIPS*ACC_N + 40 + 7)/8)*8;
+
+// wgmma 128B K-major descriptor constants (CUTLASS make_gmma_desc<Major::K>,
+// LayoutType::B128): LBO = 1 uint128 = 16 bytes, SBO = 8-row-brick stride =
+// 1024 bytes (independent of the MN extent), swizzle = 1. A k256 sub-chunk c
+// sits at byte offset c*32 within the tile (advance start_address; the
+// hardware re-applies the swizzle).
+constexpr uint32_t DESC_LBO = 16;
+constexpr uint32_t DESC_SBO = 1024;
+constexpr uint32_t DESC_SWIZ = 1;
+
+// ── Kernel ──────────────────────────────────────────────────────────────────
+
+// Producer-consumer kernel: 2 warpgroups (256 threads/CTA).
+//   Warpgroup 0 (t in [0, 128))  = PRODUCER: issues TMA loads in a tight
+//                                  K-loop into a STAGES-deep circular SMEM
+//                                  buffer.
+//   Warpgroup 1 (t in [128, 256)) = CONSUMER: waits for each stage to be full,
+//                                   runs KSUB*MSTRIPS pipelined m64n128 wgmmas
+//                                   against it, signals the stage empty so the
+//                                   producer can refill.
+//
+// Dynamic SMEM per CTA (carved from `smem`, 128B-aligned for TMA):
+//   sA[STAGES][TILE_A]  = STAGES * 24576 B (TM=192 rows)
+//   sB[STAGES][TILE_B]  = STAGES * 16384 B (NB=128 cols)
+//   sC[2][TM][NG]       = 2 * TM * NG * 8 B (double-buffered so the output store
+//                         of tile T overlaps tile T+1's compute)
+//   mbar_full[STAGES] + mbar_empty[STAGES]
+//
+// Per stage = sA (24 KB) + sB (16 KB) = 40 KB; STAGES=4 ≈ 163 KB total (requires
+// the opt-in CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
+// At 40 KB/stage the block runs 1 CTA/SM; STAGES is the K-pipeline-depth knob.
+//
+// The output block (TM rows × NG limbs) is packed row-major into sC and written
+// back with a single TMA bulk store (S2G). C is padded to whole NG-limb column
+// groups on the host so every stored tile is complete.
+extern "C" __global__ void __cluster_dims__(CLUSTER, 1, 1) matmul_b1_kernel(
+    const __grid_constant__ CUtensorMap tma_a,
+    const __grid_constant__ CUtensorMap tma_b,
+    const __grid_constant__ CUtensorMap tma_c,
+    uint32_t m_tiles,
+    uint32_t n_groups,
+    uint32_t M, uint32_t K)
+{
+    extern __shared__ __align__(128) uint64_t smem[];
+    uint64_t* sA = smem;                          // [STAGES][TILE_A]
+    uint64_t* sB = sA + STAGES * TILE_A;          // [STAGES][TILE_B]
+    uint64_t* sC = sB + STAGES * TILE_B;          // [2][TM][NG] row-major (double-buffered)
+    uint64_t* mbar_full  = sC + 2 * SC_STRIDE;    // [STAGES]
+    uint64_t* mbar_empty = mbar_full + STAGES;    // [STAGES]
+
+    const int t = threadIdx.x;
+    const int wg = t / THREADS_PER_WG;        // 0 = producer, 1 = consumer
+    const int t_wg = t - wg * THREADS_PER_WG; // 0..127 within warpgroup
+
+    const int nchunks = (K + TK - 1) / TK;
+    // One full A tile + one full B tile per stage (B is zero-padded on the
+    // host to a multiple of NB columns, so it is always a complete tile). A is
+    // loaded per-CTA; B arrives via multicast — both target this CTA's full
+    // barrier, so the expected bytes are the same as the single-CTA case.
+    const uint32_t expected_tx = (uint32_t)((TILE_A + TILE_B) * sizeof(uint64_t));
+
+    // Cluster geometry: CLUSTER CTAs along M share one B-panel via multicast,
+    // so the schedule walks "M-super-rows" of CLUSTER M-tiles. The host pads
+    // m_tiles to a multiple of CLUSTER, so m_super divides exactly.
+    const uint32_t rank         = cluster_ctarank();      // 0..CLUSTER-1 (= M offset)
+    const uint32_t cluster_id   = blockIdx.x / CLUSTER;
+    const uint32_t num_clusters = gridDim.x / CLUSTER;
+    const uint32_t m_super      = m_tiles / CLUSTER;
+    const uint32_t total_cl     = m_super * n_groups;
+    const uint16_t bmask        = (uint16_t)((1u << CLUSTER) - 1u); // all ranks
+
+    // Register reallocation is a one-time per-warpgroup action.
+    if (wg == 0) SET_MAXNREG_DEC(PRODUCER_REGS);
+    else         SET_MAXNREG_INC(CONSUMER_REGS);
+
+    // Initialize the pipeline barriers ONCE; they flow continuously across the
+    // persistent tile loop (no per-tile re-init, which would race with the
+    // cross-CTA arrivals/multicast of a cluster). The empty barrier is
+    // cluster-wide: it needs one arrival from every CTA's consumer.
+    if (t == 0) {
+        #pragma unroll
+        for (int s = 0; s < STAGES; ++s) {
+            mbar_init(&mbar_full[s], 1);
+            mbar_init(&mbar_empty[s], CLUSTER);
+        }
+    }
+    __syncthreads();
+    cluster_sync();   // all CTAs' barriers initialized before any cross-CTA arrive
+
+    // Pre-arrive every empty barrier cluster-wide so the producer's first
+    // STAGES `mbar_wait(empty, 0)` succeed immediately (stages logically free).
+    if (wg == 1 && t_wg < CLUSTER) {
+        #pragma unroll
+        for (int s = 0; s < STAGES; ++s) arrive_cluster(&mbar_empty[s], t_wg);
+    }
+
+    // ===================== PERSISTENT CLUSTER LOOP =====================
+    // A 1-D grid of clusters sweeps the M-super × N tile grid. The grouped
+    // rasterizer (super-row varies fastest within a GROUP_M band) keeps each
+    // B-panel's reuse distance short for L2 residency; the cluster additionally
+    // shares each B-panel HBM read across its CLUSTER CTAs via multicast.
+    // qidx/p are the running pipeline slot/phase, carried across tiles.
+    // sC is double-buffered so tile T's output store overlaps tile T+1's
+    // compute: cbuf ping-pongs per tile, and the store's wait is deferred one
+    // tile (see epilogue). titer counts this CTA's tiles for the ping-pong.
+    uint32_t qidx = 0, p = 0, titer = 0;
+    for (uint32_t ct = cluster_id; ct < total_cl; ct += num_clusters, ++titer) {
+        const uint32_t gid    = ct / (GROUP_M * n_groups);
+        const uint32_t firstm = gid * GROUP_M;
+        const uint32_t curm   = min((uint32_t)GROUP_M, m_super - firstm);
+        const uint32_t local  = ct - gid * GROUP_M * n_groups;
+        const uint32_t sbi    = firstm + local % curm;
+        const int bj = (int)(local / curm);
+        const int bi = (int)(sbi * CLUSTER + rank);  // this CTA's M-tile
+        const int row0 = bi * TM, col0 = bj * NG;
+        uint64_t* sCb = sC + (titer & 1) * SC_STRIDE;   // this tile's sC buffer
+
+        // Before reusing this buffer, make sure the store that last used it (two
+        // tiles ago) has finished reading it. The deferred .read-1 wait below
+        // already drained it during the previous tile; this syncs all consumer
+        // threads to that wait before they overwrite the buffer.
+        if (wg == 1) {
+            for (int r = t_wg; r < TM; r += THREADS_PER_WG) {
+                #pragma unroll
+                for (int g = 0; g < NG; ++g) sCb[r * NG + g] = 0;
+            }
+        }
+        __syncthreads();
+
+        if (wg == 0) {
+            // ===================== PRODUCER =====================
+            for (int kk = 0; kk < nchunks; ++kk) {
+                const uint32_t s = qidx;
+
+                if (t_wg == 0) {
+                    // Wait for all CTAs' consumers to release this stage, then
+                    // set expected bytes (A + multicast B) and issue the loads.
+                    mbar_wait(&mbar_empty[s], p);
+                    mbar_tx(&mbar_full[s], expected_tx);
+                    // A: this CTA's own TM-row block (MSTRIPS m64 strips).
+                    tma_2d(&sA[s * TILE_A], &tma_a, 0,
+                           (kk * m_tiles + bi) * TM, &mbar_full[s]);
+                    // B: one HBM read, multicast into every cluster member's sB
+                    // and counted against every member's full barrier. Issued by
+                    // rank 0 only (its mask bit is set, so it fills itself too).
+                    if (rank == 0) {
+                        tma_2d_multicast(&sB[s * TILE_B], &tma_b, 0,
+                                         (kk * n_groups + bj) * NB, &mbar_full[s],
+                                         bmask);
+                    }
+                }
+                if (++qidx == STAGES) { qidx = 0; p ^= 1; }
+            }
+        } else {
+            // ===================== CONSUMER =====================
+            // MSTRIPS m64n128 accumulators (MSTRIPS*ACC_N s32 regs/thread), all
+            // resident across the whole K loop, re-zeroed per output tile.
+            int32_t acc[MSTRIPS][ACC_N];
+            #pragma unroll
+            for (int si = 0; si < MSTRIPS; ++si)
+                #pragma unroll
+                for (int r = 0; r < ACC_N; ++r) acc[si][r] = 0;
+
+            // One wgmma.fence for the whole K-loop: it orders the non-wgmma
+            // accumulator zeroing above before the first wgmma. Inside the loop
+            // the accumulators are written only by wgmma, so no per-chunk fence
+            // is needed (a warpgroup-wide sync we don't want 32× per tile). The
+            // per-chunk wgmma.wait_group 0 makes the results readable at the end.
+            wgmma_fence();
+            for (int kk = 0; kk < nchunks; ++kk) {
+                const uint32_t s = qidx;
+
+                // Wait for the producer's TMAs to finish populating this stage.
+                mbar_wait(&mbar_full[s], p);
+
+                // Issue every k256 wgmma for this stage behind one commit/wait so
+                // they pipeline. Each k256 loads B once and reuses it across all
+                // MSTRIPS strips (independent accumulators → they can overlap).
+                // scale-D = 1 accumulates each sub-chunk in-hardware.
+                #pragma unroll
+                for (int c = 0; c < KSUB; ++c) {
+                    uint64_t db = make_desc(&sB[s * TILE_B + c * KSUB_U64],
+                                            DESC_LBO, DESC_SBO, DESC_SWIZ);
+                    #pragma unroll
+                    for (int si = 0; si < MSTRIPS; ++si) {
+                        uint64_t da = make_desc(&sA[s * TILE_A + si * STROW + c * KSUB_U64],
+                                                DESC_LBO, DESC_SBO, DESC_SWIZ);
+                        wgmma_n128(acc[si], da, db);
+                    }
+                }
+                wgmma_commit();
+                wgmma_wait();
+
+                // Release this stage cluster-wide: arrive on every CTA's empty
+                // barrier (so rank 0 may overwrite their multicast sB).
+                if (t_wg < CLUSTER) arrive_cluster(&mbar_empty[s], t_wg);
+                if (++qidx == STAGES) { qidx = 0; p ^= 1; }
+            }
+
+            // Pack each strip's NB-wide accumulator into sC's NG output limbs.
+            // The m64n128 fragment is the m64n64 layout tiled along N: register
+            // group gi (0..NB/8-1) covers output columns [gi*8, gi*8+8); within it
+            // this thread owns columns cb, cb+1 for rows rb and rb+8. Strip si adds
+            // si*MW to the row. Column c maps to limb c/64, bit c%64.
+            const int wid = t_wg >> 5, lane = t_wg & 31;
+            const int rb = wid*16 + (lane>>2), cb = (lane&3)*2;
+            #pragma unroll
+            for (int si = 0; si < MSTRIPS; ++si) {
+                uint64_t lo[NG] = {0}, hi[NG] = {0};
+                #pragma unroll
+                for (int gi = 0; gi < NB/8; ++gi) {
+                    int c0 = cb + gi*8, c1 = c0 + 1;
+                    int l0 = c0 >> 6, b0p = c0 & 63;
+                    int l1 = c1 >> 6, b1p = c1 & 63;
+                    lo[l0] |= (uint64_t)(acc[si][gi*4+0]&1) << b0p;
+                    lo[l1] |= (uint64_t)(acc[si][gi*4+1]&1) << b1p;
+                    hi[l0] |= (uint64_t)(acc[si][gi*4+2]&1) << b0p;
+                    hi[l1] |= (uint64_t)(acc[si][gi*4+3]&1) << b1p;
+                }
+                // Row-major sC[row*NG + limb]; padded limbs (out-of-range columns)
+                // get zero popcounts from the zero-padded B, so they store harmless
+                // zeros into C's padded region (trimmed on the host).
+                const int rlo = si*MW + rb, rhi = si*MW + rb + 8;
+                #pragma unroll
+                for (int g = 0; g < NG; ++g) {
+                    uint32_t* clo = reinterpret_cast<uint32_t*>(&sCb[rlo * NG + g]);
+                    uint32_t* chi = reinterpret_cast<uint32_t*>(&sCb[rhi * NG + g]);
+                    atomicXor(&clo[0], (uint32_t)lo[g]);
+                    atomicXor(&clo[1], (uint32_t)(lo[g]>>32));
+                    atomicXor(&chi[0], (uint32_t)hi[g]);
+                    atomicXor(&chi[1], (uint32_t)(hi[g]>>32));
+                }
+            }
+        }
+
+        // Write the TM×NG output block back with a single TMA bulk store, then
+        // DEFER its wait: `.read 1` blocks only until every store but the newest
+        // (this one) has finished reading its sC buffer, so tile T's store drains
+        // during tile T+1's compute instead of stalling here. The buffer freed is
+        // the one from two tiles ago — safe to reuse next time cbuf lands on it.
+        __syncthreads();        // sC[cbuf] fully packed by the consumer
+        fence_async_shared();   // make the atomicXor writes visible to the async proxy
+        if (t == 0) {
+            tma_store_2d(&tma_c, col0 * 2, row0, sCb); // x in UINT32 units (2 per limb)
+            tma_store_commit();
+            tma_store_wait_read1();
+        }
+        __syncthreads();        // order the deferred wait before the next tile
+                                // reuses (zeroes) an sC buffer
+    }
+    // Drain the last outstanding output store before the CTA exits.
+    if (t == 0) tma_store_wait();
+}
