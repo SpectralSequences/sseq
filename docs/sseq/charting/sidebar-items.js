@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PATTERNS"],"enum":["Orientation"],"mod":["svg","tikz"],"trait":["Backend"]};
+window.SIDEBAR_ITEMS = {"constant":["PATTERNS"],"enum":["Orientation"],"mod":["seqsee","svg","tikz"],"trait":["Backend"]};
