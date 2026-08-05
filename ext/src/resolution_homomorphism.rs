@@ -566,6 +566,11 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
             finish(&results[range]);
         }
 
+        // `completion` tracks the contiguous frontier of finished degrees per output row (s-value).
+        // `push_ooo()` marks position `(b.t() - min_t)` as done and returns the maximal contiguous
+        // range from 0 up through this position (out-of-order inserts are allowed earlier). Convert
+        // from relative (0-indexed, relative to min_t) to absolute coordinates and return it so
+        // `iter_s_t` knows how far this row has progressed.
         let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
         (frontier.start as i32 + min_t)..(frontier.end as i32 + min_t)
     }
