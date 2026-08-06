@@ -63,19 +63,58 @@ fn context() -> Option<&'static GpuContext> {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
-        crate::gpu_lock::set_devices_shared(device == multiply_device());
+        let mult_devices = multiply_devices();
+        let shared = device < mult_devices;
+        crate::gpu_lock::set_devices_shared(shared);
+        // Log it: whether arbitration is live decides whether the reduction's thousands of tiny
+        // launches overlap the multiply's saturating ones, and getting it wrong is invisible in a
+        // normal run until something fails far away. `[batch-stats] lock=` alone cannot distinguish
+        // "arbitration off" from "arbitration on but uncontended".
+        eprintln!(
+            "[fp-cuda] row reduction on device {device}; multiply spans devices \
+             0..{mult_devices}; gpu_lock arbitration {}",
+            if shared { "ENABLED" } else { "disabled" }
+        );
         GpuContext::new(device).ok()
     })
     .as_ref()
 }
 
-/// Which GPU the cubecl Milnor multiply runs on (`NASSAU_GPU_DEVICE`, default 0). Read here only to
-/// decide whether the two runtimes share a device; `algebra` owns the actual client construction.
-fn multiply_device() -> usize {
-    std::env::var("NASSAU_GPU_DEVICE")
-        .ok()
-        .and_then(|v| v.parse().ok())
+/// How many GPUs the cubecl Milnor multiply spreads over — it shards across ALL visible devices, so
+/// the row reduction shares a device with it whenever `FP_CUDA_DEVICE < multiply_devices()`.
+///
+/// This used to ask which single device the multiply ran on, reading `NASSAU_GPU_DEVICE` — a
+/// variable nothing in `algebra` reads any more, left behind when the multiply became multi-GPU. It
+/// therefore answered "device 0" no matter how many GPUs the multiply was actually saturating, and
+/// `FP_CUDA_DEVICE=2` on a 4-GPU node would silently conclude "separate devices, no arbitration
+/// needed" while the multiply was hammering device 2 as well. Arbitration exists to keep the
+/// reduction's thousands of tiny sequential relaunches from queueing behind saturating multiply
+/// kernels (1.8-9.7 ms standalone vs 8.6-96.8 s co-running); losing it is not a small regression.
+///
+/// Mirrors `algebra::algebra::milnor_gpu::gpu_count` — `fp` cannot call it (`algebra` depends on
+/// `fp`, not the reverse), so the two must be kept in step. Both honour `CUDA_VISIBLE_DEVICES`,
+/// since CUDA renumbers the visible subset to `0..n`.
+fn multiply_devices() -> usize {
+    const MAX_GPUS: usize = 8;
+    let physical = std::fs::read_dir("/proc/driver/nvidia/gpus")
+        .map(|d| d.filter_map(|e| e.ok()).count())
         .unwrap_or(0)
+        .max(1);
+    let visible = std::env::var("CUDA_VISIBLE_DEVICES").ok().map(|v| {
+        v.split(',')
+            .take_while(|e| {
+                e.trim()
+                    .parse::<usize>()
+                    .is_ok_and(|ord| ord < physical.max(MAX_GPUS))
+            })
+            .count()
+    });
+    std::env::var("NASSAU_GPU_DEVICES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or_else(|| visible.unwrap_or(physical).max(1))
+        .clamp(1, MAX_GPUS)
 }
 
 /// Row-major, K-major `u64` limbs — the exact layout `fp_cuda::matmul_b1_raw` expects.
