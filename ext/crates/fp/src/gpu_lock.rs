@@ -196,6 +196,32 @@ mod tests {
         let violations = Arc::new(AtomicUsize::new(0));
         let max_shared = Arc::new(AtomicUsize::new(0));
 
+        // Readers overlap when no reduction is demanding the device. This has to be measured on its
+        // own: `exclusive` is now unconditional (reductions must serialize against each other —
+        // their GEMM is a whole-device grid), so the contended phase below keeps a writer queued
+        // essentially always, and writer preference then correctly holds readers off. Asserting
+        // overlap *during* that phase measured the scheduler, not the lock.
+        let mut warmup = Vec::new();
+        for _ in 0..8 {
+            let (live, max) = (Arc::clone(&live_shared), Arc::clone(&max_shared));
+            warmup.push(thread::spawn(move || {
+                for _ in 0..200 {
+                    let _g = shared();
+                    let n = live.fetch_add(1, Ordering::SeqCst) + 1;
+                    max.fetch_max(n, Ordering::SeqCst);
+                    thread::yield_now();
+                    live.fetch_sub(1, Ordering::SeqCst);
+                }
+            }));
+        }
+        for h in warmup {
+            h.join().unwrap();
+        }
+        assert!(
+            max_shared.load(Ordering::SeqCst) > 1,
+            "multiplies never overlapped — the shared side is serialising, which defeats the point"
+        );
+
         let mut handles = Vec::new();
         for _ in 0..8 {
             let (live, bad, max) = (
@@ -236,10 +262,6 @@ mod tests {
             violations.load(Ordering::SeqCst),
             0,
             "two reductions held the device at once"
-        );
-        assert!(
-            max_shared.load(Ordering::SeqCst) > 1,
-            "multiplies never overlapped — the shared side is serialising, which defeats the point"
         );
     }
 }
