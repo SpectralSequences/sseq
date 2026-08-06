@@ -27,7 +27,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use super::ExtAlgebra;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainHomotopy, FreeChainComplex},
-    resolution_homomorphism::ResolutionHomomorphism,
+    resolution_homomorphism::{Liftable, MultiLift, ResolutionHomomorphism},
 };
 
 /// The result of a Massey product computation
@@ -145,11 +145,6 @@ where
         let representative = if target_num_gens == 0 {
             FpVector::new(p, 0)
         } else {
-            // Where `a`'s generators sit in the homotopy output, so we can pair against them.
-            let offset_a =
-                unit.module(a.degree().s())
-                    .generator_offset(a.degree().t(), a.degree().t(), 0);
-            let a_coords: Vec<u32> = a.vec().iter().collect();
             let c_coords: Vec<u32> = c.vec().iter().collect();
 
             let f_c = Arc::new(ResolutionHomomorphism::from_class(
@@ -164,17 +159,7 @@ where
             let homotopy = ChainHomotopy::new(f_c, b_hom);
             homotopy.extend(tot);
 
-            let last = homotopy.homotopy(tot.s());
-            let mut representative = FpVector::new(p, target_num_gens);
-            for i in 0..target_num_gens {
-                let output = last.output(tot.t(), i);
-                for (k, &val) in a_coords.iter().enumerate() {
-                    if val != 0 {
-                        representative.add_basis_element(i, val * output.entry(offset_a + k));
-                    }
-                }
-            }
-            representative
+            self.massey_read_representative(a, &homotopy, tot)
         };
 
         let indeterminacy = self.massey_indeterminacy(a, c, tot);
@@ -182,6 +167,39 @@ where
             degree: tot,
             coset: AffineSubspace::new(representative, indeterminacy),
         })
+    }
+
+    /// Read the bracket representative off an already-extended null-homotopy of `b ∘ c` (the
+    /// `homotopy`), by pairing its top level (filtration `tot.s()`) against the first factor `a`.
+    ///
+    /// Factored out of [`massey_bracket_of`](Self::massey_bracket_of) so the batched
+    /// [`massey_iter_c`](Self::massey_iter_c), which extends all the null-homotopies together through
+    /// [`MultiLift`] before reading any bracket, shares the exact same read.
+    fn massey_read_representative(
+        &self,
+        a: &BidegreeElement,
+        homotopy: &ChainHomotopy<CC, CC, CC>,
+        tot: Bidegree,
+    ) -> FpVector {
+        let p = self.prime();
+        let target_num_gens = self.resolution().number_of_gens_in_bidegree(tot);
+        // Where `a`'s generators sit in the homotopy output, so we can pair against them.
+        let offset_a =
+            self.unit()
+                .module(a.degree().s())
+                .generator_offset(a.degree().t(), a.degree().t(), 0);
+        let a_coords: Vec<u32> = a.vec().iter().collect();
+        let last = homotopy.homotopy(tot.s());
+        let mut representative = FpVector::new(p, target_num_gens);
+        for i in 0..target_num_gens {
+            let output = last.output(tot.t(), i);
+            for (k, &val) in a_coords.iter().enumerate() {
+                if val != 0 {
+                    representative.add_basis_element(i, val * output.entry(offset_a + k));
+                }
+            }
+        }
+        representative
     }
 
     /// Compute a representative of a Massey product evaluated at `row` from the per-generator
@@ -245,32 +263,103 @@ where
     ///
     /// Brackets that contain `0` are omitted.
     ///
-    /// This iterates over the third factor, building a fresh null-homotopy of `b ∘ c` per `c`. To
-    /// vary the *first* factor with `b, c` fixed instead, use
-    /// [`massey_iter_a`](Self::massey_iter_a).
+    /// This iterates over the third factor. Rather than building and extending a fresh null-homotopy
+    /// of `b ∘ c` per `c` — which, with quasi-inverses recomputed on demand, would re-solve the
+    /// unit's quasi-inverse at every bidegree once per third factor — it builds every map up front
+    /// and extends them together through [`MultiLift`], so each quasi-inverse is solved once and
+    /// shared across all third factors. To vary the *first* factor with `b, c` fixed instead, use
+    /// [`massey_iter_a`](Self::massey_iter_a), which already reuses a single null-homotopy.
     pub fn massey_iter_c(
         &self,
         a: &BidegreeElement,
         b: &BidegreeElement,
-    ) -> Vec<(BidegreeElement, MasseyResult)> {
+    ) -> Vec<(BidegreeElement, MasseyResult)>
+    where
+        CC: 'static,
+    {
+        let resolution = self.resolution();
+        let unit = self.unit();
         let shift = Self::massey_shift(a, b);
-        let b_hom = self.massey_b_hom(b, shift);
 
-        let mut results = Vec::new();
-        for c_deg in self.resolution().iter_nonzero_stem() {
+        // Multiplication-by-`b` self-map of the unit. Built unextended so it can ride along in the
+        // first batch below (it shares the unit target with every `f_c`).
+        let b_coords: Vec<u32> = b.vec().iter().collect();
+        let b_hom = Arc::new(ResolutionHomomorphism::from_class(
+            String::new(),
+            Arc::clone(unit),
+            Arc::clone(unit),
+            b.degree(),
+            &b_coords,
+        ));
+
+        // Enumerate every valid third factor `c` (kernel of `· b`) whose bracket lands in a computed,
+        // non-empty bidegree, and build its realising map `f_c` and null-homotopy of `b ∘ c`.
+        // Brackets landing in an empty group are the (defined) zero element — they always contain
+        // zero, so they are dropped here exactly as the final `contains_zero` filter would.
+        let mut pending: Vec<(BidegreeElement, Bidegree, Arc<ChainHomotopy<CC, CC, CC>>)> =
+            Vec::new();
+        let mut f_cs: Vec<Arc<ResolutionHomomorphism<CC, CC>>> = Vec::new();
+        for c_deg in resolution.iter_nonzero_stem() {
             let Some(kernel) = self.massey_kernel(b, c_deg) else {
                 continue;
             };
+            let tot = c_deg + shift;
+            if !resolution.has_computed_bidegree(tot)
+                || resolution.number_of_gens_in_bidegree(tot) == 0
+            {
+                continue;
+            }
             for row in kernel.iter() {
                 let c = BidegreeElement::new(c_deg, row.to_owned());
-                let Some(result) = self.massey_bracket_of(a, Arc::clone(&b_hom), shift, &c) else {
-                    continue;
-                };
-                if result.contains_zero() {
-                    continue;
-                }
-                results.push((c, result));
+                let c_coords: Vec<u32> = c.vec().iter().collect();
+                let f_c = Arc::new(ResolutionHomomorphism::from_class(
+                    String::new(),
+                    Arc::clone(resolution),
+                    Arc::clone(unit),
+                    c_deg,
+                    &c_coords,
+                ));
+                let homotopy = Arc::new(ChainHomotopy::new(Arc::clone(&f_c), Arc::clone(&b_hom)));
+                f_cs.push(f_c);
+                pending.push((c, tot, homotopy));
             }
+        }
+
+        // No valid third factors: nothing to read, and in particular no reason to extend `b_hom`.
+        if pending.is_empty() {
+            return Vec::new();
+        }
+
+        // First batch: `b_hom` and every `f_c` against the unit. The homotopies read these maps, so
+        // they must be fully extended before the homotopies are lifted. Every one of these maps is
+        // read only up to output bidegree `shift` (the map value at `tot = c_deg + shift` lands at
+        // `tot - c_deg = shift`), so bound the sweep there rather than across the whole plane.
+        let mut map_liftables: Vec<Arc<dyn Liftable>> = Vec::with_capacity(f_cs.len() + 1);
+        map_liftables.push(Arc::clone(&b_hom) as Arc<dyn Liftable>);
+        map_liftables.extend(f_cs.iter().map(|f| Arc::clone(f) as Arc<dyn Liftable>));
+        MultiLift::new(Arc::clone(unit), map_liftables).extend_through_stem(shift);
+
+        // Second batch: every null-homotopy against the unit. Each bracket is read at `tot`, i.e.
+        // the homotopy's top lands at output bidegree `a.degree()`, so bound the sweep there.
+        let homotopy_liftables: Vec<Arc<dyn Liftable>> = pending
+            .iter()
+            .map(|(_, _, h)| Arc::clone(h) as Arc<dyn Liftable>)
+            .collect();
+        MultiLift::new(Arc::clone(unit), homotopy_liftables).extend_through_stem(a.degree());
+
+        // Read off each bracket from its extended homotopy.
+        let mut results = Vec::new();
+        for (c, tot, homotopy) in pending {
+            let representative = self.massey_read_representative(a, &homotopy, tot);
+            let indeterminacy = self.massey_indeterminacy(a, &c, tot);
+            let result = MasseyResult {
+                degree: tot,
+                coset: AffineSubspace::new(representative, indeterminacy),
+            };
+            if result.contains_zero() {
+                continue;
+            }
+            results.push((c, result));
         }
         results
     }

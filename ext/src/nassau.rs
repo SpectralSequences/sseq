@@ -15,7 +15,7 @@
 use std::{
     fmt::Display,
     io,
-    sync::{Arc, Mutex, mpsc},
+    sync::{Arc, LazyLock, Mutex, mpsc},
 };
 
 use algebra::{
@@ -388,6 +388,17 @@ enum Magic {
     Fix = -3,
 }
 
+/// Whether to persist quasi-inverses to disk during resolution. Disabled by
+/// `EXT_NASSAU_NO_SAVE_QI`, in which case only the differentials are written (the quasi-inverses are
+/// ~260-460x larger) and every downstream lift recomputes its quasi-inverse on demand.
+static SAVE_QI: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("EXT_NASSAU_NO_SAVE_QI").is_none());
+
+/// Force `apply_quasi_inverse` to recompute rather than read a saved quasi-inverse, even when one
+/// exists on disk. Used to measure the recompute cost in isolation.
+static RECOMPUTE_QI: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("EXT_NASSAU_RECOMPUTE_QI").is_some());
+
 /// A resolution of `S_2` using Nassau's algorithm.
 ///
 /// This aims to have an API similar to that of
@@ -598,7 +609,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let next = &self.modules[b.s() - 2];
         next.compute_basis(b.t());
 
-        let mut f = if let Some(dir) = self.save_dir().write() {
+        // Skip writing the quasi-inverse when `EXT_NASSAU_NO_SAVE_QI` is set; `apply_quasi_inverse`
+        // recomputes it on demand from the differential (see `RecomputeReader`).
+        let mut f = if *SAVE_QI && let Some(dir) = self.save_dir().write() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
@@ -1057,14 +1070,23 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
         for<'a> &'a S: Into<FpSlice<'a>>,
     {
-        let mut f = if let Some(dir) = self.save_dir.read() {
-            if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
-                f
-            } else {
-                return false;
-            }
+        // Read the saved quasi-inverse unless recomputation is forced. Fall back to recomputation
+        // whenever no saved stream is available: no store, the qis were never persisted
+        // (`EXT_NASSAU_NO_SAVE_QI`), or the store has no qi for this bidegree. The last case
+        // legitimately happens at the top of the computed region — nassau writes qi(s, t) while
+        // computing (s + 1, t), so qi(max_s, t) is never saved even though lifting into it is
+        // well-defined. `RecomputeReader` regenerates the exact same byte stream from
+        // `differentials[b.s]`, so the loop below is unchanged.
+        let saved = if *RECOMPUTE_QI {
+            None
+        } else if let Some(dir) = self.save_dir.read() {
+            self.save_file(SaveKind::NassauQi, b).open_file(dir.clone())
         } else {
-            return false;
+            None
+        };
+        let mut f: Box<dyn io::Read> = match saved {
+            Some(f) => f,
+            None => Box::new(RecomputeReader::new(self, b)),
         };
 
         let p = self.prime();
@@ -1221,6 +1243,148 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             );
         }
         true
+    }
+}
+
+/// A streaming [`io::Read`] that regenerates the quasi-inverse of `d_{b.s}` at bidegree `b` on the
+/// fly, in exactly the byte format that [`Resolution::write_qi`] wrote to disk.
+///
+/// This lets [`ChainComplex::apply_quasi_inverse`] read a recomputed quasi-inverse through the same
+/// code path as a saved one — the apply loop is unchanged; only the source of bytes differs. The
+/// quasi-inverse is re-derived from `differentials[b.s]` alone (plus the module bases and the
+/// deterministically-chosen subalgebra), never the rest of the resolution.
+///
+/// It advances one signature at a time, holding only that signature's matrices, so its peak memory
+/// matches what resolving this bidegree originally required — never the whole quasi-inverse, which
+/// can reach hundreds of GB at record stems.
+///
+/// Because the resolution is fully computed by the time a lift is requested, the recomputed
+/// quasi-inverse always uses complete information, so it never emits a [`Magic::Fix`].
+struct RecomputeReader<'a, M: ZeroModule<Algebra = MilnorAlgebra>> {
+    res: &'a Resolution<M>,
+    b: Bidegree,
+    subalgebra: MilnorSubalgebra,
+    algebra: Arc<MilnorAlgebra>,
+    signatures: std::vec::IntoIter<Vec<PPartEntry>>,
+    scratch: FpVector,
+    buf: Vec<u8>,
+    pos: usize,
+    header_done: bool,
+    end_done: bool,
+}
+
+impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
+    fn new(res: &'a Resolution<M>, b: Bidegree) -> Self {
+        let s = b.s();
+        let t = b.t();
+        // The subalgebra is chosen deterministically, as in `step_resolution_with_result` for the
+        // step that computed `(s + 1, t)` (the step that wrote this qi).
+        let subalgebra = MilnorSubalgebra::optimal_for(
+            Bidegree::s_t(s + 1, t) - Bidegree::s_t(0, res.max_degree),
+        );
+        // `src` is the source of `d_s` (= F_s), `tgt` its target (= F_{s-1}).
+        let src = &res.modules[s];
+        let tgt = &res.modules[s - 1];
+        src.compute_basis(t);
+        tgt.compute_basis(t);
+        let algebra = tgt.algebra();
+
+        // Zero signature first, then the rest — matching the write order.
+        let signatures: Vec<Vec<PPartEntry>> = std::iter::once(subalgebra.zero_signature())
+            .chain(subalgebra.iter_signatures(t))
+            .collect();
+
+        Self {
+            res,
+            b,
+            subalgebra,
+            algebra,
+            signatures: signatures.into_iter(),
+            scratch: FpVector::new(res.prime(), 0),
+            buf: Vec::new(),
+            pos: 0,
+            header_done: false,
+            end_done: false,
+        }
+    }
+
+    /// Write the qi header: target dimension, zero-signature masked source dimension, subalgebra.
+    fn write_header(&mut self) -> io::Result<()> {
+        let (s, t) = (self.b.s(), self.b.t());
+        let target_dim = self.res.modules[s - 1].dimension(t);
+        let zero_mask_dim = self
+            .subalgebra
+            .signature_mask(
+                &self.algebra,
+                &self.res.modules[s],
+                t,
+                &self.subalgebra.zero_signature(),
+            )
+            .count();
+        self.buf.write_u64::<LittleEndian>(target_dim as u64)?;
+        self.buf.write_u64::<LittleEndian>(zero_mask_dim as u64)?;
+        self.subalgebra.to_bytes(&mut self.buf)
+    }
+
+    /// Row-reduce `d_s` restricted to `signature` and append the resulting commands, exactly as
+    /// `write_qi` did during resolution. Writes nothing if the block has no pivots.
+    fn write_signature(&mut self, signature: &[PPartEntry]) -> io::Result<()> {
+        let (s, t) = (self.b.s(), self.b.t());
+        let p = self.res.prime();
+
+        let src_mask: Vec<usize> = self
+            .subalgebra
+            .signature_mask(&self.algebra, &self.res.modules[s], t, signature)
+            .collect();
+        let tgt_mask: Vec<usize> = self
+            .subalgebra
+            .signature_mask(&self.algebra, &self.res.modules[s - 1], t, signature)
+            .collect();
+
+        let full_matrix = {
+            let _guard = ParallelGuard::new();
+            self.res.differentials[s].get_partial_matrix(t, &src_mask)
+        };
+        let mut masked_matrix =
+            AugmentedMatrix::new(p, src_mask.len(), [tgt_mask.len(), src_mask.len()]);
+        masked_matrix
+            .segment(0, 0)
+            .add_masked(&full_matrix, &tgt_mask);
+        masked_matrix.segment(1, 1).add_identity();
+        masked_matrix.row_reduce();
+
+        Resolution::<M>::write_qi(
+            &mut Some(&mut self.buf),
+            &mut self.scratch,
+            signature,
+            &tgt_mask,
+            &full_matrix,
+            &masked_matrix,
+        )
+    }
+}
+
+impl<M: ZeroModule<Algebra = MilnorAlgebra>> io::Read for RecomputeReader<'_, M> {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        while self.pos >= self.buf.len() {
+            self.buf.clear();
+            self.pos = 0;
+            if !self.header_done {
+                self.write_header()?;
+                self.header_done = true;
+            } else if let Some(signature) = self.signatures.next() {
+                self.write_signature(&signature)?;
+            } else if !self.end_done {
+                self.buf.write_u64::<LittleEndian>(Magic::End as u64)?;
+                self.end_done = true;
+            } else {
+                return Ok(0);
+            }
+        }
+        let n = std::cmp::min(out.len(), self.buf.len() - self.pos);
+        out[..n].copy_from_slice(&self.buf[self.pos..self.pos + n]);
+        self.pos += n;
+        Ok(n)
     }
 }
 
