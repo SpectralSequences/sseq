@@ -201,11 +201,6 @@ where
     /// The user should call this function explicitly to manually define the chain map where the
     /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
-    ///
-    /// This is the single-map path: it recomputes/reads its own quasi-inverse inline. Callers
-    /// extending *several* maps with a common target should instead drive them through
-    /// [`MultiLift`], which batches the quasi-inverse solve at each output bidegree so it is
-    /// computed once and shared across all maps.
     #[tracing::instrument(skip(self, extra_images), fields(self = self.name, %input))]
     pub fn extend_step_raw(
         &self,
