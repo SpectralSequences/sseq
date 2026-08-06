@@ -72,8 +72,13 @@ fn context() -> Option<&'static GpuContext> {
         // "arbitration off" from "arbitration on but uncontended".
         eprintln!(
             "[fp-cuda] row reduction on device {device}; multiply spans devices \
-             0..{mult_devices}; gpu_lock arbitration {}",
-            if shared { "ENABLED" } else { "disabled" }
+             0..{mult_devices}; multiply yields to reductions: {}; reductions serialize against \
+             each other: always",
+            if shared {
+                "yes"
+            } else {
+                "no (separate devices)"
+            }
         );
         GpuContext::new(device).ok()
     })
