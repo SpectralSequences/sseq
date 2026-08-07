@@ -31,6 +31,9 @@ use crate::matrix::Matrix;
 pub mod block;
 pub mod tile;
 
+#[cfg(feature = "gpu")]
+pub(crate) mod cuda;
+
 impl std::ops::Mul for &Matrix {
     type Output = Matrix;
 
@@ -44,6 +47,10 @@ impl std::ops::Mul for &Matrix {
         {
             // Can use optimized BLAS operations (matrix rows are padded to multiple of 64)
             // TODO: Use different block sizes and loop orders based on the size of the matrices
+            #[cfg(feature = "gpu")]
+            if let Some(result) = cuda::try_mul(self, rhs) {
+                return result;
+            }
             self.fast_mul_concurrent(rhs)
         } else {
             // Use naive multiplication for:
