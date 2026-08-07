@@ -1,4 +1,4 @@
-use algebra::module::Module;
+use algebra::module::{Module, ModuleExt};
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
 use ext::{CCC, chain_complex::FreeChainComplex};

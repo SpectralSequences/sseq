@@ -8,6 +8,7 @@ use itertools::Itertools;
 use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
+use sseq::coordinates::MultiDegree;
 
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
@@ -416,7 +417,8 @@ impl Algebra for MilnorAlgebra {
             .collect()
     }
 
-    fn compute_basis(&self, max_degree: i32) {
+    fn compute_basis(&self, max_degree: impl Into<MultiDegree<1>>) {
+        let max_degree = i32::from(max_degree.into());
         self.compute_ppart(max_degree);
 
         if self.generic() {
@@ -470,7 +472,8 @@ impl Algebra for MilnorAlgebra {
         }
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension(&self, degree: impl Into<MultiDegree<1>>) -> usize {
+        let degree = i32::from(degree.into());
         if degree < 0 {
             return 0;
         }
@@ -482,16 +485,16 @@ impl Algebra for MilnorAlgebra {
         &self,
         result: FpSliceMut,
         coef: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<1>>,
         r_idx: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<1>>,
         s_idx: usize,
     ) {
         self.multiply(
             result,
             coef,
-            self.basis_element_from_index(r_degree, r_idx),
-            self.basis_element_from_index(s_degree, s_idx),
+            self.basis_element_from_index(i32::from(r_degree.into()), r_idx),
+            self.basis_element_from_index(i32::from(s_degree.into()), s_idx),
         );
     }
 
@@ -500,11 +503,13 @@ impl Algebra for MilnorAlgebra {
         &self,
         mut result: FpSliceMut,
         coef: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<1>>,
         r_idx: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<1>>,
         s_idx: usize,
     ) {
+        let r_degree = i32::from(r_degree.into());
+        let s_degree = i32::from(s_degree.into());
         result.add(
             self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
                 .as_slice(),
@@ -516,12 +521,14 @@ impl Algebra for MilnorAlgebra {
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<1>>,
         r_idx: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<1>>,
         s: FpSlice,
     ) {
         let p = self.prime();
+        let r_degree = i32::from(r_degree.into());
+        let s_degree = i32::from(s_degree.into());
         let r = self.basis_element_from_index(r_degree, r_idx);
         PPartAllocation::with_local(|mut allocation| {
             for (i, v) in s.iter_nonzero() {
@@ -542,11 +549,13 @@ impl Algebra for MilnorAlgebra {
         &self,
         mut res: FpSliceMut,
         coef: u32,
-        r_deg: i32,
+        r_deg: impl Into<MultiDegree<1>>,
         r: FpSlice,
-        s_deg: i32,
+        s_deg: impl Into<MultiDegree<1>>,
         s: FpSlice,
     ) {
+        let r_deg = i32::from(r_deg.into());
+        let s_deg = i32::from(s_deg.into());
         PPartAllocation::with_local(|mut allocation| {
             for (i, c) in r.iter_nonzero() {
                 allocation = self.multiply_basis_by_element_with_allocation(
@@ -562,8 +571,11 @@ impl Algebra for MilnorAlgebra {
         })
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_element_from_index(degree, idx))
+    fn basis_element_to_string(&self, degree: impl Into<MultiDegree<1>>, idx: usize) -> String {
+        format!(
+            "{}",
+            self.basis_element_from_index(i32::from(degree.into()), idx)
+        )
     }
 
     fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)> {

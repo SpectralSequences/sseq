@@ -6,7 +6,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use crate::module::Module;
+use crate::module::{Module, ModuleExt};
 
 mod free_module_homomorphism;
 mod full_module_homomorphism;

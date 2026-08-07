@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use algebra::module::{
-    Module,
+    Module, ModuleExt,
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use fp::{prime::ValidPrime, vector::FpVector};
@@ -294,7 +294,7 @@ pub(crate) mod secondary {
     use std::sync::Arc;
 
     use algebra::{
-        module::{Module, homomorphism::ModuleHomomorphism},
+        module::{ModuleExt, homomorphism::ModuleHomomorphism},
         pair_algebra::PairAlgebra,
     };
     use dashmap::DashMap;

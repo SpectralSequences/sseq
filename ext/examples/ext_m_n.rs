@@ -52,7 +52,7 @@ mod hom_cochain_complex {
     use std::sync::Arc;
 
     use algebra::module::{
-        HomModule, Module,
+        HomModule, Module, ModuleExt,
         homomorphism::{HomPullback, ModuleHomomorphism},
     };
     use ext::chain_complex::FreeChainComplex;
