@@ -4,6 +4,7 @@ use crate::prime::Prime;
 pub mod element;
 pub(crate) mod field_internal;
 
+pub(crate) mod bitslice;
 pub mod fp;
 pub mod smallfq;
 
