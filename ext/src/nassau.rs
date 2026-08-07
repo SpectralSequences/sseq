@@ -1048,6 +1048,17 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         self.modules.len()
     }
 
+    fn max_computed_quasi_inverse_degree(&self, s: i32) -> i32 {
+        // The quasi-inverse of the differential at `(s, t)` is written to disk only while stepping
+        // to `(s + 1, t)` (see `step_resolution_with_subalgebra`), so it is available exactly where
+        // homological degree `s + 1` has been resolved.
+        if self.differentials.len() > s + 1 {
+            self.differential(s + 1).next_degree() - 1
+        } else {
+            self.min_degree() - 1
+        }
+    }
+
     fn save_dir(&self) -> &SaveDirectory {
         &self.save_dir
     }
