@@ -15,14 +15,14 @@ use nom::{
     sequence::{delimited, pair, preceded},
 };
 
-use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
+use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPartEntry};
 
 type IResult<I, O> = IResultBase<I, O, nom::error::Error<I>>;
 
 #[derive(Debug, Clone)]
 pub enum AlgebraBasisElt {
     AList(Vec<BocksteinOrSq>), // Admissible list.
-    PList(PPart),
+    PList(Vec<PPartEntry>),
     P(u32),
     Q(u32),
 }

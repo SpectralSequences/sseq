@@ -95,16 +95,17 @@ use std::cell::RefCell;
 
 use crate::{
     MilnorAlgebra,
-    milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier},
+    milnor_algebra::{MilnorBasisElement as MilnorElt, PPart, PPartAllocation, PPartMultiplier},
 };
 
 macro_rules! sub {
     ($elt:ident, $k:expr, $n:expr) => {
         if $k > 0 {
-            if $elt.p_part[$k - 1] < (1 << $n) {
+            let entry = $elt.p_part.get($k - 1);
+            if entry < (1 << $n) {
                 continue;
             }
-            $elt.p_part[$k - 1] -= 1 << $n;
+            $elt.p_part.set($k - 1, entry - (1 << $n));
             $elt.degree -= combinatorics::xi_degrees(TWO)[$k - 1] * (1 << $n);
         }
     };
@@ -112,7 +113,7 @@ macro_rules! sub {
 macro_rules! unsub {
     ($elt:ident, $k:expr, $n:expr) => {
         if $k > 0 {
-            $elt.p_part[$k - 1] += 1 << $n;
+            $elt.p_part.set($k - 1, $elt.p_part.get($k - 1) + (1 << $n));
             $elt.degree += combinatorics::xi_degrees(TWO)[$k - 1] * (1 << $n);
         }
     };
@@ -191,8 +192,8 @@ impl PairAlgebra for MilnorAlgebra {
         assert_eq!(r_degree + s_degree, result.degree);
 
         // First write the Y terms
-        let mut r = self.basis_element_from_index(r_degree, r_idx).clone();
-        let mut s = self.basis_element_from_index(s_degree, s_idx).clone();
+        let mut r = self.basis_element_from_index(r_degree, r_idx);
+        let mut s = self.basis_element_from_index(s_degree, s_idx);
 
         PPartAllocation::with_local(|mut allocation| {
             for k in 0..s.p_part.len() {
@@ -204,8 +205,8 @@ impl PairAlgebra for MilnorAlgebra {
                         allocation = self.multiply_with_allocation(
                             result.ys[m + k][n + k].as_slice_mut(),
                             coeff,
-                            &r,
-                            &s,
+                            r,
+                            s,
                             i32::MAX,
                             allocation,
                         );
@@ -219,8 +220,8 @@ impl PairAlgebra for MilnorAlgebra {
             // Now the product terms
             let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
                 TWO,
-                &r.p_part,
-                &s.p_part,
+                r.p_part,
+                s.p_part,
                 allocation,
                 0,
                 r.degree + s.degree,
@@ -262,16 +263,17 @@ impl PairAlgebra for MilnorAlgebra {
 
         // The twos terms
         for (r_idx, c) in r.iter_nonzero() {
-            let mut r = self.basis_element_from_index(r_degree, r_idx).clone();
+            let mut r = self.basis_element_from_index(r_degree, r_idx);
             sub!(r, 1, 0);
             self.multiply_basis_by_element(
                 result.copy(),
                 coeff * c,
-                &r,
+                r,
                 s_degree,
                 s.twos.as_slice(),
             );
-            unsub!(r, 1, 0);
+            // No matching `unsub!`: unlike the loops above, `r` is a fresh copy of the basis
+            // element on each iteration, so there is nothing to restore.
         }
 
         // The Y terms
@@ -364,7 +366,7 @@ thread_local! {
 /// [`a_y_inner`] if not available.
 fn a_y_cached(
     algebra: &MilnorAlgebra,
-    a: &MilnorElt,
+    a: MilnorElt,
     k: usize,
     l: usize,
     f: impl FnOnce(&FpVector),
@@ -377,7 +379,7 @@ fn a_y_cached(
 
         let raw_entry = cache.raw_entry();
         let result = raw_entry
-            .from_hash(hasher.finish(), |v| &v.0 == a && v.1 == (k, l))
+            .from_hash(hasher.finish(), |v| v.0 == a && v.1 == (k, l))
             .map(|(_, y)| y);
 
         match result {
@@ -385,19 +387,19 @@ fn a_y_cached(
             None => {
                 let v = a_y_inner(algebra, a, k, l);
                 f(&v);
-                cache.insert((a.clone(), (k, l)), v);
+                cache.insert((a, (k, l)), v);
             }
         }
     })
 }
 
 /// Actually computes $A(a, Y_{k, l})$ and returns the result.
-fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVector {
-    let mut a = a.clone();
+fn a_y_inner(algebra: &MilnorAlgebra, a: MilnorElt, k: usize, l: usize) -> FpVector {
+    let mut a = a;
     let mut result = FpVector::new(TWO, algebra.dimension(a.degree + (1 << k) + (1 << l) - 2));
     let mut t = MilnorElt {
         q_part: 0,
-        p_part: vec![],
+        p_part: PPart::zero(),
         degree: 0,
     };
 
@@ -410,17 +412,15 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVe
         for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
             sub!(a, j, l);
 
-            t.p_part.clear();
-            t.p_part.resize(k + i, 0);
-
-            t.p_part[k + i - 1] += 1;
-            t.p_part[l + j - 1] += 1;
+            t.p_part = PPart::zero();
+            t.p_part.set(k + i - 1, 1);
+            t.p_part.set(l + j - 1, t.p_part.get(l + j - 1) + 1);
 
             t.degree = (1 << (k + i)) + (1 << (l + j)) - 2;
 
             // We can just read off the value of the product instead of passing through the
             // algorithm, but this is cached so problem for another day...
-            algebra.multiply(result.as_slice_mut(), 1, &t, &a);
+            algebra.multiply(result.as_slice_mut(), 1, t, a);
 
             unsub!(a, j, l);
         }
@@ -445,7 +445,7 @@ mod tests {
 
         MilnorElt {
             q_part: 0,
-            p_part: p_part.into(),
+            p_part: PPart::from_slice(p_part),
             degree,
         }
     }
@@ -462,7 +462,7 @@ mod tests {
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg));
-            a_y_cached(&algebra, &a, k, l, |v| result.add(v, 1));
+            a_y_cached(&algebra, a, k, l, |v| result.add(v, 1));
             ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()));
         };
 

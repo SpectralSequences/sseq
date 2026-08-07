@@ -37,6 +37,10 @@ rstest = "0.25.0"
 [features]
 default = ["odd-primes"]
 cache-multiplication = []
+# An arithmetic replacement for the Milnor basis index map. Off by default and not wired in:
+# adopting it would renumber the basis and invalidate saved resolutions. See
+# `algebra::milnor_rank`.
+milnor-rank = []
 concurrent = ["fp/concurrent", "maybe-rayon/concurrent"]
 odd-primes = ["fp/odd-primes"]
 
@@ -55,3 +59,8 @@ harness = false
 [[bench]]
 name = "nassau_milnor"
 harness = false
+
+[[bench]]
+name = "milnor_rank"
+harness = false
+required-features = ["milnor-rank"]
