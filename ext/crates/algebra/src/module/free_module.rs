@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use fp::vector::{FpSlice, FpSliceMut};
 use once::{OnceBiVec, OnceVec};
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::MuAlgebra,
-    module::{Module, ZeroModule},
+    module::{Module, ModuleExt, ZeroModule},
 };
 
 #[derive(Clone, Debug)]
@@ -83,7 +84,8 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         Some(self.min_degree)
     }
 
-    fn compute_basis(&self, max_degree: i32) {
+    fn compute_basis_multi(&self, max_degree: MultiDegree<1>) {
+        let max_degree = i32::from(max_degree);
         let algebra = self.algebra();
         self.basis_element_to_opgen.extend(max_degree, |degree| {
             let new_row = OnceVec::new();
@@ -110,7 +112,8 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         });
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         if degree < self.min_degree {
             return 0;
         }
@@ -121,7 +124,8 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         self.basis_element_to_opgen[degree].len()
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         let opgen = self.index_to_op_gen(degree, idx);
         let mut op_str = self
             .algebra()
@@ -137,15 +141,17 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         )
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         let OperationGeneratorPair {
             operation_degree: module_operation_degree,
             operation_index: module_operation_index,
@@ -177,15 +183,17 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         );
     }
 
-    fn act(
+    fn act_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        input_degree: i32,
+        input_degree: MultiDegree<1>,
         input: FpSlice,
     ) {
+        let op_degree = i32::from(op_degree);
+        let input_degree = i32::from(input_degree);
         for GeneratorData {
             gen_deg,
             start: [input_start, output_start],

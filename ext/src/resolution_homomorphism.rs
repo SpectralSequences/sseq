@@ -5,7 +5,7 @@ use std::{ops::Range, sync::Arc};
 use algebra::{
     MuAlgebra,
     module::{
-        Module,
+        Module, ModuleExt,
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
 };
@@ -159,6 +159,88 @@ where
                 ) + 1
             },
         ));
+    }
+
+    /// Build the chain map `∑_i coeff_i · summand_i` from chain maps that share a source, target,
+    /// and shift.
+    ///
+    /// Every summand must already be defined at least as far as `max` (extend it first). The
+    /// combined map's image on each generator is the corresponding linear combination of the
+    /// summands' images, so *no* quasi-inverse lift is performed — assembling a multiply-by-a-class
+    /// map from cached per-generator maps is just adding maps. This is the cheap alternative to
+    /// [`from_class`](Self::from_class) used by
+    /// [`ExtAlgebra::class_product_map`](crate::ext_algebra::ExtAlgebra::class_product_map).
+    ///
+    /// Call with an **empty `name`**: this populates the maps directly (not through
+    /// [`extend_step_raw`](Self::extend_step_raw)), so a non-empty name on a save-enabled source
+    /// would create a `products/{name}` save directory that is never written to.
+    pub fn linear_combination(name: String, summands: &[(u32, Arc<Self>)], max: Bidegree) -> Self {
+        assert!(
+            !summands.is_empty(),
+            "linear_combination requires at least one summand"
+        );
+        assert!(
+            name.is_empty(),
+            "linear_combination populates maps directly and never writes to a save directory; \
+             pass an empty name to avoid creating a `products/{{name}}` directory that stays empty"
+        );
+        let shift = summands[0].1.shift;
+        let source = Arc::clone(&summands[0].1.source);
+        let target = Arc::clone(&summands[0].1.target);
+        for (_, m) in summands {
+            assert_eq!(
+                m.shift, shift,
+                "linear_combination summands must share a shift"
+            );
+            assert!(
+                Arc::ptr_eq(&m.source, &source),
+                "linear_combination summands must share a source"
+            );
+            assert!(
+                Arc::ptr_eq(&m.target, &target),
+                "linear_combination summands must share a target"
+            );
+        }
+
+        let p = source.prime();
+        let result = Self::new(name, source, target, shift);
+
+        // The combined map is defined wherever every summand is. Iterate `(s, t)` in the same order
+        // the summands were built and sum their generator images.
+        let max_s = summands
+            .iter()
+            .map(|(_, m)| m.next_homological_degree())
+            .min()
+            .unwrap()
+            .min(max.s() + 1);
+
+        for input_s in shift.s()..max_s {
+            let out_map = result.get_map_ensure_length(input_s);
+            let src_mod = out_map.source();
+            let tgt_mod = out_map.target();
+            let summand_maps: Vec<_> = summands
+                .iter()
+                .map(|(c, m)| (*c, m.get_map(input_s)))
+                .collect();
+            let next_t = summand_maps
+                .iter()
+                .map(|(_, m)| m.next_degree())
+                .min()
+                .unwrap();
+
+            for t in out_map.next_degree()..next_t {
+                let num_gens = src_mod.number_of_gens_in_degree(t);
+                let dim = tgt_mod.dimension(t - shift.t());
+                let mut rows = vec![FpVector::new(p, dim); num_gens];
+                for (c, m) in &summand_maps {
+                    for (k, row) in rows.iter_mut().enumerate() {
+                        row.add(m.output(t, k), *c);
+                    }
+                }
+                out_map.add_generators_from_rows(t, rows);
+            }
+        }
+        result
     }
 
     /// Extends the resolution homomorphism up to a given range. This range is first specified by
@@ -501,7 +583,7 @@ pub(crate) mod secondary {
     use std::sync::Arc;
 
     use algebra::{
-        module::{Module, homomorphism::ModuleHomomorphism},
+        module::{ModuleExt, homomorphism::ModuleHomomorphism},
         pair_algebra::PairAlgebra,
     };
     use dashmap::DashMap;

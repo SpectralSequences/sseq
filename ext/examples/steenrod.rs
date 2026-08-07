@@ -4,7 +4,7 @@ use std::{
 };
 
 use algebra::module::{
-    Module,
+    Module, ModuleExt,
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use ext::{
@@ -190,12 +190,13 @@ mod sum_module {
     use std::sync::Arc;
 
     use algebra::module::{
-        Module, ZeroModule,
+        Module, ModuleExt, ZeroModule,
         block_structure::{BlockStructure, GeneratorBasisEltPair},
     };
     use bivec::BiVec;
     use fp::vector::FpSliceMut;
     use once::OnceBiVec;
+    use sseq::coordinates::MultiDegree;
 
     pub struct SumModule<M: Module> {
         // We need these because modules might be empty
@@ -253,7 +254,8 @@ mod sum_module {
             self.min_degree
         }
 
-        fn compute_basis(&self, degree: i32) {
+        fn compute_basis_multi(&self, degree: MultiDegree<1>) {
+            let degree = i32::from(degree);
             for module in &self.modules {
                 module.compute_basis(degree);
             }
@@ -269,22 +271,25 @@ mod sum_module {
             self.block_structures.len()
         }
 
-        fn dimension(&self, degree: i32) -> usize {
+        fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+            let degree = i32::from(degree);
             self.block_structures
                 .get(degree)
                 .map(BlockStructure::total_dimension)
                 .unwrap_or(0)
         }
 
-        fn act_on_basis(
+        fn act_on_basis_multi(
             &self,
             mut result: FpSliceMut,
             coeff: u32,
-            op_degree: i32,
+            op_degree: MultiDegree<1>,
             op_index: usize,
-            mod_degree: i32,
+            mod_degree: MultiDegree<1>,
             mod_index: usize,
         ) {
+            let op_degree = i32::from(op_degree);
+            let mod_degree = i32::from(mod_degree);
             let target_degree = mod_degree + op_degree;
             let GeneratorBasisEltPair {
                 generator_index: module_num,
@@ -305,7 +310,8 @@ mod sum_module {
             );
         }
 
-        fn basis_element_to_string(&self, degree: i32, index: usize) -> String {
+        fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, index: usize) -> String {
+            let degree = i32::from(degree);
             let GeneratorBasisEltPair {
                 generator_index: module_num,
                 basis_index,
@@ -379,7 +385,7 @@ mod tensor_product_chain_complex {
 
     use algebra::{
         Algebra, Bialgebra,
-        module::{Module, TensorModule, ZeroModule, homomorphism::ModuleHomomorphism},
+        module::{ModuleExt, TensorModule, ZeroModule, homomorphism::ModuleHomomorphism},
     };
     use ext::chain_complex::ChainComplex;
     use fp::{
