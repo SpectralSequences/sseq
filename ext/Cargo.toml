@@ -23,6 +23,8 @@ sseq = { path = "crates/sseq", default-features = false }
 
 adler = "1"
 anyhow = "1.0.98"
+bitcode = { version = "0.6", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
 byteorder = "1.5.0"
 dashmap = "6.1.0"
 itertools = { version = "0.14.0", default-features = false, features = [
@@ -34,6 +36,20 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 zstd = { version = "0.13.3", optional = true }
+
+# Zarrs is declared twice with target-specific feature sets. Where there is a real OS
+# (`cfg(any(windows, unix))`) we enable `filesystem` so the save system persists to disk; on
+# every other target (in practice `wasm32-unknown-unknown`, the web frontend) we fall back to an
+# in-memory store (see the `platform` modules in `src/save.rs`). The gate is `any(windows, unix)`,
+# not `not(target_arch = "wasm32")`, because that's exactly the `cfg` that gates the `filesystem`
+# feature's `positioned-io::RandomAccessFile`; the `zstd` feature's `zstd-sys` C build (which
+# expects POSIX symbols like `qsort_r` that the bare-wasm libc shim doesn't expose) builds under
+# the same condition. So `wasm32-unknown-emscripten` (which is `unix`) keeps both features.
+[target.'cfg(any(windows, unix))'.dependencies]
+zarrs = { version = "0.23", default-features = false, features = ["filesystem", "sharding", "crc32c", "zstd"] }
+
+[target.'cfg(not(any(windows, unix)))'.dependencies]
+zarrs = { version = "0.23", default-features = false, features = ["sharding", "crc32c"] }
 
 [target.'cfg(unix)'.dependencies]
 ctrlc = { version = "3", features = ["termination"] }

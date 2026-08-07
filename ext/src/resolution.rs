@@ -10,14 +10,15 @@ use algebra::{
     },
 };
 use anyhow::Context;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use fp::{
     matrix::{AugmentedMatrix, QuasiInverse, Subspace},
+    prime::Prime,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::{OnceBiVec, OnceVec};
+use serde::{Deserialize, Serialize};
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
@@ -25,6 +26,15 @@ use crate::{
     save::{SaveDirectory, SaveKind},
     utils::parallel::ParallelGuard,
 };
+
+#[derive(Serialize, Deserialize)]
+struct DifferentialPayload {
+    num_gens: usize,
+    target_res_dimension: usize,
+    target_cc_dimension: usize,
+    differentials: Vec<FpVector>,
+    chain_maps: Vec<FpVector>,
+}
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
@@ -123,18 +133,15 @@ where
 
     pub fn new_with_save(
         complex: Arc<CC>,
-        save_dir: impl Into<SaveDirectory>,
+        save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
     ) -> anyhow::Result<Self> {
-        let save_dir = save_dir.into();
+        let save_dir = save_dir.try_into().map_err(Into::into)?;
         let algebra = complex.algebra();
+        if let Some(store) = save_dir.store() {
+            store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
+        }
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(MuFreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
-
-        if let Some(p) = save_dir.write() {
-            for subdir in SaveKind::resolution_data() {
-                subdir.create_dir(p)?;
-            }
-        }
 
         Ok(Self {
             name: String::new(),
@@ -153,6 +160,15 @@ where
     }
 
     pub fn set_name(&mut self, name: String) {
+        // Record the label in the save store (if any) so the on-disk `zarr.json` is
+        // self-describing. Best-effort and purely informational — the module spec written by
+        // `bind_module_spec` is what actually guards loading.
+        if !name.is_empty()
+            && let Some(store) = self.save_dir.store()
+            && let Err(e) = store.set_complex_name(&name)
+        {
+            tracing::warn!("Failed to record complex name in save store: {e}");
+        }
         self.name = name;
     }
 
@@ -222,11 +238,14 @@ where
 
         let p = self.prime();
 
-        if let Some(dir) = self.save_dir.read()
-            && let Some(mut f) = self.save_file(SaveKind::Kernel, b).open_file(dir.clone())
-        {
-            return Subspace::from_bytes(p, &mut f)
+        if let Some(store) = self.save_dir.store()
+            && let Some(data) = store
+                .read(SaveKind::Kernel, b)
                 .with_context(|| format!("Failed to read kernel at {b}"))
+                .unwrap()
+        {
+            return bitcode::deserialize::<Subspace>(&data)
+                .with_context(|| format!("Failed to deserialize kernel at {b}"))
                 .unwrap();
         }
 
@@ -264,13 +283,11 @@ where
         let kernel = matrix.compute_kernel();
 
         if self.should_save
-            && let Some(dir) = self.save_dir.write()
+            && let Some(store) = self.save_dir.store()
         {
-            let mut f = self
-                .save_file(SaveKind::Kernel, b)
-                .create_file(dir.clone(), true);
-            kernel
-                .to_bytes(&mut f)
+            let bytes = bitcode::serialize(&kernel).unwrap();
+            store
+                .write(SaveKind::Kernel, b, &bytes)
                 .with_context(|| format!("Failed to write kernel at {b}"))
                 .unwrap();
         }
@@ -396,43 +413,38 @@ where
         target_res.compute_basis(b.t());
         let target_res_dimension = target_res.dimension(b.t());
 
-        if let Some(dir) = self.save_dir.read()
-            && let Some(mut f) = self
-                .save_file(SaveKind::Differential, b)
-                .open_file(dir.clone())
+        if let Some(store) = self.save_dir.store()
+            && let Some(data) = store
+                .read(SaveKind::Differential, b)
+                .with_context(|| format!("Failed to read differential at {b}"))
+                .unwrap()
         {
-            let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
-            // This need not be equal to `target_res_dimension`. If we saved a big resolution
-            // and now only want to load up to a small stem, then `target_res_dimension` will
-            // be smaller. If we have previously saved a small resolution up to a stem and now
-            // want to resolve further, it will be bigger.
-            let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+            let payload: DifferentialPayload = bitcode::deserialize(&data)
+                .with_context(|| format!("Failed to deserialize differential at {b}"))
+                .unwrap();
+
+            let num_new_gens = payload.num_gens;
             assert_eq!(
-                target_cc_dimension,
-                f.read_u64::<LittleEndian>().unwrap() as usize,
+                target_cc_dimension, payload.target_cc_dimension,
                 "Malformed data: mismatched augmentation target dimension"
             );
 
             self.add_generators(b, num_new_gens);
 
-            let mut d_targets = Vec::with_capacity(num_new_gens);
-            let mut a_targets = Vec::with_capacity(num_new_gens);
+            current_differential.add_generators_from_rows(b.t(), payload.differentials);
+            current_chain_map.add_generators_from_rows(b.t(), payload.chain_maps);
 
-            for _ in 0..num_new_gens {
-                d_targets
-                    .push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f).unwrap());
-            }
-            for _ in 0..num_new_gens {
-                a_targets.push(FpVector::from_bytes(p, target_cc_dimension, &mut f).unwrap());
-            }
-            drop(f);
-            current_differential.add_generators_from_rows(b.t(), d_targets);
-            current_chain_map.add_generators_from_rows(b.t(), a_targets);
-
-            // res qi
+            // res qi — structured zarr layout (pivots + chunked rows)
             if self.load_quasi_inverse {
-                if let Some(mut f) = self.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
-                    let res_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+                if let Some(reader) = store
+                    .stream_res_qi(b, self.prime())
+                    .with_context(|| format!("Failed to read res qi at {b}"))
+                    .unwrap()
+                {
+                    let res_qi = reader
+                        .into_quasi_inverse()
+                        .with_context(|| format!("Failed to deserialize res qi at {b}"))
+                        .unwrap();
 
                     assert_eq!(
                         res_qi.source_dimension(),
@@ -448,11 +460,14 @@ where
                 current_differential.set_quasi_inverse(b.t(), None);
             }
 
-            if let Some(mut f) = self
-                .save_file(SaveKind::AugmentationQi, b)
-                .open_file(dir.clone())
+            if let Some(qi_data) = store
+                .read(SaveKind::AugmentationQi, b)
+                .with_context(|| format!("Failed to read augmentation qi at {b}"))
+                .unwrap()
             {
-                let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+                let cm_qi: QuasiInverse = bitcode::deserialize(&qi_data)
+                    .with_context(|| format!("Failed to deserialize augmentation qi at {b}"))
+                    .unwrap();
 
                 assert_eq!(
                     cm_qi.target_dimension(),
@@ -499,14 +514,11 @@ where
         if !self.has_computed_bidegree(b + Bidegree::s_t(1, 0)) {
             let kernel = matrix.compute_kernel();
             if self.should_save
-                && let Some(dir) = self.save_dir.write()
+                && let Some(store) = self.save_dir.store()
             {
-                let mut f = self
-                    .save_file(SaveKind::Kernel, b)
-                    .create_file(dir.clone(), true);
-
-                kernel
-                    .to_bytes(&mut f)
+                let bytes = bitcode::serialize(&kernel).unwrap();
+                store
+                    .write(SaveKind::Kernel, b, &bytes)
                     .with_context(|| format!("Failed to write kernel at {b}"))
                     .unwrap();
             }
@@ -658,58 +670,47 @@ where
         );
 
         if self.should_save
-            && let Some(dir) = self.save_dir.write()
+            && let Some(store) = self.save_dir.store()
         {
-            // Write differentials last, because if we were terminated halfway, we want the
-            // differentials to exist iff everything has been written. However, we start by
-            // opening the differentials first to make sure we are not overwriting anything.
-
-            // Open differentials file
-            let mut f = self
-                .save_file(SaveKind::Differential, b)
-                .create_file(dir.clone(), false);
-
-            // Write resolution qi
-            res_qi
-                .to_bytes(
-                    &mut self
-                        .save_file(SaveKind::ResQi, b)
-                        .create_file(dir.clone(), true),
-                )
+            // Write resolution qi as a structured group (pivots + rows arrays).
+            store
+                .write_res_qi(b, &res_qi)
+                .with_context(|| format!("Failed to write res qi at {b}"))
                 .unwrap();
 
             // Write augmentation qi
-            cm_qi
-                .to_bytes(
-                    &mut self
-                        .save_file(SaveKind::AugmentationQi, b)
-                        .create_file(dir.clone(), true),
-                )
+            let qi_bytes = bitcode::serialize(&cm_qi).unwrap();
+            store
+                .write(SaveKind::AugmentationQi, b, &qi_bytes)
+                .with_context(|| format!("Failed to write augmentation qi at {b}"))
                 .unwrap();
 
-            // Write differentials
-            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
-            f.write_u64::<LittleEndian>(target_res_dimension as u64)
+            // Build and write differential payload last for crash safety
+            let differentials = (0..num_new_gens)
+                .map(|n| current_differential.output(b.t(), n).clone())
+                .collect();
+            let chain_maps = (0..num_new_gens)
+                .map(|n| current_chain_map.output(b.t(), n).clone())
+                .collect();
+            let payload = DifferentialPayload {
+                num_gens: num_new_gens,
+                target_res_dimension,
+                target_cc_dimension,
+                differentials,
+                chain_maps,
+            };
+            let payload_bytes = bitcode::serialize(&payload).unwrap();
+            store
+                .write(SaveKind::Differential, b, &payload_bytes)
+                .with_context(|| format!("Failed to write differential at {b}"))
                 .unwrap();
-            f.write_u64::<LittleEndian>(target_cc_dimension as u64)
-                .unwrap();
-
-            for n in 0..num_new_gens {
-                current_differential
-                    .output(b.t(), n)
-                    .to_bytes(&mut f)
-                    .unwrap();
-            }
-            for n in 0..num_new_gens {
-                current_chain_map.output(b.t(), n).to_bytes(&mut f).unwrap();
-            }
-            drop(f);
 
             // Delete kernel
             if b.s() > 0 {
-                self.save_file(SaveKind::Kernel, b - Bidegree::s_t(1, 0))
-                    .delete_file(dir.clone())
-                    .unwrap();
+                let prev = Bidegree::n_s(b.n() + 1, b.s() - 1);
+                store.delete(SaveKind::Kernel, prev).unwrap_or_else(|e| {
+                    tracing::warn!("Failed to delete kernel at ({}, {}): {e}", b.s() - 1, b.t());
+                });
             }
         }
 
@@ -870,11 +871,13 @@ where
                 } else if distance == 1 && b.s() < max.s() {
                     // We compute the kernel at the edge if necessary
                     let next_b = b + Bidegree::s_t(0, 1);
-                    if !self.has_computed_bidegree(b + Bidegree::s_t(1, 1))
+                    let check_b = b + Bidegree::s_t(1, 1);
+                    if !self.has_computed_bidegree(check_b)
                         && (self.save_dir.is_none()
                             || !self
-                                .save_file(SaveKind::Differential, b + Bidegree::s_t(1, 1))
-                                .exists(self.save_dir.read().cloned().unwrap()))
+                                .save_dir
+                                .store()
+                                .is_some_and(|store| store.exists(SaveKind::Differential, check_b)))
                     {
                         scope.spawn(move |_| {
                             self.kernels.insert(next_b, self.get_kernel(next_b));
@@ -945,9 +948,9 @@ where
                 qi.apply(result.into(), 1, input.into());
             }
             true
-        } else if let Some(dir) = self.save_dir.read() {
-            if let Some(mut f) = self.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
-                QuasiInverse::stream_quasi_inverse(self.prime(), &mut f, results, inputs).unwrap();
+        } else if let Some(store) = self.save_dir.store() {
+            if let Some(reader) = store.stream_res_qi(b, self.prime()).unwrap() {
+                reader.apply(results, inputs).unwrap();
                 true
             } else {
                 false
@@ -993,7 +996,7 @@ pub(crate) mod secondary {
 
     use crate::{
         chain_complex::FreeChainComplex,
-        save::{SaveDirectory, SaveKind},
+        save::SaveDirectory,
         secondary::{CompositeData, SecondaryHomotopy, SecondaryLift},
     };
 
@@ -1088,12 +1091,6 @@ pub(crate) mod secondary {
         CC::Algebra: PairAlgebra,
     {
         pub fn new(cc: Arc<CC>) -> Self {
-            if let Some(p) = cc.save_dir().write() {
-                for subdir in SaveKind::secondary_data() {
-                    subdir.create_dir(p).unwrap();
-                }
-            }
-
             Self {
                 underlying: cc,
                 homotopies: OnceBiVec::new(2),

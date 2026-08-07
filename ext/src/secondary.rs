@@ -34,7 +34,7 @@ pub use crate::{
 };
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    save::{SaveDirectory, SaveFile, SaveKind},
+    save::{SaveDirectory, SaveKind},
 };
 
 pub static LAMBDA_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
@@ -253,20 +253,14 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
         let f = |t, idx| {
             let _tracing_guard = tracing_span.enter();
             let g = BidegreeGenerator::s_t(s, t, idx);
-            let save_file = SaveFile {
-                algebra: self.target.algebra(),
-                kind: SaveKind::SecondaryComposite,
-                b: g.degree(),
-                idx: Some(g.idx()),
-            };
-            if let Some(dir) = dir.read()
-                && let Some(mut f) = save_file.open_file(dir.to_owned())
+            if let Some(store) = dir.store()
+                && let Some(data) = store.read(SaveKind::SecondaryComposite, g).unwrap()
             {
                 return SecondaryComposite::from_bytes(
                     Arc::clone(&self.target),
                     g.t() - self.shift_t,
                     self.hit_generator,
-                    &mut f,
+                    &mut &data[..],
                 )
                 .unwrap();
             }
@@ -284,9 +278,10 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 composite.finalize();
             });
 
-            if let Some(dir) = dir.write() {
-                let mut f = save_file.create_file(dir.to_owned(), false);
-                composite.to_bytes(&mut f).unwrap();
+            if let Some(store) = dir.store() {
+                let mut buf = Vec::new();
+                composite.to_bytes(&mut buf).unwrap();
+                store.write(SaveKind::SecondaryComposite, g, &buf).unwrap();
             }
 
             composite
@@ -427,27 +422,24 @@ pub trait SecondaryLift: Sync + Sized {
             return v;
         }
 
-        let save_file = SaveFile {
-            algebra: self.algebra(),
-            kind: SaveKind::SecondaryIntermediate,
-            b: g.degree(),
-            idx: Some(g.idx()),
-        };
-
-        if let Some(dir) = self.save_dir().read()
-            && let Some(mut f) = save_file.open_file(dir.to_owned())
+        if let Some(store) = self.save_dir().store()
+            && let Some(data) = store.read(SaveKind::SecondaryIntermediate, g).unwrap()
         {
             // The target dimension can depend on whether we resolved to stem
-            let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-            return FpVector::from_bytes(self.prime(), dim, &mut f).unwrap();
+            let mut cursor = &data[..];
+            let dim = cursor.read_u64::<LittleEndian>().unwrap() as usize;
+            return FpVector::from_bytes(self.prime(), dim, &mut cursor).unwrap();
         }
 
         let result = self.compute_intermediate(g);
 
-        if let Some(dir) = self.save_dir().write() {
-            let mut f = save_file.create_file(dir.to_owned(), false);
-            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
-            result.to_bytes(&mut f).unwrap();
+        if let Some(store) = self.save_dir().store() {
+            let mut buf = Vec::new();
+            buf.write_u64::<LittleEndian>(result.len() as u64).unwrap();
+            result.to_bytes(&mut buf).unwrap();
+            store
+                .write(SaveKind::SecondaryIntermediate, g, &buf)
+                .unwrap();
         }
 
         result
@@ -494,17 +486,10 @@ pub trait SecondaryLift: Sync + Sized {
                 return;
             }
             // Check if we have a saved homotopy
-            if let Some(dir) = self.save_dir().read() {
-                let save_file = SaveFile {
-                    algebra: self.algebra(),
-                    kind: SaveKind::SecondaryHomotopy,
-                    b: g.degree(),
-                    idx: None,
-                };
-
-                if save_file.exists(dir.to_owned()) {
-                    return;
-                }
+            if let Some(store) = self.save_dir().store()
+                && store.exists(SaveKind::SecondaryHomotopy, g.degree())
+            {
+                return;
             }
             self.intermediates().insert(g, self.get_intermediate(g));
         };
@@ -550,23 +535,17 @@ pub trait SecondaryLift: Sync + Sized {
         let num_gens = source.number_of_gens_in_degree(b.t());
         let target_dim = target.module(target_b.s()).dimension(target_b.t());
 
-        if let Some(dir) = self.save_dir().read() {
-            let save_file = SaveFile {
-                algebra: self.algebra(),
-                kind: SaveKind::SecondaryHomotopy,
-                b,
-                idx: None,
-            };
-
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                let mut results = Vec::with_capacity(num_gens);
-                for _ in 0..num_gens {
-                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
-                }
-                return Ok(self.homotopies()[b.s()]
-                    .homotopies
-                    .add_generators_from_rows_ooo(b.t(), results));
+        if let Some(store) = self.save_dir().store()
+            && let Some(data) = store.read(SaveKind::SecondaryHomotopy, b).unwrap()
+        {
+            let mut cursor = &data[..];
+            let mut results = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                results.push(FpVector::from_bytes(p, target_dim, &mut cursor).unwrap());
             }
+            return Ok(self.homotopies()[b.s()]
+                .homotopies
+                .add_generators_from_rows_ooo(b.t(), results));
         }
 
         let tracing_span = tracing::Span::current();
@@ -610,30 +589,20 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        if let Some(dir) = self.save_dir().write() {
-            let save_file = SaveFile {
-                algebra: self.algebra(),
-                kind: SaveKind::SecondaryHomotopy,
-                b,
-                idx: None,
-            };
-
-            let mut f = save_file.create_file(dir.to_owned(), false);
+        if let Some(store) = self.save_dir().store() {
+            let mut buf = Vec::new();
             for row in &results {
-                row.to_bytes(&mut f).unwrap();
+                row.to_bytes(&mut buf).unwrap();
             }
-            drop(f);
-
-            let mut save_file = SaveFile {
-                algebra: self.algebra(),
-                kind: SaveKind::SecondaryIntermediate,
-                b,
-                idx: None,
-            };
+            store.write(SaveKind::SecondaryHomotopy, b, &buf).unwrap();
 
             for i in 0..num_gens {
-                save_file.idx = Some(i);
-                save_file.delete_file(dir.to_owned()).unwrap();
+                store
+                    .delete(
+                        SaveKind::SecondaryIntermediate,
+                        BidegreeGenerator::new(b, i),
+                    )
+                    .unwrap();
             }
         }
 

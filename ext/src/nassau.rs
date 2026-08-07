@@ -14,7 +14,6 @@
 
 use std::{
     fmt::Display,
-    io,
     sync::{Arc, Mutex, mpsc},
 };
 
@@ -30,7 +29,7 @@ use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
-    prime::{TWO, ValidPrime},
+    prime::{Prime, TWO, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
@@ -39,8 +38,8 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
-    save::{SaveDirectory, SaveKind},
-    utils::{LogWriter, parallel::ParallelGuard},
+    save::{NassauCommand, NassauQiWriter, SaveDirectory, SaveKind},
+    utils::parallel::ParallelGuard,
 };
 
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
@@ -205,81 +204,6 @@ impl MilnorSubalgebra {
             .last()
             .unwrap_or(Self::zero_algebra())
     }
-
-    fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
-        buffer.write_u64::<LittleEndian>(self.profile.len() as u64)?;
-        buffer.write_all(&self.profile)?;
-
-        let len = self.profile.len();
-        let zeros = [0; 8];
-        let padding = len - ((len / 8) * 8);
-        buffer.write_all(&zeros[0..padding])
-    }
-
-    fn from_bytes(data: &mut impl io::Read) -> io::Result<Self> {
-        let len = data.read_u64::<LittleEndian>()? as usize;
-        let mut profile = vec![0; len];
-
-        data.read_exact(&mut profile)?;
-
-        let padding = len - ((len / 8) * 8);
-        if padding > 0 {
-            let mut buf: [u8; 8] = [0; 8];
-            data.read_exact(&mut buf[0..padding])?;
-            assert_eq!(buf, [0; 8]);
-        }
-        Ok(Self { profile })
-    }
-
-    fn signature_to_bytes(signature: &[PPartEntry], buffer: &mut impl io::Write) -> io::Result<()> {
-        if cfg!(target_endian = "little") && std::mem::size_of::<PPartEntry>() == 2 {
-            unsafe {
-                let buf: &[u8] = std::slice::from_raw_parts(
-                    signature.as_ptr() as *const u8,
-                    signature.len() * 2,
-                );
-                buffer.write_all(buf).unwrap();
-            }
-        } else {
-            for &entry in signature {
-                buffer.write_u16::<LittleEndian>(entry as u16)?;
-            }
-        }
-
-        let len = signature.len();
-        let zeros = [0; 8];
-        let padding = len - ((len / 4) * 4);
-
-        if padding > 0 {
-            buffer.write_all(&zeros[0..padding * 2])?;
-        }
-        Ok(())
-    }
-
-    fn signature_from_bytes(&self, data: &mut impl io::Read) -> io::Result<Vec<PPartEntry>> {
-        let len = self.profile.len();
-        let mut signature: Vec<PPartEntry> = vec![0; len];
-
-        if cfg!(target_endian = "little") && std::mem::size_of::<PPartEntry>() == 2 {
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(signature.as_mut_ptr() as *mut u8, len * 2);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in &mut signature {
-                *entry = data.read_u16::<LittleEndian>()? as PPartEntry;
-            }
-        }
-
-        let padding = len - ((len / 4) * 4);
-        if padding > 0 {
-            let mut buffer: [u8; 8] = [0; 8];
-            data.read_exact(&mut buffer[0..padding * 2])?;
-            assert_eq!(buffer, [0; 8]);
-        }
-        Ok(signature)
-    }
 }
 
 impl Display for MilnorSubalgebra {
@@ -381,13 +305,6 @@ impl Iterator for SignatureIterator<'_> {
     }
 }
 
-/// Some magic constants used in the save file
-enum Magic {
-    End = -1,
-    Signature = -2,
-    Fix = -3,
-}
-
 /// A resolution of `S_2` using Nassau's algorithm.
 ///
 /// This aims to have an API similar to that of
@@ -412,6 +329,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     pub fn set_name(&mut self, name: String) {
+        // Record the label in the save store (if any) so the on-disk `zarr.json` is
+        // self-describing. Best-effort and purely informational — the module spec written by
+        // `bind_module_spec` is what actually guards loading.
+        if !name.is_empty()
+            && let Some(store) = self.save_dir.store()
+            && let Err(e) = store.set_complex_name(&name)
+        {
+            tracing::warn!("Failed to record complex name in save store: {e}");
+        }
         self.name = name;
     }
 
@@ -421,18 +347,16 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     pub fn new_with_save(
         module: Arc<M>,
-        save_dir: impl Into<SaveDirectory>,
+        save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
     ) -> anyhow::Result<Self> {
-        let save_dir = save_dir.into();
+        let save_dir = save_dir.try_into().map_err(Into::into)?;
         let max_degree = module
             .max_degree()
             .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
         let target = Arc::new(FiniteChainComplex::ccdz(module));
-
-        if let Some(p) = save_dir.write() {
-            for subdir in SaveKind::nassau_data() {
-                subdir.create_dir(p)?;
-            }
+        if let Some(store) = save_dir.store() {
+            let algebra = target.algebra();
+            store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
         }
 
         Ok(Self {
@@ -495,56 +419,54 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
     }
 
-    #[tracing::instrument(skip_all, fields(throughput))]
+    #[tracing::instrument(skip_all)]
     fn write_qi(
-        f: &mut Option<impl io::Write>,
+        w: &mut Option<NassauQiWriter>,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
         next_mask: &[usize],
         full_matrix: &Matrix,
         masked_matrix: &AugmentedMatrix<2>,
-    ) -> io::Result<()> {
-        let f = match f {
-            Some(f) => f,
+    ) -> anyhow::Result<()> {
+        let w = match w {
+            Some(w) => w,
             None => return Ok(()),
         };
-
-        let mut own_f = LogWriter::new(f);
-        let f = &mut own_f;
 
         let pivots = &masked_matrix.pivots()[0..masked_matrix.end[0]];
         if !pivots.iter().any(|&x| x >= 0) {
             return Ok(());
         }
 
-        // Write signature if non-zero.
+        // Emit a signature command if non-zero.
         if signature.iter().any(|&x| x > 0) {
-            f.write_u64::<LittleEndian>(Magic::Signature as u64)?;
-            MilnorSubalgebra::signature_to_bytes(signature, f)?;
+            let sig_u16: Vec<u16> = signature.iter().map(|&x| x as u16).collect();
+            w.write_signature(&sig_u16)?;
         }
 
-        // Write quasi-inverses
+        // Emit one pivot command per non-trivial pivot row.
         for (col, &row) in pivots.iter().enumerate() {
             if row < 0 {
                 continue;
             }
-            f.write_u64::<LittleEndian>(next_mask[col] as u64)?;
             let preimage = masked_matrix.row_segment(row as usize, 1, 1);
             scratch.set_scratch_vector_size(preimage.len());
             scratch.as_slice_mut().assign(preimage);
-            scratch.to_bytes(f)?;
+            // The lift slice we want to write is `scratch.as_slice()` here;
+            // we have to capture it before reusing `scratch` for the image.
+            let lift_vec = scratch.clone();
 
             scratch.set_scratch_vector_size(full_matrix.columns());
             for (i, _) in preimage.iter_nonzero() {
                 scratch.as_slice_mut().add(full_matrix.row(i), 1);
             }
-            scratch.to_bytes(f)?;
+            w.write_pivot(
+                next_mask[col] as u64,
+                lift_vec.as_slice(),
+                scratch.as_slice(),
+            )?;
         }
 
-        tracing::Span::current().record(
-            "throughput",
-            tracing::field::display(own_f.into_throughput()),
-        );
         Ok(())
     }
 
@@ -554,16 +476,17 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         num_new_gens: usize,
         target_dim: usize,
     ) -> anyhow::Result<()> {
-        if let Some(dir) = self.save_dir.write() {
-            let mut f = self
-                .save_file(SaveKind::NassauDifferential, b)
-                .create_file(dir.clone(), false);
-            f.write_u64::<LittleEndian>(num_new_gens as u64)?;
-            f.write_u64::<LittleEndian>(target_dim as u64)?;
+        if let Some(store) = self.save_dir.store() {
+            let mut buf = Vec::new();
+            buf.write_u64::<LittleEndian>(num_new_gens as u64)?;
+            buf.write_u64::<LittleEndian>(target_dim as u64)?;
 
             for n in 0..num_new_gens {
-                self.differential(b.s()).output(b.t(), n).to_bytes(&mut f)?;
+                self.differential(b.s())
+                    .output(b.t(), n)
+                    .to_bytes(&mut buf)?;
             }
+            store.write(SaveKind::NassauDifferential, b, &buf)?;
         }
         Ok(())
     }
@@ -598,14 +521,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let next = &self.modules[b.s() - 2];
         next.compute_basis(b.t());
 
-        let mut f = if let Some(dir) = self.save_dir().write() {
-            let mut f = self
-                .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
-                .create_file(dir.to_owned(), true);
-            f.write_u64::<LittleEndian>(next.dimension(b.t()) as u64)?;
-            f.write_u64::<LittleEndian>(target_masked_dim as u64)?;
-            subalgebra.to_bytes(&mut f)?;
-            Some(f)
+        let mut f = if let Some(store) = self.save_dir.store() {
+            let qi_b = b - Bidegree::s_t(1, 0);
+            Some(store.nassau_qi_writer(
+                qi_b,
+                next.dimension(b.t()) as u64,
+                target_masked_dim as u64,
+                &subalgebra.profile,
+            )?)
         } else {
             None
         };
@@ -642,7 +565,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         if let Some(f) = &mut f
             && target.max_computed_degree() < b.t()
         {
-            f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
+            f.write_fix()?;
         }
 
         // Compute image
@@ -736,8 +659,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         end();
 
-        if let Some(f) = &mut f {
-            f.write_u64::<LittleEndian>(Magic::End as u64)?;
+        if let Some(w) = f {
+            w.finish()?;
         }
 
         self.write_differential(b, num_new_gens, target_dim)?;
@@ -874,13 +797,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             return Ok(());
         }
 
-        if let Some(dir) = self.save_dir.read()
-            && let Some(mut f) = self
-                .save_file(SaveKind::NassauDifferential, b)
-                .open_file(dir.clone())
+        if let Some(store) = self.save_dir.store()
+            && let Some(data) = store.read(SaveKind::NassauDifferential, b)?
         {
             tracing::info!(%b, "Loading differential");
 
+            let mut f = std::io::Cursor::new(data);
             let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
             // This need not be equal to `target_res_dimension`. If we saved a big resolution
             // and now only want to load up to a small stem, then `target_res_dimension` will
@@ -1057,21 +979,39 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
         for<'a> &'a S: Into<FpSlice<'a>>,
     {
-        let mut f = if let Some(dir) = self.save_dir.read() {
-            if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
-                f
-            } else {
-                return false;
-            }
-        } else {
-            return false;
+        self.apply_quasi_inverse_fallible(results, b, inputs)
+            .unwrap_or_else(|e| panic!("apply_quasi_inverse failed at {b}: {e:#}"))
+    }
+}
+
+impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
+    /// The fallible core of [`ChainComplex::apply_quasi_inverse`].
+    ///
+    /// Returns `Ok(false)` when no quasi-inverse is available (no save store or no saved qi for
+    /// this bidegree), `Ok(true)` when the qi was successfully applied, and propagates
+    /// `anyhow::Error` from the structured zarr reader or `FpVector::update_from_bytes`.
+    fn apply_quasi_inverse_fallible<T, S>(
+        &self,
+        results: &mut [T],
+        b: Bidegree,
+        inputs: &[S],
+    ) -> anyhow::Result<bool>
+    where
+        for<'a> &'a mut T: Into<FpSliceMut<'a>>,
+        for<'a> &'a S: Into<FpSlice<'a>>,
+    {
+        let Some(store) = self.save_dir.store() else {
+            return Ok(false);
+        };
+        let Some(reader) = store.nassau_qi_reader(b)? else {
+            return Ok(false);
         };
 
         let p = self.prime();
 
-        let target_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-        let zero_mask_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-        let subalgebra = MilnorSubalgebra::from_bytes(&mut f).unwrap();
+        let target_dim = reader.target_dim() as usize;
+        let zero_mask_dim = reader.zero_mask_dim() as usize;
+        let subalgebra = MilnorSubalgebra::new(reader.subalgebra_profile().to_vec());
         let source = &self.modules[b.s()];
         let target = &self.modules[b.s() - 1];
         let algebra = target.algebra();
@@ -1088,24 +1028,24 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
         let mut scratch1 = FpVector::new(p, target_dim);
 
-        // If the quasi-inverse was computed using incomplete information, we need to figure out
-        // what the differentials in this bidegree hit and use them to lift. these variables are
-        // trivial if there is no such problem.
+        // If the quasi-inverse was computed using incomplete information, we need to figure
+        // out what the differentials in this bidegree hit and use them to lift. these
+        // variables are trivial if there is no such problem.
         //
         // target_zero_mask is the signature mask of the target under the zero signature.
         //
         // dx_matrix is an AugmentedMatrix::<3>.
         //
-        // Each row of this matrix is of the form [r; dx; x], where x is an element of the source
-        // of signature zero, expressed in the masked basis, and dx is the value of the
-        // differential on x. Then r is the entries of dx that have zero signature, which we
-        // include so that the rref of the matix is nice. In practice, we keep r empty until the
-        // very end, and then populate it manually.
+        // Each row of this matrix is of the form [r; dx; x], where x is an element of the
+        // source of signature zero, expressed in the masked basis, and dx is the value of
+        // the differential on x. Then r is the entries of dx that have zero signature,
+        // which we include so that the rref of the matix is nice. In practice, we keep r
+        // empty until the very end, and then populate it manually.
         //
-        // At the beginning the x's will be the new generators in this bidegree. As we read in the
-        // quasi-inverses for the zero signature, we keep on reducing this so that dx is zero in
-        // the pivot columns of the quasi-inverse. We can then use (the rref of) this matrix to
-        // lift remaining elements with zero signature.
+        // At the beginning the x's will be the new generators in this bidegree. As we read
+        // in the quasi-inverses for the zero signature, we keep on reducing this so that dx
+        // is zero in the pivot columns of the quasi-inverse. We can then use (the rref of)
+        // this matrix to lift remaining elements with zero signature.
         let (mut target_zero_mask, mut dx_matrix) = if zero_mask_dim != mask.len() {
             let num_new_gens = source.number_of_gens_in_degree(b.t());
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
@@ -1135,83 +1075,90 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             (Vec::new(), AugmentedMatrix::<3>::new(p, 0, [0, 0, 0]))
         };
 
-        loop {
-            let col = f.read_u64::<LittleEndian>().unwrap() as usize;
-            if col == Magic::End as usize {
-                break;
-            } else if col == Magic::Signature as usize {
-                let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
-
-                mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
-                scratch0.set_scratch_vector_size(mask.len());
-            } else if col == Magic::Fix as usize {
-                // We need to fix the differential problem
-                //
-                // First manually add_masked the second segment to the first, which we use for
-                // row reduction. We do this manually for borrow checker reasons.
-                for (j, &k) in target_zero_mask.iter().enumerate() {
-                    for i in 0..dx_matrix.rows() {
-                        if dx_matrix.row_segment(i, 1, 1).entry(k) != 0 {
-                            dx_matrix.row_segment_mut(i, 0, 0).add_basis_element(j, 1);
+        for cmd in reader {
+            match cmd? {
+                NassauCommand::Signature(sig_u16) => {
+                    let signature: Vec<PPartEntry> =
+                        sig_u16.iter().map(|&x| x as PPartEntry).collect();
+                    mask.clear();
+                    mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
+                    scratch0.set_scratch_vector_size(mask.len());
+                }
+                NassauCommand::Fix => {
+                    // We need to fix the differential problem
+                    //
+                    // First manually add_masked the second segment to the first, which we
+                    // use for row reduction. We do this manually for borrow checker reasons.
+                    for (j, &k) in target_zero_mask.iter().enumerate() {
+                        for i in 0..dx_matrix.rows() {
+                            if dx_matrix.row_segment(i, 1, 1).entry(k) != 0 {
+                                dx_matrix.row_segment_mut(i, 0, 0).add_basis_element(j, 1);
+                            }
                         }
                     }
+                    dx_matrix.row_reduce();
+
+                    // Now reduce by these elements
+                    for i in 0..dx_matrix.rows() {
+                        let masked_col = dx_matrix.row(i).first_nonzero().unwrap().0;
+                        assert_eq!(dx_matrix.pivots()[masked_col], i as isize);
+                        let col = target_zero_mask[masked_col];
+
+                        for (input, output) in inputs.iter_mut().zip(results.iter_mut()) {
+                            let entry = input.entry(col);
+                            if entry != 0 {
+                                output.into().add_unmasked(
+                                    dx_matrix.row_segment(i, 2, 2),
+                                    1,
+                                    &mask,
+                                );
+                                input.as_slice_mut().add(dx_matrix.row_segment(i, 1, 1), 1);
+                            }
+                        }
+                    }
+
+                    // Drop these objects to save a bit of memory
+                    target_zero_mask = Vec::new();
+                    dx_matrix = AugmentedMatrix::<3>::new(p, 0, [0, 0, 0]);
                 }
-                dx_matrix.row_reduce();
-
-                // Now reduce by these elements
-                for i in 0..dx_matrix.rows() {
-                    let masked_col = dx_matrix.row(i).first_nonzero().unwrap().0;
-                    assert_eq!(dx_matrix.pivots()[masked_col], i as isize);
-                    let col = target_zero_mask[masked_col];
-
+                NassauCommand::Pivot {
+                    col,
+                    lift_bytes,
+                    image_bytes,
+                } => {
+                    let col = col as usize;
+                    scratch0.update_from_bytes(&mut &lift_bytes[..])?;
+                    scratch1.update_from_bytes(&mut &image_bytes[..])?;
                     for (input, output) in inputs.iter_mut().zip(results.iter_mut()) {
                         let entry = input.entry(col);
                         if entry != 0 {
-                            output
-                                .into()
-                                .add_unmasked(dx_matrix.row_segment(i, 2, 2), 1, &mask);
-                            input.as_slice_mut().add(dx_matrix.row_segment(i, 1, 1), 1);
+                            output.into().add_unmasked(scratch0.as_slice(), 1, &mask);
+                            // If we resume a resolve_through_stem, input may be longer
+                            // than scratch1.
+                            input
+                                .slice_mut(0, scratch1.len())
+                                .add(scratch1.as_slice(), 1);
                         }
                     }
-                }
 
-                // Drop these objects to save a bit of memory
-                target_zero_mask = Vec::new();
-                dx_matrix = AugmentedMatrix::<3>::new(p, 0, [0, 0, 0]);
-            } else {
-                scratch0.update_from_bytes(&mut f).unwrap();
-                scratch1.update_from_bytes(&mut f).unwrap();
-                for (input, output) in inputs.iter_mut().zip(results.iter_mut()) {
-                    let entry = input.entry(col);
-                    if entry != 0 {
-                        output.into().add_unmasked(scratch0.as_slice(), 1, &mask);
-                        // If we resume a resolve_through_stem, input may be longer than scratch1.
-                        input
-                            .slice_mut(0, scratch1.len())
-                            .add(scratch1.as_slice(), 1);
-                    }
-                }
-
-                // Row reduce the differentials
-                if !target_zero_mask.is_empty() {
-                    for i in 0..dx_matrix.rows() {
-                        if dx_matrix.row_segment(i, 1, 1).entry(col) != 0 {
-                            dx_matrix
-                                .row_segment_mut(i, 2, 2)
-                                .slice_mut(0, zero_mask_dim)
-                                .add(scratch0.as_slice(), 1);
-                            dx_matrix
-                                .row_segment_mut(i, 1, 1)
-                                .slice_mut(0, target_dim)
-                                .add(scratch1.as_slice(), 1);
+                    // Row reduce the differentials
+                    if !target_zero_mask.is_empty() {
+                        for i in 0..dx_matrix.rows() {
+                            if dx_matrix.row_segment(i, 1, 1).entry(col) != 0 {
+                                dx_matrix
+                                    .row_segment_mut(i, 2, 2)
+                                    .slice_mut(0, zero_mask_dim)
+                                    .add(scratch0.as_slice(), 1);
+                                dx_matrix
+                                    .row_segment_mut(i, 1, 1)
+                                    .slice_mut(0, target_dim)
+                                    .add(scratch1.as_slice(), 1);
+                            }
                         }
                     }
                 }
             }
         }
-        // Make sure we have finished reading everything
-        drop(f);
 
         for dx in inputs {
             assert!(
@@ -1220,7 +1167,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 target.element_to_string(b.t(), dx.as_slice())
             );
         }
-        true
+        Ok(true)
     }
 }
 

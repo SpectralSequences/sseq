@@ -31,6 +31,10 @@ pub struct ChainHomotopy<
     lock: Mutex<()>,
     /// Homotopies, indexed by the filtration of the target of f - g.
     homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
+    /// Save directory for this homotopy and any secondary lift built from it.
+    /// Set to a `homotopies/{left}__{right}` subgroup of the source's save_dir
+    /// when both `left` and `right` are named, `None` otherwise so that
+    /// homotopies between anonymous homs don't pollute the store.
     save_dir: SaveDirectory,
 }
 
@@ -44,23 +48,19 @@ impl<
         left: Arc<ResolutionHomomorphism<S, T>>,
         right: Arc<ResolutionHomomorphism<T, U>>,
     ) -> Self {
-        let save_dir = if left.source.save_dir().is_some()
-            && !left.name().is_empty()
+        assert!(Arc::ptr_eq(&left.target, &right.source));
+        let save_dir = if !left.name().is_empty()
             && !right.name().is_empty()
+            && let Some(parent) = left.source.save_dir().store()
         {
-            let mut save_dir = left.source.save_dir().clone();
-            save_dir.push(format!("massey/{},{}/", left.name(), right.name()));
-
-            SaveKind::ChainHomotopy
-                .create_dir(save_dir.write().unwrap())
-                .unwrap();
-
-            save_dir
+            SaveDirectory::Store(
+                parent
+                    .subgroup(&format!("homotopies/{}__{}", left.name(), right.name()))
+                    .expect("Failed to create homotopies subgroup"),
+            )
         } else {
             SaveDirectory::None
         };
-
-        assert!(Arc::ptr_eq(&left.target, &right.source));
         Self {
             homotopies: OnceBiVec::new((left.shift + right.shift).s() - 1),
             left,
@@ -178,16 +178,13 @@ impl<
             return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
 
-        if let Some(dir) = self.save_dir.read()
-            && let Some(mut f) = self
-                .left
-                .source
-                .save_file(SaveKind::ChainHomotopy, source)
-                .open_file(dir.to_owned())
+        if let Some(store) = self.save_dir.store()
+            && let Some(data) = store.read(SaveKind::ChainHomotopy, source).unwrap()
         {
+            let mut cursor = &data[..];
             let mut outputs = Vec::with_capacity(num_gens);
             for _ in 0..num_gens {
-                outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
+                outputs.push(FpVector::from_bytes(p, target_dim, &mut cursor).unwrap());
             }
             return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
@@ -263,15 +260,12 @@ impl<
             &scratches,
         ));
 
-        if let Some(dir) = self.save_dir.write() {
-            let mut f = self
-                .left
-                .source
-                .save_file(SaveKind::ChainHomotopy, source)
-                .create_file(dir.to_owned(), false);
+        if let Some(store) = self.save_dir.store() {
+            let mut buf = Vec::new();
             for row in &outputs {
-                row.to_bytes(&mut f).unwrap();
+                row.to_bytes(&mut buf).unwrap();
             }
+            store.write(SaveKind::ChainHomotopy, source, &buf).unwrap();
         }
         self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs)
     }
@@ -306,7 +300,7 @@ pub(crate) mod secondary {
     use crate::{
         chain_complex::FreeChainComplex,
         resolution_homomorphism::ResolutionHomomorphism,
-        save::{SaveDirectory, SaveKind},
+        save::SaveDirectory,
         secondary::{
             CompositeData, LAMBDA_BIDEGREE, SecondaryHomotopy, SecondaryLift,
             SecondaryResolutionHomomorphism,
@@ -568,12 +562,6 @@ pub(crate) mod secondary {
                     right_lambda.shift,
                     underlying.right().shift + LAMBDA_BIDEGREE
                 );
-            }
-
-            if let Some(p) = underlying.save_dir().write() {
-                for subdir in SaveKind::secondary_data() {
-                    subdir.create_dir(p).unwrap();
-                }
             }
 
             Self {

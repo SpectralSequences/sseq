@@ -1,5 +1,8 @@
 //! A module containing various utility functions related to user interaction in some way.
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use algebra::{
     AlgebraType, MilnorAlgebra, SteenrodAlgebra,
@@ -13,7 +16,7 @@ use crate::{
     CCC,
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
     resolution::{Resolution, UnstableResolution},
-    save::SaveDirectory,
+    save::{SaveDirectory, ZarrSaveStore},
 };
 
 // We build docs with --all-features so the docs are at the feature = "nassau" version
@@ -140,7 +143,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 /// the `nassau` feature is enabled.
 pub fn construct<T, E>(
     module_spec: T,
-    save_dir: impl Into<SaveDirectory>,
+    save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
 ) -> anyhow::Result<QueryModuleResolution>
 where
     anyhow::Error: From<E>,
@@ -160,7 +163,7 @@ where
 /// See [`construct`]
 pub fn construct_nassau<T, E>(
     module_spec: T,
-    save_dir: impl Into<SaveDirectory>,
+    save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
 ) -> anyhow::Result<crate::nassau::Resolution<FDModule<MilnorAlgebra>>>
 where
     anyhow::Error: From<E>,
@@ -194,13 +197,15 @@ where
     if !json["cofiber"].is_null() {
         return Err(anyhow!("Nassau's algorithm does not support cofiber"));
     }
-    crate::nassau::Resolution::new_with_save(module, save_dir)
+    let resolution = crate::nassau::Resolution::new_with_save(module, save_dir)?;
+    bind_module_spec(resolution.save_dir(), &json)?;
+    Ok(resolution)
 }
 
 /// See [`construct`]
 pub fn construct_standard<const U: bool, T, E>(
     module_spec: T,
-    save_dir: impl Into<SaveDirectory>,
+    save_dir: impl TryInto<SaveDirectory, Error: Into<anyhow::Error>>,
 ) -> anyhow::Result<crate::resolution::MuResolution<U, CCC>>
 where
     anyhow::Error: From<E>,
@@ -281,7 +286,47 @@ where
         chain_complex = Arc::new(yoneda.map(|m| steenrod_module::erase(m.clone())));
     }
 
-    crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)
+    let resolution = crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)?;
+    bind_module_spec(resolution.save_dir(), &json)?;
+    Ok(resolution)
+}
+
+/// Pin the save store (if any) to this module spec and record it, so the directory both rejects
+/// reuse for a different complex and is self-describing. Propagates the identity-mismatch error.
+fn bind_module_spec(save_dir: &SaveDirectory, spec: &Value) -> anyhow::Result<()> {
+    if let Some(store) = save_dir.store() {
+        store.bind_module_spec(spec)?;
+    }
+    Ok(())
+}
+
+/// Reconstruct a resolution from a save directory alone, without re-supplying the module spec.
+///
+/// Reads the `module_spec` and `algebra_prefix` that [`construct`] recorded on the store at
+/// creation time, rebuilds the [`Config`], and resolves back into the same directory. The rebuilt
+/// spec is re-checked against the stored one by
+/// [`bind_module_spec`](crate::save::ZarrSaveStore::bind_module_spec), so a directory whose
+/// contents don't match its recorded spec is rejected rather than silently mixing data.
+///
+/// Errors if the directory carries no recorded spec — e.g. it was created through the raw
+/// [`MuResolution::new_with_save`](crate::resolution::MuResolution::new_with_save) API with a
+/// programmatically-built complex rather than through [`construct`].
+pub fn construct_from_save(save_dir: impl AsRef<Path>) -> anyhow::Result<QueryModuleResolution> {
+    let save_dir = save_dir.as_ref().to_owned();
+    let attrs = ZarrSaveStore::read_root_attributes(&save_dir)
+        .with_context(|| format!("Failed to open save store at {save_dir:?}"))?;
+    let module = attrs.get("module_spec").cloned().with_context(|| {
+        format!(
+            "Save store at {save_dir:?} has no recorded module spec; it was not created through \
+             `construct`, so the complex cannot be reconstructed from the directory alone"
+        )
+    })?;
+    let algebra = attrs
+        .get("algebra_prefix")
+        .and_then(|v| v.as_str())
+        .with_context(|| format!("Save store at {save_dir:?} has no recorded algebra"))?;
+    let config: Config = (module, algebra).try_into()?;
+    construct(config, Some(save_dir))
 }
 
 /// Load a module specification from a JSON file.
