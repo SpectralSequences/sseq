@@ -506,7 +506,7 @@ pub(crate) mod secondary {
     };
     use dashmap::DashMap;
     use fp::{
-        matrix::Matrix,
+        matrix::{Matrix, Subquotient},
         vector::{FpSlice, FpSliceMut, FpVector},
     };
     use itertools::Itertools;
@@ -717,7 +717,7 @@ pub(crate) mod secondary {
         pub fn hom_k_with<'a>(
             &self,
             lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
-            sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
+            e3_page: Option<&dyn Fn(Bidegree) -> Option<Subquotient>>,
             b: Bidegree,
             inputs: impl Iterator<Item = FpSlice<'a>>,
             outputs: impl Iterator<Item = FpSliceMut<'a>>,
@@ -754,10 +754,9 @@ pub(crate) mod secondary {
             };
             let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
-            let page_data = sseq.map(|sseq| {
-                let d = sseq.page_data(lambda_source);
-                &d[std::cmp::min(3, d.len() - 1)]
-            });
+            // The E3 page at the λ-part's source; its quotient (the image of d₂)
+            // reduces the λ part of each output.
+            let lambda_page = e3_page.and_then(|f| f(lambda_source));
 
             let mut scratch0: Vec<u32> = Vec::new();
             for (input, mut out) in inputs.zip_eq(outputs) {
@@ -778,8 +777,8 @@ pub(crate) mod secondary {
                     out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
                         .add(mp.row(i), (extra * filtration_one_sign) % p);
                 }
-                if let Some(page_data) = page_data {
-                    page_data.reduce_by_quotient(
+                if let Some(lambda_page) = &lambda_page {
+                    lambda_page.reduce_by_quotient(
                         out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
                     );
                 }
@@ -795,16 +794,17 @@ pub(crate) mod secondary {
         /// This reduces the λ part of the result by the image of d₂.
         ///
         /// # Arguments
-        /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
-        ///   of the map by the image of $d_2$.
+        /// - `e3_page`: the $E_3$ subquotient as a function of bidegree. If present, the
+        ///   quotient (image of $d_2$) at the λ-part's source reduces the λ part of the
+        ///   result. Passed as a function so the caller need not reconstruct that bidegree.
         pub fn hom_k<'a>(
             &self,
-            sseq: Option<&sseq::Sseq<2, sseq::Adams>>,
+            e3_page: Option<&dyn Fn(Bidegree) -> Option<Subquotient>>,
             b: Bidegree,
             inputs: impl Iterator<Item = FpSlice<'a>>,
             outputs: impl Iterator<Item = FpSliceMut<'a>>,
         ) {
-            self.hom_k_with(None, sseq, b, inputs, outputs);
+            self.hom_k_with(None, e3_page, b, inputs, outputs);
         }
 
         /// Given an element b whose product with this is null, find the element whose $d_2$ hits the

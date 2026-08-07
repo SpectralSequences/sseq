@@ -259,3 +259,35 @@ u64, which is to be interpreted as follows:
   The pivot column and the image are expressed in terms of the original basis,
   while the lift is expressed in terms of the masked basis under the current
   signature. The latter measure is done in order to save space.
+
+### Tensor-resolution differentials
+
+This has magic `0xD1FF0002`.
+
+This is the closed-form coboundary `δ_Q` of an untwisted tensor resolution
+`Q• = P• ⊗ M`, where `P•` is a minimal resolution of the base field and `M` is
+an arbitrary (possibly infinite) module. `Q•` itself is never materialised;
+only the cochain-level matrices of `δ_Q` are, so this kind stores one matrix
+per bidegree and no chain map data.
+
+The header records only the kind, algebra and bidegree, so files for two
+different modules over the same algebra collide by name. Each file therefore
+opens with a fingerprint of `M` — an Adler-32 checksum of the module's
+`Display` name, its minimum degree, and its dimensions in every degree up to
+`t` — which the reader checks before anything else. A save directory must
+still be dedicated to a single module; the fingerprint turns a violation into a
+panic instead of a silently wrong `Ext`.
+
+```text
+struct {
+    module_fingerprint: u32,
+    rows: u64,
+    cols: u64,
+    matrix: [[u64; num_limbs(cols)]; rows],
+}
+```
+
+Unlike the other kinds, the shape is stored in the file rather than being
+recovered from the resolution, since the cochain dimensions depend on `M`. The
+reader checks it against the cochain basis it expects, so a truncated or
+foreign file fails loudly.
