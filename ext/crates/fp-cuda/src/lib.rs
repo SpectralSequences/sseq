@@ -1,10 +1,4 @@
 //! CUDA backend for `fp::blas` F_2 matrix multiplication on Hopper.
-//!
-//! Both operands are pre-arranged on the host as plain row-major K-major tiles
-//! and loaded via TMA with 128B swizzle, which lands them in the SMEM layout the
-//! swizzled wgmma matrix descriptors expect. The kernel register-blocks a
-//! TILE_M×(NG*64) output tile per CTA out of MSTRIPS m64n128 wgmma.b1 strips
-//! that share each loaded B tile (cuts operand-refill bandwidth, the bottleneck).
 
 use std::{
     collections::HashMap,
@@ -33,13 +27,19 @@ const NG: u32 = 2; // output column-limbs per CTA (NB/64 = 128/64); must match t
 const STAGES: usize = 4; // K-loop pipeline depth; must match the kernel
 const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match the kernel
 
-/// Lets us pass a `CUtensorMap` by value as a (grid-constant) kernel argument
-/// through cudarc's typed launch builder. `repr(transparent)` so the pointer
-/// cudarc pushes is the address of the 128-byte descriptor itself.
+/// A `CUtensorMap` passed by value as a (grid-constant) kernel argument.
+///
+/// `repr(transparent)` so the pointer cudarc's typed launch builder pushes is the address of the
+/// 128-byte descriptor itself.
 #[repr(transparent)]
 struct TmaArg(sys::CUtensorMap);
+
+// SAFETY: `DeviceRepr` requires the type to be plain data that is valid to memcpy into a kernel
+// parameter. `CUtensorMap` is an opaque 128-byte POD descriptor with no host pointers or padding
+// invariants, and the kernel declares the matching parameter `const __grid_constant__ CUtensorMap`.
 unsafe impl DeviceRepr for TmaArg {}
 
+/// A CUDA device with the `matmul_b1` kernel loaded, ready to launch.
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
     /// Per-thread CUDA streams for *this* context, created lazily (see [`Self::stream`]). Owned by
@@ -53,6 +53,10 @@ pub struct GpuContext {
 }
 
 impl GpuContext {
+    /// Open device `device_id` and load the kernel onto it.
+    ///
+    /// Fails if there is no usable device, or if the embedded PTX is the stub `build.rs` emits when
+    /// `nvcc` is absent, in which case the kernel is missing from the module.
     pub fn new(device_id: usize) -> Result<Self, Box<dyn std::error::Error>> {
         let ctx = CudaContext::new(device_id)?;
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
@@ -66,6 +70,7 @@ impl GpuContext {
         })
     }
 
+    /// The device's compute capability as `(major, minor)`. The kernel requires 9.0 (Hopper).
     pub fn compute_capability(&self) -> Result<(i32, i32), Box<dyn std::error::Error>> {
         let major = self.ctx.attribute(
             sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
@@ -80,12 +85,14 @@ impl GpuContext {
         self.ctx.default_stream()
     }
 
-    /// A CUDA stream **private to the calling OS thread**, created lazily on first use and reused
-    /// thereafter (cached per thread in this context's `streams` map). Submitting through this instead of the context's
-    /// single `default_stream()` lets calls from different threads run on distinct streams —
-    /// overlapping transfers and kernels instead of serializing — while all sub-steps of one call
-    /// share one stream (correct ordering within a thread). This is what lets `try_mul` (and the
-    /// row-reduce) run lock-free from many threads at once.
+    /// A CUDA stream **private to the calling OS thread**.
+    ///
+    /// Created lazily on first use and reused thereafter, cached per thread in this context's
+    /// `streams` map. Submitting through this instead of the context's single `default_stream()`
+    /// lets calls from different threads run on distinct streams — overlapping transfers and
+    /// kernels instead of serializing — while all sub-steps of one call share one stream, which
+    /// keeps ordering correct within a thread. This is what lets `try_mul` (and the row-reduce) run
+    /// lock-free from many threads at once.
     pub fn stream(&self) -> Arc<CudaStream> {
         self.streams
             .lock()
@@ -108,16 +115,15 @@ impl GpuContext {
 
 /// Multiply two bit-packed F₂ matrices on the GPU.
 ///
-/// Operands are plain **row-major, K-major** limb arrays — the exact layout
-/// `fp::Matrix::to_bytes` produces (little-endian `u64` limbs, one bit per
-/// entry, `columns.div_ceil(64)` limbs per row, no inter-row padding):
+/// Operands are plain **row-major, K-major** limb arrays — the exact layout `fp::Matrix::to_bytes`
+/// produces (little-endian `u64` limbs, one bit per entry, `columns.div_ceil(64)` limbs per row, no
+/// inter-row padding):
 ///
 /// - `a`: the `m`×`k` left operand, `m * k.div_ceil(64)` limbs.
 /// - `b`: the `k`×`n` right operand, `k * n.div_ceil(64)` limbs.
 ///
-/// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to
-/// hand to `fp::Matrix::from_data`. This keeps `fp-cuda` free of any dependency
-/// on `fp` (the higher-level crate depends on this one, not the reverse).
+/// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to hand to
+/// `fp::Matrix::from_data`.
 pub fn matmul_b1_raw(
     gpu: &GpuContext,
     a: &[u64],
@@ -129,16 +135,14 @@ pub fn matmul_b1_raw(
     Ok(matmul_b1_inner(gpu, a, m, k, b, n, 1)?.0)
 }
 
-/// Like [`matmul_b1_raw`], but also returns the average **kernel-only** wall
-/// time (seconds) over `time_iters` back-to-back launches, excluding host
+/// Like [`matmul_b1_raw`], but also returns the average **kernel-only** wall time in seconds.
+///
+/// The time is averaged over `time_iters` back-to-back launches, and excludes host
 /// (de)serialization, the TMA-layout pre-arrangement, and the H2D/D2H copies.
 ///
-/// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor
-/// *store* (overwrite, not accumulate), so repeated launches against the same
-/// device buffers are idempotent and the returned limbs are the correct
-/// product. Use this to compare against the ~100-binary-TOPS pre-swizzle
-/// kernel baseline; the end-to-end `cargo bench` figures are dominated by host
-/// serialization and understate kernel throughput.
+/// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor *store* (overwrite, not
+/// accumulate), so repeated launches against the same device buffers are idempotent and the
+/// returned limbs are the correct product.
 pub fn matmul_b1_raw_timed(
     gpu: &GpuContext,
     a: &[u64],
@@ -182,9 +186,7 @@ fn matmul_b1_inner(
     let a_padded = pad_2d(a, m, k.div_ceil(64), m_padded, k_padded / 64);
     let b_padded = pad_2d(b, k, n_lim, k_padded, n_lim);
 
-    // Gather A into row-major K-major tiles; the TMA applies the 128B swizzle.
     let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
-    // Pre-transpose B into row-major K-major tiles (swizzled by the TMA).
     let bt = transpose_b(&b_padded, k_padded, n_lim);
 
     let a_dev = stream.clone_htod(&a_interleaved)?;
@@ -197,11 +199,6 @@ fn matmul_b1_inner(
     let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
     let (c_ptr, _gc) = c_dev.device_ptr(&stream);
 
-    // TMA tensor maps. A: TILE_M-row block per (k_chunk, M-block), split into
-    // MSTRIPS m64 strips by the consumer. B: (NG*64)-column tile per (k_chunk,
-    // column group), reused across the strips. Both have a 128-byte inner dim
-    // (= the 128B swizzle width). C: TILE_M-row × NG-limb output blocks, no
-    // swizzle, for the bulk store.
     let tma_a = encode_tma(
         a_ptr,
         [32, (k_chunks * m_tiles * TILE_M) as u64],
@@ -236,21 +233,10 @@ fn matmul_b1_inner(
         smem_bytes as i32,
     )?;
 
-    // Persistent grid: co-resident CTAs = (occupancy per SM) × SM count, so the
-    // grid exactly fills the machine and the kernel's persistent loop sweeps all
-    // output tiles in grouped-rasterized order. Rounded to a whole number of
-    // clusters (`__cluster_dims__` requires gridDim.x % CLUSTER == 0); surplus
-    // clusters run an empty loop.
-    //
-    // This is 1 CTA/SM at the register-blocked config, and that is optimal:
-    // 2 CTAs/SM was measured (2026-07-07 H200) and loses badly. Two CTAs need the
-    // compiled register count ≤128/thread (2·256·128 = the 64K reg file), but the
-    // resident accumulator that gives the kernel its arithmetic intensity is
-    // 192 regs/thread at MSTRIPS=3. Shrinking it to fit two CTAs (MSTRIPS=1,
-    // 64-reg acc → occ=2) collapses AI and drops 16384 from ~8,600 to ~5,500
-    // TOPS. High AI (big accumulator) and high occupancy compete for the same
-    // register file and AI wins, so we run 1 CTA/SM with the largest accumulator
-    // that fits under the 255-reg cap.
+    // Persistent grid: co-resident CTAs = (occupancy per SM) × SM count, so the grid exactly fills
+    // the machine and the kernel's persistent loop sweeps all output tiles in grouped-rasterized
+    // order. Rounded to a whole number of clusters (`__cluster_dims__` requires gridDim.x % CLUSTER
+    // == 0); surplus clusters run an empty loop.
     let sms = gpu
         .ctx
         .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
@@ -286,12 +272,16 @@ fn matmul_b1_inner(
             .arg(&ng)
             .arg(&m_val)
             .arg(&k_val);
+        // SAFETY: the seven pushed arguments match `matmul_b1_kernel`'s parameter list in order and
+        // type, `smem_bytes` is the size the kernel was granted above via
+        // MAX_DYNAMIC_SHARED_SIZE_BYTES, and the device buffers behind the tensor maps outlive this
+        // closure (their guards are held until after the final synchronize).
         unsafe { lb.launch(cfg) }?;
         Ok(())
     };
 
-    // Warm up once (untimed) when measuring, so the timed loop excludes any
-    // first-launch JIT/allocation costs.
+    // Warm up once (untimed) when measuring, so the timed loop excludes any first-launch
+    // JIT/allocation costs.
     if time_iters > 1 {
         launch()?;
         stream.synchronize()?;
@@ -324,6 +314,10 @@ fn encode_tma(
     let gstride = [row_stride_bytes];
     let elemstride = [1u32, 1u32];
     let mut tmap = MaybeUninit::<sys::CUtensorMap>::uninit();
+    // SAFETY: `gdim`, `gstride`, `boxdim` and `elemstride` are the rank-2 arrays the driver reads
+    // (rank is passed as 2, and `gstride` is rank-1 by the API's contract of omitting the innermost
+    // dimension). `dev_ptr` is a live device allocation owned by the caller. On success the driver
+    // has fully written `tmap`, so the `assume_init` below is sound; on failure we return early.
     unsafe {
         sys::cuTensorMapEncodeTiled(
             tmap.as_mut_ptr(),
@@ -346,10 +340,10 @@ fn encode_tma(
 
 /// Gather A into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Output: contiguous tiles, each TILE_M rows × KL u64s (64 × 128 bytes). The
-/// TMA applies the 128B swizzle on load, so the host layout is the natural
-/// row-major sub-block: tile row `row` holds K bits `kk*TILE_K .. +TILE_K` of
-/// global row `bi*TILE_M + row`, zero-padded out of bounds.
+/// Output: contiguous tiles, each TILE_M rows × KL u64s, so a row is 128 bytes — the swizzle width.
+/// The TMA applies the 128B swizzle on load, so the host layout is the natural row-major sub-block:
+/// tile row `row` holds K bits `kk*TILE_K .. +TILE_K` of global row `bi*TILE_M + row`, zero-padded
+/// out of bounds.
 ///
 /// Tiles are ordered: for K-chunk kk=0..k_chunks-1, then M-tile bi=0..m_tiles-1.
 fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
@@ -381,18 +375,18 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
 
 /// Pre-transpose B into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Each (k_chunk, column group) tile is NB = NG*64 rows (= the NG*64 output
-/// columns of the group) × KL u64s (= TILE_K K bits); the consumer feeds it to
-/// MSTRIPS m64n128 wgmmas that share it. Operand row `lg*64 + jj` is output
-/// column `cg*NG*64 + lg*64 + jj`; element `[..][kl] bit` is bit `jj` of
-/// `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
-/// Groups whose limb runs past `n_lim` are left zero-padded. Output is
-/// row-major; the TMA applies the swizzle on load.
+/// Each (k_chunk, column group) tile is NB = NG*64 rows (= the NG*64 output columns of the group) ×
+/// KL u64s (= TILE_K K bits); the consumer feeds it to MSTRIPS m64n128 wgmmas that share it.
+/// Operand row `lg*64 + jj` is output column `cg*NG*64 + lg*64 + jj`; element `[..][kl] bit` is bit
+/// `jj` of `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
+///
+/// Groups whose limb runs past `n_lim` are left zero-padded. Output is row-major; the TMA applies
+/// the swizzle on load.
 fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
     let k_chunks = k / TILE_K;
     let ng = NG as usize;
     let n_groups = n_lim.div_ceil(ng);
-    let tile = ng * 64 * KL; // 256 rows × KL u64
+    let tile = ng * 64 * KL; // NB rows × KL u64
     let mut out = vec![0u64; k_chunks * n_groups * tile];
     let mut buf = [0u64; TILE_K];
 
@@ -409,7 +403,7 @@ fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
                     *slot = if br < k { b[br * n_lim + limb] } else { 0 };
                 }
                 for jj in 0..64usize {
-                    let j = lg * 64 + jj; // operand row within the 256-col tile
+                    let j = lg * 64 + jj; // operand row within the NB-col tile
                     for kl in 0..KL {
                         let mut val: u64 = 0;
                         for bit in 0..64usize {
@@ -460,11 +454,12 @@ mod tests {
         })
     }
 
-    /// Regression for the per-thread stream cache being scoped to its context. A single thread that
-    /// builds two `GpuContext`s must get two *distinct* streams — the cache was once keyed by thread
-    /// alone, so the second context silently reused the first's stream (wrong context/device). The
-    /// same context must still reuse its own cached stream. (Uses device 0 twice: distinct instances,
-    /// so distinct streams, without needing a second GPU.)
+    /// Regression for the per-thread stream cache being scoped to its context.
+    ///
+    /// A single thread that builds two `GpuContext`s must get two *distinct* streams — the cache
+    /// was once keyed by thread alone, so the second context silently reused the first's stream
+    /// (wrong context/device). The same context must still reuse its own cached stream. Uses device
+    /// 0 twice: distinct instances, so distinct streams, without needing a second GPU.
     #[test]
     fn stream_is_scoped_per_context() {
         if !gpu_available() {

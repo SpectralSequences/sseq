@@ -1,8 +1,7 @@
-//! GPU-dispatch correctness for `<&Matrix as Mul>::mul` under the `gpu`
-//! feature. Only compiled when the feature is on; if no usable GPU is present
-//! the dispatch transparently falls back to the CPU kernel, so this test still
-//! passes (it just doesn't exercise the device). Run with `FP_CUDA_DEBUG=1` to
-//! see the `[fp-cuda]` launch line and confirm the GPU path was taken.
+//! GPU-dispatch correctness for `<&Matrix as Mul>::mul` under the `gpu` feature.
+//!
+//! Run with `FP_CUDA_DEBUG=1` to see the `[fp-cuda]` launch line and confirm the GPU path was
+//! taken.
 #![cfg(feature = "gpu")]
 
 use fp::{matrix::Matrix, prime::TWO};
@@ -15,10 +14,18 @@ fn random_matrix(rows: usize, cols: usize) -> Matrix {
     Matrix::from_data(TWO, rows, cols, data)
 }
 
-/// The dispatched product must be bit-identical to the CPU BLAS kernel. Sizes
-/// are chosen above the default 2048 threshold so the GPU path is attempted.
+/// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
+fn threshold() -> usize {
+    std::env::var("FP_CUDA_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2048)
+}
+
+/// The dispatched product must be bit-identical to the CPU BLAS kernel.
 #[test]
 fn gpu_dispatch_matches_cpu() {
+    let t = threshold();
     for &(m, k, n) in &[
         (2048, 2048, 2048),
         (4096, 2048, 3072),
@@ -29,11 +36,13 @@ fn gpu_dispatch_matches_cpu() {
         (2049, 2051, 2053),
         (3000, 2112, 4097),
     ] {
+        assert!(
+            m >= t && k >= t && n >= t,
+            "{m}x{k} * {k}x{n} is below the threshold {t}, so the GPU path is not attempted"
+        );
         let a = random_matrix(m, k);
         let b = random_matrix(k, n);
 
-        // `&a * &b` consults the GPU (feature on); `fast_mul_concurrent` is the
-        // reference CPU kernel. They must agree bit-for-bit.
         let dispatched = &a * &b;
         let reference = a.fast_mul_concurrent(&b);
 
@@ -44,9 +53,11 @@ fn gpu_dispatch_matches_cpu() {
     }
 }
 
-/// Many threads matmul-ing on the GPU AT ONCE must each stay bit-identical to the CPU — the
-/// concurrency the per-thread-stream refactor enables. If concurrent matmuls shared device state this
-/// would corrupt or LAUNCH_FAILED; independent per-stream buffers make it pass.
+/// Many threads matmul-ing on the GPU at once must each stay bit-identical to the CPU.
+///
+/// This is the concurrency the per-thread-stream refactor enables. If concurrent matmuls shared
+/// device state this would corrupt results or fail the launch; independent per-stream buffers make
+/// it pass.
 #[test]
 fn gpu_matmul_concurrent() {
     const THREADS: usize = 16;

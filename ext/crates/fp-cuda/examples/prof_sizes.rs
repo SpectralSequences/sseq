@@ -1,6 +1,6 @@
-//! Minimal profiling target: exactly one `matmul_b1` kernel launch at each of
-//! two sizes (16384, 32768), no CPU cross-check. Built for `ncu --launch-count`
-//! so the L2-cliff hypothesis can be checked with hardware counters.
+//! Minimal profiling target: exactly one `matmul_b1` kernel launch at each of two sizes (16384,
+//! 32768), no CPU cross-check. Built for `ncu --launch-count` so the L2-cliff hypothesis can be
+//! checked with hardware counters.
 //!
 //! `ncu --set basic --launch-count 2 target/release/examples/prof_sizes`
 

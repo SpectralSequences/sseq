@@ -7,27 +7,14 @@ description = "CUDA backend for fp's F_2 BLAS routines (Hopper wgmma.b1 via inli
 license = "MIT OR Apache-2.0"
 publish = false
 
-# This crate ships a CUDA C++ kernel (cuda_kernels/matmul_b1.cu) that is
-# compiled to PTX by nvcc at build time. The Rust side uses `cudarc` (stable
-# Rust, runtime dynamic-loading of the CUDA driver) for the host driver-API
-# surface: module load, device buffers, launch, and the raw `cuTensorMapEncodeTiled`
-# call for the TMA descriptors.
-#
-# Build with:
-#   cargo build -p fp-cuda
-#
-# Prerequisites: nvcc (CUDA Toolkit 12.x+) on PATH, Hopper GPU at runtime.
-# Plain `cargo build` from the workspace root skips this crate via the
-# `default-members` entry in the workspace Cargo.toml.
-
+# See README.md for what this crate is and how to build it.
 build = "build.rs"
 
 [dependencies]
-# Driver API only; dynamic-loading means the crate builds with no CUDA present
-# (we still need nvcc at build time to produce the PTX, and a driver at runtime).
-# cuda-12080 only selects which pre-generated driver bindings to compile; with
-# dynamic-loading the actual driver is dlopen'd at runtime, so no CUDA is needed
-# to build and a newer driver (12.8+/13.x) still works.
+
+# Driver API only. `cuda-12080` selects which pre-generated driver bindings to compile; it does not
+# pin the driver, since `dynamic-loading` dlopen's the real one at runtime, so a newer driver
+# (12.8+/13.x) still works and the crate builds with no CUDA present.
 cudarc = { version = "0.19", default-features = false, features = [
     "std",
     "driver",
@@ -37,10 +24,8 @@ cudarc = { version = "0.19", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-# `fp` is a dev-dependency only: the library API is fp-agnostic (raw limbs), so
-# the higher-level `fp` crate can depend on `fp-cuda` without a cycle. The
-# examples/benches still use `fp::Matrix` for random generation and CPU
-# cross-checks (dev-dependency cycles are permitted by Cargo).
+# The library API is fp-agnostic (raw limbs), so that the higher-level `fp` crate
+# can depend on `fp-cuda` without a dependency cycle. Only the examples and benches use `fp`.
 fp = { path = "../fp", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 rand = "0.9"

@@ -1,6 +1,6 @@
-//! Fast tuning target: kernel-only TOPS at a couple of sizes, no CPU
-//! cross-check, single correctness spot-check at 4096. Used by the sweep
-//! driver to compare tuning-knob configurations quickly.
+//! Fast tuning target: kernel-only TOPS at a couple of sizes, no CPU cross-check, single
+//! correctness spot-check at 4096. Used by the sweep driver to compare tuning-knob configurations
+//! quickly.
 //!
 //! Run: `cargo run --release -p fp-cuda --example tune`
 
