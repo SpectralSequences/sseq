@@ -82,6 +82,9 @@ needed at build time to compile the kernel to PTX, and a CUDA driver at runtime.
 ## Building
 
 ```bash
+# nvcc lives in the opt-in dev shell, not the default one.
+nix develop ./ext#gpu
+
 # From the workspace root; the leading -p selects this crate explicitly.
 cargo build -p fp-cuda
 ```
@@ -192,4 +195,5 @@ loads.
 
 - Keep operands resident on the device across `step_resolution`'s successive
   multiplications (the current dispatch re-marshals and re-copies each product).
-- Extend the parent Nix flake to provide nvcc when the user opts in.
+- Speed up the host-side bit transpose in `transpose_b`, which dominates
+  end-to-end time at large sizes.

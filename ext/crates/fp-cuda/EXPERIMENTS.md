@@ -139,3 +139,16 @@ constraint went with the clusters; the "no speedup" one is what still fixes the 
 
 Earlier in development the tradeoff was pure latency-vs-occupancy and the shared memory bill set
 the occupancy directly: `STAGES = 2` fit two CTAs/SM at 82 KB, `STAGES = 3` one CTA at 122 KB.
+
+## The epilogue fence goes before the barrier, at ~1% (2026-08-15, H200)
+
+**Chosen:** `fence_async_shared()` then `__syncthreads()`, not the reverse.
+
+`fence.proxy.async.shared::cta` orders only the *executing thread's* prior generic-proxy writes.
+With the fence after the barrier, only `t == 0` executed it, so the other consumers' `atomicXor`
+packing was never fenced into the async proxy before the TMA store read `sC` — correct in practice
+on this hardware, but not guaranteed by the model.
+
+Output stays bit-exact either way. The reorder costs ~0.96% at 4096 and ~0.73% at 8192 (every
+post-change run below the lowest pre-change run, so the loss is real), and is at noise level at
+16384 and 32768, the sizes the kernel is actually used at. Paid.
