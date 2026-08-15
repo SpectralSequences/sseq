@@ -26,7 +26,7 @@ mod params {
     #![allow(dead_code)]
     include!(concat!(env!("OUT_DIR"), "/params.rs"));
 }
-use params::{CLUSTER, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+use params::{MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
 
 const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
 const TILE_K: usize = TK;
@@ -177,10 +177,9 @@ fn matmul_b1_inner(
     assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
 
     let k_padded = k.next_multiple_of(TILE_K);
-    // Pad M to a whole number of clusters (CLUSTER M-tiles) so every cluster
-    // rank has a valid M-tile; the extra padded rows produce zeros that the
-    // `take(m)` readback trims.
-    let m_padded = m.next_multiple_of(TILE_M * CLUSTER);
+    // Pad M to a whole number of M-tiles; the extra padded rows produce zeros
+    // that the `take(m)` readback trims.
+    let m_padded = m.next_multiple_of(TILE_M);
     let m_tiles = m_padded / TILE_M;
     let k_chunks = k_padded / TILE_K;
     // Each CTA computes a TILE_M×(NG*64) output block via MSTRIPS m64n128 wgmmas,
@@ -242,8 +241,9 @@ fn matmul_b1_inner(
 
     // Persistent grid: co-resident CTAs = (occupancy per SM) × SM count, so the grid exactly fills
     // the machine and the kernel's persistent loop sweeps all output tiles in grouped-rasterized
-    // order. Rounded to a whole number of clusters (`__cluster_dims__` requires gridDim.x % CLUSTER
-    // == 0); surplus clusters run an empty loop.
+    // order. The CTAs are independent, so the grid size is a throughput parameter only: any size
+    // is correct (fewer CTAs simply do more tile-iterations each) and the launch queues for SMs
+    // like an ordinary one instead of demanding a placement.
     let sms = gpu
         .ctx
         .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
@@ -252,7 +252,7 @@ fn matmul_b1_inner(
         .kernel
         .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem_bytes as usize, None)?
         .max(1);
-    let num_ctas = (occ * sms / CLUSTER as u32).max(1) * CLUSTER as u32;
+    let num_ctas = (occ * sms).max(1);
     if std::env::var("FP_CUDA_DEBUG").is_ok() {
         eprintln!("[fp-cuda] occ={occ}/SM sms={sms} num_ctas={num_ctas} smem={smem_bytes}B");
     }

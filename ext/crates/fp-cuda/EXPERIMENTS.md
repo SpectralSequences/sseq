@@ -39,7 +39,7 @@ and consumer warpgroups, and moving the operands into dynamic shared memory so t
 
 ## Above 16384, the kernel was L2-residency bound on B (2026-06-15, H100 NVL)
 
-**Diagnosis, not a change.** It is what motivated the persistent grid and the clusters.
+**Diagnosis, not a change.** It is what motivated the persistent grid.
 
 Throughput fell off sharply above 16384³, and the cause was not power or compute: the card drew
 136 W of 310 W at 0–12% SM utilization. It was HBM bandwidth, spent re-reading B.
@@ -49,18 +49,42 @@ the 50 MB L2 — true at 32768², where B is 134 MB — each panel is evicted be
 needs it and gets re-streamed from HBM once per M-tile. `examples/bench_shapes` isolates this with
 equal-FLOPs shapes that differ only in how much B they touch.
 
-## Persistent grid + clusters closed the L2 cliff (2026-07-07, H200 NVL)
+## Persistent grid + grouped rasterization closed the L2 cliff (2026-07-07, H200 NVL)
 
-**Kept.** Two changes against the diagnosis above, and together they removed it.
+**Kept.** One change against the diagnosis above, and it removed it.
 
 A persistent 1-D grid of roughly SM-count CTAs sweeps the output tiles in a grouped-along-M order
 (`GROUP_M` M-tiles per band), which shortens each B-panel's reuse distance enough to keep it
-L2-resident and cuts B's HBM re-reads by about `GROUP_M`. On top of that, `CLUSTER` CTAs along M
-form a thread-block cluster and share a single HBM read of each B-panel via TMA multicast, each
-computing a different M-tile.
+L2-resident and cuts B's HBM re-reads by about `GROUP_M`.
 
 `bench_shapes` is the check: equal-FLOPs shapes where B fits L2 and where B spills now run at the
 *same* throughput. The cliff is gone, and throughput climbs with size rather than falling off.
+
+## Thread-block clusters + TMA multicast, removed (2026-08-14, H200 NVL)
+
+**Rejected, after having been kept.** A revision on top of the persistent grid grouped `CLUSTER`
+CTAs along M into a `__cluster_dims__` thread-block cluster that shared a single HBM read of each
+B-panel via TMA multicast, with a cluster-wide empty barrier reached through `mapa`.
+
+`__cluster_dims__` makes a cluster's CTAs co-resident by construction — a hard placement
+constraint. The launch therefore does not queue for SMs the way an ordinary grid does: when another
+runtime holds them it fails outright with `CUDA_ERROR_LAUNCH_FAILED`. That is the fault
+compute-sanitizer could never attribute (0 invalid accesses across a whole run — it was never a
+memory bug).
+
+The multicast did not pay for that. `bench_kernel_only` on an idle H200, cluster-free vs cluster,
+binary TOPS, `correct=true idempotent=true` throughout:
+
+| size (M=K=N) | cluster-free | cluster |
+|--------------|--------------|---------|
+| 4096         | 4091         | 4071    |
+| 8192         | 6687         | 6778    |
+| 16384        | 8501         | 8632    |
+| 32768        | 9608         | 9664    |
+
+Within 1.5% everywhere, because `GROUP_M` rasterization already keeps B L2-resident, so the
+second-order saving multicast adds does not show up at these shapes. The CTAs are now independent,
+which also makes the grid size a throughput parameter only rather than a placement demand.
 
 ## Register-blocking, the refill-bandwidth fix (2026-07-07, H200 NVL)
 
@@ -100,18 +124,18 @@ collapses that intensity: 16384³ dropped from ~8,600 to ~5,500 TOPS.
 High arithmetic intensity (a big accumulator) and high occupancy compete for the same register
 file, and on this kernel intensity wins.
 
-## STAGES is capped at 4 under CLUSTER > 1 (2026-07-07, H200)
+## STAGES is capped at 4 (2026-07-07, H200)
 
 **Chosen:** `STAGES = 4`.
 
-Each pipeline stage is 40 KB, so `STAGES = 5` needs ~206 KB. That is under the 227 KB opt-in cap,
-but a cluster launch reserves additional shared memory for distributed-SMEM and cluster-barrier
-bookkeeping, so 206 KB intermittently over-commits and the kernel faults with a flaky "unspecified
-launch failure". The sanitizers miss it, because it is an async resource fault rather than a memory
-error.
+Each pipeline stage is 40 KB, so `STAGES = 5` needs ~206 KB. That is under the 227 KB opt-in cap
+and it runs, but it was measured to give no large-N speedup, so it buys nothing.
 
-`STAGES = 5` is stable with `CLUSTER = 1`, but gives no large-N speedup there, so it buys nothing.
+(While the cluster layer was in place, `STAGES = 5` was not merely useless but unstable: a cluster
+launch reserves additional shared memory for distributed-SMEM and cluster-barrier bookkeeping, so
+206 KB intermittently over-committed and the kernel faulted with a flaky "unspecified launch
+failure" that the sanitizers missed, being an async resource fault rather than a memory error. That
+constraint went with the clusters; the "no speedup" one is what still fixes the value.)
 
-Earlier in development, before clusters, the tradeoff was pure latency-vs-occupancy and the shared
-memory bill set the occupancy directly: `STAGES = 2` fit two CTAs/SM at 82 KB, `STAGES = 3` one CTA
-at 122 KB.
+Earlier in development the tradeoff was pure latency-vs-occupancy and the shared memory bill set
+the occupancy directly: `STAGES = 2` fit two CTAs/SM at 82 KB, `STAGES = 3` one CTA at 122 KB.
