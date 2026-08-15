@@ -64,7 +64,7 @@ impl GpuContext {
     ///
     /// Fails if there is no usable device, or if the embedded PTX is the stub `build.rs` emits when
     /// `nvcc` is absent, in which case the kernel is missing from the module.
-    pub fn new(device_id: usize) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(device_id: usize) -> anyhow::Result<Self> {
         let ctx = CudaContext::new(device_id)?;
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
@@ -78,7 +78,7 @@ impl GpuContext {
     }
 
     /// The device's compute capability as `(major, minor)`. The kernel requires 9.0 (Hopper).
-    pub fn compute_capability(&self) -> Result<(i32, i32), Box<dyn std::error::Error>> {
+    pub fn compute_capability(&self) -> anyhow::Result<(i32, i32)> {
         let major = self.ctx.attribute(
             sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
         )?;
@@ -138,7 +138,7 @@ pub fn matmul_b1_raw(
     k: usize,
     b: &[u64],
     n: usize,
-) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+) -> anyhow::Result<Vec<u64>> {
     Ok(matmul_b1_inner(gpu, a, m, k, b, n, 1)?.0)
 }
 
@@ -158,7 +158,7 @@ pub fn matmul_b1_raw_timed(
     b: &[u64],
     n: usize,
     time_iters: usize,
-) -> Result<(Vec<u64>, f64), Box<dyn std::error::Error>> {
+) -> anyhow::Result<(Vec<u64>, f64)> {
     matmul_b1_inner(gpu, a, m, k, b, n, time_iters.max(1))
 }
 
@@ -171,7 +171,7 @@ fn matmul_b1_inner(
     b: &[u64],
     n: usize,
     time_iters: usize,
-) -> Result<(Vec<u64>, f64), Box<dyn std::error::Error>> {
+) -> anyhow::Result<(Vec<u64>, f64)> {
     let n_lim = n.div_ceil(64);
     assert_eq!(a.len(), m * k.div_ceil(64), "A limb count mismatch");
     assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
@@ -317,7 +317,7 @@ fn encode_tma(
     boxdim: [u32; 2],
     row_stride_bytes: u64,
     swizzle: sys::CUtensorMapSwizzle_enum,
-) -> Result<sys::CUtensorMap, Box<dyn std::error::Error>> {
+) -> anyhow::Result<sys::CUtensorMap> {
     let gstride = [row_stride_bytes];
     let elemstride = [1u32, 1u32];
     let mut tmap = MaybeUninit::<sys::CUtensorMap>::uninit();

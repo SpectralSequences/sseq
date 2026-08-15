@@ -11,7 +11,7 @@ mod common;
 use common::matmul_b1;
 use rand::Rng;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     let mut rng = rand::rng();
     let mut make = |rows: usize, cols: usize| {
