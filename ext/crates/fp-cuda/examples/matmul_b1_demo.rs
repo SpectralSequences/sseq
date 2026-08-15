@@ -26,6 +26,9 @@ fn main() -> anyhow::Result<()> {
 
     for &(m, k, n) in &[
         (64, 256, 64),
+        // Nothing divides evenly: exercises the ragged tail on all three axes at once, and the
+        // partially-occupied last limb of a row.
+        (65, 65, 65),
         (128, 256, 128),
         (256, 256, 256),
         (512, 512, 512),
