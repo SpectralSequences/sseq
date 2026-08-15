@@ -23,11 +23,8 @@
 // n128 output width (columns) per CTA, fixed by the wgmma_n128 shape.
 #define NB 128
 
-// K-loop pipeline depth (full/empty buffers). Capped at 4 under CLUSTER > 1; see EXPERIMENTS.md.
+// K-loop pipeline depth (full/empty buffers). Capped at 4; see EXPERIMENTS.md.
 #define STAGES 4
-
-// CTAs per cluster along M (multicast B; reuse knob).
-#define CLUSTER 2
 
 // M-tiles per rasterization group (L2 reuse knob).
 #define GROUP_M 16
@@ -51,7 +48,6 @@ FP_CUDA_CHECK(MW);
 FP_CUDA_CHECK(TK);
 FP_CUDA_CHECK(NB);
 FP_CUDA_CHECK(STAGES);
-FP_CUDA_CHECK(CLUSTER);
 FP_CUDA_CHECK(GROUP_M);
 FP_CUDA_CHECK(THREADS_PER_WG);
 #undef FP_CUDA_CHECK
