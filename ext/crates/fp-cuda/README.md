@@ -157,19 +157,19 @@ The crate is still a workspace **member**, so `cargo metadata` sees it,
 
 ## Status
 
-Validated on an H200 NVL (CUDA 13.0 driver / 12.4 toolkit, 2026-07-07) and
-earlier on an H100 NVL. Outputs are **bit-exact** against the CPU `fp::blas`
-path across `matmul_b1_demo` (64…8192) and the kernel-only bench (4096…32768,
-including a full 32768³ CPU cross-check).
+Validated on an H200 NVL (CUDA 12.4 toolkit) and earlier on an H100 NVL. Outputs
+are **bit-exact** against the CPU `fp::blas` path across `matmul_b1_demo`
+(64…8192) and the kernel-only bench (4096…32768, including a full 32768³ CPU
+cross-check).
 
 Throughput, **kernel-only** (host setup + H2D/D2H excluded), H200 NVL:
 
 | size (M=K=N) | binary TOPS | ms/launch |
 |--------------|-------------|-----------|
-| 4096         | ~4,000      | 0.034     |
-| 8192         | ~6,700      | 0.163     |
-| 16384        | ~8,600      | 1.02      |
-| 32768        | ~9,600      | 7.33      |
+| 4096         | ~4,100      | 0.033     |
+| 8192         | ~7,000      | 0.158     |
+| 16384        | ~8,500      | 1.04      |
+| 32768        | ~9,600      | 7.35      |
 
 ## Debugging notes
 

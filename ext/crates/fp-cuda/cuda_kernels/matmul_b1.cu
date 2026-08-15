@@ -22,13 +22,8 @@
 // order so each B-panel's reuse distance stays short (L2-resident). The pipeline barriers are
 // initialized once and flow continuously across tiles.
 //
-// The CTAs are INDEPENDENT: no thread-block cluster, no TMA multicast. An earlier revision grouped
-// CTAs along M into `__cluster_dims__` clusters that shared one HBM read of each B-panel.
-// `__cluster_dims__` makes a cluster's CTAs co-resident by construction — a hard placement
-// constraint — so the launch does not queue for SMs the way an ordinary grid does, and on a GPU
-// another runtime is using it fails outright with CUDA_ERROR_LAUNCH_FAILED. Dropping the multicast
-// costs under 1.5% at every measured shape (4096^3 through 32768^3 on an idle H200) because
-// GROUP_M rasterization already keeps B in L2, so the constraint bought essentially nothing.
+// The CTAs are independent: no thread-block cluster, no TMA multicast, so the grid carries no
+// placement constraint. Clusters were tried and removed; see EXPERIMENTS.md.
 
 #include <cstdint>
 #include <cuda_runtime.h>
@@ -75,7 +70,8 @@ __device__ __forceinline__ void mbar_wait(uint64_t* b, uint32_t phase) {
         "}\n" :: "r"(a), "r"(phase) : "memory");
 }
 // TMA load (global → SMEM) of the tile at tensor coords (x, y) into `dst`, completing against the
-// mbarrier `b`. Issued by a single thread.
+// mbarrier `b`. Issued by a single thread. `.shared::cluster` is the PTX name of the state space
+// the bulk-copy family addresses; it does not require a cluster launch.
 __device__ __forceinline__ void tma_2d(
     void* dst, const CUtensorMap* tm, int x, int y, uint64_t* b) {
     asm volatile(
@@ -88,7 +84,7 @@ __device__ __forceinline__ void tma_2d(
 }
 
 // Arrive (count 1) on a local mbarrier. The only CTA that ever releases a stage is the one that
-// consumed it, so no cross-CTA (`mapa`) translation is needed and no co-residency is implied.
+// consumed it, so the barrier is never reached from another CTA.
 __device__ __forceinline__ void arrive_local(uint64_t* b) {
     asm volatile("mbarrier.arrive.shared::cta.b64 _, [%0], 1;\n"
         :: "r"((uint32_t)__cvta_generic_to_shared(b)) : "memory");
