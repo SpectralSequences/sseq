@@ -29,6 +29,8 @@
 #include <cuda_runtime.h>
 #include <cuda.h>
 
+#include "params.h"
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 // Build a wgmma SMEM matrix descriptor.
@@ -184,17 +186,8 @@ __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.
 // Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
 // issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
 // load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
-// ~1/(1+NB/BM). MSTRIPS is the block knob; NB is fixed at 128 (the wgmma_n128
-// shape); acc regs per thread = MSTRIPS*ACC_N <= 240.
-constexpr int MSTRIPS = 3;         // m64 row-strips per CTA (block knob)
-constexpr int MW = 64;             // wgmma M extent (fixed for binary wgmma)
-constexpr int TK = 1024;
-constexpr int NB = 128;            // n128 output width (columns) per CTA
-// K-loop pipeline depth. Capped at 4 under CLUSTER > 1; see EXPERIMENTS.md.
-constexpr int STAGES = 4;
-constexpr int THREADS_PER_WG = 128;
-constexpr int GROUP_M = 16;        // M-tiles per rasterization group (L2 reuse knob)
-constexpr int CLUSTER = 2;         // CTAs per cluster along M (multicast B; reuse knob)
+// ~1/(1+NB/BM). The knobs themselves live in params.h (shared with the host);
+// everything below is derived.
 constexpr int KL = TK/64;          // u64 per tile row (= 128 B, the swizzle width)
 constexpr int TM = MW*MSTRIPS;     // output rows per CTA
 constexpr int NG = NB/64;          // output column-limbs per CTA

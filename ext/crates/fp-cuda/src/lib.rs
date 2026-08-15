@@ -19,13 +19,20 @@ use cudarc::{
 
 static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
 
-const TILE_M: usize = 192; // MW*MSTRIPS in the kernel; must match
-const TILE_K: usize = 1024;
-const KL: usize = TILE_K / 64; // 16
-const THREADS: u32 = 256; // 2 warpgroups: producer (0..128) + consumer (128..256)
-const NG: u32 = 2; // output column-limbs per CTA (NB/64 = 128/64); must match the kernel
-const STAGES: usize = 4; // K-loop pipeline depth; must match the kernel
-const CLUSTER: usize = 2; // CTAs per cluster along M (multicast B); must match the kernel
+/// The tuning knobs from `cuda_kernels/params.h`, mirrored into Rust by `build.rs`.
+///
+/// The kernel includes the same header, so these cannot drift from it.
+mod params {
+    #![allow(dead_code)]
+    include!(concat!(env!("OUT_DIR"), "/params.rs"));
+}
+use params::{CLUSTER, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+
+const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
+const TILE_K: usize = TK;
+const KL: usize = TILE_K / 64;
+const THREADS: u32 = (2 * THREADS_PER_WG) as u32; // producer warpgroup + consumer warpgroup
+const NG: u32 = (NB / 64) as u32; // output column-limbs per CTA
 
 /// A `CUtensorMap` passed by value as a (grid-constant) kernel argument.
 ///
