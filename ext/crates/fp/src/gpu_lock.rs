@@ -142,9 +142,10 @@ pub fn shared() -> SharedGuard {
 pub fn exclusive() -> ExclusiveGuard {
     // NOT gated on `arbitration_needed()`. That flag answers "does the MULTIPLY share this device",
     // which is the only question [`shared`] cares about. Reductions must serialize against each
-    // OTHER regardless, because the row reduction's GEMM is a persistent whole-device grid
-    // (`num_ctas = occupancy x SMs`, cluster-aligned): two concurrent reductions each demand the
-    // entire GPU and neither can be placed, which surfaces as `CUDA_ERROR_LAUNCH_FAILED`.
+    // OTHER regardless, because the row reduction's GEMM is a persistent grid sized to fill the
+    // machine (`num_ctas = occupancy x SMs`): two concurrent reductions each demand the entire GPU,
+    // so each one's thousands of tiny sequential relaunches queue behind the other's GEMM. Both
+    // then crawl, and a reduction slow enough drags the whole resolution with it.
     //
     // Skipping this on a dedicated reduction GPU is what made `FP_CUDA_DEVICE=3` with the multiply
     // on 0..2 fail 63 times in 300 s — an isolated device removes multiply contention but leaves
