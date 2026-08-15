@@ -7,7 +7,7 @@ mod common;
 use common::matmul_b1;
 use rand::Rng;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     let (major, minor) = gpu.compute_capability()?;
     println!("GPU: sm_{major}{minor} (H100)");

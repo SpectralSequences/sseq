@@ -24,11 +24,7 @@ pub fn to_limbs(m: &Matrix) -> Vec<u64> {
 }
 
 /// `Matrix`-typed wrapper over [`fp_cuda::matmul_b1_raw`].
-pub fn matmul_b1(
-    gpu: &GpuContext,
-    a: &Matrix,
-    b: &Matrix,
-) -> Result<Matrix, Box<dyn std::error::Error>> {
+pub fn matmul_b1(gpu: &GpuContext, a: &Matrix, b: &Matrix) -> anyhow::Result<Matrix> {
     assert_eq!(a.prime(), TWO);
     assert_eq!(b.prime(), TWO);
     assert_eq!(a.columns(), b.rows());
@@ -43,7 +39,7 @@ pub fn matmul_b1_timed(
     a: &Matrix,
     b: &Matrix,
     time_iters: usize,
-) -> Result<(Matrix, f64), Box<dyn std::error::Error>> {
+) -> anyhow::Result<(Matrix, f64)> {
     assert_eq!(a.prime(), TWO);
     assert_eq!(b.prime(), TWO);
     assert_eq!(a.columns(), b.rows());

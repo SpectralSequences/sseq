@@ -18,7 +18,7 @@ fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
     2.0 * (m as f64) * (n as f64) * (k as f64) / secs / 1e12
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     // Assumed L2 capacity (H100 / H200 NVL ≈ 50 MB); not read from the device.
     // Override when profiling a card with a different L2 size.

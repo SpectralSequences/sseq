@@ -11,6 +11,7 @@ publish = false
 build = "build.rs"
 
 [dependencies]
+anyhow = "1.0.98"
 
 # Driver API only. `cuda-12080` selects which pre-generated driver bindings to compile; it does not
 # pin the driver, since `dynamic-loading` dlopen's the real one at runtime, so a newer driver
