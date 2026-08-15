@@ -241,9 +241,8 @@ fn matmul_b1_inner(
 
     // Persistent grid: co-resident CTAs = (occupancy per SM) × SM count, so the grid exactly fills
     // the machine and the kernel's persistent loop sweeps all output tiles in grouped-rasterized
-    // order. The CTAs are independent, so the grid size is a throughput parameter only: any size
-    // is correct (fewer CTAs simply do more tile-iterations each) and the launch queues for SMs
-    // like an ordinary one instead of demanding a placement.
+    // order. The CTAs are independent, so the grid size is a throughput parameter only: any size is
+    // correct, and fewer CTAs simply do more tile-iterations each.
     let sms = gpu
         .ctx
         .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
