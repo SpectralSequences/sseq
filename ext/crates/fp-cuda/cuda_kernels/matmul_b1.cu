@@ -390,8 +390,11 @@ extern "C" __global__ void matmul_b1_kernel(
         // (this one) has finished reading its sC buffer, so tile T's store drains
         // during tile T+1's compute instead of stalling here. The buffer freed is
         // the one from two tiles ago — safe to reuse next time cbuf lands on it.
-        __syncthreads();        // sC[cbuf] fully packed by the consumer
-        fence_async_shared();   // make the atomicXor writes visible to the async proxy
+        // The fence precedes the barrier: fence.proxy.async orders only the *executing* thread's
+        // prior generic-proxy writes, so every thread has to fence its own atomicXor output before
+        // the barrier lets t == 0 hand sC to the async proxy.
+        fence_async_shared();
+        __syncthreads();        // sC[cbuf] fully packed, and every consumer's fence retired
         if (t == 0) {
             tma_store_2d(&tma_c, col0 * 2, row0, sCb); // x in UINT32 units (2 per limb)
             tma_store_commit();
