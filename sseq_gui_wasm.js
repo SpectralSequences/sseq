@@ -114,24 +114,24 @@ let wasm_bindgen = (function(exports) {
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_debug_string_c25d447a39f5578f: function(arg0, arg1) {
+            __wbg___wbindgen_debug_string_a57024b9c6e4a48b: function(arg0, arg1) {
                 const ret = debugString(arg1);
                 const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
                 const len1 = WASM_VECTOR_LEN;
                 getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
                 getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
             },
-            __wbg___wbindgen_panic_error_ea70472193ffc244: function(arg0) {
+            __wbg___wbindgen_panic_error_f153dd2564290663: function(arg0) {
                 const ret = new PanicError(arg0);
                 return ret;
             },
-            __wbg___wbindgen_rethrow_4915403b40f010b4: function(arg0) {
+            __wbg___wbindgen_rethrow_fbd2dcd7d2b9ac5f: function(arg0) {
                 throw new WebAssembly.Exception(__wbindgen_wrapped_jstag, [arg0]);
             },
-            __wbg___wbindgen_throw_344f42d3211c4765: function(arg0, arg1) {
+            __wbg___wbindgen_throw_bb96b2010945f0bc: function(arg0, arg1) {
                 throw new WebAssembly.Exception(__wbindgen_wrapped_jstag, [new Error(getStringFromWasm0(arg0, arg1))]);
             },
-            __wbg_call_a6e5c5dce5018821: function(arg0, arg1, arg2) {
+            __wbg_call_35dba3c747ad7521: function(arg0, arg1, arg2) {
                 const ret = arg0.call(arg1, arg2);
                 return ret;
             },
@@ -292,7 +292,7 @@ let wasm_bindgen = (function(exports) {
 
     class PanicError extends Error {}
     Object.defineProperty(PanicError.prototype, 'name', {
-        value: PanicError.name,
+        value: 'PanicError',
     });
 
     function passStringToWasm0(arg, malloc, realloc) {
@@ -367,11 +367,15 @@ let wasm_bindgen = (function(exports) {
 
     async function __wbg_load(module, imports) {
         if (typeof Response === 'function' && module instanceof Response) {
+            if (!module.ok) {
+                throw new Error(`failed to fetch Wasm: ${module.status} ${module.statusText} fetching '${module.url}'`);
+            }
+
             if (typeof WebAssembly.instantiateStreaming === 'function') {
                 try {
                     return await WebAssembly.instantiateStreaming(module, imports);
                 } catch (e) {
-                    const validResponse = module.ok && expectedResponseType(module.type);
+                    const validResponse = expectedResponseType(module.type);
 
                     if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
                         console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
