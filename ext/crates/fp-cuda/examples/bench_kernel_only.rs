@@ -1,11 +1,10 @@
 //! Kernel-only throughput for `matmul_b1`.
 //!
-//! Unlike `bench_kernel` (end-to-end, host-serialization-bound) and the
-//! `cargo bench` criterion harness (also end-to-end), this isolates the GPU
-//! kernel: all host (de)serialization, the TMA-layout pre-arrangement, and the
-//! H2D/D2H copies happen once, then only back-to-back kernel launches are
-//! timed (see `matmul_b1_timed`). This is the apples-to-apples number to
-//! compare against the ~100-binary-TOPS pre-swizzle kernel baseline.
+//! Unlike `bench_kernel` (end-to-end, host-serialization-bound) and the `cargo bench` criterion
+//! harness (also end-to-end), this isolates the GPU kernel: all host (de)serialization, the
+//! TMA-layout pre-arrangement, and the H2D/D2H copies happen once, then only back-to-back kernel
+//! launches are timed (see `matmul_b1_timed`). This is the apples-to-apples number to compare
+//! against the ~100-binary-TOPS pre-swizzle kernel baseline.
 //!
 //! Run: `cargo run --release -p fp-cuda --example bench_kernel_only`.
 

@@ -21,10 +21,7 @@ serde_json = "1.0.141"
 maybe-rayon = { path = "../maybe-rayon" }
 query = { path = "../query" }
 
-# GPU backend (Hopper wgmma.b1). Optional and off by default: gated behind the
-# `gpu` feature. `fp-cuda`'s library is fp-agnostic (raw limbs), so this
-# dependency does not form a cycle. Building it requires nvcc at build time (a
-# stub PTX is emitted otherwise) and a Hopper GPU + driver at runtime.
+# GPU backend (Hopper wgmma.b1), gated behind the `gpu` feature and off by default.
 fp-cuda = { path = "../fp-cuda", optional = true }
 
 [dev-dependencies]

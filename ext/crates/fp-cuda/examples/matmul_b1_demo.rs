@@ -1,7 +1,7 @@
 //! Smoke test for the `fp-cuda` matmul kernel.
 //!
-//! Multiplies one pair of small F_2 matrices on the GPU and verifies the result against
-//! `fp::blas`. Run with `cargo oxide run -p fp-cuda --example matmul_b1_demo`.
+//! Multiplies one pair of small F_2 matrices on the GPU and verifies the result against `fp::blas`.
+//! Run with `cargo oxide run -p fp-cuda --example matmul_b1_demo`.
 
 use fp::{matrix::Matrix, prime::TWO};
 use fp_cuda::GpuContext;

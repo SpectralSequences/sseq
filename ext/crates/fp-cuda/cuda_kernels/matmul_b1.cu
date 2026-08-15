@@ -1,34 +1,29 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //
-// Hopper wgmma.b1 F_2 GEMM kernel — 128B-swizzle operands, pipelined wgmmas,
-// the widest binary MMA shape (m64n256k256), a persistent grid with grouped
-// tile rasterization (Phase 8), and thread-block clusters + TMA B-multicast
-// (Phase 9) — both target L2 residency of B at large N.
+// Hopper wgmma.b1 F_2 GEMM kernel — 128B-swizzle operands, pipelined wgmmas, a register-blocked
+// output tile, a persistent grid with grouped tile rasterization, and thread-block clusters with
+// TMA B-multicast. The last two both target L2 residency of B at large N.
 //
-// Both operands are K-major. They are pre-arranged on the host as plain
-// row-major tiles and loaded via TMA cp.async.bulk.tensor.2d with
-// CU_TENSOR_MAP_SWIZZLE_128B: the TMA hardware applies the 128B swizzle on the
-// way into SMEM, landing the data exactly where the swizzled wgmma matrix
-// descriptor expects it — so the host emits the natural layout and there is no
-// hand-rolled interleave.
+// Both operands are K-major. They are pre-arranged on the host as plain row-major tiles and loaded
+// via TMA cp.async.bulk.tensor.2d with CU_TENSOR_MAP_SWIZZLE_128B: the TMA hardware applies the
+// 128B swizzle on the way into SMEM, landing the data exactly where the swizzled wgmma matrix
+// descriptor expects it — so the host emits the natural layout and there is no hand-rolled
+// interleave.
 //
-// Each loaded tile spans a full 128B K-major swizzle atom (8 rows × 1024 bits),
-// i.e. KSUB = 4 consecutive k256 sub-chunks. A CTA computes a register-blocked
-// TM×NB output block (MSTRIPS m64 row-strips × 128 columns). Each k256 step
-// loads B once and issues MSTRIPS m64n128k256 wgmmas that all reuse it — one
-// L2→SMEM read of B feeds every strip, which cuts the operand-refill bytes per
-// MAC (the measured bottleneck on Hopper: the tensor core out-runs L2→SMEM
-// bandwidth). Each strip accumulates into its own resident 64-reg accumulator
-// (scale-D = 1, popcounts summed in-hardware), all live across the whole K loop.
+// Each loaded tile spans a full 128B K-major swizzle atom (8 rows × TK bits), i.e. KSUB consecutive
+// k256 sub-chunks. A CTA computes a register-blocked TM×NB output block (MSTRIPS m64 row-strips ×
+// NB columns). Each k256 step loads B once and issues MSTRIPS m64n128k256 wgmmas that all reuse it
+// — one L2→SMEM read of B feeds every strip, which cuts the operand-refill bytes per MAC (the
+// measured bottleneck on Hopper: the tensor core out-runs L2→SMEM bandwidth). Each strip
+// accumulates into its own resident ACC_N-register accumulator (scale-D = 1, popcounts summed
+// in-hardware), all live across the whole K loop.
 //
-// The grid is persistent: ~SM-count CTAs (in clusters of CLUSTER along M) sweep
-// the output tile grid in a grouped-along-M rasterized order so each B-panel's
-// reuse distance stays short (L2-resident). Within a cluster the CLUSTER CTAs
-// share one HBM read of each B-panel via TMA multicast — each computes a
-// different M-tile but receives the same B into its own SMEM. The pipeline
-// barriers are initialized once and flow continuously across tiles; the empty
-// barrier is cluster-wide. This mirrors the proven pattern in
-// pranjalssh/fast.cu matmul_9.cuh.
+// The grid is persistent: ~SM-count CTAs (in clusters of CLUSTER along M) sweep the output tile
+// grid in a grouped-along-M rasterized order so each B-panel's reuse distance stays short
+// (L2-resident). Within a cluster the CLUSTER CTAs share one HBM read of each B-panel via TMA
+// multicast — each computes a different M-tile but receives the same B into its own SMEM. The
+// pipeline barriers are initialized once and flow continuously across tiles; the empty barrier is
+// cluster-wide.
 
 #include <cstdint>
 #include <cuda_runtime.h>
@@ -53,14 +48,17 @@ __device__ __forceinline__ uint64_t make_desc(
     return d;
 }
 
+// Initialize the mbarrier `b` to expect `cnt` arrivals per phase.
 __device__ __forceinline__ void mbar_init(uint64_t* b, uint32_t cnt) {
     asm volatile("mbarrier.init.shared::cta.b64 [%0], %1;\n"
         :: "r"((uint32_t)__cvta_generic_to_shared(b)), "r"(cnt));
 }
+// Arrive on `b` and declare that `bytes` bytes of async traffic will complete against it.
 __device__ __forceinline__ void mbar_tx(uint64_t* b, uint32_t bytes) {
     asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;\n"
         :: "r"((uint32_t)__cvta_generic_to_shared(b)), "r"(bytes) : "memory");
 }
+// Spin until `b` flips to `phase`. try_wait can wake spuriously, hence the retry loop.
 __device__ __forceinline__ void mbar_wait(uint64_t* b, uint32_t phase) {
     uint32_t a = (uint32_t)__cvta_generic_to_shared(b);
     asm volatile(
@@ -69,6 +67,8 @@ __device__ __forceinline__ void mbar_wait(uint64_t* b, uint32_t phase) {
         "  @!p bra L;\n"
         "}\n" :: "r"(a), "r"(phase) : "memory");
 }
+// TMA load (global → SMEM) of the tile at tensor coords (x, y) into `dst`, completing against the
+// mbarrier `b`. Issued by a single thread.
 __device__ __forceinline__ void tma_2d(
     void* dst, const CUtensorMap* tm, int x, int y, uint64_t* b) {
     asm volatile(
@@ -80,7 +80,7 @@ __device__ __forceinline__ void tma_2d(
         : "memory");
 }
 
-// ── Cluster helpers (Phase 9: clusters + TMA multicast) ───────────────────────
+// ── Cluster helpers (clusters + TMA multicast) ────────────────────────────────
 // All mirror the proven pattern in pranjalssh/fast.cu matmul_9.cuh.
 
 // This CTA's rank within its cluster (0..CLUSTER-1).
@@ -145,12 +145,14 @@ __device__ __forceinline__ void wgmma_n128(int32_t acc[64], uint64_t da, uint64_
           "+r"(acc[56]),"+r"(acc[57]),"+r"(acc[58]),"+r"(acc[59]),"+r"(acc[60]),"+r"(acc[61]),"+r"(acc[62]),"+r"(acc[63])
         : "l"(da), "l"(db));
 }
+// Make prior register writes to the accumulators visible to the async wgmma proxy.
 __device__ __forceinline__ void wgmma_fence()  { asm volatile("wgmma.fence.sync.aligned;\n" ::: "memory"); }
+// Close the current group of issued wgmmas so it can be waited on.
 __device__ __forceinline__ void wgmma_commit() { asm volatile("wgmma.commit_group.sync.aligned;\n" ::: "memory"); }
+// Wait until every committed wgmma group has retired and the accumulators are readable.
 __device__ __forceinline__ void wgmma_wait()   { asm volatile("wgmma.wait_group.sync.aligned 0;\n" ::: "memory"); }
 
-// TMA bulk tensor store (SMEM → global) plus its completion group helpers and
-// the async-proxy fence that makes generic-proxy SMEM writes visible to it.
+// TMA bulk tensor store (SMEM → global) of the tile at `src` to tensor coords (x, y).
 __device__ __forceinline__ void tma_store_2d(
     const CUtensorMap* tm, int x, int y, const void* src) {
     asm volatile(
@@ -158,55 +160,54 @@ __device__ __forceinline__ void tma_store_2d(
         :: "l"((uint64_t)tm), "r"(x), "r"(y),
            "r"((uint32_t)__cvta_generic_to_shared(src)) : "memory");
 }
+// Close the current group of issued bulk stores so it can be waited on.
 __device__ __forceinline__ void tma_store_commit() { asm volatile("cp.async.bulk.commit_group;\n" ::: "memory"); }
+// Wait until every committed store group is globally visible.
 __device__ __forceinline__ void tma_store_wait()   { asm volatile("cp.async.bulk.wait_group 0;\n" ::: "memory"); }
 // Wait until all but the most-recent store group have *read* their SMEM source
 // (`.read` = don't wait for global visibility). Lets a double-buffered sC free
 // the buffer from two tiles ago while the newest store drains in the background.
 __device__ __forceinline__ void tma_store_wait_read1() { asm volatile("cp.async.bulk.wait_group.read 1;\n" ::: "memory"); }
+// Make generic-proxy SMEM writes visible to the async proxy, so a bulk store reads the new data.
 __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.async.shared::cta;\n" ::: "memory"); }
 
-// Per-warpgroup register reallocation (warpgroup-aligned). The producer needs
-// few registers, so it releases its surplus; the consumer (MSTRIPS*ACC_N-reg
-// accumulator) claims them. Counts must be multiples of 8 in [24,256]; at
-// 1 CTA/SM the SM's 64K-register budget is ample (128*(40+232) = 34816 at
-// MSTRIPS=3), so the binding limit is the 255-reg-per-thread hardware cap.
+// Per-warpgroup register reallocation (warpgroup-aligned). The producer needs few registers, so it
+// releases its surplus; the consumer (MSTRIPS*ACC_N-reg accumulator) claims them. Counts must be
+// multiples of 8 in [24,256] and must fit the register file:
+// THREADS_PER_WG*(PRODUCER_REGS + CONSUMER_REGS) <= 65536. At 1 CTA/SM that budget is ample, so
+// the binding limit is the 255-reg-per-thread hardware cap.
+// Release registers down to N per thread (the producer warpgroup).
 #define SET_MAXNREG_DEC(N) asm volatile("setmaxnreg.dec.sync.aligned.u32 %0;\n" :: "n"(N))
+// Claim registers up to N per thread (the consumer warpgroup).
 #define SET_MAXNREG_INC(N) asm volatile("setmaxnreg.inc.sync.aligned.u32 %0;\n" :: "n"(N))
 
 // Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
 // issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
 // load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
-// ~1/(1+NB/BM). MSTRIPS is the block knob: 2 → 128×128 block (−20% bytes/MAC,
-// 128 acc regs), 3 → 192×128 (−33%, 192 acc regs). NB is fixed at 128 (the
-// wgmma_n128 shape); acc regs per thread = MSTRIPS*ACC_N ≤ 240.
+// ~1/(1+NB/BM). MSTRIPS is the block knob; NB is fixed at 128 (the wgmma_n128
+// shape); acc regs per thread = MSTRIPS*ACC_N <= 240.
 constexpr int MSTRIPS = 3;         // m64 row-strips per CTA (block knob)
 constexpr int MW = 64;             // wgmma M extent (fixed for binary wgmma)
-constexpr int TK = 1024, KL = TK/64;
-constexpr int TM = MW*MSTRIPS;     // output rows per CTA (192 at MSTRIPS=3)
+constexpr int TK = 1024;
 constexpr int NB = 128;            // n128 output width (columns) per CTA
-constexpr int NG = NB/64;          // 2 output column-limbs per CTA
-constexpr int ACC_N = NB/2;        // 64 s32 accumulator regs per m64n128 strip
-constexpr int TILE_A = TM*KL;      // A tile: TM rows × 16 u64 (192 rows → 3072 u64 = 24 KB)
-constexpr int TILE_B = NB*KL;      // B tile: 128 cols × 16 u64 = 2048 u64 = 16 KB
-constexpr int STROW = MW*KL;       // u64 per m64 strip in sA (64*16 = 1024 = 8 KB)
-constexpr int SC_STRIDE = NG*TM;   // u64 per sC output buffer (double-buffered)
-constexpr int KSUB = TK/256;       // 4 k256 wgmma sub-chunks per loaded tile
-constexpr int KSUB_U64 = 256/64;   // 4 u64 = 32 bytes per k256 sub-chunk
-// K-loop pipeline depth. Cap is 4 under CLUSTER>1: each stage is 40 KB, so
-// STAGES=5 needs ~206 KB, which is under the 227 KB opt-in cap BUT a cluster
-// launch reserves extra shared memory (distributed-SMEM / cluster-barrier
-// bookkeeping), so 206 KB intermittently over-commits and the kernel faults
-// with a flaky "unspecified launch failure" (verified 2026-07-07 H200; the
-// sanitizers miss it because it is an async/resource fault). STAGES=5 is stable
-// only with CLUSTER=1, and gives no large-N speedup there, so 4 it is.
-constexpr int STAGES = 4;          // K-loop pipeline depth (full/empty buffers)
+// K-loop pipeline depth. Capped at 4 under CLUSTER > 1; see EXPERIMENTS.md.
+constexpr int STAGES = 4;
 constexpr int THREADS_PER_WG = 128;
 constexpr int GROUP_M = 16;        // M-tiles per rasterization group (L2 reuse knob)
 constexpr int CLUSTER = 2;         // CTAs per cluster along M (multicast B; reuse knob)
+constexpr int KL = TK/64;          // u64 per tile row (= 128 B, the swizzle width)
+constexpr int TM = MW*MSTRIPS;     // output rows per CTA
+constexpr int NG = NB/64;          // output column-limbs per CTA
+constexpr int ACC_N = NB/2;        // s32 accumulator regs per m64n128 strip
+constexpr int TILE_A = TM*KL;      // A tile: TM rows × KL u64
+constexpr int TILE_B = NB*KL;      // B tile: NB cols × KL u64
+constexpr int STROW = MW*KL;       // u64 per m64 strip in sA
+constexpr int SC_STRIDE = NG*TM;   // u64 per sC output buffer (double-buffered)
+constexpr int KSUB = TK/256;       // k256 wgmma sub-chunks per loaded tile
+constexpr int KSUB_U64 = 256/64;   // u64 per k256 sub-chunk (32 bytes)
 constexpr int PRODUCER_REGS = 40;
 // Consumer holds MSTRIPS*ACC_N accumulator regs live across K, plus addressing;
-// round up to a multiple of 8, ≤ 240. 1 CTA/SM so the SM reg budget is ample.
+// round up to a multiple of 8, <= 240. 1 CTA/SM so the SM reg budget is ample.
 constexpr int CONSUMER_REGS = ((MSTRIPS*ACC_N + 40 + 7)/8)*8;
 
 // wgmma 128B K-major descriptor constants (CUTLASS make_gmma_desc<Major::K>,
@@ -220,25 +221,23 @@ constexpr uint32_t DESC_SWIZ = 1;
 
 // ── Kernel ──────────────────────────────────────────────────────────────────
 
-// Producer-consumer kernel: 2 warpgroups (256 threads/CTA).
-//   Warpgroup 0 (t in [0, 128))  = PRODUCER: issues TMA loads in a tight
-//                                  K-loop into a STAGES-deep circular SMEM
-//                                  buffer.
-//   Warpgroup 1 (t in [128, 256)) = CONSUMER: waits for each stage to be full,
-//                                   runs KSUB*MSTRIPS pipelined m64n128 wgmmas
-//                                   against it, signals the stage empty so the
-//                                   producer can refill.
+// Producer-consumer kernel: 2 warpgroups of THREADS_PER_WG threads each.
+//   Warpgroup 0 = PRODUCER: issues TMA loads in a tight K-loop into a STAGES-deep
+//                 circular SMEM buffer.
+//   Warpgroup 1 = CONSUMER: waits for each stage to be full, runs KSUB*MSTRIPS
+//                 pipelined m64n128 wgmmas against it, signals the stage empty so
+//                 the producer can refill.
 //
 // Dynamic SMEM per CTA (carved from `smem`, 128B-aligned for TMA):
-//   sA[STAGES][TILE_A]  = STAGES * 24576 B (TM=192 rows)
-//   sB[STAGES][TILE_B]  = STAGES * 16384 B (NB=128 cols)
-//   sC[2][TM][NG]       = 2 * TM * NG * 8 B (double-buffered so the output store
-//                         of tile T overlaps tile T+1's compute)
+//   sA[STAGES][TILE_A]  = STAGES * TILE_A u64
+//   sB[STAGES][TILE_B]  = STAGES * TILE_B u64
+//   sC[2][TM][NG]       = 2 * TM * NG u64 (double-buffered so the output store of
+//                         tile T overlaps tile T+1's compute)
 //   mbar_full[STAGES] + mbar_empty[STAGES]
 //
-// Per stage = sA (24 KB) + sB (16 KB) = 40 KB; STAGES=4 ≈ 163 KB total (requires
-// the opt-in CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES set host-side).
-// At 40 KB/stage the block runs 1 CTA/SM; STAGES is the K-pipeline-depth knob.
+// A stage is sA + sB, and the total exceeds the 48 KB static cap, so the host must opt in via
+// CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES. The resulting footprint is what holds the
+// kernel to 1 CTA/SM; STAGES is the K-pipeline-depth knob.
 //
 // The output block (TM rows × NG limbs) is packed row-major into sC and written
 // back with a single TMA bulk store (S2G). C is padded to whole NG-limb column

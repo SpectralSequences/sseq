@@ -1,10 +1,9 @@
-//! Isolate *why* kernel-only throughput drops past N=16384: is it total size, or
-//! the B operand spilling out of the 50 MB L2?
+//! Isolate *why* kernel-only throughput drops past N=16384: is it total size, or the B operand
+//! spilling out of the 50 MB L2?
 //!
-//! Each B column-panel is reused across every M-tile, so the L2-reuse condition
-//! is simply whether the whole B matrix (K*N/8 bytes) fits in L2. These shapes
-//! hold FLOPs fixed while flipping "B fits in L2", which a pure size/occupancy
-//! story cannot explain.
+//! Each B column-panel is reused across every M-tile, so the L2-reuse condition is simply whether
+//! the whole B matrix (K*N/8 bytes) fits in L2. These shapes hold FLOPs fixed while flipping "B
+//! fits in L2", which a pure size/occupancy story cannot explain.
 //!
 //! Run: `cargo run --release -p fp-cuda --example bench_shapes`.
 

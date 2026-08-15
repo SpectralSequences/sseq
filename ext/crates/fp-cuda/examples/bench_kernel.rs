@@ -82,5 +82,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!();
     }
 
+    println!("Note: these are end-to-end figures, dominated by host serialization");
+    println!("and the TMA-layout pre-arrangement. Use `bench_kernel_only` for the");
+    println!("kernel-only throughput.");
+
     Ok(())
 }
