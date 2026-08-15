@@ -64,7 +64,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
 
     group.finish();
 
-    // Coarse manual TFLOPS report (criterion has its own throughput, but explicit logging makes
+    // Coarse manual binary-TOPS report (criterion has its own throughput, but explicit logging makes
     // binary-op throughput easy to grep from the bench output).
     let runs = 5;
     let start = Instant::now();
