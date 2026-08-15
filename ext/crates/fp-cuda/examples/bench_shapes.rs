@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
 
     println!(
         "{:>7} {:>7} {:>7} | {:>9} {:>6} | {:>9} | note",
-        "M", "K", "N", "B (MB)", "fits", "TOPS"
+        "M", "K", "N", "B (MB)", "fits", "kern TOPS"
     );
     for &(m, k, n, iters, note) in &shapes {
         let b_mb = (k as f64) * (n as f64) / 8.0 / 1e6;
