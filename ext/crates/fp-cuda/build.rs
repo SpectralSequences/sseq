@@ -76,7 +76,7 @@ fn emit_params(out_dir: &Path) -> Vec<(String, usize)> {
 /// `include_bytes!` needs the file to exist, so one is always written.
 const STUB_PTX: &str = "//\n// fp-cuda stub: nvcc was unavailable at build time; no GPU kernel \
                         was\n// compiled. Install the CUDA Toolkit (12.x+) and rebuild to enable \
-                        the GPU\n// backend.\n//\n.version 7.8\n.target sm_90a\n.address_size 64\n";
+                        the GPU\n// backend.\n//\n.version 8.0\n.target sm_90a\n.address_size 64\n";
 
 fn main() {
     println!("cargo:rerun-if-changed={KERNEL_SRC}");
