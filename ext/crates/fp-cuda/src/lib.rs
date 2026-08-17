@@ -57,6 +57,7 @@ pub struct GpuContext {
     #[allow(dead_code)]
     module: Arc<CudaModule>,
     kernel: CudaFunction,
+    transpose_kernel: CudaFunction,
 }
 
 impl GpuContext {
@@ -69,11 +70,13 @@ impl GpuContext {
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
+        let transpose_kernel = module.load_function("transpose_tile_b1_kernel")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
             module,
             kernel,
+            transpose_kernel,
         })
     }
 
@@ -129,6 +132,9 @@ impl GpuContext {
 /// - `a`: the `m`×`k` left operand, `m * k.div_ceil(64)` limbs.
 /// - `b`: the `k`×`n` right operand, `k * n.div_ceil(64)` limbs.
 ///
+/// The kernel wants B K-major; `transpose_tile_b1_kernel` rearranges it on the device, so B is
+/// uploaded exactly as it stands and the host does no bit-level work on either operand.
+///
 /// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to hand to
 /// `fp::Matrix::from_data`.
 pub fn matmul_b1_raw(
@@ -173,7 +179,8 @@ fn matmul_b1_inner(
     time_iters: usize,
 ) -> anyhow::Result<(Vec<u64>, f64)> {
     let n_lim = n.div_ceil(64);
-    assert_eq!(a.len(), m * k.div_ceil(64), "A limb count mismatch");
+    let k_lim = k.div_ceil(64);
+    assert_eq!(a.len(), m * k_lim, "A limb count mismatch");
     assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
 
     let k_padded = k.next_multiple_of(TILE_K);
@@ -189,14 +196,34 @@ fn matmul_b1_inner(
 
     let stream = gpu.stream();
 
-    let a_padded = pad_2d(a, m, k.div_ceil(64), m_padded, k_padded / 64);
-    let b_padded = pad_2d(b, k, n_lim, k_padded, n_lim);
-
+    let a_padded = pad_2d(a, m, k_lim, m_padded, k_padded / 64);
     let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
-    let bt = transpose_b(&b_padded, k_padded, n_lim);
-
     let a_dev = stream.clone_htod(&a_interleaved)?;
-    let bt_dev = stream.clone_htod(&bt)?;
+
+    // B goes up unpadded; the kernel reads rows past `k` as zeros, so the K padding costs no host
+    // copy.
+    let b_dev = stream.clone_htod(b)?;
+    let bt_dev = stream.alloc_zeros::<u64>(k_chunks * n_groups * (NG as usize * 64) * KL)?;
+    {
+        let cfg = LaunchConfig {
+            grid_dim: ((KL * NG as usize) as u32, n_groups as u32, k_chunks as u32),
+            block_dim: (64, 1, 1),
+            shared_mem_bytes: 0,
+        };
+        let mut lb = stream.launch_builder(&gpu.transpose_kernel);
+        let (n_lim_i, k_i, n_groups_i) = (n_lim as i32, k as i32, n_groups as i32);
+        lb.arg(&b_dev)
+            .arg(&bt_dev)
+            .arg(&n_lim_i)
+            .arg(&k_i)
+            .arg(&n_groups_i);
+        // SAFETY: the five pushed arguments match `transpose_tile_b1_kernel`'s parameter list in
+        // order and type; `b_dev` holds `k * n_lim` limbs and the kernel indexes it only where
+        // `row < k` and `limb < n_lim`; `bt_dev` is exactly the tile count the grid covers; both
+        // buffers outlive the launch, their guards being held until the final synchronize.
+        unsafe { lb.launch(cfg) }?;
+    }
+
     let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
 
     // Raw device addresses for the TMA descriptors. The returned guards keep the
@@ -372,51 +399,6 @@ fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
                         0
                     };
                     out[base + row * KL + kl] = val;
-                }
-            }
-        }
-    }
-    out
-}
-
-/// Pre-transpose B into plain row-major K-major tiles for TMA 128B swizzle.
-///
-/// Each (k_chunk, column group) tile is NB = NG*64 rows (= the NG*64 output columns of the group) ×
-/// KL u64s (= TILE_K K bits); the consumer feeds it to MSTRIPS m64n128 wgmmas that share it.
-/// Operand row `lg*64 + jj` is output column `cg*NG*64 + lg*64 + jj`; element `[..][kl] bit` is bit
-/// `jj` of `B[k_chunk*TILE_K + kl*64 + bit][cg*NG + lg]`.
-///
-/// Groups whose limb runs past `n_lim` are left zero-padded. Output is row-major; the TMA applies
-/// the swizzle on load.
-fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
-    let k_chunks = k / TILE_K;
-    let ng = NG as usize;
-    let n_groups = n_lim.div_ceil(ng);
-    let tile = ng * 64 * KL; // NB rows × KL u64
-    let mut out = vec![0u64; k_chunks * n_groups * tile];
-    let mut buf = [0u64; TILE_K];
-
-    for kk in 0..k_chunks {
-        for cg in 0..n_groups {
-            let base = (kk * n_groups + cg) * tile;
-            for lg in 0..ng {
-                let limb = cg * ng + lg;
-                if limb >= n_lim {
-                    continue; // padded column group → leave zeros
-                }
-                for (i, slot) in buf.iter_mut().enumerate() {
-                    let br = kk * TILE_K + i;
-                    *slot = if br < k { b[br * n_lim + limb] } else { 0 };
-                }
-                for jj in 0..64usize {
-                    let j = lg * 64 + jj; // operand row within the NB-col tile
-                    for kl in 0..KL {
-                        let mut val: u64 = 0;
-                        for bit in 0..64usize {
-                            val |= ((buf[kl * 64 + bit] >> jj) & 1) << bit;
-                        }
-                        out[base + j * KL + kl] = val;
-                    }
                 }
             }
         }

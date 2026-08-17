@@ -152,3 +152,41 @@ on this hardware, but not guaranteed by the model.
 Output stays bit-exact either way. The reorder costs ~0.96% at 4096 and ~0.73% at 8192 (every
 post-change run below the lowest pre-change run, so the loss is real), and is at noise level at
 16384 and 32768, the sizes the kernel is actually used at. Paid.
+
+## B is transposed on the device, not the host (2026-08-16, H200 NVL)
+
+**Chosen:** B is uploaded untransposed and rearranged by `transpose_tile_b1_kernel`. There is no
+host-side path.
+
+The alternative was to take Bᵀ from the caller and gather the tiles on the host — cheap, since with
+Bᵀ in hand each tile row is a contiguous limb run, and `fp` can produce Bᵀ quickly with a blocked
+`p = 2` transpose. It still loses, end to end, arms interleaved, 5 iterations, medians, each arm
+paying its own operand serialization:
+
+| n | host total | device total | speedup |
+|---|------------|--------------|---------|
+| 4096 | 2.59 ms | 2.09 ms | 1.24x |
+| 8192 | 16.32 ms | 11.18 ms | 1.46x |
+| 16384 | 127.24 ms | 76.93 ms | 1.65x |
+| 32768 | 459.54 ms | 271.18 ms | 1.70x |
+
+Reproduced on a second run (1.24 / 1.33 / 1.68 / 1.73x). The margin exceeds the host transpose alone
+because the host arm also runs `pad_2d` and a tiling pass, so the kernel displaces two pieces of
+host work rather than one.
+
+The host transpose is not slow in isolation — it reaches 7.4-9.4 GB/s while the working set fits in
+cache — but at 32768 that set is 128 MiB and it falls to roughly 1.4 GB/s. Measurements taken only
+up to 8192 make the host arm look far better than it is.
+
+## The transpose kernel is not worth optimizing (2026-08-16, H200 NVL)
+
+**Chosen:** leave `transpose_tile_b1_kernel` as written.
+
+Its loads are uncoalesced — thread `bit` reads a column of B, so consecutive threads are `n_lim`
+limbs apart — and `ncu` at 16384 confirms it: 9.94% DRAM throughput against 92.4% on the memory
+pipes. Staging a row-major tile in shared memory would fix that, and `__ballot_sync` would replace
+the 64-iteration gather.
+
+Neither is worth doing. The kernel runs 113 us against `matmul_b1_kernel`'s 1.36 ms, inside a 77 ms
+end-to-end call. Making it infinitely fast would buy about 0.15%. Of that 77 ms, roughly 55 ms is
+H2D/D2H and device allocation, which is where the time actually is.
