@@ -90,9 +90,9 @@ unsafe impl DeviceRepr for TmaArg {}
 /// K-major limb layout `fp::Matrix` uses: `stride = cols.div_ceil(64)` u64 per
 /// row, `rows * stride` u64 total, one bit per entry, bits past `cols` zero.
 ///
-/// This is the persistent buffer the row-reduction port operates over: uploaded
-/// once, mutated in place by device kernels, downloaded once. It is
-/// `fp`-agnostic (raw limbs) so `fp-cuda` stays free of a dependency on `fp`.
+/// This is the persistent buffer the row-reduction port operates over: uploaded once, mutated in
+/// place by device kernels, downloaded once. It is `fp`-agnostic (raw limbs) so `fp-cuda` stays
+/// free of a dependency on `fp`.
 pub struct DeviceMatrix {
     pub buf: CudaSlice<u64>,
     pub rows: usize,
@@ -622,8 +622,8 @@ impl GpuContext {
     /// XOR a padded GEMM output `c_dev` (`m × c_stride` u64/row, as returned by
     /// [`GpuContext::matmul_b1_dev`]) into a region of a persistent device matrix
     /// `dst`: `dst[j][dst_limb + col] ^= c_dev[j][col]` for `j < m`, `col <
-    /// width`. This is the fused trailing-update / back-sub epilogue: the
-    /// `M[region] ^= L·U` update with no fresh C alloc + D2H.
+    /// width`. This is the fused trailing-update / back-sub epilogue: the `M[region] ^= L·U`
+    /// update with no fresh C alloc + D2H.
     #[allow(clippy::too_many_arguments)]
     pub fn xor_into_region(
         &self,
@@ -709,9 +709,9 @@ impl GpuContext {
         Ok(self.stream().clone_dtoh(s)?)
     }
 
-    /// The fused trailing-update / back-substitution epilogue over persistent
-    /// device buffers: `dst[:, col_off:] ^= L · U`, in place,
-    /// where `L` is `dst.rows × k` and `U` is `k × t` (`k = l.cols = u.rows`,
+    /// The fused trailing-update / back-substitution epilogue over persistent device buffers:
+    /// `dst[:, col_off:] ^= L · U`, in place, where `L` is `dst.rows × k` and `U` is `k × t`
+    /// (`k = l.cols = u.rows`,
     /// `t = u.cols`). `col_off` must be a limb boundary (multiple of 64) and the
     /// trailing region `[col_off, dst.cols)` must be exactly `t` columns wide —
     /// i.e. `col_off + t == dst.cols` — so the whole-limb XOR lands correctly.
@@ -758,18 +758,18 @@ impl GpuContext {
         Ok(())
     }
 
-    /// Allocate the identity virtual-row permutation `perm = [0, 1, …, m-1]` on
-    /// device. Kernels dereference rows as `M[perm[i]]`; row swaps
-    /// are `perm` swaps, so the matrix bytes never move.
+    /// Allocate the identity virtual-row permutation `perm = [0, 1, …, m-1]` on device. Kernels
+    /// dereference rows as `M[perm[i]]`; row swaps are `perm` swaps, so the matrix bytes never
+    /// move.
     pub fn identity_perm(&self, m: usize) -> anyhow::Result<CudaSlice<u32>> {
         let host: Vec<u32> = (0..m as u32).collect();
         Ok(self.stream().clone_htod(&host)?)
     }
 
-    /// Factor one 64-bit column panel (limb `plimb`) in place over the
-    /// persistent buffer, forward-only, starting from pivot row `r` — the b=64
-    /// base kernel. Rows are addressed through `perm`; a pivot is
-    /// promoted by swapping its `perm` entry to position `r + pivot_index`. The
+    /// Factor one 64-bit column panel (limb `plimb`) in place over the persistent buffer,
+    /// forward-only, starting from pivot row `r` — the b=64 base kernel. Rows are addressed
+    /// through `perm`; a pivot is promoted by swapping its `perm` entry to position
+    /// `r + pivot_index`. The
     /// multiplier bits captured while clearing rows *below* each pivot are ORed
     /// into `l` (indexed by original row id, so `l` needs no permutation).
     ///
@@ -1087,8 +1087,8 @@ impl GpuContext {
         Ok((pr, cols[..pr].to_vec()))
     }
 
-    /// Active-row compaction: mark the below rows [r, m_active)
-    /// that are entirely zero across the remaining columns [start_limb·64, n) —
+    /// Active-row compaction: mark the below rows [r, m_active) that are entirely zero across
+    /// the remaining columns [start_limb·64, n) —
     /// permanently dead (they can never pivot and carry no multiplier) — and
     /// stable-partition `perm[r..m_active]` so the live rows come first. Returns
     /// the new active count `r + live`. The dead rows are parked in
@@ -1207,8 +1207,8 @@ impl GpuContext {
         Ok(())
     }
 
-    /// One trailing update `M[:, first_limb·64 : end_limb·64) ^= L · U`:
-    /// promote the `pr` pivot rows at perm positions `[r_piv, r_piv+pr)`
+    /// One trailing update `M[:, first_limb·64 : end_limb·64) ^= L · U`: promote the `pr` pivot
+    /// rows at perm positions `[r_piv, r_piv+pr)`
     /// over the column range, drop them from `l`, gather them into `U`, run the
     /// GEMM, and XOR the product into the region. Shared by the single-wide-panel
     /// far update and the recursive intra-panel updates; `l` carries the pivots'
@@ -1453,9 +1453,9 @@ impl GpuContext {
         Ok((perm, r, pivot_cols))
     }
 
-    /// Clear a pivot block's columns from a set of rows *above* it, as one
-    /// `X·U` GEMM (the back-substitution Schur update). Clears the
-    /// pivot columns of block `[block_s, block_e)` from the rows at perm positions
+    /// Clear a pivot block's columns from a set of rows *above* it, as one `X·U` GEMM (the
+    /// back-substitution Schur update). Clears the pivot columns of block `[block_s, block_e)`
+    /// from the rows at perm positions
     /// `[above_start, above_start+above_count)`: gather `X` = those rows' bits at
     /// the block's pivot columns, `U` = the (already-RREF) block rows over their
     /// trailing, `G = X·U`, then scatter-XOR `G` into the above rows.
@@ -1681,9 +1681,9 @@ impl GpuContext {
     /// Below `base_bp` the elementwise
     /// [`block_reduce_elem`](Self::block_reduce_elem) runs.
     ///
-    /// This is the BLAS3 form of back-substitution's within-block reduce: it
-    /// moves the O(bp²·width) triangular work off the elementwise
-    /// per-pivot clears and onto the tensor cores. Because the source and target
+    /// This is the BLAS3 form of back-substitution's within-block reduce: it moves the
+    /// O(bp²·width) triangular work off the elementwise per-pivot clears and onto the tensor
+    /// cores. Because the source and target
     /// rows are disjoint and already reduced, there is **no promote** — the
     /// overhead that made the forward-pass recursion a net loss is absent here.
     #[allow(clippy::too_many_arguments)]
