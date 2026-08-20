@@ -709,8 +709,8 @@ extern "C" __global__ void panel_factor_coop(
 // (pf_find → pf_swap → pf_xor), and the *kernel boundary* — stream ordering —
 // replaces the in-grid `grid_sync`. This is how cuSOLVER/cuBLAS build grid-wide
 // multi-step algorithms: no all-CTAs-co-resident requirement, so it composes with
-// a concurrent kernel from another CUDA runtime (cubecl's Milnor multiply) instead
-// of deadlocking its grid barrier (the intermittent stem-150 wedge).
+// a concurrent kernel from another CUDA runtime instead of deadlocking its grid
+// barrier.
 //
 // All state stays on the device — g_pr (pivots so far), g_min (find-first result),
 // g_pivpos (this step's pivot position, for pf_xor's guard), g_pivword (the pivot

@@ -48,101 +48,27 @@ fn context() -> Option<&'static GpuContext> {
         if std::env::var_os("FP_CUDA_DISABLE").is_some() {
             return None;
         }
-        // `FP_CUDA_DEVICE` puts the row reduction on its own GPU. On a single device the two CUDA
-        // consumers contend, which is why [`crate::gpu_lock`] exists; separate devices remove the
-        // contention by construction, so the lock's shared side becomes a no-op (see
-        // [`crate::gpu_lock::set_devices_shared`]).
+        // `FP_CUDA_DEVICE` selects the GPU the row reduction runs on.
         let device = std::env::var("FP_CUDA_DEVICE")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
-        let mult_devices = multiply_devices();
-        let shared = device < mult_devices;
-        crate::gpu_lock::set_devices_shared(shared);
-        // Log it: whether arbitration is live decides whether the reduction's thousands of tiny
-        // launches overlap the multiply's saturating ones, and getting it wrong is invisible in a
-        // normal run until something fails far away. `[batch-stats] lock=` alone cannot distinguish
-        // "arbitration off" from "arbitration on but uncontended".
-        eprintln!(
-            "[fp-cuda] row reduction on device {device}; multiply spans devices \
-             0..{mult_devices}; multiply yields to reductions: {}; reductions serialize against \
-             each other: always",
-            if shared {
-                "yes"
-            } else {
-                "no (separate devices)"
-            }
-        );
         GpuContext::new(device).ok()
     })
     .as_ref()
 }
 
-/// How many GPUs the cubecl Milnor multiply spreads over — it shards across ALL visible devices, so
-/// the row reduction shares a device with it whenever `FP_CUDA_DEVICE < multiply_devices()`.
-///
-/// This must count every device the multiply can land on, not the one it starts on: concluding
-/// "separate devices" while the multiply is in fact sharing the reduction's GPU silently discards
-/// the arbitration [`crate::gpu_lock::exclusive`] exists to provide.
-///
-/// Mirrors `algebra::algebra::milnor_gpu::gpu_count` — `fp` cannot call it (`algebra` depends on
-/// `fp`, not the reverse), so the two must be kept in step. Both honour `CUDA_VISIBLE_DEVICES`,
-/// since CUDA renumbers the visible subset to `0..n`.
-fn multiply_devices() -> usize {
-    const MAX_GPUS: usize = 8;
-    let physical = std::fs::read_dir("/proc/driver/nvidia/gpus")
-        .map(|d| d.filter_map(|e| e.ok()).count())
-        .unwrap_or(0)
-        .max(1);
-    let visible = std::env::var("CUDA_VISIBLE_DEVICES").ok().map(|v| {
-        v.split(',')
-            .take_while(|e| {
-                e.trim()
-                    .parse::<usize>()
-                    .is_ok_and(|ord| ord < physical.max(MAX_GPUS))
-            })
-            .count()
-    });
-    std::env::var("NASSAU_GPU_DEVICES")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|&n| n > 0)
-        .unwrap_or_else(|| visible.unwrap_or(physical).max(1))
-        .clamp(1, MAX_GPUS)
-}
-
 /// The single thread every `fp-cuda` submission goes through, so this process has exactly one
 /// owner of the reduction GPU.
 ///
-/// # Why a thread and not a lock
+/// Both entry points — the row reduction's trailing GEMM and the standalone [`try_mul`] — launch
+/// grids sized to fill the machine. Co-scheduled they do not fail, they *queue*, and the reduction
+/// is a chain of thousands of dependent relaunches, so that queueing lands on a serial critical
+/// path. A lock would cover only the call sites that remember to take it; one thread makes single
+/// ownership structural.
 ///
-/// Both `fp-cuda` entry points launch persistent grids sized to fill the machine (`num_ctas =
-/// occupancy x SMs`): the row reduction's trailing GEMM and the standalone [`try_mul`]. These are
-/// ordinary grids, so two of them co-scheduled do not fail — they *queue*, and that is the problem.
-/// The reduction is a chain of thousands of tiny sequential relaunches, each one a dependency of
-/// the next, so every relaunch that waits behind a saturating GEMM adds its full queueing delay to
-/// a serial critical path (see [`crate::gpu_lock::exclusive`]). The cooperative reduction path
-/// (`FP_CUDA_RR_COOP`) fails harder still, spinning forever at a grid-wide barrier for CTAs that
-/// were never scheduled, which is why it is off by default.
-///
-/// A lock would serialize only the call sites that remember to take it, and *both* entry points
-/// have to be covered or the device has two independent machine-filling consumers again. Routing
-/// them through one thread makes single ownership structural instead of a discipline.
-///
-/// # Completion, not submission
-///
-/// The job runs to completion on this thread, and both jobs end in a device-to-host download, which
-/// synchronizes. That is the property that matters: serializing *submission* is not enough, because
-/// kernels outlive the call that launched them — the mistake `gpu_lock::shared` still makes on the
-/// multiply side (it is taken inside the submit closure and dropped when submission returns, which
-/// is why `[batch-stats] lock=` reads 0.0s in every run).
-///
-/// # Not yet done
-///
-/// Transfers are serialized along with compute. They need not be: copy engines do not consume SMs,
-/// so the next job's H2D upload could overlap the current job's kernels without touching
-/// co-residency. That requires splitting each job into upload / compute / download stages on
-/// separate streams and pipelining them here; the correctness property above does not depend on it.
+/// Jobs run here to *completion*, not just submission: kernels outlive the call that launched them,
+/// and both jobs end in a synchronizing device-to-host download.
 mod driver {
     use std::sync::{Mutex, OnceLock, mpsc};
 
@@ -157,12 +83,6 @@ mod driver {
                 .name("fp-cuda-driver".into())
                 .spawn(move || {
                     for job in rx {
-                        // NO `gpu_lock::exclusive()` here. Serialization among fp-cuda jobs is
-                        // already structural — this is the only thread that submits them — so the
-                        // guard would be redundant, and taking it deadlocked the run: it waits for
-                        // the multiply's readers to drain while worker threads block on `run`
-                        // waiting for this loop. Yielding to the multiply on a SHARED device has to
-                        // be arranged without a guard held across a blocking job.
                         job();
                     }
                 })
@@ -253,16 +173,9 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     let stride = cols.div_ceil(64);
     let limbs = to_limbs(m);
 
-    // Lock-free, per-thread stream (see [`context`]): the default row-reduce is composable (no
-    // cooperative launch) and allocates its device buffers per call, so concurrent rayon workers
-    // reduce different matrices on independent streams — overlapping instead of serializing.
-    //
-    // Composability (no cooperative launch) means this path *can* overlap other GPU work without
-    // deadlocking — not that it should. Take the device exclusively for the duration; see
-    // [`crate::gpu_lock::exclusive`].
-    // The exclusive guard now lives on the driver thread, which holds it for the whole job — see
-    // [`driver`]. Taking it here as well would deadlock: the driver would wait on a guard this
-    // thread holds while this thread waits on the driver.
+    // The default row-reduce is composable (no cooperative launch) and allocates its device
+    // buffers per call, so it needs no exclusion of its own; [`driver`] is what keeps this process
+    // to a single GPU owner.
     let (dev_limbs, perm, r, pivot_cols) = driver::run(move || {
         let mut dm = ctx.upload(&limbs, rows, cols).ok()?;
         let (perm, r, pivot_cols) = ctx.row_reduce_dev(&mut dm).ok()?;

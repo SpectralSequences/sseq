@@ -58,28 +58,16 @@ fn adaptive_bl(stride: usize) -> usize {
 }
 
 /// Whether the row reduction uses its **cooperative** kernels — `panel_factor_coop`,
-/// `promote_coop`, `block_reduce_coop` — launched with `cuLaunchCooperativeKernel`
-/// and synchronized by a hand-rolled grid-wide spin barrier.
+/// `promote_coop`, `block_reduce_coop` — launched with `cuLaunchCooperativeKernel` and
+/// synchronized by a hand-rolled grid-wide spin barrier.
 ///
-/// The cooperative launch requires **all** the grid's CTAs to be co-resident at once
-/// (the barrier spins waiting for every CTA to arrive). That holds only when this
-/// process owns the whole GPU: a kernel from another CUDA runtime sharing the device
-/// — e.g. `cubecl`'s Milnor multiply in the `algebra` crate — can occupy SMs and
-/// prevent co-residency, so the missing CTAs never reach the barrier and the resident
-/// ones spin forever (the intermittent stem-150 wedge, flat sm=100%).
-///
-/// **Off by default**, so the reduction composes safely with concurrent GPU work.
-/// The default path keeps the cooperative kernels' all-SM parallelism but replaces
-/// their in-grid `grid_sync` with kernel-boundary (stream-ordered) synchronization:
-/// the forward pass runs `pf_find_swap` then a fused `pf_step` per column (each a
-/// grid-wide reduction finalized by the last CTA to arrive — no barrier, no co-
-/// residency), promotion uses the grid-strided `promote_pivots`, and back-
-/// substitution the streamed `br_cond`/`br_xor` pair (single-CTA `block_reduce_rref`
-/// below stride 1024). None launch cooperatively, so none can deadlock. The residual
-/// cost is the forward pass's per-column relaunch vs the persistent cooperative grid:
-/// ~2× at n≈2¹⁷, shrinking with size (~1.4× total at 2¹⁸, converging as the O(cols)
-/// launch term is dwarfed by the O(cols²) work). Set `FP_CUDA_RR_COOP=1` to opt into
-/// the cooperative path on a dedicated GPU.
+/// **Off by default.** The barrier spins until every CTA arrives, so the launch needs the whole
+/// grid co-resident, which holds only when this process owns the GPU outright: any other CUDA
+/// runtime occupying SMs strands the missing CTAs and the resident ones spin forever. The default
+/// path keeps the same all-SM parallelism but replaces the in-grid `grid_sync` with kernel-boundary
+/// synchronization, so nothing launches cooperatively and nothing can deadlock; it costs the
+/// forward pass a per-column relaunch, converging with size as the O(cols) launch term is dwarfed
+/// by the O(cols²) work. Set `FP_CUDA_RR_COOP=1` to opt in on a dedicated GPU.
 fn rr_coop() -> bool {
     std::env::var("FP_CUDA_RR_COOP")
         .map(|v| v != "0" && !v.is_empty())
@@ -158,10 +146,8 @@ impl GpuContext {
     /// Fails if there is no usable device, or if the embedded PTX is the stub `build.rs` emits when
     /// `nvcc` is absent, in which case the kernel is missing from the module.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
-        // This retains the device *primary* context, which the cubecl Milnor-multiply runtime also
-        // retains (`cubecl-cuda/src/runtime.rs`, `primary_ctx::retain`), so both CUDA consumers
-        // share one context deliberately — see EXPERIMENTS.md for why a private context is not the
-        // fix it looks like.
+        // Deliberately the device *primary* context: another CUDA runtime in this process will
+        // retain the same one, and a private context does not isolate us from it anyway.
         let ctx = CudaContext::new(device_id)?;
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;

@@ -275,3 +275,11 @@ bug before the big runs.
 The CPU side is the finished skeleton and the oracle; you're moving it onto
 silicon that's ~1000× more parallel than the 4 cores that already put the
 crossover at the real workload size.
+
+## Not yet done: overlap transfers with compute
+
+The `fp-cuda` driver thread serializes transfers along with compute. It need not: copy engines do
+not consume SMs, so the next job's H2D upload could overlap the current job's kernels without
+touching co-residency. That means splitting each job into upload / compute / download stages on
+separate streams and pipelining them in the driver loop. The single-ownership property the driver
+thread exists to provide does not depend on this.
