@@ -206,3 +206,20 @@ The small-n crossover is bound by fixed launch and transfer overhead rather than
 so the throughput wins above (which scale with n^2) did not move it. The comparison is against
 single-threaded M4RI; the concurrent CPU path is faster, which only pushes the crossover up, so
 8192 is a floor rather than a fitted optimum.
+
+## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
+
+**Chosen:** gate the grid-parallel back-substitution reduce on `stride >= 1024`; below that the
+single-CTA `block_reduce_rref` wins.
+
+Spreading each block's per-pivot clear across the whole grid only pays once the block work
+(~`bp · stride`) is large enough to cover the extra barrier traffic:
+
+| n | stride | grid-parallel vs single-CTA |
+|---|---|---|
+| 2^15 | 512 | neutral |
+| 2^16 | 1024 | +6% |
+| 2^17 | 2048 | +18% |
+
+Both grid-parallel variants are gated the same way — the cooperative `block_reduce_coop` and the
+kernel-boundary `br_cond`/`br_xor` pair that is the default.
