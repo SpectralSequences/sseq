@@ -2,9 +2,11 @@
 
 use crate::{limb::Limb, matrix::Matrix, prime::TWO};
 
-/// Default panel width in columns. A multiple of 64; wide enough that the
-/// trailing GEMM's inner (`k`) dimension is a healthy number of pivots, narrow
-/// enough that the panel factorization stays a lower-order term.
+/// Default panel width in columns.
+///
+/// A multiple of 64; wide enough that the trailing GEMM's inner (`k`) dimension is a healthy
+/// number of pivots, narrow enough that the panel factorization stays a lower-order term. Chosen
+/// for shape rather than fitted — see EXPERIMENTS.md.
 const DEFAULT_BLOCK_COLS: usize = 256;
 
 impl Matrix {

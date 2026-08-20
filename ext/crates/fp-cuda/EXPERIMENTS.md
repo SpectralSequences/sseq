@@ -8,7 +8,7 @@ Entries are dated and name the hardware they were measured on: the conclusions a
 and several do not transfer between H100 and H200.
 
 The knobs referred to below live in `cuda_kernels/params.h`, which both the kernel and the Rust
-host read.
+host read. The CPU-side counterpart to this file is `crates/fp/EXPERIMENTS.md`.
 
 The overall shape of the work follows the optimization ladder in Pranjal Shankhdhar's
 "Outperforming cuBLAS on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
