@@ -1,29 +1,4 @@
-//! Process-wide arbitration between the two CUDA consumers that share this GPU: the cubecl Milnor
-//! multiply (`algebra::algebra::milnor_gpu`) and the `fp-cuda` row reduction ([`crate::blas::cuda`]).
-//!
-//! # Why this exists
-//!
-//! The two runtimes have opposite performance shapes. The multiply is *throughput* work: large,
-//! long-running kernels that saturate the SMs. The composable (non-cooperative) row reduction is
-//! *latency* work: thousands of tiny, strictly sequential per-column relaunches. Run them at the
-//! same time and every one of those thousands of launches queues behind a saturating multiply
-//! kernel, so a reduction that takes single-digit milliseconds on an unshared GPU takes tens of
-//! seconds — measured 1.8–9.7 ms standalone versus 8.6–96.8 s co-running, a ~10 000× loss, with
-//! `nvidia-smi` showing 99 % SM and 9 % memory utilisation (queueing, not compute).
-//!
-//! Being *composable* (no cooperative launch, so no co-residency requirement) means the reduction
-//! **can** run alongside other GPU work without deadlocking. It does not mean it should: overlap is
-//! precisely what destroys it.
-//!
-//! # The trade
-//!
-//! Giving a large reduction brief exclusive use of the device costs almost nothing: a whole
-//! stem-200 resolution runs ~440 GPU reductions of ~10 ms each, so the multiply pauses for ~5 s in
-//! total. Multiplies still overlap freely with each other — they take the shared side.
-//!
-//! Writer preference is deliberate. Multiplies are continuous and readers are many; a plain
-//! `RwLock` would let the reduction starve indefinitely behind the stream of multiplies, which is
-//! the failure this lock exists to prevent.
+//! Writer-preferring arbitration for a GPU shared by the Milnor multiply and the row reduction.
 
 use std::{
     sync::{Condvar, Mutex},
@@ -40,10 +15,11 @@ struct State {
     writers_waiting: usize,
 }
 
-/// Whether the two CUDA runtimes share one device. Arbitration is only needed when they do:
-/// measured at ~47% of multiply time (`[batch-stats] lock=`), which is pure waste once the row
-/// reduction has its own GPU. Defaults to `true` (single-device, the safe assumption) until
-/// [`crate::blas::cuda`] resolves the device ids on first GPU use.
+/// Whether the two CUDA runtimes share one device.
+///
+/// Arbitration is only needed when they do, and is pure overhead when they do not. Defaults to
+/// `true` — the safe assumption — until [`crate::blas::cuda`] resolves the device ids on first GPU
+/// use.
 static SHARED_DEVICE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 /// Record whether the multiply and the row reduction target the same GPU.
@@ -51,10 +27,12 @@ pub fn set_devices_shared(shared: bool) {
     SHARED_DEVICE.store(shared, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// Whether [`shared`] has to arbitrate at all.
 fn arbitration_needed() -> bool {
     SHARED_DEVICE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// The process-wide lock state, created on first use.
 fn state() -> &'static (Mutex<State>, Condvar) {
     use std::sync::OnceLock;
     static STATE: OnceLock<(Mutex<State>, Condvar)> = OnceLock::new();
@@ -69,6 +47,7 @@ pub struct SharedGuard(());
 pub struct ExclusiveGuard(());
 
 impl Drop for SharedGuard {
+    /// Release the shared side, waking any waiting reduction once the last multiply is out.
     fn drop(&mut self) {
         if !arbitration_needed() {
             return;
@@ -83,6 +62,7 @@ impl Drop for SharedGuard {
 }
 
 impl Drop for ExclusiveGuard {
+    /// Release the device and wake everyone waiting on it.
     fn drop(&mut self) {
         if !arbitration_needed() {
             return;
@@ -96,10 +76,9 @@ impl Drop for ExclusiveGuard {
 
 /// How long a multiply defers to a waiting reduction before going ahead anyway.
 ///
-/// This is a **safety valve, not the mechanism**. It must exceed the time a reduction holds the
-/// device, or exclusivity evaporates precisely when it matters: at 25 ms, multiplies barged back in
-/// partway through every multi-second reduction, which both kept reductions ~1000× slow and put the
-/// overlap back that crashes the run. Correctness against deadlock comes from *where* the shared
+/// This is a **safety valve, not the mechanism**: it must exceed the time a reduction holds the
+/// device, or exclusivity evaporates precisely when it matters (`crates/fp-cuda/EXPERIMENTS.md`
+/// records what a too-short value does). Correctness against deadlock comes from *where* the shared
 /// guard is taken (`milnor_gpu.rs`, past every rayon section), not from this timeout firing.
 const SHARED_YIELD: Duration = Duration::from_secs(60);
 /// How long a reduction waits for in-flight multiplies to drain before going ahead anyway.
@@ -135,6 +114,13 @@ pub fn shared() -> SharedGuard {
 
 /// Acquire exclusive (row-reduction) access, waiting for in-flight multiplies to drain.
 ///
+/// The row reduction is *latency* work — thousands of tiny, strictly sequential per-column
+/// relaunches — while the multiply is *throughput* work whose kernels saturate the SMs. Overlapped,
+/// every one of those relaunches queues behind a saturating kernel and the reduction slows by
+/// orders of magnitude; being composable means it *can* share the device, not that it should. Brief
+/// exclusivity costs the multiply very little in return. `crates/fp-cuda/EXPERIMENTS.md` has the
+/// measurements and the rejected alternatives.
+///
 /// Waiting out another *reduction* is unbounded and safe: reductions never block on rayon work, so
 /// they always finish in finite time, and letting two run at once is what the concurrency cap was
 /// added to prevent. Waiting for *multiplies* to drain is bounded for the reason in [`shared`] —
@@ -146,10 +132,6 @@ pub fn exclusive() -> ExclusiveGuard {
     // machine (`num_ctas = occupancy x SMs`): two concurrent reductions each demand the entire GPU,
     // so each one's thousands of tiny sequential relaunches queue behind the other's GEMM. Both
     // then crawl, and a reduction slow enough drags the whole resolution with it.
-    //
-    // Skipping this on a dedicated reduction GPU is what made `FP_CUDA_DEVICE=3` with the multiply
-    // on 0..2 fail 63 times in 300 s — an isolated device removes multiply contention but leaves
-    // reduction-vs-reduction contention untouched.
     let (lock, cv) = state();
     let mut s = lock.lock().unwrap_or_else(|e| e.into_inner());
     s.writers_waiting += 1;

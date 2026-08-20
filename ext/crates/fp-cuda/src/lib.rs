@@ -34,18 +34,27 @@ const KL: usize = TILE_K / 64;
 const THREADS: u32 = (2 * THREADS_PER_WG) as u32; // producer warpgroup + consumer warpgroup
 const NG: u32 = (NB / 64) as u32; // output column-limbs per CTA
 
-/// Adaptive forward-pass panel width in limbs (b = 64·bl columns). Wider panels
-/// raise the trailing GEMM's contraction dimension toward b, reclaiming the
-/// K-padding waste (Loss 1). The counter-pressure is the promotion cost: with the
-/// single-CTA promote_pivots it is O(bl) total, so narrow panels win; but the
-/// cooperative promote_coop (used at stride ≥ 1024) is ~bl-independent, so there
-/// the panel can be widened until the forward GEMM stops padding (bl=16 ⇒ K=1024
-/// exactly). Measured optima (half-rank, H200): bl=2 @ n=2¹⁵ (stride 512, single-
-/// CTA), 8 @ 2¹⁶ (1024), 16 @ 2¹⁷ (2048) — i.e. stride/256 without the coop
-/// promote, stride/128 with it. Capped at 16. Override with `FP_CUDA_BL`.
+/// Widest forward-pass panel, in limbs: at this width the forward GEMM stops padding K.
+const MAX_BL: usize = 16;
+
+/// Default grid cap for `panel_factor_coop`, overridden by `FP_CUDA_PF_CTAS`.
+const DEFAULT_PF_CTAS: u32 = 128;
+/// Default grid cap for `promote_coop`, overridden by `FP_CUDA_PROM_CTAS`.
+const DEFAULT_PROM_CTAS: u32 = 384;
+/// Default grid cap for `block_reduce_coop` under TRSM, overridden by `FP_CUDA_BR_CTAS`.
+const DEFAULT_BR_CTAS: u32 = 128;
+/// Default TRSM base-block width. Bounded by `block_reduce_rref`'s shared `cond[]`.
+const DEFAULT_BS_BASE: usize = 64;
+
+/// Adaptive forward-pass panel width in limbs (`b = 64·bl` columns).
+///
+/// Wider panels raise the trailing GEMM's contraction dimension toward `b`, reclaiming the
+/// K-padding waste (Loss 1); the counter-pressure is the promotion cost, which is O(bl) for the
+/// single-CTA `promote_pivots` but ~bl-independent for the cooperative `promote_coop` used at
+/// stride ≥ 1024. See EXPERIMENTS.md for the measured optima. Override with `FP_CUDA_BL`.
 fn adaptive_bl(stride: usize) -> usize {
     let div = if stride >= 1024 { 128 } else { 256 };
-    (stride / div).clamp(1, 16)
+    (stride / div).clamp(1, MAX_BL)
 }
 
 /// Whether the row reduction uses its **cooperative** kernels — `panel_factor_coop`,
@@ -104,6 +113,7 @@ pub struct DeviceMatrix {
 }
 
 impl DeviceMatrix {
+    /// Row stride in 64-bit limbs.
     pub fn stride(&self) -> usize {
         self.stride
     }
@@ -148,11 +158,10 @@ impl GpuContext {
     /// Fails if there is no usable device, or if the embedded PTX is the stub `build.rs` emits when
     /// `nvcc` is absent, in which case the kernel is missing from the module.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
-        // NOTE: this retains the device *primary* context, which the cubecl Milnor-multiply runtime
-        // also retains (`cubecl-cuda/src/runtime.rs`, `primary_ctx::retain`), so both CUDA consumers
-        // share one context. Giving the row reduction its own non-primary context was tried as a fix
-        // for the cross-runtime `CUDA_ERROR_LAUNCH_FAILED` and did NOT help (3/3 runs still died):
-        // the fault is device contention, not shared context state. See [`fp::gpu_lock`].
+        // This retains the device *primary* context, which the cubecl Milnor-multiply runtime also
+        // retains (`cubecl-cuda/src/runtime.rs`, `primary_ctx::retain`), so both CUDA consumers
+        // share one context deliberately — see EXPERIMENTS.md for why a private context is not the
+        // fix it looks like.
         let ctx = CudaContext::new(device_id)?;
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
@@ -214,6 +223,7 @@ impl GpuContext {
         Ok((major, minor))
     }
 
+    /// The context's shared default stream, for callers that do not need per-thread isolation.
     pub fn default_stream(&self) -> Arc<CudaStream> {
         self.ctx.default_stream()
     }
@@ -241,6 +251,7 @@ impl GpuContext {
             .clone()
     }
 
+    /// The loaded `matmul_b1_kernel` handle.
     pub fn kernel(&self) -> &CudaFunction {
         &self.kernel
     }
@@ -552,6 +563,8 @@ impl GpuContext {
         // explicit zeros), so allocate uninitialized and skip the memset — the
         // per-call zeroing of the multi-GB C output is pure waste at large n.
         let a_int_len = m_padded * (k_padded / 64);
+        // SAFETY: `alloc` hands back uninitialized device memory. `pack_a` below writes all
+        // `a_int_len` elements — the padding as explicit zeros — before anything reads the buffer.
         let a_int = unsafe { stream.alloc::<u64>(a_int_len) }?;
         {
             let (m_orig, sa_orig, a_str, mt, total) = (
@@ -569,11 +582,15 @@ impl GpuContext {
                 .arg(&a_str)
                 .arg(&mt)
                 .arg(&total);
+            // SAFETY: the pushed arguments match `pack_a`'s parameter list in order and type, and
+            // both `a_int` and `a_dev` outlive the launch (their guards are held to the end of this
+            // method).
             unsafe { lb.launch(cfg_1d(a_int_len)) }?;
         }
 
         // Pack B → bit-transposed K-major tiles.
         let bt_len = k_chunks * n_groups * (NG as usize * 64 * KL);
+        // SAFETY: as for `a_int` above: `pack_b` writes all `bt_len` elements before any read.
         let bt = unsafe { stream.alloc::<u64>(bt_len) }?;
         {
             let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
@@ -584,12 +601,15 @@ impl GpuContext {
                 .arg(&nl)
                 .arg(&ng)
                 .arg(&total);
+            // SAFETY: the pushed arguments match `pack_b`'s parameter list in order and type, and
+            // both `bt` and `b_dev` outlive the launch.
             unsafe { lb.launch(cfg_1d(bt_len)) }?;
         }
 
-        // The GEMM writes C with a bulk-tensor store (overwrite, not accumulate),
-        // covering every output tile; xor_into only reads the first m rows and
-        // trailing_limbs columns, all written. So C needs no pre-zeroing.
+        // The GEMM writes C with a bulk-tensor store (overwrite, not accumulate), covering every
+        // output tile; xor_into only reads the first m rows and trailing_limbs columns, all
+        // written. So C needs no pre-zeroing. SAFETY: uninitialized is sound because the GEMM's
+        // bulk-tensor store overwrites every output tile, as the comment above records.
         let c_dev = unsafe { stream.alloc::<u64>(m_padded * n_padded_lim) }?;
         run_gemm_kernel(
             self,
@@ -640,6 +660,8 @@ impl GpuContext {
             .arg(&ds)
             .arg(&dl)
             .arg(&cs);
+        // SAFETY: the pushed arguments match `xor_into`'s parameter list in order and type, and
+        // `dst` and `c_dev` outlive the launch.
         unsafe { lb.launch(cfg_1d(total)) }?;
         Ok(())
     }
@@ -806,6 +828,9 @@ impl GpuContext {
             .arg(&m_u)
             .arg(&stride_u)
             .arg(&l_stride_u);
+        // SAFETY: the pushed arguments match `panel_factor`'s parameter list in order and type,
+        // `shared_mem_bytes` is the dynamic SMEM the kernel declares, and every device buffer
+        // borrowed above outlives the launch.
         unsafe { lb.launch(cfg) }?;
 
         let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
@@ -860,13 +885,12 @@ impl GpuContext {
         // size the grid and the kernel's row bound to m_active.
         let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
-        // panel_factor is partly grid-barrier-bound (a grid_sync per pivot bit),
-        // so a smaller grid gives cheaper barriers while still covering the panel
-        // work — measured +3% at 2^16. Cap at 128 (H200 sweet spot); overridable.
+        // panel_factor is partly grid-barrier-bound (a grid_sync per pivot bit), so a smaller grid
+        // gives cheaper barriers while still covering the panel work. See EXPERIMENTS.md.
         let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(128)
+            .unwrap_or(DEFAULT_PF_CTAS)
             .clamp(1, num_ctas);
 
         let (ppanel_u, bl_u, r_u, n_u, m_u, stride_u, l_stride_u, tc) = (
@@ -900,6 +924,9 @@ impl GpuContext {
             .arg(&stride_u)
             .arg(&l_stride_u)
             .arg(&tc);
+        // SAFETY: the pushed arguments match `panel_factor_coop`'s parameter list in order and
+        // type, and `cfg`'s grid is the occupancy query's answer, so the cooperative launch's
+        // co-residency requirement is satisfiable. The borrowed buffers outlive the launch.
         unsafe { lb.launch_cooperative(cfg) }?;
 
         let pr = stream.clone_dtoh(&pr_out)?[0] as usize;
@@ -962,14 +989,13 @@ impl GpuContext {
             .max(1);
         let rows_worth = (m_active as u32).div_ceil(THREADS).max(1);
         let num_ctas = (occ * sms).min(rows_worth).max(1);
-        // Each step's grid-wide min-reduce + last-CTA finalize contends on g_min /
-        // arrival across all CTAs, so — like the cooperative kernel's FP_CUDA_PF_CTAS
-        // — a smaller grid makes every step cheaper once it still covers the rows.
-        // Cap at 128 (H200 sweet spot); overridable.
+        // Each step's grid-wide min-reduce + last-CTA finalize contends on g_min / arrival across
+        // all CTAs, so — as for the cooperative kernel above — a smaller grid makes every step
+        // cheaper once it still covers the rows.
         let num_ctas = std::env::var("FP_CUDA_PF_CTAS")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(128)
+            .unwrap_or(DEFAULT_PF_CTAS)
             .clamp(1, num_ctas);
 
         let (r_u, m_u, n_u, stride_u, l_stride_u, ppanel_u, bl_u) = (
@@ -1016,6 +1042,8 @@ impl GpuContext {
                 .arg(&m_u)
                 .arg(&stride_u)
                 .arg(&n_u);
+            // SAFETY: the pushed arguments match `pf_step`'s parameter list in order and type, and
+            // the buffers borrowed here outlive the launch.
             unsafe { lb.launch(find_cfg) }?;
         }
 
@@ -1041,6 +1069,7 @@ impl GpuContext {
                 .arg(&stride_u)
                 .arg(&l_stride_u)
                 .arg(&n_u);
+            // SAFETY: as for the `pf_step` launch above.
             unsafe { lb.launch(find_cfg) }?;
         }
 
@@ -1062,6 +1091,8 @@ impl GpuContext {
                 .arg(&m_u)
                 .arg(&stride_u)
                 .arg(&l_stride_u);
+            // SAFETY: the pushed arguments match `pf_xor`'s parameter list in order and type, and
+            // the buffers borrowed here outlive the launch.
             unsafe { lb.launch(grid_cfg) }?;
         }
 
@@ -1091,6 +1122,8 @@ impl GpuContext {
         }
         let stream = self.stream();
         let n_scan = m_active - r;
+        // SAFETY: uninitialized is sound because `mark_live` writes all `n_scan` entries before the
+        // `clone_dtoh` below reads them.
         let live = unsafe { stream.alloc::<u32>(n_scan) }?;
         {
             let (r_u, m_u, sl, st) = (
@@ -1107,6 +1140,8 @@ impl GpuContext {
                 .arg(&m_u)
                 .arg(&sl)
                 .arg(&st);
+            // SAFETY: the pushed arguments match `mark_live`'s parameter list in order and type,
+            // and `live`, `m.buf` and `perm` outlive the launch.
             unsafe { lb.launch(cfg_1d(n_scan)) }?;
         }
         let live_host = stream.clone_dtoh(&live)?;
@@ -1182,6 +1217,9 @@ impl GpuContext {
             .arg(pc_barrier)
             .arg(pc_cond)
             .arg(&tc);
+        // SAFETY: the pushed arguments match `promote_coop`'s parameter list in order and type, and
+        // `cfg`'s grid comes from the occupancy query, so the cooperative launch can make its grid
+        // co-resident. The borrowed buffers outlive the launch.
         unsafe { lb.launch_cooperative(cfg) }?;
         Ok(())
     }
@@ -1251,15 +1289,21 @@ impl GpuContext {
                     .arg(&tl)
                     .arg(&st)
                     .arg(&ls);
+                // SAFETY: the pushed arguments match `promote_pivots`'s parameter list in order and
+                // type, and the borrowed buffers outlive the launch.
                 unsafe { lb.launch(cfg_1d(trailing_limbs)) }?;
             }
             let (r_u, pr_u, ls) = (r_piv as u32, pr as u32, l.stride as u32);
             let mut lb = stream.launch_builder(&self.zero_pivot_l);
             lb.arg(perm).arg(&mut l.buf).arg(&r_u).arg(&pr_u).arg(&ls);
+            // SAFETY: the pushed arguments match `zero_pivot_l`'s parameter list in order and type,
+            // and `perm` and `l.buf` outlive the launch.
             unsafe { lb.launch(cfg_1d(pr)) }?;
         }
 
-        // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
+        // (3) gather U = pivot rows' trailing (pr × trailing_limbs). SAFETY: uninitialized is sound
+        // because `gather_rows` below writes all `pr * trailing_limbs` elements before the GEMM
+        // reads them.
         let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?;
         {
             let (r_u, fl, pr_u, nc, st) = (
@@ -1278,6 +1322,8 @@ impl GpuContext {
                 .arg(&pr_u)
                 .arg(&nc)
                 .arg(&st);
+            // SAFETY: the pushed arguments match `gather_rows`'s parameter list in order and type,
+            // and `u_buf`, `m.buf` and `perm` outlive the launch.
             unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
         }
 
@@ -1356,20 +1402,23 @@ impl GpuContext {
                 .promote_coop
                 .occupancy_max_active_blocks_per_multiprocessor(256, 0, None)?
                 .max(1);
-            // promote is a forward-substitution TRSM (1 grid_sync/pivot), partly
-            // barrier-bound: a smaller grid gives cheaper barriers while still
-            // covering the per-pivot trailing XOR — measured +6% at 2^16, +5% at
-            // 2^17. Cap at 384 (broad H200 optimum); overridable.
+            // promote is a forward-substitution TRSM (1 grid_sync/pivot), partly barrier-bound: a
+            // smaller grid gives cheaper barriers while still covering the per-pivot trailing XOR.
+            // See EXPERIMENTS.md.
             let full = (occ * sms).max(1);
             let capped = std::env::var("FP_CUDA_PROM_CTAS")
                 .ok()
                 .and_then(|v| v.parse::<u32>().ok())
-                .unwrap_or(384)
+                .unwrap_or(DEFAULT_PROM_CTAS)
                 .clamp(1, full);
+            // SAFETY: uninitialized is sound because `promote_coop` writes each of the `bl * 64`
+            // pivot-word slots before reading it.
             (capped, stream.alloc_zeros::<u32>(1)?, unsafe {
                 stream.alloc::<u32>(bl * 64)
             }?)
         } else {
+            // SAFETY: the one-element buffer is never read on this branch; it exists only so both
+            // arms have the same type.
             (0, stream.alloc_zeros::<u32>(1)?, unsafe {
                 stream.alloc::<u32>(1)
             }?)
@@ -1466,7 +1515,9 @@ impl GpuContext {
         // right offset (they index perm[jpos] for jpos < above_count).
         let perm_above = perm.slice(above_start..above_start + above_count);
 
-        // X = above rows gathered at the block's pivot columns (above_count × bp_eff).
+        // X = above rows gathered at the block's pivot columns (above_count × bp_eff). SAFETY:
+        // uninitialized is sound because `gather_cols` below writes all `above_count * x_stride`
+        // elements before the GEMM reads them.
         let x_buf = unsafe { stream.alloc::<u64>(above_count * x_stride) }?;
         {
             let (cs, s_u, cnt, st, xs) = (
@@ -1486,10 +1537,14 @@ impl GpuContext {
                 .arg(&cnt)
                 .arg(&st)
                 .arg(&xs);
+            // SAFETY: the pushed arguments match `gather_cols`'s parameter list in order and type,
+            // and `x_buf`, `m.buf`, `perm_above` and `piv_dev` outlive the launch.
             unsafe { lb.launch(cfg_1d(above_count * x_stride)) }?;
         }
 
-        // U = the (now RREF) block rows, limbs [start_limb, stride).
+        // U = the (now RREF) block rows, limbs [start_limb, stride). SAFETY: uninitialized is sound
+        // because `gather_rows` below writes all `bp_eff * trailing_limbs` elements before the GEMM
+        // reads them.
         let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?;
         {
             let (s_u, fl, pr_u, nc, st) = (
@@ -1508,6 +1563,8 @@ impl GpuContext {
                 .arg(&pr_u)
                 .arg(&nc)
                 .arg(&st);
+            // SAFETY: the pushed arguments match `gather_rows`'s parameter list in order and type,
+            // and the borrowed buffers outlive the launch.
             unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
         }
 
@@ -1531,6 +1588,8 @@ impl GpuContext {
                 .arg(&st)
                 .arg(&fl)
                 .arg(&cs);
+            // SAFETY: the pushed arguments match `xor_into_perm`'s parameter list in order and
+            // type, and `m.buf`, `c_dev` and `perm_above` outlive the launch.
             unsafe { lb.launch(cfg_1d(above_count * trailing_limbs)) }?;
         }
         Ok(())
@@ -1578,6 +1637,9 @@ impl GpuContext {
                     .arg(br_barrier)
                     .arg(br_cond)
                     .arg(&tc);
+                // SAFETY: the pushed arguments match `block_reduce_coop`'s parameter list in order
+                // and type, and `cfg`'s grid is bounded by the occupancy query, so the cooperative
+                // grid can be made co-resident. The borrowed buffers outlive the launch.
                 unsafe { lb.launch_cooperative(cfg) }?;
             } else if streamed {
                 // Kernel-boundary equivalent of block_reduce_coop: per pivot k
@@ -1604,6 +1666,8 @@ impl GpuContext {
                             .arg(&k_u)
                             .arg(&st)
                             .arg(br_cond);
+                        // SAFETY: the pushed arguments match `br_cond`'s parameter list in order
+                        // and type, and the borrowed buffers outlive the launch.
                         unsafe { lb.launch(cfg_1d((nj.max(1)) as usize)) }?;
                     }
                     {
@@ -1614,6 +1678,8 @@ impl GpuContext {
                             .arg(&k_u)
                             .arg(&st)
                             .arg(br_cond);
+                        // SAFETY: the pushed arguments match `br_xor`'s parameter list in order and
+                        // type, and the borrowed buffers outlive the launch.
                         unsafe { lb.launch(xor_cfg) }?;
                     }
                 }
@@ -1631,6 +1697,8 @@ impl GpuContext {
                     .arg(&s_u)
                     .arg(&e_u)
                     .arg(&st);
+                // SAFETY: the pushed arguments match `block_reduce_rref`'s parameter list in order
+                // and type, and the borrowed buffers outlive the launch.
                 unsafe { lb.launch(cfg) }?;
             }
         }
@@ -1752,28 +1820,30 @@ impl GpuContext {
         // + X·U GEMMs. The GEMM path composes regardless, so use it whenever a
         // grid-parallel base reduce is in play (coop or streamed).
         let use_trsm = use_coop || streamed;
-        // Base ≤ 64: the single-CTA block_reduce_rref's shared cond[] is sized 64.
         let base_bp: usize = std::env::var("FP_CUDA_BS_BASE")
             .ok()
             .and_then(|v| v.parse().ok())
-            .unwrap_or(64)
-            .clamp(1, 64);
+            .unwrap_or(DEFAULT_BS_BASE)
+            .clamp(1, DEFAULT_BS_BASE);
 
-        // The block reduce is grid-barrier-bound (2 grid syncs/pivot), and a
-        // grid_sync's cost scales with the CTA count. With TRSM the reduces are
-        // narrow base blocks whose per-pivot XOR needs little width, so a small
-        // grid gives far cheaper barriers — measured bs.block_reduce 334→115 ms
-        // (2.9×) at 2^16, +12% end-to-end. Cap to 128 CTAs there (the plateau of
-        // the sweep). Without TRSM the reduce is the full bp=1024 block, whose XOR
-        // genuinely needs the whole grid, so keep full occupancy. FP_CUDA_BR_CTAS
-        // overrides.
-        let br_cap = if use_trsm { 128 } else { br_occ * sms };
+        // The block reduce is grid-barrier-bound (2 grid syncs/pivot) and a grid_sync's cost scales
+        // with the CTA count, so under TRSM — where the reduces are narrow base blocks whose
+        // per-pivot XOR needs little width — a small grid gives far cheaper barriers. Without TRSM
+        // the reduce is the full block, whose XOR genuinely needs the whole grid. See
+        // EXPERIMENTS.md.
+        let br_cap = if use_trsm {
+            DEFAULT_BR_CTAS
+        } else {
+            br_occ * sms
+        };
         let br_ctas = std::env::var("FP_CUDA_BR_CTAS")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(br_cap)
             .clamp(1, br_occ * sms);
         let mut br_barrier = stream.alloc_zeros::<u32>(1)?;
+        // SAFETY: uninitialized is sound because `br_cond` writes each of the `bp` condition slots
+        // before `br_xor` reads it.
         let br_cond = unsafe { stream.alloc::<u32>(bp) }?;
 
         let mut e = r;
@@ -1964,6 +2034,8 @@ fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
     out
 }
 
+/// Copy a `rows × stride` limb array into a zero-filled `nr × ns` one, returning it unchanged when
+/// the shapes already agree.
 fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<u64> {
     if rows == nr && stride == ns {
         return src.to_vec();

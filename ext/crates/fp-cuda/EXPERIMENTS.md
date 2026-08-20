@@ -152,3 +152,99 @@ on this hardware, but not guaranteed by the model.
 Output stays bit-exact either way. The reorder costs ~0.96% at 4096 and ~0.73% at 8192 (every
 post-change run below the lowest pre-change run, so the loss is real), and is at noise level at
 16384 and 32768, the sizes the kernel is actually used at. Paid.
+
+## Sharing the device with the Milnor multiply (2026-08-05, H200)
+
+**Chosen:** a process-wide writer-preferring lock (`fp::gpu_lock`), not overlap.
+
+The two CUDA consumers have opposite shapes. The cubecl Milnor multiply is *throughput* work:
+large, long-running kernels that saturate the SMs. The composable (non-cooperative) row reduction
+is *latency* work: thousands of tiny, strictly sequential per-column relaunches. Run concurrently,
+every one of those launches queues behind a saturating multiply kernel:
+
+| | standalone | co-running |
+|---|---|---|
+| GPU row reduction | 1.8–9.7 ms | 8.6–96.8 s |
+
+A ~10,000x loss, with `nvidia-smi` showing 99% SM and 9% memory utilisation — queueing, not
+compute. Being composable means the reduction *can* run alongside other GPU work without
+deadlocking; it does not mean it should.
+
+Exclusivity is close to free: a stem-200 resolution runs ~440 reductions of ~10 ms, so the multiply
+pauses ~5 s in total. Multiplies still overlap with each other on the shared side.
+
+**Rejected — a plain `RwLock`.** Multiplies are continuous and readers are many, so the reduction
+starves indefinitely behind the stream of multiplies. Writer preference is the point of the lock.
+
+**Rejected — a 25 ms shared-yield timeout.** Multiplies barged back in partway through every
+multi-second reduction, which both kept reductions ~1000x slow and restored the overlap that
+crashes the run. The timeout has to exceed the time a reduction holds the device.
+
+**Rejected — giving the row reduction its own non-primary CUDA context.** Tried as a fix for the
+cross-runtime `CUDA_ERROR_LAUNCH_FAILED`; 3/3 runs still died. The fault is device contention, not
+shared context state, so `fp-cuda` retains the same device primary context that cubecl retains.
+
+Arbitration is skipped outright when the two runtimes resolve to different device ids: it costs
+~47% of multiply time (`[batch-stats] lock=`), pure waste once the reduction has its own GPU.
+
+## Grid caps for the barrier-bound row-reduce kernels (2026-07-28, H200)
+
+**Chosen:** cap the grid well below full occupancy for the three grid-barrier-bound kernels, with
+env overrides. Defaults live in `src/lib.rs` as `DEFAULT_PF_CTAS`, `DEFAULT_PROM_CTAS` and
+`DEFAULT_BR_CTAS`.
+
+A `grid_sync`'s cost scales with the CTA count, and these kernels sync per pivot, so past the point
+where the grid covers the per-pivot work more CTAs only buy more expensive barriers.
+
+| kernel | syncs | gain from the cap | override |
+|---|---|---|---|
+| `panel_factor_coop` | 1 per pivot bit | +3% at 2^16 | `FP_CUDA_PF_CTAS` |
+| `promote_coop` | 1 per pivot | +6% at 2^16, +5% at 2^17 | `FP_CUDA_PROM_CTAS` |
+| `block_reduce_coop` (TRSM) | 2 per pivot | 334 -> 115 ms (2.9x) at 2^16, +12% end-to-end | `FP_CUDA_BR_CTAS` |
+
+The block-reduce cap applies **only under TRSM**, where the reduces are narrow base blocks whose
+per-pivot XOR needs little width. Without TRSM the reduce is the full block and its XOR genuinely
+needs the whole grid, so full occupancy stands.
+
+## Forward-pass panel width scales with stride (2026-07-20, H200)
+
+**Chosen:** `adaptive_bl` in `src/lib.rs` — `stride/256` without the cooperative promote,
+`stride/128` with it, capped at `MAX_BL`. Override with `FP_CUDA_BL`.
+
+Wider panels raise the trailing GEMM's contraction dimension, reclaiming the K-padding waste. The
+counter-pressure is the promotion cost: the single-CTA `promote_pivots` is O(bl) total, so narrow
+panels win there, while the cooperative `promote_coop` (used at stride >= 1024) is ~bl-independent,
+so the panel can widen until the forward GEMM stops padding.
+
+Measured optima, half-rank inputs:
+
+| n | stride | promote | optimal bl |
+|---|---|---|---|
+| 2^15 | 512 | single-CTA | 2 |
+| 2^16 | 1024 | cooperative | 8 |
+| 2^17 | 2048 | cooperative | 16 |
+
+## A dedicated reduction GPU does not remove the need for the lock (2026-08-06, H200)
+
+**Rejected:** skipping `fp::gpu_lock::exclusive` when the multiply and the reduction resolve to
+different devices. `FP_CUDA_DEVICE=3` with the multiply on 0..2 failed 63 times in 300 s. An
+isolated device removes multiply contention but leaves reduction-vs-reduction contention untouched:
+the reduction's GEMM is a persistent grid sized to fill the machine, so two concurrent reductions
+each demand the whole GPU. Only the *shared* side is gated on the devices being shared.
+
+## The row-reduce CPU crossover sits just below 8192 (2026-08-02, H200)
+
+Half-rank square inputs, device time including upload, against single-threaded M4RI `row_reduce`:
+
+| n | GPU vs M4RI |
+|---|---|
+| 4096 | 0.57x (a loss) |
+| 8192 | 1.57x (a win) |
+
+Hence `DEFAULT_RR_THRESHOLD = 8192`, well above the matmul threshold — a full reduction is many
+dependent panel steps, not one GEMM, so its crossover is later.
+
+The small-n crossover is bound by fixed launch and transfer overhead rather than the trailing GEMM,
+so the throughput wins above (which scale with n^2) did not move it. The comparison is against
+single-threaded M4RI; the concurrent CPU path is faster, which only pushes the crossover up, so
+8192 is a floor rather than a fitted optimum.

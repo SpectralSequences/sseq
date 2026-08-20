@@ -1,32 +1,4 @@
 //! BLAS3 (GEMM-based) row reduction over F₂.
-//!
-//! This is the CPU-resident Phase 1 of the plan in `BLAS3-ROW-REDUCTION.md`: a
-//! right-looking blocked Gauss–Jordan reduction whose dominant work — the
-//! trailing-submatrix update — is a single F₂ matrix product per column panel,
-//! dispatched through `<&Matrix as Mul>::mul` (the AVX-512 tiled kernel today,
-//! the Hopper `wgmma.b1` kernel once `fp-cuda` is wired in). It produces exactly
-//! the same reduced row echelon form and pivot list as [`Matrix::row_reduce`],
-//! which is what the proptests at the bottom assert.
-//!
-//! # Shape of the algorithm
-//!
-//! Sweep column panels `[c, c+b)` left to right, keeping a running pivot count
-//! `r` (the finished pivot rows live at the top, in column order).
-//!
-//! * **Panel factorization** (`[c, c+b)`): Gauss–Jordan on the panel, but with
-//!   the row operations restricted to the panel's limbs. This is the only place
-//!   we touch individual columns, and it is narrow (`b` a small multiple of 64).
-//!   As each pivot column `q_k` is cleared from a row `j`, the cleared bit is the
-//!   multiplier `L[j][k]`; because the pivot rows are kept mutually reduced, that
-//!   bit equals the pristine `A[j, q_k]` and the `L[j, ·]` are independent.
-//! * **Trailing update**: `M[:, c+b:] ^= L · U`, where `U` is the pivot rows'
-//!   trailing part. One F₂ GEMM. Because `c+b` is a multiple of 64 the trailing
-//!   region starts at a limb boundary, so `U` is a contiguous limb slice and the
-//!   XOR of the product back into `M` is a whole-limb, row-parallel operation.
-//!
-//! Total cost is `O(m · n · R)` with `R` the rank, GEMM-dominated and
-//! proportional to rank — so the highly rank-deficient matrices this targets are
-//! cheaper for free.
 
 use crate::{limb::Limb, matrix::Matrix, prime::TWO};
 
@@ -38,8 +10,26 @@ const DEFAULT_BLOCK_COLS: usize = 256;
 impl Matrix {
     /// GEMM-based reduction to reduced row echelon form; F₂ only.
     ///
-    /// Bit-for-bit identical result and pivots to [`Matrix::row_reduce`]. Falls
-    /// back to [`Matrix::row_reduce`] for `p ≠ 2`.
+    /// Bit-for-bit identical result and pivots to [`Matrix::row_reduce`], which is what the
+    /// proptests at the bottom of this module assert. Falls back to [`Matrix::row_reduce`] for
+    /// `p ≠ 2`.
+    ///
+    /// A right-looking blocked Gauss–Jordan reduction: sweep column panels `[c, c+b)` left to
+    /// right, keeping a running pivot count `r`, with the finished pivot rows at the top in column
+    /// order. Each panel costs
+    ///
+    /// * **a panel factorization** over `[c, c+b)` — Gauss–Jordan with the row operations
+    ///   restricted to the panel's limbs. This is the only place individual columns are touched,
+    ///   and it is narrow. As each pivot column `q_k` is cleared from a row `j`, the cleared bit is
+    ///   the multiplier `L[j][k]`; because the pivot rows are kept mutually reduced, that bit
+    ///   equals the pristine `A[j, q_k]` and the `L[j, ·]` are independent.
+    /// * **a trailing update** `M[:, c+b:] ^= L · U`, where `U` is the pivot rows' trailing part —
+    ///   one F₂ GEMM, dispatched through `<&Matrix as Mul>::mul`. Because `c+b` is a multiple of 64
+    ///   the trailing region starts at a limb boundary, so `U` is a contiguous limb slice and the
+    ///   XOR back into `M` is a whole-limb, row-parallel operation.
+    ///
+    /// The trailing update dominates, making the total `O(m · n · R)` in the rank `R`: the highly
+    /// rank-deficient matrices this targets come out cheaper for free.
     ///
     /// # Returns
     /// The rank (number of non-zero rows after reduction), like `row_reduce`.
@@ -389,6 +379,8 @@ mod tests {
         })
     }
 
+    /// Assert that reducing `m` with the given panel width agrees with [`Matrix::row_reduce`] on
+    /// both the rank and every entry.
     fn assert_matches_row_reduce(m: &Matrix, block: usize) -> Result<(), TestCaseError> {
         let mut reference = m.clone();
         let ref_rank = reference.row_reduce();

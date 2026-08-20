@@ -938,7 +938,8 @@ impl Matrix {
 
         // Find the first kernel row
         let first_kernel_row = self.find_first_row_in_block(first_source_column);
-        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
+        // Every row after the first kernel row is also a kernel row, so now we know how big it is
+        // and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Self::new(p, kernel_dimension, source_dimension);
         kernel.initialize_pivots();

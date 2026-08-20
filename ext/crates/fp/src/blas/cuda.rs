@@ -11,16 +11,11 @@ use crate::{matrix::Matrix, prime::TWO};
 /// Below this the host marshalling (bit-repack into TMA tiles + copies) costs more than it saves.
 const DEFAULT_THRESHOLD: usize = 2048;
 
-/// Smallest `min(rows, cols)` for which we attempt the GPU row reduction. Higher
-/// than the matmul threshold: a full reduction is many dependent panel steps, not
-/// one GEMM, so its CPU crossover is later. Re-validated on an H200 post-
-/// optimization (half-rank square, device incl. upload/reduce vs M4RI
-/// `row_reduce`): GPU is 0.57× at n=4096 (a loss) and 1.57× at n=8192 (a win),
-/// so the crossover sits just below 8192. The small-n crossover is bound by fixed
-/// launch/transfer overhead, not the trailing GEMM, so the recent throughput wins
-/// (which scale with n²) did not move it. Measured against single-thread M4RI;
-/// the concurrent CPU path is faster, which only pushes the crossover up — so
-/// 8192 is the safe floor. Override with `FP_CUDA_RR_THRESHOLD`.
+/// Smallest `min(rows, cols)` for which we attempt the GPU row reduction.
+///
+/// Higher than [`DEFAULT_THRESHOLD`]: a full reduction is many dependent panel steps, not one GEMM,
+/// so its CPU crossover is later. This is a floor rather than a fitted optimum — see
+/// `crates/fp-cuda/EXPERIMENTS.md`. Override with `FP_CUDA_RR_THRESHOLD`.
 const DEFAULT_RR_THRESHOLD: usize = 8192;
 
 /// The matmul threshold in use, overridable via the `FP_CUDA_THRESHOLD` environment variable.
@@ -54,11 +49,9 @@ fn context() -> Option<&'static GpuContext> {
             return None;
         }
         // `FP_CUDA_DEVICE` puts the row reduction on its own GPU. On a single device the two CUDA
-        // consumers contend: the reduction's thousands of tiny sequential relaunches queue behind
-        // the multiply's saturating kernels (1.8-9.7 ms standalone vs 8.6-96.8 s co-running), which
-        // is why [`crate::gpu_lock`] exists at all — and that arbitration then costs ~47% of
-        // multiply time. Separate devices remove the contention by construction, so the lock
-        // becomes a no-op (see [`crate::gpu_lock::set_devices_shared`]).
+        // consumers contend, which is why [`crate::gpu_lock`] exists; separate devices remove the
+        // contention by construction, so the lock's shared side becomes a no-op (see
+        // [`crate::gpu_lock::set_devices_shared`]).
         let device = std::env::var("FP_CUDA_DEVICE")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -88,13 +81,9 @@ fn context() -> Option<&'static GpuContext> {
 /// How many GPUs the cubecl Milnor multiply spreads over — it shards across ALL visible devices, so
 /// the row reduction shares a device with it whenever `FP_CUDA_DEVICE < multiply_devices()`.
 ///
-/// This used to ask which single device the multiply ran on, reading `NASSAU_GPU_DEVICE` — a
-/// variable nothing in `algebra` reads any more, left behind when the multiply became multi-GPU. It
-/// therefore answered "device 0" no matter how many GPUs the multiply was actually saturating, and
-/// `FP_CUDA_DEVICE=2` on a 4-GPU node would silently conclude "separate devices, no arbitration
-/// needed" while the multiply was hammering device 2 as well. Arbitration exists to keep the
-/// reduction's thousands of tiny sequential relaunches from queueing behind saturating multiply
-/// kernels (1.8-9.7 ms standalone vs 8.6-96.8 s co-running); losing it is not a small regression.
+/// This must count every device the multiply can land on, not the one it starts on: concluding
+/// "separate devices" while the multiply is in fact sharing the reduction's GPU silently discards
+/// the arbitration [`crate::gpu_lock::exclusive`] exists to provide.
 ///
 /// Mirrors `algebra::algebra::milnor_gpu::gpu_count` — `fp` cannot call it (`algebra` depends on
 /// `fp`, not the reverse), so the two must be kept in step. Both honour `CUDA_VISIBLE_DEVICES`,
@@ -132,15 +121,13 @@ fn multiply_devices() -> usize {
 /// ordinary grids, so two of them co-scheduled do not fail — they *queue*, and that is the problem.
 /// The reduction is a chain of thousands of tiny sequential relaunches, each one a dependency of
 /// the next, so every relaunch that waits behind a saturating GEMM adds its full queueing delay to
-/// a serial critical path: 1.8-9.7 ms standalone becomes 8.6-96.8 s co-running. The cooperative
-/// reduction path (`FP_CUDA_RR_COOP`) fails harder still, spinning forever at a grid-wide barrier
-/// for CTAs that were never scheduled, which is why it is off by default.
+/// a serial critical path (see [`crate::gpu_lock::exclusive`]). The cooperative reduction path
+/// (`FP_CUDA_RR_COOP`) fails harder still, spinning forever at a grid-wide barrier for CTAs that
+/// were never scheduled, which is why it is off by default.
 ///
-/// A lock could serialize this, and [`crate::gpu_lock::exclusive`] did for `row_reduce` — but
-/// `try_mul` was deliberately lock-free, so the device still had two independent machine-filling
-/// consumers and a dedicated GPU was not actually owned by anything. Routing *both* through one
-/// thread makes single-ownership structural rather than a discipline every new call site has to
-/// remember.
+/// A lock would serialize only the call sites that remember to take it, and *both* entry points
+/// have to be covered or the device has two independent machine-filling consumers again. Routing
+/// them through one thread makes single ownership structural instead of a discipline.
 ///
 /// # Completion, not submission
 ///
@@ -161,6 +148,7 @@ mod driver {
 
     type Job = Box<dyn FnOnce() + Send + 'static>;
 
+    /// The driver thread's job channel, spawning the thread on first use.
     fn sender() -> &'static Mutex<mpsc::Sender<Job>> {
         static TX: OnceLock<Mutex<mpsc::Sender<Job>>> = OnceLock::new();
         TX.get_or_init(|| {
@@ -183,8 +171,10 @@ mod driver {
         })
     }
 
-    /// Run `f` on the driver thread and block for its result. `f` owns everything it touches (both
-    /// call sites have already marshalled to owned limb buffers), so nothing borrows across threads.
+    /// Run `f` on the driver thread and block for its result.
+    ///
+    /// `f` owns everything it touches (both call sites have already marshalled to owned limb
+    /// buffers), so nothing borrows across threads.
     pub(super) fn run<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
         let (tx, rx) = mpsc::channel();
         sender()
@@ -267,13 +257,9 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     // cooperative launch) and allocates its device buffers per call, so concurrent rayon workers
     // reduce different matrices on independent streams — overlapping instead of serializing.
     //
-    // The claim that this "needs no cross-runtime exclusion against the cubecl multiply" is exactly
-    // backwards. Composability (no cooperative launch) means this path *can* overlap other GPU work
-    // without deadlocking — not that it should. This reduction is a chain of thousands of tiny
-    // sequential per-column relaunches, so overlapping it with the multiply's saturating kernels
-    // makes every launch queue: 1.8–9.7 ms standalone becomes 8.6–96.8 s co-running. Take the
-    // device exclusively for the duration; see [`fp::gpu_lock`] for the measurements and the cost
-    // (~5 s of multiply pause across a whole stem-200 resolution).
+    // Composability (no cooperative launch) means this path *can* overlap other GPU work without
+    // deadlocking — not that it should. Take the device exclusively for the duration; see
+    // [`crate::gpu_lock::exclusive`].
     // The exclusive guard now lives on the driver thread, which holds it for the whole job — see
     // [`driver`]. Taking it here as well would deadlock: the driver would wait on a guard this
     // thread holds while this thread waits on the driver.
