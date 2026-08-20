@@ -1,5 +1,4 @@
-//! Phase 5a gate (BLAS3-GPU-HANDOFF §5): the device forward pass
-//! (`forward_reduce`) must produce a correct row-echelon form over the
+//! The device forward pass (`forward_reduce`) must produce a correct row-echelon form over the
 //! persistent buffer. Validated against an independent oracle — `row_reduce`:
 //!
 //!  1. the forward pass applies only elementary row operations, so it preserves
@@ -7,8 +6,8 @@
 //!  2. rank matches `row_reduce`'s rank, and the reported pivot columns match;
 //!  3. the non-pivot rows (perm positions `[r, m)`) are zeroed.
 //!
-//! No hand-written mirror reference — the check is against the ground-truth CPU
-//! reducer. (Phase 5b adds back-substitution and validates full RREF equality.)
+//! No hand-written mirror reference — the check is against the ground-truth CPU reducer.
+//! `row_reduce_demo` covers back-substitution and full RREF equality.
 //!
 //! Run with `cargo run -p fp-cuda --example forward_reduce_demo`.
 
@@ -25,7 +24,7 @@ fn pivot_columns(m: &Matrix) -> Vec<usize> {
 
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
-    println!("=== fp-cuda forward_reduce (Phase 5a) demo ===");
+    println!("=== fp-cuda forward_reduce demo ===");
 
     let mut rng = rand::rng();
     let mut any_fail = false;

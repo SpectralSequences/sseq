@@ -1,7 +1,6 @@
-//! Phase 5 gate (BLAS3-GPU-HANDOFF §5, the decisive one): the full device
-//! reduction `row_reduce_dev` (forward pass + back-substitution over one
-//! persistent buffer) must equal `fp::Matrix::row_reduce` bit-for-bit — the RREF
-//! matrix *and* the pivot list.
+//! The full device reduction `row_reduce_dev` — forward pass and back-substitution over one
+//! persistent buffer — must equal `fp::Matrix::row_reduce` bit-for-bit: the RREF matrix *and* the
+//! pivot list.
 //!
 //! The device leaves the RREF pivot rows at perm positions [0, r) in ascending
 //! column order; we materialize them into the canonical layout (pivot k at row
@@ -23,7 +22,7 @@ fn pivot_columns(m: &Matrix) -> Vec<usize> {
 
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
-    println!("=== fp-cuda row_reduce_dev (Phase 5, full RREF) demo ===");
+    println!("=== fp-cuda row_reduce_dev (full RREF) demo ===");
 
     let mut rng = rand::rng();
     let mut any_fail = false;

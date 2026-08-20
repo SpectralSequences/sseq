@@ -1,6 +1,5 @@
-//! Phase 3 gate (BLAS3-GPU-HANDOFF §5): the fused trailing-update epilogue
-//! `gemm_xor_into` must reproduce the CPU blas3 Step B — `M[:, off:] ^= L·U`,
-//! in place over a persistent device buffer — bit-for-bit.
+//! The fused trailing-update epilogue `gemm_xor_into` must reproduce the CPU blas3 trailing update
+//! — `M[:, off:] ^= L·U`, in place over a persistent device buffer — bit-for-bit.
 //!
 //! For each shape we build well-formed random `M` (m×N), `L` (m×k), `U` (k×t)
 //! with `off + t == N` and `off` a limb boundary, compute the reference the way
