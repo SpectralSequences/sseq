@@ -58,8 +58,9 @@ fn context() -> Option<&'static GpuContext> {
     .as_ref()
 }
 
-/// The single thread every `fp-cuda` submission goes through, so this process has exactly one
-/// owner of the reduction GPU.
+/// The single thread every `fp-cuda` submission goes through.
+///
+/// This is what gives the process exactly one owner of the reduction GPU.
 ///
 /// Both entry points — the row reduction's trailing GEMM and the standalone [`try_mul`] — launch
 /// grids sized to fill the machine. Co-scheduled they do not fail, they *queue*, and the reduction
@@ -153,14 +154,12 @@ pub(super) fn try_mul(a: &Matrix, b: &Matrix) -> Option<Matrix> {
     Some(Matrix::from_data(TWO, m, n, c))
 }
 
-/// Try to row-reduce `m` to RREF on the GPU, in place. Returns `Some(rank)` and
-/// leaves `m` in the same canonical reduced form `Matrix::row_reduce` produces
-/// (pivot rows at the top in column order, zeros below, `pivots` set); returns
-/// `None` — and the caller uses the CPU M4RI path — if the GPU is unavailable,
-/// below threshold, or a launch fails. The result is bit-identical to the CPU
-/// path (validated in `fp-cuda`'s `row_reduce_demo`).
+/// Try to row-reduce `m` to RREF on the GPU, in place.
 ///
-/// Assumes `m.prime() == 2` (the caller has checked).
+/// Returns `Some(rank)`, leaving `m` in the same canonical reduced form `Matrix::row_reduce`
+/// produces — pivot rows at the top in column order, zeros below, `pivots` set — and bit-identical
+/// to it, which `fp-cuda`'s `row_reduce_demo` validates. Returns `None` if the GPU is unavailable,
+/// the matrix is below threshold, or a launch fails; the caller then takes the CPU M4RI path.
 pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     debug_assert_eq!(m.prime(), TWO);
     let (rows, cols) = (m.rows(), m.columns());

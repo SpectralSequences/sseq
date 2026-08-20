@@ -57,9 +57,10 @@ fn adaptive_bl(stride: usize) -> usize {
     (stride / div).clamp(1, MAX_BL)
 }
 
-/// Whether the row reduction uses its **cooperative** kernels — `panel_factor_coop`,
-/// `promote_coop`, `block_reduce_coop` — launched with `cuLaunchCooperativeKernel` and
-/// synchronized by a hand-rolled grid-wide spin barrier.
+/// Whether the row reduction uses its **cooperative** kernels.
+///
+/// Those are `panel_factor_coop`, `promote_coop` and `block_reduce_coop`, launched with
+/// `cuLaunchCooperativeKernel` and synchronized by a hand-rolled grid-wide spin barrier.
 ///
 /// **Off by default.** The barrier spins until every CTA arrives, so the launch needs the whole
 /// grid co-resident, which holds only when this process owns the GPU outright: any other CUDA
@@ -86,9 +87,11 @@ struct TmaArg(sys::CUtensorMap);
 // invariants, and the kernel declares the matching parameter `const __grid_constant__ CUtensorMap`.
 unsafe impl DeviceRepr for TmaArg {}
 
-/// A bit-packed F₂ matrix resident in device memory, in the natural row-major,
-/// K-major limb layout `fp::Matrix` uses: `stride = cols.div_ceil(64)` u64 per
-/// row, `rows * stride` u64 total, one bit per entry, bits past `cols` zero.
+/// A bit-packed F₂ matrix resident in device memory.
+///
+/// Stored in the natural row-major, K-major limb layout `fp::Matrix` uses: `stride =
+/// cols.div_ceil(64)` u64 per row, `rows * stride` u64 total, one bit per entry, bits past `cols`
+/// zero.
 ///
 /// This is the persistent buffer the row-reduction port operates over: uploaded once, mutated in
 /// place by device kernels, downloaded once. It is `fp`-agnostic (raw limbs) so `fp-cuda` stays
@@ -503,9 +506,11 @@ fn cfg_1d(total: usize) -> LaunchConfig {
 }
 
 impl GpuContext {
-    /// Device-resident F₂ GEMM: [`matmul_b1_raw`]'s operand layout, but already on device and
-    /// packed into the wgmma tiles there, so there is no host round-trip. This is the
-    /// persistent-buffer primitive the row-reduction port needs.
+    /// Device-resident F₂ GEMM.
+    ///
+    /// [`matmul_b1_raw`]'s operand layout, but already on device and packed into the wgmma tiles
+    /// there, so there is no host round-trip. This is the persistent-buffer primitive the
+    /// row-reduction port needs.
     ///
     /// Returns `C = A·B` as a **padded** buffer of `m_padded × n_padded_lim` u64 — valid data in
     /// the first `m` rows and first `n.div_ceil(64)` limbs of each — plus its row stride. The
@@ -709,12 +714,12 @@ impl GpuContext {
         Ok(self.stream().clone_dtoh(s)?)
     }
 
-    /// The fused trailing-update / back-substitution epilogue over persistent device buffers:
+    /// The fused trailing-update / back-substitution epilogue over persistent device buffers.
+    ///
     /// `dst[:, col_off:] ^= L · U`, in place, where `L` is `dst.rows × k` and `U` is `k × t`
-    /// (`k = l.cols = u.rows`,
-    /// `t = u.cols`). `col_off` must be a limb boundary (multiple of 64) and the
-    /// trailing region `[col_off, dst.cols)` must be exactly `t` columns wide —
-    /// i.e. `col_off + t == dst.cols` — so the whole-limb XOR lands correctly.
+    /// (`k = l.cols = u.rows`, `t = u.cols`). `col_off` must be a limb boundary (multiple of 64)
+    /// and the trailing region `[col_off, dst.cols)` must be exactly `t` columns wide — i.e.
+    /// `col_off + t == dst.cols` — so the whole-limb XOR lands correctly.
     ///
     /// Runs [`matmul_b1_dev`](Self::matmul_b1_dev) into a scratch device C and
     /// XORs it into `dst` with [`xor_into_region`](Self::xor_into_region) — no
@@ -766,12 +771,12 @@ impl GpuContext {
         Ok(self.stream().clone_htod(&host)?)
     }
 
-    /// Factor one 64-bit column panel (limb `plimb`) in place over the persistent buffer,
-    /// forward-only, starting from pivot row `r` — the b=64 base kernel. Rows are addressed
-    /// through `perm`; a pivot is promoted by swapping its `perm` entry to position
-    /// `r + pivot_index`. The
-    /// multiplier bits captured while clearing rows *below* each pivot are ORed
-    /// into `l` (indexed by original row id, so `l` needs no permutation).
+    /// Factor one 64-bit column panel in place over the persistent buffer — the b=64 base kernel.
+    ///
+    /// Forward-only over limb `plimb`, starting from pivot row `r`. Rows are addressed through
+    /// `perm`; a pivot is promoted by swapping its `perm` entry to position `r + pivot_index`. The
+    /// multiplier bits captured while clearing rows *below* each pivot are ORed into `l` (indexed
+    /// by original row id, so `l` needs no permutation).
     ///
     /// `l` must be an `m × (≥64-column)` device matrix (one limb per row is
     /// enough since a panel yields ≤ 64 pivots); the caller zeroes the panel's
@@ -1323,11 +1328,12 @@ impl GpuContext {
         Ok(())
     }
 
-    /// Forward pass of the blocked row reduction over the persistent device
-    /// buffer: sweep 64-bit panels left to right, and for each —
-    /// factor it ([`panel_factor`](Self::panel_factor)), promote the pivot rows'
-    /// deferred trailing, drop the pivots from the multiplier matrix, and apply
-    /// the trailing update `M[:, c+b:] ^= L·U` as one wgmma GEMM. Leaves `m` in
+    /// Forward pass of the blocked row reduction over the persistent device buffer.
+    ///
+    /// Sweeps 64-bit panels left to right, and for each — factor it
+    /// ([`panel_factor`](Self::panel_factor)), promote the pivot rows' deferred trailing, drop the
+    /// pivots from the multiplier matrix, and apply the trailing update `M[:, c+b:] ^= L·U` as one
+    /// wgmma GEMM. Leaves `m` in
     /// **row-echelon** form addressed through `perm`: the `rank` pivot rows at
     /// perm positions `[0, rank)`, each reduced by earlier pivots; the rest zero.
     ///
@@ -1453,12 +1459,13 @@ impl GpuContext {
         Ok((perm, r, pivot_cols))
     }
 
-    /// Clear a pivot block's columns from a set of rows *above* it, as one `X·U` GEMM (the
-    /// back-substitution Schur update). Clears the pivot columns of block `[block_s, block_e)`
-    /// from the rows at perm positions
-    /// `[above_start, above_start+above_count)`: gather `X` = those rows' bits at
-    /// the block's pivot columns, `U` = the (already-RREF) block rows over their
-    /// trailing, `G = X·U`, then scatter-XOR `G` into the above rows.
+    /// Clear a pivot block's columns from the rows *above* it, as one `X·U` GEMM.
+    ///
+    /// The back-substitution Schur update. Clears the pivot columns of block
+    /// `[block_s, block_e)` from the rows at perm positions
+    /// `[above_start, above_start+above_count)`: gather `X` = those rows' bits at the block's pivot
+    /// columns, `U` = the (already-RREF) block rows over their trailing, `G = X·U`, then
+    /// scatter-XOR `G` into the above rows.
     ///
     /// Unlike the forward trailing update this needs **no promote**: the source
     /// (block) rows are already fully reduced and disjoint from the target (above)
@@ -1674,10 +1681,11 @@ impl GpuContext {
         Ok(())
     }
 
-    /// Recursive **blocked TRSM** reduction of a pivot block `[s, e)` to RREF
-    /// among itself: split at the midpoint, recurse on the right half, clear its
-    /// pivots from the left half with one large `X·U` GEMM
-    /// ([`bs_clear_above`](Self::bs_clear_above)), then recurse on the left half.
+    /// Recursive **blocked TRSM** reduction of a pivot block `[s, e)` to RREF among itself.
+    ///
+    /// Splits at the midpoint, recurses on the right half, clears its pivots from the left half
+    /// with one large `X·U` GEMM ([`bs_clear_above`](Self::bs_clear_above)), then recurses on the
+    /// left half.
     /// Below `base_bp` the elementwise
     /// [`block_reduce_elem`](Self::block_reduce_elem) runs.
     ///
