@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cache_home_dir","config_dirs","config_home_dir","data_dirs","data_home_dir","state_home_dir"],"struct":["XdgDirsIter"]};

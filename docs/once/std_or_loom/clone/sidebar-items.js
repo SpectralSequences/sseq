@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"derive":["Clone"],"trait":["Clone","CloneToUninit","TrivialClone","UseCloned"]};
+window.SIDEBAR_ITEMS = {"derive":["Clone"],"trait":["Clone","CloneToUninit","Share","TrivialClone","UseCloned"]};

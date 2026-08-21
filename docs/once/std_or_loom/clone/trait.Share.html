@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A trait for types whose `Clone` operation creates another alias to the same logical resource or shared state."><title>Share in once::std_or_loom::clone - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.0 (88d9e12ae 2026-08-18)" data-channel="1.98.0" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!-- The loading of KaTeX is deferred to speed up page rendering -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
+<!-- To automatically render math in text elements, include the auto-render extension: -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "\\(", right: "\\)", display: false},
+                {left: "$", right: "$", display: false},
+                {left: "\\[", right: "\\]", display: true}
+            ],
+            macros: {
+                "\\Ext": "\\operatorname{Ext}",
+                "\\Mod": "\\operatorname{Mod}",
+                "\\Hom": "\\operatorname{Hom}",
+                "\\Sq": "\\operatorname{Sq}",
+                "\\F": "\\mathbb{F}",
+            }
+        });
+    });
+</script>
+
+</head><body class="rustdoc trait"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Share</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Share</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.share" title="share">share</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>clone</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">clone</a></div><h1>Trait <span class="trait">Share</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="https://doc.rust-lang.org/1.98.0/src/core/clone.rs.html#382">Source</a> </span></div><pre class="rust item-decl"><code>pub trait Share: <a class="trait" href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone">Clone</a> {
+    // Provided method
+    final fn <a href="#method.share" class="fn">share</a>(&amp;self) -&gt; Self { ... }
+}</code></pre><span class="item-info"><div class="stab unstable"><span class="emoji">🔬</span><span>This is a nightly-only experimental API. (<code>share_trait</code>)</span></div></span><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait for types whose <a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a> operation creates another alias to the same
+logical resource or shared state.</p>
+<p><code>Share</code> refines the meaning of <a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a> for types where cloning a value
+creates another handle, reference, or alias to the same logical resource or
+shared state, rather than an independent owned value. The distinction is
+semantic, not operational: <code>Share</code> does not mean merely that cloning is
+cheap, constant-time, allocation-free, or convenient.</p>
+<p><code>Share</code> is a third way to think about creating another usable value:</p>
+<ul>
+<li><a href="../marker/trait.Copy.html" title="trait once::std_or_loom::marker::Copy"><code>Copy</code></a> may duplicate a value implicitly.</li>
+<li><a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a> explicitly creates another value.</li>
+<li><code>Share</code> explicitly creates another value that aliases the same underlying
+logical resource or shared state.</li>
+</ul>
+<p><code>Share</code> is not a replacement for either <a href="../marker/trait.Copy.html" title="trait once::std_or_loom::marker::Copy"><code>Copy</code></a> or <a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a>, and neither
+trait implies it. For example, integers are <a href="../marker/trait.Copy.html" title="trait once::std_or_loom::marker::Copy"><code>Copy</code></a> but not <code>Share</code>, because
+copying an integer creates an independent value. Likewise, not every cheap
+<a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a> implementation is <code>Share</code>.</p>
+<p>Shared references, <code>Rc&lt;T&gt;</code>, <code>Arc&lt;T&gt;</code>, <code>Sender&lt;T&gt;</code>, and <code>SyncSender&lt;T&gt;</code> are
+examples of types that can be shared this way. Types such as <code>Vec&lt;T&gt;</code>,
+<code>String</code>, <code>Box&lt;T&gt;</code>, owned collections, and similar owned values are not
+<code>Share</code>, even though they implement <a href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a>, because cloning them creates
+independent owned storage or value ownership. Mutable references (<code>&amp;mut T</code>)
+are neither <code>Clone</code> nor <code>Share</code>, because you cannot have two active at once.</p>
+<p>Calling <a href="trait.Share.html#method.share" title="method once::std_or_loom::clone::Share::share"><code>share</code></a> is equivalent to calling <a href="trait.Clone.html#tymethod.clone" title="method once::std_or_loom::clone::Clone::clone"><code>clone</code></a>
+for implementors, but communicates that the resulting value aliases the same
+underlying resource. The <code>share</code> method is final, so implementors should
+define the operation through <a href="trait.Clone.html#tymethod.clone" title="method once::std_or_loom::clone::Clone::clone"><code>Clone::clone</code></a> and implement <code>Share</code> only when
+those cloning semantics are clone-as-alias semantics.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#![feature(share_trait)]
+
+</span><span class="kw">use </span>std::cell::Cell;
+<span class="kw">use </span>std::clone::Share;
+<span class="kw">use </span>std::rc::Rc;
+<span class="kw">use </span>std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
+
+<span class="kw">let </span>value = <span class="number">1</span>;
+<span class="kw">let </span>reference = <span class="kw-2">&amp;</span>value;
+<span class="macro">assert!</span>(std::ptr::eq(reference, reference.share()));
+
+<span class="kw">let </span>rc = Rc::new(Cell::new(<span class="number">2</span>));
+<span class="kw">let </span>shared_rc = rc.share();
+<span class="macro">assert!</span>(Rc::ptr_eq(<span class="kw-2">&amp;</span>rc, <span class="kw-2">&amp;</span>shared_rc));
+shared_rc.set(<span class="number">3</span>);
+<span class="macro">assert_eq!</span>(rc.get(), <span class="number">3</span>);
+
+<span class="kw">let </span>arc = Arc::new(AtomicUsize::new(<span class="number">4</span>));
+<span class="kw">let </span>shared_arc = arc.share();
+<span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>arc, <span class="kw-2">&amp;</span>shared_arc));
+shared_arc.store(<span class="number">5</span>, Ordering::Relaxed);
+<span class="macro">assert_eq!</span>(arc.load(Ordering::Relaxed), <span class="number">5</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#![feature(share_trait)]
+
+</span><span class="kw">use </span>std::clone::Share;
+<span class="kw">use </span>std::sync::mpsc::{channel, sync_channel};
+
+<span class="kw">let </span>(sender, receiver) = channel();
+<span class="kw">let </span>shared_sender = sender.share();
+sender.send(<span class="number">1</span>).unwrap();
+shared_sender.send(<span class="number">2</span>).unwrap();
+
+<span class="kw">let </span><span class="kw-2">mut </span>received = [receiver.recv().unwrap(), receiver.recv().unwrap()];
+received.sort();
+<span class="macro">assert_eq!</span>(received, [<span class="number">1</span>, <span class="number">2</span>]);
+
+<span class="kw">let </span>(sync_sender, sync_receiver) = sync_channel(<span class="number">2</span>);
+<span class="kw">let </span>shared_sync_sender = sync_sender.share();
+sync_sender.send(<span class="number">3</span>).unwrap();
+shared_sync_sender.send(<span class="number">4</span>).unwrap();
+
+<span class="kw">let </span><span class="kw-2">mut </span>received = [sync_receiver.recv().unwrap(), sync_receiver.recv().unwrap()];
+received.sort();
+<span class="macro">assert_eq!</span>(received, [<span class="number">3</span>, <span class="number">4</span>]);</code></pre></div></div></details><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.share" class="method"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/core/clone.rs.html#389">Source</a><h4 class="code-header">final fn <a href="#method.share" class="fn">share</a>(&amp;self) -&gt; Self</h4></section><span class="item-info"><div class="stab unstable"><span class="emoji">🔬</span><span>This is a nightly-only experimental API. (<code>share_trait</code>)</span></div></span></summary><div class="docblock"><p>Creates another alias to the same underlying resource or shared state.</p>
+<p>This is equivalent to calling <a href="trait.Clone.html#tymethod.clone" title="method once::std_or_loom::clone::Clone::clone"><code>Clone::clone</code></a>. Use <code>share</code> at call
+sites to make aliasing intent explicit; implementors define this
+operation through <a href="trait.Clone.html#tymethod.clone" title="method once::std_or_loom::clone::Clone::clone"><code>Clone::clone</code></a>, not by overriding this method.</p>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.98.0/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety".</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-Share-for-Arc%3CT,+A%3E" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/alloc/sync.rs.html#2440">Source</a><a href="#impl-Share-for-Arc%3CT,+A%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, A&gt; <a class="trait" href="trait.Share.html" title="trait once::std_or_loom::clone::Share">Share</a> for <a class="struct" href="../sync/struct.Arc.html" title="struct once::std_or_loom::sync::Arc">Arc</a>&lt;T, A&gt;<div class="where">where
+    A: <a class="trait" href="../alloc/trait.Allocator.html" title="trait once::std_or_loom::alloc::Allocator">Allocator</a> + <a class="trait" href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone">Clone</a>,
+    T: ?<a class="trait" href="../marker/trait.Sized.html" title="trait once::std_or_loom::marker::Sized">Sized</a>,</div></h3></section><section id="impl-Share-for-Rc%3CT,+A%3E" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/alloc/rc.rs.html#2523">Source</a><a href="#impl-Share-for-Rc%3CT,+A%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, A&gt; <a class="trait" href="trait.Share.html" title="trait once::std_or_loom::clone::Share">Share</a> for <a class="struct" href="../rc/struct.Rc.html" title="struct once::std_or_loom::rc::Rc">Rc</a>&lt;T, A&gt;<div class="where">where
+    A: <a class="trait" href="../alloc/trait.Allocator.html" title="trait once::std_or_loom::alloc::Allocator">Allocator</a> + <a class="trait" href="trait.Clone.html" title="trait once::std_or_loom::clone::Clone">Clone</a>,
+    T: ?<a class="trait" href="../marker/trait.Sized.html" title="trait once::std_or_loom::marker::Sized">Sized</a>,</div></h3></section><section id="impl-Share-for-%26T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/core/clone.rs.html#794">Source</a><a href="#impl-Share-for-%26T" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Share.html" title="trait once::std_or_loom::clone::Share">Share</a> for <a class="primitive" href="https://doc.rust-lang.org/1.98.0/std/primitive.reference.html">&amp;T</a><div class="where">where
+    T: ?<a class="trait" href="../marker/trait.Sized.html" title="trait once::std_or_loom::marker::Sized">Sized</a>,</div></h3></section><section id="impl-Share-for-Sender%3CT%3E" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/std/sync/mpsc.rs.html#651">Source</a><a href="#impl-Share-for-Sender%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Share.html" title="trait once::std_or_loom::clone::Share">Share</a> for <a class="struct" href="../sync/mpsc/struct.Sender.html" title="struct once::std_or_loom::sync::mpsc::Sender">Sender</a>&lt;T&gt;</h3></section><section id="impl-Share-for-SyncSender%3CT%3E" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.98.0/src/std/sync/mpsc.rs.html#783">Source</a><a href="#impl-Share-for-SyncSender%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Share.html" title="trait once::std_or_loom::clone::Share">Share</a> for <a class="struct" href="../sync/mpsc/struct.SyncSender.html" title="struct once::std_or_loom::sync::mpsc::SyncSender">SyncSender</a>&lt;T&gt;</h3></section></div><script src="../../../trait.impl/core/clone/trait.Share.js" data-ignore-extern-crates="std,alloc" async></script></section></div></main></body></html>

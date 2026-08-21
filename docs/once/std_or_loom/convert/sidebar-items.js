@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Infallible"],"fn":["identity"],"trait":["AsMut","AsRef","FloatToInt","From","Into","TryFrom","TryInto"]};
+window.SIDEBAR_ITEMS = {"enum":["Infallible"],"fn":["identity"],"trait":["AsMut","AsRef","BoundedCastFromInt","CheckedCastFromInt","FloatToInt","From","Into","TryFrom","TryInto"]};

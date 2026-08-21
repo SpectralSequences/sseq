@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["offload_kernel"],"mod":["offload"]};
