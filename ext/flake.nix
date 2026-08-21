@@ -14,15 +14,14 @@
       # a-mole, so we match by prefix.
       pkgs = import super.nixpkgs {
         inherit system;
-        config.allowUnfreePredicate = pkg:
-          let
-            lib = super.nixpkgs.lib;
-            name = lib.getName pkg;
-          in
-            lib.hasPrefix "cuda" name
-            || lib.hasPrefix "libcu" name
-            || lib.hasPrefix "libnv" name
-            || lib.hasPrefix "libnpp" name;
+        config.allowUnfreePredicate = pkg: let
+          lib = super.nixpkgs.lib;
+          name = lib.getName pkg;
+        in
+          lib.hasPrefix "cuda" name
+          || lib.hasPrefix "libcu" name
+          || lib.hasPrefix "libnv" name
+          || lib.hasPrefix "libnpp" name;
       };
 
       pythonEnv = pkgs.python3.withPackages (ps: [
