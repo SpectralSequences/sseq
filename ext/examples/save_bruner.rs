@@ -18,6 +18,9 @@ fn main() -> anyhow::Result<()> {
 
     assert_eq!(resolution.prime(), 2);
     let algebra = resolution.algebra();
+    // With `nassau` the algebra is already a `MilnorAlgebra`, so this conversion is a no-op;
+    // without it the algebra is a `SteenrodAlgebra` and the conversion does real work.
+    #[cfg_attr(feature = "nassau", allow(clippy::useless_conversion))]
     let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buffer = String::new();

@@ -55,3 +55,4 @@ harness = false
 [[bench]]
 name = "smallfq"
 harness = false
+required-features = ["odd-primes"]

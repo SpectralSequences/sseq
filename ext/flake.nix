@@ -38,6 +38,7 @@
           pkgs.cargo-cache
           pkgs.cargo-criterion
           pkgs.cargo-flamegraph
+          pkgs.cargo-hack
           pkgs.cargo-nextest
           pkgs.perf
         ]

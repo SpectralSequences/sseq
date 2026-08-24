@@ -112,6 +112,12 @@ jobs:
           toolchain: nightly
           components: clippy, rustfmt
 
+      # `just lint` drives clippy through `cargo hack --feature-powerset`.
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
       - name: Install python dependencies
         run: sudo apt-get install black flake8
 

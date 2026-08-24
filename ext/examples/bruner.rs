@@ -168,6 +168,9 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(i32, FiniteCha
     let cc = create_chain_complex(num_s as usize);
     let algebra = cc.algebra();
 
+    // With `nassau` the algebra is already a `MilnorAlgebra`, so this conversion is a no-op;
+    // without it the algebra is a `SteenrodAlgebra` and the conversion does real work.
+    #[cfg_attr(feature = "nassau", allow(clippy::useless_conversion))]
     let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buf = String::new();

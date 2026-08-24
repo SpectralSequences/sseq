@@ -15,12 +15,10 @@ test:
     cargo test --features concurrent --doc --workspace
     pytest
 
+# `clippy` type-checks everything `check` does, so the powerset only needs the one pass.
 lint:
     cargo fmt --all -- --check
-    cargo clippy --workspace --no-default-features --profile test
-    cargo clippy --workspace --all-targets --profile test
-    cargo check --workspace --no-default-features --profile test
-    cargo check --workspace --all-targets --all-features --profile test
+    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test
 
 # Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes
 # (mirrors the clippy configurations run by `lint`).
