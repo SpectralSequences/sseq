@@ -24,6 +24,9 @@ cudarc = { version = "0.19", default-features = false, features = [
     "dynamic-loading",
 ] }
 
+[build-dependencies]
+anyhow = "1.0.98"
+
 [dev-dependencies]
 # The library API is fp-agnostic (raw limbs), so that the higher-level `fp` crate
 # can depend on `fp-cuda` without a dependency cycle. Only the examples and benches use `fp`.

@@ -97,14 +97,11 @@ The kernel's tuning knobs live in `cuda_kernels/params.h`. The kernel includes
 that header directly, and `build.rs` parses it to generate the Rust mirror, so
 the host and device cannot disagree about a tile size.
 
-**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit)
-`build.rs` emits a *stub* PTX and prints a warning instead of failing, so the
-crate stays `cargo check`/`clippy`-able everywhere — including under
-`cargo check --workspace --all-features`, which the workspace CI runs on a
-machine with no CUDA. The stub carries no kernel, so at runtime
-`GpuContext::new` returns an error and callers (e.g. `fp`'s GPU dispatch)
-fall back to the CPU path. An nvcc that *is* present but fails to compile is
-still a hard build error.
+**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit) the
+build fails. Nothing in the workspace's own `just` recipes builds this crate:
+`lint` and `test` pass `--exclude fp-cuda`, and it is not in `default-members`.
+Callers reach the backend through `fp`'s optional `gpu` feature, which is off
+by default and falls back to the CPU path when it is not enabled.
 
 ## Running
 

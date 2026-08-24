@@ -62,8 +62,7 @@ pub struct GpuContext {
 impl GpuContext {
     /// Open device `device_id` and load the kernel onto it.
     ///
-    /// Fails if there is no usable device, or if the embedded PTX is the stub `build.rs` emits when
-    /// `nvcc` is absent, in which case the kernel is missing from the module.
+    /// Fails if there is no usable device.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
         let ctx = CudaContext::new(device_id)?;
         let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
