@@ -28,12 +28,27 @@ fix:
     cargo clippy --workspace --all-targets --profile test --fix --allow-dirty --allow-staged
 
 docs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # `--all-features` would enable `gpu`, which needs nvcc, so name every other feature instead.
+    # Derived from the manifests so a new feature is documented without editing this recipe.
+    features="$(cargo metadata --no-deps --format-version 1 \
+        | jq -r '.packages[] as $p | $p.features | keys[]
+                 | select(. != "default" and . != "gpu") | "\($p.name)/\(.)"' \
+        | sort -u | paste -sd,)"
+    [ -n "$features" ] || { echo "no features found; the metadata query is wrong" >&2; exit 1; }
+    export RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html ${RUSTDOCFLAGS:-}"
+    # Not `target/`: it moves when CARGO_TARGET_DIR is set.
+    doc_dir="$(cargo metadata --format-version 1 | jq -r .target_directory)/doc"
     # Prevent the cached crates.js from confusing the current run
-    rm target/doc/crates.js || true
-    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo rustdoc --examples --all-features
-    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo doc --all --no-deps --document-private-items --all-features
-    # Prevent the examples from showing up in the sidebar
-    echo "window.ALL_CRATES = [$(ls crates/ | sed "s/.*/'&',/; s/-/_/g")'ext'];" > target/doc/crates.js
+    rm -f "$doc_dir/crates.js"
+    cargo rustdoc --examples --features "$features"
+    cargo doc --all --no-deps --document-private-items --features "$features"
+    # Prevent the examples from showing up in the sidebar. The crate list comes from the same
+    # metadata as the docs themselves, so an excluded crate (`fp-cuda`) leaves no dangling entry.
+    crates="$(cargo metadata --no-deps --format-version 1 \
+        | jq -r '.packages[].name' | grep -vx ext | sort | sed "s/-/_/g; s/.*/'&',/" | tr -d '\n')"
+    echo "window.ALL_CRATES = [${crates}'ext'];" > "$doc_dir/crates.js"
 
 miri:
     cargo miri test -p once
