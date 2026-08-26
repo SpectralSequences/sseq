@@ -22,14 +22,11 @@ use sseq::coordinates::MultiDegree;
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
 ///
-/// # Grading
-/// The trait is generic over the number of gradings `N` (defaulting to `1`, the singly-graded
-/// case). Degrees are [`MultiDegree<N>`]; every degree *input* is taken as `impl Into<MultiDegree<N>>`
-/// so callers in the singly-graded world keep passing bare `i32`s (via `From<i32> for
-/// MultiDegree<1>`). `MultiDegree<2>` is a bidegree, used by `Ext` (see `ext::ext_algebra`).
+/// The trait is generic over the number of gradings `N`. Degrees are [`MultiDegree<N>`].
+/// Callers in the singly-graded world can keep passing bare `i32`s.
 ///
-/// `Algebra` cannot use `#[enum_dispatch]` because it is now generic; `SteenrodAlgebra` dispatches
-/// it by hand (see `dispatch_steenrod!`).
+/// `Algebra` cannot use `#[enum_dispatch]` because it is generic; `dispatch_steenrod!` does dispatch
+/// by hand.
 pub trait Algebra<const N: usize = 1>: std::fmt::Display + Send + Sync + 'static {
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.

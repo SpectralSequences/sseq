@@ -54,9 +54,8 @@ impl std::str::FromStr for AlgebraType {
 }
 
 #[allow(clippy::large_enum_variant)]
-// `Algebra` is now generic (`Algebra<const N>`), which `enum_dispatch` cannot handle, so it is
-// dispatched by hand below via `dispatch_steenrod!`. The remaining (non-generic) traits still use
-// `enum_dispatch`.
+// `Algebra` is generic, which `enum_dispatch` cannot handle, so it is dispatched by hand
+// below via `dispatch_steenrod!`.
 #[enum_dispatch::enum_dispatch(Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
