@@ -33,7 +33,14 @@ use fp::{
     prime::{TWO, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
-use itertools::Itertools;
+use itertools::{Either, Itertools};
+// If `concurrent` is enabled, the `enumerate`/`for_each` used in `restricted_partial_matrix` come
+// from `rayon::prelude::IndexedParallelIterator`, loaded via the `maybe_rayon` prelude. If it is
+// disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and those methods come from
+// `std::iter::Iterator` instead, leaving this import unused — the same single code path either way.
+// Mirrors `algebra::module::homomorphism`.
+#[allow(unused_imports)]
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
@@ -132,6 +139,12 @@ impl MilnorSubalgebra {
 
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
     ///
+    /// Only basis elements coming from generators of degree strictly less than `max_gen_degree`
+    /// are considered; `None` imposes no restriction. Restricting the generator degree is used by
+    /// [`Resolution::compute_through_stem`] to read a module while ignoring the generators of the
+    /// current internal degree, which may be added concurrently by another thread. Because
+    /// generators are laid out in increasing degree, this is exactly a prefix of the full mask.
+    ///
     /// This requires passing the algebra for borrow checker reasons.
     fn signature_mask<'a>(
         &'a self,
@@ -139,41 +152,43 @@ impl MilnorSubalgebra {
         module: &'a FreeModule<MilnorAlgebra>,
         degree: i32,
         signature: &'a [PPartEntry],
+        max_gen_degree: Option<i32>,
     ) -> impl Iterator<Item = usize> + 'a {
-        // Every element is tested against the same signature, so compile it once. An unsatisfiable
-        // signature gives no mask, and the empty `Option` masks off the whole iterator.
-        self.packed_signature(signature)
-            .into_iter()
-            .flat_map(move |(mask, value)| {
-                module.iter_gen_offsets([degree]).flat_map(
-                    move |GeneratorData {
-                              gen_deg,
-                              start: [offset],
-                              end: _,
-                          }| {
-                        algebra
-                            .ppart_table(degree - gen_deg)
-                            .iter()
-                            .enumerate()
-                            .filter_map(move |(n, op)| {
-                                if op.bits() & mask == value {
-                                    Some(offset + n)
-                                } else {
-                                    None
-                                }
-                            })
-                    },
-                )
-            })
+        // Every element is tested against the same signature, so compile it once.
+        let Some((mask, value)) = self.packed_signature(signature) else {
+            return Either::Right(std::iter::empty());
+        };
+
+        let matching = module
+            .iter_gen_offsets([degree])
+            .take_while(move |gen_data| max_gen_degree.is_none_or(|bound| gen_data.gen_deg < bound))
+            .flat_map(move |gen_data| {
+                let GeneratorData {
+                    gen_deg,
+                    start: [offset],
+                    ..
+                } = gen_data;
+                algebra
+                    .ppart_table(degree - gen_deg)
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(n, op)| (op.bits() & mask == value).then_some(offset + n))
+            });
+
+        Either::Left(matching)
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
     /// the signature.
+    ///
+    /// Only generators of the target of degree strictly less than `target_max_gen_degree` are used
+    /// (see [`Self::signature_mask`]).
     fn signature_matrix(
         &self,
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
         signature: &[PPartEntry],
+        target_max_gen_degree: i32,
     ) -> Matrix {
         let p = hom.prime();
         let source = hom.source();
@@ -182,14 +197,23 @@ impl MilnorSubalgebra {
         let target_degree = degree - hom.degree_shift();
 
         let target_mask: Vec<usize> = self
-            .signature_mask(&algebra, &target, degree - hom.degree_shift(), signature)
+            .signature_mask(
+                &algebra,
+                &target,
+                target_degree,
+                signature,
+                Some(target_max_gen_degree),
+            )
             .collect();
 
         let source_mask: Vec<usize> = self
-            .signature_mask(&algebra, &source, degree, signature)
+            .signature_mask(&algebra, &source, degree, signature, None)
             .collect();
 
-        let mut scratch = FpVector::new(p, target.dimension(target_degree));
+        let mut scratch = FpVector::new(
+            p,
+            target.dimension_from_gens_below(target_degree, target_max_gen_degree),
+        );
         let mut result = Matrix::new(p, source_mask.len(), target_mask.len());
 
         for (mut row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
@@ -599,6 +623,26 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
+    /// Build the matrix of `hom` on the basis elements `inputs`, using a target that has been
+    /// truncated to its first `target_dim` basis elements. This is a version of
+    /// [`ModuleHomomorphism::get_partial_matrix`] that does not read the (possibly concurrently
+    /// growing) target dimension.
+    fn restricted_partial_matrix(
+        hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+        degree: i32,
+        inputs: &[usize],
+        target_dim: usize,
+    ) -> Matrix {
+        let mut matrix = Matrix::new(hom.prime(), inputs.len(), target_dim);
+        if target_dim > 0 {
+            matrix
+                .maybe_par_iter_mut()
+                .enumerate()
+                .for_each(|(i, row)| hom.apply_to_basis_element(row, 1, degree, inputs[i]));
+        }
+        matrix
+    }
+
     #[tracing::instrument(skip(self), fields(%b, %subalgebra, num_new_gens, density))]
     fn step_resolution_with_subalgebra(
         &self,
@@ -619,21 +663,32 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target = &*self.modules[b.s() - 1];
         let algebra = target.algebra();
 
+        // We compute this bidegree treating the target `C_{b.s() - 1}` as if it had no generators of
+        // degree `>= b.t()`, and `C_{b.s() - 2}` as if it had no generators of degree `>= b.t() - 1`.
+        // By minimality this loses no information (the differentials we care about land in the
+        // radical, hence in strictly lower-degree generators), and it makes the computation depend
+        // only on data that is frozen once `(b.s() - 1, b.t() - 1)` and `(b.s(), b.t() - 1)` have
+        // been committed. This is what lets [`Self::compute_through_stem`] compute `(b.s(), b.t())`
+        // concurrently with `(b.s() - 1, b.t())`, which is adding those degree-`b.t()` generators.
+        let target_bound = b.t();
+        let next_bound = b.t() - 1;
+
         let zero_sig = subalgebra.zero_signature();
-        let target_dim = target.dimension(b.t());
+        let target_dim = target.dimension_from_gens_below(b.t(), target_bound);
         let target_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, target, b.t(), &zero_sig)
+            .signature_mask(&algebra, target, b.t(), &zero_sig, Some(target_bound))
             .collect();
         let target_masked_dim = target_mask.len();
 
         let next = &self.modules[b.s() - 2];
         next.compute_basis(b.t());
+        let next_dim = next.dimension_from_gens_below(b.t(), next_bound);
 
         let mut f = if let Some(dir) = self.save_dir().write() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
-            f.write_u64::<LittleEndian>(next.dimension(b.t()) as u64)?;
+            f.write_u64::<LittleEndian>(next_dim as u64)?;
             f.write_u64::<LittleEndian>(target_masked_dim as u64)?;
             subalgebra.to_bytes(&mut f)?;
             Some(f)
@@ -643,13 +698,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let guard = tracing::info_span!("step", signature = ?zero_sig).entered();
         let next_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, &self.modules[b.s() - 2], b.t(), &zero_sig)
+            .signature_mask(&algebra, next, b.t(), &zero_sig, Some(next_bound))
             .collect();
         let next_masked_dim = next_mask.len();
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+            Self::restricted_partial_matrix(
+                &self.differentials[b.s() - 1],
+                b.t(),
+                &target_mask,
+                next_dim,
+            )
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -670,14 +730,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             &masked_matrix,
         )?;
 
-        if let Some(f) = &mut f
-            && target.max_computed_degree() < b.t()
-        {
+        // The quasi-inverse is always computed on the restricted (degree `< b.t()`) target basis, so
+        // from the point of view of a later `apply_quasi_inverse` it was computed with "incomplete
+        // information": the differentials on the degree-`b.t()` generators of the target were not
+        // available. We flag this unconditionally so the lift is corrected using those differentials
+        // once they are known.
+        if let Some(f) = &mut f {
             f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
         }
 
         // Compute image
-        let mut n = subalgebra.signature_matrix(&self.differentials[b.s()], b.t(), &zero_sig);
+        let mut n =
+            subalgebra.signature_matrix(&self.differentials[b.s()], b.t(), &zero_sig, target_bound);
         n.row_reduce();
         let next_row = n.rows();
 
@@ -690,7 +754,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.add_generators(b, num_new_gens);
 
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
-        let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
+        let mut dxs = vec![FpVector::new(p, next_dim); num_new_gens];
 
         for ((x, x_masked), dx) in xs
             .iter_mut()
@@ -713,13 +777,29 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
-            target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
-            next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
+            target_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                target,
+                b.t(),
+                &signature,
+                Some(target_bound),
+            ));
+            next_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                next,
+                b.t(),
+                &signature,
+                Some(next_bound),
+            ));
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
-                self.differential(b.s() - 1)
-                    .get_partial_matrix(b.t(), &target_mask)
+                Self::restricted_partial_matrix(
+                    &self.differentials[b.s() - 1],
+                    b.t(),
+                    &target_mask,
+                    next_dim,
+                )
             };
 
             let mut masked_matrix =
@@ -956,6 +1036,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
+    ///
+    /// The dependency graph we use is the relaxed one: computing `(s, t)` only requires `(s, t - 1)`
+    /// and `(s - 1, t - 1)` (for `s >= 2`), rather than `(s - 1, t)` and `(s, t - 1)`. The read-only
+    /// data `(s, t)` needs — the generators of the relevant modules of degree `< t` — is frozen once
+    /// those two bidegrees have been committed (see [`Self::step_resolution_with_subalgebra`], which
+    /// ignores the degree-`t` generators of the target). This lets `(s, t)` run concurrently with
+    /// `(s - 1, t)`, the bidegree that produces those degree-`t` generators, and keeps many
+    /// `t`-diagonals (`n = t - s` fixed) in flight at once, which is where the parallelism comes
+    /// from.
+    ///
+    /// The rows `s = 0` and `s = 1` are kept on the strict schedule: they are cheap, and `step0` and
+    /// `step1` read their targets through full matrices, so they wait for `(s - 1, t)`.
     #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
@@ -963,25 +1055,39 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t());
 
+        let min_degree = self.min_degree();
+        let max_s = max.s();
+        let max_n = max.n();
+
+        let in_region = |s: i32, t: i32| -> bool {
+            (0..=max_s).contains(&s) && t >= min_degree && t - s <= max_n
+        };
+
+        // `(s, t)` may be computed once its same-row predecessor `(s, t - 1)` and its diagonal
+        // predecessor are committed. For `s >= 2` the diagonal predecessor is `(s - 1, t - 1)` (the
+        // relaxed graph); for `s == 1` it is `(0, t)`; `s == 0` has none. `progress[s]` is the
+        // largest committed `t` in row `s`, so it doubles as a "predecessor committed" test.
+        let ready = |s: i32, t: i32, progress: &[i32]| -> bool {
+            in_region(s, t)
+                && progress[s as usize] >= t - 1
+                && match s {
+                    0 => true,
+                    // Row 1's diagonal predecessor is (0, t). At the stem edge (t = max_n + 1) that
+                    // bidegree lies outside the computed region, so we treat it as satisfied.
+                    1 => t > max_n || progress[0] >= t,
+                    _ => progress[(s - 1) as usize] >= t - 1,
+                }
+        };
+
         let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
             let _tracing_guard = tracing_span.enter();
 
-            // This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
-            // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
-            // but having the dimensions of the modules change halfway through the computation is
-            // annoying to do correctly. It seems more prudent to improve parallelism elsewhere.
-
-            // Things that we have finished computing.
-            let mut progress: Vec<i32> = vec![-1; max.s() as usize + 1];
-            // We will kickstart the process by pretending we have computed (0, - 1). So
-            // we must pretend we have only computed up to (0, - 2);
-            progress[0] = -2;
+            let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
 
             let (sender, receiver) = mpsc::channel();
-            SenderData::send(Bidegree::s_t(0, -1), sender);
 
-            let f = |b, sender| {
+            let spawn_bidegree = |b: Bidegree, sender: mpsc::Sender<SenderData>| {
                 if self.has_computed_bidegree(b) {
                     SenderData::send(b, sender);
                 } else {
@@ -998,26 +1104,38 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 }
             };
 
+            // Seed the base of every row. A bidegree `(s, min_degree)` has no in-region
+            // predecessors, so it is not spawned by the wavefront — except `(1, min_degree)`, whose
+            // diagonal predecessor `(0, min_degree)` is in region, so we let it be spawned instead.
+            for s in 0..=max_s {
+                if s != 1 {
+                    spawn_bidegree(Bidegree::s_t(s, min_degree), sender.clone());
+                }
+            }
+            drop(sender);
+
             while let Ok(SenderData { b, retry, sender }) = receiver.recv() {
                 if retry {
-                    f(b, sender);
+                    spawn_bidegree(b, sender);
                     continue;
                 }
                 assert!(progress[b.s() as usize] == b.t() - 1);
                 progress[b.s() as usize] = b.t();
 
-                // How far we are from the last one for this s.
-                let distance = max.n() - b.n() + 1;
+                // Completing `b` can only make ready its same-row successor `(s, t + 1)` and one
+                // diagonal successor. `ready` requires *both* predecessors, so of the two
+                // completions that could spawn a given bidegree, only the later one does.
+                let same_row = b + Bidegree::s_t(0, 1);
+                let diagonal = if b.s() == 0 {
+                    Bidegree::s_t(1, b.t())
+                } else {
+                    b + Bidegree::s_t(1, 1)
+                };
 
-                if b.s() < max.s() && progress[b.s() as usize + 1] == b.t() - 1 {
-                    f(b + Bidegree::s_t(1, 0), sender.clone());
-                }
-
-                if distance > 1 && (b.s() == 0 || progress[b.s() as usize - 1] > b.t()) {
-                    // We are computing a normal step
-                    f(b + Bidegree::s_t(0, 1), sender);
-                } else if distance == 1 && b.s() < max.s() {
-                    SenderData::send(b + Bidegree::s_t(0, 1), sender);
+                for cand in [same_row, diagonal] {
+                    if ready(cand.s(), cand.t(), &progress) {
+                        spawn_bidegree(cand, sender.clone());
+                    }
                 }
             }
         });
@@ -1114,6 +1232,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             source,
             b.t(),
             &subalgebra.zero_signature(),
+            None,
         ));
 
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
@@ -1142,7 +1261,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature())
+                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature(), None)
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -1174,7 +1293,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
+                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature, None));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem
@@ -1310,6 +1429,62 @@ mod tests {
             subalgebra
                 .packed_signature(&[PPart::max_entry(0) + 1, 0])
                 .is_none()
+        );
+    }
+
+    /// Cross-check the secondary (d2) computation on a *save-backed* Nassau resolution computed with
+    /// the relaxed [`Resolution::compute_through_stem`] against the standard resolution. This
+    /// exercises the quasi-inverse save files, which under the relaxed schedule are always written
+    /// using the "incomplete information" (`Magic::Fix`) path, since a bidegree is computed while
+    /// ignoring the same-degree generators of its target.
+    #[test]
+    fn test_stem_concurrent_secondary() {
+        use std::sync::Arc;
+
+        use algebra::pair_algebra::PairAlgebra;
+
+        use crate::{
+            chain_complex::FreeChainComplex, resolution::secondary::SecondaryResolution,
+            secondary::SecondaryLift, utils::construct_standard,
+        };
+
+        fn d2_chart<CC>(lift: &SecondaryResolution<CC>) -> String
+        where
+            CC: FreeChainComplex,
+            CC::Algebra: PairAlgebra,
+        {
+            let underlying = lift.underlying();
+            let mut out = String::new();
+            // Mirror the guarded iteration in `SecondaryResolution::e3_page`.
+            for b in underlying.iter_stem() {
+                if b.t() > 0 && underlying.has_computed_bidegree(b + Bidegree::n_s(-1, 2)) {
+                    let matrix = lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                    if matrix.iter().any(|row| !row.is_empty()) {
+                        out.push_str(&format!("d2 {b}: {matrix:?}\n"));
+                    }
+                }
+            }
+            out
+        }
+
+        let max = Bidegree::n_s(20, 7);
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let nassau = crate::utils::construct_nassau("S_2", Some(dir.path().to_owned())).unwrap();
+        nassau.compute_through_stem(max);
+        let nassau_lift = SecondaryResolution::new(Arc::new(nassau));
+        nassau_lift.extend_all();
+
+        let standard = construct_standard::<false, _, _>("S_2", None).unwrap();
+        standard.compute_through_stem(max);
+        let standard_lift = SecondaryResolution::new(Arc::new(standard));
+        standard_lift.extend_all();
+
+        assert_eq!(
+            d2_chart(&nassau_lift),
+            d2_chart(&standard_lift),
+            "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and \
+             standard"
         );
     }
 
