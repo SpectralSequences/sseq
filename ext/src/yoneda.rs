@@ -405,10 +405,7 @@ where
                         }
 
                         diff_im_matrix.row_reduce();
-                        if diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero() {
-                            return true;
-                        }
-                        false
+                        diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero()
                     });
 
                     if needs_to_revert {
