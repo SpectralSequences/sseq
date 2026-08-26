@@ -27,6 +27,8 @@ pub struct MilnorProfile {
     ///
     /// Unlike the exponent sequence of a basis element (see [`PPart`]), these are *exponents* of
     /// the profile function and use [`PPartEntry::MAX`] to mean infinity, so they stay unpacked.
+    /// We need to allow Infinity here, so we don't bit-pack: infinity values have no fixed
+    /// field width and cannot be represented in the packed u64 format.
     #[serde(default)]
     pub p_part: Vec<PPartEntry>,
 }
@@ -106,7 +108,7 @@ pub type PPartEntry = u32;
 /// The exponent sequence $(r_1, r_2, \ldots)$ of a Milnor basis element $P(r_1, r_2, \ldots)$,
 /// bit-packed into a single `u64`.
 ///
-/// Entry $r_{i+1}$ occupies [`Self::WIDTHS`]`[i]` bits starting at bit [`Self::SHIFTS`]`[i]`. The
+/// Entry $r_{i+1}$ occupies `WIDTHS[i]` bits starting at bit `SHIFTS[i]` (both private). The
 /// widths are forced by the degree bound: at $p = 2$ the internal degree of $P(R)$ is
 /// $\sum_i r_i (2^i - 1)$ and every term is non-negative, so an element of degree at most
 /// [`Self::MAX_DEGREE`] has $r_i \le \mathrm{MAX\\_DEGREE}/(2^i - 1)$. At an odd prime the same
@@ -127,37 +129,6 @@ pub type PPartEntry = u32;
 pub struct PPart(u64);
 
 impl PPart {
-    /// The largest internal degree whose exponent sequences are guaranteed to fit.
-    ///
-    /// This is the largest bound for which [`Self::WIDTHS`] sums to at most 64. It is far beyond
-    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
-    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
-    pub const MAX_DEGREE: i32 = 2045;
-
-    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
-    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
-    pub const MAX_LEN: usize = 10;
-
-    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
-    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
-    /// `MAX_LEN` are given width 0, so they read as zero.
-    const TABLE_LEN: usize = 16;
-
-    /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
-    /// `MAX_DEGREE / (2^(i+1) - 1)`.
-    const WIDTHS: [u32; Self::TABLE_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1, 0, 0, 0, 0, 0, 0];
-
-    /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
-    const SHIFTS: [u32; Self::TABLE_LEN] = {
-        let mut shifts = [0; Self::TABLE_LEN];
-        let mut i = 0;
-        while i < Self::MAX_LEN {
-            shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
-            i += 1;
-        }
-        shifts
-    };
-
     /// `FIELD_OF_BIT[b]` is the index of the entry owning bit `b`, letting [`Self::len`] turn a
     /// `leading_zeros` into an entry index without looping.
     const FIELD_OF_BIT: [u8; 64] = {
@@ -173,6 +144,32 @@ impl PPart {
         }
         table
     };
+    /// The largest internal degree whose exponent sequences are guaranteed to fit.
+    ///
+    /// This is the largest bound for which the field widths sum to at most 64. It is far beyond
+    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
+    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
+    pub const MAX_DEGREE: i32 = 2045;
+    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
+    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
+    pub const MAX_LEN: usize = 10;
+    /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
+    const SHIFTS: [u32; Self::TABLE_LEN] = {
+        let mut shifts = [0; Self::TABLE_LEN];
+        let mut i = 0;
+        while i < Self::MAX_LEN {
+            shifts[i + 1] = shifts[i] + Self::WIDTHS[i];
+            i += 1;
+        }
+        shifts
+    };
+    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
+    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
+    /// `MAX_LEN` are given width 0, so they read as zero.
+    const TABLE_LEN: usize = 16;
+    /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
+    /// `MAX_DEGREE / (2^(i+1) - 1)`.
+    const WIDTHS: [u32; Self::TABLE_LEN] = [11, 10, 9, 8, 7, 6, 5, 4, 3, 1, 0, 0, 0, 0, 0, 0];
 
     /// The largest value entry `i` can hold.
     pub const fn max_entry(i: usize) -> PPartEntry {
@@ -201,6 +198,11 @@ impl PPart {
     /// The raw packed value. Two exponent sequences are equal exactly when their bits are, so this
     /// is a complete hash key, and it can be compared against a packed mask in one operation (see
     /// `MilnorSubalgebra::packed_signature` in `ext`).
+    ///
+    /// The layout is not uniform, so this is a complete key but not a balanced one: entry `i` sits
+    /// at [`Self::shift`]`(i)`, putting `r_1` in the low bits, and `r_1` correlates strongly with
+    /// internal degree. Taking this value modulo a small number therefore partitions by `r_1`
+    /// rather than evenly — callers that shard or bucket on it must mix the bits first.
     pub const fn bits(self) -> u64 {
         self.0
     }
@@ -279,6 +281,7 @@ impl PPart {
         }
     }
 
+    /// Iterate over the entries in order from lowest to highest index.
     pub fn iter(self) -> impl DoubleEndedIterator<Item = PPartEntry> + ExactSizeIterator {
         (0..self.len()).map(move |i| self.get(i))
     }
@@ -660,8 +663,8 @@ impl Algebra for MilnorAlgebra {
                                     self.multiply(
                                         res.as_slice_mut(),
                                         1,
-                                        &self.basis_element_from_index(d as i32, i),
-                                        &self.basis_element_from_index(e as i32, j),
+                                        self.basis_element_from_index(d as i32, i),
+                                        self.basis_element_from_index(e as i32, j),
                                     );
                                     res
                                 })
@@ -799,11 +802,11 @@ impl Algebra for MilnorAlgebra {
             map(
                 (tag("P^"), digits, char('_'), digits::<usize>),
                 |(_, s, _, t)| {
-                    if t == 0 || t > PPart::MAX_LEN {
-                        return None;
-                    }
                     let entry = p.pow(s) as PPartEntry;
                     let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
+                    // Packing the entry and computing the basis both assert their range, where
+                    // an unpacked p-part simply stored the value. Neither assert is reachable
+                    // from a well-formed element, so reject rather than panic.
                     if degree > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
                         return None;
                     }
@@ -1197,11 +1200,13 @@ impl MilnorAlgebra {
     /// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
     /// (e.g. out of range or excluded by the profile).
     pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
-        let q = self.q() as u32;
-        let degree = (q * x + e) as i32;
-        if degree > PPart::MAX_DEGREE || x > PPart::max_entry(0) {
+        // `x` and `e` are unbounded, so compute the degree in `i64` and only narrow it once the
+        // bound has ruled the wide cases out.
+        let degree = self.q() as i64 * x as i64 + e as i64;
+        if degree > PPart::MAX_DEGREE as i64 || x > PPart::max_entry(0) {
             return None;
         }
+        let degree = degree as i32;
         self.compute_basis(degree);
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
@@ -1951,13 +1956,12 @@ impl Bialgebra for MilnorAlgebra {
         }
         let xi_degrees = combinatorics::xi_degrees(self.prime());
 
-        let mut len = 1;
         let p_part = self.basis_element_from_index(op_deg, op_idx).p_part;
 
+        let mut len: usize = 1;
         for i in p_part.iter() {
-            len *= i + 1;
+            len *= i as usize + 1;
         }
-        let len = len as usize;
         let mut result = Vec::with_capacity(len);
 
         let n = p_part.len();
@@ -2117,6 +2121,18 @@ mod tests {
         assert_eq!(a2.try_beps_pn(0, 7), Some(a2.beps_pn(0, 7)));
         // Invalid input: excluded by the profile, so `None` instead of a panic.
         assert_eq!(a2.try_beps_pn(0, 8), None);
+    }
+
+    /// `try_beps_pn` is the non-panicking half of `beps_pn`; an out-of-range `x` must not trip
+    /// overflow on the way to the bounds check.
+    #[test]
+    fn try_beps_pn_rejects_overflowing_x() {
+        for p in [2, 3] {
+            let algebra = MilnorAlgebra::new(ValidPrime::new(p), false);
+            assert_eq!(algebra.try_beps_pn(0, PPartEntry::MAX), None);
+            assert_eq!(algebra.try_beps_pn(0, PPartEntry::MAX / 2), None);
+            assert_eq!(algebra.try_beps_pn(1, PPartEntry::MAX), None);
+        }
     }
 
     #[test]
@@ -2341,6 +2357,40 @@ mod tests {
                 let mut recomputed = elt;
                 recomputed.compute_degree(ValidPrime::new(p));
                 assert_eq!(recomputed.degree, t);
+            }
+        }
+    }
+
+    /// The basis *order* at `p = 2` is a wire format: saved resolutions store coefficients by
+    /// index, so reordering silently invalidates them without `magic()` changing. Deriving the
+    /// basis from `ppart_table` preserves the order `generate_basis_2` produced, since the stable
+    /// path never sorted. Pin that down against fixed expected names, so the check does not depend
+    /// on `ppart_table` -- the very thing it is guarding.
+    #[test]
+    fn basis_order_at_p2_is_stable() {
+        let algebra = MilnorAlgebra::new(fp::prime::TWO, false);
+        algebra.compute_basis(8);
+
+        let expected: [&[&str]; 9] = [
+            &["1"],
+            &["P(1)"],
+            &["P(2)"],
+            &["P(3)", "P(0, 1)"],
+            &["P(4)", "P(1, 1)"],
+            &["P(5)", "P(2, 1)"],
+            &["P(6)", "P(3, 1)", "P(0, 2)"],
+            &["P(7)", "P(4, 1)", "P(1, 2)", "P(0, 0, 1)"],
+            &["P(8)", "P(5, 1)", "P(2, 2)", "P(1, 0, 1)"],
+        ];
+        for (t, names) in expected.iter().enumerate() {
+            let t = t as i32;
+            assert_eq!(algebra.dimension(t), names.len(), "dimension in degree {t}");
+            for (i, name) in names.iter().enumerate() {
+                assert_eq!(
+                    &algebra.basis_element_to_string(t, i),
+                    name,
+                    "degree {t}, index {i}"
+                );
             }
         }
     }
