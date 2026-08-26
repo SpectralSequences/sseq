@@ -19,12 +19,11 @@ lint:
     cargo fmt --all -- --check
     cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test
 
-# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes
-# (mirrors the clippy configurations run by `lint`).
+# Apply the fixes that `lint` only checks. Same feature powerset, so nothing `fix` leaves behind
+# is reported by the `lint` run that follows it.
 fix:
     cargo fmt --all
-    cargo clippy --workspace --no-default-features --profile test --fix --allow-dirty --allow-staged
-    cargo clippy --workspace --all-targets --profile test --fix --allow-dirty --allow-staged
+    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test --fix --allow-dirty --allow-staged
 
 docs:
     ./build_docs.py

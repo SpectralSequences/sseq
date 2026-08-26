@@ -16,9 +16,10 @@ EXCLUDED_FEATURES = {"default", "gpu"}
 
 
 def metadata(*args):
+    # Only stdout is captured, so cargo's diagnostics still reach the terminal if it fails.
     out = subprocess.run(
         ["cargo", "metadata", "--format-version", "1", *args],
-        capture_output=True,
+        stdout=subprocess.PIPE,
         check=True,
         text=True,
     )
@@ -45,11 +46,10 @@ def main():
 
     # Not `target/`: it moves when CARGO_TARGET_DIR is set.
     doc_dir = os.path.join(metadata()["target_directory"], "doc")
-    crates_js = os.path.join(doc_dir, "crates.js")
 
-    # Prevent the cached crates.js from confusing the current run.
-    if os.path.exists(crates_js):
-        os.remove(crates_js)
+    # The whole directory, not just a stale crates.js: CI caches it between runs and uploads it
+    # wholesale, so docs for a crate that is no longer documented would be published forever.
+    subprocess.run(["cargo", "clean", "--doc"], check=True)
 
     feature_args = ["--features", ",".join(features)]
     for argv in (
@@ -69,7 +69,7 @@ def main():
     # built from leaves no dangling entry for one that is excluded from the workspace.
     crates = sorted(p["name"].replace("-", "_") for p in packages if p["name"] != "ext")
     entries = ",".join(f"'{name}'" for name in [*crates, "ext"])
-    with open(crates_js, "w") as f:
+    with open(os.path.join(doc_dir, "crates.js"), "w") as f:
         f.write(f"window.ALL_CRATES = [{entries}];\n")
 
 
