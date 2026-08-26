@@ -63,10 +63,8 @@ nassau = []
 gpu = ["fp/gpu"]
 
 [workspace]
-# `fp-cuda` builds its CUDA kernel with nvcc, and fails to build without it. It is excluded from the
-# workspace rather than merely left out of `default-members`: the latter only affects commands that
-# omit `--workspace`, so `cargo check --workspace` and rust-analyzer's flycheck would still build
-# it, and fail for anyone without the CUDA Toolkit.
+# `fp-cuda` needs nvcc. `default-members` is not enough: `--workspace` selects every member, so
+# `cargo check --workspace` and rust-analyzer would still build it.
 exclude = ["crates/fp-cuda"]
 
 members = [

@@ -63,8 +63,8 @@ at runtime, so the Rust side builds with no CUDA present.
 
 This crate is **excluded from the workspace**, so every workspace-wide command
 (`cargo build`, `cargo check --workspace`, `nix run .#test`, and rust-analyzer's
-flycheck) ignores it. It is opt-in: building requires nvcc on `PATH` and (at
-runtime) a Hopper-class GPU.
+flycheck) ignores it. It is opt-in: building requires nvcc on `PATH` and a
+Hopper-class GPU at runtime.
 
 ## Prerequisites
 
