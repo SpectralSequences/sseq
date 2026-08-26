@@ -452,9 +452,9 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         let name = json["name"].as_str().unwrap_or("").to_string();
 
         let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
-        for (i, dim) in graded_dimension.iter_enum() {
-            for j in 0..*dim {
-                result.set_basis_element_name(i, j, gen_names[i][j].clone());
+        for (i, _) in graded_dimension.iter_enum() {
+            for (j, gen_name) in gen_names[i].iter().enumerate() {
+                result.set_basis_element_name(i, j, gen_name.clone());
             }
         }
 
