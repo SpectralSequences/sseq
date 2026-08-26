@@ -31,6 +31,11 @@ fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
 #[case("S_2", 40, 30)]
 #[case("C2", 40, 30)]
 #[case("Joker", 30, 20)]
+// `max_n = 2^i - 1` puts a nonzero class (`h_i`, i.e. `Sq^{2^i}`) exactly on the `s = 1` stem edge
+// `(1, max_n + 1)`, exercising the row-1 boundary of the wavefront where the diagonal predecessor
+// `(0, max_n + 1)` lies outside the computed region.
+#[case("S_2", 7, 6)]
+#[case("S_2", 15, 8)]
 fn compare_stem(#[case] module_name: &str, #[case] n: i32, #[case] s: i32) {
     let max = Bidegree::n_s(n, s);
     let a = construct_standard::<false, _, _>(module_name, None).unwrap();

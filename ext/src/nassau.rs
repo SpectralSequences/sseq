@@ -34,13 +34,6 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::{Either, Itertools};
-// If `concurrent` is enabled, the `enumerate`/`for_each` used in `restricted_partial_matrix` come
-// from `rayon::prelude::IndexedParallelIterator`, loaded via the `maybe_rayon` prelude. If it is
-// disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and those methods come from
-// `std::iter::Iterator` instead, leaving this import unused — the same single code path either way.
-// Mirrors `algebra::module::homomorphism`.
-#[allow(unused_imports)]
-use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
@@ -218,7 +211,7 @@ impl MilnorSubalgebra {
 
         for (mut row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
             scratch.set_to_zero();
-            hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
+            hom.apply_to_basis_element_restricted(scratch.as_slice_mut(), 1, degree, masked_index);
 
             row.add_masked(scratch.as_slice(), 1, &target_mask);
         }
@@ -623,26 +616,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    /// Build the matrix of `hom` on the basis elements `inputs`, using a target that has been
-    /// truncated to its first `target_dim` basis elements. This is a version of
-    /// [`ModuleHomomorphism::get_partial_matrix`] that does not read the (possibly concurrently
-    /// growing) target dimension.
-    fn restricted_partial_matrix(
-        hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
-        degree: i32,
-        inputs: &[usize],
-        target_dim: usize,
-    ) -> Matrix {
-        let mut matrix = Matrix::new(hom.prime(), inputs.len(), target_dim);
-        if target_dim > 0 {
-            matrix
-                .maybe_par_iter_mut()
-                .enumerate()
-                .for_each(|(i, row)| hom.apply_to_basis_element(row, 1, degree, inputs[i]));
-        }
-        matrix
-    }
-
     #[tracing::instrument(skip(self), fields(%b, %subalgebra, num_new_gens, density))]
     fn step_resolution_with_subalgebra(
         &self,
@@ -704,8 +677,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            Self::restricted_partial_matrix(
-                &self.differentials[b.s() - 1],
+            self.differentials[b.s() - 1].get_partial_matrix_restricted(
                 b.t(),
                 &target_mask,
                 next_dim,
@@ -794,8 +766,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
-                Self::restricted_partial_matrix(
-                    &self.differentials[b.s() - 1],
+                self.differentials[b.s() - 1].get_partial_matrix_restricted(
                     b.t(),
                     &target_mask,
                     next_dim,
@@ -1040,8 +1011,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// The dependency graph we use is the relaxed one: computing `(s, t)` only requires `(s, t - 1)`
     /// and `(s - 1, t - 1)` (for `s >= 2`), rather than `(s - 1, t)` and `(s, t - 1)`. The read-only
     /// data `(s, t)` needs — the generators of the relevant modules of degree `< t` — is frozen once
-    /// those two bidegrees have been committed (see [`Self::step_resolution_with_subalgebra`], which
-    /// ignores the degree-`t` generators of the target). This lets `(s, t)` run concurrently with
+    /// those two bidegrees have been committed (`step_resolution_with_subalgebra` ignores the
+    /// degree-`t` generators of the target). This lets `(s, t)` run concurrently with
     /// `(s - 1, t)`, the bidegree that produces those degree-`t` generators, and keeps many
     /// `t`-diagonals (`n = t - s` fixed) in flight at once, which is where the parallelism comes
     /// from.

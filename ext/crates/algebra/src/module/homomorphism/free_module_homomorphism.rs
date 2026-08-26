@@ -40,7 +40,9 @@ where
 {
     /// Apply to one basis element, taking its `(operation, generator)` pair from `cursor`.
     ///
-    /// The degree is the cursor's, so a caller cannot pair a cursor with a mismatched degree.
+    /// The degree is the cursor's, so a caller cannot pair a cursor with a mismatched degree. There
+    /// is no length check on `result`; the callers check it, and differently for the restricted
+    /// variants.
     fn apply_to_basis_element_with(
         &self,
         cursor: &mut OpGenCursor<'_, U, M::Algebra>,
@@ -48,15 +50,6 @@ where
         coeff: u32,
         input_index: usize,
     ) {
-        let input_degree = cursor.degree();
-        let output_degree = input_degree - self.degree_shift;
-        // The result buffer is usually exactly the target dimension, but callers are allowed to
-        // pass a shorter buffer that only spans a prefix of the target basis (the basis elements
-        // coming from a prefix of the generators). This is used by Nassau's algorithm to compute a
-        // bidegree while treating the target module as if its top-degree generators — which may be
-        // added concurrently — do not yet exist. `act` only ever writes as far as the (matching,
-        // equally truncated) stored differential reaches, so it never writes past `result`.
-        assert!(result.as_slice().len() <= self.target.dimension(output_degree));
         let OperationGeneratorPair {
             operation_degree,
             generator_degree,
@@ -107,6 +100,10 @@ where
         input_index: usize,
     ) {
         assert!(input_degree >= self.source.min_degree());
+        assert_eq!(
+            self.target.dimension(input_degree - self.degree_shift),
+            result.as_slice().len()
+        );
         let mut cursor = self.source.opgen_cursor(input_degree);
         self.apply_to_basis_element_with(&mut cursor, result, coeff, input_index);
     }
@@ -115,6 +112,10 @@ where
     /// order.
     fn apply(&self, mut result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
         assert!(input_degree >= self.source.min_degree());
+        assert_eq!(
+            self.target.dimension(input_degree - self.degree_shift),
+            result.as_slice().len()
+        );
         let p = self.prime();
         let mut cursor = self.source.opgen_cursor(input_degree);
         for (i, v) in input.iter_nonzero() {
@@ -239,6 +240,58 @@ where
             self.source.number_of_gens_in_degree(generator_degree)
         );
         &self.outputs[generator_degree][generator_index]
+    }
+
+    /// A truncating variant of [`ModuleHomomorphism::apply_to_basis_element`] that allows `result`
+    /// to span only a prefix of the target's degree-`(input_degree - degree_shift)` basis, rather
+    /// than the whole thing.
+    ///
+    /// The caller must guarantee that the image of the basis element is supported within that
+    /// prefix; otherwise `act` will panic on an out-of-bounds write. This is used by [Nassau's
+    /// algorithm](crate::module::homomorphism), which stores each differential truncated to the same
+    /// prefix (valid by minimality, since a generator's differential lands in the radical), so `act`
+    /// stops before writing past `result`. This lets a bidegree be computed while treating the
+    /// target module as if the generators added concurrently in the current internal degree do not
+    /// yet exist.
+    pub fn apply_to_basis_element_restricted(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
+        assert!(input_degree >= self.source.min_degree());
+        assert!(result.as_slice().len() <= self.target.dimension(input_degree - self.degree_shift));
+        let mut cursor = self.source.opgen_cursor(input_degree);
+        self.apply_to_basis_element_with(&mut cursor, result, coeff, input_index);
+    }
+
+    /// A truncating variant of [`ModuleHomomorphism::get_partial_matrix`] whose target spans only
+    /// the first `target_dim` basis elements of degree `degree - degree_shift`.
+    ///
+    /// Unlike [`ModuleHomomorphism::get_partial_matrix`], which sizes the matrix from the target's
+    /// dimension, this takes the number of columns from the caller. Each row is filled by
+    /// [`Self::apply_to_basis_element_restricted`], so the same support requirement applies. See
+    /// [`ModuleHomomorphism::get_matrix`] for the cursor.
+    pub fn get_partial_matrix_restricted(
+        &self,
+        degree: i32,
+        inputs: &[usize],
+        target_dim: usize,
+    ) -> Matrix {
+        assert!(target_dim <= self.target.dimension(degree - self.degree_shift));
+        let mut matrix = Matrix::new(self.prime(), inputs.len(), target_dim);
+        if target_dim == 0 {
+            return matrix;
+        }
+
+        let source = &*self.source;
+        matrix.maybe_par_iter_mut().enumerate().for_each_init(
+            || source.opgen_cursor(degree),
+            |cursor, (i, row)| self.apply_to_basis_element_with(cursor, row, 1, inputs[i]),
+        );
+
+        matrix
     }
 
     pub fn differential_density(&self, degree: i32) -> f32 {
