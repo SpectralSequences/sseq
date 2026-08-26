@@ -477,9 +477,9 @@
 <a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>name = json[<span class="string">"name"</span>].as_str().unwrap_or(<span class="string">""</span>).to_string();
 <a href=#453 id=453 data-nosnippet>453</a>
 <a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">Self</span>::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), name, graded_dimension.clone());
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">for </span>(i, dim) <span class="kw">in </span>graded_dimension.iter_enum() {
-<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..<span class="kw-2">*</span>dim {
-<a href=#457 id=457 data-nosnippet>457</a>                result.set_basis_element_name(i, j, gen_names[i][j].clone());
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">for </span>(i, <span class="kw">_</span>) <span class="kw">in </span>graded_dimension.iter_enum() {
+<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw">for </span>(j, gen_name) <span class="kw">in </span>gen_names[i].iter().enumerate() {
+<a href=#457 id=457 data-nosnippet>457</a>                result.set_basis_element_name(i, j, gen_name.clone());
 <a href=#458 id=458 data-nosnippet>458</a>            }
 <a href=#459 id=459 data-nosnippet>459</a>        }
 <a href=#460 id=460 data-nosnippet>460</a>
