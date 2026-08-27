@@ -61,9 +61,9 @@ driver-API surface (module load, device buffers, typed launch) and its
 TMA descriptors. `cudarc` is stable Rust and dynamically loads the CUDA driver
 at runtime, so the Rust side builds with no CUDA present.
 
-This crate is **excluded from the workspace's `default-members`**, so plain
-`cargo build` / `nix run .#test` ignore it. It is opt-in: building requires
-nvcc on `PATH` and (at runtime) a Hopper-class GPU.
+This crate is **excluded from the workspace**, so `--workspace` never selects it. It is built only
+as a path dependency, when `fp`'s `gpu` feature is on. Building requires nvcc on `PATH`, and a
+Hopper-class GPU at runtime.
 
 ## Prerequisites
 
@@ -85,8 +85,10 @@ needed at build time to compile the kernel to PTX, and a CUDA driver at runtime.
 # nvcc lives in the opt-in dev shell, not the default one.
 nix develop ./ext#gpu
 
-# From the workspace root; the leading -p selects this crate explicitly.
-cargo build -p fp-cuda
+# The crate is excluded from the workspace, so run cargo from its own directory
+# rather than selecting it with -p from the root.
+cd ext/crates/fp-cuda
+cargo build
 ```
 
 `build.rs` invokes nvcc on `cuda_kernels/matmul_b1.cu` and emits
@@ -97,30 +99,28 @@ The kernel's tuning knobs live in `cuda_kernels/params.h`. The kernel includes
 that header directly, and `build.rs` parses it to generate the Rust mirror, so
 the host and device cannot disagree about a tile size.
 
-**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit)
-`build.rs` emits a *stub* PTX and prints a warning instead of failing, so the
-crate stays `cargo check`/`clippy`-able everywhere — including under
-`cargo check --workspace --all-features`, which the workspace CI runs on a
-machine with no CUDA. The stub carries no kernel, so at runtime
-`GpuContext::new` returns an error and callers (e.g. `fp`'s GPU dispatch)
-fall back to the CPU path. An nvcc that *is* present but fails to compile is
-still a hard build error.
+**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit) the
+build fails. Nothing in the workspace's own `just` recipes builds this crate: it
+is not a member, and none of them enable `fp`'s optional `gpu` feature, which is
+off by default and falls back to the CPU path when it is not enabled.
 
 ## Running
 
+All from `ext/crates/fp-cuda`:
+
 ```bash
 # Smoke test (multiplies a few small shapes, asserts CPU↔GPU equality):
-cargo run -p fp-cuda --example matmul_b1_demo
+cargo run --example matmul_b1_demo
 
 # Kernel-only throughput (the number to quote):
-cargo run --release -p fp-cuda --example bench_kernel_only
+cargo run --release --example bench_kernel_only
 
 # Fast throughput sweep, and the L2-residency check:
-cargo run --release -p fp-cuda --example tune
-cargo run --release -p fp-cuda --example bench_shapes
+cargo run --release --example tune
+cargo run --release --example bench_shapes
 
 # Benchmark against the CPU AVX-512 path in fp::blas:
-cargo bench -p fp-cuda
+cargo bench
 ```
 
 The bench compares each square size in `{128, 256, 512, 1024, 2048, 4096, 8192}`
@@ -146,17 +146,22 @@ dependency is acyclic; the `Matrix` glue lives on the `fp` side
 (`src/blas/cuda.rs`) and in the examples/benches, which take a dev-dependency on
 `fp`.
 
-## Why excluded from `default-members`?
+## Why excluded from the workspace?
 
-Contributors without nvcc would otherwise see this crate's build fail every
-time they run `cargo build`. Keeping it out of the default member set means:
+Contributors without nvcc would otherwise see this crate's build fail every time
+they run a workspace-wide command. Leaving it out of `default-members` is not
+enough: path dependencies residing in the workspace directory are auto-discovered
+as members, and `--workspace` selects every member, so `cargo check --workspace`
+and rust-analyzer's flycheck would still build it. Only `exclude` keeps it out.
 
-- `cargo build`, `cargo test`, `cargo fmt`, `nix run .#test` from the
-  workspace root behave exactly as before.
-- Tooling that wants this crate explicitly opts in with `-p fp-cuda`.
+That means:
 
-The crate is still a workspace **member**, so `cargo metadata` sees it,
-`rust-analyzer` indexes it, and shared dependency resolution works.
+- `cargo build`, `cargo test`, `cargo check --workspace`, `nix run .#test` and
+  rust-analyzer all ignore the crate.
+- `fp`'s `gpu` feature still reaches it as a path dependency, so enabling the
+  backend works as before.
+- It is no longer addressable as `-p fp-cuda` from the workspace root. Build and
+  test it from its own directory: `cd crates/fp-cuda && cargo test`.
 
 ## Status
 

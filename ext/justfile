@@ -17,25 +17,15 @@ test:
 
 lint:
     cargo fmt --all -- --check
-    cargo clippy --workspace --no-default-features --profile test
-    cargo clippy --workspace --all-targets --profile test
-    cargo check --workspace --no-default-features --profile test
-    cargo check --workspace --all-targets --all-features --profile test
+    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test
 
-# Apply the fixes that `lint` only checks: rustfmt formatting + clippy autofixes
-# (mirrors the clippy configurations run by `lint`).
+# Apply the fixes that `lint` only checks.
 fix:
     cargo fmt --all
-    cargo clippy --workspace --no-default-features --profile test --fix --allow-dirty --allow-staged
-    cargo clippy --workspace --all-targets --profile test --fix --allow-dirty --allow-staged
+    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test --fix --allow-dirty --allow-staged
 
 docs:
-    # Prevent the cached crates.js from confusing the current run
-    rm target/doc/crates.js || true
-    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo rustdoc --examples --all-features
-    RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html $RUSTDOCFLAGS" cargo doc --all --no-deps --document-private-items --all-features
-    # Prevent the examples from showing up in the sidebar
-    echo "window.ALL_CRATES = [$(ls crates/ | sed "s/.*/'&',/; s/-/_/g")'ext'];" > target/doc/crates.js
+    ./build_docs.py
 
 miri:
     cargo miri test -p once

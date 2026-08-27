@@ -112,6 +112,11 @@ jobs:
           toolchain: nightly
           components: clippy, rustfmt
 
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
       - name: Install python dependencies
         run: sudo apt-get install black flake8
 

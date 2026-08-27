@@ -18,6 +18,7 @@ fn main() -> anyhow::Result<()> {
 
     assert_eq!(resolution.prime(), 2);
     let algebra = resolution.algebra();
+    #[cfg_attr(feature = "nassau", allow(clippy::useless_conversion))]
     let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buffer = String::new();
