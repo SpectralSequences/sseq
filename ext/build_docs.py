@@ -16,7 +16,6 @@ EXCLUDED_FEATURES = {"default", "gpu"}
 
 
 def metadata(*args):
-    # Only stdout is captured, so cargo's diagnostics still reach the terminal if it fails.
     out = subprocess.run(
         ["cargo", "metadata", "--format-version", "1", *args],
         stdout=subprocess.PIPE,
