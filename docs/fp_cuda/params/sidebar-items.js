@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["GROUP_M","MSTRIPS","MW","NB","STAGES","THREADS_PER_WG","TK"]};

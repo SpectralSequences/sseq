@@ -193,103 +193,104 @@
 <a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">let </span>cc = create_chain_complex(num_s <span class="kw">as </span>usize);
 <a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">let </span>algebra = cc.algebra();
 <a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">let </span>algebra: <span class="kw-2">&amp;</span>MilnorAlgebra = algebra.as_ref().try_into()<span class="question-mark">?</span>;
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">let </span>s = num_s - <span class="number">1</span>;
-<a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a>    algebra.compute_basis(max_n + s + <span class="number">1</span>);
-<a href=#177 id=177 data-nosnippet>177</a>    <span class="comment">// Handle s = 0
-<a href=#178 id=178 data-nosnippet>178</a>    </span>{
-<a href=#179 id=179 data-nosnippet>179</a>        <span class="comment">// TODO: actually parse file
-<a href=#180 id=180 data-nosnippet>180</a>        </span><span class="kw">let </span>m = cc.module(<span class="number">0</span>);
-<a href=#181 id=181 data-nosnippet>181</a>        m.add_generators(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
-<a href=#182 id=182 data-nosnippet>182</a>        m.extend_by_zero(max_n + <span class="number">1</span>);
-<a href=#183 id=183 data-nosnippet>183</a>    }
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">for </span>s <span class="kw">in </span><span class="number">1</span>..num_s {
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span>m = cc.module(s);
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>d = cc.differential(s);
-<a href=#188 id=188 data-nosnippet>188</a>
-<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span><span class="kw-2">mut </span>f = io::BufReader::new(
-<a href=#190 id=190 data-nosnippet>190</a>            File::open(data_dir.join(<span class="macro">format!</span>(<span class="string">"hDiff.{s}"</span>)))
-<a href=#191 id=191 data-nosnippet>191</a>                .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to read hDiff.{s}"</span>))<span class="question-mark">?</span>,
-<a href=#192 id=192 data-nosnippet>192</a>        );
-<a href=#193 id=193 data-nosnippet>193</a>
-<a href=#194 id=194 data-nosnippet>194</a>        read_line(<span class="kw-2">&amp;mut </span>f, <span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;FpVector&gt; = Vec::new();
-<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">let </span><span class="kw-2">mut </span>cur_degree: i32 = <span class="number">0</span>;
-<a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>((t, g)) = get_element(algebra, cc.module(s - <span class="number">1</span>).as_ref(), <span class="kw-2">&amp;mut </span>f)<span class="question-mark">? </span>{
-<a href=#200 id=200 data-nosnippet>200</a>            <span class="kw">if </span>t == cur_degree {
-<a href=#201 id=201 data-nosnippet>201</a>                entries.push(g);
-<a href=#202 id=202 data-nosnippet>202</a>            } <span class="kw">else </span>{
-<a href=#203 id=203 data-nosnippet>203</a>                m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
-<a href=#204 id=204 data-nosnippet>204</a>                d.add_generators_from_rows(cur_degree, entries);
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a>                m.extend_by_zero(t - <span class="number">1</span>);
-<a href=#207 id=207 data-nosnippet>207</a>                d.extend_by_zero(t - <span class="number">1</span>);
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a>                entries = <span class="macro">vec!</span>[g];
-<a href=#210 id=210 data-nosnippet>210</a>                cur_degree = t;
-<a href=#211 id=211 data-nosnippet>211</a>            }
-<a href=#212 id=212 data-nosnippet>212</a>        }
-<a href=#213 id=213 data-nosnippet>213</a>        m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
-<a href=#214 id=214 data-nosnippet>214</a>        d.add_generators_from_rows(cur_degree, entries);
-<a href=#215 id=215 data-nosnippet>215</a>
-<a href=#216 id=216 data-nosnippet>216</a>        m.extend_by_zero(max_n + s + <span class="number">1</span>);
-<a href=#217 id=217 data-nosnippet>217</a>        d.extend_by_zero(max_n + s);
-<a href=#218 id=218 data-nosnippet>218</a>    }
-<a href=#219 id=219 data-nosnippet>219</a>
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="prelude-val">Ok</span>((s, cc))
-<a href=#221 id=221 data-nosnippet>221</a>}
-<a href=#222 id=222 data-nosnippet>222</a>
-<a href=#223 id=223 data-nosnippet>223</a><span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
-<a href=#224 id=224 data-nosnippet>224</a>    ext::utils::init_logging()<span class="question-mark">?</span>;
-<a href=#225 id=225 data-nosnippet>225</a>
-<a href=#226 id=226 data-nosnippet>226</a>    <span class="kw">let </span>data_dir = Path::new(<span class="macro">file!</span>()).parent().unwrap().join(<span class="string">"bruner_data"</span>);
-<a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">let </span>max_n: i32 = query::with_default(<span class="string">"Max n"</span>, <span class="string">"20"</span>, str::parse);
-<a href=#228 id=228 data-nosnippet>228</a>
-<a href=#229 id=229 data-nosnippet>229</a>    <span class="comment">// Read in Bruner's resolution
-<a href=#230 id=230 data-nosnippet>230</a>    </span><span class="kw">let </span>(max_s, cc) = read_bruner_resolution(<span class="kw-2">&amp;</span>data_dir, max_n).unwrap();
-<a href=#231 id=231 data-nosnippet>231</a>    <span class="kw">let </span>max = Bidegree::n_s(max_n, max_s);
-<a href=#232 id=232 data-nosnippet>232</a>    <span class="kw">let </span>cc = Arc::new(cc);
-<a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">let </span>save_dir = query::optional(<span class="string">"Save directory"</span>, |x| {
-<a href=#235 id=235 data-nosnippet>235</a>        core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
-<a href=#236 id=236 data-nosnippet>236</a>    });
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="macro">assert!</span>(
-<a href=#240 id=240 data-nosnippet>240</a>        save_dir.is_some(),
-<a href=#241 id=241 data-nosnippet>241</a>        <span class="string">"A save directory is required for comparison between Bruner and Nassau resolutions."
-<a href=#242 id=242 data-nosnippet>242</a>    </span>);
-<a href=#243 id=243 data-nosnippet>243</a>
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span>resolution = ext::utils::construct(<span class="string">"S_2@milnor"</span>, save_dir).unwrap();
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>    resolution.compute_through_stem(max);
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="kw">let </span>resolution = Arc::new(resolution);
-<a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="comment">// Create a ResolutionHomomorphism object
-<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">let </span>hom = ResolutionHomomorphism::new(String::new(), cc, resolution, Bidegree::zero());
-<a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="comment">// We have to explicitly tell it what to do at (0, 0)
-<a href=#254 id=254 data-nosnippet>254</a>    </span>hom.extend_step(Bidegree::zero(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Matrix::from_vec(TWO, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]])));
-<a href=#255 id=255 data-nosnippet>255</a>    hom.extend_all();
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a>    <span class="comment">// Now print the results
-<a href=#258 id=258 data-nosnippet>258</a>    </span><span class="macro">println!</span>(<span class="string">"sseq_basis | bruner_basis"</span>);
-<a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">for </span>b <span class="kw">in </span>hom.target.iter_stem() {
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>matrix = hom.get_map(b.s()).hom_k(b.t());
-<a href=#261 id=261 data-nosnippet>261</a>
-<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.into_iter().enumerate() {
-<a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
-<a href=#264 id=264 data-nosnippet>264</a>            <span class="macro">println!</span>(<span class="string">"x_{g:#} = {row:?}"</span>);
-<a href=#265 id=265 data-nosnippet>265</a>        }
-<a href=#266 id=266 data-nosnippet>266</a>    }
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>    <span class="prelude-val">Ok</span>(())
-<a href=#269 id=269 data-nosnippet>269</a>}
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="attr">#[cfg_attr(feature = <span class="string">"nassau"</span>, allow(clippy::useless_conversion))]
+<a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">let </span>algebra: <span class="kw-2">&amp;</span>MilnorAlgebra = algebra.as_ref().try_into()<span class="question-mark">?</span>;
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">let </span>s = num_s - <span class="number">1</span>;
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a>    algebra.compute_basis(max_n + s + <span class="number">1</span>);
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="comment">// Handle s = 0
+<a href=#179 id=179 data-nosnippet>179</a>    </span>{
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="comment">// TODO: actually parse file
+<a href=#181 id=181 data-nosnippet>181</a>        </span><span class="kw">let </span>m = cc.module(<span class="number">0</span>);
+<a href=#182 id=182 data-nosnippet>182</a>        m.add_generators(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
+<a href=#183 id=183 data-nosnippet>183</a>        m.extend_by_zero(max_n + <span class="number">1</span>);
+<a href=#184 id=184 data-nosnippet>184</a>    }
+<a href=#185 id=185 data-nosnippet>185</a>
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="kw">for </span>s <span class="kw">in </span><span class="number">1</span>..num_s {
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>m = cc.module(s);
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>d = cc.differential(s);
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">let </span><span class="kw-2">mut </span>f = io::BufReader::new(
+<a href=#191 id=191 data-nosnippet>191</a>            File::open(data_dir.join(<span class="macro">format!</span>(<span class="string">"hDiff.{s}"</span>)))
+<a href=#192 id=192 data-nosnippet>192</a>                .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to read hDiff.{s}"</span>))<span class="question-mark">?</span>,
+<a href=#193 id=193 data-nosnippet>193</a>        );
+<a href=#194 id=194 data-nosnippet>194</a>
+<a href=#195 id=195 data-nosnippet>195</a>        read_line(<span class="kw-2">&amp;mut </span>f, <span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">let </span><span class="kw-2">mut </span>entries: Vec&lt;FpVector&gt; = Vec::new();
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="kw">let </span><span class="kw-2">mut </span>cur_degree: i32 = <span class="number">0</span>;
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>((t, g)) = get_element(algebra, cc.module(s - <span class="number">1</span>).as_ref(), <span class="kw-2">&amp;mut </span>f)<span class="question-mark">? </span>{
+<a href=#201 id=201 data-nosnippet>201</a>            <span class="kw">if </span>t == cur_degree {
+<a href=#202 id=202 data-nosnippet>202</a>                entries.push(g);
+<a href=#203 id=203 data-nosnippet>203</a>            } <span class="kw">else </span>{
+<a href=#204 id=204 data-nosnippet>204</a>                m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
+<a href=#205 id=205 data-nosnippet>205</a>                d.add_generators_from_rows(cur_degree, entries);
+<a href=#206 id=206 data-nosnippet>206</a>
+<a href=#207 id=207 data-nosnippet>207</a>                m.extend_by_zero(t - <span class="number">1</span>);
+<a href=#208 id=208 data-nosnippet>208</a>                d.extend_by_zero(t - <span class="number">1</span>);
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>                entries = <span class="macro">vec!</span>[g];
+<a href=#211 id=211 data-nosnippet>211</a>                cur_degree = t;
+<a href=#212 id=212 data-nosnippet>212</a>            }
+<a href=#213 id=213 data-nosnippet>213</a>        }
+<a href=#214 id=214 data-nosnippet>214</a>        m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
+<a href=#215 id=215 data-nosnippet>215</a>        d.add_generators_from_rows(cur_degree, entries);
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>        m.extend_by_zero(max_n + s + <span class="number">1</span>);
+<a href=#218 id=218 data-nosnippet>218</a>        d.extend_by_zero(max_n + s);
+<a href=#219 id=219 data-nosnippet>219</a>    }
+<a href=#220 id=220 data-nosnippet>220</a>
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="prelude-val">Ok</span>((s, cc))
+<a href=#222 id=222 data-nosnippet>222</a>}
+<a href=#223 id=223 data-nosnippet>223</a>
+<a href=#224 id=224 data-nosnippet>224</a><span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+<a href=#225 id=225 data-nosnippet>225</a>    ext::utils::init_logging()<span class="question-mark">?</span>;
+<a href=#226 id=226 data-nosnippet>226</a>
+<a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">let </span>data_dir = Path::new(<span class="macro">file!</span>()).parent().unwrap().join(<span class="string">"bruner_data"</span>);
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="kw">let </span>max_n: i32 = query::with_default(<span class="string">"Max n"</span>, <span class="string">"20"</span>, str::parse);
+<a href=#229 id=229 data-nosnippet>229</a>
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="comment">// Read in Bruner's resolution
+<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">let </span>(max_s, cc) = read_bruner_resolution(<span class="kw-2">&amp;</span>data_dir, max_n).unwrap();
+<a href=#232 id=232 data-nosnippet>232</a>    <span class="kw">let </span>max = Bidegree::n_s(max_n, max_s);
+<a href=#233 id=233 data-nosnippet>233</a>    <span class="kw">let </span>cc = Arc::new(cc);
+<a href=#234 id=234 data-nosnippet>234</a>
+<a href=#235 id=235 data-nosnippet>235</a>    <span class="kw">let </span>save_dir = query::optional(<span class="string">"Save directory"</span>, |x| {
+<a href=#236 id=236 data-nosnippet>236</a>        core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
+<a href=#237 id=237 data-nosnippet>237</a>    });
+<a href=#238 id=238 data-nosnippet>238</a>
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
+<a href=#240 id=240 data-nosnippet>240</a>    </span><span class="macro">assert!</span>(
+<a href=#241 id=241 data-nosnippet>241</a>        save_dir.is_some(),
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="string">"A save directory is required for comparison between Bruner and Nassau resolutions."
+<a href=#243 id=243 data-nosnippet>243</a>    </span>);
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>    <span class="kw">let </span>resolution = ext::utils::construct(<span class="string">"S_2@milnor"</span>, save_dir).unwrap();
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>    resolution.compute_through_stem(max);
+<a href=#248 id=248 data-nosnippet>248</a>
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="kw">let </span>resolution = Arc::new(resolution);
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="comment">// Create a ResolutionHomomorphism object
+<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">let </span>hom = ResolutionHomomorphism::new(String::new(), cc, resolution, Bidegree::zero());
+<a href=#253 id=253 data-nosnippet>253</a>
+<a href=#254 id=254 data-nosnippet>254</a>    <span class="comment">// We have to explicitly tell it what to do at (0, 0)
+<a href=#255 id=255 data-nosnippet>255</a>    </span>hom.extend_step(Bidegree::zero(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Matrix::from_vec(TWO, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]])));
+<a href=#256 id=256 data-nosnippet>256</a>    hom.extend_all();
+<a href=#257 id=257 data-nosnippet>257</a>
+<a href=#258 id=258 data-nosnippet>258</a>    <span class="comment">// Now print the results
+<a href=#259 id=259 data-nosnippet>259</a>    </span><span class="macro">println!</span>(<span class="string">"sseq_basis | bruner_basis"</span>);
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="kw">for </span>b <span class="kw">in </span>hom.target.iter_stem() {
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>matrix = hom.get_map(b.s()).hom_k(b.t());
+<a href=#262 id=262 data-nosnippet>262</a>
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.into_iter().enumerate() {
+<a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
+<a href=#265 id=265 data-nosnippet>265</a>            <span class="macro">println!</span>(<span class="string">"x_{g:#} = {row:?}"</span>);
+<a href=#266 id=266 data-nosnippet>266</a>        }
+<a href=#267 id=267 data-nosnippet>267</a>    }
+<a href=#268 id=268 data-nosnippet>268</a>
+<a href=#269 id=269 data-nosnippet>269</a>    <span class="prelude-val">Ok</span>(())
+<a href=#270 id=270 data-nosnippet>270</a>}
 </code></pre></div></section></main></body></html>

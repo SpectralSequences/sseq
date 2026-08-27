@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["DEFAULT_THRESHOLD"],"fn":["context","threshold","to_limbs","try_mul"]};
