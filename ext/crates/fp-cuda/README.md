@@ -61,8 +61,9 @@ driver-API surface (module load, device buffers, typed launch) and its
 TMA descriptors. `cudarc` is stable Rust and dynamically loads the CUDA driver
 at runtime, so the Rust side builds with no CUDA present.
 
-This crate is **excluded from the workspace**, so every workspace-wide command ignores it. It is
-opt-in: building requires nvcc on `PATH` and a Hopper-class GPU at runtime.
+This crate is **excluded from the workspace**, so `--workspace` never selects it. It is built only
+as a path dependency, when `fp`'s `gpu` feature is on. Building requires nvcc on `PATH`, and a
+Hopper-class GPU at runtime.
 
 ## Prerequisites
 
@@ -99,9 +100,8 @@ that header directly, and `build.rs` parses it to generate the Rust mirror, so
 the host and device cannot disagree about a tile size.
 
 **When nvcc is absent** (CI, or a contributor without the CUDA Toolkit) the
-build fails. Nothing in the workspace's own `just` recipes builds this crate:
-the workspace `exclude` entry keeps it out, so even `--workspace` commands skip
-it. Callers reach the backend through `fp`'s optional `gpu` feature, which is
+build fails. Nothing in the workspace's own `just` recipes builds this crate: it
+is not a member, and none of them enable `fp`'s optional `gpu` feature, which is
 off by default and falls back to the CPU path when it is not enabled.
 
 ## Running
