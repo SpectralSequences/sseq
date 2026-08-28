@@ -6,6 +6,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 use itertools::Itertools;
+use sseq::coordinates::MultiDegree;
 
 /// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -20,8 +21,13 @@ use itertools::Itertools;
 /// this function before performing other operations at that degree.
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
-#[enum_dispatch]
-pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
+///
+/// The trait is generic over the number of gradings `N`. Degrees are [`MultiDegree<N>`].
+/// Callers in the singly-graded world can keep passing bare `i32`s.
+///
+/// `Algebra` cannot use `#[enum_dispatch]` because it is generic; `dispatch_steenrod!` does dispatch
+/// by hand.
+pub trait Algebra<const N: usize = 1>: std::fmt::Display + Send + Sync + 'static {
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.
     fn prefix(&self) -> &str {
@@ -49,10 +55,10 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     ///
     /// This function must be idempotent and cheap to call again with the
     /// same argument.
-    fn compute_basis(&self, degree: i32);
+    fn compute_basis(&self, degree: impl Into<MultiDegree<N>>);
 
     /// Returns the dimension of the algebra in degree `degree`.
-    fn dimension(&self, degree: i32) -> usize;
+    fn dimension(&self, degree: impl Into<MultiDegree<N>>) -> usize;
 
     /// Computes the product `r * s` of two basis elements, and adds the
     /// result to `result`.
@@ -62,9 +68,9 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         &self,
         result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<N>>,
         r_idx: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<N>>,
         s_idx: usize,
     );
 
@@ -76,12 +82,14 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<N>>,
         r_idx: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<N>>,
         s: FpSlice,
     ) {
         let p = self.prime();
+        let r_degree = r_degree.into();
+        let s_degree = s_degree.into();
         for (i, v) in s.iter_nonzero() {
             self.multiply_basis_elements(
                 result.copy(),
@@ -102,12 +110,14 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<N>>,
         r: FpSlice,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<N>>,
         s_idx: usize,
     ) {
         let p = self.prime();
+        let r_degree = r_degree.into();
+        let s_degree = s_degree.into();
         for (i, v) in r.iter_nonzero() {
             self.multiply_basis_elements(
                 result.copy(),
@@ -128,12 +138,14 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<N>>,
         r: FpSlice,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<N>>,
         s: FpSlice,
     ) {
         let p = self.prime();
+        let r_degree = r_degree.into();
+        let s_degree = s_degree.into();
         for (i, v) in s.iter_nonzero() {
             self.multiply_element_by_basis_element(
                 result.copy(),
@@ -158,7 +170,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+    fn basis_element_to_string(&self, degree: impl Into<MultiDegree<N>>, idx: usize) -> String;
 
     /// Non-panicking variant of [`Self::basis_element_to_string`]. Returns `None`
     /// when `degree` is negative or `idx` is out of range for that degree, instead
@@ -167,8 +179,13 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// These are the usual failure conditions. An implementation of
     /// [`Self::basis_element_to_string`] that can fail for other reasons should override both
     /// that method and this one, keeping them consistent.
-    fn try_basis_element_to_string(&self, degree: i32, idx: usize) -> Option<String> {
-        if degree < 0 {
+    fn try_basis_element_to_string(
+        &self,
+        degree: impl Into<MultiDegree<N>>,
+        idx: usize,
+    ) -> Option<String> {
+        let degree = degree.into();
+        if degree.t() < 0 {
             return None;
         }
         self.compute_basis(degree);
@@ -187,7 +204,8 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
 
     /// Converts a general element into a string for display.
-    fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
+    fn element_to_string(&self, degree: impl Into<MultiDegree<N>>, element: FpSlice) -> String {
+        let degree = degree.into();
         let result = element
             .iter_nonzero()
             .map(|(idx, value)| {
