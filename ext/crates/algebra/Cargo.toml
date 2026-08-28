@@ -55,3 +55,7 @@ harness = false
 [[bench]]
 name = "nassau_milnor"
 harness = false
+
+[[bench]]
+name = "motivic"
+harness = false
