@@ -405,8 +405,6 @@ impl std::fmt::Display for MilnorBasisElement {
     }
 }
 
-type MilnorHashMap<V> = HashMap<MilnorBasisElement, V>;
-
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
@@ -429,7 +427,7 @@ pub struct MilnorAlgebra {
     excess_table: OnceVec<Vec<usize>>,
 
     /// degree -> MilnorBasisElement -> index
-    basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>,
+    basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -614,7 +612,7 @@ impl Algebra for MilnorAlgebra {
         // Populate hash map
         self.basis_element_to_index_map
             .extend(max_degree as usize, |d| {
-                let mut map = MilnorHashMap::default();
+                let mut map = HashMap::default();
                 let dim = self.dimension(d as i32);
                 map.reserve(dim);
                 for i in 0..dim {
@@ -779,7 +777,7 @@ impl Algebra for MilnorAlgebra {
             map(
                 (tag("P^"), digits, char('_'), digits::<usize>),
                 |(_, s, _, t)| {
-                    let entry = p.pow(s) as PPartEntry;
+                    let entry = p.pow(s);
                     let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
                     // Packing the entry and computing the basis both assert their range, where an
                     // unpacked p-part simply stored the value.
