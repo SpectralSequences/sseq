@@ -1472,8 +1472,10 @@ impl<const MOD4: bool> PPartMultiplier<MOD4> {
         for i in 1..rows {
             M[i][0] = r.entry(i - 1);
         }
-        for k in 1..cols {
-            M[0][k] = s.entry(k - 1);
+        // Iterated rather than indexed because the loop variable would index the single row
+        // `M[0]`, unlike the loop above, which indexes a different row each time.
+        for (k, entry) in M[0][1..cols].iter_mut().enumerate() {
+            *entry = s.entry(k);
         }
 
         let ans = MilnorBasisElement {
