@@ -238,15 +238,17 @@ impl MilnorSubalgebra {
     }
 
     fn from_bytes(data: &mut impl io::Read) -> io::Result<Self> {
-        let len = data.read_u64::<LittleEndian>()? as usize;
         // The packed p-part has no entry past `PPart::MAX_LEN`, so a longer profile cannot be
-        // matched against one. This is the only place a profile is built from outside data.
-        if len > PPart::MAX_LEN {
+        // matched against one. This is the only place a profile is built from outside data, and
+        // the bound has to hold before narrowing, which truncates where `usize` is 32 bits.
+        let len = data.read_u64::<LittleEndian>()?;
+        if len > PPart::MAX_LEN as u64 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("profile length {len} exceeds {}", PPart::MAX_LEN),
             ));
         }
+        let len = len as usize;
         let mut profile = vec![0; len];
 
         data.read_exact(&mut profile)?;
