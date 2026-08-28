@@ -40,14 +40,14 @@
 <a href=#15 id=15 data-nosnippet>15</a>    sequence::{delimited, pair, preceded},
 <a href=#16 id=16 data-nosnippet>16</a>};
 <a href=#17 id=17 data-nosnippet>17</a>
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use crate</span>::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use crate</span>::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPartEntry};
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">type </span>IResult&lt;I, O&gt; = IResultBase&lt;I, O, nom::error::Error&lt;I&gt;&gt;;
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a><span class="attr">#[derive(Debug, Clone)]
 <a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub enum </span>AlgebraBasisElt {
 <a href=#24 id=24 data-nosnippet>24</a>    AList(Vec&lt;BocksteinOrSq&gt;), <span class="comment">// Admissible list.
-<a href=#25 id=25 data-nosnippet>25</a>    </span>PList(PPart),
+<a href=#25 id=25 data-nosnippet>25</a>    </span>PList(Vec&lt;PPartEntry&gt;),
 <a href=#26 id=26 data-nosnippet>26</a>    P(u32),
 <a href=#27 id=27 data-nosnippet>27</a>    Q(u32),
 <a href=#28 id=28 data-nosnippet>28</a>}

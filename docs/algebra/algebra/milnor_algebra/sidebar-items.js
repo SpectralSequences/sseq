@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["ALLOCATION"],"fn":["q_part_default"],"struct":["Matrix2D","MilnorAlgebra","MilnorBasisElement","MilnorProfile","PPartAllocation","PPartMultiplier"],"type":["MilnorHashMap","PPart","PPartEntry"]};
+window.SIDEBAR_ITEMS = {"constant":["ALLOCATION"],"fn":["q_part_default"],"struct":["Matrix2D","MilnorAlgebra","MilnorBasisElement","MilnorProfile","PPart","PPartAllocation","PPartMultiplier"],"type":["PPartEntry"]};
