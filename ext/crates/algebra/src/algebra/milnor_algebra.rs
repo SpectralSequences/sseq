@@ -122,7 +122,13 @@ pub type PPartEntry = u32;
 /// [`Self::MAX_DEGREE`], which [`MilnorAlgebra::compute_basis`] enforces up front, so the packing
 /// can never silently truncate. [`Self::set`] asserts it anyway, and [`Self::try_from_slice`]
 /// reports failure instead of panicking for input that has not been through that gate.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+///
+/// The derived ordering compares the packed words. That is a total order and consistent with
+/// equality, which is all a sorted table needs, but it is *not* lexicographic in the exponents:
+/// entry `i` sits at [`Self::shift`]`(i)`, so `r_1` is the least significant field and therefore
+/// the last tie-breaker. Callers that need the exponents ordered lexicographically must compare
+/// [`Self::iter`] instead.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PPart(u64);
 
 impl PPart {

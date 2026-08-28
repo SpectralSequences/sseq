@@ -28,12 +28,12 @@ use pprof::criterion::{Output, PProfProfiler};
 fn elt(q: &[u32], xi: &[u32]) -> Monomial {
     let mut r = vec![0];
     r.extend_from_slice(xi);
-    (q.iter().map(|i| 1 << i).sum(), r)
+    Monomial::from_paper(q.iter().map(|i| 1 << i).sum(), &r).unwrap()
 }
 
 fn bench_product(g: &mut BenchmarkGroup<WallTime>, name: &str, a: Monomial, b: Monomial) {
     g.bench_function(name, |bench| {
-        bench.iter(|| std::hint::black_box(multiply_closed(&a, &b)));
+        bench.iter(|| std::hint::black_box(multiply_closed(a, b)));
     });
 }
 
