@@ -12,6 +12,7 @@ use fp::{
 use itertools::Itertools;
 use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
+use sseq::coordinates::MultiDegree;
 
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
@@ -222,7 +223,8 @@ impl Algebra for AdemAlgebra {
             .collect()
     }
 
-    fn compute_basis(&self, max_degree: i32) {
+    fn compute_basis(&self, max_degree: impl Into<MultiDegree<1>>) {
+        let max_degree = i32::from(max_degree.into());
         if self.generic {
             self.generate_basis_generic(max_degree);
             self.generate_basis_element_to_index_map(max_degree);
@@ -238,7 +240,8 @@ impl Algebra for AdemAlgebra {
         }
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension(&self, degree: impl Into<MultiDegree<1>>) -> usize {
+        let degree = i32::from(degree.into());
         if degree < 0 {
             0
         } else {
@@ -250,24 +253,27 @@ impl Algebra for AdemAlgebra {
         &self,
         result: FpSliceMut,
         coeff: u32,
-        r_degree: i32,
+        r_degree: impl Into<MultiDegree<1>>,
         r_index: usize,
-        s_degree: i32,
+        s_degree: impl Into<MultiDegree<1>>,
         s_index: usize,
     ) {
         self.multiply_inner(
             result,
             coeff,
-            r_degree,
+            i32::from(r_degree.into()),
             r_index,
-            s_degree,
+            i32::from(s_degree.into()),
             s_index,
             i32::MAX,
         );
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_element_from_index(degree, idx))
+    fn basis_element_to_string(&self, degree: impl Into<MultiDegree<1>>, idx: usize) -> String {
+        format!(
+            "{}",
+            self.basis_element_from_index(i32::from(degree.into()), idx)
+        )
     }
 
     fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {

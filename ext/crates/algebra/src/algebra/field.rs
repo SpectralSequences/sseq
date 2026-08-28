@@ -4,6 +4,7 @@ use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut},
 };
+use sseq::coordinates::MultiDegree;
 
 use crate::algebra::{Algebra, Bialgebra};
 
@@ -34,19 +35,19 @@ impl Algebra for Field {
         self.prime
     }
 
-    fn compute_basis(&self, _degree: i32) {}
+    fn compute_basis(&self, _degree: impl Into<MultiDegree<1>>) {}
 
-    fn dimension(&self, degree: i32) -> usize {
-        usize::from(degree == 0)
+    fn dimension(&self, degree: impl Into<MultiDegree<1>>) -> usize {
+        usize::from(i32::from(degree.into()) == 0)
     }
 
     fn multiply_basis_elements(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        _r_degree: i32,
+        _r_degree: impl Into<MultiDegree<1>>,
         _r_idx: usize,
-        _s_degree: i32,
+        _s_degree: impl Into<MultiDegree<1>>,
         _s_idx: usize,
     ) {
         result.add_basis_element(0, coeff)
@@ -56,13 +57,13 @@ impl Algebra for Field {
         vec![]
     }
 
-    fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
-        assert!(degree == 0);
+    fn basis_element_to_string(&self, degree: impl Into<MultiDegree<1>>, _idx: usize) -> String {
+        assert!(i32::from(degree.into()) == 0);
         "1".to_string()
     }
 
-    fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
-        assert!(degree == 0);
+    fn element_to_string(&self, degree: impl Into<MultiDegree<1>>, element: FpSlice) -> String {
+        assert!(i32::from(degree.into()) == 0);
         format!("{}", element.entry(0))
     }
 
