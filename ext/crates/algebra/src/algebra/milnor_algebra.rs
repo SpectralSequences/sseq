@@ -25,10 +25,7 @@ pub struct MilnorProfile {
     pub q_part: u32,
     /// The profile function for the Q part.
     ///
-    /// Unlike the exponent sequence of a basis element (see [`PPart`]), these are *exponents* of
-    /// the profile function and use [`PPartEntry::MAX`] to mean infinity, so they stay unpacked.
-    /// We need to allow Infinity here, so we don't bit-pack: infinity values have no fixed
-    /// field width and cannot be represented in the packed u64 format.
+    /// We need to allow Infinity here, so we don't bit-pack.
     #[serde(default)]
     pub p_part: Vec<PPartEntry>,
 }
@@ -147,11 +144,9 @@ impl PPart {
     /// The largest internal degree whose exponent sequences are guaranteed to fit.
     ///
     /// This is the largest bound for which the field widths sum to at most 64. It is far beyond
-    /// anything reachable — the Milnor algebra already has over 5 million basis elements below
-    /// degree 300 — and exceeds the degree 1536 the previous hand-rolled packing assumed.
+    /// anything currently reachable.
     pub const MAX_DEGREE: i32 = 2045;
-    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`, which
-    /// already bounds the length of the $\xi$-degree table, so it is not a new restriction.
+    /// The number of entries that can be stored. This equals `fp`'s `MAX_MULTINOMIAL_LEN`.
     pub const MAX_LEN: usize = 10;
     /// `SHIFTS[i]` is the bit offset of entry `i`; `SHIFTS[MAX_LEN]` is the total width, 64.
     const SHIFTS: [u32; Self::TABLE_LEN] = {
@@ -163,9 +158,11 @@ impl PPart {
         }
         shifts
     };
-    /// The length of the layout tables. This is [`Self::MAX_LEN`] rounded up to a power of two so
-    /// that [`Self::entry`] can mask its index instead of bounds-checking it; entries at or past
-    /// `MAX_LEN` are given width 0, so they read as zero.
+    /// The length of the layout tables.
+    ///
+    /// This is [`Self::MAX_LEN`] rounded up to a power of two so that [`Self::entry`] can mask its
+    /// index instead of bounds-checking it; entries at or past `MAX_LEN` are given width 0, so they
+    /// read as zero.
     const TABLE_LEN: usize = 16;
     /// `WIDTHS[i]` is the number of bits holding $r_{i+1}$: the number of bits needed to represent
     /// `MAX_DEGREE / (2^(i+1) - 1)`.
@@ -176,8 +173,10 @@ impl PPart {
         ((1u64 << Self::WIDTHS[i]) - 1) as PPartEntry
     }
 
-    /// The number of bits holding entry `i`. Together with [`Self::shift`] this lets callers build
-    /// a mask over [`Self::bits`] directly, e.g. to test many entries in one comparison.
+    /// The number of bits holding entry `i`.
+    ///
+    /// Together with [`Self::shift`] this lets callers build a mask over [`Self::bits`] directly,
+    /// e.g. to test many entries in one comparison.
     pub const fn width(i: usize) -> u32 {
         Self::WIDTHS[i]
     }
@@ -195,14 +194,11 @@ impl PPart {
         Self(0)
     }
 
-    /// The raw packed value. Two exponent sequences are equal exactly when their bits are, so this
-    /// is a complete hash key, and it can be compared against a packed mask in one operation (see
-    /// `MilnorSubalgebra::packed_signature` in `ext`).
+    /// The raw packed value.
     ///
-    /// The layout is not uniform, so this is a complete key but not a balanced one: entry `i` sits
-    /// at [`Self::shift`]`(i)`, putting `r_1` in the low bits, and `r_1` correlates strongly with
-    /// internal degree. Taking this value modulo a small number therefore partitions by `r_1`
-    /// rather than evenly — callers that shard or bucket on it must mix the bits first.
+    /// Two exponent sequences are equal exactly when their bits are, so this is a complete hash
+    /// key, and it can be compared against a packed mask in one operation (see
+    /// `MilnorSubalgebra::packed_signature` in `ext`).
     pub const fn bits(self) -> u64 {
         self.0
     }
@@ -218,11 +214,6 @@ impl PPart {
     }
 
     /// Entry `i`, for `i < TABLE_LEN`, with no bounds check.
-    ///
-    /// Masking the index keeps the table lookups in range without a branch. Entries in
-    /// `MAX_LEN..TABLE_LEN` have width 0 and so read as zero, which is the right answer; an index
-    /// at or beyond `TABLE_LEN` would silently wrap, which is why this is private and
-    /// `debug_assert`ed. Callers in the multiplier are all bounded by `MAX_LEN`.
     #[inline]
     const fn entry(self, i: usize) -> PPartEntry {
         debug_assert!(i < Self::TABLE_LEN);
@@ -243,8 +234,7 @@ impl PPart {
     ///
     /// # Panics
     ///
-    /// If `i >= MAX_LEN`, or `v` does not fit in entry `i`. Both are unreachable for elements of
-    /// degree at most [`Self::MAX_DEGREE`].
+    /// If `i >= MAX_LEN`, or `v` does not fit in entry `i`.
     #[inline]
     pub fn set(&mut self, i: usize, v: PPartEntry) {
         assert!(i < Self::MAX_LEN, "p-part index {i} out of range");
@@ -332,7 +322,7 @@ impl std::fmt::Debug for PPart {
     }
 }
 
-/// A Milnor basis element. This is `Copy` and entirely inline: 16 bytes, no heap.
+/// A Milnor basis element.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MilnorBasisElement {
     pub q_part: u32,
@@ -390,8 +380,6 @@ impl std::cmp::Eq for MilnorBasisElement {}
 
 impl std::hash::Hash for MilnorBasisElement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        // The p-part is a single `u64`, so this is one hasher round rather than a pointer chase
-        // plus a variable-length slice hash.
         self.p_part.bits().hash(state);
         #[cfg(feature = "odd-primes")]
         self.q_part.hash(state);
@@ -420,11 +408,6 @@ impl std::fmt::Display for MilnorBasisElement {
     }
 }
 
-/// A map from the basis elements of a single degree to their indices.
-///
-/// [`MilnorBasisElement`] hashes and compares on its p-part (and, at odd primes, its q-part), both
-/// of which are now single machine words, so a plain `HashMap` is already the specialised form
-/// this used to hand-roll for `p = 2`.
 type MilnorHashMap<V> = HashMap<MilnorBasisElement, V>;
 
 pub struct MilnorAlgebra {
@@ -443,10 +426,7 @@ pub struct MilnorAlgebra {
     ///
     /// Only populated when [`Self::stores_basis_table`] holds. At `p = 2` with unstable support
     /// off, the basis element at index `i` of degree `t` is exactly
-    /// `MilnorBasisElement::from_p(ppart_table[t][i], t)`, so storing it repeats the p-part with a
-    /// known q-part and degree bolted on -- 16 bytes per element, about a quarter of the algebra's
-    /// footprint. [`Self::basis_element_from_index`] reconstructs it instead, which is free now
-    /// that the type is `Copy` and fits in registers.
+    /// `MilnorBasisElement::from_p(ppart_table[t][i], t)`, so storing it is redundant.
     basis_table: OnceVec<Vec<MilnorBasisElement>>,
 
     excess_table: OnceVec<Vec<usize>>,
@@ -804,9 +784,8 @@ impl Algebra for MilnorAlgebra {
                 |(_, s, _, t)| {
                     let entry = p.pow(s) as PPartEntry;
                     let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
-                    // Packing the entry and computing the basis both assert their range, where
-                    // an unpacked p-part simply stored the value. Neither assert is reachable
-                    // from a well-formed element, so reject rather than panic.
+                    // Packing the entry and computing the basis both assert their range, where an
+                    // unpacked p-part simply stored the value.
                     if degree > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
                         return None;
                     }
@@ -1097,8 +1076,6 @@ impl MilnorAlgebra {
                     if old.len() > i + 1 {
                         break;
                     }
-                    // `profile_list[i]` is non-zero here, so `old.get(i) == profile_list[i]`
-                    // already implies `old.len() == i + 1`.
                     if old.get(i) == profile_list[i] {
                         continue;
                     }
@@ -1258,8 +1235,6 @@ impl MilnorAlgebra {
                     // Now calculate the number of Q's we are moving past
                     let larger_q = (term.q_part >> (k + i as u32 + 1)).count_ones();
 
-                    // Trailing zeros are not represented in a packed p-part, so there is nothing
-                    // to trim here.
                     // Now put everything together
                     let m = MilnorBasisElement {
                         p_part: new_p,
@@ -1668,8 +1643,7 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
                     }
                 }
                 // The answer is the top row of the matrix plus `r`, entrywise. Accumulate into
-                // a plain word and store once; trailing zeros contribute nothing, so there is no
-                // trimming to do.
+                // a plain word and store once.
                 let mut ans = 0;
                 for i in 0..std::cmp::max(self.cols, self.rows) - 1 {
                     let mut entry = self.r.entry(i);
@@ -1972,7 +1946,6 @@ impl Bialgebra for MilnorAlgebra {
             for (i, &xi_degree) in xi_degrees.iter().enumerate().take(n) {
                 let entry = cur_ppart.get(i);
                 left_degree += entry as i32 * xi_degree;
-                // Trailing zeros are dropped by the packing, so no trimming is needed.
                 right_ppart.set(i, p_part.get(i) - entry);
             }
             let right_degree: i32 = op_deg - left_degree;
