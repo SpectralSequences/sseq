@@ -107,16 +107,23 @@ impl MilnorSubalgebra {
     /// entry occupies a fixed field of the packed word, the low `profile[i]` bits of entry `i` are
     /// a fixed bit range of that word, so the whole conjunction is a single `&` and `==`. Entries
     /// past the end of the p-part read as zero, which the packing already gives us for free.
-    fn packed_signature(&self, signature: &[PPartEntry]) -> (u64, u64) {
+    ///
+    /// Returns `None` when an entry is too large to be one, since then no element matches.
+    fn packed_signature(&self, signature: &[PPartEntry]) -> Option<(u64, u64)> {
         let mut mask = 0;
         let mut value = 0;
         for (i, (&profile, &entry)) in self.profile.iter().zip(signature).enumerate() {
+            // An entry wider than its field would shift into the next one, so it cannot simply be
+            // packed and compared.
+            if entry > PPart::max_entry(i) {
+                return None;
+            }
             // A profile wider than the field constrains the whole field.
             let width = std::cmp::min(profile as u32, PPart::width(i));
             mask |= ((1u64 << width) - 1) << PPart::shift(i);
             value |= (entry as u64) << PPart::shift(i);
         }
-        (mask, value)
+        Some((mask, value))
     }
 
     fn zero_signature(&self) -> Vec<PPartEntry> {
@@ -133,28 +140,31 @@ impl MilnorSubalgebra {
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
-        module.iter_gen_offsets([degree]).flat_map(
-            move |GeneratorData {
-                      gen_deg,
-                      start: [offset],
-                      end: _,
-                  }| {
-                // Hoist the mask out of the inner loop: every element in this block is tested
-                // against the same signature.
-                let (mask, value) = self.packed_signature(signature);
-                algebra
-                    .ppart_table(degree - gen_deg)
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(n, op)| {
-                        if op.bits() & mask == value {
-                            Some(offset + n)
-                        } else {
-                            None
-                        }
-                    })
-            },
-        )
+        // Every element is tested against the same signature, so compile it once. An unsatisfiable
+        // signature gives no mask, and the empty `Option` masks off the whole iterator.
+        self.packed_signature(signature)
+            .into_iter()
+            .flat_map(move |(mask, value)| {
+                module.iter_gen_offsets([degree]).flat_map(
+                    move |GeneratorData {
+                              gen_deg,
+                              start: [offset],
+                              end: _,
+                          }| {
+                        algebra
+                            .ppart_table(degree - gen_deg)
+                            .iter()
+                            .enumerate()
+                            .filter_map(move |(n, op)| {
+                                if op.bits() & mask == value {
+                                    Some(offset + n)
+                                } else {
+                                    None
+                                }
+                            })
+                    },
+                )
+            })
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
@@ -229,6 +239,14 @@ impl MilnorSubalgebra {
 
     fn from_bytes(data: &mut impl io::Read) -> io::Result<Self> {
         let len = data.read_u64::<LittleEndian>()? as usize;
+        // The packed p-part has no entry past `PPart::MAX_LEN`, so a longer profile cannot be
+        // matched against one. This is the only place a profile is built from outside data.
+        if len > PPart::MAX_LEN {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("profile length {len} exceeds {}", PPart::MAX_LEN),
+            ));
+        }
         let mut profile = vec![0; len];
 
         data.read_exact(&mut profile)?;
@@ -1272,6 +1290,25 @@ mod tests {
             ·                                       
         "#]]
         .assert_eq(&res.graded_dimension_string());
+    }
+
+    /// An entry too wide for its field would shift into the next one, so it must not be packed
+    /// and compared. Nothing has such a signature, so the mask is unsatisfiable.
+    #[test]
+    fn test_packed_signature_rejects_oversized_entry() {
+        let subalgebra = MilnorSubalgebra::new(vec![1, 1]);
+
+        assert!(subalgebra.packed_signature(&[0, 0]).is_some());
+        assert!(
+            subalgebra
+                .packed_signature(&[PPart::max_entry(0), 0])
+                .is_some()
+        );
+        assert!(
+            subalgebra
+                .packed_signature(&[PPart::max_entry(0) + 1, 0])
+                .is_none()
+        );
     }
 
     #[test]
