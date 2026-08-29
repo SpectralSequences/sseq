@@ -29,15 +29,16 @@
 //! implementation; the closed-form product (Kong–Lin Theorem 5.1) can replace it
 //! later for speed, validated against this one.
 //!
-//! Coefficients are homogeneous, so each one is a single power of $\tau$: a
-//! [`Tau`] scalar (see [`super::tau`]). This is the $A_C$ product **engine**,
-//! over $\mathbb{F}_2[\tau]$; the mod-$\tau$ reduction $A_C/\tau$ is presented to
-//! the resolution engine as an ordinary $\mathbb{F}_2$-algebra in a follow-up
-//! layer built on top of this engine.
+//! Coefficients are never stored. Everything here is homogeneous, so each one is a single power
+//! of $\tau$, and $\tau$ has weight $-1$ — which pins the exponent to the weights of the terms
+//! it sits between ([`Grading::tau_exponent`]). This is the $A_C$ product **engine**, over
+//! $\mathbb{F}_2[\tau]$; the mod-$\tau$ reduction $A_C/\tau$ is presented to the resolution
+//! engine as an ordinary $\mathbb{F}_2$-algebra in a follow-up layer built on top of this engine.
 //!
 //! Weight convention: the motivic weight of an algebra basis element is the
 //! *negative* of the weight of the dual monomial it pairs with, so that products
-//! are weight-homogeneous with $\tau$ (weight $-1$) absorbing the difference.
+//! are weight-homogeneous with $\tau$ (weight $-1$) absorbing the difference. [`Grading`] names
+//! the two sides.
 
 use std::{
     cell::RefCell,
@@ -51,7 +52,6 @@ use maybe_rayon::prelude::*;
 use once::OnceVec;
 use rustc_hash::FxHashMap;
 
-use super::Tau;
 use crate::algebra::milnor_algebra::PPart;
 
 /// Drop the trailing zeros from an exponent vector.
@@ -284,18 +284,17 @@ fn rewrite_tau_dfs(
 
 /// A sparse $\mathbb{F}_2[\tau]$-linear combination of `K`s, as a `Vec` sorted by key.
 ///
-/// Everything we compute is homogeneous — $\psi$ and the products are graded — so every
-/// coefficient is a single power of $\tau$: a [`Tau`] scalar. Zero coefficients are never stored
-/// and the terms are kept sorted, so equality is canonical, and coefficient arithmetic is exactly
-/// [`Tau`]'s arithmetic — `mul` adds valuations, `add` cancels equal powers mod 2 (unequal powers
-/// would be inhomogeneous and cannot arise).
+/// Coefficients are not stored, because the bigrading already determines them: everything we
+/// compute is homogeneous, $\tau$ has weight $-1$, so the coefficient of a term is forced to be
+/// $\tau^{\text{(input weight)} - \text{(term weight)}}$ — see [`Grading::tau_exponent`]. What is left is
+/// a set of keys taken mod 2, and adding a term toggles it.
 ///
 /// A sorted `Vec` rather than a `BTreeMap`: these combinations are small — a product of two basis
-/// elements has a handful of terms — and the keys are now `Copy` words, so one contiguous
-/// allocation searched by [`slice::binary_search_by`] beats a tree that allocates per node.
+/// elements has a handful of terms — and the keys are `Copy` words, so one contiguous allocation
+/// searched by [`slice::binary_search`] beats a tree that allocates per node.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SparseSum<K> {
-    terms: Vec<(K, Tau)>,
+    terms: Vec<K>,
 }
 
 impl<K: Ord> SparseSum<K> {
@@ -314,59 +313,46 @@ impl<K: Ord> SparseSum<K> {
         self.terms.is_empty()
     }
 
-    /// The coefficient of `key`, if non-zero.
-    pub fn get(&self, key: &K) -> Option<&Tau> {
-        self.position(key).ok().map(|i| &self.terms[i].1)
+    /// Whether `key` occurs.
+    pub fn contains(&self, key: &K) -> bool {
+        self.terms.binary_search(key).is_ok()
     }
 
-    /// Add `coeff * key`, dropping the term if it cancels to zero.
-    pub fn add_term(&mut self, key: K, coeff: Tau) {
-        if coeff.is_zero() {
-            return;
-        }
-        match self.position(&key) {
+    /// Add `key`, cancelling mod 2 against an occurrence already present.
+    pub fn add_term(&mut self, key: K) {
+        match self.terms.binary_search(&key) {
             Ok(i) => {
-                let sum = self.terms[i].1 + coeff;
-                if sum.is_zero() {
-                    self.terms.remove(i);
-                } else {
-                    self.terms[i].1 = sum;
-                }
+                self.terms.remove(i);
             }
-            Err(i) => self.terms.insert(i, (key, coeff)),
+            Err(i) => self.terms.insert(i, key),
         }
-    }
-
-    /// The index of `key`, or where it would be inserted.
-    fn position(&self, key: &K) -> Result<usize, usize> {
-        self.terms.binary_search_by(|(k, _)| k.cmp(key))
     }
 
     /// The terms, in key order.
-    pub fn iter(&self) -> std::slice::Iter<'_, (K, Tau)> {
+    pub fn iter(&self) -> std::slice::Iter<'_, K> {
         self.terms.iter()
     }
 }
 
-impl<K: Ord> FromIterator<(K, Tau)> for SparseSum<K> {
-    fn from_iter<I: IntoIterator<Item = (K, Tau)>>(iter: I) -> Self {
+impl<K: Ord> FromIterator<K> for SparseSum<K> {
+    fn from_iter<I: IntoIterator<Item = K>>(iter: I) -> Self {
         let mut out = Self::new();
-        for (key, coeff) in iter {
-            out.add_term(key, coeff);
+        for key in iter {
+            out.add_term(key);
         }
         out
     }
 }
 
-impl<K: Ord, const N: usize> From<[(K, Tau); N]> for SparseSum<K> {
-    fn from(terms: [(K, Tau); N]) -> Self {
+impl<K: Ord, const N: usize> From<[K; N]> for SparseSum<K> {
+    fn from(terms: [K; N]) -> Self {
         terms.into_iter().collect()
     }
 }
 
 impl<K> IntoIterator for SparseSum<K> {
-    type IntoIter = std::vec::IntoIter<(K, Tau)>;
-    type Item = (K, Tau);
+    type IntoIter = std::vec::IntoIter<K>;
+    type Item = K;
 
     fn into_iter(self) -> Self::IntoIter {
         self.terms.into_iter()
@@ -374,16 +360,60 @@ impl<K> IntoIterator for SparseSum<K> {
 }
 
 impl<'a, K> IntoIterator for &'a SparseSum<K> {
-    type IntoIter = std::slice::Iter<'a, (K, Tau)>;
-    type Item = &'a (K, Tau);
+    type IntoIter = std::slice::Iter<'a, K>;
+    type Item = &'a K;
 
     fn into_iter(self) -> Self::IntoIter {
         self.terms.iter()
     }
 }
 
-/// An element of the dual algebra $A_{**}$: [`Monomial`]s with $\mathbb{F}_2[\tau]$
-/// coefficients.
+/// Which of the two dual weight conventions a computation is expressed in.
+///
+/// $A_C$ and its dual $A_{**}$ weight the same [`Monomial`] by negatives of each other: the
+/// monomial's own weight grades $A_{**}$, and the basis element of $A_C$ it pairs with takes the
+/// negative (see the module docs). Naming the convention keeps that sign in one place — the
+/// formula for a $\tau$ exponent is the same on both sides once each is asked for its own weight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Grading {
+    /// $A_{**}$, weighted by the monomial itself — the convention of [`dual_mul`].
+    Dual,
+    /// $A_C$, weighted by the basis element the monomial is dual to — the convention of
+    /// [`multiply`] and [`product_indexed`](MotivicMilnorAlgebra::product_indexed).
+    Steenrod,
+}
+
+impl Grading {
+    /// The motivic weight of `m` in this convention.
+    pub fn weight(self, m: Monomial) -> i32 {
+        let w = m.bidegree().1;
+        match self {
+            Self::Dual => w,
+            Self::Steenrod => -w,
+        }
+    }
+
+    /// The exponent of $\tau$ on the term `z` of a product `a * b`.
+    ///
+    /// The bigrading forces it, which is why products store no coefficients. $\tau$ has weight
+    /// $-1$ and topological degree $0$, so a weight-homogeneous product can only carry
+    /// $\tau^{w_z - w_a - w_b}$ on `z`.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, if the weights imply a negative power — i.e. `z` cannot occur in `a * b`.
+    pub fn tau_exponent(self, a: Monomial, b: Monomial, z: Monomial) -> u32 {
+        let k = self.weight(z) - self.weight(a) - self.weight(b);
+        debug_assert!(
+            k >= 0,
+            "negative tau exponent: {a:?} * {b:?} → {z:?} ({self:?})"
+        );
+        k as u32
+    }
+}
+
+/// An element of the dual algebra $A_{**}$: a mod-2 set of [`Monomial`]s, whose
+/// $\mathbb{F}_2[\tau]$ coefficients are implicit in the weight ([`Grading::tau_exponent`]).
 pub type DualElement = SparseSum<Monomial>;
 
 /// Elementwise sum of two exponent sequences, i.e. the product of the two $\xi$ monomials.
@@ -401,7 +431,7 @@ fn ppart_add(a: PPart, b: PPart) -> PPart {
 /// exponents: the exterior parts form $S = E_1 + E_2$ (entries in $\{0,1,2\}$), which is
 /// rewritten into the square-free basis via [`rewrite_tau`] ($\tau_i^2 = \tau\xi_{i+1}$), and
 /// the resulting $\xi$ exponents are added to $R_1 + R_2$.
-fn mul_monomials(m1: Monomial, m2: Monomial, coeff: Tau, acc: &mut DualElement) {
+fn mul_monomials(m1: Monomial, m2: Monomial, acc: &mut DualElement) {
     let (e1, e2) = (m1.q_part, m2.q_part);
     let bits = u32::BITS - (e1 | e2).leading_zeros();
     let s: Vec<u32> = (0..bits)
@@ -414,19 +444,20 @@ fn mul_monomials(m1: Monomial, m2: Monomial, coeff: Tau, acc: &mut DualElement) 
         let term_r = PPart::try_from_slice(term.r.get(1..).unwrap_or_default())
             .expect("rewrite_tau exponent out of packing range");
         let r = ppart_add(term_r, r12);
-        acc.add_term(
-            Monomial::new(term.e_mask, r),
-            coeff * Tau::power(term.tau_pow),
-        );
+        let z = Monomial::new(term.e_mask, r);
+        // The τ power `rewrite_tau` computed and the one the weight dictates are the same
+        // number; this is the invariant that lets the coefficient go unstored.
+        debug_assert_eq!(term.tau_pow, Grading::Dual.tau_exponent(m1, m2, z));
+        acc.add_term(z);
     }
 }
 
 /// The product of two elements of $A_{**}$.
 pub fn dual_mul(a: &DualElement, b: &DualElement) -> DualElement {
     let mut out = DualElement::new();
-    for &(m1, c1) in a {
-        for &(m2, c2) in b {
-            mul_monomials(m1, m2, c1 * c2, &mut out);
+    for &m1 in a {
+        for &m2 in b {
+            mul_monomials(m1, m2, &mut out);
         }
     }
     out
@@ -434,17 +465,17 @@ pub fn dual_mul(a: &DualElement, b: &DualElement) -> DualElement {
 
 /// The generator $\tau_i \in A_{**}$.
 pub fn tau_gen(i: usize) -> DualElement {
-    DualElement::from([(Monomial::new(1 << i, PPart::zero()), Tau::one())])
+    DualElement::from([Monomial::new(1 << i, PPart::zero())])
 }
 
 /// The generator $\xi_i \in A_{**}$ (for $i \ge 1$).
 pub fn xi_gen(i: usize) -> DualElement {
-    DualElement::from([(xi_pow_mon(i, 1), Tau::one())])
+    DualElement::from([xi_pow_mon(i, 1)])
 }
 
 /// The unit $1 \in A_{**}$.
 pub fn dual_one() -> DualElement {
-    DualElement::from([(Monomial::one(), Tau::one())])
+    DualElement::from([Monomial::one()])
 }
 
 // ---------------------------------------------------------------------------
@@ -457,22 +488,21 @@ pub type TensorElement = SparseSum<(Monomial, Monomial)>;
 
 /// The unit $1 \otimes 1$.
 fn tensor_one() -> TensorElement {
-    TensorElement::from([((Monomial::one(), Monomial::one()), Tau::one())])
+    TensorElement::from([(Monomial::one(), Monomial::one())])
 }
 
 /// Multiply in $A_{**} \otimes A_{**}$: $(a_L \otimes a_R)(b_L \otimes b_R) = (a_L b_L) \otimes (a_R b_R)$.
 fn tensor_mul(t1: &TensorElement, t2: &TensorElement) -> TensorElement {
     let mut out = TensorElement::new();
-    for &((al, ar), c1) in t1 {
-        for &((bl, br), c2) in t2 {
+    for &(al, ar) in t1 {
+        for &(bl, br) in t2 {
             let mut left = DualElement::new();
-            mul_monomials(al, bl, Tau::one(), &mut left);
+            mul_monomials(al, bl, &mut left);
             let mut right = DualElement::new();
-            mul_monomials(ar, br, Tau::one(), &mut right);
-            let c = c1 * c2;
-            for &(ml, cl) in &left {
-                for &(mr, cr) in &right {
-                    out.add_term((ml, mr), c * (cl * cr));
+            mul_monomials(ar, br, &mut right);
+            for &ml in &left {
+                for &mr in &right {
+                    out.add_term((ml, mr));
                 }
             }
         }
@@ -492,18 +522,12 @@ fn xi_pow_mon(j: usize, p: u32) -> Monomial {
 /// $\psi(\tau_k) = 1 \otimes \tau_k + \sum_{i=0}^{k} \tau_i \otimes \xi_{k-i}^{2^i}$.
 fn coprod_tau(k: usize) -> TensorElement {
     let mut out = TensorElement::new();
-    out.add_term(
-        (Monomial::one(), Monomial::new(1 << k, PPart::zero())),
-        Tau::one(),
-    );
+    out.add_term((Monomial::one(), Monomial::new(1 << k, PPart::zero())));
     for i in 0..=k {
-        out.add_term(
-            (
-                Monomial::new(1 << i, PPart::zero()),
-                xi_pow_mon(k - i, 1 << i),
-            ),
-            Tau::one(),
-        );
+        out.add_term((
+            Monomial::new(1 << i, PPart::zero()),
+            xi_pow_mon(k - i, 1 << i),
+        ));
     }
     out
 }
@@ -512,7 +536,7 @@ fn coprod_tau(k: usize) -> TensorElement {
 fn coprod_xi(k: usize) -> TensorElement {
     let mut out = TensorElement::new();
     for i in 0..=k {
-        out.add_term((xi_pow_mon(i, 1), xi_pow_mon(k - i, 1 << i)), Tau::one());
+        out.add_term((xi_pow_mon(i, 1), xi_pow_mon(k - i, 1 << i)));
     }
     out
 }
@@ -535,9 +559,9 @@ fn coproduct_monomial(m: &Monomial) -> TensorElement {
 /// The coproduct of an arbitrary element of $A_{**}$ (extended $\mathbb{F}_2[\tau]$-linearly).
 pub fn coproduct(elt: &DualElement) -> TensorElement {
     let mut out = TensorElement::new();
-    for &(m, c) in elt {
-        for (key, cc) in coproduct_monomial(&m) {
-            out.add_term(key, c * cc);
+    for &m in elt {
+        for key in coproduct_monomial(&m) {
+            out.add_term(key);
         }
     }
     out
@@ -549,7 +573,7 @@ pub fn coproduct(elt: &DualElement) -> TensorElement {
 
 /// $\xi_j^p \in A_{**}$ (with $\xi_0 = 1$).
 fn xi_pow_elt(j: usize, p: u32) -> DualElement {
-    DualElement::from([(xi_pow_mon(j, p), Tau::one())])
+    DualElement::from([xi_pow_mon(j, p)])
 }
 
 /// $\chi(\xi_k)$, from the antipode axiom with this module's coproduct:
@@ -560,9 +584,8 @@ fn chi_xi(k: usize) -> DualElement {
     }
     let mut acc = DualElement::new();
     for i in 0..k {
-        let term = dual_mul(&chi_xi(i), &xi_pow_elt(k - i, 1 << i));
-        for (mon, c) in term {
-            acc.add_term(mon, c);
+        for mon in dual_mul(&chi_xi(i), &xi_pow_elt(k - i, 1 << i)) {
+            acc.add_term(mon);
         }
     }
     acc
@@ -573,9 +596,8 @@ fn chi_xi(k: usize) -> DualElement {
 fn chi_tau(k: usize) -> DualElement {
     let mut acc = tau_gen(k);
     for i in 0..k {
-        let term = dual_mul(&chi_tau(i), &xi_pow_elt(k - i, 1 << i));
-        for (mon, c) in term {
-            acc.add_term(mon, c);
+        for mon in dual_mul(&chi_tau(i), &xi_pow_elt(k - i, 1 << i)) {
+            acc.add_term(mon);
         }
     }
     acc
@@ -587,7 +609,7 @@ fn chi_tau(k: usize) -> DualElement {
 /// involution.
 pub fn antipode(elt: &DualElement) -> DualElement {
     let mut out = DualElement::new();
-    for &(mon, c) in elt {
+    for &mon in elt {
         let mut acc = dual_one();
         for i in 0..u32::BITS {
             if (mon.q_part >> i) & 1 != 0 {
@@ -599,8 +621,8 @@ pub fn antipode(elt: &DualElement) -> DualElement {
                 acc = dual_mul(&acc, &chi_xi(i + 1));
             }
         }
-        for (out_mon, cc) in acc {
-            out.add_term(out_mon, c * cc);
+        for out_mon in acc {
+            out.add_term(out_mon);
         }
     }
     out
@@ -675,8 +697,8 @@ fn enum_basis_dfs(
 }
 
 /// The product `a · b` in the C-motivic Steenrod algebra `A_C`, where `a`, `b` are Milnor basis
-/// elements `Q(E)P(R)` given as the monomials `(E, R)` they are dual to. The result is a map
-/// from basis monomials to their `𝔽₂[τ]` coefficients.
+/// elements `Q(E)P(R)` given as the monomials `(E, R)` they are dual to. The result is the set of
+/// basis monomials occurring, their `𝔽₂[τ]` coefficients being implicit ([`Grading::tau_exponent`]).
 ///
 /// Computed by duality: the coefficient of `z` in `a · b` is the coefficient of
 /// `mon(a) ⊗ mon(b)` in `ψ(mon(z))`, summed over the basis `z` of the appropriate
@@ -686,10 +708,8 @@ pub fn multiply(a: Monomial, b: Monomial) -> DualElement {
     let t = a.bidegree().0 + b.bidegree().0;
     let mut out = DualElement::new();
     for z in enum_basis(t) {
-        if let Some(&c) = coproduct_monomial(&z).get(&key)
-            && !c.is_zero()
-        {
-            out.add_term(z, c);
+        if coproduct_monomial(&z).contains(&key) {
+            out.add_term(z);
         }
     }
     out
@@ -1021,10 +1041,7 @@ impl ClosedY<'_> {
                 out_e_mask |= 1 << i;
             }
         }
-        out.add_term(
-            Monomial::new(out_e_mask, self.out_r),
-            Tau::power(self.sigma_sprime),
-        );
+        out.add_term(Monomial::new(out_e_mask, self.out_r));
     }
 }
 
@@ -1075,8 +1092,9 @@ pub fn multiply_closed(a: Monomial, b: Monomial) -> DualElement {
 /// per-(topological-)degree basis indexing.
 ///
 /// This is the $A_C$ product **engine** over $\mathbb{F}_2[\tau]$: the dual-based product is
-/// exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed), whose coefficients
-/// are [`Tau`] scalars. It is deliberately not an [`Algebra`](crate::algebra::Algebra)
+/// exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed), whose
+/// $\tau$ coefficients are implicit in the weights ([`Grading::tau_exponent`]). It is
+/// deliberately not an [`Algebra`](crate::algebra::Algebra)
 /// implementation, because that trait is over $\mathbb{F}_p$; the mod-$\tau$ reduction, which *is*
 /// such an algebra, is a follow-up layer on top of this engine, and the honest
 /// $\mathbb{F}_2[\tau]$ resolution is built by lifting against this engine (Phase 2).
@@ -1117,7 +1135,7 @@ pub struct MotivicMilnorAlgebra {
 pub struct ProductBlock {
     /// The number of basis elements in degree `t2` (the block's row stride).
     dim2: usize,
-    entries: Vec<OnceLock<Vec<(Tau, usize)>>>,
+    entries: Vec<OnceLock<Vec<usize>>>,
 }
 
 impl MotivicMilnorAlgebra {
@@ -1158,8 +1176,19 @@ impl MotivicMilnorAlgebra {
 
     /// The `(topological degree, motivic weight)` of a basis element.
     pub fn bidegree(&self, degree: i32, idx: usize) -> (i32, i32) {
-        let (t, w) = self.basis[degree as usize][idx].bidegree();
-        (t, -w)
+        let m = self.basis[degree as usize][idx];
+        (m.bidegree().0, Grading::Steenrod.weight(m))
+    }
+
+    /// The exponent of $\tau$ on basis element `idx` of degree `t1 + t2` in the product of the
+    /// elements at `(t1, idx1)` and `(t2, idx2)` — the coefficient [`Self::product_indexed`]
+    /// leaves implicit. See [`Grading::tau_exponent`].
+    pub fn tau_exponent(&self, t1: i32, idx1: usize, t2: i32, idx2: usize, idx: usize) -> u32 {
+        Grading::Steenrod.tau_exponent(
+            self.basis[t1 as usize][idx1],
+            self.basis[t2 as usize][idx2],
+            self.basis[(t1 + t2) as usize][idx],
+        )
     }
 
     /// Parse a basis element written as `basis_element_to_string` prints it —
@@ -1246,27 +1275,25 @@ impl MotivicMilnorAlgebra {
     /// `(t1, idx1)` and `(t2, idx2)`, mapped into the degree-`(t1+t2)` basis. The
     /// bases must already be computed (the caller through [`Self::block`] ensures
     /// this).
-    fn compute_product(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<(Tau, usize)> {
+    fn compute_product(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<usize> {
         let a = &self.basis[t1 as usize][idx1];
         let b = &self.basis[t2 as usize][idx2];
         let t = t1 + t2;
         multiply_closed(*a, *b)
             .into_iter()
-            .map(|(z, c)| {
-                (
-                    c,
-                    self.index_of(t, &z)
-                        .expect("product landed outside the basis"),
-                )
+            .map(|z| {
+                self.index_of(t, &z)
+                    .expect("product landed outside the basis")
             })
             .collect()
     }
 
-    /// The product of two basis elements, as an $\mathbb{F}_2[\tau]$-linear combination of basis
-    /// elements in degree `t1 + t2`: a list of `(coefficient, index)` pairs. The product of two
-    /// homogeneous basis elements is weight-homogeneous, so each coefficient is a single power of
-    /// $\tau$ — a [`Tau`] scalar.
-    pub fn product_indexed(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<(Tau, usize)> {
+    /// The product of two basis elements as a list of basis indices in degree `t1 + t2`.
+    ///
+    /// The $\mathbb{F}_2[\tau]$ coefficients are not returned because they are not free: the
+    /// product of two homogeneous basis elements is weight-homogeneous, so index `j` carries
+    /// exactly $\tau^{k}$ for the `k` that [`Self::tau_exponent`] computes from the weights.
+    pub fn product_indexed(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<usize> {
         self.cached_product(&self.block(t1, t2), t1, idx1, t2, idx2)
             .to_vec()
     }
@@ -1281,7 +1308,7 @@ impl MotivicMilnorAlgebra {
         idx1: usize,
         t2: i32,
         idx2: usize,
-    ) -> &'a [(Tau, usize)] {
+    ) -> &'a [usize] {
         block.entries[idx1 * block.dim2 + idx2]
             .get_or_init(|| self.compute_product(t1, idx1, t2, idx2))
     }
@@ -1402,14 +1429,11 @@ mod tests {
         let terms: DualElement = alg
             .product_indexed(1, 0, 2, 0)
             .into_iter()
-            .map(|(c, idx)| (*alg.basis_element(3, idx), c))
+            .map(|idx| *alg.basis_element(3, idx))
             .collect();
         assert_eq!(
             terms,
-            DualElement::from([
-                (mon(0b10, &[]), Tau::one()),
-                (mon(0b1, &[0, 1]), Tau::one())
-            ])
+            DualElement::from([mon(0b10, &[]), mon(0b1, &[0, 1])])
         );
     }
 
@@ -1427,15 +1451,19 @@ mod tests {
                         let indexed: DualElement = alg
                             .product_indexed(t1, idx1, t2, idx2)
                             .into_iter()
-                            .map(|(c, idx)| (*alg.basis_element(t1 + t2, idx), c))
+                            .map(|idx| *alg.basis_element(t1 + t2, idx))
                             .collect();
                         assert_eq!(indexed, multiply(a, b));
 
-                        // Weight-homogeneous: w_out - (τ-power) = w_a + w_b.
-                        let (wa, wb) = (alg.bidegree(t1, idx1).1, alg.bidegree(t2, idx2).1);
-                        for (c, idx) in alg.product_indexed(t1, idx1, t2, idx2) {
-                            let w = alg.bidegree(t1 + t2, idx).1;
-                            assert_eq!(w - c.valuation().unwrap() as i32, wa + wb);
+                        // The indexed τ exponent resolves its indices to the same monomials the
+                        // free function is given. (That the exponent is the *right* one is
+                        // checked inside `mul_monomials`, against `rewrite_tau`'s own count.)
+                        for idx in alg.product_indexed(t1, idx1, t2, idx2) {
+                            let z = *alg.basis_element(t1 + t2, idx);
+                            assert_eq!(
+                                alg.tau_exponent(t1, idx1, t2, idx2, idx),
+                                Grading::Steenrod.tau_exponent(a, b, z)
+                            );
                         }
                     }
                 }
@@ -1445,26 +1473,32 @@ mod tests {
 
     #[test]
     fn test_dual_mul_relations() {
-        // τ_0^2 = τ ξ_1 (the defining relation at ρ = 0).
+        // τ_0^2 = τ ξ_1 (the defining relation at ρ = 0). The τ^1 is read back off the weights.
+        let (t0, t1) = (mon(0b1, &[]), mon(0b10, &[]));
         assert_eq!(
             dual_mul(&tau_gen(0), &tau_gen(0)),
-            DualElement::from([(mon(0, &[0, 1]), Tau::power(1))]) // τ^1 · ξ_1
+            DualElement::from([mon(0, &[0, 1])])
         );
-        // ξ_1^2 is just the monomial ξ_1^2.
+        assert_eq!(Grading::Dual.tau_exponent(t0, t0, mon(0, &[0, 1])), 1);
+        // ξ_1^2 is just the monomial ξ_1^2, with no τ.
         assert_eq!(
             dual_mul(&xi_gen(1), &xi_gen(1)),
-            DualElement::from([(mon(0, &[0, 2]), Tau::one())])
+            DualElement::from([mon(0, &[0, 2])])
         );
-        // Distinct τ's commute and stay square-free: τ_0 τ_1.
+        let xi1 = mon(0, &[0, 1]);
+        assert_eq!(Grading::Dual.tau_exponent(xi1, xi1, mon(0, &[0, 2])), 0);
+        // Distinct τ's commute and stay square-free: τ_0 τ_1, again τ-free.
         assert_eq!(
             dual_mul(&tau_gen(0), &tau_gen(1)),
-            DualElement::from([(mon(0b11, &[]), Tau::one())])
+            DualElement::from([mon(0b11, &[])])
         );
+        assert_eq!(Grading::Dual.tau_exponent(t0, t1, mon(0b11, &[])), 0);
         // τ_1^2 = τ ξ_2.
         assert_eq!(
             dual_mul(&tau_gen(1), &tau_gen(1)),
-            DualElement::from([(mon(0, &[0, 0, 1]), Tau::power(1))])
+            DualElement::from([mon(0, &[0, 0, 1])])
         );
+        assert_eq!(Grading::Dual.tau_exponent(t1, t1, mon(0, &[0, 0, 1])), 1);
         // Multiplication by the unit is the identity.
         assert_eq!(dual_mul(&dual_one(), &tau_gen(2)), tau_gen(2));
     }
@@ -1484,9 +1518,13 @@ mod tests {
         let motivic = |p1: &[u32], p2: &[u32]| -> Vec<Vec<u32>> {
             let mut out: Vec<Vec<u32>> = multiply(paper(p1), paper(p2))
                 .into_iter()
-                .filter(|(m, _)| m.q_part == 0) // keep the pure-ξ outputs
-                .map(|(m, c)| {
-                    assert_eq!(c, Tau::one(), "pure-ξ output carried a τ power");
+                .filter(|m| m.q_part == 0) // keep the pure-ξ outputs
+                .map(|m| {
+                    assert_eq!(
+                        Grading::Steenrod.tau_exponent(paper(p1), paper(p2), m),
+                        0,
+                        "pure-ξ output carried a τ power"
+                    );
                     m.p_part.iter().collect()
                 })
                 .collect();
@@ -1536,11 +1574,8 @@ mod tests {
                 .collect()
         };
         let a_coeff = |mu_pp: &[u32], w_pp: &[u32]| -> u32 {
-            let ap = antipode(&DualElement::from([(paper(w_pp), Tau::one())]));
-            // The antipode of a pure-ξ element is pure-ξ and τ-free, so a present monomial has
-            // coefficient τ^0.
-            ap.get(&paper(mu_pp))
-                .map_or(0, |&c| u32::from(c == Tau::one()))
+            let ap = antipode(&DualElement::from([paper(w_pp)]));
+            u32::from(ap.contains(&paper(mu_pp)))
         };
         let cb_mul = |a_pp: &[u32], b_pp: &[u32], acc: &mut BTreeMap<Vec<u32>, u32>| {
             for pp in classical_mul(a_pp, b_pp) {
@@ -1561,8 +1596,8 @@ mod tests {
             // LHS: motivic conjugate product (E=0), converted to std via χ.
             let conj: Vec<Vec<u32>> = multiply(paper(&r1), paper(&r2))
                 .into_iter()
-                .filter(|(m, _)| m.q_part == 0)
-                .map(|(m, _)| m.p_part.iter().collect())
+                .filter(|m| m.q_part == 0)
+                .map(|m| m.p_part.iter().collect())
                 .collect();
             let mut lhs: BTreeMap<Vec<u32>, u32> = BTreeMap::new();
             for w in xi_pps(mdeg(&r1) + mdeg(&r2)) {
@@ -1596,13 +1631,13 @@ mod tests {
     #[test]
     fn test_product_associative() {
         // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
-        // Extend the basis×basis product to element×basis, F_2[τ]-linearly (add_term handles the
-        // coefficient sum + zero cancellation via Tau arithmetic).
+        // Extend the basis×basis product to element×basis, F_2[τ]-linearly (`add_term` cancels
+        // mod 2, and the τ coefficients agree termwise because both sides are homogeneous).
         fn mul_elt_basis(x: &DualElement, c: &Monomial) -> DualElement {
             let mut out = DualElement::new();
-            for &(z, cz) in x {
-                for (w, cw) in multiply(z, *c) {
-                    out.add_term(w, cz * cw);
+            for &z in x {
+                for w in multiply(z, *c) {
+                    out.add_term(w);
                 }
             }
             out
@@ -1617,9 +1652,9 @@ mod tests {
                     let bc = multiply(*b, *c);
                     // a · (b·c): multiply basis `a` on the left of each term of bc.
                     let mut rhs = DualElement::new();
-                    for &(z, cz) in &bc {
-                        for (w, cw) in multiply(*a, z) {
-                            rhs.add_term(w, cz * cw);
+                    for &z in &bc {
+                        for w in multiply(*a, z) {
+                            rhs.add_term(w);
                         }
                     }
                     assert_eq!(lhs, rhs, "associativity failed at {a:?},{b:?},{c:?}");
@@ -1637,8 +1672,8 @@ mod tests {
         assert_eq!(
             multiply(q0, p_xi1),
             DualElement::from([
-                (mon(0b10, &[]), Tau::one()),    // Q_1
-                (mon(0b1, &[0, 1]), Tau::one()), // Q_0 P(ξ_1)
+                mon(0b10, &[]),    // Q_1
+                mon(0b1, &[0, 1]), // Q_0 P(ξ_1)
             ])
         );
     }
@@ -1647,10 +1682,7 @@ mod tests {
     fn test_product_unit_and_squares() {
         // 1 · x = x.
         let x = mon(0b101, &[0, 2]);
-        assert_eq!(
-            multiply(mon(0, &[]), x),
-            DualElement::from([(x, Tau::one())])
-        );
+        assert_eq!(multiply(mon(0, &[]), x), DualElement::from([x]));
         // Q_i^2 = 0. (Q_0 = Sq^1 is the motivic Bockstein; P(ξ_1) = Sq^2 does NOT square to
         // zero — its square is τ Q_0 Q_1 + …, a genuine motivic feature.)
         for i in 0..3 {
@@ -1667,23 +1699,20 @@ mod tests {
 
     #[test]
     fn test_product_weight_homogeneous_and_tau_appears() {
-        // Every product is weight-homogeneous: term z occurs with a single power τ^k, and by
-        // weight-preservation of ψ, k = (w_a + w_b) - w_z ≥ 0 in *dual*-monomial weights (the
-        // algebra weight of a basis element is the negative of its dual monomial's weight, so
-        // τ, of weight -1, absorbs the difference). Also confirm τ genuinely enters at least
-        // one product (i.e. the τ_i^2 = τξ_{i+1} relation fires).
+        // The τ exponent implied by the weights must agree with the one `rewrite_tau` counts —
+        // the invariant that licenses not storing coefficients at all. That comparison is the
+        // `debug_assert` in `mul_monomials`, which this sweep exercises; here we check the
+        // consequences it must have: the exponent is a genuine (non-negative) power, the
+        // topological degree is additive, and τ really does enter — i.e. the τ_i^2 = τξ_{i+1}
+        // relation fires rather than the whole thing being vacuously τ-free.
         let basis: Vec<Monomial> = (0..=6).flat_map(enum_basis).collect();
         let mut saw_tau = false;
         for a in &basis {
             for b in &basis {
-                let (wa, wb) = (a.bidegree().1, b.bidegree().1);
-                for (z, c) in multiply(*a, *b) {
-                    // Each coefficient is a single τ power by construction (a homogeneous Tau).
-                    let k = c.valuation().expect("stored coefficients are never zero") as i32;
-                    let wz = z.bidegree().1;
-                    assert_eq!(wa + wb - wz, k, "weight mismatch: {a:?}*{b:?} → z={z:?}");
-                    assert!(k >= 0);
-                    saw_tau |= k > 0;
+                for z in multiply(*a, *b) {
+                    assert_eq!(z.bidegree().0, a.bidegree().0 + b.bidegree().0);
+                    // Panics in debug if the weights imply a negative power.
+                    saw_tau |= Grading::Steenrod.tau_exponent(*a, *b, z) > 0;
                 }
             }
         }
@@ -1699,10 +1728,7 @@ mod tests {
         assert_eq!(antipode(&xi_gen(1)), xi_gen(1));
         assert_eq!(
             antipode(&xi_gen(2)),
-            DualElement::from([
-                (mon(0, &[0, 0, 1]), Tau::one()),
-                (mon(0, &[0, 3]), Tau::one())
-            ])
+            DualElement::from([mon(0, &[0, 0, 1]), mon(0, &[0, 3])])
         );
         assert_eq!(antipode(&tau_gen(0)), tau_gen(0));
 
@@ -1722,13 +1748,10 @@ mod tests {
         // Antipode axiom: m(χ ⊗ id)ψ(x) = η ε(x); for positive-degree x this is 0.
         let counit_via_antipode = |x: &DualElement| -> DualElement {
             let mut out = DualElement::new();
-            for ((l, r), c) in coproduct(x) {
-                let prod = dual_mul(
-                    &antipode(&DualElement::from([(l, Tau::one())])),
-                    &DualElement::from([(r, Tau::one())]),
-                );
-                for (mon, cc) in prod {
-                    out.add_term(mon, c * cc);
+            for (l, r) in coproduct(x) {
+                let prod = dual_mul(&antipode(&DualElement::from([l])), &DualElement::from([r]));
+                for mon in prod {
+                    out.add_term(mon);
                 }
             }
             out
@@ -1753,18 +1776,18 @@ mod tests {
         assert_eq!(
             coproduct(&tau_gen(1)),
             TensorElement::from([
-                ((mon(0, &[]), mon(0b10, &[])), Tau::one()),    // 1 ⊗ τ_1
-                ((mon(0b1, &[]), mon(0, &[0, 1])), Tau::one()), // τ_0 ⊗ ξ_1
-                ((mon(0b10, &[]), mon(0, &[])), Tau::one()),    // τ_1 ⊗ 1
+                (mon(0, &[]), mon(0b10, &[])),    // 1 ⊗ τ_1
+                (mon(0b1, &[]), mon(0, &[0, 1])), // τ_0 ⊗ ξ_1
+                (mon(0b10, &[]), mon(0, &[])),    // τ_1 ⊗ 1
             ])
         );
         // ψ(ξ_2) = 1⊗ξ_2 + ξ_1⊗ξ_1^2 + ξ_2⊗1  (matches Milnor).
         assert_eq!(
             coproduct(&xi_gen(2)),
             TensorElement::from([
-                ((mon(0, &[]), mon(0, &[0, 0, 1])), Tau::one()), // 1 ⊗ ξ_2
-                ((mon(0, &[0, 1]), mon(0, &[0, 2])), Tau::one()), // ξ_1 ⊗ ξ_1^2
-                ((mon(0, &[0, 0, 1]), mon(0, &[])), Tau::one()), // ξ_2 ⊗ 1
+                (mon(0, &[]), mon(0, &[0, 0, 1])),  // 1 ⊗ ξ_2
+                (mon(0, &[0, 1]), mon(0, &[0, 2])), // ξ_1 ⊗ ξ_1^2
+                (mon(0, &[0, 0, 1]), mon(0, &[])),  // ξ_2 ⊗ 1
             ])
         );
     }
