@@ -15,7 +15,7 @@
 
 use algebra::{
     MotivicMilnorAlgebra,
-    motivic::milnor::{Monomial, enum_basis, multiply_closed},
+    motivic::milnor::{Dual, Monomial, enum_basis, multiply_closed},
 };
 use criterion::{
     BenchmarkGroup, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
@@ -25,13 +25,18 @@ use pprof::criterion::{Output, PProfProfiler};
 
 /// `Q(E)P(R)` from the `Q` indices and the ξ exponents, in the paper's indexing where `R[0]`
 /// belongs to ξ_0 = 1 and is skipped.
-fn elt(q: &[u32], xi: &[u32]) -> Monomial {
+fn elt(q: &[u32], xi: &[u32]) -> Dual<Monomial> {
     let mut r = vec![0];
     r.extend_from_slice(xi);
-    Monomial::from_paper(q.iter().map(|i| 1 << i).sum(), &r).unwrap()
+    Dual(Monomial::from_paper(q.iter().map(|i| 1 << i).sum(), &r).unwrap())
 }
 
-fn bench_product(g: &mut BenchmarkGroup<WallTime>, name: &str, a: Monomial, b: Monomial) {
+fn bench_product(
+    g: &mut BenchmarkGroup<WallTime>,
+    name: &str,
+    a: Dual<Monomial>,
+    b: Dual<Monomial>,
+) {
     g.bench_function(name, |bench| {
         bench.iter(|| std::hint::black_box(multiply_closed(a, b)));
     });

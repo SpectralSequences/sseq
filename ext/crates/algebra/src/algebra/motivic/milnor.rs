@@ -31,14 +31,14 @@
 //!
 //! Coefficients are never stored. Everything here is homogeneous, so each one is a single power
 //! of $\tau$, and $\tau$ has weight $-1$ — which pins the exponent to the weights of the terms
-//! it sits between ([`Grading::tau_exponent`]). This is the $A_C$ product **engine**, over
+//! it sits between ([`tau_exponent`]). This is the $A_C$ product **engine**, over
 //! $\mathbb{F}_2[\tau]$; the mod-$\tau$ reduction $A_C/\tau$ is presented to the resolution
 //! engine as an ordinary $\mathbb{F}_2$-algebra in a follow-up layer built on top of this engine.
 //!
 //! Weight convention: the motivic weight of an algebra basis element is the
 //! *negative* of the weight of the dual monomial it pairs with, so that products
-//! are weight-homogeneous with $\tau$ (weight $-1$) absorbing the difference. [`Grading`] names
-//! the two sides.
+//! are weight-homogeneous with $\tau$ (weight $-1$) absorbing the difference. [`Dual`] marks the
+//! $A_C$ side, so the two cannot be confused.
 
 use std::{
     cell::RefCell,
@@ -117,23 +117,6 @@ impl Monomial {
     /// The unit monomial $1$.
     pub fn one() -> Self {
         Self::default()
-    }
-
-    /// The C-motivic (prime 2) bidegree `(t, w)`: `|τ_i| = (2^{i+1}-1, 2^i-1)` and
-    /// `|ξ_{i+1}| = (2^{i+2}-2, 2^{i+1}-1)`.
-    ///
-    /// [`MotivicMilnorAlgebra::bidegree`] negates `w` for the algebra's own weight convention.
-    pub fn bidegree(&self) -> (i32, i32) {
-        let (mut t, mut w) = (0i32, 0i32);
-        for i in BitflagIterator::set_bit_iterator(self.q_part as u64) {
-            t += (1 << (i + 1)) - 1;
-            w += (1 << i) - 1;
-        }
-        for (i, r) in self.p_part.iter().enumerate() {
-            t += r as i32 * ((1 << (i + 2)) - 2);
-            w += r as i32 * ((1 << (i + 1)) - 1);
-        }
-        (t, w)
     }
 }
 
@@ -286,7 +269,7 @@ fn rewrite_tau_dfs(
 ///
 /// Coefficients are not stored, because the bigrading already determines them: everything we
 /// compute is homogeneous, $\tau$ has weight $-1$, so the coefficient of a term is forced to be
-/// $\tau^{\text{(input weight)} - \text{(term weight)}}$ — see [`Grading::tau_exponent`]. What is left is
+/// $\tau^{\text{(input weight)} - \text{(term weight)}}$ — see [`tau_exponent`]. What is left is
 /// a set of keys taken mod 2, and adding a term toggles it.
 ///
 /// A sorted `Vec` rather than a `BTreeMap`: these combinations are small — a product of two basis
@@ -368,53 +351,72 @@ impl<'a, K> IntoIterator for &'a SparseSum<K> {
     }
 }
 
-/// Which of the two dual weight conventions a computation is expressed in.
+/// The basis element of $A_C$ dual to a monomial of $A_{**}$.
 ///
-/// $A_C$ and its dual $A_{**}$ weight the same [`Monomial`] by negatives of each other: the
-/// monomial's own weight grades $A_{**}$, and the basis element of $A_C$ it pairs with takes the
-/// negative (see the module docs). Naming the convention keeps that sign in one place — the
-/// formula for a $\tau$ exponent is the same on both sides once each is asked for its own weight.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Grading {
-    /// $A_{**}$, weighted by the monomial itself — the convention of [`dual_mul`].
-    Dual,
-    /// $A_C$, weighted by the basis element the monomial is dual to — the convention of
-    /// [`multiply`] and [`product_indexed`](MotivicMilnorAlgebra::product_indexed).
-    Steenrod,
+/// $A_C$ and $A_{**}$ are indexed by the same $(E, R)$ data, so a bare [`Monomial`] cannot say
+/// which of the two it means — and the distinction is not cosmetic: the two weight the same data
+/// by negatives of each other, so a $\tau$ exponent read in the wrong one comes out with the
+/// wrong sign. Wrapping the $A_C$ reading makes that a type error instead.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Dual<T>(pub T);
+
+/// A monomial carrying a motivic bidegree, in whichever of the two dual conventions its type
+/// stands for.
+pub trait Bigraded: Copy + std::fmt::Debug {
+    /// The `(topological degree, motivic weight)`.
+    fn bidegree(self) -> (i32, i32);
 }
 
-impl Grading {
-    /// The motivic weight of `m` in this convention.
-    pub fn weight(self, m: Monomial) -> i32 {
-        let w = m.bidegree().1;
-        match self {
-            Self::Dual => w,
-            Self::Steenrod => -w,
+/// The C-motivic (prime 2) bidegree of a monomial of $A_{**}$: `|τ_i| = (2^{i+1}-1, 2^i-1)` and
+/// `|ξ_{i+1}| = (2^{i+2}-2, 2^{i+1}-1)`.
+impl Bigraded for Monomial {
+    fn bidegree(self) -> (i32, i32) {
+        let (mut t, mut w) = (0i32, 0i32);
+        for i in BitflagIterator::set_bit_iterator(self.q_part as u64) {
+            t += (1 << (i + 1)) - 1;
+            w += (1 << i) - 1;
         }
+        for (i, r) in self.p_part.iter().enumerate() {
+            t += r as i32 * ((1 << (i + 2)) - 2);
+            w += r as i32 * ((1 << (i + 1)) - 1);
+        }
+        (t, w)
     }
+}
 
-    /// The exponent of $\tau$ on the term `z` of a product `a * b`.
-    ///
-    /// The bigrading forces it, which is why products store no coefficients. $\tau$ has weight
-    /// $-1$ and topological degree $0$, so a weight-homogeneous product can only carry
-    /// $\tau^{w_z - w_a - w_b}$ on `z`.
-    ///
-    /// # Panics
-    ///
-    /// In debug builds, if the weights imply a negative power — i.e. `z` cannot occur in `a * b`.
-    pub fn tau_exponent(self, a: Monomial, b: Monomial, z: Monomial) -> u32 {
-        let k = self.weight(z) - self.weight(a) - self.weight(b);
-        debug_assert!(
-            k >= 0,
-            "negative tau exponent: {a:?} * {b:?} → {z:?} ({self:?})"
-        );
-        k as u32
+/// The same data read in $A_C$, whose weight is the negative of the monomial's.
+impl Bigraded for Dual<Monomial> {
+    fn bidegree(self) -> (i32, i32) {
+        let (t, w) = self.0.bidegree();
+        (t, -w)
     }
+}
+
+/// The exponent of $\tau$ on the term `z` of a product `a * b` — the coefficient that products
+/// here leave unstored.
+///
+/// The bigrading forces it, which is why nothing stores one. $\tau$ has bidegree $(0, -1)$, so
+/// topological degree is additive and the whole $\tau$ power lands in the weight: a
+/// weight-homogeneous product can only carry $\tau^{w_z - w_a - w_b}$ on `z`. The formula is the
+/// same on both sides of the duality; which weights it reads is settled by whether `W` is
+/// [`Monomial`] ($A_{**}$) or [`Dual<Monomial>`] ($A_C$).
+///
+/// # Panics
+///
+/// In debug builds, if the weights imply a negative power — i.e. `z` cannot occur in `a * b`.
+pub fn tau_exponent<W: Bigraded>(a: W, b: W, z: W) -> u32 {
+    let k = z.bidegree().1 - a.bidegree().1 - b.bidegree().1;
+    debug_assert!(k >= 0, "negative tau exponent: {a:?} * {b:?} → {z:?}");
+    k as u32
 }
 
 /// An element of the dual algebra $A_{**}$: a mod-2 set of [`Monomial`]s, whose
-/// $\mathbb{F}_2[\tau]$ coefficients are implicit in the weight ([`Grading::tau_exponent`]).
+/// $\mathbb{F}_2[\tau]$ coefficients are implicit in the weight ([`tau_exponent`]).
 pub type DualElement = SparseSum<Monomial>;
+
+/// An element of $A_C$: a mod-2 set of basis elements, whose $\mathbb{F}_2[\tau]$ coefficients
+/// are likewise implicit ([`tau_exponent`]).
+pub type SteenrodElement = SparseSum<Dual<Monomial>>;
 
 /// Elementwise sum of two exponent sequences, i.e. the product of the two $\xi$ monomials.
 fn ppart_add(a: PPart, b: PPart) -> PPart {
@@ -447,7 +449,7 @@ fn mul_monomials(m1: Monomial, m2: Monomial, acc: &mut DualElement) {
         let z = Monomial::new(term.e_mask, r);
         // The τ power `rewrite_tau` computed and the one the weight dictates are the same
         // number; this is the invariant that lets the coefficient go unstored.
-        debug_assert_eq!(term.tau_pow, Grading::Dual.tau_exponent(m1, m2, z));
+        debug_assert_eq!(term.tau_pow, tau_exponent(m1, m2, z));
         acc.add_term(z);
     }
 }
@@ -633,7 +635,7 @@ pub fn antipode(elt: &DualElement) -> DualElement {
 // ---------------------------------------------------------------------------
 
 /// All basis monomials `τ(E)ξ(R)` of a given topological degree `target`.
-pub fn enum_basis(target: i32) -> Vec<Monomial> {
+pub fn enum_basis(target: i32) -> Vec<Dual<Monomial>> {
     // Generators available up to `target`: τ_i of degree 2^{i+1}-1, ξ_j (j≥1) of degree
     // 2^{j+1}-2. Represented as (is_tau, index, degree).
     let mut gens: Vec<(bool, usize, i32)> = Vec::new();
@@ -667,12 +669,14 @@ fn enum_basis_dfs(
     rem: i32,
     e: &mut u32,
     r: &mut [u32],
-    out: &mut Vec<Monomial>,
+    out: &mut Vec<Dual<Monomial>>,
 ) {
     if idx == gens.len() {
         if rem == 0 {
             // `r` is paper-indexed: `r[0]` is the (always zero) xi_0 slot.
-            out.push(Monomial::from_paper(*e, r).expect("basis exponent out of packing range"));
+            out.push(Dual(
+                Monomial::from_paper(*e, r).expect("basis exponent out of packing range"),
+            ));
         }
         return;
     }
@@ -698,17 +702,18 @@ fn enum_basis_dfs(
 
 /// The product `a · b` in the C-motivic Steenrod algebra `A_C`, where `a`, `b` are Milnor basis
 /// elements `Q(E)P(R)` given as the monomials `(E, R)` they are dual to. The result is the set of
-/// basis monomials occurring, their `𝔽₂[τ]` coefficients being implicit ([`Grading::tau_exponent`]).
+/// basis monomials occurring, their `𝔽₂[τ]` coefficients being implicit ([`tau_exponent`]).
 ///
 /// Computed by duality: the coefficient of `z` in `a · b` is the coefficient of
 /// `mon(a) ⊗ mon(b)` in `ψ(mon(z))`, summed over the basis `z` of the appropriate
 /// topological degree.
-pub fn multiply(a: Monomial, b: Monomial) -> DualElement {
-    let key = (a, b);
+pub fn multiply(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
+    // ψ is a statement about A_**, so the pairing is against the monomials themselves.
+    let key = (a.0, b.0);
     let t = a.bidegree().0 + b.bidegree().0;
-    let mut out = DualElement::new();
+    let mut out = SteenrodElement::new();
     for z in enum_basis(t) {
-        if coproduct_monomial(&z).contains(&key) {
+        if coproduct_monomial(&z.0).contains(&key) {
             out.add_term(z);
         }
     }
@@ -1047,7 +1052,10 @@ impl ClosedY<'_> {
 
 /// The product `a · b` in `A_C` via Kong–Lin Theorem 5.1 (ρ = 0). Same contract
 /// as [`multiply`] (the duality oracle it is validated against).
-pub fn multiply_closed(a: Monomial, b: Monomial) -> DualElement {
+pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
+    // Theorem 5.1 is combinatorics on the (E, R) exponents; the A_C reading is re-applied to the
+    // output monomials at the end.
+    let (a, b) = (a.0, b.0);
     let (e1_mask, e2_mask) = (a.q_part, b.q_part);
     // The recursion below follows Kong–Lin's indexing, in which `R[0]` is the xi_0 slot, so the
     // exponents are unpacked into paper-indexed working vectors here.
@@ -1080,7 +1088,7 @@ pub fn multiply_closed(a: Monomial, b: Monomial) -> DualElement {
     let mut xcols: Vec<&[u32]> = Vec::with_capacity(l);
     let mut acc = Acc::zero();
     ctx.enum_x(0, &mut xcols, &mut acc, &mut out);
-    out
+    out.into_iter().map(Dual).collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -1093,7 +1101,7 @@ pub fn multiply_closed(a: Monomial, b: Monomial) -> DualElement {
 ///
 /// This is the $A_C$ product **engine** over $\mathbb{F}_2[\tau]$: the dual-based product is
 /// exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed), whose
-/// $\tau$ coefficients are implicit in the weights ([`Grading::tau_exponent`]). It is
+/// $\tau$ coefficients are implicit in the weights ([`tau_exponent`]). It is
 /// deliberately not an [`Algebra`](crate::algebra::Algebra)
 /// implementation, because that trait is over $\mathbb{F}_p$; the mod-$\tau$ reduction, which *is*
 /// such an algebra, is a follow-up layer on top of this engine, and the honest
@@ -1107,7 +1115,7 @@ pub fn multiply_closed(a: Monomial, b: Monomial) -> DualElement {
 pub struct MotivicMilnorAlgebra {
     /// `basis[t]` is the $\mathbb{F}_2[\tau]$-basis in topological degree `t`, sorted for stable
     /// indexing.
-    basis: OnceVec<Vec<Monomial>>,
+    basis: OnceVec<Vec<Dual<Monomial>>>,
     /// Memoized basis-element products, one dense [`ProductBlock`] per pair of
     /// topological degrees `(t1, t2)`. The duality product is expensive and a
     /// resolution asks for the same structure constants repeatedly, so we cache
@@ -1165,26 +1173,25 @@ impl MotivicMilnorAlgebra {
     }
 
     /// The `idx`-th basis monomial `(E, R)` in degree `degree`.
-    pub fn basis_element(&self, degree: i32, idx: usize) -> &Monomial {
+    pub fn basis_element(&self, degree: i32, idx: usize) -> &Dual<Monomial> {
         &self.basis[degree as usize][idx]
     }
 
     /// The index of a basis monomial in its degree, if present.
-    pub fn index_of(&self, degree: i32, elt: &Monomial) -> Option<usize> {
+    pub fn index_of(&self, degree: i32, elt: &Dual<Monomial>) -> Option<usize> {
         self.basis[degree as usize].binary_search(elt).ok()
     }
 
     /// The `(topological degree, motivic weight)` of a basis element.
     pub fn bidegree(&self, degree: i32, idx: usize) -> (i32, i32) {
-        let m = self.basis[degree as usize][idx];
-        (m.bidegree().0, Grading::Steenrod.weight(m))
+        self.basis[degree as usize][idx].bidegree()
     }
 
     /// The exponent of $\tau$ on basis element `idx` of degree `t1 + t2` in the product of the
     /// elements at `(t1, idx1)` and `(t2, idx2)` — the coefficient [`Self::product_indexed`]
-    /// leaves implicit. See [`Grading::tau_exponent`].
+    /// leaves implicit. See [`tau_exponent`].
     pub fn tau_exponent(&self, t1: i32, idx1: usize, t2: i32, idx2: usize, idx: usize) -> u32 {
-        Grading::Steenrod.tau_exponent(
+        tau_exponent(
             self.basis[t1 as usize][idx1],
             self.basis[t2 as usize][idx2],
             self.basis[(t1 + t2) as usize][idx],
@@ -1228,12 +1235,12 @@ impl MotivicMilnorAlgebra {
         }
         self.compute_basis(degree);
         // The basis is stored trimmed, so trimming the parsed vector makes this an exact match.
-        self.index_of(degree, &m).map(|idx| (degree, idx))
+        self.index_of(degree, &Dual(m)).map(|idx| (degree, idx))
     }
 
     /// A display string for a basis element (`Q_i … P(R)`).
     pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        let m = self.basis_element(degree, idx);
+        let Dual(m) = self.basis_element(degree, idx);
         let mut parts = Vec::new();
         for i in fp::prime::iter::BitflagIterator::set_bit_iterator(m.q_part as u64) {
             parts.push(format!("Q_{i}"));
@@ -1408,6 +1415,16 @@ mod tests {
         mon(0, &pp_to_paper(pp))
     }
 
+    /// The $A_C$ basis element dual to [`mon`]'s monomial.
+    fn dmon(q_part: u32, r: &[u32]) -> Dual<Monomial> {
+        Dual(mon(q_part, r))
+    }
+
+    /// The $A_C$ basis element dual to [`paper`]'s monomial.
+    fn dpaper(pp: &[u32]) -> Dual<Monomial> {
+        Dual(paper(pp))
+    }
+
     #[test]
     fn test_algebra_basis_and_multiply() {
         let alg = MotivicMilnorAlgebra::new();
@@ -1415,25 +1432,25 @@ mod tests {
 
         // Degree 0 is the unit; degrees 1 and 2 are 1-dimensional (Q_0 and P(ξ_1)).
         assert_eq!(alg.dimension(0), 1);
-        assert_eq!(alg.basis_element(0, 0), &mon(0u32, &[]));
+        assert_eq!(alg.basis_element(0, 0), &dmon(0u32, &[]));
         assert_eq!(alg.dimension(1), 1);
-        assert_eq!(alg.basis_element(1, 0), &mon(0b1u32, &[])); // Q_0
+        assert_eq!(alg.basis_element(1, 0), &dmon(0b1u32, &[])); // Q_0
         assert_eq!(alg.dimension(2), 1);
-        assert_eq!(alg.basis_element(2, 0), &mon(0u32, &[0, 1])); // P(ξ_1)
+        assert_eq!(alg.basis_element(2, 0), &dmon(0u32, &[0, 1])); // P(ξ_1)
 
         // bidegree: Q_0 is (1, 0), P(ξ_1) is (2, -1) in this presentation.
         assert_eq!(alg.bidegree(1, 0), (1, 0));
         assert_eq!(alg.bidegree(2, 0), (2, -1));
 
         // Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1), reconstructed from indices.
-        let terms: DualElement = alg
+        let terms: SteenrodElement = alg
             .product_indexed(1, 0, 2, 0)
             .into_iter()
             .map(|idx| *alg.basis_element(3, idx))
             .collect();
         assert_eq!(
             terms,
-            DualElement::from([mon(0b10, &[]), mon(0b1, &[0, 1])])
+            SteenrodElement::from([dmon(0b10, &[]), dmon(0b1, &[0, 1])])
         );
     }
 
@@ -1448,7 +1465,7 @@ mod tests {
                         let a = *alg.basis_element(t1, idx1);
                         let b = *alg.basis_element(t2, idx2);
                         // Indexed product agrees with the raw monomial product.
-                        let indexed: DualElement = alg
+                        let indexed: SteenrodElement = alg
                             .product_indexed(t1, idx1, t2, idx2)
                             .into_iter()
                             .map(|idx| *alg.basis_element(t1 + t2, idx))
@@ -1462,7 +1479,7 @@ mod tests {
                             let z = *alg.basis_element(t1 + t2, idx);
                             assert_eq!(
                                 alg.tau_exponent(t1, idx1, t2, idx2, idx),
-                                Grading::Steenrod.tau_exponent(a, b, z)
+                                tau_exponent(a, b, z)
                             );
                         }
                     }
@@ -1479,26 +1496,26 @@ mod tests {
             dual_mul(&tau_gen(0), &tau_gen(0)),
             DualElement::from([mon(0, &[0, 1])])
         );
-        assert_eq!(Grading::Dual.tau_exponent(t0, t0, mon(0, &[0, 1])), 1);
+        assert_eq!(tau_exponent(t0, t0, mon(0, &[0, 1])), 1);
         // ξ_1^2 is just the monomial ξ_1^2, with no τ.
         assert_eq!(
             dual_mul(&xi_gen(1), &xi_gen(1)),
             DualElement::from([mon(0, &[0, 2])])
         );
         let xi1 = mon(0, &[0, 1]);
-        assert_eq!(Grading::Dual.tau_exponent(xi1, xi1, mon(0, &[0, 2])), 0);
+        assert_eq!(tau_exponent(xi1, xi1, mon(0, &[0, 2])), 0);
         // Distinct τ's commute and stay square-free: τ_0 τ_1, again τ-free.
         assert_eq!(
             dual_mul(&tau_gen(0), &tau_gen(1)),
             DualElement::from([mon(0b11, &[])])
         );
-        assert_eq!(Grading::Dual.tau_exponent(t0, t1, mon(0b11, &[])), 0);
+        assert_eq!(tau_exponent(t0, t1, mon(0b11, &[])), 0);
         // τ_1^2 = τ ξ_2.
         assert_eq!(
             dual_mul(&tau_gen(1), &tau_gen(1)),
             DualElement::from([mon(0, &[0, 0, 1])])
         );
-        assert_eq!(Grading::Dual.tau_exponent(t1, t1, mon(0, &[0, 0, 1])), 1);
+        assert_eq!(tau_exponent(t1, t1, mon(0, &[0, 0, 1])), 1);
         // Multiplication by the unit is the identity.
         assert_eq!(dual_mul(&dual_one(), &tau_gen(2)), tau_gen(2));
     }
@@ -1516,16 +1533,16 @@ mod tests {
         };
 
         let motivic = |p1: &[u32], p2: &[u32]| -> Vec<Vec<u32>> {
-            let mut out: Vec<Vec<u32>> = multiply(paper(p1), paper(p2))
+            let mut out: Vec<Vec<u32>> = multiply(dpaper(p1), dpaper(p2))
                 .into_iter()
-                .filter(|m| m.q_part == 0) // keep the pure-ξ outputs
-                .map(|m| {
+                .filter(|d| d.0.q_part == 0) // keep the pure-ξ outputs
+                .map(|d| {
                     assert_eq!(
-                        Grading::Steenrod.tau_exponent(paper(p1), paper(p2), m),
+                        tau_exponent(dpaper(p1), dpaper(p2), d),
                         0,
                         "pure-ξ output carried a τ power"
                     );
-                    m.p_part.iter().collect()
+                    d.0.p_part.iter().collect()
                 })
                 .collect();
             out.sort();
@@ -1569,8 +1586,8 @@ mod tests {
         let xi_pps = |t: i32| -> Vec<Vec<u32>> {
             enum_basis(t)
                 .into_iter()
-                .filter(|m| m.q_part == 0)
-                .map(|m| m.p_part.iter().collect())
+                .filter(|d| d.0.q_part == 0)
+                .map(|d| d.0.p_part.iter().collect())
                 .collect()
         };
         let a_coeff = |mu_pp: &[u32], w_pp: &[u32]| -> u32 {
@@ -1594,10 +1611,10 @@ mod tests {
             (vec![2, 1], vec![2]),
         ] {
             // LHS: motivic conjugate product (E=0), converted to std via χ.
-            let conj: Vec<Vec<u32>> = multiply(paper(&r1), paper(&r2))
+            let conj: Vec<Vec<u32>> = multiply(dpaper(&r1), dpaper(&r2))
                 .into_iter()
-                .filter(|m| m.q_part == 0)
-                .map(|m| m.p_part.iter().collect())
+                .filter(|d| d.0.q_part == 0)
+                .map(|d| d.0.p_part.iter().collect())
                 .collect();
             let mut lhs: BTreeMap<Vec<u32>, u32> = BTreeMap::new();
             for w in xi_pps(mdeg(&r1) + mdeg(&r2)) {
@@ -1633,8 +1650,8 @@ mod tests {
         // Associativity (a·b)·c = a·(b·c) is convention-independent and a strong global check.
         // Extend the basis×basis product to element×basis, F_2[τ]-linearly (`add_term` cancels
         // mod 2, and the τ coefficients agree termwise because both sides are homogeneous).
-        fn mul_elt_basis(x: &DualElement, c: &Monomial) -> DualElement {
-            let mut out = DualElement::new();
+        fn mul_elt_basis(x: &SteenrodElement, c: &Dual<Monomial>) -> SteenrodElement {
+            let mut out = SteenrodElement::new();
             for &z in x {
                 for w in multiply(z, *c) {
                     out.add_term(w);
@@ -1643,7 +1660,7 @@ mod tests {
             out
         }
 
-        let basis: Vec<Monomial> = (0..=5).flat_map(enum_basis).collect();
+        let basis: Vec<Dual<Monomial>> = (0..=5).flat_map(enum_basis).collect();
         for a in &basis {
             for b in &basis {
                 let ab = multiply(*a, *b);
@@ -1651,7 +1668,7 @@ mod tests {
                     let lhs = mul_elt_basis(&ab, c);
                     let bc = multiply(*b, *c);
                     // a · (b·c): multiply basis `a` on the left of each term of bc.
-                    let mut rhs = DualElement::new();
+                    let mut rhs = SteenrodElement::new();
                     for &z in &bc {
                         for w in multiply(*a, z) {
                             rhs.add_term(w);
@@ -1667,13 +1684,13 @@ mod tests {
     fn test_product_q0_p_xi1() {
         // The case my reading of Kong–Lin Theorem 5.1 got wrong. By duality:
         //   Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1)   (both with coefficient τ^0).
-        let q0 = mon(0b1, &[]);
-        let p_xi1 = mon(0, &[0, 1]);
+        let q0 = dmon(0b1, &[]);
+        let p_xi1 = dmon(0, &[0, 1]);
         assert_eq!(
             multiply(q0, p_xi1),
-            DualElement::from([
-                mon(0b10, &[]),    // Q_1
-                mon(0b1, &[0, 1]), // Q_0 P(ξ_1)
+            SteenrodElement::from([
+                dmon(0b10, &[]),    // Q_1
+                dmon(0b1, &[0, 1]), // Q_0 P(ξ_1)
             ])
         );
     }
@@ -1681,15 +1698,15 @@ mod tests {
     #[test]
     fn test_product_unit_and_squares() {
         // 1 · x = x.
-        let x = mon(0b101, &[0, 2]);
-        assert_eq!(multiply(mon(0, &[]), x), DualElement::from([x]));
+        let x = dmon(0b101, &[0, 2]);
+        assert_eq!(multiply(dmon(0, &[]), x), SteenrodElement::from([x]));
         // Q_i^2 = 0. (Q_0 = Sq^1 is the motivic Bockstein; P(ξ_1) = Sq^2 does NOT square to
         // zero — its square is τ Q_0 Q_1 + …, a genuine motivic feature.)
         for i in 0..3 {
             assert!(
                 multiply(
-                    Monomial::new(1 << i, PPart::zero()),
-                    Monomial::new(1 << i, PPart::zero())
+                    Dual(Monomial::new(1 << i, PPart::zero())),
+                    Dual(Monomial::new(1 << i, PPart::zero()))
                 )
                 .is_empty(),
                 "Q_{i}^2 ≠ 0"
@@ -1705,14 +1722,14 @@ mod tests {
         // consequences it must have: the exponent is a genuine (non-negative) power, the
         // topological degree is additive, and τ really does enter — i.e. the τ_i^2 = τξ_{i+1}
         // relation fires rather than the whole thing being vacuously τ-free.
-        let basis: Vec<Monomial> = (0..=6).flat_map(enum_basis).collect();
+        let basis: Vec<Dual<Monomial>> = (0..=6).flat_map(enum_basis).collect();
         let mut saw_tau = false;
         for a in &basis {
             for b in &basis {
                 for z in multiply(*a, *b) {
                     assert_eq!(z.bidegree().0, a.bidegree().0 + b.bidegree().0);
                     // Panics in debug if the weights imply a negative power.
-                    saw_tau |= Grading::Steenrod.tau_exponent(*a, *b, z) > 0;
+                    saw_tau |= tau_exponent(*a, *b, z) > 0;
                 }
             }
         }
@@ -1858,8 +1875,8 @@ mod tests {
     fn test_closed_form_small_cases() {
         // The case a naive reading of Theorem 5.1 gets wrong (the ξ₀ = 1 index
         // absorption): Q_0 · P(ξ_1) = Q_1 + Q_0 P(ξ_1).
-        let q0 = mon(0b1, &[]);
-        let p_xi1 = mon(0, &[0, 1]);
+        let q0 = dmon(0b1, &[]);
+        let p_xi1 = dmon(0, &[0, 1]);
         assert_eq!(multiply_closed(q0, p_xi1), multiply(q0, p_xi1));
 
         // The τ-generating case: P(ξ_1)² has a τ Q_0 Q_1 term.
@@ -1869,12 +1886,12 @@ mod tests {
         for i in 0..3 {
             assert_eq!(
                 multiply_closed(
-                    Monomial::new(1 << i, PPart::zero()),
-                    Monomial::new(1 << i, PPart::zero())
+                    Dual(Monomial::new(1 << i, PPart::zero())),
+                    Dual(Monomial::new(1 << i, PPart::zero()))
                 ),
                 multiply(
-                    Monomial::new(1 << i, PPart::zero()),
-                    Monomial::new(1 << i, PPart::zero())
+                    Dual(Monomial::new(1 << i, PPart::zero())),
+                    Dual(Monomial::new(1 << i, PPart::zero()))
                 )
             );
         }
@@ -1886,7 +1903,7 @@ mod tests {
         // oracle on every ordered pair of basis elements with deg(a)+deg(b) ≤ 18,
         // including the τ-carrying and multi-Q cases. (The bound is kept modest
         // because the *oracle* is slow; the closed form is not.)
-        let basis: Vec<(i32, Monomial)> = (0..=14)
+        let basis: Vec<(i32, Dual<Monomial>)> = (0..=14)
             .flat_map(|t| enum_basis(t).into_iter().map(move |m| (t, m)))
             .collect();
         for (ta, a) in &basis {

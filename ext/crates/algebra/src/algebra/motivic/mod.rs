@@ -12,7 +12,9 @@
 //! There is no representation of the coefficient ring $\mathbb{F}_2[\tau]$ here, because
 //! nothing needs one: every element in sight is bidegree-homogeneous and $\tau$ has weight
 //! $-1$, so a coefficient is pinned by the weights of the terms it sits between. See
-//! [`milnor::Grading::tau_exponent`], which is how one is recovered when a caller wants it.
+//! [`milnor::tau_exponent`], which is how one is recovered when a caller wants it. Which of the
+//! two dual weight conventions applies is carried by the type — [`milnor::Dual`] marks the $A_C$
+//! reading of a monomial — so the two cannot be mixed up.
 //!
 //! The mod-$\tau$ reduction $A_C/\tau$ — the connected finite-type
 //! $\mathbb{F}_2$-algebra that the existing resolution engine resolves to yield the
