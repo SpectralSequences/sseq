@@ -457,6 +457,18 @@ impl<A: Algebra> SaveFile<A> {
         }
     }
 
+    /// Open `p` for writing, creating it (and failing if it already exists unless `overwrite`).
+    /// Shared by [`create_file`](Self::create_file) and [`try_create_file`](Self::try_create_file),
+    /// which differ only in how they react to the resulting error.
+    fn open_for_write(p: &Path, overwrite: bool) -> io::Result<std::fs::File> {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(!overwrite)
+            .create(true)
+            .truncate(true)
+            .open(p)
+    }
+
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write + use<A> {
@@ -471,17 +483,52 @@ impl<A: Algebra> SaveFile<A> {
             "File {p:?} is already opened"
         );
 
-        let f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(!overwrite)
-            .create(true)
-            .truncate(true)
-            .open(&p)
+        let f = Self::open_for_write(&p, overwrite)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
         let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
+    }
+
+    /// Like [`create_file`](Self::create_file), but yields `None` instead of panicking when the
+    /// file is already being produced — either it already exists on disk (a `create_new`
+    /// collision) or another thread currently holds it open for writing. Intended for
+    /// deterministically-computed save data, where a concurrent writer producing the identical
+    /// file makes our own write redundant and safely skippable.
+    ///
+    /// This avoids a check-then-create race: two threads can both observe a save file as absent
+    /// (see the empty-file handling in [`open_file`]) and then both try to create it; with
+    /// [`create_file`](Self::create_file) the loser panics with `File exists`.
+    pub fn try_create_file(
+        &self,
+        dir: PathBuf,
+        overwrite: bool,
+    ) -> Option<impl io::Write + use<A>> {
+        let p = self.get_save_path(dir);
+        tracing::info!(file = ?p, "try open for writing");
+
+        // See [`create_file`](Self::create_file) for why this must happen before touching the file.
+        // A failure here means another thread is already writing this exact path, so the write is
+        // redundant for deterministic data — treat it the same as an already-existing file.
+        if !open_files().lock().unwrap().insert(p.clone()) {
+            return None;
+        }
+
+        let f = match Self::open_for_write(&p, overwrite) {
+            Ok(f) => f,
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                open_files().lock().unwrap().remove(&p);
+                return None;
+            }
+            Err(e) => {
+                open_files().lock().unwrap().remove(&p);
+                panic!("Failed to create save file {p:?}: {e}");
+            }
+        };
+        let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
+        self.write_header(&mut f).unwrap();
+        Some(f)
     }
 }
 
