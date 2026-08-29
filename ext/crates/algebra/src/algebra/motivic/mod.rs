@@ -1,5 +1,4 @@
-//! The C-motivic (over $\mathbb{C}$, prime 2) Steenrod algebra and its mod-$\tau$
-//! reduction.
+//! The C-motivic prime 2 Steenrod algebra and its mod-$\tau$ reduction.
 //!
 //! This layer implements the *deformation* view of the C-motivic Adams $E_2$: the
 //! C-motivic dual Steenrod algebra $A_C$ over $\mathbb{F}_2[\tau]$, its mod-$\tau$

@@ -147,6 +147,11 @@ fn sigma2(r: &[u32]) -> u64 {
     r.iter().enumerate().map(|(i, &v)| (v as u64) << i).sum()
 }
 
+/// The `i`-th entry of an exponent sequence, widened, reading past the end as $0$.
+fn entry(seq: &[u32], i: usize) -> i32 {
+    seq.get(i).copied().unwrap_or(0) as i32
+}
+
 /// The coefficient $c(S, R)$ of Notation 3.3 / Theorem 3.4, reduced mod 2.
 ///
 /// $c(S, R) = \prod_{n \ge 1} \binom{\lfloor \sum_{i=0}^{n-1} 2^{i-n}(s_i - r_i)\rfloor}{r_n}$
@@ -158,16 +163,17 @@ fn c_coeff(s: &[u32], r: &[u32]) -> u32 {
     if r.first().copied().unwrap_or(0) > 0 {
         return 0;
     }
-    let get = |seq: &[u32], i: usize| seq.get(i).copied().unwrap_or(0) as i32;
     let len = s.len().max(r.len());
     let mut prod = 1u32;
     for n in 1..len {
         let mut num: i32 = 0;
         for i in 0..n {
-            num += (get(s, i) - get(r, i)) << i;
+            num += (entry(s, i) - entry(r, i)) << i;
         }
-        let floor = num.div_euclid(1i32 << n);
-        prod *= i32::binomial2(floor, get(r, n)) as u32;
+        // Arithmetic shift right is exactly the Euclidean quotient by a power of two, and
+        // stays so for the negative `num` that a large $R$ produces.
+        let floor = num >> n;
+        prod *= i32::binomial2(floor, entry(r, n)) as u32;
         if prod == 0 {
             return 0;
         }

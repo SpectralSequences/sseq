@@ -53,20 +53,6 @@ impl Tau {
     pub fn valuation(self) -> Option<u32> {
         self.0
     }
-
-    /// The $n$-th power $(\tau^k)^n = \tau^{kn}$, with the convention $x^0 = 1$.
-    pub fn pow(self, n: u32) -> Self {
-        if n == 0 {
-            Self::ONE
-        } else {
-            Self(self.0.map(|k| k * n))
-        }
-    }
-
-    /// Multiply by $\tau^k$, i.e. raise the valuation by `k` (zero stays zero).
-    pub fn shift(self, k: u32) -> Self {
-        Self(self.0.map(|v| v + k))
-    }
 }
 
 impl std::ops::Mul for Tau {
@@ -128,15 +114,5 @@ mod tests {
         assert_eq!(Tau::power(2) + Tau::zero(), Tau::power(2));
         assert_eq!(Tau::zero() + Tau::power(5), Tau::power(5));
         assert_eq!(Tau::zero() + Tau::zero(), Tau::zero());
-    }
-
-    #[test]
-    fn test_pow_and_shift() {
-        assert_eq!(Tau::power(3).pow(2), Tau::power(6));
-        assert_eq!(Tau::power(3).pow(0), Tau::one());
-        assert_eq!(Tau::zero().pow(0), Tau::one());
-        assert_eq!(Tau::zero().pow(3), Tau::zero());
-        assert_eq!(Tau::power(2).shift(3), Tau::power(5));
-        assert_eq!(Tau::zero().shift(3), Tau::zero());
     }
 }
