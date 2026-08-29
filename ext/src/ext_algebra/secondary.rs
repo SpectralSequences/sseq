@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
 use fp::{matrix::Subquotient, prime::Prime, vector::FpVector};
-use sseq::coordinates::{Bidegree, BidegreeElement};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 use super::ExtAlgebra;
 use crate::{
@@ -25,6 +25,7 @@ use crate::{
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::{
         LAMBDA_BIDEGREE, SecondaryLift, SecondaryResolution, SecondaryResolutionHomomorphism,
+        batch_extend_secondary,
     },
 };
 
@@ -208,6 +209,48 @@ where
         )
     }
 
+    /// Build the secondary product lift for every generator of $\Ext(M, k)$ in the computed range
+    /// and extend them all together, in bidegree-major order, via [`MultiLift`](crate::resolution_homomorphism::MultiLift) — the secondary
+    /// analogue of [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products). Must be
+    /// called after [`extend_all`](Self::extend_all).
+    ///
+    /// Every lift shares the unit resolution as target — for both the underlying primary maps and
+    /// the secondary homotopies — so lifting them together means the unit's quasi-inverse at each
+    /// bidegree is solved once and reused across every product rather than once per product. With
+    /// quasi-inverses recomputed on demand this keeps the cost of all the secondary products at ~1x
+    /// the on-disk baseline instead of scaling with the number of generators.
+    pub fn extend_all_secondary_products(&self)
+    where
+        CC: Send + Sync + 'static,
+    {
+        let resolution = self.alg.resolution();
+        let lifts: Vec<Arc<SecondaryResolutionHomomorphism<CC, CC>>> = resolution
+            .iter_stem()
+            // Skip filtration-zero classes (e.g. the unit): the secondary product lift there has
+            // `shift.s() == 1`, below where the source's secondary homotopies begin, so it is not a
+            // valid input to the secondary machinery (multiplying by such a class is degenerate).
+            .filter(|b| b.s() >= 1)
+            .flat_map(|b| {
+                (0..resolution.number_of_gens_in_bidegree(b))
+                    .map(move |i| BidegreeGenerator::new(b, i))
+            })
+            .map(|g| self.secondary_product_lift(&self.alg.generator(g)))
+            .collect();
+        if lifts.is_empty() {
+            return;
+        }
+
+        // Extend the underlying primary maps first (the secondary composites read them), each to its
+        // own extent exactly as `secondary_multiply_into` does — the secondary machinery's `max()`
+        // assumes that bound, so they are *not* over-extended through `MultiLift` here. Then batch
+        // the secondary homotopy solves, which all share the unit's quasi-inverse.
+        for lift in &lifts {
+            lift.underlying().extend_all();
+        }
+
+        batch_extend_secondary(Arc::clone(self.alg.unit()), lifts);
+    }
+
     /// The secondary product of `x` with every $E_3$-surviving class of the unit at bidegree `b`,
     /// computed in $\Mod_{C\lambda^2}$.
     ///
@@ -269,7 +312,7 @@ mod tests {
     use sseq::coordinates::BidegreeGenerator;
 
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
 
     #[test]
     fn test_sphere_d2() {
@@ -304,5 +347,66 @@ mod tests {
         assert!(!d.vec().is_zero(), "d2(h4) = h0 h3^2 should be nonzero");
         let h4_survives = sec_e2.survives(&h4).expect("h4 should have a computed d2");
         assert!(!h4_survives, "h4 should not survive d2");
+    }
+
+    /// Batching every secondary product together through [`MultiLift`](crate::resolution_homomorphism::MultiLift)
+    /// ([`extend_all_secondary_products`](SecondaryExtAlgebra::extend_all_secondary_products)) must
+    /// give the same $\Mod_{C\lambda^2}$ products as extending each lift on its own (the per-call
+    /// path inside [`secondary_multiply_into`](SecondaryExtAlgebra::secondary_multiply_into)). This
+    /// pins the multi-lift secondary batching end to end.
+    #[test]
+    fn batched_secondary_products_match() {
+        let build = || {
+            let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+            res.compute_through_stem(Bidegree::n_s(14, 6));
+            let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), res));
+            let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+            sec.extend_all();
+            (e2, sec)
+        };
+        let (e2_ref, sec_ref) = build();
+        let (e2_bat, sec_bat) = build();
+
+        // Extend every secondary product together, in one batched pass.
+        sec_bat.extend_all_secondary_products();
+
+        let mut compared = 0;
+        for (n, s) in [(0, 1), (1, 1), (3, 1)] {
+            let g = BidegreeGenerator::new(Bidegree::n_s(n, s), 0);
+            let x_ref = e2_ref.generator(g);
+            let x_bat = e2_bat.generator(g);
+
+            for b in e2_ref.resolution().iter_stem() {
+                // `secondary_multiply_into` reads up to `b + x.degree() + λ`, so only query where
+                // that lands in the computed range.
+                if b.n() > 8
+                    || !e2_ref
+                        .resolution()
+                        .has_computed_bidegree(b + x_ref.degree() + LAMBDA_BIDEGREE)
+                {
+                    continue;
+                }
+                // Reference extends this lift on its own; batched reuses the pre-extended one.
+                let pr = sec_ref.secondary_multiply_into(&x_ref, b);
+                let pb = sec_bat.secondary_multiply_into(&x_bat, b);
+                assert_eq!(
+                    pr.len(),
+                    pb.len(),
+                    "product count differs at x={x_ref}, b={b}"
+                );
+                for (r, t) in pr.iter().zip(&pb) {
+                    assert_eq!(
+                        r.ext_part, t.ext_part,
+                        "ext part differs at x={x_ref}, b={b}"
+                    );
+                    assert_eq!(
+                        r.lambda_part, t.lambda_part,
+                        "lambda part differs at x={x_ref}, b={b}"
+                    );
+                    compared += 1;
+                }
+            }
+        }
+        assert!(compared > 0, "expected to compare some secondary products");
     }
 }

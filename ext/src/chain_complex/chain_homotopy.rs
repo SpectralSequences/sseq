@@ -11,7 +11,7 @@ use sseq::coordinates::{Bidegree, BidegreeRange};
 
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    resolution_homomorphism::ResolutionHomomorphism,
+    resolution_homomorphism::{LiftRequest, Liftable, ResolutionHomomorphism},
     save::{SaveDirectory, SaveKind},
 };
 
@@ -153,12 +153,37 @@ impl<
     }
 
     fn extend_step(&self, source: Bidegree) -> std::ops::Range<i32> {
+        match self.prepare_step(source) {
+            HomotopyPrep::Done(range) => range,
+            HomotopyPrep::NeedsLift(mut pending) => {
+                let p = self.prime();
+                let mut outputs =
+                    vec![FpVector::new(p, pending.target_dim); pending.scratches.len()];
+                assert!(U::apply_quasi_inverse(
+                    &*self.right.target,
+                    &mut outputs,
+                    pending.target,
+                    &pending.scratches,
+                ));
+                self.finish_step(&mut pending, &outputs)
+            }
+        }
+    }
+
+    /// The part of a homotopy step *before* the quasi-inverse solve. Resolves the cases that need
+    /// no quasi-inverse (already computed, zero, or loaded from the save store) itself, returning
+    /// [`HomotopyPrep::Done`]; otherwise returns [`HomotopyPrep::NeedsLift`] with the vectors to
+    /// lift at `target = source + (1, 0) - shift`, to be completed by [`Self::finish_step`].
+    ///
+    /// Splitting the step this way lets [`MultiLift`](crate::resolution_homomorphism::MultiLift)
+    /// batch the quasi-inverse solve of many homotopies at a shared bidegree.
+    fn prepare_step(&self, source: Bidegree) -> HomotopyPrep {
         let p = self.prime();
         let shift = self.shift();
         let target = source + Bidegree::s_t(1, 0) - shift;
 
         if self.homotopies[source.s()].next_degree() > source.t() {
-            return source.t()..source.t() + 1;
+            return HomotopyPrep::Done(source.t()..source.t() + 1);
         }
 
         let num_gens = self
@@ -175,7 +200,9 @@ impl<
         // these values.
         if target.s() == 0 || target_dim == 0 || num_gens == 0 {
             let outputs = vec![FpVector::new(p, target_dim); num_gens];
-            return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
+            return HomotopyPrep::Done(
+                self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs),
+            );
         }
 
         if let Some(dir) = self.save_dir.read()
@@ -189,10 +216,10 @@ impl<
             for _ in 0..num_gens {
                 outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
             }
-            return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
+            return HomotopyPrep::Done(
+                self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs),
+            );
         }
-
-        let mut outputs = vec![FpVector::new(p, target_dim); num_gens];
 
         let f = |i| {
             let mut scratch = FpVector::new(
@@ -256,24 +283,32 @@ impl<
 
         let scratches: Vec<FpVector> = (0..num_gens).into_maybe_par_iter().map(f).collect();
 
-        assert!(U::apply_quasi_inverse(
-            &*self.right.target,
-            &mut outputs,
+        HomotopyPrep::NeedsLift(PendingHomotopy {
+            source,
             target,
-            &scratches,
-        ));
+            target_dim,
+            scratches,
+        })
+    }
 
+    /// Complete a homotopy step: persist and register the lifted `outputs`.
+    fn finish_step(
+        &self,
+        pending: &mut PendingHomotopy,
+        outputs: &[FpVector],
+    ) -> std::ops::Range<i32> {
         if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .left
                 .source
-                .save_file(SaveKind::ChainHomotopy, source)
+                .save_file(SaveKind::ChainHomotopy, pending.source)
                 .create_file(dir.to_owned(), false);
-            for row in &outputs {
+            for row in outputs {
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs)
+        self.homotopies[pending.source.s()]
+            .add_generators_from_rows_ooo(pending.source.t(), outputs.to_vec())
     }
 
     pub fn homotopy(&self, source_s: i32) -> Arc<FreeModuleHomomorphism<U::Module>> {
@@ -282,6 +317,59 @@ impl<
 
     pub fn save_dir(&self) -> &SaveDirectory {
         &self.save_dir
+    }
+}
+
+/// Outcome of [`ChainHomotopy::prepare_step`].
+enum HomotopyPrep {
+    /// The step needed no quasi-inverse and is already finished; carries the range of
+    /// newly-contiguous source degrees.
+    Done(std::ops::Range<i32>),
+    /// The step needs a quasi-inverse solve at `target`; complete it with
+    /// [`ChainHomotopy::finish_step`].
+    NeedsLift(PendingHomotopy),
+}
+
+/// A homotopy step awaiting its quasi-inverse solve; see [`ChainHomotopy::prepare_step`].
+struct PendingHomotopy {
+    source: Bidegree,
+    target: Bidegree,
+    target_dim: usize,
+    /// The vectors to lift, one per source generator.
+    scratches: Vec<FpVector>,
+}
+
+impl<
+    S: FreeChainComplex + Send + Sync + 'static,
+    T: FreeChainComplex<Algebra = S::Algebra> + Send + Sync + 'static,
+    U: ChainComplex<Algebra = S::Algebra> + Send + Sync + 'static,
+> Liftable for ChainHomotopy<S, T, U>
+{
+    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>> {
+        // `b` is the target bidegree where the quasi-inverse is taken; recover the source step.
+        let shift = self.shift();
+        let source = b + shift - Bidegree::s_t(1, 0);
+        // Below the bottom homotopy row, or out of the source/target computed range: no work here.
+        // (The zero row `target.s() == 0` is *not* skipped — `prepare_step` finishes it itself.)
+        if source.s() < shift.s() - 1 || !self.left.source.has_computed_bidegree(source) {
+            return None;
+        }
+        if b.s() >= 1 && !self.right.target.has_computed_bidegree(b) {
+            return None;
+        }
+        self.initialize_homotopies(source.s() + 1);
+        match self.prepare_step(source) {
+            HomotopyPrep::Done(_) => None,
+            HomotopyPrep::NeedsLift(mut pending) => {
+                let inputs = std::mem::take(&mut pending.scratches);
+                Some(LiftRequest {
+                    inputs,
+                    finish: Box::new(move |outputs| {
+                        self.finish_step(&mut pending, outputs);
+                    }),
+                })
+            }
+        }
     }
 }
 

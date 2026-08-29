@@ -34,6 +34,7 @@ pub use crate::{
 };
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::{LiftRequest, Liftable, MultiLift},
     save::{SaveDirectory, SaveFile, SaveKind},
 };
 
@@ -536,9 +537,39 @@ pub trait SecondaryLift: Sync + Sized {
     /// `self.try_compute_homotopy_step(b).unwrap()`.
     #[tracing::instrument(skip(self), fields(%b))]
     fn try_compute_homotopy_step(&self, b: Bidegree) -> anyhow::Result<std::ops::Range<i32>> {
+        match self.prepare_homotopy_step(b) {
+            SecondaryHomotopyPrep::Done(range) => Ok(range),
+            SecondaryHomotopyPrep::NeedsLift(pending) => {
+                let p = self.prime();
+                let mut results = vec![FpVector::new(p, pending.target_dim); pending.num_gens];
+                anyhow::ensure!(
+                    self.target().apply_quasi_inverse(
+                        &mut results,
+                        pending.target_b,
+                        &pending.intermediates,
+                    ),
+                    "secondary: failed to apply quasi-inverse at {b}; the input likely does not \
+                     lift"
+                );
+                self.finish_homotopy_step(pending, &results)
+            }
+        }
+    }
+
+    /// The part of a homotopy step *before* the quasi-inverse solve at `target_b = b - shift -
+    /// (0, 1)`. Resolves the cases that need no quasi-inverse (already computed, or loaded from the
+    /// save store) itself, returning [`SecondaryHomotopyPrep::Done`]; otherwise it assembles the
+    /// intermediates to lift and returns [`SecondaryHomotopyPrep::NeedsLift`], to be completed by
+    /// [`Self::finish_homotopy_step`].
+    ///
+    /// Splitting the step this way lets [`MultiLift`]
+    /// gather the intermediates of many secondary lifts sharing a target at a common bidegree and
+    /// solve them with a single batched `apply_quasi_inverse`. Assumes the intermediates have
+    /// already been computed (via [`compute_intermediates`](Self::compute_intermediates)).
+    fn prepare_homotopy_step(&self, b: Bidegree) -> SecondaryHomotopyPrep {
         let homotopy = &self.homotopies()[b.s()];
         if homotopy.homotopies.next_degree() > b.t() {
-            return Ok(b.t()..b.t() + 1);
+            return SecondaryHomotopyPrep::Done(b.t()..b.t() + 1);
         }
         let p = self.prime();
         let shift = self.shift();
@@ -563,9 +594,11 @@ pub trait SecondaryLift: Sync + Sized {
                 for _ in 0..num_gens {
                     results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
                 }
-                return Ok(self.homotopies()[b.s()]
-                    .homotopies
-                    .add_generators_from_rows_ooo(b.t(), results));
+                return SecondaryHomotopyPrep::Done(
+                    self.homotopies()[b.s()]
+                        .homotopies
+                        .add_generators_from_rows_ooo(b.t(), results),
+                );
             }
         }
 
@@ -586,22 +619,52 @@ pub trait SecondaryLift: Sync + Sized {
             v
         };
 
-        let mut intermediates: Vec<FpVector> = (0..num_gens)
+        let intermediates: Vec<FpVector> = (0..num_gens)
             .into_maybe_par_iter()
             .map(get_intermediate)
             .collect();
 
-        let mut results = vec![FpVector::new(p, target_dim); num_gens];
+        // The post-quasi-inverse lift-validity check (only at the bottom non-trivial row) consumes
+        // the *pre*-solve intermediates, but the batched driver moves them out to lift. Keep a copy
+        // for the check there; elsewhere it never runs.
+        let check = if b.s() == shift.s() + 1 {
+            Some(intermediates.clone())
+        } else {
+            None
+        };
 
-        anyhow::ensure!(
-            target.apply_quasi_inverse(&mut results, target_b, &intermediates,),
-            "secondary: failed to apply quasi-inverse at {b}; the input likely does not lift"
-        );
+        SecondaryHomotopyPrep::NeedsLift(SecondaryPending {
+            b,
+            target_b,
+            num_gens,
+            target_dim,
+            intermediates,
+            check,
+        })
+    }
 
-        if b.s() == shift.s() + 1 {
-            // Check that we indeed had a lift
-            let d = target.differential(target_b.s());
-            for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
+    /// Complete a homotopy step: verify the lift (at the bottom non-trivial row), persist the
+    /// homotopy, delete the now-consumed intermediate files, and register the generators.
+    /// `results[i]` is the lift of the `i`th intermediate. See [`Self::prepare_homotopy_step`].
+    fn finish_homotopy_step(
+        &self,
+        pending: SecondaryPending,
+        results: &[FpVector],
+    ) -> anyhow::Result<std::ops::Range<i32>> {
+        let SecondaryPending {
+            b,
+            target_b,
+            num_gens,
+            check,
+            ..
+        } = pending;
+        let p = self.prime();
+
+        if b.s() == self.shift().s() + 1 {
+            // Check that we indeed had a lift.
+            let mut check = check.expect("check copy is populated at the bottom non-trivial row");
+            let d = self.target().differential(target_b.s());
+            for (src, tgt) in std::iter::zip(results, &mut check) {
                 d.apply(tgt.as_slice_mut(), p - 1, target_b.t(), src.as_slice());
                 anyhow::ensure!(
                     tgt.is_zero(),
@@ -619,7 +682,7 @@ pub trait SecondaryLift: Sync + Sized {
             };
 
             let mut f = save_file.create_file(dir.to_owned(), false);
-            for row in &results {
+            for row in results {
                 row.to_bytes(&mut f).unwrap();
             }
             drop(f);
@@ -637,26 +700,50 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        Ok(homotopy
+        Ok(self.homotopies()[b.s()]
             .homotopies
-            .add_generators_from_rows_ooo(b.t(), results))
+            .add_generators_from_rows_ooo(b.t(), results.to_vec()))
+    }
+
+    /// Seed the zero homotopy at the bottom row `s = shift.s()`. The homotopies there are just zero;
+    /// every higher row is lifted from these.
+    fn seed_zero_homotopy(&self) {
+        let shift = self.shift();
+        let h = &self.homotopies()[shift.s()];
+        h.homotopies.extend_by_zero(h.composites.max_degree());
     }
 
     #[tracing::instrument(skip(self))]
     fn compute_homotopies(&self) {
         let shift = self.shift();
 
-        // When s = shift_s, the homotopies are just zero
-        {
-            let h = &self.homotopies()[shift.s()];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
+        self.seed_zero_homotopy();
 
         let min_t = self.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);
         let max = self.max().restrict(s_range.end);
         sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+    }
+
+    /// Everything [`extend_all`](Self::extend_all) does *except* the final homotopy lift
+    /// ([`compute_homotopies`](Self::compute_homotopies)): initialize the homotopies, compute the
+    /// composites and intermediates, and seed the zero row. None of this consumes the target's
+    /// quasi-inverse. After calling this on each of several secondary lifts sharing a target, their
+    /// homotopy lifts can be batched together through
+    /// [`MultiLift`] (see
+    /// [`batch_extend_secondary`]).
+    fn prepare_homotopies(&self) {
+        self.initialize_homotopies();
+        // A lift with no room to extend (its underlying reaches only its own shift filtration) has
+        // no secondary homotopies to compute — the zero row itself is out of range. Skip it; the
+        // [`SecondaryLiftable`] wrapper likewise finds no in-range step to drive.
+        if !self.homotopies().range().contains(&self.shift().s()) {
+            return;
+        }
+        self.compute_composites();
+        self.compute_intermediates();
+        self.seed_zero_homotopy();
     }
 
     #[tracing::instrument(skip(self))]
@@ -666,6 +753,108 @@ pub trait SecondaryLift: Sync + Sized {
         self.compute_intermediates();
         self.compute_homotopies();
     }
+}
+
+/// Outcome of [`SecondaryLift::prepare_homotopy_step`].
+pub enum SecondaryHomotopyPrep {
+    /// The step needed no quasi-inverse and is already finished; carries the range of
+    /// newly-contiguous degrees.
+    Done(std::ops::Range<i32>),
+    /// The step needs a quasi-inverse solve at `target_b`; complete it with
+    /// [`SecondaryLift::finish_homotopy_step`].
+    NeedsLift(SecondaryPending),
+}
+
+/// A secondary homotopy step awaiting its quasi-inverse solve; see
+/// [`SecondaryLift::prepare_homotopy_step`].
+pub struct SecondaryPending {
+    b: Bidegree,
+    target_b: Bidegree,
+    num_gens: usize,
+    target_dim: usize,
+    /// The intermediates to lift, one per source generator.
+    intermediates: Vec<FpVector>,
+    /// Copy of the intermediates for the post-solve lift-validity check; `Some` only at the bottom
+    /// non-trivial row `b.s() == shift.s() + 1`.
+    check: Option<Vec<FpVector>>,
+}
+
+/// A [`Liftable`] view of a secondary lift, so its homotopy solve can be driven by [`MultiLift`]
+/// alongside other secondary lifts that share the same target complex.
+///
+/// The bidegree `b` that [`Liftable::prepare`] receives is the *target* bidegree where the
+/// quasi-inverse is taken; the secondary homotopy step it drives is at `b + shift + (0, 1)`.
+struct SecondaryLiftable<T>(Arc<T>);
+
+impl<T> Liftable for SecondaryLiftable<T>
+where
+    T: SecondaryLift + Send + Sync + 'static,
+{
+    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>> {
+        let lift = &*self.0;
+        let shift = lift.shift();
+        // The homotopy source bidegree whose quasi-inverse solve happens at `b`.
+        let source = Bidegree::s_t(b.s() + shift.s(), b.t() + shift.t() + 1);
+
+        // Row `shift.s()` is the separately-seeded zero homotopy; outside the computed range there
+        // is nothing to lift. These guards keep the indexing below in bounds and stop `MultiLift`
+        // (which sweeps the whole target plane) from driving steps past what this lift covers.
+        let max = lift.max();
+        if source.s() < shift.s() + 1 || source.s() >= max.s() || source.t() >= max.t(source.s()) {
+            return None;
+        }
+
+        match lift.prepare_homotopy_step(source) {
+            SecondaryHomotopyPrep::Done(_) => None,
+            SecondaryHomotopyPrep::NeedsLift(mut pending) => {
+                let inputs = std::mem::take(&mut pending.intermediates);
+                Some(LiftRequest {
+                    inputs,
+                    finish: Box::new(move |results| {
+                        // Panics on an invalid (non-lifting) input, matching the `.unwrap()` in the
+                        // single-lift driver [`SecondaryLift::compute_homotopy_step`].
+                        lift.finish_homotopy_step(pending, results).unwrap();
+                    }),
+                })
+            }
+        }
+    }
+}
+
+/// Extend several secondary lifts that share one target complex together, batching the target's
+/// quasi-inverse solve at each bidegree via [`MultiLift`] — the secondary analogue of
+/// [`ExtAlgebra::extend_all_products`](crate::ext_algebra::ExtAlgebra::extend_all_products).
+///
+/// Each lift's composites and intermediates (which do not touch the shared quasi-inverse) are
+/// computed first via [`SecondaryLift::prepare_homotopies`]; only the homotopy solve is batched, so
+/// with quasi-inverses recomputed on demand the target's quasi-inverse at each bidegree is solved
+/// once and shared across all the lifts rather than once per lift.
+///
+/// All `lifts` must lift through `target` (i.e. `lift.target()` is `target` for each).
+pub fn batch_extend_secondary<T>(target: Arc<T::Target>, lifts: Vec<Arc<T>>)
+where
+    T: SecondaryLift + Send + Sync + 'static,
+{
+    if lifts.is_empty() {
+        return;
+    }
+    // Every request is solved against `target`'s quasi-inverse, so a lift through a different target
+    // would be silently wrong. Enforce the shared-target contract before any preparation side
+    // effects, matching the `Arc::ptr_eq` checks the lift constructors already use.
+    for lift in &lifts {
+        assert!(
+            Arc::ptr_eq(&target, &lift.target()),
+            "batch_extend_secondary: every lift must share the supplied target"
+        );
+    }
+    for lift in &lifts {
+        lift.prepare_homotopies();
+    }
+    let liftables: Vec<Arc<dyn Liftable>> = lifts
+        .into_iter()
+        .map(|l| Arc::new(SecondaryLiftable(l)) as Arc<dyn Liftable>)
+        .collect();
+    MultiLift::new(target, liftables).extend_all();
 }
 
 #[cfg(test)]
@@ -747,5 +936,35 @@ mod tests {
         let result = lift.try_compute_homotopy_step(failing);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Failed to lift"));
+    }
+
+    /// Driving a secondary resolution through [`batch_extend_secondary`] (i.e. via [`MultiLift`])
+    /// must produce exactly the same homotopies — and hence the same $d_2$ — as the native
+    /// single-lift [`SecondaryLift::extend_all`]. This pins the [`SecondaryLiftable`] wrapper and its
+    /// bidegree mapping against the reference path.
+    #[test]
+    fn batched_matches_native_d2() {
+        let res = Arc::new(crate::utils::construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(16, 6));
+
+        let native = SecondaryResolution::new(Arc::clone(&res));
+        native.extend_all();
+
+        let batched = Arc::new(SecondaryResolution::new(Arc::clone(&res)));
+        batch_extend_secondary(Arc::clone(&res), vec![Arc::clone(&batched)]);
+
+        // Compare the d2-defining matrix `homotopy(s + 2).hom_k(t)` at every stem where it is
+        // defined; equality across the plane means the two homotopies agree.
+        let mut compared = 0;
+        for b in res.iter_stem() {
+            if !(b.t() > 0 && res.has_computed_bidegree(b + Bidegree::n_s(-1, 2))) {
+                continue;
+            }
+            let native_m = native.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+            let batched_m = batched.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+            assert_eq!(native_m, batched_m, "d2 matrices differ at {b}");
+            compared += 1;
+        }
+        assert!(compared > 0, "expected to compare some d2 matrices");
     }
 }
