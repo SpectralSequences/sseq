@@ -5,16 +5,12 @@
 //! $\mathbb{F}_2[\tau]$. It uses that paper's *conjugate* generators, so the coproduct and
 //! Milnor-matrix product match Milnor's classical formulas on the $\xi$ part.
 
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, OnceLock, RwLock},
-};
+use std::{cell::RefCell, rc::Rc, sync::OnceLock};
 
 use fp::prime::{Binomial, iter::BitflagIterator};
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
-use once::OnceVec;
+use once::{MultiIndexed, OnceVec};
 use rustc_hash::FxHashMap;
 
 use crate::algebra::milnor_algebra::PPart;
@@ -839,6 +835,32 @@ struct Acc {
 }
 
 impl Acc {
+    /// Add column `cand` at column index `j`, updating rows, anti-diagonal ORs and sums.
+    fn place(&mut self, cand: &[u32], j: usize) {
+        for ((&v, r), (o, sm)) in cand
+            .iter()
+            .zip(&mut self.rows)
+            .zip(self.or[j..].iter_mut().zip(&mut self.sum[j..]))
+        {
+            *r += v;
+            *o ^= v;
+            *sm += v;
+        }
+    }
+
+    /// Undo a [`Self::place`] of the same column at the same index.
+    fn unplace(&mut self, cand: &[u32], j: usize) {
+        for ((&v, r), (o, sm)) in cand
+            .iter()
+            .zip(&mut self.rows)
+            .zip(self.or[j..].iter_mut().zip(&mut self.sum[j..]))
+        {
+            *r -= v;
+            *o ^= v;
+            *sm -= v;
+        }
+    }
+
     /// Empty accumulator, before any column has been placed.
     fn zero() -> Self {
         Self {
@@ -962,25 +984,15 @@ impl ClosedY<'_> {
             self.on_y(acc, out);
             return;
         }
+        // Zipped rather than indexed: the anti-diagonal offset makes `acc.or[i + j]` opaque to
+        // the bounds-check elision, and this is the innermost loop of the whole product.
         for cand in self.y_cands[j].iter() {
-            if !cand
-                .iter()
-                .enumerate()
-                .all(|(i, &v)| acc.or[i + j] & v == 0)
-            {
+            if cand.iter().zip(&acc.or[j..]).any(|(&v, &o)| o & v != 0) {
                 continue;
             }
-            for (i, &v) in cand.iter().enumerate() {
-                acc.rows[i] += v;
-                acc.or[i + j] ^= v;
-                acc.sum[i + j] += v;
-            }
+            acc.place(cand, j);
             self.enum_y(j + 1, acc, out);
-            for (i, &v) in cand.iter().enumerate() {
-                acc.rows[i] -= v;
-                acc.or[i + j] ^= v;
-                acc.sum[i + j] -= v;
-            }
+            acc.unplace(cand, j);
         }
     }
 
@@ -1083,11 +1095,12 @@ pub struct MotivicMilnorAlgebra {
     /// resolution asks for the same structure constants repeatedly, so we cache
     /// them (the role the classical Milnor algebra's `cache-multiplication` table
     /// plays). Blocking by degree pair — rather than a flat `(t1, idx1, t2, idx2)`
-    /// map — makes the cache the natural *batch unit* (see [`ProductBlock`]): the
-    /// per-degree-pair registry is small and read-mostly, and each block's entries
-    /// fill through independent [`OnceLock`]s, so a concurrent resolution reads
-    /// hits lock-free instead of serializing on one global product lock.
-    blocks: RwLock<FxHashMap<(i32, i32), Arc<ProductBlock>>>,
+    /// map — makes the cache the natural *batch unit* (see [`ProductBlock`]).
+    ///
+    /// Nothing here takes a lock: [`MultiIndexed`] is wait-free, and each block's entries fill
+    /// through independent [`OnceLock`]s, so a concurrent resolution neither serializes on a
+    /// global product lock nor on registering a new degree pair.
+    blocks: MultiIndexed<2, ProductBlock>,
 }
 
 /// A dense block of basis-element products for one pair of topological degrees
@@ -1218,9 +1231,9 @@ impl MotivicMilnorAlgebra {
     /// entries empty) on first request and shared thereafter. Creation is the only
     /// step that touches the block registry's write lock; entry computation happens
     /// lock-free through the block's [`OnceLock`]s.
-    fn block(&self, t1: i32, t2: i32) -> Arc<ProductBlock> {
-        if let Some(block) = self.blocks.read().unwrap().get(&(t1, t2)) {
-            return Arc::clone(block);
+    fn block(&self, t1: i32, t2: i32) -> &ProductBlock {
+        if let Some(block) = self.blocks.get([t1, t2]) {
+            return block;
         }
         // Ensure the operand and output bases exist before sizing/indexing.
         self.compute_basis(t1);
@@ -1228,13 +1241,18 @@ impl MotivicMilnorAlgebra {
         self.compute_basis(t1 + t2);
         let dim1 = self.dimension(t1);
         let dim2 = self.dimension(t2);
-        let mut w = self.blocks.write().unwrap();
-        Arc::clone(w.entry((t1, t2)).or_insert_with(|| {
-            Arc::new(ProductBlock {
+        // A racing thread may have inserted since the `get`; either block is equally good, so
+        // the loser drops its own and reads the winner's.
+        let _ = self.blocks.try_insert(
+            [t1, t2],
+            ProductBlock {
                 dim2,
                 entries: (0..dim1 * dim2).map(|_| OnceLock::new()).collect(),
-            })
-        }))
+            },
+        );
+        self.blocks
+            .get([t1, t2])
+            .expect("just inserted, and entries are never removed")
     }
 
     /// The closed-form product (Kong–Lin Theorem 5.1) of the two basis elements at
@@ -1274,7 +1292,7 @@ impl MotivicMilnorAlgebra {
         idx2: usize,
         f: impl FnOnce(&[usize]) -> R,
     ) -> R {
-        f(self.cached_product(&self.block(t1, t2), t1, idx1, t2, idx2))
+        f(self.cached_product(self.block(t1, t2), t1, idx1, t2, idx2))
     }
 
     /// One entry of `block`, computed on first request. `block` must be the block for
@@ -1307,7 +1325,7 @@ impl MotivicMilnorAlgebra {
         let dim1 = block.entries.len() / dim2;
         (0..dim1).into_maybe_par_iter().for_each(|idx1| {
             for idx2 in 0..dim2 {
-                self.cached_product(&block, t1, idx1, t2, idx2);
+                self.cached_product(block, t1, idx1, t2, idx2);
             }
         });
     }
