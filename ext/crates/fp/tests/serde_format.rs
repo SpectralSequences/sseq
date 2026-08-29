@@ -249,7 +249,8 @@ fn fpvector_p3_json_format() {
           },
           "len": 5,
           "limbs": [
-            5137
+            17,
+            10
           ]
         }"#]]
     .assert_eq(&s);
@@ -266,7 +267,9 @@ fn fpvector_p5_json_format() {
           },
           "len": 4,
           "limbs": [
-            98372
+            8,
+            10,
+            1
           ]
         }"#]]
     .assert_eq(&s);
