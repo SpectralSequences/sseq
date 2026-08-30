@@ -366,6 +366,26 @@ pub fn tau_exponent<W: Bigraded>(a: W, b: W, z: W) -> u32 {
     k as u32
 }
 
+impl std::fmt::Display for Dual<Monomial> {
+    /// Prints the $A_C$ basis element as `1`, `Q_i`, `P(R)`, or a product `Q_i … P(R)`, with `R`
+    /// in the paper's indexing.
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let Self(m) = self;
+        let mut parts = Vec::new();
+        for i in BitflagIterator::set_bit_iterator(m.q_part as u64) {
+            parts.push(format!("Q_{i}"));
+        }
+        if !m.p_part.is_empty() {
+            parts.push(format!("P({})", m.paper_p_part().iter().format(", ")));
+        }
+        if parts.is_empty() {
+            write!(f, "1")
+        } else {
+            write!(f, "{}", parts.join(" "))
+        }
+    }
+}
+
 /// An element of the dual algebra $A_{**}$: a mod-2 set of [`Monomial`]s, whose
 /// $\mathbb{F}_2[\tau]$ coefficients are implicit in the weight ([`tau_exponent`]).
 pub type DualElement = SparseSum<Monomial>;
@@ -1291,63 +1311,6 @@ impl MotivicMilnorAlgebra {
         )
     }
 
-    /// Parse a basis element written as `basis_element_to_string` prints it —
-    /// `1`, `Q_i`, `P(r_0, r_1, …)`, or a space-separated product `Q_i … P(R)` —
-    /// into its `(topological degree, index)`. The inverse of
-    /// [`Self::basis_element_to_string`]; returns `None` on a malformed string or a
-    /// monomial absent from the basis. This is what lets `.json` module descriptors
-    /// be written over the motivic Steenrod algebra.
-    pub fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)> {
-        let mut e_mask: u32 = 0;
-        let mut r: Vec<u32> = Vec::new();
-        // The `P(…)` block (if any) is last and may contain spaces after commas, so
-        // split it off before whitespace-tokenizing the `Q_i` factors.
-        let (q_part, p_part) = match elt.split_once("P(") {
-            Some((q, rest)) => (q, Some(rest.strip_suffix(')')?)),
-            None => (elt, None),
-        };
-        for token in q_part.split_whitespace() {
-            if token == "1" {
-                continue; // the unit factor
-            }
-            let i: u32 = token.strip_prefix("Q_")?.parse().ok()?;
-            e_mask |= 1 << i;
-        }
-        if let Some(p) = p_part {
-            r = p
-                .split(',')
-                .map(|x| x.trim().parse::<u32>())
-                .collect::<Result<_, _>>()
-                .ok()?;
-        }
-
-        let m = Monomial::from_paper(e_mask, &r)?;
-        let degree = m.bidegree().0;
-        if degree < 0 {
-            return None;
-        }
-        self.compute_basis(degree);
-        // The basis is stored trimmed, so trimming the parsed vector makes this an exact match.
-        self.index_of(degree, &Dual(m)).map(|idx| (degree, idx))
-    }
-
-    /// A display string for a basis element (`Q_i … P(R)`).
-    pub fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        let Dual(m) = self.basis_element(degree, idx);
-        let mut parts = Vec::new();
-        for i in fp::prime::iter::BitflagIterator::set_bit_iterator(m.q_part as u64) {
-            parts.push(format!("Q_{i}"));
-        }
-        if !m.p_part.is_empty() {
-            parts.push(format!("P({})", m.paper_p_part().iter().format(", ")));
-        }
-        if parts.is_empty() {
-            "1".to_string()
-        } else {
-            parts.join(" ")
-        }
-    }
-
     /// The dense [`ProductBlock`] for the degree pair `(t1, t2)`, created (with all
     /// entries empty) on first request and shared thereafter. Creation is the only
     /// step that touches the block registry's write lock; entry computation happens
@@ -1600,25 +1563,17 @@ mod tests {
     }
 
     #[test]
-    fn basis_element_from_string_round_trips() {
-        // The parser is the inverse of the printer, and is what lets `.json` module descriptors
-        // be written over this algebra. Nothing in this crate calls it yet, so without this it
-        // would ship untested.
-        let alg = MotivicMilnorAlgebra::new();
-        alg.compute_basis(12);
-        for degree in 0..=12 {
-            for idx in 0..alg.dimension(degree) {
-                let s = alg.basis_element_to_string(degree, idx);
-                assert_eq!(
-                    alg.basis_element_from_string(&s),
-                    Some((degree, idx)),
-                    "round trip failed on {s:?}"
-                );
-            }
-        }
-        assert_eq!(alg.basis_element_from_string("1"), Some((0, 0)));
-        assert_eq!(alg.basis_element_from_string("Q_0"), Some((1, 0)));
-        assert_eq!(alg.basis_element_from_string("not an element"), None);
+    fn basis_elements_display() {
+        let one = Dual(Monomial::one());
+        assert_eq!(one.to_string(), "1");
+        assert_eq!(
+            Dual(Monomial::from_paper(1, &[]).unwrap()).to_string(),
+            "Q_0"
+        );
+        assert_eq!(
+            Dual(Monomial::from_paper(0b101, &[0, 2, 1]).unwrap()).to_string(),
+            "Q_0 Q_2 P(0, 2, 1)"
+        );
     }
 
     #[test]
