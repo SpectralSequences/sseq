@@ -1,44 +1,9 @@
-//! The C-motivic (over $\mathbb{C}$, prime 2) dual Steenrod algebra $A_{**}$ and
-//! the Steenrod algebra $A_C$ in the Milnor basis, over $\mathbb{F}_2[\tau]$.
+//! The C-motivic dual Steenrod algebra $A_{**}$ and Steenrod algebra $A_C$ in the Milnor basis.
 //!
-//! This follows Kong–Lin, *Product formulas for motivic Milnor basis*
-//! (arXiv:2411.12890), specialized to the C-motivic point where $\rho = 0$ (the
-//! motivic cohomology of a point over $\mathbb{C}$ is $\mathbb{F}_2[\tau]$). We
-//! use the *conjugate* generators of that paper, so the coproduct and
-//! Milnor-matrix product match Milnor's classical formulas on the polynomial
-//! (`ξ`) part.
-//!
-//! The dual algebra is $A_{**} = \mathbb{F}_2[\tau][\xi_1, \xi_2, \dots] \otimes
-//! E(\tau_0, \tau_1, \dots)$ with $\tau_i^2 = \tau \xi_{i+1}$ (the $\rho = 0$
-//! reduction of $\tau_i^2 = \tau\xi_{i+1} + \rho\tau_{i+1}$). Bidegrees:
-//! $|\xi_i| = (2(2^i-1), 2^i-1)$, $|\tau_i| = (2^{i+1}-1, 2^i-1)$,
-//! $|\tau| = (0, -1)$ in (stem, weight).
-//!
-//! Basis elements are $Q(E)P(R)$ with $E \in \mathrm{Seq}_1$ (entries in
-//! $\{0,1\}$, encoded as a bitmask: bit $i$ is $\tau_i$) and $R \in \mathrm{Seq}$
-//! (the exponent vector of the $\xi_i$).
-//!
-//! The product in the Steenrod algebra $A_C$ is computed by **duality**: the
-//! dual algebra $A_{**}$ is a commutative $\mathbb{F}_2[\tau]$-algebra whose
-//! multiplication ([`dual_mul`]) reduces $\tau_i^2 = \tau\xi_{i+1}$ via
-//! [`rewrite_tau`] (Kong–Lin Theorem 3.4), and its coproduct $\psi$
-//! ([`coproduct`], Kong–Lin §2.2) is a $\tau$-free algebra map. The product
-//! $a \cdot b$ in $A_C$ is then read off from $\psi$: the coefficient of $z$ in
-//! $a \cdot b$ is the coefficient of $\mathrm{mon}(a) \otimes \mathrm{mon}(b)$ in
-//! $\psi(\mathrm{mon}(z))$ ([`multiply`]). This is a first, correctness-oriented
-//! implementation; the closed-form product (Kong–Lin Theorem 5.1) can replace it
-//! later for speed, validated against this one.
-//!
-//! Coefficients are never stored. Everything here is homogeneous, so each one is a single power
-//! of $\tau$, and $\tau$ has weight $-1$ — which pins the exponent to the weights of the terms
-//! it sits between ([`tau_exponent`]). This is the $A_C$ product **engine**, over
-//! $\mathbb{F}_2[\tau]$; the mod-$\tau$ reduction $A_C/\tau$ is presented to the resolution
-//! engine as an ordinary $\mathbb{F}_2$-algebra in a follow-up layer built on top of this engine.
-//!
-//! Weight convention: the motivic weight of an algebra basis element is the
-//! *negative* of the weight of the dual monomial it pairs with, so that products
-//! are weight-homogeneous with $\tau$ (weight $-1$) absorbing the difference. [`Dual`] marks the
-//! $A_C$ side, so the two cannot be confused.
+//! Follows Kong–Lin, *Product formulas for motivic Milnor basis* (arXiv:2411.12890), at the
+//! C-motivic point where $\rho = 0$ and the motivic cohomology of a point is
+//! $\mathbb{F}_2[\tau]$. It uses that paper's *conjugate* generators, so the coproduct and
+//! Milnor-matrix product match Milnor's classical formulas on the $\xi$ part.
 
 use std::{
     cell::RefCell,
@@ -65,7 +30,29 @@ fn trim(mut v: Vec<u32>) -> Vec<u32> {
     v
 }
 
+/// The packed $\xi$ exponents of a paper-indexed sequence: drop the $\xi_0 = 1$ slot.
+///
+/// Returns `None` if an exponent is too large to pack, which for the degrees this engine reaches
+/// means the caller has gone out of range. The sequence may be empty (it arrives trimmed).
+fn p_part_from_paper(r: &[u32]) -> Option<PPart> {
+    debug_assert_eq!(
+        r.first().copied().unwrap_or(0),
+        0,
+        "xi_0 = 1 slot must be 0"
+    );
+    PPart::try_from_slice(r.get(1..).unwrap_or_default())
+}
+
 /// A basis monomial $\tau(E)\xi(R)$ of the dual algebra.
+///
+/// $A_{**} = \mathbb{F}_2[\tau][\xi_1, \xi_2, \dots] \otimes E(\tau_0, \tau_1, \dots)$ with
+/// $\tau_i^2 = \tau \xi_{i+1}$ (the $\rho = 0$ reduction of
+/// $\tau_i^2 = \tau\xi_{i+1} + \rho\tau_{i+1}$), so $E \in \mathrm{Seq}_1$ has entries in
+/// $\{0, 1\}$ and $R \in \mathrm{Seq}$ is unrestricted. Bidegrees, in (stem, weight):
+/// $|\xi_i| = (2(2^i-1), 2^i-1)$, $|\tau_i| = (2^{i+1}-1, 2^i-1)$, $|\tau| = (0, -1)$.
+///
+/// The same data indexes the $A_C$ basis element $Q(E)P(R)$ that this monomial is dual to; see
+/// [`Dual`], which is that reading of it.
 ///
 /// The derived ordering is lexicographic in `(q_part, p_part)`, which is what
 /// [`MotivicMilnorAlgebra`] sorts and binary-searches its per-degree bases by.
@@ -95,15 +82,7 @@ impl Monomial {
     /// Returns `None` if an exponent is too large to pack, which for the degrees this engine
     /// reaches means the caller has gone out of range.
     pub fn from_paper(q_part: u32, r: &[u32]) -> Option<Self> {
-        debug_assert_eq!(
-            r.first().copied().unwrap_or(0),
-            0,
-            "xi_0 = 1 slot must be 0"
-        );
-        Some(Self::new(
-            q_part,
-            PPart::try_from_slice(r.get(1..).unwrap_or_default())?,
-        ))
+        Some(Self::new(q_part, p_part_from_paper(r)?))
     }
 
     /// The $\xi$ exponents in the paper's indexing, with the $\xi_0$ slot restored.
@@ -183,12 +162,8 @@ pub fn rewrite_tau(s: &[u32]) -> Vec<MotivicTerm> {
     let target2 = sigma2(s);
     let target_sum = sigma(s);
     // Highest index we must consider: any nonzero e_i or r_i contributes at least 2^i, so
-    // 2^i <= target2.
-    let max_idx = if target2 == 0 {
-        0
-    } else {
-        (63 - target2.leading_zeros()) as usize
-    };
+    // 2^i <= target2. An empty `s` gives `target2 == 0`, and index 0 still has to be walked.
+    let max_idx = target2.highest_one().unwrap_or(0) as usize;
 
     let mut out = Vec::new();
     let mut e = vec![0u32; max_idx + 1];
@@ -265,12 +240,9 @@ fn rewrite_tau_dfs(
 // The dual algebra A_** (used to compute the product in A_C by duality).
 // ---------------------------------------------------------------------------
 
-/// A sparse $\mathbb{F}_2[\tau]$-linear combination of `K`s, as a `Vec` sorted by key.
+/// A set of `K`s taken mod 2, as a `Vec` sorted by key: adding a term toggles it.
 ///
-/// Coefficients are not stored, because the bigrading already determines them: everything we
-/// compute is homogeneous, $\tau$ has weight $-1$, so the coefficient of a term is forced to be
-/// $\tau^{\text{(input weight)} - \text{(term weight)}}$ — see [`tau_exponent`]. What is left is
-/// a set of keys taken mod 2, and adding a term toggles it.
+/// There are no coefficients to store — see [`tau_exponent`] for why.
 ///
 /// A sorted `Vec` rather than a `BTreeMap`: these combinations are small — a product of two basis
 /// elements has a handful of terms — and the keys are `Copy` words, so one contiguous allocation
@@ -284,11 +256,6 @@ impl<K: Ord> SparseSum<K> {
     /// The zero combination.
     pub fn new() -> Self {
         Self { terms: Vec::new() }
-    }
-
-    /// The number of non-zero terms.
-    pub fn len(&self) -> usize {
-        self.terms.len()
     }
 
     /// Whether this is zero.
@@ -309,11 +276,6 @@ impl<K: Ord> SparseSum<K> {
             }
             Err(i) => self.terms.insert(i, key),
         }
-    }
-
-    /// The terms, in key order.
-    pub fn iter(&self) -> std::slice::Iter<'_, K> {
-        self.terms.iter()
     }
 }
 
@@ -441,10 +403,7 @@ fn mul_monomials(m1: Monomial, m2: Monomial, acc: &mut DualElement) {
         .collect();
     let r12 = ppart_add(m1.p_part, m2.p_part);
     for term in rewrite_tau(&s) {
-        // `term.r` is paper-indexed and `term.r[0]` is zero (`c_coeff` vanishes otherwise); it
-        // is also trimmed, so it can be empty.
-        let term_r = PPart::try_from_slice(term.r.get(1..).unwrap_or_default())
-            .expect("rewrite_tau exponent out of packing range");
+        let term_r = p_part_from_paper(&term.r).expect("rewrite_tau exponent out of packing range");
         let r = ppart_add(term_r, r12);
         let z = Monomial::new(term.e_mask, r);
         // The τ power `rewrite_tau` computed and the one the weight dictates are the same
@@ -472,7 +431,7 @@ pub fn tau_gen(i: usize) -> DualElement {
 
 /// The generator $\xi_i \in A_{**}$ (for $i \ge 1$).
 pub fn xi_gen(i: usize) -> DualElement {
-    DualElement::from([xi_pow_mon(i, 1)])
+    xi_pow_elt(i, 1)
 }
 
 /// The unit $1 \in A_{**}$.
@@ -484,8 +443,8 @@ pub fn dual_one() -> DualElement {
 // The coproduct ψ: A_** → A_** ⊗ A_**, an algebra map (Kong–Lin §2.2).
 // ---------------------------------------------------------------------------
 
-/// An element of $A_{**} \otimes A_{**}$: pairs of [`Monomial`]s → $\mathbb{F}_2[\tau]$
-/// coefficients. Zero coefficients are never stored.
+/// An element of $A_{**} \otimes A_{**}$: a mod-2 set of pairs of [`Monomial`]s, coefficients
+/// implicit as in [`DualElement`].
 pub type TensorElement = SparseSum<(Monomial, Monomial)>;
 
 /// The unit $1 \otimes 1$.
@@ -613,10 +572,8 @@ pub fn antipode(elt: &DualElement) -> DualElement {
     let mut out = DualElement::new();
     for &mon in elt {
         let mut acc = dual_one();
-        for i in 0..u32::BITS {
-            if (mon.q_part >> i) & 1 != 0 {
-                acc = dual_mul(&acc, &chi_tau(i as usize));
-            }
+        for i in BitflagIterator::set_bit_iterator(mon.q_part as u64) {
+            acc = dual_mul(&acc, &chi_tau(i));
         }
         for (i, r) in mon.p_part.iter().enumerate() {
             for _ in 0..r {
@@ -700,13 +657,18 @@ fn enum_basis_dfs(
     }
 }
 
-/// The product `a · b` in the C-motivic Steenrod algebra `A_C`, where `a`, `b` are Milnor basis
-/// elements `Q(E)P(R)` given as the monomials `(E, R)` they are dual to. The result is the set of
-/// basis monomials occurring, their `𝔽₂[τ]` coefficients being implicit ([`tau_exponent`]).
+/// The product `a · b` in $A_C$, as the set of basis elements occurring — their
+/// $\mathbb{F}_2[\tau]$ coefficients being implicit ([`tau_exponent`]).
 ///
-/// Computed by duality: the coefficient of `z` in `a · b` is the coefficient of
-/// `mon(a) ⊗ mon(b)` in `ψ(mon(z))`, summed over the basis `z` of the appropriate
+/// Computed by duality against the coproduct: $A_{**}$ multiplies by reducing
+/// $\tau_i^2 = \tau\xi_{i+1}$ ([`rewrite_tau`], Kong–Lin Theorem 3.4), and its coproduct $\psi$
+/// ([`coproduct`], §2.2) is a $\tau$-free algebra map, so the coefficient of `z` in `a · b` is
+/// the coefficient of `mon(a) ⊗ mon(b)` in `ψ(mon(z))`, over the basis `z` of the appropriate
 /// topological degree.
+///
+/// This is the correctness oracle, not the production path: it enumerates a whole degree and
+/// coproducts each element. [`multiply_closed`] computes the same thing from Kong–Lin
+/// Theorem 5.1 and is validated against this.
 pub fn multiply(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
     // ψ is a statement about A_**, so the pairing is against the monomials themselves.
     let key = (a.0, b.0);
@@ -753,6 +715,7 @@ struct Columns {
 }
 
 impl Columns {
+    /// Append one column.
     fn push(&mut self, col: &[u32]) {
         if self.offsets.is_empty() {
             self.offsets.push(0);
@@ -761,6 +724,7 @@ impl Columns {
         self.offsets.push(self.entries.len() as u32);
     }
 
+    /// The columns, in insertion order.
     fn iter(&self) -> impl Iterator<Item = &[u32]> {
         self.offsets
             .windows(2)
@@ -805,6 +769,7 @@ thread_local! {
     static COLS_LE: RefCell<FxHashMap<u32, Rc<Columns>>> = RefCell::new(FxHashMap::default());
 }
 
+/// All columns with `Σᵢ 2ⁱ vᵢ = target`.
 fn columns_eq_cached(target: u32) -> Rc<Columns> {
     COLS_EQ.with(|c| {
         Rc::clone(
@@ -847,9 +812,9 @@ fn col0_x_options(r1: &[u32]) -> Columns {
 /// Buffer size for row / column / anti-diagonal indices.
 ///
 /// Anti-diagonals are indexed by `i + j`, with the row index `i` bounded by a column's length
-/// (at most `log2(MAX_DEGREE) + 1`) and the column index `j` by [`PPart::MAX_LEN`] + 1. That
-/// caps the sum near 21, and this is the next power of two; [`Acc`] holds three of these, so the
-/// size is paid on every matrix.
+/// (at most `PPart::MAX_DEGREE.ilog2() + 1`) and the column index `j` by [`PPart::MAX_LEN`] + 1.
+/// This is the next power of two above that sum, checked in `nb_covers_antidiagonals`; [`Acc`]
+/// holds three arrays of this size, so it is paid on every matrix.
 const NB: usize = 32;
 
 /// Immutable context for the closed-form product recursion (Theorem 5.1, ρ = 0).
@@ -874,6 +839,7 @@ struct Acc {
 }
 
 impl Acc {
+    /// Empty accumulator, before any column has been placed.
     fn zero() -> Self {
         Self {
             rows: [0; NB],
@@ -1037,8 +1003,8 @@ impl ClosedY<'_> {
         }
         // E_out = E₂ + T(Y) must be square-free (Seq₁). Q indices fit in a u32.
         let mut out_e_mask = 0u32;
-        for i in 0..u32::BITS as usize {
-            let val = ((self.e2_mask >> i) & 1) + acc.sum[i];
+        for (i, &t) in acc.sum.iter().enumerate() {
+            let val = ((self.e2_mask >> i) & 1) + t;
             if val > 1 {
                 return;
             }
@@ -1099,18 +1065,14 @@ pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement 
 /// $\mathbb{F}_2[\tau]$-module on the Milnor basis $\{Q(E)P(R)\}$ with lazy
 /// per-(topological-)degree basis indexing.
 ///
-/// This is the $A_C$ product **engine** over $\mathbb{F}_2[\tau]$: the dual-based product is
-/// exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed), whose
-/// $\tau$ coefficients are implicit in the weights ([`tau_exponent`]). It is
-/// deliberately not an [`Algebra`](crate::algebra::Algebra)
-/// implementation, because that trait is over $\mathbb{F}_p$; the mod-$\tau$ reduction, which *is*
-/// such an algebra, is a follow-up layer on top of this engine, and the honest
-/// $\mathbb{F}_2[\tau]$ resolution is built by lifting against this engine (Phase 2).
+/// The product is exposed through [`product_indexed`](MotivicMilnorAlgebra::product_indexed),
+/// whose $\tau$ coefficients are implicit in the weights ([`tau_exponent`]), and
+/// [`bidegree`](MotivicMilnorAlgebra::bidegree) reports them in the $A_C$ convention
+/// ([`Dual`]).
 ///
-/// Weight convention: [`bidegree`](MotivicMilnorAlgebra::bidegree) returns `(t, w)` where `t` is
-/// the topological degree and `w` is the motivic weight in the presentation where $\tau$ has
-/// weight $-1$ and products are weight-homogeneous (i.e. `w = -(dual monomial weight)`; see the
-/// module-level note).
+/// Deliberately not an [`Algebra`](crate::algebra::Algebra): that trait is over
+/// $\mathbb{F}_p$. The mod-$\tau$ reduction, which *is* such an algebra, is a follow-up layer
+/// on top of this engine.
 #[derive(Default)]
 pub struct MotivicMilnorAlgebra {
     /// `basis[t]` is the $\mathbb{F}_2[\tau]$-basis in topological degree `t`, sorted for stable
@@ -1131,8 +1093,7 @@ pub struct MotivicMilnorAlgebra {
 /// A dense block of basis-element products for one pair of topological degrees
 /// `(t1, t2)`. Entry `(idx1, idx2)`, at flat position `idx1 * dim2 + idx2`, is the
 /// product of the `idx1`-th basis element in degree `t1` with the `idx2`-th in
-/// degree `t2` — the `(Tau, index-in-degree-(t1+t2))` list [`multiply_closed`]
-/// returns.
+/// degree `t2`, as indices into the degree-`(t1 + t2)` basis.
 ///
 /// This is the natural **batch unit** for the product: every structure constant
 /// the resolution needs for a given degree pair lives in one block. Entries fill
@@ -1147,11 +1108,9 @@ pub struct ProductBlock {
 }
 
 impl MotivicMilnorAlgebra {
+    /// An engine with no basis computed yet.
     pub fn new() -> Self {
-        Self {
-            basis: OnceVec::new(),
-            blocks: RwLock::new(FxHashMap::default()),
-        }
+        Self::default()
     }
 
     /// Compute and cache the basis in every topological degree up to and including `degree`.
@@ -1297,12 +1256,25 @@ impl MotivicMilnorAlgebra {
 
     /// The product of two basis elements as a list of basis indices in degree `t1 + t2`.
     ///
-    /// The $\mathbb{F}_2[\tau]$ coefficients are not returned because they are not free: the
-    /// product of two homogeneous basis elements is weight-homogeneous, so index `j` carries
-    /// exactly $\tau^{k}$ for the `k` that [`Self::tau_exponent`] computes from the weights.
+    /// No coefficients: [`Self::tau_exponent`] recovers the one on any index.
     pub fn product_indexed(&self, t1: i32, idx1: usize, t2: i32, idx2: usize) -> Vec<usize> {
-        self.cached_product(&self.block(t1, t2), t1, idx1, t2, idx2)
-            .to_vec()
+        self.product_indexed_with(t1, idx1, t2, idx2, <[_]>::to_vec)
+    }
+
+    /// Run `f` on the cached product **by reference**, without copying the index list.
+    ///
+    /// A cache hit is otherwise free, so a consumer that walks many structure constants — the
+    /// mod-$\tau$ layer's `multiply_basis_elements`, say — should prefer this to
+    /// [`Self::product_indexed`], which allocates a `Vec` per hit.
+    pub fn product_indexed_with<R>(
+        &self,
+        t1: i32,
+        idx1: usize,
+        t2: i32,
+        idx2: usize,
+        f: impl FnOnce(&[usize]) -> R,
+    ) -> R {
+        f(self.cached_product(&self.block(t1, t2), t1, idx1, t2, idx2))
     }
 
     /// One entry of `block`, computed on first request. `block` must be the block for
@@ -1486,6 +1458,40 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn basis_element_from_string_round_trips() {
+        // The parser is the inverse of the printer, and is what lets `.json` module descriptors
+        // be written over this algebra. Nothing in this crate calls it yet, so without this it
+        // would ship untested.
+        let alg = MotivicMilnorAlgebra::new();
+        alg.compute_basis(12);
+        for degree in 0..=12 {
+            for idx in 0..alg.dimension(degree) {
+                let s = alg.basis_element_to_string(degree, idx);
+                assert_eq!(
+                    alg.basis_element_from_string(&s),
+                    Some((degree, idx)),
+                    "round trip failed on {s:?}"
+                );
+            }
+        }
+        assert_eq!(alg.basis_element_from_string("1"), Some((0, 0)));
+        assert_eq!(alg.basis_element_from_string("Q_0"), Some((1, 0)));
+        assert_eq!(alg.basis_element_from_string("not an element"), None);
+    }
+
+    #[test]
+    fn nb_covers_antidiagonals() {
+        // `NB` sizes the row / anti-diagonal arrays. An anti-diagonal index is `i + j`, so the
+        // bound is the widest column plus the number of columns, and nothing may exceed it.
+        let max_row = PPart::MAX_DEGREE.ilog2() as usize + 1;
+        let max_col = PPart::MAX_LEN + 1;
+        assert!(
+            max_row + max_col <= NB,
+            "NB = {NB} too small for {max_row} + {max_col}"
+        );
     }
 
     #[test]
