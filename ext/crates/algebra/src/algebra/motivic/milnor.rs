@@ -836,6 +836,16 @@ struct Closed<'a> {
     e1_mask: u32,
     e2_mask: u32,
     sigma2_e1: i64,
+    /// Keep only the `τ⁰` part of the product.
+    ///
+    /// A term carries `τ^{Σ(S′)}`, so dropping everything divisible by `τ` means `S′ = 0`, i.e.
+    /// `S(X) = R₁` exactly rather than `≤`. That is the classical admissible-matrix condition,
+    /// and enforcing it during the walk is far cheaper than computing the whole `A_C` product
+    /// and discarding the τ-divisible terms afterwards.
+    mod_tau: bool,
+    /// `row_slack[j][i]`: the most columns `j..l` can still add to row `i`, for the `mod_tau`
+    /// prune.
+    row_slack: Vec<[u32; NB]>,
     /// Per-column candidate columns for the `X` matrix.
     x_cands: &'a [Rc<Columns>],
 }
@@ -905,6 +915,17 @@ impl<'a> Closed<'a> {
             });
             if !fits {
                 continue;
+            }
+            // With `S(X) = R₁` forced, a row that the remaining columns can no longer fill is
+            // dead: cut before recursing.
+            if self.mod_tau {
+                let slack = &self.row_slack[j + 1];
+                if (1..self.l).any(|i| {
+                    let placed = acc.rows[i] + cand.get(i).copied().unwrap_or(0);
+                    placed + slack[i] < self.r1v[i] || placed > self.r1v[i]
+                }) {
+                    continue;
+                }
             }
             debug_assert!(cand.len() + j <= NB, "anti-diagonal index out of range");
             for (i, &v) in cand.iter().enumerate() {
@@ -1102,6 +1123,19 @@ impl ClosedY<'_> {
 /// The product `a · b` in `A_C` via Kong–Lin Theorem 5.1 (ρ = 0). Same contract
 /// as [`multiply`] (the duality oracle it is validated against).
 pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
+    multiply_closed_inner(a, b, false)
+}
+
+/// The `τ⁰` part of `a · b`, i.e. their product in the mod-`τ` reduction `A_C/τ`.
+///
+/// Equal to filtering [`multiply_closed`] down to the terms [`tau_exponent`] puts at `0`, but it
+/// constrains the enumeration instead of the output: mod `τ` the `X` matrix must satisfy
+/// `S(X) = R₁` exactly, which is the classical admissible-matrix condition.
+pub fn multiply_closed_mod_tau(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
+    multiply_closed_inner(a, b, true)
+}
+
+fn multiply_closed_inner(a: Dual<Monomial>, b: Dual<Monomial>, mod_tau: bool) -> SteenrodElement {
     // Theorem 5.1 is combinatorics on the (E, R) exponents; the A_C reading is re-applied to the
     // output monomials at the end.
     let (a, b) = (a.0, b.0);
@@ -1124,6 +1158,21 @@ pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement 
         x_cands.push(columns_le_cached(bound));
     }
 
+    // How much each suffix of columns can still contribute to each row.
+    let mut row_slack = vec![[0u32; NB]; l + 1];
+    for j in (0..l).rev() {
+        let bound = if j == 0 { None } else { Some(r2v[j]) };
+        // `here[j]` is column `j`'s row of the table, `later[0]` is column `j + 1`'s.
+        let (here, later) = row_slack.split_at_mut(j + 1);
+        for (i, (slot, &prev)) in here[j].iter_mut().zip(later[0].iter()).enumerate() {
+            let add = match bound {
+                Some(b) => b >> i,
+                None => r1v.get(i).copied().unwrap_or(0),
+            };
+            *slot = prev + add;
+        }
+    }
+
     let ctx = Closed {
         r1v: &r1v,
         r2v: &r2v,
@@ -1131,6 +1180,8 @@ pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement 
         e1_mask,
         e2_mask,
         sigma2_e1: e1_mask as i64, // Σ (bit i)·2ⁱ = e1_mask
+        mod_tau,
+        row_slack,
         x_cands: &x_cands,
     };
     let mut out = DualElement::new();
@@ -1989,6 +2040,23 @@ mod tests {
                     Dual(Monomial::new(1 << i, PPart::zero()))
                 )
             );
+        }
+    }
+
+    #[test]
+    fn test_mod_tau_matches_the_filtered_product() {
+        // The specialised walk must agree with filtering the general product to tau^0 — that
+        // equivalence is the whole licence for constraining `S(X) = R_1` up front.
+        let basis: Vec<Dual<Monomial>> = (0..=9).flat_map(enum_basis).collect();
+        for &a in &basis {
+            for &b in &basis {
+                let filtered: Vec<_> = multiply_closed(a, b)
+                    .into_iter()
+                    .filter(|&z| tau_exponent(a, b, z) == 0)
+                    .collect();
+                let direct: Vec<_> = multiply_closed_mod_tau(a, b).into_iter().collect();
+                assert_eq!(filtered, direct, "mod-tau mismatch at {a:?} * {b:?}");
+            }
         }
     }
 
