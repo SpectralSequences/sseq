@@ -1,9 +1,4 @@
 //! The C-motivic dual Steenrod algebra $A_{**}$ and Steenrod algebra $A_C$ in the Milnor basis.
-//!
-//! Follows Kong–Lin, *Product formulas for motivic Milnor basis* (arXiv:2411.12890), at the
-//! C-motivic point where $\rho = 0$ and the motivic cohomology of a point is
-//! $\mathbb{F}_2[\tau]$. It uses that paper's *conjugate* generators, so the coproduct and
-//! Milnor-matrix product match Milnor's classical formulas on the $\xi$ part.
 
 use std::{cell::RefCell, rc::Rc, sync::OnceLock};
 
@@ -49,6 +44,9 @@ fn p_part_from_paper(r: &[u32]) -> Option<PPart> {
 ///
 /// The same data indexes the $A_C$ basis element $Q(E)P(R)$ that this monomial is dual to; see
 /// [`Dual`], which is that reading of it.
+///
+/// These are Kong–Lin's *conjugate* generators, so the coproduct and the Milnor-matrix product
+/// agree with Milnor's classical formulas on the $\xi$ part.
 ///
 /// The derived ordering is lexicographic in `(q_part, p_part)`, which is what
 /// [`MotivicMilnorAlgebra`] sorts and binary-searches its per-degree bases by.
@@ -1033,7 +1031,7 @@ impl<'a> Closed<'a> {
 struct ClosedY<'a> {
     y_cands: &'a [Rc<Columns>],
     /// `Σ(S(Y))` that [`Self::on_y`]'s degree equation demands. It depends only on `X`, so the
-    /// `Y` walk can be bounded against it instead of testing it at the leaf.
+    /// `Y` walk can be bounded against it rather than reaching a leaf to test it.
     target_sigma_sy: u32,
     /// `suffix_min[j]` / `suffix_max[j]`: the least and greatest `Σ(S(Y))` the columns from `j`
     /// on can still contribute.
@@ -1120,8 +1118,9 @@ impl ClosedY<'_> {
     }
 }
 
-/// The product `a · b` in `A_C` via Kong–Lin Theorem 5.1 (ρ = 0). Same contract
-/// as [`multiply`] (the duality oracle it is validated against).
+/// The product `a · b` in `A_C` via Theorem 5.1 of Kong–Lin, *Product formulas for motivic
+/// Milnor basis* (arXiv:2411.12890), at the C-motivic point $\rho = 0$. Same contract as
+/// [`multiply`] (the duality oracle it is validated against).
 pub fn multiply_closed(a: Dual<Monomial>, b: Dual<Monomial>) -> SteenrodElement {
     multiply_closed_inner(a, b, false)
 }
@@ -2062,10 +2061,8 @@ mod tests {
 
     #[test]
     fn test_closed_form_matches_duality_oracle() {
-        // Exhaustive fuzz: the closed form (Theorem 5.1) agrees with the duality
-        // oracle on every ordered pair of basis elements with deg(a)+deg(b) ≤ 18,
-        // including the τ-carrying and multi-Q cases. (The bound is kept modest
-        // because the *oracle* is slow; the closed form is not.)
+        // Exhaustive over ordered pairs of basis elements, including the τ-carrying and
+        // multi-Q cases. The degree bound is modest because the *oracle* is slow.
         let basis: Vec<(i32, Dual<Monomial>)> = (0..=14)
             .flat_map(|t| enum_basis(t).into_iter().map(move |m| (t, m)))
             .collect();
