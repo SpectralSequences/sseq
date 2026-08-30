@@ -954,6 +954,20 @@ impl<'a> Closed<'a> {
             return;
         }
 
+        // Whether any `Y` can hit the degree equation is decidable from the column targets alone:
+        // a column of weighted sum `w` has plain sum between `w.count_ones()` (all weight as high
+        // as it goes) and `w` (all of it in row 0). Testing that here costs a popcount per column
+        // and skips building the candidate lists for an `X` that cannot contribute.
+        let target_sigma_sy = self.e1_mask.count_ones() as i64 + 2 * sigma_sprime as i64;
+        let (mut lo, mut hi) = (ry0.count_ones() as i64, ry0);
+        for &t in &ry[1..self.l] {
+            lo += t.count_ones() as i64;
+            hi += t;
+        }
+        if target_sigma_sy < lo || target_sigma_sy > hi {
+            return;
+        }
+
         // The output P-part T(X). The anti-diagonal sums are paper-indexed, so entry `i` of the
         // packed exponent sequence is anti-diagonal `i + 1` (index 0 is the xi_0 slot).
         let mut out_r = PPart::zero();
@@ -973,9 +987,14 @@ impl<'a> Closed<'a> {
             suffix_min[j] = suffix_min[j + 1] + y_cands[j].min_sum;
             suffix_max[j] = suffix_max[j + 1] + y_cands[j].max_sum;
         }
+        let mut e_cap = [1u32; NB];
+        for (k, cap) in e_cap.iter_mut().enumerate() {
+            *cap = 1 - ((self.e2_mask >> k) & 1);
+        }
         ClosedY {
             y_cands: &y_cands,
-            target_sigma_sy: self.e1_mask.count_ones() + 2 * sigma_sprime,
+            target_sigma_sy: target_sigma_sy as u32,
+            e_cap,
             suffix_min,
             suffix_max,
             e1_mask: self.e1_mask,
@@ -999,6 +1018,9 @@ struct ClosedY<'a> {
     /// on can still contribute.
     suffix_min: [u32; NB],
     suffix_max: [u32; NB],
+    /// How much anti-diagonal `k` may still accumulate: `E₂ + T(Y)` has to stay square-free, so
+    /// a diagonal `E₂` already occupies is capped at 0 and every other at 1.
+    e_cap: [u32; NB],
     e1_mask: u32,
     e2_mask: u32,
     sprime: &'a [u32],
@@ -1028,6 +1050,15 @@ impl ClosedY<'_> {
         // the bounds-check elision, and this is the innermost loop of the whole product.
         for (cand, sum) in self.y_cands[j].iter_with_sums() {
             if cand.iter().zip(&acc.or[j..]).any(|(&v, &o)| o & v != 0) {
+                continue;
+            }
+            // Anti-diagonal sums only grow, so a diagonal that already overflows its cap can
+            // never come back: cut here rather than rediscovering it at every leaf below.
+            if cand
+                .iter()
+                .zip(acc.sum[j..].iter().zip(&self.e_cap[j..]))
+                .any(|(&v, (&t, &cap))| t + v > cap)
+            {
                 continue;
             }
             acc.place(cand, j);
