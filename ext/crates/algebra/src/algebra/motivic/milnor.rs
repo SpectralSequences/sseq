@@ -708,6 +708,11 @@ struct Columns {
     entries: Vec<u32>,
     /// `offsets[k]..offsets[k + 1]` is column `k`. Always starts with a 0.
     offsets: Vec<u32>,
+    /// Unweighted sum Σᵢ vᵢ of each column, parallel to `offsets`.
+    sums: Vec<u32>,
+    /// The smallest and largest entry of `sums`, for bounding a partial `Y`.
+    min_sum: u32,
+    max_sum: u32,
 }
 
 impl Columns {
@@ -715,9 +720,19 @@ impl Columns {
     fn push(&mut self, col: &[u32]) {
         if self.offsets.is_empty() {
             self.offsets.push(0);
+            self.min_sum = u32::MAX;
         }
         self.entries.extend_from_slice(col);
         self.offsets.push(self.entries.len() as u32);
+        let sum: u32 = col.iter().sum();
+        self.sums.push(sum);
+        self.min_sum = self.min_sum.min(sum);
+        self.max_sum = self.max_sum.max(sum);
+    }
+
+    /// The columns paired with their unweighted sums.
+    fn iter_with_sums(&self) -> impl Iterator<Item = (&[u32], u32)> {
+        self.iter().zip(self.sums.iter().copied())
     }
 
     /// The columns, in insertion order.
@@ -952,15 +967,24 @@ impl<'a> Closed<'a> {
             y_cands.push(columns_eq_cached(t as u32));
         }
 
+        // The degree equation's target and the suffix bounds, both fixed once `X` is chosen.
+        let (mut suffix_min, mut suffix_max) = ([0u32; NB], [0u32; NB]);
+        for j in (0..y_cands.len()).rev() {
+            suffix_min[j] = suffix_min[j + 1] + y_cands[j].min_sum;
+            suffix_max[j] = suffix_max[j + 1] + y_cands[j].max_sum;
+        }
         ClosedY {
             y_cands: &y_cands,
+            target_sigma_sy: self.e1_mask.count_ones() + 2 * sigma_sprime,
+            suffix_min,
+            suffix_max,
             e1_mask: self.e1_mask,
             e2_mask: self.e2_mask,
             sprime,
             sigma_sprime,
             out_r,
         }
-        .enum_y(0, &mut Acc::zero(), out);
+        .enum_y(0, 0, &mut Acc::zero(), out);
     }
 }
 
@@ -968,6 +992,13 @@ impl<'a> Closed<'a> {
 /// already fixed by the time this is built, so `sprime` and `out_r` are constants here.
 struct ClosedY<'a> {
     y_cands: &'a [Rc<Columns>],
+    /// `Σ(S(Y))` that [`Self::on_y`]'s degree equation demands. It depends only on `X`, so the
+    /// `Y` walk can be bounded against it instead of testing it at the leaf.
+    target_sigma_sy: u32,
+    /// `suffix_min[j]` / `suffix_max[j]`: the least and greatest `Σ(S(Y))` the columns from `j`
+    /// on can still contribute.
+    suffix_min: [u32; NB],
+    suffix_max: [u32; NB],
     e1_mask: u32,
     e2_mask: u32,
     sprime: &'a [u32],
@@ -979,19 +1010,28 @@ impl ClosedY<'_> {
     /// Enumerate the `Y` matrix column by column (each column an exact weighted sum),
     /// pruning on anti-diagonal collisions (`b(Y) = 0`) and accumulating each matching
     /// contribution.
-    fn enum_y(&self, j: usize, acc: &mut Acc, out: &mut DualElement) {
+    fn enum_y(&self, j: usize, running: u32, acc: &mut Acc, out: &mut DualElement) {
         if j == self.y_cands.len() {
             self.on_y(acc, out);
             return;
         }
+        // `Σ(S(Y))` must land exactly on `target_sigma_sy`, and the columns from `j` on can only
+        // move it within `[suffix_min, suffix_max]`. Checking that here rather than at the leaf
+        // is what keeps the walk from building matrices that cannot possibly qualify.
+        let Some(need) = self.target_sigma_sy.checked_sub(running) else {
+            return;
+        };
+        if need < self.suffix_min[j] || need > self.suffix_max[j] {
+            return;
+        }
         // Zipped rather than indexed: the anti-diagonal offset makes `acc.or[i + j]` opaque to
         // the bounds-check elision, and this is the innermost loop of the whole product.
-        for cand in self.y_cands[j].iter() {
+        for (cand, sum) in self.y_cands[j].iter_with_sums() {
             if cand.iter().zip(&acc.or[j..]).any(|(&v, &o)| o & v != 0) {
                 continue;
             }
             acc.place(cand, j);
-            self.enum_y(j + 1, acc, out);
+            self.enum_y(j + 1, running + sum, acc, out);
             acc.unplace(cand, j);
         }
     }
