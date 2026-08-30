@@ -1154,6 +1154,25 @@ pub fn multiply_closed_mod_tau(a: Dual<Monomial>, b: Dual<Monomial>) -> Steenrod
     multiply_closed_inner(a, b, true)
 }
 
+/// `row_slack[j][i]`: the most columns `j..l` can still add to row `i`. Read only by the
+/// mod-τ prune in [`Closed::enum_x`], so it is built only for that walk.
+fn row_slack_table(l: usize, r1v: &[u32], r2v: &[u32]) -> Vec<[u32; NB]> {
+    let mut row_slack = vec![[0u32; NB]; l + 1];
+    for j in (0..l).rev() {
+        let bound = if j == 0 { None } else { Some(r2v[j]) };
+        // `here[j]` is column `j`'s row of the table, `later[0]` is column `j + 1`'s.
+        let (here, later) = row_slack.split_at_mut(j + 1);
+        for (i, (slot, &prev)) in here[j].iter_mut().zip(later[0].iter()).enumerate() {
+            let add = match bound {
+                Some(b) => b >> i,
+                None => r1v.get(i).copied().unwrap_or(0),
+            };
+            *slot = prev + add;
+        }
+    }
+    row_slack
+}
+
 fn multiply_closed_inner(a: Dual<Monomial>, b: Dual<Monomial>, mod_tau: bool) -> SteenrodElement {
     // Theorem 5.1 is combinatorics on the (E, R) exponents; the A_C reading is re-applied to the
     // output monomials at the end.
@@ -1177,20 +1196,12 @@ fn multiply_closed_inner(a: Dual<Monomial>, b: Dual<Monomial>, mod_tau: bool) ->
         x_cands.push(columns_le_cached(bound));
     }
 
-    // How much each suffix of columns can still contribute to each row.
-    let mut row_slack = vec![[0u32; NB]; l + 1];
-    for j in (0..l).rev() {
-        let bound = if j == 0 { None } else { Some(r2v[j]) };
-        // `here[j]` is column `j`'s row of the table, `later[0]` is column `j + 1`'s.
-        let (here, later) = row_slack.split_at_mut(j + 1);
-        for (i, (slot, &prev)) in here[j].iter_mut().zip(later[0].iter()).enumerate() {
-            let add = match bound {
-                Some(b) => b >> i,
-                None => r1v.get(i).copied().unwrap_or(0),
-            };
-            *slot = prev + add;
-        }
-    }
+    // Only the mod-τ prune reads the slack table, so the general product does not build it.
+    let row_slack = if mod_tau {
+        row_slack_table(l, &r1v, &r2v)
+    } else {
+        Vec::new()
+    };
 
     let ctx = Closed {
         r1v: &r1v,
@@ -1270,11 +1281,16 @@ impl MotivicMilnorAlgebra {
     /// Compute and cache the basis in every topological degree up to and including `degree`.
     /// Idempotent and cheap to re-call.
     pub fn compute_basis(&self, degree: i32) {
-        for t in self.basis.len() as i32..=degree {
-            let mut b = enum_basis(t);
-            b.sort();
-            self.basis.push(b);
+        if degree < 0 {
+            return;
         }
+        // `extend` re-reads the length under the write lock, so two threads racing to first-use
+        // cannot both fill the same degree and leave `basis[t]` holding some other degree.
+        self.basis.extend(degree as usize, |t| {
+            let mut b = enum_basis(t as i32);
+            b.sort();
+            b
+        });
     }
 
     /// The $\mathbb{F}_2[\tau]$-rank of `A_C` in topological degree `degree`.
@@ -1994,6 +2010,35 @@ mod tests {
                     Dual(Monomial::new(1 << i, PPart::zero()))
                 )
             );
+        }
+    }
+
+    #[test]
+    fn test_concurrent_compute_basis_keeps_degrees_aligned() {
+        const MAX: i32 = 12;
+        let reference: Vec<usize> = {
+            let alg = MotivicMilnorAlgebra::new();
+            alg.compute_basis(MAX);
+            (0..=MAX).map(|t| alg.dimension(t)).collect()
+        };
+        for _ in 0..40 {
+            let alg = std::sync::Arc::new(MotivicMilnorAlgebra::new());
+            let hs: Vec<_> = (0..8)
+                .map(|_| {
+                    let a = alg.clone();
+                    std::thread::spawn(move || a.compute_basis(MAX))
+                })
+                .collect();
+            for h in hs {
+                h.join().unwrap();
+            }
+            for t in 0..=MAX {
+                assert_eq!(
+                    alg.dimension(t),
+                    reference[t as usize],
+                    "degree {t} misaligned after concurrent first use"
+                );
+            }
         }
     }
 
