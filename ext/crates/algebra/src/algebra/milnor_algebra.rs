@@ -122,7 +122,13 @@ pub type PPartEntry = u32;
 /// [`Self::MAX_DEGREE`], which [`MilnorAlgebra::compute_basis`] enforces up front, so the packing
 /// can never silently truncate. [`Self::set`] asserts it anyway, and [`Self::try_from_slice`]
 /// reports failure instead of panicking for input that has not been through that gate.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+///
+/// The derived ordering compares the packed words. That is a total order and consistent with
+/// equality, which is all a sorted table needs, but it is *not* lexicographic in the exponents:
+/// entry `i` sits at [`Self::shift`]`(i)`, so `r_1` is the least significant field and therefore
+/// the last tie-breaker. Callers that need the exponents ordered lexicographically must compare
+/// [`Self::iter`] instead.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PPart(u64);
 
 impl PPart {
@@ -1425,6 +1431,27 @@ impl PPartAllocation {
     }
 }
 
+/// The least `l > k` whose binary digits are disjoint from those of `sum`, **given that `k` is
+/// itself disjoint from `sum`**.
+///
+/// Equivalently, the least such `l` with $\binom{\mathrm{sum} + l}{l}$ odd: adding `l` to `sum`
+/// carries exactly where they share a set bit, and the 2-adic valuation of that binomial is the
+/// number of carries (Kummer). So this steps straight to the next value that keeps a Milnor
+/// coefficient non-zero mod 2, instead of testing candidates and discarding them.
+///
+/// # Panics
+///
+/// In debug builds, if `k & sum != 0`. The identity genuinely needs it: the increment is allowed
+/// to carry through `k`'s own bits but not through `sum`'s, so a `k` that overlaps `sum` can come
+/// back *smaller* than `k` (`next_disjoint(2, 2) == 1`). Every caller is walking a matrix whose
+/// entries are already pairwise disjoint along each anti-diagonal, so the precondition holds.
+///
+/// The result can exceed any bound the caller has in mind; compare it against that separately.
+pub const fn next_disjoint(sum: PPartEntry, k: PPartEntry) -> PPartEntry {
+    debug_assert!(k & sum == 0, "next_disjoint needs k disjoint from sum");
+    ((k | sum) + 1) & !sum
+}
+
 #[allow(non_snake_case)]
 pub struct PPartMultiplier<const MOD4: bool> {
     p: ValidPrime,
@@ -1525,7 +1552,7 @@ impl<const MOD4: bool> PPartMultiplier<MOD4> {
                         })
                         .unwrap_or(max + 1)
                 } else {
-                    ((k | sum) + 1) & !sum
+                    next_disjoint(sum, k)
                 }
             }
             _ => (k + 1..max + 1)
@@ -2198,6 +2225,29 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// `next_disjoint` is the jump-to-valid form of the "is this binomial odd" test that the
+    /// Milnor coefficient needs; check it against the brute-force search it replaces, over every
+    /// input satisfying its precondition.
+    #[test]
+    fn next_disjoint_matches_brute_force() {
+        for sum in 0..64u32 {
+            for k in (0..64u32).filter(|k| k & sum == 0) {
+                let expected = (k + 1..)
+                    .find(|l| l & sum == 0)
+                    .expect("a disjoint value always exists");
+                assert_eq!(next_disjoint(sum, k), expected, "sum = {sum}, k = {k}");
+                // The characterisation it is actually used for.
+                assert_ne!(u32::binomial2(sum + expected, expected), 0);
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "next_disjoint needs k disjoint from sum")]
+    fn next_disjoint_rejects_overlapping_k() {
+        next_disjoint(2, 2);
     }
 
     /// The packing is only sound because each field is wide enough for every entry that can occur
