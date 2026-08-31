@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["antipode","coproduct","dual_mul","dual_one","enum_basis","multiply","multiply_closed","multiply_closed_mod_tau","rewrite_tau","tau_exponent","tau_gen","xi_gen"],"struct":["Dual","Monomial","MotivicMilnorAlgebra","MotivicTerm","ProductBlock","SparseSum"],"trait":["Bigraded"],"type":["DualElement","SteenrodElement","TensorElement"]};

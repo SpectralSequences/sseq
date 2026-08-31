@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The coefficient $c(S, R)$ of Notation 3.3 / Theorem 3.4, reduced mod 2."><title>c_coeff in algebra::algebra::motivic::milnor - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.0 (88d9e12ae 2026-08-18)" data-channel="1.98.0" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!-- The loading of KaTeX is deferred to speed up page rendering -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
+<!-- To automatically render math in text elements, include the auto-render extension: -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "\\(", right: "\\)", display: false},
+                {left: "$", right: "$", display: false},
+                {left: "\\[", right: "\\]", display: true}
+            ],
+            macros: {
+                "\\Ext": "\\operatorname{Ext}",
+                "\\Mod": "\\operatorname{Mod}",
+                "\\Hom": "\\operatorname{Hom}",
+                "\\Sq": "\\operatorname{Sq}",
+                "\\F": "\\mathbb{F}",
+            }
+        });
+    });
+</script>
+
+</head><body class="rustdoc fn"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">c_coeff</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../algebra/index.html">algebra</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In algebra::<wbr>algebra::<wbr>motivic::<wbr>milnor</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">algebra</a>::<wbr><a href="../../index.html">algebra</a>::<wbr><a href="../index.html">motivic</a>::<wbr><a href="index.html">milnor</a></div><h1>Function <span class="fn">c_coeff</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/algebra/algebra/motivic/milnor.rs.html#118-138">Source</a> </span></div><pre class="rust item-decl"><code>fn c_coeff(s: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.98.0/std/primitive.u32.html">u32</a>], r: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.98.0/std/primitive.u32.html">u32</a>]) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.0/std/primitive.u32.html">u32</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The coefficient $c(S, R)$ of Notation 3.3 / Theorem 3.4, reduced mod 2.</p>
+<p>$c(S, R) = \prod_{n \ge 1} \binom{\lfloor \sum_{i=0}^{n-1} 2^{i-n}(s_i - r_i)\rfloor}{r_n}$
+when $r_0 = 0$, and $0$ otherwise. The inner floor is computed exactly with integer
+(Euclidean) division: $\lfloor \sum_{i=0}^{n-1} 2^{i-n}(s_i-r_i)\rfloor
+= \lfloor (\sum_{i=0}^{n-1} (s_i-r_i)2^i) / 2^n \rfloor$. Each factor is
+<a href="../../../../fp/prime/binomial/trait.Binomial.html#tymethod.binomial2" title="associated function fp::prime::binomial::Binomial::binomial2"><code>Binomial::binomial2</code></a>, which is $0$ when the top is negative or below the bottom.</p>
+</div></details></section></div></main></body></html>
