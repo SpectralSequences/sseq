@@ -6,10 +6,11 @@
 
 use std::collections::HashMap;
 
-use fp::{prime::TWO, vector::FpVector};
+use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
+use once::MultiIndexed;
 use sseq::{
-    Sseq, SseqProfile,
-    coordinates::{degree::MultiDegree, element::MultiDegreeElement},
+    Product, Sseq, SseqProfile,
+    coordinates::{Bidegree, BidegreeGenerator, degree::MultiDegree, element::MultiDegreeElement},
 };
 
 use super::{Gen, MotivicResolution};
@@ -66,6 +67,53 @@ impl MotivicResolution {
             }
         }
         (groups, pos)
+    }
+
+    /// A [`Product`] on the deformation SS for each requested Cτ generator `a`
+    /// (given as `(bidegree, index)`): multiplication by `a`, taken from
+    /// `ExtAlgebra::multiply_into` on the mod-τ resolution and split into weight
+    /// blocks for the trigrading. Feeding one to [`Sseq::multiply`] applies it on
+    /// any page — the Cτ ring on $E_1$, the motivic Adams $E_2$ ring on $E_\infty$.
+    pub fn deformation_products(&self, gens: &[(Bidegree, usize)]) -> Vec<Product<3>> {
+        let ext = self.ext();
+        let (groups, _) = self.sseq_grouping();
+        let empty = Vec::new();
+        gens.iter()
+            .map(|&(a_deg, a_idx)| {
+                let a_gen = Gen {
+                    s: a_deg.s(),
+                    t: a_deg.t(),
+                    idx: a_idx,
+                };
+                let a_w = self.weights[&a_gen];
+                let a_elem = ext.generator(BidegreeGenerator::new(a_deg, a_idx));
+                let matrices = MultiIndexed::new();
+                for (&[n, s, w], src_group) in &groups {
+                    let Some(full) = ext.multiply_into(&a_elem, Bidegree::n_s(n, s)) else {
+                        continue;
+                    };
+                    let tgt = groups
+                        .get(&[n + a_deg.n(), s + a_deg.s(), w + a_w])
+                        .unwrap_or(&empty);
+                    // Row `i` = a · (source generator i), restricted to the
+                    // weight-`(w + a_w)` target generators, in group coordinates.
+                    let rows: Vec<Vec<u32>> = src_group
+                        .iter()
+                        .map(|&raw_i| {
+                            tgt.iter()
+                                .map(|&raw_j| full.row(raw_i).entry(raw_j))
+                                .collect()
+                        })
+                        .collect();
+                    matrices.insert(MultiDegree::from([n, s, w]), Matrix::from_vec(TWO, &rows));
+                }
+                Product {
+                    b: MultiDegree::from([a_deg.n(), a_deg.s(), a_w]),
+                    left: true,
+                    matrices,
+                }
+            })
+            .collect()
     }
 
     /// The deformation spectral sequence as an [`Sseq`], trigraded by $(n, s, w)$

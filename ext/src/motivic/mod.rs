@@ -49,7 +49,7 @@
 //!   ([`MotivicResolution::classical_ext_rank`], regressed against `Ext_A`).
 //! - **$\tau = 0$** — the generator counts: the algebraic Novikov $E_2$ (Phase 1).
 //! - **keep $\tau$** — free plus $\tau$-torsion: the motivic $E_2$ as a full
-//!   $\mathbb{F}_2[\tau]$-module (`tau_module`, structure
+//!   $\mathbb{F}_2[\tau]$-module ([`MotivicResolution::tau_module`], structure
 //!   theorem), including the $h_1$-tower classes ($h_1^n$, which are
 //!   $\mathbb{F}_2[\tau]/\tau$-torsion for $n \ge 4$) that the classical page kills.
 
@@ -71,13 +71,20 @@ use sseq::{Sseq, coordinates::Bidegree};
 
 use crate::{
     chain_complex::{ChainComplex, FiniteChainComplex},
+    ext_algebra::ExtAlgebra,
     resolution::Resolution,
 };
 
+mod cohomology;
 mod deformation;
+mod f2tau;
+mod massey;
 mod persist;
+mod products;
 
+pub use cohomology::TauModule;
 pub use deformation::Deformation;
+pub use massey::MotivicMassey;
 
 /// The $A_C/\tau$ resolution type: the trivial module resolved by the ordinary
 /// engine over the mod-$\tau$ Steenrod algebra.
@@ -97,6 +104,12 @@ pub struct Gen {
 pub struct MotivicResolution {
     algebra: Arc<CTauAlgebra>,
     resolution: Arc<CTauResolution>,
+    /// The Ext DGA: the mod-τ resolution wrapped so it stores the *dualized*
+    /// differential δ = Hom(d, k) and takes its cohomology (the motivic Adams
+    /// E₂). Built lazily on first cohomology query. This is the "Ext side" of the
+    /// resolution/functor split — the raw differential stays in the resolution
+    /// (`lifted`); δ lives here.
+    ext: OnceLock<ExtAlgebra<CTauResolution>>,
     /// The deformation (algebraic Novikov / τ-Bockstein) spectral sequence, built
     /// lazily — the source of truth for the free rank and τ-torsion. See
     /// [`Self::deformation_sseq`].
@@ -226,6 +239,7 @@ impl MotivicResolution {
         let mut this = Self {
             algebra,
             resolution,
+            ext: OnceLock::new(),
             deformation: OnceLock::new(),
             weights: Arc::new(HashMap::new()),
             lifted: HashMap::new(),
@@ -799,9 +813,32 @@ impl TauLift for DifferentialCells<'_> {
 
 #[cfg(test)]
 mod tests {
-    use sseq::coordinates::degree::MultiDegree;
+    use sseq::coordinates::{BidegreeGenerator, degree::MultiDegree, element::MultiDegreeElement};
 
     use super::*;
+
+    #[test]
+    fn ctau_products_run_via_ext_algebra() {
+        // ExtAlgebra's product machinery runs on the motivic (mod-τ) resolution:
+        // the cochain ring is Ext_{A_C/τ} = the algebraic Novikov E₂ = the Adams
+        // E₂ of Cτ. Exercise the h₀-tower, which is present there:
+        //   h₀ ∈ (n=0, s=1); h₀ⁿ is the (single) nonzero class of (n=0, s=n).
+        let res = MotivicResolution::new(Bidegree::n_s(8, 5));
+        let ext = res.ext();
+
+        assert_eq!(ext.dimension(Bidegree::n_s(0, 1)), 1, "h₀ is 1-dimensional");
+        let h0 = ext.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
+
+        // h₀ⁿ = h₀·h₀ⁿ⁻¹ stays nonzero up the tower (Cτ has an infinite h₀-tower).
+        let mut power = h0.clone();
+        for n in 2..=4 {
+            power = ext.multiply(&h0, &power);
+            let deg = Bidegree::n_s(0, n);
+            assert_eq!(power.degree(), deg, "h₀^{n} lands in (0,{n})");
+            assert_eq!(ext.dimension(deg), 1, "(0,{n}) is 1-dimensional");
+            assert!(!power.vec().is_zero(), "h₀^{n} should be nonzero");
+        }
+    }
 
     #[test]
     fn deformation_sseq_foundation() {
@@ -843,6 +880,248 @@ mod tests {
                 "inconsistent differential at {deg}"
             );
         }
+    }
+
+    #[test]
+    fn deformation_products_h0_tower() {
+        // Products wired into the Sseq: multiplication by h₀ (from ExtAlgebra on the
+        // mod-τ resolution) climbs the h₀-tower via Sseq::multiply. h₀ ∈ (0,1,0),
+        // and h₀ⁿ ∈ (0,n,0) stays nonzero (Cτ has an infinite h₀-tower), on E₁ and
+        // hence on every page.
+        let res = MotivicResolution::new(Bidegree::n_s(8, 5));
+        let sseq = res.deformation_sseq();
+        let prods = res.deformation_products(&[(Bidegree::n_s(0, 1), 0)]);
+        let h0 = &prods[0];
+
+        let mut v = FpVector::new(TWO, 1);
+        v.set_entry(0, 1);
+        let mut class = MultiDegreeElement::new(MultiDegree::from([0, 1, 0]), v);
+        for n in 2..=4 {
+            class = sseq.multiply(&class, h0).expect("h₀ product in range");
+            assert_eq!(
+                class.degree(),
+                MultiDegree::from([0, n, 0]),
+                "h₀^{n} degree"
+            );
+            assert!(!class.vec().is_zero(), "h₀^{n} should be nonzero");
+        }
+    }
+
+    #[test]
+    fn motivic_ctau_ring_relations() {
+        // The Cτ ring (= algebraic Novikov E₂ = E₁ of the deformation SS) acting
+        // through Sseq::multiply, checked against the standard Adams-E₂ relations.
+        // hᵢ lives at (2ⁱ−1, 1) with weight −(2ⁱ−1) (this presentation's sign).
+        let res = MotivicResolution::new(Bidegree::n_s(16, 10));
+        let sseq = res.deformation_sseq();
+
+        let h = [(0, "h0"), (1, "h1"), (3, "h2"), (7, "h3")];
+        let prods = res.deformation_products(
+            &h.iter()
+                .map(|&(n, _)| (Bidegree::n_s(n, 1), 0))
+                .collect::<Vec<_>>(),
+        );
+        let wt = |n: i32| {
+            res.generator_weight(Gen {
+                s: 1,
+                t: n + 1,
+                idx: 0,
+            })
+        };
+        let class_at = |n: i32, s: i32, w: i32| -> MultiDegreeElement<3> {
+            let deg = MultiDegree::from([n, s, w]);
+            let mut v = FpVector::new(TWO, sseq.get_dimension(deg).unwrap_or(0).max(1));
+            v.set_entry(0, 1);
+            MultiDegreeElement::new(deg, v)
+        };
+        // A product landing in an empty (undefined) bidegree is zero: Sseq::multiply
+        // returns None exactly then, so treat None as the zero class.
+        let is_zero =
+            |c: &Option<MultiDegreeElement<3>>| c.as_ref().is_none_or(|x| x.vec().is_zero());
+
+        // h₁-tower: h₁ⁿ ≠ 0 for all n (into the τ-torsion range n ≥ 4), at (n, n, −n).
+        let mut c = Some(class_at(1, 1, wt(1)));
+        for n in 2..=6 {
+            c = c.and_then(|x| sseq.multiply(&x, &prods[1]));
+            let x = c
+                .as_ref()
+                .unwrap_or_else(|| panic!("h₁^{n} fell out of range"));
+            assert_eq!(x.degree(), MultiDegree::from([n, n, -n]), "h₁^{n} degree");
+            assert!(!x.vec().is_zero(), "h₁^{n} should be nonzero (Cτ h₁-tower)");
+        }
+
+        // Adjacent Hopf elements multiply to zero: h₀h₁ = h₁h₂ = h₂h₃ = 0.
+        for i in 0..3 {
+            let (n, _) = h[i];
+            let prod = sseq.multiply(&class_at(n, 1, wt(n)), &prods[i + 1]);
+            assert!(is_zero(&prod), "{}·{} should vanish", h[i].1, h[i + 1].1);
+        }
+
+        // The motivic relation h₀²h₂ = τ·h₁³ shows up here as a *hidden τ-extension*:
+        // h₁³ ≠ 0 at weight −3, while h₀²h₂ vanishes in the Cτ ring (τ = 0) — it would
+        // land at (3, 3, −2), one weight up, empty on E₁. Recovering the τ requires
+        // the F₂[τ] product lift; the Cτ ring only sees the τ = 0 shadow.
+        let h1_cubed = {
+            let mut c = Some(class_at(1, 1, wt(1)));
+            for _ in 0..2 {
+                c = c.and_then(|x| sseq.multiply(&x, &prods[1]));
+            }
+            c.expect("h₁³ in range")
+        };
+        assert_eq!(h1_cubed.degree(), MultiDegree::from([3, 3, -3]));
+        assert!(!h1_cubed.vec().is_zero(), "h₁³ ≠ 0");
+        let h0sq_h2 = {
+            let mut c = Some(class_at(3, 1, wt(3)));
+            for _ in 0..2 {
+                c = c.and_then(|x| sseq.multiply(&x, &prods[0]));
+            }
+            c
+        };
+        assert!(
+            is_zero(&h0sq_h2),
+            "h₀²h₂ vanishes in the Cτ ring (the τ is hidden)"
+        );
+    }
+
+    #[test]
+    fn product_lift_is_a_chain_map_and_reduces_mod_tau() {
+        // The lifted product chain map φₐ must be an honest chain map over A_C —
+        // dφₐ = φₐd — and reduce mod τ (its weight-w(g)−w(a) part) to the Cτ product.
+        // The product analogue of verify_d_squared_zero. Cover h₀ (weight 0) and h₁
+        // (weight −1) so the weight convention w(φₐ g) = w(g) − w(a) is exercised.
+        let res = MotivicResolution::new(Bidegree::n_s(12, 8));
+        for a in [Gen { s: 1, t: 1, idx: 0 }, Gen { s: 1, t: 2, idx: 0 }] {
+            let wa = res.weights[&a];
+            let phi = res.lift_product(a, 6);
+
+            for (&g, support) in &phi {
+                let out_s = g.s - a.s;
+                let stem = g.t - g.s;
+                let in_cone = stem <= res.max().n() + res.max().s();
+                if out_s < 1 || !in_cone || !res.lifted.contains_key(&g) {
+                    continue;
+                }
+
+                // The chain-map defect d(φₐ g) + φₐ(dg) over A_C, in F_{s−aₛ−1}.
+                let def_mod = res.module(out_s - 1);
+                let mut parity = FpVector::new(TWO, def_mod.dimension(g.t - a.t));
+                let out_mod = res.module(out_s);
+                for &bidx in support {
+                    res.compose_into(
+                        &out_mod,
+                        g.t - a.t,
+                        out_s,
+                        &res.lifted,
+                        0,
+                        &def_mod,
+                        bidx,
+                        &mut parity,
+                    );
+                }
+                let f_sm1 = res.module(g.s - 1);
+                for &bidx in &res.lifted[&g] {
+                    res.compose_into(&f_sm1, g.t, g.s - 1, &phi, a.t, &def_mod, bidx, &mut parity);
+                }
+                assert!(
+                    parity.is_zero(),
+                    "product chain-map defect ≠ 0 at {g:?} (a={a:?})"
+                );
+
+                // Mod-τ reduction: the τ⁰ part of φₐ(g) — its entries at weight
+                // w(g) − w(a) — is the Cτ product; corrections sit at higher weight.
+                let w_src = res.weights[&g] - wa;
+                let mod_tau: BTreeSet<usize> = support
+                    .iter()
+                    .copied()
+                    .filter(|&b| res.entry_weight(out_s, g.t - a.t, b) == w_src)
+                    .collect();
+                let seed: BTreeSet<usize> = res
+                    .ext()
+                    .generator_product_map(BidegreeGenerator::new(
+                        Bidegree::n_s(a.t - a.s, a.s),
+                        a.idx,
+                    ))
+                    .get_map(g.s)
+                    .output(g.t, g.idx)
+                    .iter_nonzero()
+                    .filter(|(_, v)| *v != 0)
+                    .map(|(i, _)| i)
+                    .collect();
+                assert_eq!(mod_tau, seed, "φₐ(g) mod τ ≠ Cτ product at {g:?} (a={a:?})");
+            }
+        }
+    }
+
+    #[test]
+    fn nullhomotopy_lift_satisfies_dh_plus_hd_eq_product() {
+        // The lifted null-homotopy H of φ_b∘φ_a (a = h₀, b = h₁, so h₀h₁ = 0) must
+        // satisfy dH + Hd = φ_bφ_a over A_C — the defining equation of the homotopy,
+        // now with τ-powers. This is the third TauLift instance's verify.
+        let res = MotivicResolution::new(Bidegree::n_s(12, 8));
+        let a = Gen { s: 1, t: 1, idx: 0 }; // h₀
+        let b = Gen { s: 1, t: 2, idx: 0 }; // h₁
+        let (shift_s, shift_t) = (a.s + b.s, a.t + b.t);
+        let max_s = 6;
+        let phi_a = res.lift_product(a, max_s);
+        let phi_b = res.lift_product(b, max_s);
+        let h = res.lift_nullhomotopy(a, b, max_s);
+
+        let mut checked = 0;
+        for (&g, hg) in &h {
+            let out_s = g.s + 1 - shift_s;
+            let stem = g.t - g.s;
+            let in_cone = stem <= res.max().n() + res.max().s();
+            if out_s < 1 || !in_cone || !res.lifted.contains_key(&g) {
+                continue;
+            }
+            // defect = d(Hg) + H(dg) + φ_b(φ_a g), in F_{s−shiftₛ} at t−shiftₜ.
+            let def_mod = res.module(g.s - shift_s);
+            let mut parity = FpVector::new(TWO, def_mod.dimension(g.t - shift_t));
+            let out_mod = res.module(out_s);
+            for &bidx in hg {
+                res.compose_into(
+                    &out_mod,
+                    g.t - shift_t,
+                    out_s,
+                    &res.lifted,
+                    0,
+                    &def_mod,
+                    bidx,
+                    &mut parity,
+                );
+            }
+            let f_sm1 = res.module(g.s - 1);
+            for &bidx in &res.lifted[&g] {
+                res.compose_into(
+                    &f_sm1,
+                    g.t,
+                    g.s - 1,
+                    &h,
+                    shift_t,
+                    &def_mod,
+                    bidx,
+                    &mut parity,
+                );
+            }
+            if let Some(pa) = phi_a.get(&g) {
+                let a_mod = res.module(g.s - a.s);
+                for &bidx in pa {
+                    res.compose_into(
+                        &a_mod,
+                        g.t - a.t,
+                        g.s - a.s,
+                        &phi_b,
+                        b.t,
+                        &def_mod,
+                        bidx,
+                        &mut parity,
+                    );
+                }
+            }
+            assert!(parity.is_zero(), "dH + Hd ≠ φ_bφ_a at {g:?}");
+            checked += 1;
+        }
+        assert!(checked > 0, "no null-homotopy cells were checked");
     }
 
     #[test]
@@ -936,6 +1215,170 @@ mod tests {
     }
 
     #[test]
+    fn save_load_round_trips() {
+        // Resolving with a save directory, then reloading, reproduces the weights and
+        // lifted differentials exactly (and hence every downstream invariant).
+        let dir = std::env::temp_dir().join(format!("motivic-save-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let max = Bidegree::n_s(8, 5);
+
+        let fresh = MotivicResolution::with_module(
+            MotivicResolution::trivial_module(),
+            max,
+            Some(dir.clone()),
+        );
+        // A second construction with the same save dir must load, not recompute.
+        let loaded = MotivicResolution::with_module(
+            MotivicResolution::trivial_module(),
+            max,
+            Some(dir.clone()),
+        );
+
+        assert_eq!(*fresh.weights, *loaded.weights, "weights survive save/load");
+        assert_eq!(
+            fresh.lifted, loaded.lifted,
+            "lifted differentials survive save/load"
+        );
+        // And a spot-check that downstream data agrees.
+        for s in 0..max.s() {
+            for n in 0..=8 {
+                assert_eq!(
+                    fresh.tau_module(s, n + s).torsion,
+                    loaded.tau_module(s, n + s).torsion,
+                    "τ-module at (n={n}, s={s})"
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn motivic_massey_products_with_tau() {
+        // Triple Massey products over F₂[τ], read off the lifted null-homotopy.
+        let res = MotivicResolution::new(Bidegree::n_s(10, 7));
+        let h0 = Gen { s: 1, t: 1, idx: 0 };
+        let h1 = Gen { s: 1, t: 2, idx: 0 };
+        let h2 = Gen { s: 1, t: 4, idx: 0 };
+
+        // ⟨h₁, h₀, h₁⟩ = h₀h₂ (τ⁰): the classic Massey relation. The target is the
+        // (3,2) generator, which is exactly h₀·h₂.
+        let h0h2 = res.motivic_product(h0, h2)[0].0;
+        assert_eq!(
+            res.motivic_massey(h1, h0, h1),
+            vec![(h0h2, 0)],
+            "⟨h₁,h₀,h₁⟩ = h₀h₂"
+        );
+
+        // ⟨h₀, h₁, h₀⟩ = τ·h₁²: the C-motivic hidden-τ Massey product. The target is
+        // the (2,2) generator h₁², carried by τ¹ (the Cτ bracket vanishes).
+        let h1sq = res.motivic_product(h1, h1)[0].0;
+        assert_eq!(
+            res.motivic_massey(h0, h1, h0),
+            vec![(h1sq, 1)],
+            "⟨h₀,h₁,h₀⟩ = τ·h₁²"
+        );
+
+        // Both brackets have zero indeterminacy in this range (Ext vanishes at the
+        // relevant source degrees), so they are genuine non-trivial elements.
+        for (a, b, c) in [(h1, h0, h1), (h0, h1, h0)] {
+            let coset = res.motivic_massey_coset(a, b, c);
+            assert!(
+                coset.indeterminacy.is_empty(),
+                "expected zero indeterminacy"
+            );
+            assert!(!coset.is_zero, "bracket should be non-trivial");
+        }
+    }
+
+    #[test]
+    fn f2tau_reduce_mod_detects_membership() {
+        use super::f2tau::reduce_mod;
+        // Over F₂[τ], reduce vectors modulo the submodule spanned by rows.
+        // Rows: (1, τ) and (0, τ²). Column 0 pivot is the unit 1.
+        let rows = vec![vec![0b1u128, 0b10], vec![0, 0b100]];
+        // (1, τ) is in the span → reduces to 0.
+        assert!(
+            reduce_mod(rows.clone(), vec![0b1, 0b10])
+                .iter()
+                .all(|&x| x == 0)
+        );
+        // (1, 0): col-0 pivot kills entry 0, leaving (0, τ) from the first row; then
+        // (0, τ) mod (0, τ²) stays τ (τ has lower degree than τ²) → not in submodule.
+        assert!(
+            reduce_mod(rows.clone(), vec![0b1, 0])
+                .iter()
+                .any(|&x| x != 0)
+        );
+        // (0, τ³) = τ·(0, τ²) is in the span → reduces to 0.
+        assert!(reduce_mod(rows, vec![0, 0b1000]).iter().all(|&x| x == 0));
+    }
+
+    #[test]
+    fn motivic_product_recovers_hidden_tau_extension() {
+        // The headline hidden extension h₀²h₂ = τ·h₁³, computed from first principles
+        // by the F₂[τ] product lift. In the Cτ ring h₀²h₂ = 0 (motivic_ctau_ring_
+        // relations); here the τ appears.
+        let res = MotivicResolution::new(Bidegree::n_s(8, 6));
+        let h0 = Gen { s: 1, t: 1, idx: 0 };
+        let h2 = Gen { s: 1, t: 4, idx: 0 };
+        let h1cubed = Gen { s: 3, t: 6, idx: 0 }; // the sole generator at (3,3)
+
+        // h₀·h₂ is the Cτ-visible generator at (3,2) (τ⁰).
+        let h0h2 = res.motivic_product(h0, h2);
+        assert_eq!(
+            h0h2,
+            vec![(Gen { s: 2, t: 5, idx: 0 }, 0)],
+            "h₀h₂ at (3,2), τ⁰"
+        );
+
+        // h₀·(h₀h₂) = τ¹·h₁³ — the hidden extension.
+        let h0sq_h2 = res.motivic_product(h0, h0h2[0].0);
+        assert_eq!(h0sq_h2, vec![(h1cubed, 1)], "h₀²h₂ = τ·h₁³");
+
+        // Sanity: the h₁-tower products stay τ⁰ (h₁ⁿ is the honest Cτ product, no
+        // hidden τ), even though h₁ⁿ is τ-torsion for n ≥ 4.
+        let h1 = Gen { s: 1, t: 2, idx: 0 };
+        let h1sq = res.motivic_product(h1, h1);
+        assert_eq!(h1sq, vec![(Gen { s: 2, t: 4, idx: 0 }, 0)], "h₁² τ⁰");
+        assert_eq!(
+            res.motivic_product(h1, h1sq[0].0),
+            vec![(h1cubed, 0)],
+            "h₁³ τ⁰"
+        );
+    }
+
+    #[test]
+    fn deformation_sseq_converges_to_classical() {
+        // The strong oracle for the full d_r tower: E_∞ survivors summed over weight
+        // = the classical Adams E₂ (invert τ). Every differential is validated —
+        // a wrong d_r would leave the free rank off at some bidegree.
+        let max = Bidegree::n_s(8, 5);
+        let res = MotivicResolution::new(max);
+        let sseq = res.deformation_sseq();
+
+        let mut einf: HashMap<(i32, i32), usize> = HashMap::new();
+        for deg in sseq.iter_degrees() {
+            let [n, s, _] = deg.coords();
+            let page = sseq.page_data(deg);
+            let last = page.len() - 1; // the final (E_∞) page for this degree
+            *einf.entry((n, s)).or_default() += page[last].dimension();
+        }
+
+        for s in 0..res.max_s() {
+            for n in 0..=8 {
+                let got = einf.get(&(n, s)).copied().unwrap_or(0);
+                // Cross-check the Sseq E_∞ against the independent ExtAlgebra path.
+                let want = res
+                    .ext()
+                    .cohomology_dimension(Bidegree::n_s(n, s))
+                    .unwrap_or(0);
+                assert_eq!(got, want, "E_∞ free rank at (n={n}, s={s})");
+            }
+        }
+    }
+
+    #[test]
     fn lift_is_a_complex_and_reduces_correctly() {
         // Build once (expensive: the padded resolution plus the lift), then check
         // everything: every generator in the report box has a weight; reducing
@@ -1008,6 +1451,93 @@ mod tests {
                     got, want,
                     "invert-τ mismatch at (n={n}, s={s}): H(δ) free rank {got} ≠ classical {want}"
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn anchor_keep_tau_has_h1_tower_torsion() {
+        // Anchor 3: keeping τ, the motivic E₂ carries τ-torsion the classical page
+        // does not. The cleanest witness is the h₁-tower: h₁ⁿ = (h₁)ⁿ ∈ Ext^{n,2n}
+        // is nonzero for all n motivically, but classically h₁⁴ = 0. So at
+        // (s,t)=(4,8) the free (classical) rank is 0, yet h₁⁴ itself is a τ-torsion
+        // class there — δ(h₁⁴) = τ·y, so τ·[h₁⁴] = 0: an F₂[τ]/τ summand at (4,4).
+        let max = Bidegree::n_s(8, 5);
+        let res = MotivicResolution::new(max);
+
+        let m = res.tau_module(4, 8);
+        assert_eq!(m.free, 0, "classical h₁⁴ should vanish (free rank 0)");
+        assert_eq!(
+            m.torsion,
+            vec![1],
+            "h₁⁴ at (s=4, t=8) should be a single F₂[τ]/τ torsion summand"
+        );
+        assert!(res.has_tau_torsion(4, 8));
+
+        // Sanity: h₁³ (s=3, t=6) is already nonzero classically, so it is free —
+        // not flagged as (extra) torsion beyond its classical class.
+        let m3 = res.tau_module(3, 6);
+        assert_eq!(m3.free, 1, "classical h₁³ should survive");
+        assert!(m3.torsion.is_empty(), "h₁³ is free, not τ-torsion");
+    }
+
+    #[test]
+    fn tau_module_h1_tower_is_free_then_tau_torsion() {
+        // The whole h₁-tower h₁ⁿ ∈ Ext^{n,2n} (stem n, filtration n): free (a genuine
+        // classical class) for n ≤ 3, then a single F₂[τ]/τ summand for n ≥ 4 — the
+        // motivic τ-torsion the classical page cannot see.
+        let res = MotivicResolution::new(Bidegree::n_s(10, 9));
+        for n in 1..=3 {
+            let m = res.tau_module(n, 2 * n);
+            assert_eq!(
+                (m.free, m.torsion.as_slice()),
+                (1, [].as_slice()),
+                "h₁^{n} free"
+            );
+        }
+        for n in 4..=8 {
+            let m = res.tau_module(n, 2 * n);
+            assert_eq!(
+                (m.free, m.torsion.as_slice()),
+                (0, [1].as_slice()),
+                "h₁^{n} = F₂[τ]/τ"
+            );
+        }
+    }
+
+    #[test]
+    fn tau_module_torsion_matches_deformation_sseq_sources() {
+        // The F₂[τ]-module torsion (SNF of the outgoing δ) is exactly the data the
+        // deformation SS carries: a class at (n, s) is F₂[τ]/τ^r-torsion iff it
+        // supports a d_r there. Cross-check the local SNF reading against the SS's
+        // differential sources over the interior (away from the report edge, where
+        // the finite compute box makes the SS over-count).
+        let res = MotivicResolution::new(Bidegree::n_s(16, 11));
+        let sseq = res.deformation_sseq();
+
+        let mut sources: HashMap<(i32, i32), Vec<i32>> = HashMap::new();
+        for b in sseq.iter_degrees() {
+            let [n, s, _] = b.coords();
+            let diffs = sseq.differentials(b);
+            for r in diffs.min_degree()..diffs.len() {
+                for _ in 0..diffs[r].get_source_target_pairs().len() {
+                    sources.entry((n, s)).or_default().push(r);
+                }
+            }
+        }
+
+        for n in 0..=12 {
+            for s in 1..=10 {
+                let mut snf: Vec<i32> = res
+                    .tau_module(s, n + s)
+                    .torsion
+                    .iter()
+                    .map(|&k| k as i32)
+                    .collect();
+                snf.sort_unstable();
+                let mut ss = sources.get(&(n, s)).cloned().unwrap_or_default();
+                ss.sort_unstable();
+                assert_eq!(snf, ss, "torsion vs d_r sources at (n={n}, s={s})");
             }
         }
     }
