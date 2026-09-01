@@ -268,7 +268,7 @@ mod tests {
     use fp::vector::FpVector;
 
     use super::*;
-    use crate::algebra::{GeneratedAlgebra, milnor_algebra::MilnorProfile};
+    use crate::algebra::{Bialgebra, GeneratedAlgebra, milnor_algebra::MilnorProfile};
 
     /// The exterior flavour at `p = 2` is $A^{\mathbb{C}}/\tau$, the mod-$\tau$ reduction of the
     /// C-motivic Steenrod algebra. That configuration is unreachable through [`MilnorAlgebra`],
@@ -549,6 +549,25 @@ mod tests {
                 algebra.generators(8).is_empty(),
                 "the profile should exclude P(4) in degree 8"
             );
+        }
+
+        /// The coproduct is not available on this flavour at all.
+        ///
+        /// It is a compile-time restriction rather than an assertion, so this only records that
+        /// the classical one still works and that `MilnorAlgebraInner<Exterior>` does not offer
+        /// the method. The formula ignores the exterior part and grades $\xi_i$ with `q = 1`, so
+        /// reaching it here would give a wrong answer, not an error.
+        #[test]
+        fn the_classical_coproduct_is_unaffected() {
+            let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
+            classical.compute_basis(8);
+            let idx = classical.basis_element_to_index(&MilnorBasisElement {
+                q_part: 0,
+                p_part: PPart::from_iter([2]),
+                degree: 2,
+            });
+            // Sq^2 |-> Sq^2 (x) 1 + Sq^1 (x) Sq^1 + 1 (x) Sq^2.
+            assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
         /// Generators generate: every basis element in low degrees is a product of them.

@@ -1,4 +1,4 @@
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, PPart};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, NoExterior, PPart};
 use crate::algebra::{Algebra, Bialgebra, combinatorics};
 
 impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
@@ -22,7 +22,10 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> Bialgebra for MilnorAlgebraInner<F> {
+/// The coproduct drops the exterior part and grades the polynomial part with `q = 1`, so this is
+/// written for [`NoExterior`] alone. `MilnorAlgebraInner<Exterior>` at `p = 2` would satisfy a
+/// guard on the prime and then silently take the wrong formula.
+impl Bialgebra for MilnorAlgebraInner<NoExterior> {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {
@@ -77,7 +80,6 @@ impl<F: MilnorFlavour> Bialgebra for MilnorAlgebraInner<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::milnor_algebra::NoExterior;
 
     /// `increment_p_part` walks up to and including `max`, whose top entry may saturate its field.
     /// Incrementing before carrying would overflow there.

@@ -461,13 +461,19 @@ impl PairAlgebra for MilnorAlgebra {
     type Element = MilnorPairElement;
 
     dispatch_pair_milnor! {
-        fn p_tilde(&self) -> usize;
         fn new_pair_element(&self, degree: i32) -> Self::Element;
         fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
         fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
         fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
         fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
+    }
+
+    /// Unlike the rest of this impl, this does not depend on the flavour: it was `0` at every
+    /// prime before the algebra was split, and dispatching it would turn an odd-prime call from a
+    /// value into a panic.
+    fn p_tilde(&self) -> usize {
+        0
     }
 
     fn element_is_zero(elt: &Self::Element) -> bool {

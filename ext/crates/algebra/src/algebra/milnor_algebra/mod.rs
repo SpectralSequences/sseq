@@ -288,7 +288,7 @@ macro_rules! dispatch_milnor {
 /// is a different algebra rather than a different presentation of this one; it is reached through
 /// its own wrapper, not from here.
 #[allow(clippy::large_enum_variant)]
-#[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
+#[enum_dispatch::enum_dispatch(Algebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum MilnorAlgebra {
     Polynomial(MilnorAlgebraInner<NoExterior>),
     Exterior(MilnorAlgebraInner<Exterior>),
@@ -330,6 +330,23 @@ impl MilnorAlgebra {
 impl MilnorAlgebra {
     dispatch_milnor! {
         fn stores_basis_table(&self) -> bool;
+    }
+}
+
+/// Forwards to the classical flavour, which is the only one with a coproduct.
+///
+/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where the coproduct
+/// was already unsupported.
+impl Bialgebra for MilnorAlgebra {
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
+        match self {
+            Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
+            Self::Exterior(_) => unimplemented!("Coproduct at odd primes not supported"),
+        }
+    }
+
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
+        vec![(op_deg, op_idx)]
     }
 }
 
