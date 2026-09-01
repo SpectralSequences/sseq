@@ -46,8 +46,7 @@
 //! fall out:
 //!
 //! - **invert $\tau$** — the free rank (all generators): the classical Adams $E_2$
-//!   (`classical_ext_rank`, regressed against `Ext_A`; lands with the deformation
-//!   spectral sequence).
+//!   ([`MotivicResolution::classical_ext_rank`], regressed against `Ext_A`).
 //! - **$\tau = 0$** — the generator counts: the algebraic Novikov $E_2$ (Phase 1).
 //! - **keep $\tau$** — free plus $\tau$-torsion: the motivic $E_2$ as a full
 //!   $\mathbb{F}_2[\tau]$-module (`tau_module`, structure
@@ -57,7 +56,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use algebra::{
@@ -68,14 +67,17 @@ use algebra::{
 use bivec::BiVec;
 use fp::{prime::TWO, vector::FpVector};
 use maybe_rayon::prelude::*;
-use sseq::coordinates::Bidegree;
+use sseq::{Sseq, coordinates::Bidegree};
 
 use crate::{
     chain_complex::{ChainComplex, FiniteChainComplex},
     resolution::Resolution,
 };
 
+mod deformation;
 mod persist;
+
+pub use deformation::Deformation;
 
 /// The $A_C/\tau$ resolution type: the trivial module resolved by the ordinary
 /// engine over the mod-$\tau$ Steenrod algebra.
@@ -95,6 +97,10 @@ pub struct Gen {
 pub struct MotivicResolution {
     algebra: Arc<CTauAlgebra>,
     resolution: Arc<CTauResolution>,
+    /// The deformation (algebraic Novikov / τ-Bockstein) spectral sequence, built
+    /// lazily — the source of truth for the free rank and τ-torsion. See
+    /// [`Self::deformation_sseq`].
+    deformation: OnceLock<Sseq<3, Deformation>>,
     /// Motivic weight of each generator. `Arc`-shared with the Ext DGA's
     /// the Ext DGA's coboundary (which slices by it) rather than copied.
     weights: Arc<HashMap<Gen, i32>>,
@@ -220,6 +226,7 @@ impl MotivicResolution {
         let mut this = Self {
             algebra,
             resolution,
+            deformation: OnceLock::new(),
             weights: Arc::new(HashMap::new()),
             lifted: HashMap::new(),
             max,
@@ -792,8 +799,76 @@ impl TauLift for DifferentialCells<'_> {
 
 #[cfg(test)]
 mod tests {
+    use sseq::coordinates::degree::MultiDegree;
 
     use super::*;
+
+    #[test]
+    fn deformation_sseq_foundation() {
+        // The deformation SS stored as an Sseq: E₁ = Ext_{A_C/τ} trigraded by
+        // (n,s,w), d₁ = the weight-1 part of δ.
+        let res = MotivicResolution::new(Bidegree::n_s(8, 5));
+        let sseq = res.deformation_sseq();
+
+        // E₁ grouping: summing the weight slices at (n,s) recovers the algebraic
+        // Novikov rank (the mod-τ generator count).
+        let mut totals: HashMap<(i32, i32), usize> = HashMap::new();
+        for deg in sseq.iter_degrees() {
+            let [n, s, _] = deg.coords();
+            *totals.entry((n, s)).or_default() += sseq.dimension(deg);
+        }
+        for (&(n, s), &total) in &totals {
+            if (0..=8).contains(&n) && (0..=5).contains(&s) {
+                assert_eq!(
+                    total,
+                    res.algebraic_novikov_rank(s, n + s),
+                    "E₁ weight slices at (n={n}, s={s}) should sum to the generator count"
+                );
+            }
+        }
+
+        // h₀ ∈ (n=0, s=1, w=0): δ(h₀) = ∅, so it is a permanent cycle.
+        let h0 = MultiDegree::from([0, 1, 0]);
+        assert_eq!(sseq.get_dimension(h0), Some(1), "h₀ is 1-dimensional");
+        assert_eq!(
+            sseq.permanent_classes(h0).dimension(),
+            1,
+            "h₀ (δ = ∅) should be a permanent cycle"
+        );
+
+        // Every d₁ we added is consistent.
+        for deg in sseq.iter_degrees() {
+            assert!(
+                !sseq.inconsistent(deg),
+                "inconsistent differential at {deg}"
+            );
+        }
+    }
+
+    #[test]
+    fn resolves_a_nontrivial_module_moore_space() {
+        // Resolve S/2 (cofiber of 2 = h₀): cells x₀, x₁ joined by Q₀ = Sq¹. The whole
+        // deformation pipeline runs on a non-trivial module, and because 2 = h₀ is
+        // coned off, the h₀-tower on the bottom cell is truncated — the sphere has
+        // h₀ⁿ ≠ 0 at (0, n) for all n, but S/2 has only the bottom class.
+        // Build S/2 from a .json descriptor (exercising module_from_json /
+        // basis_element_from_string over the motivic Steenrod algebra).
+        let descriptor = serde_json::json!({
+            "gens": { "x0": 0, "x1": 1 },
+            "actions": ["Q_0 x0 = x1"],
+        });
+        let module = MotivicResolution::module_from_json(&descriptor).unwrap();
+        let sphere = MotivicResolution::new(Bidegree::n_s(8, 6));
+        let moore = MotivicResolution::with_module(module, Bidegree::n_s(8, 6), None);
+
+        // The bottom class survives on both.
+        assert_eq!(moore.classical_ext_rank(0, 0), 1, "S/2 bottom cell");
+        // The h₀-tower (stem 0, filtration ≥ 1): present on the sphere, gone on S/2.
+        for s in 1..=4 {
+            assert_eq!(sphere.classical_ext_rank(s, s), 1, "sphere h₀^{s}");
+            assert_eq!(moore.classical_ext_rank(s, s), 0, "S/2 kills h₀^{s}");
+        }
+    }
 
     #[test]
     fn module_descriptor_auto_extends_composite_operations() {
@@ -903,5 +978,37 @@ mod tests {
             delta_entries > 0,
             "the lift produced no δ (augmentation) terms"
         );
+    }
+
+    #[test]
+    fn anchor_invert_tau_is_classical_adams_e2() {
+        // Anchor 1: inverting τ (the free rank of H(δ), all generators) reproduces
+        // the classical Adams E₂ — Ext over the mod-2 Steenrod algebra. We resolve
+        // the classical sphere in-process and compare rank-for-rank. This is where
+        // the τ-torsion (e.g. the h₁-tower classes beyond h₁⁴) is *killed*: the
+        // motivic algebraic-Novikov extras collapse back onto classical Ext.
+        use crate::{chain_complex::FreeChainComplex, utils::construct_standard};
+
+        let max = Bidegree::n_s(8, 5);
+        let res = MotivicResolution::new(max);
+
+        let classical = construct_standard::<false, _, _>("S_2", None).unwrap();
+        classical.compute_through_stem(max);
+
+        // classical_ext_rank(s, t) needs the lift at s+1, so s ≤ max_s − 1.
+        for s in 0..res.max_s() {
+            for t in s..=(max.n() + s) {
+                let n = t - s;
+                if n > max.n() {
+                    continue;
+                }
+                let got = res.classical_ext_rank(s, t);
+                let want = classical.number_of_gens_in_bidegree(Bidegree::n_s(n, s));
+                assert_eq!(
+                    got, want,
+                    "invert-τ mismatch at (n={n}, s={s}): H(δ) free rank {got} ≠ classical {want}"
+                );
+            }
+        }
     }
 }
