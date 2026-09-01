@@ -453,6 +453,32 @@ fn a_y_inner(
     result
 }
 
+/// Forwards to the classical flavour; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
+///
+/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where this machinery
+/// does not apply.
+impl PairAlgebra for MilnorAlgebra {
+    type Element = MilnorPairElement;
+
+    dispatch_pair_milnor! {
+        fn p_tilde(&self) -> usize;
+        fn new_pair_element(&self, degree: i32) -> Self::Element;
+        fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
+        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
+        fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
+        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
+        fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
+    }
+
+    fn element_is_zero(elt: &Self::Element) -> bool {
+        MilnorAlgebraInner::<NoExterior>::element_is_zero(elt)
+    }
+
+    fn finalize_element(elt: &mut Self::Element) {
+        MilnorAlgebraInner::<NoExterior>::finalize_element(elt);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use expect_test::{Expect, expect};
@@ -495,31 +521,5 @@ mod tests {
         check(&[0, 1], 0, 1, expect![["P(1, 1)"]]);
         check(&[0, 2], 1, 3, expect![["P(0, 0, 2)"]]);
         check(&[1, 2], 0, 1, expect![["P(2, 2)"]]);
-    }
-}
-
-/// Forwards to the classical flavour; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
-///
-/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where this machinery
-/// does not apply.
-impl PairAlgebra for MilnorAlgebra {
-    type Element = MilnorPairElement;
-
-    dispatch_pair_milnor! {
-        fn p_tilde(&self) -> usize;
-        fn new_pair_element(&self, degree: i32) -> Self::Element;
-        fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
-        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
-        fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
-        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
-        fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
-    }
-
-    fn element_is_zero(elt: &Self::Element) -> bool {
-        MilnorAlgebraInner::<NoExterior>::element_is_zero(elt)
-    }
-
-    fn finalize_element(elt: &mut Self::Element) {
-        MilnorAlgebraInner::<NoExterior>::finalize_element(elt);
     }
 }
