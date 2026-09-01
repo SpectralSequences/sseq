@@ -165,7 +165,7 @@ impl MotivicResolution {
             compute,
         };
         let t1 = std::time::Instant::now();
-        this.compute_weights();
+        this.compute_weights()?;
         if profile {
             eprintln!("[profile] weights:    {:?}", t1.elapsed());
         }
@@ -409,7 +409,7 @@ impl MotivicResolution {
     /// if any generator turns out weight-inhomogeneous (which would violate the
     /// bigraded structure and break the valuation representation).
     #[tracing::instrument(skip(self), fields(num_weights = tracing::field::Empty))]
-    fn compute_weights(&mut self) {
+    fn compute_weights(&mut self) -> anyhow::Result<()> {
         // Built locally, then `Arc`-shared into `self.weights` (and the Ext DGA) — no copy.
         let mut weights: HashMap<Gen, i32> = HashMap::new();
         // s = 0: the single generator is the unit, weight 0. Only the generator at
@@ -418,13 +418,13 @@ impl MotivicResolution {
         // let an unseeded generator surface as a `HashMap` index panic much later.
         for t in 0..=self.compute.n() {
             let expected = usize::from(t == 0);
-            assert_eq!(
-                self.num_gens(0, t),
-                expected,
-                "the motivic lift supports modules cyclic on a degree-0 class; this one needs {} \
-                 generator(s) at (s = 0, t = {t})",
-                self.num_gens(0, t),
-            );
+            let actual = self.num_gens(0, t);
+            if actual != expected {
+                anyhow::bail!(
+                    "the motivic lift supports modules cyclic on a degree-0 class; this one needs \
+                     {actual} generator(s) at (s = 0, t = {t})"
+                );
+            }
         }
         weights.insert(Gen { s: 0, t: 0, idx: 0 }, 0);
 
@@ -467,6 +467,7 @@ impl MotivicResolution {
         }
         tracing::Span::current().record("num_weights", weights.len());
         self.weights = Arc::new(weights);
+        Ok(())
     }
 
     /// The $\delta$-entries out of generator `g`: the identity-operation
