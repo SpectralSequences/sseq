@@ -781,7 +781,17 @@ impl<F: MilnorFlavour> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn magic(&self) -> u32 {
+        // Saved resolutions store coefficients by basis index, so two algebras sharing a magic
+        // decode each other's files as their own basis. The prime settles the flavour everywhere
+        // except `Exterior` at `p = 2`, so only that case takes a bit; every configuration that
+        // could already have written a file keeps the value it had.
+        let flavour = if F::HAS_EXTERIOR && self.p == 2 {
+            0x4000
+        } else {
+            0
+        };
         (self.p << 16)
+            + flavour
             + if self.profile.is_trivial() {
                 0x8000
             } else {
@@ -3145,6 +3155,30 @@ mod tests {
             });
             // Sq^2 |-> Sq^2 (x) 1 + Sq^1 (x) Sq^1 + 1 (x) Sq^2.
             assert_eq!(classical.coproduct(2, idx).len(), 3);
+        }
+
+        /// The two flavours at `p = 2` must not share a [`Algebra::magic`].
+        ///
+        /// `SaveFile` validates the header against it, so a collision would let a file written
+        /// over one basis load as the other with every coefficient reindexed. The literals pin
+        /// the classical values, which are a wire format: changing one invalidates saved
+        /// resolutions without any error at load time.
+        #[test]
+        fn magic_distinguishes_the_flavours() {
+            let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);
+            let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
+            assert_ne!(exterior.magic(), classical.magic());
+
+            assert_eq!(classical.magic(), 0x0002_8000);
+            assert_eq!(MilnorAlgebra::new(TWO, false).magic(), 0x0002_8000);
+            assert_eq!(
+                MilnorAlgebra::new(ValidPrime::new(3), false).magic(),
+                0x0003_8000
+            );
+            assert_eq!(
+                MilnorAlgebra::new(ValidPrime::new(5), false).magic(),
+                0x0005_8000
+            );
         }
 
         /// Generators generate: every basis element in low degrees is a product of them.
