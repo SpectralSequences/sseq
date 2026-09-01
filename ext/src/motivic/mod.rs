@@ -115,7 +115,7 @@ impl MotivicResolution {
     /// Resolve the trivial module $k$ over $A_C/\tau$ (the sphere) through the box
     /// `max`, in memory. Shorthand for [`Self::with_module`] on `k` with no save
     /// directory.
-    pub fn new(max: Bidegree) -> Self {
+    pub fn new(max: Bidegree) -> anyhow::Result<Self> {
         Self::with_module(Self::trivial_module(), max, None)
     }
 
@@ -180,14 +180,11 @@ impl MotivicResolution {
         module: Arc<FDModule<CTauAlgebra>>,
         max: Bidegree,
         save_dir: Option<PathBuf>,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         let algebra = module.algebra();
         let cc: Arc<FiniteChainComplex<FDModule<CTauAlgebra>>> =
             Arc::new(FiniteChainComplex::ccdz(module));
-        let resolution = Arc::new(
-            Resolution::new_with_save(cc, save_dir.clone())
-                .expect("failed to open the resolution save directory"),
-        );
+        let resolution = Arc::new(Resolution::new_with_save(cc, save_dir.clone())?);
         // Resolve the report box **plus exactly one stem** with
         // `compute_through_stem`. Ext at `(s, t)` is `H(δ)`, and δ maps `(s, t) →
         // (s-1, t)` — same internal degree, one lower Novikov filtration, hence
@@ -246,7 +243,7 @@ impl MotivicResolution {
             }
             this.save_lift(&save_dir);
         }
-        this
+        Ok(this)
     }
 
     /// The mod-$\tau$ resolution (the Phase 1 model).
@@ -867,7 +864,7 @@ mod tests {
         // each lifted differential mod τ recovers the Phase 1 model; and d² = 0
         // over A_C (the corrections worked).
         let max = Bidegree::n_s(8, 5);
-        let res = MotivicResolution::new(max);
+        let res = MotivicResolution::new(max).unwrap();
 
         // The unit has weight 0, and every generator in range has a weight.
         assert_eq!(res.generator_weight(Gen { s: 0, t: 0, idx: 0 }), 0);
