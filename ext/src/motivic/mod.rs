@@ -127,6 +127,10 @@ impl MotivicResolution {
     /// { "gens": { "x0": 0, "x1": 1 }, "actions": ["Q_0 x0 = x1"] }
     /// ```
     ///
+    /// $S/2$ is cyclic on $x_0$ ($Q_0 x_0 = x_1$), which is what [`Self::with_module`]
+    /// supports: the lift seeds a weight only on a degree-0 generator, so a module needing
+    /// a second one is rejected there.
+    ///
     /// This is exactly the classical [`FDModule::from_json`] path, made available by
     /// the [`GeneratedAlgebra`](algebra::GeneratedAlgebra) implementation of
     /// $A_C/\tau$: only the actions of the *generators* ($Q_0$ and the $P(\xi_1^{2^k})
@@ -232,7 +236,7 @@ impl MotivicResolution {
             }
         } else {
             let t1 = std::time::Instant::now();
-            this.compute_weights();
+            this.compute_weights()?;
             if profile {
                 eprintln!("[profile] weights:    {:?}", t1.elapsed());
             }
@@ -458,7 +462,7 @@ impl MotivicResolution {
     /// if any generator turns out weight-inhomogeneous (which would violate the
     /// bigraded structure and break the valuation representation).
     #[tracing::instrument(skip(self), fields(num_weights = tracing::field::Empty))]
-    fn compute_weights(&mut self) {
+    fn compute_weights(&mut self) -> anyhow::Result<()> {
         // Built locally, then `Arc`-shared into `self.weights` (and the Ext DGA) — no copy.
         let mut weights: HashMap<Gen, i32> = HashMap::new();
         // s = 0: the single generator is the unit, weight 0. Only the generator at
@@ -467,13 +471,13 @@ impl MotivicResolution {
         // let an unseeded generator surface as a `HashMap` index panic much later.
         for t in 0..=self.compute.n() {
             let expected = usize::from(t == 0);
-            assert_eq!(
-                self.num_gens(0, t),
-                expected,
-                "the motivic lift supports modules cyclic on a degree-0 class; this one needs {} \
-                 generator(s) at (s = 0, t = {t})",
-                self.num_gens(0, t),
-            );
+            let actual = self.num_gens(0, t);
+            if actual != expected {
+                anyhow::bail!(
+                    "the motivic lift supports modules cyclic on a degree-0 class; this one needs \
+                     {actual} generator(s) at (s = 0, t = {t})"
+                );
+            }
         }
         weights.insert(Gen { s: 0, t: 0, idx: 0 }, 0);
 
@@ -516,6 +520,7 @@ impl MotivicResolution {
         }
         tracing::Span::current().record("num_weights", weights.len());
         self.weights = Arc::new(weights);
+        Ok(())
     }
 
     /// The $\delta$-entries out of generator `g`: the identity-operation
