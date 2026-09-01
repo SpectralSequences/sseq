@@ -183,8 +183,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
-    /// Enumerate exterior parts whose degree fits, pairing each with the p-parts that make up
-    /// the rest of the degree.
+    /// Pair each exterior part with the p-parts making up the rest of the degree.
     ///
     /// Only the exterior parts congruent to the degree mod `q` can occur, since every
     /// `TAU_DEGREES[k]` is `1` mod `q`.
@@ -236,7 +235,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
-    /// Re-wrap the p-part table, which already is the basis when there is no exterior part.
+    /// Re-wrap the p-part table as basis elements.
     fn generate_basis_polynomial(&self, max_degree: i32) {
         if !self.stores_basis_table() {
             // Derived on demand from `ppart_table`; see the field docs.
