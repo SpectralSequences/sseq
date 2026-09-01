@@ -4,10 +4,10 @@ use fp::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{MilnorAlgebra, MilnorBasisElement, PPart, PPartAllocation};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, PPart, PPartAllocation};
 use crate::algebra::{Algebra, UnstableAlgebra, combinatorics};
 
-impl Algebra for MilnorAlgebra {
+impl<F: MilnorFlavour> Algebra for MilnorAlgebraInner<F> {
     fn prefix(&self) -> &str {
         "milnor"
     }
@@ -26,51 +26,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-        let mut products = Vec::with_capacity(4);
-        let max_degree = if self.generic() {
-            if self.profile.q_part & 1 != 0 {
-                products.push((
-                    "a_0".to_string(),
-                    MilnorBasisElement {
-                        degree: 1,
-                        q_part: 1,
-                        p_part: PPart::zero(),
-                    },
-                ));
-            }
-            if (self.profile.p_part.is_empty() && !self.profile.truncated)
-                || (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0)
-            {
-                products.push((
-                    "h_0".to_string(),
-                    MilnorBasisElement {
-                        degree: (2 * self.prime() - 2) as i32,
-                        q_part: 0,
-                        p_part: PPart::from_iter([1]),
-                    },
-                ));
-            }
-            (2 * self.prime() - 2) as i32
-        } else {
-            let mut max = 4;
-            if !self.profile.p_part.is_empty() {
-                max = std::cmp::min(4, self.profile.p_part[0]);
-            } else if self.profile.truncated {
-                max = 0;
-            }
-            for i in 0..max {
-                let degree = 1 << i; // degree is 2^hi
-                products.push((
-                    format!("h_{i}"),
-                    MilnorBasisElement {
-                        degree,
-                        q_part: 0,
-                        p_part: PPart::from_iter([1 << i]),
-                    },
-                ));
-            }
-            1 << 3
-        };
+        let (products, max_degree) = F::filtration_one_products(self);
         self.compute_basis(max_degree + 1);
 
         products
@@ -89,11 +45,7 @@ impl Algebra for MilnorAlgebra {
         );
         self.compute_ppart(max_degree);
 
-        if self.generic() {
-            self.generate_basis_generic(max_degree);
-        } else {
-            self.generate_basis_2(max_degree);
-        }
+        F::generate_basis(self, max_degree);
 
         // Populate hash map
         self.basis_element_to_index_map
@@ -301,7 +253,7 @@ impl Algebra for MilnorAlgebra {
                         q_part,
                         p_part,
                     };
-                    elt.compute_degree(p);
+                    self.compute_degree(&mut elt);
                     if elt.degree > PPart::MAX_DEGREE {
                         return None;
                     }
@@ -321,7 +273,7 @@ impl Algebra for MilnorAlgebra {
     }
 }
 
-impl UnstableAlgebra for MilnorAlgebra {
+impl<F: MilnorFlavour> UnstableAlgebra for MilnorAlgebraInner<F> {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
         if degree < 0 || excess < 0 {
             0
@@ -353,7 +305,7 @@ impl UnstableAlgebra for MilnorAlgebra {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::milnor_algebra::MilnorProfile;
+    use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
 
     #[test]
     fn basis_element_from_string_total_milnor() {
