@@ -636,22 +636,27 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
 impl MilnorFlavour for NoExterior {
     const HAS_EXTERIOR: bool = false;
 
+    /// The polynomial grading is unscaled: $\xi_i$ has degree `XI_DEGREES[i]` exactly.
     fn q(_p: ValidPrime) -> i32 {
         1
     }
 
+    /// The basis is the $\xi$ monomials, so it is a re-wrapping of the p-part table.
     fn generate_basis(algebra: &MilnorAlgebraInner<Self>, max_degree: i32) {
         algebra.generate_basis_polynomial(max_degree);
     }
 
+    /// Every generator is polynomial; there is no exterior part to contribute any.
     fn generators(algebra: &MilnorAlgebraInner<Self>, degree: i32) -> Vec<usize> {
         algebra.polynomial_generator(degree)
     }
 
+    /// $P(n)$ is written $Sq^n$ at the prime 2.
     fn generator_to_string(algebra: &MilnorAlgebraInner<Self>, degree: i32, idx: usize) -> String {
         algebra.polynomial_generator_to_string(degree, idx, "Sq")
     }
 
+    /// The $h_i$, dual to $Sq^{2^i}$, capped at four and cut down by the profile.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
     ) -> (Vec<(String, MilnorBasisElement)>, i32) {
@@ -683,14 +688,18 @@ impl MilnorFlavour for NoExterior {
 impl MilnorFlavour for Exterior {
     const HAS_EXTERIOR: bool = true;
 
+    /// At `p = 2` this is 2, the scale $A^{\mathbb{C}}/\tau$ needs — the classical algebra takes
+    /// `q = 1` there because it is the *other* flavour, not because the formula fails.
     fn q(p: ValidPrime) -> i32 {
         2 * (p.as_i32() - 1)
     }
 
+    /// The basis runs over exterior parts, pairing each with the p-parts of the residual degree.
     fn generate_basis(algebra: &MilnorAlgebraInner<Self>, max_degree: i32) {
         algebra.generate_basis_exterior(max_degree);
     }
 
+    /// The $Q_k$ in odd degrees, the polynomial generators in even ones.
     fn generators(algebra: &MilnorAlgebraInner<Self>, degree: i32) -> Vec<usize> {
         // The polynomial part sits in degrees divisible by `q`, which is even, so an odd degree
         // can only hold a $Q_k$.
@@ -720,6 +729,8 @@ impl MilnorFlavour for Exterior {
         algebra.polynomial_generator(degree)
     }
 
+    /// $Q_0$ is written `b`, the other exterior generators by their own `Display`, and the
+    /// polynomial ones $P^n$.
     fn generator_to_string(algebra: &MilnorAlgebraInner<Self>, degree: i32, idx: usize) -> String {
         if degree == 1 {
             return "b".to_string();
@@ -732,6 +743,7 @@ impl MilnorFlavour for Exterior {
         }
     }
 
+    /// $a_0$, dual to the Bockstein, and $h_0$, dual to $P(1)$.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
     ) -> (Vec<(String, MilnorBasisElement)>, i32) {
@@ -1180,6 +1192,11 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
+    /// Enumerate exterior parts whose degree fits, pairing each with the p-parts that make up
+    /// the rest of the degree.
+    ///
+    /// Only the exterior parts congruent to the degree mod `q` can occur, since every
+    /// `TAU_DEGREES[k]` is `1` mod `q`.
     fn generate_basis_exterior(&self, max_degree: i32) {
         let q = self.q() as u32;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
@@ -1228,6 +1245,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
+    /// Re-wrap the p-part table, which already is the basis when there is no exterior part.
     fn generate_basis_polynomial(&self, max_degree: i32) {
         if !self.stores_basis_table() {
             // Derived on demand from `ppart_table`; see the field docs.
@@ -2823,6 +2841,7 @@ mod tests {
             Bigraded, Dual, Monomial, enum_basis, multiply_closed_mod_tau,
         };
 
+        /// The mod-$\tau$ C-motivic Steenrod algebra: the exterior flavour at the prime 2.
         fn ctau() -> MilnorAlgebraInner<Exterior> {
             MilnorAlgebraInner::<Exterior>::new(TWO, false)
         }
