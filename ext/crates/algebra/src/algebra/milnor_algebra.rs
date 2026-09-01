@@ -641,7 +641,7 @@ impl MilnorFlavour for NoExterior {
         1
     }
 
-    /// The basis is the $\xi$ monomials, so it is a re-wrapping of the p-part table.
+    /// Without an exterior part the p-part table is already the basis.
     fn generate_basis(algebra: &MilnorAlgebraInner<Self>, max_degree: i32) {
         algebra.generate_basis_polynomial(max_degree);
     }
@@ -656,7 +656,7 @@ impl MilnorFlavour for NoExterior {
         algebra.polynomial_generator_to_string(degree, idx, "Sq")
     }
 
-    /// The $h_i$, dual to $Sq^{2^i}$, capped at four and cut down by the profile.
+    /// The $h_i$, dual to $Sq^{2^i}$, as far as the profile allows.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
     ) -> (Vec<(String, MilnorBasisElement)>, i32) {
@@ -694,7 +694,7 @@ impl MilnorFlavour for Exterior {
         2 * (p.as_i32() - 1)
     }
 
-    /// The basis runs over exterior parts, pairing each with the p-parts of the residual degree.
+    /// A basis element is an exterior part together with a p-part.
     fn generate_basis(algebra: &MilnorAlgebraInner<Self>, max_degree: i32) {
         algebra.generate_basis_exterior(max_degree);
     }
@@ -1192,8 +1192,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
-    /// Enumerate exterior parts whose degree fits, pairing each with the p-parts that make up
-    /// the rest of the degree.
+    /// Pair each exterior part with the p-parts making up the rest of the degree.
     ///
     /// Only the exterior parts congruent to the degree mod `q` can occur, since every
     /// `TAU_DEGREES[k]` is `1` mod `q`.
@@ -1245,7 +1244,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         });
     }
 
-    /// Re-wrap the p-part table, which already is the basis when there is no exterior part.
+    /// Re-wrap the p-part table as basis elements.
     fn generate_basis_polynomial(&self, max_degree: i32) {
         if !self.stores_basis_table() {
             // Derived on demand from `ppart_table`; see the field docs.
@@ -2113,7 +2112,8 @@ impl Bialgebra for MilnorAlgebraInner<NoExterior> {
 /// Forward an inherent method to whichever flavour this algebra has.
 macro_rules! dispatch_milnor {
     () => {};
-    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+    ($(#[$meta:meta])* $vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $(#[$meta])*
         $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
                 MilnorAlgebra::Polynomial(a) => a.$method($($arg),*),
@@ -2139,17 +2139,29 @@ pub enum MilnorAlgebra {
 
 impl MilnorAlgebra {
     dispatch_milnor! {
+        /// See [`MilnorAlgebraInner::has_exterior`].
         pub fn has_exterior(&self) -> bool;
+        /// See [`MilnorAlgebraInner::q`].
         pub fn q(&self) -> i32;
+        /// See [`MilnorAlgebraInner::profile`].
         pub fn profile(&self) -> &MilnorProfile;
+        /// See [`MilnorAlgebraInner::compute_degree`].
         pub fn compute_degree(&self, elt: &mut MilnorBasisElement);
+        /// See [`MilnorAlgebraInner::basis_element_from_index`].
         pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> MilnorBasisElement;
+        /// See [`MilnorAlgebraInner::try_basis_element_to_index`].
         pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize>;
+        /// See [`MilnorAlgebraInner::basis_element_to_index`].
         pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize;
+        /// See [`MilnorAlgebraInner::ppart_table`].
         pub fn ppart_table(&self, t: i32) -> &[PPart];
+        /// See [`MilnorAlgebraInner::try_beps_pn`].
         pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)>;
+        /// See [`MilnorAlgebraInner::beps_pn`].
         pub fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize);
+        /// See [`MilnorAlgebraInner::multiply`].
         pub fn multiply(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement);
+        /// See [`MilnorAlgebraInner::multiply_with_allocation`].
         pub fn multiply_with_allocation(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement, excess: i32, allocation: PPartAllocation) -> PPartAllocation;
     }
 
@@ -2172,6 +2184,7 @@ impl MilnorAlgebra {
 #[cfg(test)]
 impl MilnorAlgebra {
     dispatch_milnor! {
+        /// Whether this algebra stores its basis rather than deriving it.
         fn stores_basis_table(&self) -> bool;
     }
 }
@@ -2829,10 +2842,11 @@ mod tests {
         );
     }
 
-    /// The exterior flavour at `p = 2` is $A^{\mathbb{C}}/\tau$, the mod-$\tau$ reduction of the
-    /// C-motivic Steenrod algebra. That configuration is unreachable through [`MilnorAlgebra`],
-    /// so these check it against the independent Kong–Lin closed form in
-    /// [`crate::algebra::motivic::milnor`], which shares no code with this file.
+    /// The exterior flavour at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
+    ///
+    /// That configuration is unreachable through [`MilnorAlgebra`], so these check it against the
+    /// independent Kong–Lin closed form in [`crate::algebra::motivic::milnor`], which shares no
+    /// code with this file.
     mod exterior_at_two {
         use fp::prime::TWO;
 
@@ -2982,8 +2996,9 @@ mod tests {
             );
         }
 
-        /// The $Q_k$ with `k >= 1` are decomposable in the full algebra, as they are at odd
-        /// primes: $Q_{k+1} = P(2^k) Q_k - Q_k P(2^k)$. So the full algebra reports none of them.
+        /// The full algebra reports no $Q_k$ with `k >= 1`, because they are decomposable.
+        ///
+        /// As at odd primes: $Q_{k+1} = P(2^k) Q_k - Q_k P(2^k)$.
         #[test]
         fn the_full_algebra_has_no_odd_degree_generators_above_one() {
             let algebra = ctau();
@@ -2998,8 +3013,9 @@ mod tests {
             }
         }
 
-        /// Under a profile that is not an A(n), $Q_k$ *is* a generator, in degree
-        /// `|Q_k| = 2^{k+1} - 1`.
+        /// Under a profile that is not an A(n), $Q_k$ *is* a generator.
+        ///
+        /// It sits in degree `|Q_k| = 2^{k+1} - 1`.
         ///
         /// This is the branch where the prime alone no longer identifies the degrees: the
         /// classical test for it, `factor_pk(p, degree + 1) == (k, 2)`, matches nothing at
@@ -3062,8 +3078,9 @@ mod tests {
             }
         }
 
-        /// The polynomial generators under a profile that is not an A(n), where the generators
-        /// are the $P(0, \ldots, 0, 2^k)$ rather than only the $P(2^k)$.
+        /// The polynomial generators under a profile that is not an A(n).
+        ///
+        /// They are the $P(0, \ldots, 0, 2^k)$ there, rather than only the $P(2^k)$.
         ///
         /// This is the branch that has to divide by `q` before factoring out the prime. Factoring
         /// the undivided degree — as the classical code does — absorbs `q`'s own factor of 2 at
