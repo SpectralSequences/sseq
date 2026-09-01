@@ -205,7 +205,8 @@ impl MotivicResolution {
         // So `+1` is provably sufficient; `MOT_MARGIN` is only an escape hatch.
         let margin: i32 = std::env::var("MOT_MARGIN")
             .ok()
-            .and_then(|v| v.parse().ok())
+            .and_then(|v| v.parse::<i32>().ok())
+            .map(|m| m.max(1))
             .unwrap_or(1);
         let compute = Bidegree::n_s(max.n() + margin, max.s());
         tracing::Span::current().record("compute", tracing::field::display(compute));
@@ -463,7 +464,20 @@ impl MotivicResolution {
     fn compute_weights(&mut self) {
         // Built locally, then `Arc`-shared into `self.weights` (and the Ext DGA) — no copy.
         let mut weights: HashMap<Gen, i32> = HashMap::new();
-        // s = 0: the single generator is the unit, weight 0.
+        // s = 0: the single generator is the unit, weight 0. Only the generator at
+        // `t = 0` is seeded, so a module needing another one — anything not cyclic on a
+        // degree-0 class — has no weight to propagate from. Reject it here rather than
+        // let an unseeded generator surface as a `HashMap` index panic much later.
+        for t in 0..=self.compute.n() {
+            let expected = usize::from(t == 0);
+            assert_eq!(
+                self.num_gens(0, t),
+                expected,
+                "the motivic lift supports modules cyclic on a degree-0 class; this one needs {} \
+                 generator(s) at (s = 0, t = {t})",
+                self.num_gens(0, t),
+            );
+        }
         weights.insert(Gen { s: 0, t: 0, idx: 0 }, 0);
 
         for s in 1..=self.max_s() {
@@ -529,7 +543,13 @@ impl MotivicResolution {
                     t: og.generator_degree,
                     idx: og.generator_index,
                 };
-                let power = (self.weights[&gj] - w_k) as u32;
+                let diff = self.weights[&gj] - w_k;
+                let power = u32::try_from(diff).unwrap_or_else(|_| {
+                    panic!(
+                        "δ must raise the weight, got τ-power {diff} at (s={}, t={})",
+                        g.s, g.t
+                    )
+                });
                 out.push((gj, power));
             }
         }

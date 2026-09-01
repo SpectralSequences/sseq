@@ -126,18 +126,24 @@ impl Algebra for CTauAlgebra {
         // part leftwards past it; the engine's `product_indexed` orders its arguments the other
         // way. Passing `s` then `r` keeps this product equal to the engine's τ^0 part, which the
         // cross-check below pins down.
-        milnor_product(
-            TWO,
-            mbe(s_degree, s_idx),
-            mbe(r_degree, r_idx),
-            PPartAllocation::default(),
-            |c, res| {
-                let elt = Dual(Monomial::new(res.q_part, res.p_part));
-                if let Some(idx) = self.ac.index_of(t, &elt) {
+        PPartAllocation::with_local(|allocation| {
+            milnor_product(
+                TWO,
+                mbe(s_degree, s_idx),
+                mbe(r_degree, r_idx),
+                allocation,
+                |c, res| {
+                    let elt = Dual(Monomial::new(res.q_part, res.p_part));
+                    // `enum_basis` holds every monomial of degree `t`, so a miss is a broken
+                    // product invariant rather than a term to drop.
+                    let idx = self
+                        .ac
+                        .index_of(t, &elt)
+                        .expect("A_C/τ product left the degree-t basis");
                     result.add_basis_element(idx, coeff * c);
-                }
-            },
-        );
+                },
+            )
+        });
     }
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
@@ -157,7 +163,9 @@ impl Algebra for CTauAlgebra {
             if tok == "1" {
                 continue;
             }
-            q_part |= 1 << tok.strip_prefix("Q_")?.parse::<u32>().ok()?;
+            // The exterior part is a 32-bit mask, so an out-of-range index is malformed
+            // input, not an out-of-range shift.
+            q_part |= 1u32.checked_shl(tok.strip_prefix("Q_")?.parse::<u32>().ok()?)?;
         }
         let r = match p_str {
             Some(s) => {
@@ -294,7 +302,7 @@ impl GeneratedAlgebra for CTauAlgebra {
         target.add_basis_element(idx, 1);
         let mut coeffs = FpVector::new(TWO, n);
         reduce_row(&mut target, &mut coeffs, &rows);
-        debug_assert!(
+        assert!(
             target.is_zero(),
             "A_C/τ basis element ({degree}, {idx}) is not a generator but did not decompose"
         );
@@ -401,6 +409,10 @@ mod tests {
         // Malformed input is rejected, not panicked on.
         assert_eq!(alg.basis_element_from_string("Sq1"), None);
         assert_eq!(alg.basis_element_from_string("Q_"), None);
+        // The exterior mask is 32 bits wide, so `Q_32` is out of range: rejected rather
+        // than shifted out of bounds.
+        assert_eq!(alg.basis_element_from_string("Q_32"), None);
+        assert_eq!(alg.basis_element_from_string("Q_99"), None);
     }
 
     #[test]
