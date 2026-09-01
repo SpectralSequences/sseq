@@ -2037,7 +2037,10 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> Bialgebra for MilnorAlgebraInner<F> {
+/// The coproduct drops the exterior part and grades the polynomial part with `q = 1`, so this is
+/// written for [`NoExterior`] alone. `MilnorAlgebraInner<Exterior>` at `p = 2` would satisfy a
+/// guard on the prime and then silently take the wrong formula.
+impl Bialgebra for MilnorAlgebraInner<NoExterior> {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {
@@ -2110,7 +2113,7 @@ macro_rules! dispatch_milnor {
 /// is a different algebra rather than a different presentation of this one; it is reached through
 /// its own wrapper, not from here.
 #[allow(clippy::large_enum_variant)]
-#[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
+#[enum_dispatch::enum_dispatch(Algebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum MilnorAlgebra {
     Polynomial(MilnorAlgebraInner<NoExterior>),
     Exterior(MilnorAlgebraInner<Exterior>),
@@ -2152,6 +2155,23 @@ impl MilnorAlgebra {
 impl MilnorAlgebra {
     dispatch_milnor! {
         fn stores_basis_table(&self) -> bool;
+    }
+}
+
+/// Forwards to the classical flavour, which is the only one with a coproduct.
+///
+/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where the coproduct
+/// was already unsupported.
+impl Bialgebra for MilnorAlgebra {
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
+        match self {
+            Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
+            Self::Exterior(_) => unimplemented!("Coproduct at odd primes not supported"),
+        }
+    }
+
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
+        vec![(op_deg, op_idx)]
     }
 }
 
@@ -3070,6 +3090,25 @@ mod tests {
                 algebra.generators(8).is_empty(),
                 "the profile should exclude P(4) in degree 8"
             );
+        }
+
+        /// The coproduct is not available on this flavour at all.
+        ///
+        /// It is a compile-time restriction rather than an assertion, so this only records that
+        /// the classical one still works and that `MilnorAlgebraInner<Exterior>` does not offer
+        /// the method. The formula ignores the exterior part and grades $\xi_i$ with `q = 1`, so
+        /// reaching it here would give a wrong answer, not an error.
+        #[test]
+        fn the_classical_coproduct_is_unaffected() {
+            let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
+            classical.compute_basis(8);
+            let idx = classical.basis_element_to_index(&MilnorBasisElement {
+                q_part: 0,
+                p_part: PPart::from_iter([2]),
+                degree: 2,
+            });
+            // Sq^2 |-> Sq^2 (x) 1 + Sq^1 (x) Sq^1 + 1 (x) Sq^2.
+            assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
         /// Generators generate: every basis element in low degrees is a product of them.
