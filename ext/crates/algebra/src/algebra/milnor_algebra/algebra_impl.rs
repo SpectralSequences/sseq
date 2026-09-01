@@ -13,7 +13,17 @@ impl<F: MilnorFlavour> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn magic(&self) -> u32 {
+        // Saved resolutions store coefficients by basis index, so two algebras sharing a magic
+        // decode each other's files as their own basis. The prime settles the flavour everywhere
+        // except `Exterior` at `p = 2`, so only that case takes a bit; every configuration that
+        // could already have written a file keeps the value it had.
+        let flavour = if F::HAS_EXTERIOR && self.p == 2 {
+            0x4000
+        } else {
+            0
+        };
         (self.p << 16)
+            + flavour
             + if self.profile.is_trivial() {
                 0x8000
             } else {
