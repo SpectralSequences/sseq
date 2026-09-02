@@ -1,5 +1,6 @@
 // mod basis;
 mod affine;
+mod blas3;
 mod matrix_inner;
 mod quasi_inverse;
 mod subquotient;

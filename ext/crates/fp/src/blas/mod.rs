@@ -32,7 +32,7 @@ pub mod block;
 pub mod tile;
 
 #[cfg(feature = "gpu")]
-mod cuda;
+pub(crate) mod cuda;
 
 impl std::ops::Mul for &Matrix {
     type Output = Matrix;

@@ -673,6 +673,49 @@ impl Matrix {
     /// ```
     pub fn row_reduce(&mut self) -> usize {
         let p = self.prime();
+
+        // For large p = 2 matrices, try the device-resident GPU reduction; it produces the
+        // identical canonical RREF + pivots, and falls through to the CPU M4RI path below when the
+        // GPU is unavailable or the matrix is under `blas::cuda`'s threshold.
+        //
+        // The `fp::rr` event records which path a non-trivial reduction took. `path="cpu"` does not
+        // say why — under the threshold and a launch failure look the same here — but the logged
+        // dimensions disambiguate. It is emitted inside whatever span the caller is in, so it picks
+        // up the caller's context.
+        #[cfg(feature = "gpu")]
+        if p == 2 {
+            let (rr_rows, rr_cols) = (self.rows(), self.columns());
+            let rr_big = rr_rows.min(rr_cols) >= 1024;
+            match crate::blas::cuda::try_row_reduce(self) {
+                Some(rank) => {
+                    if rr_big {
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "gpu",
+                            rank,
+                            "row_reduce"
+                        );
+                    }
+                    return rank;
+                }
+                None => {
+                    if rr_big {
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "cpu",
+                            "row_reduce"
+                        );
+                    }
+                }
+            }
+        }
+
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());
@@ -893,7 +936,8 @@ impl Matrix {
 
         // Find the first kernel row
         let first_kernel_row = self.find_first_row_in_block(first_source_column);
-        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
+        // Every row after the first kernel row is also a kernel row, so now we know how big it is
+        // and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Self::new(p, kernel_dimension, source_dimension);
         kernel.initialize_pivots();

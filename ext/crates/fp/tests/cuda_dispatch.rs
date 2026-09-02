@@ -14,6 +14,23 @@ fn random_matrix(rows: usize, cols: usize) -> Matrix {
     Matrix::from_data(TWO, rows, cols, data)
 }
 
+/// Well-formed 0/1 matrix (bits past the last column masked), of rank ≤ `rank`
+/// when `rank > 0`, else full-random.
+fn clean_matrix(rows: usize, cols: usize, rank: usize) -> Matrix {
+    let mut rng = rand::rng();
+    let mut rand_vec = |r: usize, c: usize| -> Matrix {
+        let v: Vec<Vec<u32>> = (0..r)
+            .map(|_| (0..c).map(|_| rng.random::<bool>() as u32).collect())
+            .collect();
+        Matrix::from_vec(TWO, &v)
+    };
+    if rank == 0 {
+        rand_vec(rows, cols)
+    } else {
+        &rand_vec(rows, rank) * &rand_vec(rank, cols)
+    }
+}
+
 /// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
 fn threshold() -> usize {
     std::env::var("FP_CUDA_THRESHOLD")
@@ -22,7 +39,8 @@ fn threshold() -> usize {
         .unwrap_or(2048)
 }
 
-/// The dispatched product must be bit-identical to the CPU BLAS kernel.
+/// The dispatched product must be bit-identical to the CPU BLAS kernel. Sizes
+/// are chosen above the default 2048 threshold so the GPU path is attempted.
 #[test]
 fn gpu_dispatch_matches_cpu() {
     let t = threshold();
@@ -76,6 +94,77 @@ fn gpu_matmul_concurrent() {
                     assert_eq!(
                         dispatched, reference,
                         "concurrent matmul mismatch {m}x{k}*{k}x{n} (t{t} i{i})"
+                    );
+                }
+            });
+        }
+    });
+}
+
+/// The dispatched `row_reduce` (GPU, feature on) must be bit-identical to the CPU
+/// BLAS3 reducer — RREF, rank, and pivots. The production row-reduce threshold is
+/// 8192 (below that the CPU wins); force it down here so these small, fast test
+/// shapes still exercise the GPU path. This test uses `FP_CUDA_RR_THRESHOLD`,
+/// distinct from the matmul test's `FP_CUDA_THRESHOLD`, so the two don't collide.
+#[test]
+fn gpu_row_reduce_matches_cpu() {
+    // SAFETY: set once at the start of the test, before any threshold() read.
+    unsafe { std::env::set_var("FP_CUDA_RR_THRESHOLD", "2048") };
+    for &(rows, cols, rank) in &[
+        (2048, 2048, 0),
+        (4096, 2560, 0),
+        (2048, 3000, 0),
+        (3000, 2048, 500), // rank-deficient
+    ] {
+        let base = clean_matrix(rows, cols, rank);
+
+        let mut gpu = base.clone();
+        let rank_gpu = gpu.row_reduce(); // GPU dispatch (feature on, above threshold)
+        let mut cpu = base.clone();
+        let rank_cpu = cpu.row_reduce_blas3(); // CPU oracle, never dispatches
+
+        assert_eq!(
+            rank_gpu, rank_cpu,
+            "rank mismatch at {rows}x{cols} rank={rank}"
+        );
+        assert_eq!(
+            gpu.pivots(),
+            cpu.pivots(),
+            "pivot mismatch at {rows}x{cols}"
+        );
+        assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
+    }
+}
+
+/// Many threads row-reducing on the GPU AT ONCE must each stay bit-identical to the CPU — the
+/// concurrency the per-thread-stream refactor enables. Isolates the GPU RREF path from the cubecl
+/// multiply: if concurrent reductions share any device state (a `__device__` global, a fixed
+/// scratch), this corrupts or LAUNCH_FAILEDs; if they're truly independent per-stream, it passes.
+#[test]
+fn gpu_row_reduce_concurrent() {
+    // SAFETY: set once before any threshold() read; same value as the sibling test.
+    unsafe { std::env::set_var("FP_CUDA_RR_THRESHOLD", "2048") };
+    const THREADS: usize = 16;
+    const ITERS: usize = 8;
+    std::thread::scope(|s| {
+        for t in 0..THREADS {
+            s.spawn(move || {
+                for i in 0..ITERS {
+                    // Vary shapes per thread/iter so streams don't run identical work in lockstep.
+                    let rows = 2048 + 256 * (t % 8);
+                    let cols = 2048 + 256 * (i % 6);
+                    let base = clean_matrix(rows, cols, 0);
+                    let mut gpu = base.clone();
+                    let rank_gpu = gpu.row_reduce();
+                    let mut cpu = base.clone();
+                    let rank_cpu = cpu.row_reduce_blas3();
+                    assert_eq!(
+                        rank_gpu, rank_cpu,
+                        "concurrent rank mismatch {rows}x{cols} (t{t} i{i})"
+                    );
+                    assert_eq!(
+                        gpu, cpu,
+                        "concurrent RREF mismatch {rows}x{cols} (t{t} i{i})"
                     );
                 }
             });
