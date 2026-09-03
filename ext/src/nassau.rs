@@ -320,7 +320,7 @@ impl Display for MilnorSubalgebra {
         } else if self.profile.len() as u8 == self.profile[0] {
             write!(out, "A({})", self.profile.len() - 1)
         } else {
-            write!(out, "Algebra with profile {:?}", self.profile)
+            write!(out, "B({})", self.profile.iter().join(","))
         }
     }
 }
@@ -1374,5 +1374,16 @@ mod tests {
             subalgebra.iter_signatures(7).collect::<Vec<_>>(),
             vec![vec![0, 1, 0, 0], vec![0, 2, 0, 0], vec![0, 0, 1, 0],]
         );
+    }
+
+    #[test]
+    fn test_subalgebra_fmt() {
+        let f2 = MilnorSubalgebra::zero_algebra();
+        let a2 = MilnorSubalgebra::new(vec![3, 2, 1]);
+        let b3321 = MilnorSubalgebra::new(vec![3, 3, 2, 1]);
+
+        assert_eq!(f2.to_string(), "F_2");
+        assert_eq!(a2.to_string(), "A(2)");
+        assert_eq!(b3321.to_string(), "B(3,3,2,1)");
     }
 }
