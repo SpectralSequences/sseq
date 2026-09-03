@@ -95,7 +95,10 @@ use std::cell::RefCell;
 
 use crate::{
     MilnorAlgebra,
-    milnor_algebra::{MilnorBasisElement as MilnorElt, PPart, PPartAllocation, PPartMultiplier},
+    milnor_algebra::{
+        MilnorAlgebraInner, MilnorBasisElement as MilnorElt, NoExterior, PPart, PPartAllocation,
+        PPartMultiplier,
+    },
 };
 
 macro_rules! sub {
@@ -127,7 +130,23 @@ pub struct MilnorPairElement {
     ys: Vec<Vec<FpVector>>,
 }
 
-impl PairAlgebra for MilnorAlgebra {
+/// Forward a [`PairAlgebra`] method to the classical flavour, which is the only one that has one.
+macro_rules! dispatch_pair_milnor {
+    () => {};
+    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                MilnorAlgebra::Polynomial(a) => a.$method($($arg),*),
+                MilnorAlgebra::Exterior(_) => unimplemented!(
+                    "the secondary Steenrod algebra is only defined for the classical algebra at p = 2"
+                ),
+            }
+        }
+        dispatch_pair_milnor!{$($tail)*}
+    };
+}
+
+impl PairAlgebra for MilnorAlgebraInner<NoExterior> {
     type Element = MilnorPairElement;
 
     fn new_pair_element(&self, degree: i32) -> Self::Element {
@@ -365,7 +384,7 @@ thread_local! {
 /// Compute $A(Sq(R), Y_{k, l})$ where $a = Sq(R)$. This queries the cache and computes it using
 /// [`a_y_inner`] if not available.
 fn a_y_cached(
-    algebra: &MilnorAlgebra,
+    algebra: &MilnorAlgebraInner<NoExterior>,
     a: MilnorElt,
     k: usize,
     l: usize,
@@ -394,7 +413,12 @@ fn a_y_cached(
 }
 
 /// Actually computes $A(a, Y_{k, l})$ and returns the result.
-fn a_y_inner(algebra: &MilnorAlgebra, a: MilnorElt, k: usize, l: usize) -> FpVector {
+fn a_y_inner(
+    algebra: &MilnorAlgebraInner<NoExterior>,
+    a: MilnorElt,
+    k: usize,
+    l: usize,
+) -> FpVector {
     let mut a = a;
     let mut result = FpVector::new(TWO, algebra.dimension(a.degree + (1 << k) + (1 << l) - 2));
     let mut t = MilnorElt {
@@ -429,6 +453,38 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: MilnorElt, k: usize, l: usize) -> FpVec
     result
 }
 
+/// Forwards to the classical flavour; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
+///
+/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where this machinery
+/// does not apply.
+impl PairAlgebra for MilnorAlgebra {
+    type Element = MilnorPairElement;
+
+    dispatch_pair_milnor! {
+        fn new_pair_element(&self, degree: i32) -> Self::Element;
+        fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
+        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
+        fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
+        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
+        fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
+    }
+
+    /// Unlike the rest of this impl, this does not depend on the flavour: it was `0` at every
+    /// prime before the algebra was split, and dispatching it would turn an odd-prime call from a
+    /// value into a panic.
+    fn p_tilde(&self) -> usize {
+        0
+    }
+
+    fn element_is_zero(elt: &Self::Element) -> bool {
+        MilnorAlgebraInner::<NoExterior>::element_is_zero(elt)
+    }
+
+    fn finalize_element(elt: &mut Self::Element) {
+        MilnorAlgebraInner::<NoExterior>::finalize_element(elt);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use expect_test::{Expect, expect};
@@ -452,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_a_y() {
-        let algebra = MilnorAlgebra::new(TWO, false);
+        let algebra = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
 
         let mut result = FpVector::new(TWO, 0);
 
