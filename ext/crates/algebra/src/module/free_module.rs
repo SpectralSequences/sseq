@@ -1,4 +1,8 @@
-use std::sync::Arc;
+use core::range::Range;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use fp::vector::{FpSlice, FpSliceMut};
 use once::{OnceBiVec, OnceVec};
@@ -8,7 +12,28 @@ use crate::{
     module::{Module, ZeroModule},
 };
 
-#[derive(Clone, Debug)]
+/// One generator's run of consecutive basis elements within a single degree.
+#[derive(Clone, Copy)]
+struct GeneratorBlock {
+    ordinal: usize,
+    generator_degree: i32,
+    generator_index: usize,
+    start: usize,
+}
+
+impl GeneratorBlock {
+    /// The pair for the basis element at `index`, which must lie in this block.
+    fn op_gen(&self, degree: i32, index: usize) -> OperationGeneratorPair {
+        OperationGeneratorPair {
+            generator_degree: self.generator_degree,
+            generator_index: self.generator_index,
+            operation_degree: degree - self.generator_degree,
+            operation_index: index - self.start,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OperationGeneratorPair {
     pub operation_degree: i32,
     pub operation_index: usize,
@@ -30,8 +55,18 @@ pub struct MuFreeModule<const U: bool, A: MuAlgebra<U>> {
     gen_names: OnceBiVec<Vec<String>>,
     /// degree -> internal index of first generator in degree
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
+    /// internal index -> the degree of that generator.
+    ///
+    /// The inverse of `gen_deg_idx_to_internal_idx`, materialised so that
+    /// [`Self::index_to_op_gen`] can invert it by indexing rather than by searching. One `i32` per
+    /// generator, and there are far fewer generators than basis elements.
+    internal_idx_to_gen_deg: OnceVec<i32>,
     num_gens: OnceBiVec<usize>,
-    basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
+    /// degree -> number of basis elements.
+    ///
+    /// This is all that is kept of the per-basis-element table: the records themselves are derived
+    /// by [`Self::index_to_op_gen`].
+    dimensions: OnceBiVec<AtomicUsize>,
     /// degree -> internal_gen_idx -> the offset of the generator in degree
     generator_to_index: OnceBiVec<OnceVec<usize>>,
 }
@@ -43,6 +78,7 @@ impl<const U: bool, A: MuAlgebra<U>> std::fmt::Display for MuFreeModule<U, A> {
 }
 
 impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
+    /// A free module with no generators yet; add them with [`Self::add_generators`].
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
         gen_deg_idx_to_internal_idx.push(0);
@@ -52,8 +88,9 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
             min_degree,
             gen_names: OnceBiVec::new(min_degree),
             gen_deg_idx_to_internal_idx,
+            internal_idx_to_gen_deg: OnceVec::new(),
             num_gens: OnceBiVec::new(min_degree),
-            basis_element_to_opgen: OnceBiVec::new(min_degree),
+            dimensions: OnceBiVec::new(min_degree),
             generator_to_index: OnceBiVec::new(min_degree),
         }
     }
@@ -83,44 +120,46 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         Some(self.min_degree)
     }
 
+    /// Lay out the basis of every degree through `max_degree`.
+    ///
+    /// Only the per-generator block offsets are stored, plus the dimension they add up to. The
+    /// per-basis-element records are derived on demand by [`Self::index_to_op_gen`].
     fn compute_basis(&self, max_degree: i32) {
         let algebra = self.algebra();
-        self.basis_element_to_opgen.extend(max_degree, |degree| {
-            let new_row = OnceVec::new();
+        // Only the OFFSETS are stored (one per generator); the per-basis-element records are
+        // derived on demand in `index_to_op_gen`.
+        self.dimensions.extend(max_degree, |degree| {
             self.generator_to_index.push_checked(OnceVec::new(), degree);
 
             let mut offset = 0;
             for (gen_deg, &num_gens) in &self.num_gens {
                 let op_deg = degree - gen_deg;
                 let num_ops = algebra.dimension_unstable(op_deg, gen_deg);
-                for gen_idx in 0..num_gens {
+                for _ in 0..num_gens {
                     self.generator_to_index[degree].push(offset);
                     offset += num_ops;
-                    for op_idx in 0..num_ops {
-                        new_row.push(OperationGeneratorPair {
-                            generator_degree: gen_deg,
-                            generator_index: gen_idx,
-                            operation_degree: op_deg,
-                            operation_index: op_idx,
-                        });
-                    }
                 }
             }
-            new_row
+            AtomicUsize::new(offset)
         });
     }
 
+    /// The number of basis elements in `degree`.
+    ///
+    /// Acquiring this is what lets a caller then use [`Self::index_to_op_gen`]: it is the edge
+    /// that orders the lookup against a concurrent [`Self::add_generators`].
     fn dimension(&self, degree: i32) -> usize {
         if degree < self.min_degree {
             return 0;
         }
         assert!(
-            degree < self.basis_element_to_opgen.len(),
+            degree < self.dimensions.len(),
             "Free Module {self} not computed through degree {degree}"
         );
-        self.basis_element_to_opgen[degree].len()
+        self.dimensions[degree].load(Ordering::Acquire)
     }
 
+    /// The name of a basis element, as the operation applied to the generator it acts on.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         let opgen = self.index_to_op_gen(degree, idx);
         let mut op_str = self
@@ -151,7 +190,7 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
             operation_index: module_operation_index,
             generator_degree,
             generator_index,
-        } = *self.index_to_op_gen(mod_degree, mod_index);
+        } = self.index_to_op_gen(mod_degree, mod_index);
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
         let num_ops = self
@@ -243,10 +282,14 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         self.num_gens[degree]
     }
 
+    /// Add `num_gens` generators in `degree`, extending every degree already computed.
+    ///
+    /// Generators must be added in consecutive degrees. Each already-computed total degree gains a
+    /// block per new generator, and its dimension is republished to cover them.
     pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
         // We need to acquire the lock because changing num_gens modifies the behaviour of
         // extend_table_entries, and the two cannot happen concurrently.
-        let _lock = self.basis_element_to_opgen.lock();
+        let _lock = self.dimensions.lock();
         assert!(degree >= self.min_degree);
 
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);
@@ -259,6 +302,9 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
 
         self.gen_names.push_checked(gen_names, degree);
         self.num_gens.push_checked(num_gens, degree);
+        for _ in 0..num_gens {
+            self.internal_idx_to_gen_deg.push(degree);
+        }
 
         let internal_gen_idx = self.gen_deg_idx_to_internal_idx[degree];
         // After adding generators in degree `t`, we now know when the generators for degree `t +
@@ -268,22 +314,19 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
 
         let algebra = self.algebra();
         let gen_deg = degree;
-        for total_degree in degree..self.basis_element_to_opgen.len() {
+        for total_degree in degree..self.dimensions.len() {
             let op_deg = total_degree - gen_deg;
-            let mut offset = self.basis_element_to_opgen[total_degree].len();
+            let mut offset = self.dimensions[total_degree].load(Ordering::Acquire);
             let num_ops = algebra.dimension_unstable(op_deg, gen_deg);
-            for gen_idx in 0..num_gens {
+            for _ in 0..num_gens {
                 self.generator_to_index[total_degree].push(offset);
                 offset += num_ops;
-                for op_idx in 0..num_ops {
-                    self.basis_element_to_opgen[total_degree].push(OperationGeneratorPair {
-                        generator_degree: gen_deg,
-                        generator_index: gen_idx,
-                        operation_degree: op_deg,
-                        operation_index: op_idx,
-                    });
-                }
             }
+            // Release, and it must be: this store PUBLISHES the `generator_to_index` pushes
+            // above. A reader that observes the new dimension with an acquire load is then
+            // guaranteed to see the offsets backing it. `_lock` only excludes other writers --
+            // readers do not take it, so it does nothing for this pairing.
+            self.dimensions[total_degree].store(offset, Ordering::Release);
         }
     }
 
@@ -338,9 +381,70 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         self.generator_to_index[op_deg + gen_deg][internal_gen_idx] + op_idx
     }
 
-    pub fn index_to_op_gen(&self, degree: i32, index: usize) -> &OperationGeneratorPair {
+    /// The `(operation, generator)` pair for basis element `index` of `degree`.
+    ///
+    /// The basis of a degree is consecutive blocks, one per generator, in `(gen_deg, gen_idx)`
+    /// order, and `generator_to_index` holds each block's start offset. The pair is therefore
+    /// recoverable from that offset array plus `internal_idx_to_gen_deg`, both indexed per
+    /// generator, rather than from a record stored per basis element.
+    ///
+    /// Blocks may be empty: a generator admitting no operations in this degree shares its offset
+    /// with the next one. The search must therefore take the LAST block whose offset is at most
+    /// `index`, since taking the first would return a zero-width block.
+    ///
+    /// `index` must be one the caller has seen [`Module::dimension`] cover. That is what orders
+    /// this lookup against a concurrent `add_generators`: the offsets for a degree are pushed
+    /// before the dimension that counts them is published, so a caller that acquired the dimension
+    /// also sees the offsets. The assertion below does not establish that edge and is not what
+    /// makes the lookup sound; it is a bounds check, and it is worth its cost in release because
+    /// the alternative for an out-of-range `index` is a subtraction that wraps and a panic from
+    /// somewhere further in.
+    pub fn index_to_op_gen(&self, degree: i32, index: usize) -> OperationGeneratorPair {
         assert!(degree >= self.min_degree);
-        &self.basis_element_to_opgen[degree][index]
+        assert!(
+            index < self.dimension(degree),
+            "index {index} out of range in degree {degree}"
+        );
+        let block = self.block_containing(degree, index);
+        block.op_gen(degree, index)
+    }
+
+    /// The generator block of `degree` that contains basis element `index`.
+    fn block_containing(&self, degree: i32, index: usize) -> GeneratorBlock {
+        let offsets = &self.generator_to_index[degree];
+
+        // The last block starting at or before `index`: `partition_point` gives the first block
+        // starting strictly after it, and every block starts at or after its predecessor. Taking
+        // the last is what skips the empty blocks, which share their offset with the block after.
+        let ordinal = offsets.partition_point(|&offset| offset <= index) - 1;
+        let generator_degree = self.internal_idx_to_gen_deg[ordinal];
+
+        GeneratorBlock {
+            ordinal,
+            generator_degree,
+            generator_index: ordinal - self.gen_deg_idx_to_internal_idx[generator_degree],
+            start: offsets[ordinal],
+        }
+    }
+
+    /// A cursor over the basis of `degree`, for callers that look up many indices in ascending
+    /// order.
+    ///
+    /// The cursor answers only indices below the dimension of `degree` as of this call.
+    pub fn opgen_cursor(&self, degree: i32) -> OpGenCursor<'_, U, A> {
+        OpGenCursor {
+            module: self,
+            degree,
+            dimension: self.dimension(degree),
+            // An empty range, so the first lookup takes the slow path whatever it asks for.
+            range: (0..0).into(),
+            block: GeneratorBlock {
+                ordinal: 0,
+                generator_degree: self.min_degree,
+                generator_index: 0,
+                start: 0,
+            },
+        }
     }
 
     pub fn extend_by_zero(&self, degree: i32) {
@@ -391,6 +495,65 @@ pub struct GeneratorData<const N: usize> {
     pub end: [usize; N],
 }
 
+/// A position in one degree's basis, for callers that look up many indices in ascending order.
+///
+/// [`MuFreeModule::index_to_op_gen`] searches the block offsets on every call. A caller walking a
+/// degree's basis crosses a block boundary only once every `num_ops` indices, so remembering the
+/// current block answers almost every lookup with a range check instead.
+///
+/// The cursor borrows the module, which is what makes it sound: it cannot outlive the module whose
+/// layout it caches, and `generator_to_index` is append-only, so the block it remembers is never
+/// rewritten. It is also pinned to the dimension `degree` had when it was created, which is what
+/// bounds the last block -- that block is the only one with no following offset to end it, and a
+/// concurrent [`MuFreeModule::add_generators`] would otherwise extend it under the cursor.
+///
+/// Lookups need not actually ascend. Any index below the pinned dimension is answered correctly; a
+/// descending or scattered walk just misses more often and pays for the search.
+pub struct OpGenCursor<'a, const U: bool, A: MuAlgebra<U>> {
+    module: &'a MuFreeModule<U, A>,
+    degree: i32,
+    dimension: usize,
+    /// The indices `block` covers.
+    ///
+    /// [`core::range::Range`] rather than [`std::ops::Range`], because the latter is an iterator
+    /// and so deliberately not `Copy`, which a field read here would otherwise have to clone.
+    range: Range<usize>,
+    block: GeneratorBlock,
+}
+
+impl<const U: bool, A: MuAlgebra<U>> OpGenCursor<'_, U, A> {
+    /// The `(operation, generator)` pair for basis element `index` of this cursor's degree.
+    pub fn get(&mut self, index: usize) -> OperationGeneratorPair {
+        assert!(
+            index < self.dimension,
+            "index {index} is past the dimension this cursor was created with"
+        );
+        if !self.range.contains(&index) {
+            self.block = self.module.block_containing(self.degree, index);
+            let offsets = &self.module.generator_to_index[self.degree];
+            // The final block ends at the pinned dimension. A later `add_generators` may since
+            // have pushed an offset there, but it equals that dimension, so either answer bounds
+            // this block identically.
+            let end = offsets
+                .get(self.block.ordinal + 1)
+                .copied()
+                .unwrap_or(self.dimension);
+            self.range = (self.block.start..end).into();
+        }
+        self.block.op_gen(self.degree, index)
+    }
+
+    /// The degree this cursor walks.
+    pub fn degree(&self) -> i32 {
+        self.degree
+    }
+
+    /// The dimension this cursor is pinned to.
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+}
+
 struct OffsetIterator<
     'a,
     const U: bool,
@@ -426,6 +589,191 @@ impl<'a, const U: bool, A: MuAlgebra<U>, T: Iterator<Item = i32> + 'a, const N: 
             self.offset[i] = retval.end[i];
         }
         Some(retval)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{AdemAlgebra, MilnorAlgebra, algebra::Algebra};
+
+    /// Every basis element round-trips through both directions of the index/opgen correspondence.
+    ///
+    /// This is the invariant that the derivation in [`MuFreeModule::index_to_op_gen`] has to
+    /// uphold, and the one a stored table upheld by construction.
+    fn assert_round_trips<const U: bool, A: MuAlgebra<U>>(module: &MuFreeModule<U, A>, max: i32) {
+        for degree in module.min_degree()..=max {
+            let dim = module.dimension(degree);
+            for index in 0..dim {
+                let opgen = module.index_to_op_gen(degree, index);
+                assert_eq!(
+                    opgen.operation_degree + opgen.generator_degree,
+                    degree,
+                    "degrees of {opgen:?} do not sum to {degree}"
+                );
+                assert!(
+                    opgen.generator_index < module.number_of_gens_in_degree(opgen.generator_degree)
+                );
+                assert!(
+                    opgen.operation_index
+                        < module
+                            .algebra()
+                            .dimension_unstable(opgen.operation_degree, opgen.generator_degree)
+                );
+                assert_eq!(
+                    module.operation_generator_to_index(
+                        opgen.operation_degree,
+                        opgen.operation_index,
+                        opgen.generator_degree,
+                        opgen.generator_index,
+                    ),
+                    index
+                );
+            }
+
+            // A cursor must answer exactly as the direct lookup does, ascending and descending.
+            let mut cursor = module.opgen_cursor(degree);
+            assert_eq!(cursor.degree(), degree);
+            assert_eq!(cursor.dimension(), dim);
+            for index in 0..dim {
+                assert_eq!(cursor.get(index), module.index_to_op_gen(degree, index));
+            }
+            let mut cursor = module.opgen_cursor(degree);
+            for index in (0..dim).rev() {
+                assert_eq!(cursor.get(index), module.index_to_op_gen(degree, index));
+            }
+            // Scattered order, so a cursor that assumed monotonicity would be caught.
+            let mut cursor = module.opgen_cursor(degree);
+            for index in (0..dim).step_by(7).chain((0..dim).step_by(3)) {
+                assert_eq!(cursor.get(index), module.index_to_op_gen(degree, index));
+            }
+        }
+    }
+
+    /// Generator degrees with no generators at all, which contribute no block.
+    #[test]
+    fn round_trip_with_empty_generator_degrees() {
+        const NUM_GENS: [usize; 6] = [2, 0, 1, 0, 0, 3];
+        const MAX: i32 = 12;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX + 1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(MAX);
+        for (degree, num_gens) in NUM_GENS.into_iter().enumerate() {
+            module.add_generators(degree as i32, num_gens, None);
+        }
+        module.compute_basis(MAX);
+
+        assert_round_trips(&module, MAX);
+    }
+
+    /// A generator in the top degree admits no operations, so its block is empty and shares an
+    /// offset with the block after it. The search has to resolve that tie towards the later block.
+    #[test]
+    fn round_trip_with_empty_blocks() {
+        const MAX: i32 = 6;
+
+        let algebra = Arc::new(AdemAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX + 1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(MAX);
+        // Generators in every degree up to MAX: the ones in degree MAX itself have an empty block
+        // in degree MAX, as do those in degrees where the algebra has no operations to apply.
+        for degree in 0..=MAX {
+            module.add_generators(degree, 2, None);
+        }
+        module.compute_basis(MAX);
+
+        assert_round_trips(&module, MAX);
+    }
+
+    /// `extend_by_zero` adds zero-generator degrees after the fact, past the generators.
+    #[test]
+    fn round_trip_after_extend_by_zero() {
+        const MAX: i32 = 10;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX + 1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(2);
+        module.add_generators(0, 1, None);
+        module.add_generators(1, 2, None);
+        module.add_generators(2, 1, None);
+        module.extend_by_zero(MAX);
+
+        assert_round_trips(&module, MAX);
+    }
+
+    /// Generators added after a degree has already been computed extend that degree's blocks.
+    #[test]
+    fn round_trip_when_generators_are_added_late() {
+        const MAX: i32 = 8;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX + 1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(MAX);
+        for degree in 0..=3 {
+            module.add_generators(degree, 1, None);
+            // Re-check every degree after each addition, so a stale offset would be caught at the
+            // point it goes stale rather than only at the end.
+            assert_round_trips(&module, MAX);
+        }
+    }
+
+    /// An index past the dimension is rejected in release builds too, where the search would
+    /// otherwise underflow and fail somewhere less obvious.
+    #[test]
+    #[should_panic(expected = "index 5 out of range in degree 0")]
+    fn index_past_dimension_panics() {
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(0);
+        module.add_generators(0, 1, None);
+        module.compute_basis(0);
+
+        assert_eq!(module.dimension(0), 1);
+        module.index_to_op_gen(0, 5);
+    }
+
+    /// A degree with no generators at all has no blocks, so there is nothing for a lookup to find.
+    #[test]
+    #[should_panic(expected = "index 0 out of range in degree 0")]
+    fn lookup_in_empty_degree_panics() {
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(0);
+        module.add_generators(0, 0, None);
+        module.compute_basis(0);
+
+        assert_eq!(module.dimension(0), 0);
+        module.index_to_op_gen(0, 0);
+    }
+
+    /// A module over an odd prime, where `dimension_unstable` vanishes in more degrees.
+    #[test]
+    #[cfg(feature = "odd-primes")]
+    fn round_trip_odd_prime() {
+        const MAX: i32 = 20;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::ValidPrime::new(3), false));
+        algebra.compute_basis(MAX + 1);
+        let module = FreeModule::new(algebra, "F".to_string(), 0);
+        module.compute_basis(MAX);
+        for degree in 0..=9 {
+            let num_gens = match degree {
+                0 | 9 => 1,
+                4 => 2,
+                _ => 0,
+            };
+            module.add_generators(degree, num_gens, None);
+        }
+        module.compute_basis(MAX);
+
+        assert_round_trips(&module, MAX);
     }
 }
 

@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use fp::{
-    matrix::{MatrixSliceMut, QuasiInverse, Subspace},
+    matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 
 use crate::{
     algebra::MuAlgebra,
     module::{
         Module, MuFreeModule,
-        free_module::OperationGeneratorPair,
+        free_module::{OpGenCursor, OperationGeneratorPair},
         homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
     },
 };
@@ -33,6 +34,47 @@ where
     degree_shift: i32,
 }
 
+impl<const U: bool, M: Module> MuFreeModuleHomomorphism<U, M>
+where
+    M::Algebra: MuAlgebra<U>,
+{
+    /// Apply to one basis element, taking its `(operation, generator)` pair from `cursor`.
+    ///
+    /// The degree is the cursor's, so a caller cannot pair a cursor with a mismatched degree.
+    fn apply_to_basis_element_with(
+        &self,
+        cursor: &mut OpGenCursor<'_, U, M::Algebra>,
+        result: FpSliceMut,
+        coeff: u32,
+        input_index: usize,
+    ) {
+        let input_degree = cursor.degree();
+        let output_degree = input_degree - self.degree_shift;
+        assert_eq!(
+            self.target.dimension(output_degree),
+            result.as_slice().len()
+        );
+        let OperationGeneratorPair {
+            operation_degree,
+            generator_degree,
+            operation_index,
+            generator_index,
+        } = cursor.get(input_index);
+
+        if generator_degree >= self.min_degree() {
+            let output_on_generator = self.output(generator_degree, generator_index);
+            self.target.act(
+                result,
+                coeff,
+                operation_degree,
+                operation_index,
+                generator_degree - self.degree_shift,
+                output_on_generator.as_slice(),
+            );
+        }
+    }
+}
+
 impl<const U: bool, M: Module> ModuleHomomorphism for MuFreeModuleHomomorphism<U, M>
 where
     M::Algebra: MuAlgebra<U>,
@@ -52,6 +94,8 @@ where
         self.degree_shift
     }
 
+    /// Builds a cursor for this one element. Prefer [`Self::apply`] or [`Self::get_matrix`] when
+    /// applying to several elements of a degree, so that one cursor serves them all.
     fn apply_to_basis_element(
         &self,
         result: FpSliceMut,
@@ -60,30 +104,62 @@ where
         input_index: usize,
     ) {
         assert!(input_degree >= self.source.min_degree());
-        assert!(input_index < self.source.dimension(input_degree));
-        let output_degree = input_degree - self.degree_shift;
-        assert_eq!(
-            self.target.dimension(output_degree),
-            result.as_slice().len()
-        );
-        let OperationGeneratorPair {
-            operation_degree,
-            generator_degree,
-            operation_index,
-            generator_index,
-        } = *self.source.index_to_op_gen(input_degree, input_index);
+        let mut cursor = self.source.opgen_cursor(input_degree);
+        self.apply_to_basis_element_with(&mut cursor, result, coeff, input_index);
+    }
 
-        if generator_degree >= self.min_degree() {
-            let output_on_generator = self.output(generator_degree, generator_index);
-            self.target.act(
-                result,
-                coeff,
-                operation_degree,
-                operation_index,
-                generator_degree - self.degree_shift,
-                output_on_generator.as_slice(),
-            );
+    /// Reuses one cursor across the terms of `input`, which `iter_nonzero` yields in ascending
+    /// order.
+    fn apply(&self, mut result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
+        assert!(input_degree >= self.source.min_degree());
+        let p = self.prime();
+        let mut cursor = self.source.opgen_cursor(input_degree);
+        for (i, v) in input.iter_nonzero() {
+            self.apply_to_basis_element_with(&mut cursor, result.copy(), (coeff * v) % p, i);
         }
+    }
+
+    /// Builds one cursor per worker, which then walks that worker's rows in ascending order.
+    fn get_matrix(&self, mut matrix: MatrixSliceMut, degree: i32) {
+        assert_eq!(self.source.dimension(degree), matrix.rows());
+        assert_eq!(
+            self.target.dimension(degree - self.degree_shift),
+            matrix.columns()
+        );
+
+        if matrix.columns() == 0 {
+            return;
+        }
+
+        let source = &*self.source;
+        matrix.maybe_par_iter_mut().enumerate().for_each_init(
+            || source.opgen_cursor(degree),
+            |cursor, (i, row)| self.apply_to_basis_element_with(cursor, row, 1, i),
+        );
+    }
+
+    /// See [`Self::get_matrix`] for the cursor.
+    ///
+    /// The columns are the target's dimension in the SHIFTED degree, matching what
+    /// [`Self::get_matrix`] asserts and what each row is then filled to.
+    fn get_partial_matrix(&self, degree: i32, inputs: &[usize]) -> Matrix {
+        let mut matrix = Matrix::new(
+            self.prime(),
+            inputs.len(),
+            self.target.dimension(degree - self.degree_shift),
+        );
+
+        if matrix.columns() == 0 {
+            return matrix;
+        }
+
+        let source = &*self.source;
+        matrix.maybe_par_iter_mut().enumerate().for_each_init(
+            || source.opgen_cursor(degree),
+            |cursor, (i, row)| self.apply_to_basis_element_with(cursor, row, 1, inputs[i]),
+        );
+
+        matrix
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
