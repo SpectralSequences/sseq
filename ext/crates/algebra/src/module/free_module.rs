@@ -196,6 +196,11 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
                 break;
             }
             let input_slice = input.restrict(input_start, input_end);
+            // A zero generator block contributes nothing; skip it rather than paying a multiply
+            // call that does no work (empirically ~a quarter of calls during a sphere resolution).
+            if input_slice.is_zero() {
+                continue;
+            }
             self.algebra.multiply_basis_element_by_element_unstable(
                 result.slice_mut(output_start, output_end),
                 coeff,
