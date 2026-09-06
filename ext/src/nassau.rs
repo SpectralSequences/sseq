@@ -133,10 +133,9 @@ impl MilnorSubalgebra {
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
     ///
     /// Only basis elements coming from generators of degree strictly less than `max_gen_degree`
-    /// are considered; `None` imposes no restriction. Restricting the generator degree is used by
-    /// [`Resolution::compute_through_stem`] to read a module while ignoring the generators of the
-    /// current internal degree, which may be added concurrently by another thread. Because
-    /// generators are laid out in increasing degree, this is exactly a prefix of the full mask.
+    /// are considered; `None` imposes no restriction. Because generators are laid out in
+    /// increasing degree, a restricted result is a prefix of the unrestricted one; see
+    /// [`Resolution::step_resolution_with_subalgebra`] for why we restrict.
     ///
     /// This requires passing the algebra for borrow checker reasons.
     fn signature_mask<'a>(
@@ -636,8 +635,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target = &*self.modules[b.s() - 1];
         let algebra = target.algebra();
 
-        // We compute this bidegree treating the target `C_{b.s() - 1}` as if it had no generators of
-        // degree `>= b.t()`, and `C_{b.s() - 2}` as if it had no generators of degree `>= b.t() - 1`.
+        // We compute this bidegree treating the target `C_{b.s() - 1}` as if it had no generators
+        // of degree `>= b.t()`, and `C_{b.s() - 2}` as if it had none of degree `>= b.t() - 1`.
         // By minimality this loses no information (the differentials we care about land in the
         // radical, hence in strictly lower-degree generators), and it makes the computation depend
         // only on data that is frozen once `(b.s() - 1, b.t() - 1)` and `(b.s(), b.t() - 1)` have
@@ -702,11 +701,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             &masked_matrix,
         )?;
 
-        // The quasi-inverse is always computed on the restricted (degree `< b.t()`) target basis, so
-        // from the point of view of a later `apply_quasi_inverse` it was computed with "incomplete
-        // information": the differentials on the degree-`b.t()` generators of the target were not
-        // available. We flag this unconditionally so the lift is corrected using those differentials
-        // once they are known.
+        // The quasi-inverse is always computed on the restricted (degree `< b.t()`) target basis,
+        // so from the point of view of a later `apply_quasi_inverse` it was computed with
+        // "incomplete information": the differentials on the degree-`b.t()` generators of the
+        // target were not available. We flag this unconditionally so the lift is corrected using
+        // those differentials once they are known.
         if let Some(f) = &mut f {
             f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
         }
@@ -1008,17 +1007,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     /// This function resolves up till a fixed stem instead of a fixed t.
     ///
-    /// The dependency graph we use is the relaxed one: computing `(s, t)` only requires `(s, t - 1)`
-    /// and `(s - 1, t - 1)` (for `s >= 2`), rather than `(s - 1, t)` and `(s, t - 1)`. The read-only
-    /// data `(s, t)` needs — the generators of the relevant modules of degree `< t` — is frozen once
-    /// those two bidegrees have been committed (`step_resolution_with_subalgebra` ignores the
-    /// degree-`t` generators of the target). This lets `(s, t)` run concurrently with
-    /// `(s - 1, t)`, the bidegree that produces those degree-`t` generators, and keeps many
-    /// `t`-diagonals (`n = t - s` fixed) in flight at once, which is where the parallelism comes
-    /// from.
+    /// The dependency graph we use is the relaxed one: computing `(s, t)` only requires
+    /// `(s, t - 1)` and `(s - 1, t - 1)` (for `s >= 2`), rather than `(s - 1, t)` and `(s, t - 1)`;
+    /// see `step_resolution_with_subalgebra` for why that suffices. This lets `(s, t)` run
+    /// concurrently with `(s - 1, t)` and keeps many `t`-diagonals (`n = t - s` fixed) in flight at
+    /// once, which is where the parallelism comes from.
     ///
-    /// The rows `s = 0` and `s = 1` are kept on the strict schedule: they are cheap, and `step0` and
-    /// `step1` read their targets through full matrices, so they wait for `(s - 1, t)`.
+    /// The rows `s = 0` and `s = 1` are kept on the strict schedule: `step0` and `step1` read their
+    /// targets through full matrices, so they wait for `(s - 1, t)`.
     #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
@@ -1403,8 +1399,8 @@ mod tests {
         );
     }
 
-    /// Cross-check the secondary (d2) computation on a *save-backed* Nassau resolution computed with
-    /// the relaxed [`Resolution::compute_through_stem`] against the standard resolution. This
+    /// Cross-check the secondary (d2) computation on a *save-backed* Nassau resolution computed
+    /// with the relaxed [`Resolution::compute_through_stem`] against the standard resolution. This
     /// exercises the quasi-inverse save files, which under the relaxed schedule are always written
     /// using the "incomplete information" (`Magic::Fix`) path, since a bidegree is computed while
     /// ignoring the same-degree generators of its target.
@@ -1419,6 +1415,7 @@ mod tests {
             secondary::SecondaryLift, utils::construct_standard,
         };
 
+        /// Render every non-trivial d2 in `lift` as one line, for comparison across resolutions.
         fn d2_chart<CC>(lift: &SecondaryResolution<CC>) -> String
         where
             CC: FreeChainComplex,
@@ -1451,8 +1448,16 @@ mod tests {
         let standard_lift = SecondaryResolution::new(Arc::new(standard));
         standard_lift.extend_all();
 
+        let nassau_chart = d2_chart(&nassau_lift);
+        // Both charts are built by the same guarded iteration, so an empty pair would compare
+        // equal without having compared any d2 at all.
+        assert!(
+            !nassau_chart.is_empty(),
+            "no d2 differentials were compared"
+        );
+
         assert_eq!(
-            d2_chart(&nassau_lift),
+            nassau_chart,
             d2_chart(&standard_lift),
             "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and \
              standard"

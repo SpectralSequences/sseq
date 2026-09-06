@@ -247,12 +247,8 @@ where
     /// than the whole thing.
     ///
     /// The caller must guarantee that the image of the basis element is supported within that
-    /// prefix; otherwise `act` will panic on an out-of-bounds write. This is used by [Nassau's
-    /// algorithm](crate::module::homomorphism), which stores each differential truncated to the same
-    /// prefix (valid by minimality, since a generator's differential lands in the radical), so `act`
-    /// stops before writing past `result`. This lets a bidegree be computed while treating the
-    /// target module as if the generators added concurrently in the current internal degree do not
-    /// yet exist.
+    /// prefix; otherwise `act` will panic on an out-of-bounds write. The Nassau resolution in the
+    /// `ext` crate relies on this.
     pub fn apply_to_basis_element_restricted(
         &self,
         result: FpSliceMut,
@@ -261,7 +257,10 @@ where
         input_index: usize,
     ) {
         assert!(input_degree >= self.source.min_degree());
-        assert!(result.as_slice().len() <= self.target.dimension(input_degree - self.degree_shift));
+        assert!(
+            result.as_slice().len() <= self.target.dimension(input_degree - self.degree_shift),
+            "restricted result longer than target dimension"
+        );
         let mut cursor = self.source.opgen_cursor(input_degree);
         self.apply_to_basis_element_with(&mut cursor, result, coeff, input_index);
     }
@@ -270,8 +269,8 @@ where
     /// the first `target_dim` basis elements of degree `degree - degree_shift`.
     ///
     /// Unlike [`ModuleHomomorphism::get_partial_matrix`], which sizes the matrix from the target's
-    /// dimension, this takes the number of columns from the caller. Each row is filled by
-    /// [`Self::apply_to_basis_element_restricted`], so the same support requirement applies. See
+    /// dimension, this takes the number of columns from the caller. The support requirement of
+    /// [`Self::apply_to_basis_element_restricted`] applies to every row. See
     /// [`ModuleHomomorphism::get_matrix`] for the cursor.
     pub fn get_partial_matrix_restricted(
         &self,
@@ -279,7 +278,10 @@ where
         inputs: &[usize],
         target_dim: usize,
     ) -> Matrix {
-        assert!(target_dim <= self.target.dimension(degree - self.degree_shift));
+        assert!(
+            target_dim <= self.target.dimension(degree - self.degree_shift),
+            "restricted result longer than target dimension"
+        );
         let mut matrix = Matrix::new(self.prime(), inputs.len(), target_dim);
         if target_dim == 0 {
             return matrix;
