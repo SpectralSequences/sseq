@@ -1,5 +1,5 @@
 //! Batched lifting of many maps through one target complex, one bidegree at a time.
-use std::{ops::Range, sync::Arc};
+use std::{any::Any, ops::Range, sync::Arc};
 
 use algebra::module::Module;
 use fp::vector::FpVector;
@@ -44,10 +44,10 @@ pub trait Liftable: Sync + Send {
     /// known.
     fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>>;
 
-    /// Identifies the target complex this lifts through, so [`MultiLift::new`] can check that every
-    /// participant shares one target. Implementors return the address of their target `Arc`; the
-    /// pointer is compared, never dereferenced.
-    fn target_addr(&self) -> *const ();
+    /// Whether this lifts through `target`, so [`MultiLift::new`] can check that every participant
+    /// shares one. Implementors compare it against their own target by identity, not by value: two
+    /// equal-looking complexes have unrelated quasi-inverse stores.
+    fn lifts_through(&self, target: &dyn Any) -> bool;
 }
 
 /// The inputs to lift at one bidegree together with a continuation to finish the step; see
@@ -82,12 +82,13 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
     ///
     /// If any liftable lifts through a complex other than `target`. Batching them would solve their
     /// steps against the wrong quasi-inverse, silently producing invalid lifts.
-    pub fn new(target: Arc<CC>, liftables: Vec<Arc<dyn Liftable>>) -> Self {
-        let target_addr = Arc::as_ptr(&target) as *const ();
+    pub fn new(target: Arc<CC>, liftables: Vec<Arc<dyn Liftable>>) -> Self
+    where
+        CC: 'static,
+    {
         for liftable in &liftables {
-            assert_eq!(
-                liftable.target_addr(),
-                target_addr,
+            assert!(
+                liftable.lifts_through(&*target),
                 "every liftable in a MultiLift must lift through the same target complex"
             );
         }
