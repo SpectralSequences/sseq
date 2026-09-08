@@ -813,8 +813,10 @@ where
         }
     }
 
-    fn target_addr(&self) -> *const () {
-        Arc::as_ptr(&self.0.target()) as *const ()
+    fn lifts_through(&self, target: &dyn std::any::Any) -> bool {
+        target
+            .downcast_ref::<T::Target>()
+            .is_some_and(|target| std::ptr::eq(target, &*self.0.target()))
     }
 }
 

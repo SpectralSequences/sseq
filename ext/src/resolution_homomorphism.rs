@@ -476,7 +476,7 @@ impl<const U: bool, CC1, CC2> Liftable for MuResolutionHomomorphism<U, CC1, CC2>
 where
     CC1: FreeChainComplex<U>,
     CC1::Algebra: MuAlgebra<U>,
-    CC2: ChainComplex<Algebra = CC1::Algebra>,
+    CC2: ChainComplex<Algebra = CC1::Algebra> + 'static,
 {
     fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>> {
         let input = b + self.shift;
@@ -500,8 +500,10 @@ where
         }
     }
 
-    fn target_addr(&self) -> *const () {
-        Arc::as_ptr(&self.target) as *const ()
+    fn lifts_through(&self, target: &dyn std::any::Any) -> bool {
+        target
+            .downcast_ref::<CC2>()
+            .is_some_and(|target| std::ptr::eq(target, &*self.target))
     }
 }
 
