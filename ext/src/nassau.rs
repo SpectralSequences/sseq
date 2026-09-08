@@ -436,8 +436,8 @@ enum Magic {
 }
 
 /// Whether to persist quasi-inverses to disk during resolution. Disabled by
-/// `EXT_NASSAU_NO_SAVE_QI`, in which case only the differentials are written (the quasi-inverses are
-/// ~260-460x larger) and every downstream lift recomputes its quasi-inverse on demand.
+/// `EXT_NASSAU_NO_SAVE_QI`, in which case only the differentials are written — they are orders of
+/// magnitude smaller — and every downstream lift recomputes its quasi-inverse on demand.
 static SAVE_QI: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("EXT_NASSAU_NO_SAVE_QI").is_none());
 
@@ -1177,22 +1177,31 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
         for<'a> &'a S: Into<FpSlice<'a>>,
     {
-        // Read the saved quasi-inverse unless recomputation is forced. Fall back to recomputation
-        // whenever no saved stream is available: no store, the qis were never persisted
-        // (`EXT_NASSAU_NO_SAVE_QI`), or the store has no qi for this bidegree. The last case
-        // legitimately happens at the top of the computed region — nassau writes qi(s, t) while
-        // computing (s + 1, t), so qi(max_s, t) is never saved even though lifting into it is
-        // well-defined. `RecomputeReader` regenerates the exact same byte stream from
-        // `differentials[b.s]`, so the loop below is unchanged.
-        let saved = if *RECOMPUTE_QI {
+        // Read the saved quasi-inverse unless recomputation is forced or nothing was persisted.
+        // `RecomputeReader` regenerates the exact same byte stream from `differentials[b.s]`, so
+        // the loop below is unchanged either way.
+        let force_recompute = *RECOMPUTE_QI || !*SAVE_QI;
+        let read_dir = self.save_dir.read();
+        let saved = if force_recompute {
             None
-        } else if let Some(dir) = self.save_dir.read() {
+        } else if let Some(dir) = read_dir {
             self.save_file(SaveKind::NassauQi, b).open_file(dir.clone())
         } else {
             None
         };
         let mut f: Box<dyn io::Read> = match saved {
             Some(f) => f,
+            // A store that should hold this quasi-inverse but doesn't is an incomplete store, not
+            // an invitation to spend the resolution cost again silently: report failure as before
+            // recompute-on-demand existed. Nassau writes qi(s, t) while computing (s + 1, t), so
+            // an absent qi is legitimate exactly when that step was never taken — at the top of
+            // the computed region, where lifting into (s, t) is still well-defined.
+            None if !force_recompute
+                && read_dir.is_some()
+                && self.has_computed_bidegree(b + Bidegree::s_t(1, 0)) =>
+            {
+                return false;
+            }
             None => Box::new(RecomputeReader::new(self, b)),
         };
 
@@ -1362,9 +1371,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 /// quasi-inverse is re-derived from `differentials[b.s]` alone (plus the module bases and the
 /// deterministically-chosen subalgebra), never the rest of the resolution.
 ///
-/// It advances one signature at a time, holding only that signature's matrices, so its peak memory
-/// matches what resolving this bidegree originally required — never the whole quasi-inverse, which
-/// can reach hundreds of GB at record stems.
+/// It advances one signature at a time, holding only that signature's matrices plus the bytes they
+/// serialize to, so its peak memory is on the order of what resolving this bidegree originally
+/// required — never the whole quasi-inverse, which can reach hundreds of GB at record stems. (The
+/// serialized block is the one thing the original resolution did not hold: `write_qi` streamed it
+/// straight to the file, whereas a [`io::Read`] must have the bytes ready to hand out.)
 ///
 /// Because the resolution is fully computed by the time a lift is requested, the recomputed
 /// quasi-inverse always uses complete information, so it never emits a [`Magic::Fix`].
@@ -1382,6 +1393,7 @@ struct RecomputeReader<'a, M: ZeroModule<Algebra = MilnorAlgebra>> {
 }
 
 impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
+    /// Set up the regeneration of the quasi-inverse of `d_{b.s}` at `b`, emitting nothing yet.
     fn new(res: &'a Resolution<M>, b: Bidegree) -> Self {
         let s = b.s();
         let t = b.t();
@@ -1473,6 +1485,8 @@ impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> io::Read for RecomputeReader<'_, M> {
+    /// Hand out the next bytes of the quasi-inverse, regenerating the next signature's block
+    /// whenever the current one runs dry. Returns 0 once the trailing [`Magic::End`] is consumed.
     fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
         while self.pos >= self.buf.len() {
             self.buf.clear();

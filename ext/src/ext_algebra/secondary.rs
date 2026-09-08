@@ -271,16 +271,20 @@ where
         )
     }
 
-    /// Build the secondary product lift for every generator of $\Ext(M, k)$ in the computed range
-    /// and extend them all together, in bidegree-major order, via [`MultiLift`](crate::resolution_homomorphism::MultiLift) — the secondary
-    /// analogue of [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products). Must be
-    /// called after [`extend_all`](Self::extend_all).
+    /// Build the secondary product lift for every generator of $\Ext(M, k)$ of positive filtration
+    /// in the computed range and extend them all together, in bidegree-major order, via
+    /// [`MultiLift`](crate::lift::MultiLift) — the secondary analogue of
+    /// [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products). Must be called after
+    /// [`extend_all`](Self::extend_all).
+    ///
+    /// Filtration-zero generators are excluded: multiplying by such a class is degenerate for the
+    /// secondary machinery (see the filter below), so unlike the primary
+    /// [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products) this does not cover
+    /// every generator.
     ///
     /// Every lift shares the unit resolution as target — for both the underlying primary maps and
     /// the secondary homotopies — so lifting them together means the unit's quasi-inverse at each
-    /// bidegree is solved once and reused across every product rather than once per product. With
-    /// quasi-inverses recomputed on demand this keeps the cost of all the secondary products at ~1x
-    /// the on-disk baseline instead of scaling with the number of generators.
+    /// bidegree is solved once and reused across every product rather than once per product.
     pub fn extend_all_secondary_products(&self)
     where
         CC: Send + Sync + 'static,
@@ -302,10 +306,10 @@ where
             return;
         }
 
-        // Extend the underlying primary maps first (the secondary composites read them), each to its
-        // own extent exactly as `secondary_multiply_into` does — the secondary machinery's `max()`
-        // assumes that bound, so they are *not* over-extended through `MultiLift` here. Then batch
-        // the secondary homotopy solves, which all share the unit's quasi-inverse.
+        // Extend the underlying primary maps first (the secondary composites read them), each to
+        // its own extent exactly as `secondary_multiply_into` does — the secondary machinery's
+        // `max()` assumes that bound, so they are *not* over-extended through `MultiLift` here.
+        // Then batch the secondary homotopy solves, which all share the unit's quasi-inverse.
         for lift in &lifts {
             lift.underlying().extend_all();
         }
@@ -524,6 +528,8 @@ mod tests {
     /// Batching every secondary product together through [`MultiLift`]
 
     /// Batching every secondary product together through [`MultiLift`](crate::resolution_homomorphism::MultiLift)
+
+    /// Batching every secondary product together through [`MultiLift`](crate::lift::MultiLift)
     /// ([`extend_all_secondary_products`](SecondaryExtAlgebra::extend_all_secondary_products)) must
     /// give the same $\Mod_{C\lambda^2}$ products as extending each lift on its own (the per-call
     /// path inside [`secondary_multiply_into`](SecondaryExtAlgebra::secondary_multiply_into)). This

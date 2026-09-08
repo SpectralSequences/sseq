@@ -169,6 +169,7 @@
 
 pub mod chain_complex;
 pub mod ext_algebra;
+pub mod lift;
 pub mod resolution;
 pub mod resolution_homomorphism;
 pub mod save;

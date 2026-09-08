@@ -34,7 +34,7 @@ pub use crate::{
 };
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    resolution_homomorphism::{LiftRequest, Liftable, MultiLift},
+    lift::{LiftPrep, LiftRequest, Liftable, MultiLift},
     save::{SaveDirectory, SaveFile, SaveKind},
 };
 
@@ -624,10 +624,9 @@ pub trait SecondaryLift: Sync + Sized {
             .map(get_intermediate)
             .collect();
 
-        // The post-quasi-inverse lift-validity check (only at the bottom non-trivial row) consumes
-        // the *pre*-solve intermediates, but the batched driver moves them out to lift. Keep a copy
-        // for the check there; elsewhere it never runs.
-        let check = if b.s() == shift.s() + 1 {
+        // The lift-validity check consumes the intermediates as they are *before* the solve, but
+        // the batched driver moves them out to lift, so keep a copy where that check runs.
+        let presolve_intermediates = if b.s() == shift.s() + 1 {
             Some(intermediates.clone())
         } else {
             None
@@ -639,7 +638,7 @@ pub trait SecondaryLift: Sync + Sized {
             num_gens,
             target_dim,
             intermediates,
-            check,
+            presolve_intermediates,
         })
     }
 
@@ -655,14 +654,15 @@ pub trait SecondaryLift: Sync + Sized {
             b,
             target_b,
             num_gens,
-            check,
+            presolve_intermediates,
             ..
         } = pending;
         let p = self.prime();
 
         if b.s() == self.shift().s() + 1 {
             // Check that we indeed had a lift.
-            let mut check = check.expect("check copy is populated at the bottom non-trivial row");
+            let mut check = presolve_intermediates
+                .expect("the pre-solve copy is populated at the bottom non-trivial row");
             let d = self.target().differential(target_b.s());
             for (src, tgt) in std::iter::zip(results, &mut check) {
                 d.apply(tgt.as_slice_mut(), p - 1, target_b.t(), src.as_slice());
@@ -755,15 +755,8 @@ pub trait SecondaryLift: Sync + Sized {
     }
 }
 
-/// Outcome of [`SecondaryLift::prepare_homotopy_step`].
-pub enum SecondaryHomotopyPrep {
-    /// The step needed no quasi-inverse and is already finished; carries the range of
-    /// newly-contiguous degrees.
-    Done(std::ops::Range<i32>),
-    /// The step needs a quasi-inverse solve at `target_b`; complete it with
-    /// [`SecondaryLift::finish_homotopy_step`].
-    NeedsLift(SecondaryPending),
-}
+/// Outcome of [`SecondaryLift::prepare_homotopy_step`]; see [`LiftPrep`].
+pub type SecondaryHomotopyPrep = LiftPrep<SecondaryPending>;
 
 /// A secondary homotopy step awaiting its quasi-inverse solve; see
 /// [`SecondaryLift::prepare_homotopy_step`].
@@ -774,9 +767,9 @@ pub struct SecondaryPending {
     target_dim: usize,
     /// The intermediates to lift, one per source generator.
     intermediates: Vec<FpVector>,
-    /// Copy of the intermediates for the post-solve lift-validity check; `Some` only at the bottom
-    /// non-trivial row `b.s() == shift.s() + 1`.
-    check: Option<Vec<FpVector>>,
+    /// Copy of the intermediates taken before the solve, for the lift-validity check; `Some` only
+    /// at the bottom non-trivial row `b.s() == shift.s() + 1`.
+    presolve_intermediates: Option<Vec<FpVector>>,
 }
 
 /// A [`Liftable`] view of a secondary lift, so its homotopy solve can be driven by [`MultiLift`]
@@ -819,6 +812,10 @@ where
             }
         }
     }
+
+    fn target_addr(&self) -> *const () {
+        Arc::as_ptr(&self.0.target()) as *const ()
+    }
 }
 
 /// Extend several secondary lifts that share one target complex together, batching the target's
@@ -838,9 +835,8 @@ where
     if lifts.is_empty() {
         return;
     }
-    // Every request is solved against `target`'s quasi-inverse, so a lift through a different target
-    // would be silently wrong. Enforce the shared-target contract before any preparation side
-    // effects, matching the `Arc::ptr_eq` checks the lift constructors already use.
+    // `MultiLift::new` enforces the shared-target contract, but only after `prepare_homotopies`
+    // would have run its side effects, so check it up front here.
     for lift in &lifts {
         assert!(
             Arc::ptr_eq(&target, &lift.target()),

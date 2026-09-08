@@ -15,11 +15,12 @@ use fp::{
     vector::{FpSliceMut, FpVector},
 };
 use maybe_rayon::prelude::*;
-use once::{OnceBiVec, OnceVec};
-use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange, iter_s_t};
+use once::OnceBiVec;
+use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    lift::{LiftPrep, LiftRequest, Liftable},
     save::{SaveDirectory, SaveKind},
 };
 
@@ -310,8 +311,9 @@ where
     /// [`StepPrep::NeedsLift`] carrying the fdx vectors to lift at `output = input - shift` and the
     /// partially-filled outputs, to be completed by [`Self::finish_step`].
     ///
-    /// Splitting the step this way lets [`MultiLift`] gather the fdx vectors of many maps at a
-    /// common output bidegree and issue a single batched `apply_quasi_inverse`.
+    /// Splitting the step this way lets [`MultiLift`](crate::lift::MultiLift) gather the fdx
+    /// vectors of many maps at a common output bidegree and issue a single batched
+    /// `apply_quasi_inverse`.
     pub(crate) fn prepare_step(
         &self,
         input: Bidegree,
@@ -438,6 +440,7 @@ where
             .add_generators_from_rows_ooo(pending.input.t(), std::mem::take(&mut pending.outputs))
     }
 
+    /// Write the chain map's value at `input` to the save store, if there is one to write to.
     fn save_chain_map(&self, input: Bidegree, fx_dimension: usize, outputs: &[FpVector]) {
         if let Some(dir) = self.save_dir.write() {
             let mut f = self
@@ -452,15 +455,8 @@ where
     }
 }
 
-/// Outcome of [`MuResolutionHomomorphism::prepare_step`].
-pub(crate) enum StepPrep {
-    /// The step needed no quasi-inverse and is already finished; carries the range of
-    /// newly-contiguous input degrees (as [`MuResolutionHomomorphism::extend_step_raw`] returns).
-    Done(Range<i32>),
-    /// The step needs a quasi-inverse solve at `output`; complete it with
-    /// [`MuResolutionHomomorphism::finish_step`].
-    NeedsLift(PendingStep),
-}
+/// Outcome of [`MuResolutionHomomorphism::prepare_step`]; see [`LiftPrep`].
+pub(crate) type StepPrep = LiftPrep<PendingStep>;
 
 /// A lift step awaiting its quasi-inverse solve; see [`MuResolutionHomomorphism::prepare_step`].
 pub(crate) struct PendingStep {
@@ -474,36 +470,6 @@ pub(crate) struct PendingStep {
     qi_rows: Vec<usize>,
     /// Dimension of each lifted result (the target module dimension at `output`).
     fx_dimension: usize,
-}
-
-/// Something built by a sequence of quasi-inverse solves against a common target complex, one
-/// target bidegree at a time.
-///
-/// Implemented by chain-map extension ([`MuResolutionHomomorphism`]), the chain-homotopy lifts of
-/// the Massey machinery ([`ChainHomotopy`](crate::chain_complex::ChainHomotopy)), and the secondary
-/// lifts (via [`batch_extend_secondary`](crate::secondary::batch_extend_secondary)). They all lift
-/// through the *same* target quasi-inverse at a given bidegree, so [`MultiLift`] can gather a batch
-/// across implementors of different kinds and solve it once.
-///
-/// The interface is deliberately free of the target/source type parameters: `prepare` returns plain
-/// vectors to lift plus a boxed continuation, so the driver never needs to name a liftable's
-/// internal state.
-pub trait Liftable: Sync + Send {
-    /// Prepare the lift at target bidegree `b`. Returns `None` if this liftable has no quasi-inverse
-    /// work at `b` — out of range, already computed, or a step (augmentation, zero-dimensional) it
-    /// finished itself. Otherwise returns the vectors to lift at `b` and a continuation that
-    /// finishes the step once their lifts are known.
-    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>>;
-}
-
-/// The inputs to lift at one bidegree together with a continuation to finish the step; see
-/// [`Liftable::prepare`].
-pub struct LiftRequest<'a> {
-    /// Vectors to lift, i.e. the `inputs` passed to `apply_quasi_inverse` at this bidegree.
-    pub inputs: Vec<FpVector>,
-    /// Called exactly once with the lifted `results` (`results[i]` lifts `inputs[i]`) to complete
-    /// the step (scatter the results, record generators).
-    pub finish: Box<dyn FnOnce(&[FpVector]) + 'a>,
 }
 
 impl<const U: bool, CC1, CC2> Liftable for MuResolutionHomomorphism<U, CC1, CC2>
@@ -533,120 +499,9 @@ where
             }
         }
     }
-}
 
-/// Extends several [`Liftable`]s that share one target complex, together, in bidegree-major order.
-///
-/// At each output bidegree the inputs of every participating liftable are gathered and lifted with
-/// a single [`ChainComplex::apply_quasi_inverse`], so the target's quasi-inverse there is solved
-/// once and shared across all of them rather than recomputed once per liftable. This is what makes
-/// recompute-on-demand (no saved quasi-inverses) cost ~1x across a many-map computation instead of
-/// scaling with the number of maps. Concurrency across the plane is provided by
-/// [`iter_s_t`], exactly as for a single map.
-///
-/// Single-map callers do not need this — one map hits each bidegree once, so it already recomputes
-/// each quasi-inverse once. Use [`MuResolutionHomomorphism::extend_all`] for those.
-pub struct MultiLift<CC> {
-    target: Arc<CC>,
-    liftables: Vec<Arc<dyn Liftable>>,
-}
-
-impl<CC: ChainComplex + Sync> MultiLift<CC> {
-    /// Build a driver over `liftables`, all of which must lift through `target`.
-    pub fn new(target: Arc<CC>, liftables: Vec<Arc<dyn Liftable>>) -> Self {
-        Self { target, liftables }
-    }
-
-    /// Extend every liftable as far as the shared target is resolved, batching the quasi-inverse
-    /// solve at each output bidegree.
-    pub fn extend_all(&self) {
-        self.extend_bounded(None);
-    }
-
-    /// Like [`extend_all`](Self::extend_all), but only through the stem profile of `bound` — output
-    /// bidegrees `(s, t)` with `s <= bound.s()` and `n <= bound.n()`, the same shape
-    /// [`MuResolutionHomomorphism::extend_through_stem`] uses for a single map. Use this when the
-    /// batch's results are read only up to a known bidegree, so each liftable is extended to just
-    /// what it needs instead of across the whole computed plane.
-    pub fn extend_through_stem(&self, bound: Bidegree) {
-        self.extend_bounded(Some(bound));
-    }
-
-    /// Shared driver for [`extend_all`](Self::extend_all) and
-    /// [`extend_through_stem`](Self::extend_through_stem). `bound`, when present, caps the swept
-    /// output bidegrees to its stem profile (intersected with the target's computed range).
-    fn extend_bounded(&self, bound: Option<Bidegree>) {
-        if self.liftables.is_empty() {
-            return;
-        }
-        let mut max_s = self.target.next_homological_degree();
-        if let Some(bound) = bound {
-            max_s = std::cmp::min(max_s, bound.s() + 1);
-        }
-        if max_s <= 0 {
-            return;
-        }
-        let min_t = self.target.min_degree();
-        let min = Bidegree::s_t(0, min_t);
-
-        // Per-output-row completion frontier, so `iter_s_t` can tell how far each row is done. Cell
-        // (s, t) is recorded at index `t - min_t` of row `s`; `push_ooo` returns the contiguous
-        // frontier that `iter_s_t` expects.
-        let completion: OnceVec<OnceVec<()>> = OnceVec::new();
-        for _ in 0..max_s {
-            completion.push(OnceVec::new());
-        }
-
-        let max_t = move |slf: &Self, s: i32| {
-            let mut t = slf.target.module(s).max_computed_degree() + 1;
-            if let Some(bound) = bound {
-                // Stem profile `n <= bound.n()`, i.e. `t <= bound.n() + s`, exclusive upper bound.
-                t = std::cmp::min(t, bound.n() + s + 1);
-            }
-            t
-        };
-        let max = BidegreeRange::new(self, max_s, &max_t);
-
-        iter_s_t(&|b| self.step_cell(b, &completion, min_t), min, max);
-    }
-
-    /// Process one output bidegree: gather every participating liftable's inputs, do one batched
-    /// lift, then finish each. Returns the newly-contiguous frontier of this output row.
-    fn step_cell(&self, b: Bidegree, completion: &OnceVec<OnceVec<()>>, min_t: i32) -> Range<i32> {
-        let p = self.target.prime();
-
-        let mut inputs: Vec<FpVector> = Vec::new();
-        let mut finishers: Vec<(Box<dyn FnOnce(&[FpVector]) + '_>, Range<usize>)> = Vec::new();
-
-        for liftable in &self.liftables {
-            if let Some(mut req) = liftable.prepare(b) {
-                let start = inputs.len();
-                inputs.append(&mut req.inputs);
-                finishers.push((req.finish, start..inputs.len()));
-            }
-        }
-
-        // Every liftable at output `b` lifts through the same quasi-inverse, so all results have the
-        // target's module dimension at `b`.
-        let fx_dim = self.target.module(b.s()).dimension(b.t());
-        let mut results = vec![FpVector::new(p, fx_dim); inputs.len()];
-        if !inputs.is_empty() {
-            assert!(self.target.apply_quasi_inverse(&mut results, b, &inputs));
-        }
-        // Run every finisher, even when a liftable contributed no inputs (a zero-dimensional step):
-        // its finish still has to register/extend the step so later reads of that bidegree see it.
-        // A no-input finisher receives an empty `results` slice.
-        for (finish, range) in finishers {
-            finish(&results[range]);
-        }
-
-        // `completion` tracks the contiguous frontier of finished degrees per output row (s-value).
-        // `push_ooo()` marks position `(b.t() - min_t)` as done and returns the maximal contiguous
-        // range from 0 up through this position (out-of-order inserts are allowed earlier). Convert
-        // from relative (0-indexed, relative to min_t) to absolute coordinates and return it so
-        // `iter_s_t` knows how far this row has progressed.
-        let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
-        (frontier.start as i32 + min_t)..(frontier.end as i32 + min_t)
+    fn target_addr(&self) -> *const () {
+        Arc::as_ptr(&self.target) as *const ()
     }
 }
 

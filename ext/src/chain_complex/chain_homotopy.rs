@@ -11,7 +11,8 @@ use sseq::coordinates::{Bidegree, BidegreeRange};
 
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    resolution_homomorphism::{LiftRequest, Liftable, ResolutionHomomorphism},
+    lift::{LiftPrep, LiftRequest, Liftable},
+    resolution_homomorphism::ResolutionHomomorphism,
     save::{SaveDirectory, SaveKind},
 };
 
@@ -175,8 +176,8 @@ impl<
     /// [`HomotopyPrep::Done`]; otherwise returns [`HomotopyPrep::NeedsLift`] with the vectors to
     /// lift at `target = source + (1, 0) - shift`, to be completed by [`Self::finish_step`].
     ///
-    /// Splitting the step this way lets [`MultiLift`](crate::resolution_homomorphism::MultiLift)
-    /// batch the quasi-inverse solve of many homotopies at a shared bidegree.
+    /// Splitting the step this way lets [`MultiLift`](crate::lift::MultiLift) batch the
+    /// quasi-inverse solve of many homotopies at a shared bidegree.
     fn prepare_step(&self, source: Bidegree) -> HomotopyPrep {
         let p = self.prime();
         let shift = self.shift();
@@ -320,15 +321,8 @@ impl<
     }
 }
 
-/// Outcome of [`ChainHomotopy::prepare_step`].
-enum HomotopyPrep {
-    /// The step needed no quasi-inverse and is already finished; carries the range of
-    /// newly-contiguous source degrees.
-    Done(std::ops::Range<i32>),
-    /// The step needs a quasi-inverse solve at `target`; complete it with
-    /// [`ChainHomotopy::finish_step`].
-    NeedsLift(PendingHomotopy),
-}
+/// Outcome of [`ChainHomotopy::prepare_step`]; see [`LiftPrep`].
+type HomotopyPrep = LiftPrep<PendingHomotopy>;
 
 /// A homotopy step awaiting its quasi-inverse solve; see [`ChainHomotopy::prepare_step`].
 struct PendingHomotopy {
@@ -370,6 +364,10 @@ impl<
                 })
             }
         }
+    }
+
+    fn target_addr(&self) -> *const () {
+        Arc::as_ptr(&self.right.target) as *const ()
     }
 }
 
