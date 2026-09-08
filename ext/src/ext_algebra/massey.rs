@@ -11,7 +11,8 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use super::ExtModule;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainHomotopy, FreeChainComplex},
-    resolution_homomorphism::{Liftable, MultiLift, ResolutionHomomorphism},
+    lift::{Liftable, MultiLift},
+    resolution_homomorphism::ResolutionHomomorphism,
 };
 
 /// The result of a Massey product computation
@@ -307,9 +308,12 @@ where
         }
 
         // First batch: `b_hom` and every `f_c` against the unit. The homotopies read these maps, so
-        // they must be fully extended before the homotopies are lifted. Every one of these maps is
-        // read only up to output bidegree `shift` (the map value at `tot = c_deg + shift` lands at
-        // `tot - c_deg = shift`), so bound the sweep there rather than across the whole plane.
+        // they must be fully extended before the homotopies are lifted. `MultiLift` bounds *output*
+        // bidegrees, and each `f_c` is read at output `shift` (its value at `tot = c_deg + shift`
+        // lands at `tot - c_deg = shift`), so bound the sweep there rather than across the whole
+        // plane. `b_hom` needs less — `massey_b_hom` builds it only up to *source* `shift` — but
+        // it rides along at the batch's bound rather than paying for a sweep of its own; the extra
+        // work is one map's worth against a batch of `f_cs.len()`.
         let mut map_liftables: Vec<Arc<dyn Liftable>> = Vec::with_capacity(f_cs.len() + 1);
         map_liftables.push(Arc::clone(&b_hom) as Arc<dyn Liftable>);
         map_liftables.extend(f_cs.iter().map(|f| Arc::clone(f) as Arc<dyn Liftable>));

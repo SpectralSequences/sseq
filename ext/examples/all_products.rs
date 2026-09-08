@@ -1,16 +1,4 @@
 //! Benchmark helper: compute *all* left-multiplication-by-generator products on a resolved module.
-//!
-//! By default this extends every product map together via [`ExtAlgebra::extend_all_products`], which
-//! batches the quasi-inverse solve at each output bidegree (one shared solve per bidegree). Set
-//! `EXT_PER_MAP=1` to fall back to extending each map on its own instead, and compare timings.
-//!
-//! Extending a product map is the chain-map lift that repeatedly calls
-//! [`ChainComplex::apply_quasi_inverse`], so this exercises the quasi-inverse path across the whole
-//! plane. Set `EXT_NASSAU_NO_SAVE_QI=1` on the resolve to store only the differentials, or
-//! `EXT_NASSAU_RECOMPUTE_QI=1` here to force recompute-on-demand even when quasi-inverses are saved.
-//!
-//! With `EXT_DUMP_PRODUCTS=1` it prints the full multiplication table (sorted) instead of a timing
-//! line, so the batched and per-map paths can be diffed.
 
 use std::{sync::Arc, time::Instant};
 
@@ -20,6 +8,18 @@ use ext::{
     utils::query_module,
 };
 
+/// Extend every product map and report how long it took.
+///
+/// Extending a product map is the chain-map lift that repeatedly calls
+/// [`ChainComplex::apply_quasi_inverse`], so this exercises the quasi-inverse path across the whole
+/// plane. The environment configures which path is timed:
+///
+/// - `EXT_PER_MAP=1` extends each map on its own instead of batching them through
+///   [`ExtAlgebra::extend_all_products`], for a side-by-side timing.
+/// - `EXT_NASSAU_RECOMPUTE_QI=1` forces recompute-on-demand even when quasi-inverses were saved
+///   (`EXT_NASSAU_NO_SAVE_QI=1` on the *resolve* stores only the differentials in the first place).
+/// - `EXT_DUMP_PRODUCTS=1` prints the full multiplication table, sorted, instead of a timing line,
+///   so the batched and per-map paths can be diffed.
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
