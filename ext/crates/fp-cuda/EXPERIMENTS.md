@@ -190,22 +190,54 @@ Measured optima, half-rank inputs:
 | 2^16 | 1024 | cooperative | 8 |
 | 2^17 | 2048 | cooperative | 16 |
 
-## The row-reduce CPU crossover sits just below 8192 (2026-08-02, H200)
+## The row-reduce crossover is a size, not a short side (2026-09-07, H200)
 
-Half-rank square inputs, device time including upload, against single-threaded M4RI `row_reduce`:
+An earlier reading of this put the crossover at a short side of 8192, from half-rank squares where
+4096 measured 0.57x (a loss) and 8192 measured 1.57x (a win). Both halves of that turned out to be
+wrong: the quantity is wrong, and the numbers no longer reproduce.
 
-| n | GPU vs M4RI |
-|---|---|
-| 4096 | 0.57x (a loss) |
-| 8192 | 1.57x (a win) |
+Re-measured, half-rank squares, device time including upload:
 
-Hence `DEFAULT_RR_THRESHOLD = 8192`, well above the matmul threshold — a full reduction is many
-dependent panel steps, not one GEMM, so its crossover is later.
+| n | size | GPU vs CPU |
+|---|---|---|
+| 1024 | 0.125 MB | 0.85x |
+| 2048 | 0.5 MB | 1.77x |
+| 4096 | 2 MB | 3.30x |
 
-The small-n crossover is bound by fixed launch and transfer overhead rather than the trailing GEMM,
-so the throughput wins above (which scale with n^2) did not move it. The comparison is against
-single-threaded M4RI; the concurrent CPU path is faster, which only pushes the crossover up, so
-8192 is a floor rather than a fitted optimum.
+4096 is now a 3.30x win where it was recorded as a 0.57x loss, so the throughput work above did move
+the crossover after all. Squares turn over between 1024 and 2048.
+
+Sorting by short side is what made 8192 look like the answer, and a short side is not the problem
+size. Measured across eleven half-rank shapes against a 24-thread `row_reduce_cpu` baseline, the
+device wins at every width tested down to 16 rows — 7.98x at 16 × 1,600,000, 33.78x at
+1024 × 1,600,000 — because what it needs is enough total work, not a fat short side. Individual
+ratios here are single runs on an idle device and are not trustworthy to better than ~2x; the
+direction is uniform.
+
+By size the turnover sits near 0.125–0.5 MB: 0.03 MB loses at 0.36x, 0.125 MB breaks even, 0.5 MB
+wins outright. Hence `DEFAULT_RR_MIN_BITS = 2^22` — 0.5 MB, the first size that wins.
+
+### What the workload actually reduces
+
+Measured from 78,786 `gpu_row_reduce{rows, cols}` shapes logged by a live stem-400 run, which is the
+authoritative source: the span records what was reduced, unlike a shape assembled from separate
+census columns.
+
+| | p10 | p50 | p90 |
+|---|---|---|---|
+| aspect `cols/rows` | 1.77x | 1.80x | 1.95x |
+| `min(rows, cols)` | 1198 | 2789 | 4799 |
+| size | 0.31 MB | 1.69 MB | 5.05 MB |
+
+Near-square and small. The short-side gate admitted **24 of 78,786 reductions**; the size gate admits
+75.8% of them, and 96.4% of the volume in bits. At ~1.7 MB near-square the device is worth the 2-3x
+in the table above, not the large factors the wide shapes show — those are real, but this workload
+does not produce them here, because each reduction is column-restricted by its signature's mask.
+
+Caveat this gate does not capture: the device reduction takes the GPU exclusively, so admitting far
+more work concentrates it on whichever device `FP_CUDA_DEVICE` names. With the multiply on separate
+devices that is the intent. On a shared device it would be actively harmful — a reduction that runs
+1.8–9.7 ms alone takes 8.6–96.8 s co-running.
 
 ## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
 

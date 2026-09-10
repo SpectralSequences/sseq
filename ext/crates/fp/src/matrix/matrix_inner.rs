@@ -684,7 +684,8 @@ impl Matrix {
         #[cfg(feature = "gpu")]
         if self.prime() == 2 {
             let (rr_rows, rr_cols) = (self.rows(), self.columns());
-            let rr_big = rr_rows.min(rr_cols) >= 1024;
+            // Log exactly what the gate would admit, so `path=` covers the decisions it makes.
+            let rr_big = crate::blas::cuda::rref::rr_worth_gpu(rr_rows, rr_cols);
             match crate::blas::cuda::rref::try_row_reduce(self) {
                 Some(rank) => {
                     if rr_big {
