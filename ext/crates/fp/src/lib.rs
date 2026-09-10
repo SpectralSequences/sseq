@@ -11,7 +11,6 @@ pub mod prime;
 pub mod vector;
 
 pub mod blas;
-pub mod gpu_lock;
 
 pub(crate) mod simd;
 

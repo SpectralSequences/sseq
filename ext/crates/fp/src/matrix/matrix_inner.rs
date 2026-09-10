@@ -673,16 +673,14 @@ impl Matrix {
     /// ```
     pub fn row_reduce(&mut self) -> usize {
 
-        // For large p = 2 matrices, try the device-resident GPU reduction; it
-        // produces the identical canonical RREF + pivots. Falls back to the CPU
-        // M4RI path below when the GPU is unavailable or below threshold.
+        // For large p = 2 matrices, try the device-resident GPU reduction; it produces the
+        // identical canonical RREF + pivots, and falls through to the CPU M4RI path below when the
+        // GPU is unavailable or the matrix is under `blas::cuda`'s threshold.
         //
-        // Instrumentation: for every p=2 reduction of a non-trivial matrix
-        // (min(rows,cols) >= 1024) we emit a `fp::rr` tracing event recording the
-        // dimensions and whether the GPU path was taken (`path="gpu"`) or it fell
-        // back to CPU M4RI (`path="cpu"` — either below the 8192 threshold or a
-        // launch failure; the logged dims disambiguate). The event inherits the
-        // active nassau span, so it carries the bidegree/signature context.
+        // The `fp::rr` event records which path a non-trivial reduction took. `path="cpu"` does not
+        // say why — under the threshold and a launch failure look the same here — but the logged
+        // dimensions disambiguate. It is emitted inside whatever span the caller is in, so it picks
+        // up the caller's context.
         #[cfg(feature = "gpu")]
         if self.prime() == 2 {
             let (rr_rows, rr_cols) = (self.rows(), self.columns());
@@ -949,7 +947,8 @@ impl Matrix {
 
         // Find the first kernel row
         let first_kernel_row = self.find_first_row_in_block(first_source_column);
-        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
+        // Every row after the first kernel row is also a kernel row, so now we know how big it is
+        // and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Self::new(p, kernel_dimension, source_dimension);
         kernel.initialize_pivots();

@@ -8,7 +8,7 @@ Entries are dated and name the hardware they were measured on: the conclusions a
 and several do not transfer between H100 and H200.
 
 The knobs referred to below live in `cuda_kernels/params.h`, which both the kernel and the Rust
-host read.
+host read. The CPU-side counterpart to this file is `crates/fp/EXPERIMENTS.md`.
 
 The overall shape of the work follows the optimization ladder in Pranjal Shankhdhar's
 "Outperforming cuBLAS on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
@@ -152,3 +152,74 @@ on this hardware, but not guaranteed by the model.
 Output stays bit-exact either way. The reorder costs ~0.96% at 4096 and ~0.73% at 8192 (every
 post-change run below the lowest pre-change run, so the loss is real), and is at noise level at
 16384 and 32768, the sizes the kernel is actually used at. Paid.
+
+## Grid caps for the barrier-bound row-reduce kernels (2026-07-28, H200)
+
+**Chosen:** cap the grid well below full occupancy for the three grid-barrier-bound kernels, with
+env overrides. Defaults live in `src/lib.rs` as `DEFAULT_PF_CTAS`, `DEFAULT_PROM_CTAS` and
+`DEFAULT_BR_CTAS`.
+
+A `grid_sync`'s cost scales with the CTA count, and these kernels sync per pivot, so past the point
+where the grid covers the per-pivot work more CTAs only buy more expensive barriers.
+
+| kernel | syncs | gain from the cap | override |
+|---|---|---|---|
+| `panel_factor_coop` | 1 per pivot bit | +3% at 2^16 | `FP_CUDA_PF_CTAS` |
+| `promote_coop` | 1 per pivot | +6% at 2^16, +5% at 2^17 | `FP_CUDA_PROM_CTAS` |
+| `block_reduce_coop` (TRSM) | 2 per pivot | 334 -> 115 ms (2.9x) at 2^16, +12% end-to-end | `FP_CUDA_BR_CTAS` |
+
+The block-reduce cap applies **only under TRSM**, where the reduces are narrow base blocks whose
+per-pivot XOR needs little width. Without TRSM the reduce is the full block and its XOR genuinely
+needs the whole grid, so full occupancy stands.
+
+## Forward-pass panel width scales with stride (2026-07-20, H200)
+
+**Chosen:** `adaptive_bl` in `src/lib.rs` — `stride/256` without the cooperative promote,
+`stride/128` with it, capped at `MAX_BL`. Override with `FP_CUDA_BL`.
+
+Wider panels raise the trailing GEMM's contraction dimension, reclaiming the K-padding waste. The
+counter-pressure is the promotion cost: the single-CTA `promote_pivots` is O(bl) total, so narrow
+panels win there, while the cooperative `promote_coop` (used at stride >= 1024) is ~bl-independent,
+so the panel can widen until the forward GEMM stops padding.
+
+Measured optima, half-rank inputs:
+
+| n | stride | promote | optimal bl |
+|---|---|---|---|
+| 2^15 | 512 | single-CTA | 2 |
+| 2^16 | 1024 | cooperative | 8 |
+| 2^17 | 2048 | cooperative | 16 |
+
+## The row-reduce CPU crossover sits just below 8192 (2026-08-02, H200)
+
+Half-rank square inputs, device time including upload, against single-threaded M4RI `row_reduce`:
+
+| n | GPU vs M4RI |
+|---|---|
+| 4096 | 0.57x (a loss) |
+| 8192 | 1.57x (a win) |
+
+Hence `DEFAULT_RR_THRESHOLD = 8192`, well above the matmul threshold — a full reduction is many
+dependent panel steps, not one GEMM, so its crossover is later.
+
+The small-n crossover is bound by fixed launch and transfer overhead rather than the trailing GEMM,
+so the throughput wins above (which scale with n^2) did not move it. The comparison is against
+single-threaded M4RI; the concurrent CPU path is faster, which only pushes the crossover up, so
+8192 is a floor rather than a fitted optimum.
+
+## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
+
+**Chosen:** gate the grid-parallel back-substitution reduce on `stride >= 1024`; below that the
+single-CTA `block_reduce_rref` wins.
+
+Spreading each block's per-pivot clear across the whole grid only pays once the block work
+(~`bp · stride`) is large enough to cover the extra barrier traffic:
+
+| n | stride | grid-parallel vs single-CTA |
+|---|---|---|
+| 2^15 | 512 | neutral |
+| 2^16 | 1024 | +6% |
+| 2^17 | 2048 | +18% |
+
+Both grid-parallel variants are gated the same way — the cooperative `block_reduce_coop` and the
+kernel-boundary `br_cond`/`br_xor` pair that is the default.

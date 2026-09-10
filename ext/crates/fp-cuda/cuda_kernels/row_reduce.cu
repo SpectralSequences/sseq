@@ -20,18 +20,18 @@
 // own alias for the limb type; there is no shared header worth adding for one line.
 typedef unsigned long long u64_t;
 
-// ── Panel factorization kernel (BLAS3 GPU row-reduction port, design §5) ──────
+// ── Panel factorization kernel (BLAS3 GPU row-reduction port) ────────────────
 //
 // Forward panel factorization of ONE 64-bit column panel (limb `plimb`), the
 // only column-indexed region of the reduction. A single CTA sweeps the 64 bit
 // positions in order, with a __syncthreads between bits; the panel limb (m u64,
-// a few MB) streams through L2. This is the b=64 base kernel of design §5(1):
+// a few MB) streams through L2. This is the b=64 base kernel:
 // per bit, a find-first reduction picks the pivot (the lone column op), then a
 // row-parallel masked XOR clears it from the rows *below* and records the
 // multiplier bit into L. Forward-only (rows above pivots are left for the
 // back-substitution pass), matching the CPU Step A in src/matrix/blas3.rs.
 //
-// Rows are addressed through the virtual permutation `perm` (design §4.3): a
+// Rows are addressed through the virtual permutation `perm`: a
 // "row swap" swaps two perm entries; the matrix bytes never move. L is indexed
 // by ORIGINAL row id (perm[p]), so it needs no swapping. Emitted to host: `pr`
 // (pivots found) and `pivcols` (their absolute columns). L, the reduced panel,
@@ -135,7 +135,7 @@ __device__ __forceinline__ void grid_sync(unsigned* barrier, unsigned goal) {
     __syncthreads();
 }
 
-// Wide-panel factorization (design §5(2) / CPU blas3.rs Step A): factor the b=bl·64
+// Wide-panel factorization (the CPU blas3.rs panel step): factor the b=bl·64
 // column panel at limbs [ppanel, ppanel+bl) in place, forward-only from pivot row
 // r, grid-parallel across all bl·64 columns. Unlike a single-limb panel, the
 // masked XOR clears each pivot from the below rows across **all bl panel limbs**
@@ -238,8 +238,8 @@ extern "C" __global__ void panel_factor_coop(
 // (pf_find → pf_swap → pf_xor), and the *kernel boundary* — stream ordering —
 // replaces the in-grid `grid_sync`. This is how cuSOLVER/cuBLAS build grid-wide
 // multi-step algorithms: no all-CTAs-co-resident requirement, so it composes with
-// a concurrent kernel from another CUDA runtime (cubecl's Milnor multiply) instead
-// of deadlocking its grid barrier (the intermittent stem-150 wedge).
+// a concurrent kernel from another CUDA runtime instead of deadlocking its grid
+// barrier.
 //
 // All state stays on the device — g_pr (pivots so far), g_min (find-first result),
 // g_pivpos (this step's pivot position, for pf_xor's guard), g_pivword (the pivot
@@ -433,7 +433,7 @@ extern "C" __global__ void pf_xor(
     }
 }
 
-// ── Active-row compaction (design §8.2) ──────────────────────────────────────
+// ── Active-row compaction ────────────────────────────────────────────────────
 //
 // A below row that is entirely zero across the remaining columns [start_limb,
 // stride) can never become a pivot and never contributes to a trailing update
@@ -455,7 +455,7 @@ extern "C" __global__ void mark_live(
     live[idx] = (acc != 0) ? 1u : 0u;
 }
 
-// ── Forward-pass driver kernels (BLAS3 GPU row-reduction port, design §4.4) ───
+// ── Forward-pass driver kernels (BLAS3 GPU row-reduction port) ───────────────
 //
 // After panel_factor establishes `pr` pivots at perm positions [r, r+pr), the
 // driver (1) promotes the pivot rows' trailing, (2) drops them from the
@@ -561,7 +561,7 @@ extern "C" __global__ void gather_rows(
     dst[idx] = m_buf[(u64_t)perm[r + k] * stride + first_limb + c];
 }
 
-// ── Back-substitution kernels (BLAS3 GPU row-reduction port, design §4.6) ─────
+// ── Back-substitution kernels (BLAS3 GPU row-reduction port) ─────────────────
 //
 // Echelon → RREF, blocked right-to-left over pivot blocks. For a block of pivots
 // at perm positions [s, e): (1) reduce the block among itself, then (2) clear
