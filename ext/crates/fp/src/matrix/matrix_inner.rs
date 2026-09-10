@@ -703,6 +703,21 @@ impl Matrix {
                 }
                 None => {
                     if rr_big {
+                        // Reaching here means the gate admitted this reduction and the device
+                        // still declined it, which is an upload failure — in practice the card
+                        // being out of memory. The fallback is a single-threaded M4RI reduction of
+                        // a matrix large enough to stall the run for hours, and it looks exactly
+                        // like a small matrix taking the CPU path by design. Warn, so the two are
+                        // distinguishable in a log.
+                        tracing::warn!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            gib = (rr_rows as f64 * rr_cols as f64 / 8.0) / (1u64 << 30) as f64,
+                            "row reduce ABOVE the GPU threshold fell back to single-threaded CPU \
+                             M4RI: the device upload failed, most likely out of memory. Orders of \
+                             magnitude slower than the GPU path."
+                        );
                         tracing::info!(
                             target: "fp::rr",
                             rows = rr_rows,
@@ -715,6 +730,25 @@ impl Matrix {
                 }
             }
         }
+
+        // Everything below is the CPU M4RI reduction. `gpu_row_reduce` above cannot time it:
+        // that span wraps `try_row_reduce`, which returns early when the gate declines, so a
+        // declined reduction records only the cost of declining.
+        //
+        // The criterion is bits rather than the short side, which is the mistake the gate itself
+        // used to make: a 50 × 1,300,000 reduction is 8 MB with a short side of 50, so a short-side
+        // criterion hides exactly the reductions worth seeing. It is also fixed, and below the
+        // gate's own default, so the span covers both sides of the gate — a criterion that moved
+        // with `rr_worth_gpu` would instrument the two arms of a threshold A/B differently.
+        #[cfg(feature = "gpu")]
+        let _cpu_rr_span = {
+            let (r, c) = (self.rows(), self.columns());
+            let bits = (r as u64).saturating_mul(c as u64);
+            (self.prime() == 2 && bits >= (1 << 20)).then(|| {
+                tracing::info_span!(target: "fp::rr", "cpu_row_reduce", rows = r, cols = c)
+                    .entered()
+            })
+        };
 
         self.row_reduce_cpu()
     }
