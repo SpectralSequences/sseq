@@ -1788,7 +1788,10 @@ mod tests {
             out
         }
 
-        let max = Bidegree::n_s(20, 7);
+        // Far enough to carry a nonzero d2 (the first is `d2(h4) = h0 h3^2`, out of stem 15) and
+        // no further: this runs on every `cargo test`, and the assertion below fails loudly if the
+        // range is ever trimmed past the last differential it is meant to compare.
+        let max = Bidegree::n_s(16, 5);
 
         let dir = tempfile::TempDir::new().unwrap();
         let nassau = crate::utils::construct_nassau("S_2", Some(dir.path().to_owned())).unwrap();
