@@ -1128,7 +1128,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// This function resolves up till a fixed stem instead of a fixed t.
     ///
     /// The dependency graph is built explicitly, with each bidegree split into a `Compute` node and
-    /// a `Register` node; see [`depgraph`] for why. `Compute` runs on a worker and returns what has
+    /// a `Register` node; see `depgraph` for why. `Compute` runs on a worker and returns what has
     /// to be registered; `Register` is applied by this function, in graph order, so appends to
     /// `modules[s]` and `differentials[s]` stay in increasing degree without any worker ever
     /// blocking on its row predecessor.
