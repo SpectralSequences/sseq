@@ -1,6 +1,6 @@
 //! The F₂ row reduction to reduced row echelon form, dispatched to the device.
 
-use super::{context, fill_limbs};
+use super::{context, driver, fill_limbs};
 use crate::{matrix::Matrix, prime::TWO};
 
 /// Smallest `min(rows, cols)` for which we attempt the GPU row reduction. Higher
@@ -55,14 +55,16 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     // makes every launch queue: 1.8–9.7 ms standalone becomes 8.6–96.8 s co-running. Take the
     // device exclusively for the duration; see [`fp::gpu_lock`] for the measurements and the cost
     // (~5 s of multiply pause across a whole stem-200 resolution).
-    let _exclusive = crate::gpu_lock::exclusive();
-    let (dev_limbs, perm, r, pivot_cols) = {
+    // The exclusive guard now lives on the driver thread, which holds it for the whole job — see
+    // [`driver`]. Taking it here as well would deadlock: the driver would wait on a guard this
+    // thread holds while this thread waits on the driver.
+    let (dev_limbs, perm, r, pivot_cols) = driver::run(move || {
         let mut dm = ctx.upload(&limbs, rows, cols).ok()?;
         let (perm, r, pivot_cols) = ctx.row_reduce_dev(&mut dm).ok()?;
         let dev_limbs = ctx.download(&dm).ok()?;
         let perm = ctx.download_u32(&perm).ok()?;
-        (dev_limbs, perm, r, pivot_cols)
-    };
+        Some((dev_limbs, perm, r, pivot_cols))
+    })?;
 
     // Materialize the canonical RREF: pivot k (column pivot_cols[k], ascending)
     // at row k, taken from device row perm[k]; rows [r, rows) zero.
