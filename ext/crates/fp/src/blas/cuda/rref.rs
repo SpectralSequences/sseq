@@ -18,6 +18,99 @@ fn rr_threshold() -> usize {
         .unwrap_or(DEFAULT_RR_THRESHOLD)
 }
 
+/// A small pool of reusable host buffers for marshalling matrices to and from the device.
+///
+/// The reduction cannot borrow the matrix it is reducing: [`driver::run`] requires `'static`, so
+/// the limbs have to be owned and moved into the closure. That copy is made on the *calling*
+/// thread, so allocating one per call makes live memory scale with the driver's queue depth rather
+/// than with device concurrency — which at frontier sizes dominated the process.
+///
+/// Buffers are taken here, moved in, and handed back by the closure whether or not the reduction
+/// succeeded: dropping one inside would lose a permit permanently.
+mod marshal {
+    use std::{
+        sync::{Condvar, LazyLock, Mutex},
+        time::Duration,
+    };
+
+    struct Pool {
+        free: Vec<Vec<u64>>,
+        checked_out: usize,
+    }
+
+    static POOL: LazyLock<(Mutex<Pool>, Condvar)> = LazyLock::new(|| {
+        (
+            Mutex::new(Pool {
+                free: Vec::new(),
+                checked_out: 0,
+            }),
+            Condvar::new(),
+        )
+    });
+
+    /// How many buffers may exist at once, overridable via `FP_CUDA_MARSHAL_BUFFERS`.
+    ///
+    /// Enough for one buffer being filled while another is in flight. The right bound is really
+    /// bytes rather than a count — at frontier sizes a single buffer is many GiB — so raising the
+    /// count is not the way to serve more concurrent marshalling.
+    fn capacity() -> usize {
+        static CAP: LazyLock<usize> = LazyLock::new(|| {
+            std::env::var("FP_CUDA_MARSHAL_BUFFERS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2)
+        });
+        *CAP
+    }
+
+    /// How long to wait for a free buffer before allocating one instead.
+    ///
+    /// Short deliberately, because it is hit constantly rather than rarely:
+    /// [`super::try_row_reduce`] acquires twice, so one reduction in flight consumes the whole pool
+    /// while marshalling stays concurrent across every worker. Waiting bounds nothing either — the
+    /// buffer is allocated on timeout regardless — so a long deadline can only ever lose.
+    const ACQUIRE_WAIT: Duration = Duration::from_millis(200);
+
+    /// Take a buffer from the pool, or a fresh one if none is free within [`ACQUIRE_WAIT`].
+    pub(super) fn acquire() -> Vec<u64> {
+        let (lock, cv) = &*POOL;
+        let mut g = lock.lock().unwrap_or_else(|e| e.into_inner());
+        loop {
+            if let Some(b) = g.free.pop() {
+                g.checked_out += 1;
+                return b;
+            }
+            if g.checked_out < capacity() {
+                g.checked_out += 1;
+                return Vec::new();
+            }
+            let (ng, timeout) = cv
+                .wait_timeout(g, ACQUIRE_WAIT)
+                .unwrap_or_else(|e| e.into_inner());
+            g = ng;
+            if timeout.timed_out() {
+                // Either the pool is simply busy — the common case — or a permit was lost when a
+                // panicking closure failed to return its buffer. Both are handled the same way:
+                // allocate, and let the pool self-heal as live buffers come back.
+                g.checked_out += 1;
+                return Vec::new();
+            }
+        }
+    }
+
+    /// Hand a buffer back, waking one waiter.
+    pub(super) fn release(mut b: Vec<u64>) {
+        let (lock, cv) = &*POOL;
+        let mut g = lock.lock().unwrap_or_else(|e| e.into_inner());
+        g.checked_out = g.checked_out.saturating_sub(1);
+        if g.free.len() < capacity() {
+            b.clear();
+            g.free.push(b);
+        }
+        cv.notify_one();
+    }
+}
+
 /// Try to row-reduce `m` to RREF on the GPU, in place.
 ///
 /// Returns `Some(rank)`, leaving `m` in the same canonical reduced form `Matrix::row_reduce`
@@ -34,28 +127,50 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     let ctx = context()?;
 
     let stride = cols.div_ceil(64);
-    let mut limbs = Vec::new();
-    fill_limbs(m, &mut limbs);
 
     // The default row-reduce is composable (no cooperative launch) and allocates its device
     // buffers per call, so it needs no exclusion of its own; [`driver`] is what keeps this process
     // to a single GPU owner.
-    let (dev_limbs, perm, r, pivot_cols) = driver::run(move || {
-        let mut dm = ctx.upload(&limbs, rows, cols).ok()?;
-        let (perm, r, pivot_cols) = ctx.row_reduce_dev(&mut dm).ok()?;
-        let dev_limbs = ctx.download(&dm).ok()?;
-        let perm = ctx.download_u32(&perm).ok()?;
-        Some((dev_limbs, perm, r, pivot_cols))
-    })?;
+    //
+    // Both buffers come from [`marshal`] and are handed back by the closure on every path, since
+    // dropping one inside would lose a permit permanently.
+    let mut in_buf = marshal::acquire();
+    fill_limbs(m, &mut in_buf);
+    let mut out_buf = marshal::acquire();
+    out_buf.clear();
+    out_buf.resize(rows * stride, 0);
 
-    // Materialize the canonical RREF: pivot k (column pivot_cols[k], ascending)
-    // at row k, taken from device row perm[k]; rows [r, rows) zero.
-    let mut out = vec![0u64; rows * stride];
-    for k in 0..r {
-        let src = perm[k] as usize * stride;
-        out[k * stride..k * stride + stride].copy_from_slice(&dev_limbs[src..src + stride]);
+    let (in_buf, out_buf, res) = driver::run(move || {
+        let mut outcome = None;
+        if let Ok(mut dm) = ctx.upload(&in_buf, rows, cols)
+            && let Ok((perm_dev, r, pivot_cols)) = ctx.row_reduce_dev(&mut dm)
+            && ctx.download_into(&dm, &mut out_buf).is_ok()
+            && let Ok(perm) = ctx.download_u32(&perm_dev)
+        {
+            outcome = Some((perm, r, pivot_cols));
+        }
+        (in_buf, out_buf, outcome)
+    });
+    marshal::release(in_buf);
+    let Some((perm, r, pivot_cols)) = res else {
+        marshal::release(out_buf);
+        return None;
+    };
+
+    // Materialize the canonical RREF in place: pivot k (column pivot_cols[k], ascending) at row k,
+    // taken from device row perm[k]; rows [r, rows) zero. Writing into `m`'s existing storage saves
+    // a full-size allocation and preserves `m`'s row and column capacity, which `Matrix::from_data`
+    // silently discarded — callers such as `extend_image` then `add_row` into it.
+    let ms = m.stride();
+    {
+        let data = m.data_mut();
+        data.fill(0);
+        for k in 0..r {
+            let src = perm[k] as usize * stride;
+            data[k * ms..k * ms + stride].copy_from_slice(&out_buf[src..src + stride]);
+        }
     }
-    *m = Matrix::from_data(TWO, rows, cols, out);
+    marshal::release(out_buf);
     m.initialize_pivots();
     let piv = m.pivots_mut();
     for (k, &q) in pivot_cols.iter().enumerate() {
