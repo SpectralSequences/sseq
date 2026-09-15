@@ -1265,7 +1265,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 }
 
-/// The dependency graph for [`Resolution::compute_through_stem`].
+/// The dependency graph for [`super::Resolution::compute_through_stem`].
 ///
 /// Each bidegree is TWO nodes, because its two halves have different dependencies:
 ///
@@ -1439,7 +1439,7 @@ mod depgraph {
         }
 
         fn node_at(&self, slot: usize) -> Node {
-            let phase = if slot % 2 == 0 {
+            let phase = if slot.is_multiple_of(2) {
                 Phase::Compute
             } else {
                 Phase::Register
