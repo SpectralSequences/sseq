@@ -11,8 +11,8 @@ use std::{
 
 use cudarc::{
     driver::{
-        CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
-        PushKernelArg, sys,
+        CudaContext, CudaFunction, CudaModule, CudaSlice, CudaStream, DevicePtr, DeviceRepr,
+        LaunchConfig, PushKernelArg, sys,
     },
     nvrtc::Ptx,
 };
@@ -46,6 +46,29 @@ struct TmaArg(sys::CUtensorMap);
 // invariants, and the kernel declares the matching parameter `const __grid_constant__ CUtensorMap`.
 unsafe impl DeviceRepr for TmaArg {}
 
+/// A bit-packed F₂ matrix resident in device memory.
+///
+/// Stored in the natural row-major, K-major limb layout `fp::Matrix` uses: `stride =
+/// cols.div_ceil(64)` u64 per row, `rows * stride` u64 total, one bit per entry, bits past `cols`
+/// zero.
+///
+/// The point of it is persistence: uploaded once, mutated in place by device kernels, downloaded
+/// once, so an algorithm made of many dependent launches pays the transfer cost only at its ends.
+/// It is `fp`-agnostic (raw limbs), so `fp-cuda` stays free of a dependency on `fp`.
+pub struct DeviceMatrix {
+    pub buf: CudaSlice<u64>,
+    pub rows: usize,
+    pub cols: usize,
+    pub stride: usize,
+}
+
+impl DeviceMatrix {
+    /// Row stride in 64-bit limbs.
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+}
+
 /// A CUDA device with the `matmul_b1` kernel loaded, ready to launch.
 pub struct GpuContext {
     ctx: Arc<CudaContext>,
@@ -54,23 +77,36 @@ pub struct GpuContext {
     /// per context. The mutex is held only for the map lookup, never across a GPU submission, so it
     /// does not serialize device work — unlike the whole-op lock this design replaced.
     streams: Mutex<HashMap<ThreadId, Arc<CudaStream>>>,
+    /// Held so the loaded module outlives the [`CudaFunction`]s taken from it; never read.
     #[allow(dead_code)]
     module: Arc<CudaModule>,
+    // From `matmul_b1.cu`: the GEMM, its operand packing, and its XOR epilogue.
     kernel: CudaFunction,
+    pack_a: CudaFunction,
+    pack_b: CudaFunction,
+    xor_into: CudaFunction,
 }
 
 impl GpuContext {
     /// Open device `device_id` and load the kernel onto it.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
+        // Deliberately the device *primary* context: another CUDA runtime in this process will
+        // retain the same one, and a private context does not isolate us from it anyway.
         let ctx = CudaContext::new(device_id)?;
-        let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
-        let module = ctx.load_module(ptx)?;
+        let module = ctx.load_module(Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?))?;
         let kernel = module.load_function("matmul_b1_kernel")?;
+        let pack_a = module.load_function("pack_a")?;
+        let pack_b = module.load_function("pack_b")?;
+        let xor_into = module.load_function("xor_into")?;
+
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
             module,
             kernel,
+            pack_a,
+            pack_b,
+            xor_into,
         })
     }
 
@@ -85,6 +121,7 @@ impl GpuContext {
         Ok((major, minor))
     }
 
+    /// The context's shared default stream, for callers that do not need per-thread isolation.
     pub fn default_stream(&self) -> Arc<CudaStream> {
         self.ctx.default_stream()
     }
@@ -95,8 +132,8 @@ impl GpuContext {
     /// `streams` map. Submitting through this instead of the context's single `default_stream()`
     /// lets calls from different threads run on distinct streams — overlapping transfers and
     /// kernels instead of serializing — while all sub-steps of one call share one stream, which
-    /// keeps ordering correct within a thread. This is what lets `try_mul` (and the row-reduce) run
-    /// lock-free from many threads at once.
+    /// keeps ordering correct within a thread. This is what lets callers run lock-free from many
+    /// threads at once.
     pub fn stream(&self) -> Arc<CudaStream> {
         self.streams
             .lock()
@@ -112,6 +149,7 @@ impl GpuContext {
             .clone()
     }
 
+    /// The loaded `matmul_b1_kernel` handle.
     pub fn kernel(&self) -> &CudaFunction {
         &self.kernel
     }
@@ -177,8 +215,6 @@ fn matmul_b1_inner(
     // Pad M to a whole number of M-tiles; the extra padded rows produce zeros
     // that the `take(m)` readback trims.
     let m_padded = m.next_multiple_of(TILE_M);
-    let m_tiles = m_padded / TILE_M;
-    let k_chunks = k_padded / TILE_K;
     // Each CTA computes a TILE_M×(NG*64) output block via MSTRIPS m64n128 wgmmas,
     // so B (and the C output) are grouped/padded to whole NG-limb column tiles.
     let n_groups = n_lim.div_ceil(NG as usize);
@@ -196,11 +232,55 @@ fn matmul_b1_inner(
     let bt_dev = stream.clone_htod(&bt)?;
     let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
 
+    let kernel_secs = run_gemm_kernel(
+        gpu,
+        &stream,
+        &a_dev,
+        &bt_dev,
+        &c_dev,
+        m_padded,
+        k_padded,
+        n_groups,
+        n_padded_lim,
+        time_iters,
+    )?;
+
+    let c_all = stream.clone_dtoh(&c_dev)?;
+    let c_limbs: Vec<u64> = c_all
+        .chunks_exact(n_padded_lim)
+        .take(m)
+        .flat_map(|row| row[..n_lim].iter().copied())
+        .collect();
+    Ok((c_limbs, kernel_secs))
+}
+
+/// Encode the TMA descriptors and launch the `wgmma.b1` GEMM over operands that
+/// are **already interleaved/transposed and resident on device**. Shared by the
+/// host round-trip path ([`matmul_b1_inner`]) and the device-resident path
+/// ([`GpuContext::matmul_b1_dev`]) — the only difference between them is where
+/// the packed operands come from and whether `C` is downloaded. Returns the
+/// average kernel-only wall time over `time_iters` launches.
+#[allow(clippy::too_many_arguments)]
+fn run_gemm_kernel(
+    gpu: &GpuContext,
+    stream: &Arc<CudaStream>,
+    a_dev: &cudarc::driver::CudaSlice<u64>,
+    bt_dev: &cudarc::driver::CudaSlice<u64>,
+    c_dev: &cudarc::driver::CudaSlice<u64>,
+    m_padded: usize,
+    k_padded: usize,
+    n_groups: usize,
+    n_padded_lim: usize,
+    time_iters: usize,
+) -> anyhow::Result<f64> {
+    let m_tiles = m_padded / TILE_M;
+    let k_chunks = k_padded / TILE_K;
+
     // Raw device addresses for the TMA descriptors. The returned guards keep the
     // reads ordered on the stream; hold them until after the launch.
-    let (a_ptr, _ga) = a_dev.device_ptr(&stream);
-    let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
-    let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+    let (a_ptr, _ga) = a_dev.device_ptr(stream);
+    let (b_ptr, _gb) = bt_dev.device_ptr(stream);
+    let (c_ptr, _gc) = c_dev.device_ptr(stream);
 
     let tma_a = encode_tma(
         a_ptr,
@@ -248,7 +328,17 @@ fn matmul_b1_inner(
         .kernel
         .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem_bytes as usize, None)?
         .max(1);
-    let num_ctas = (occ * sms).max(1);
+    let mut num_ctas = (occ * sms).max(1);
+    // Diagnostic: cap the persistent grid to probe how much of a small GEMM's
+    // time is the persistent-grid startup (mbar init + pipeline fill across
+    // occ×SMs CTAs). The persistent loop handles any grid size; fewer CTAs just
+    // do more tile-iterations each.
+    if let Some(cap) = std::env::var("FP_CUDA_GEMM_CTAS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+    {
+        num_ctas = cap.max(1);
+    }
     if std::env::var("FP_CUDA_DEBUG").is_ok() {
         eprintln!("[fp-cuda] occ={occ}/SM sms={sms} num_ctas={num_ctas} smem={smem_bytes}B");
     }
@@ -297,13 +387,306 @@ fn matmul_b1_inner(
     stream.synchronize()?;
     let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
 
-    let c_all = stream.clone_dtoh(&c_dev)?;
-    let c_limbs: Vec<u64> = c_all
-        .chunks_exact(n_padded_lim)
-        .take(m)
-        .flat_map(|row| row[..n_lim].iter().copied())
-        .collect();
-    Ok((c_limbs, kernel_secs))
+    Ok(kernel_secs)
+}
+
+/// A 1D launch config: `ceil(total / 256)` blocks of 256 threads.
+///
+/// # The launch contract
+///
+/// Every kernel launch below is `unsafe` for the same two reasons, so the per-site `SAFETY:` notes
+/// cite this contract and name only what that site adds:
+///
+/// 1. the arguments pushed through the `LaunchBuilder` must match the kernel's parameter list in
+///    order and by type — the driver reinterprets them blind;
+/// 2. every device buffer they reference must outlive the launch, which here means holding its
+///    guard to the end of the enclosing method.
+///
+/// `launch_cooperative` adds a third: the grid must be able to become co-resident, so its size has
+/// to come from an occupancy query rather than from the problem size.
+fn cfg_1d(total: usize) -> LaunchConfig {
+    const T: u32 = 256;
+    let blocks = total.div_ceil(T as usize).max(1) as u32;
+    LaunchConfig {
+        grid_dim: (blocks, 1, 1),
+        block_dim: (T, 1, 1),
+        shared_mem_bytes: 0,
+    }
+}
+
+impl GpuContext {
+    /// Device-resident F₂ GEMM.
+    ///
+    /// [`matmul_b1_raw`]'s operand layout, but already on device and packed into the wgmma tiles
+    /// there, so there is no host round-trip.
+    ///
+    /// Returns `C = A·B` as a **padded** buffer of `m_padded × n_padded_lim` u64 — valid data in
+    /// the first `m` rows and first `n.div_ceil(64)` limbs of each — plus its row stride. The
+    /// padding is what [`GpuContext::xor_into_region`] consumes; a standalone caller trims it on
+    /// readback.
+    pub fn matmul_b1_dev(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> anyhow::Result<(CudaSlice<u64>, usize)> {
+        let sa = k.div_ceil(64);
+        self.matmul_b1_dev_strided(a_dev, m, k, sa, b_dev, n)
+    }
+
+    /// Like [`matmul_b1_dev`](Self::matmul_b1_dev), but A may be a row-sub-block of a wider
+    /// device buffer.
+    ///
+    /// `a_row_stride` is A's actual per-row limb stride (≥ `k.div_ceil(64)`); only the first
+    /// `k.div_ceil(64)` limbs of each row are the operand. This lets a caller holding one large
+    /// persistent matrix multiply a column-block of it in place, without first copying the block
+    /// out to a tightly packed buffer.
+    pub fn matmul_b1_dev_strided(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        a_row_stride: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> anyhow::Result<(CudaSlice<u64>, usize)> {
+        let sa = k.div_ceil(64);
+        let n_lim = n.div_ceil(64);
+        assert!(a_row_stride >= sa, "a_row_stride must cover k limbs");
+        assert_eq!(a_dev.len(), m * a_row_stride, "A limb count mismatch");
+        assert_eq!(b_dev.len(), k * n_lim, "B limb count mismatch");
+
+        let k_padded = k.next_multiple_of(TILE_K);
+        let m_padded = m.next_multiple_of(TILE_M);
+        let m_tiles = m_padded / TILE_M;
+        let k_chunks = k_padded / TILE_K;
+        let n_groups = n_lim.div_ceil(NG as usize);
+        let n_padded_lim = n_groups * NG as usize;
+
+        let stream = self.stream();
+
+        // Pack A → interleaved row-major K-major tiles (m_padded × k_padded/64).
+        // pack_a/pack_b/the GEMM fully overwrite these buffers (padding written as
+        // explicit zeros), so allocate uninitialized and skip the memset — the
+        // per-call zeroing of the multi-GB C output is pure waste at large n.
+        let a_int_len = m_padded * (k_padded / 64);
+        // SAFETY: `alloc` hands back uninitialized device memory. `pack_a` below writes all
+        // `a_int_len` elements — the padding as explicit zeros — before anything reads the buffer.
+        let a_int = unsafe { stream.alloc::<u64>(a_int_len) }?;
+        {
+            let (m_orig, sa_orig, a_str, mt, total) = (
+                m as u32,
+                sa as u32,
+                a_row_stride as u32,
+                m_tiles as u32,
+                a_int_len as u32,
+            );
+            let mut lb = stream.launch_builder(&self.pack_a);
+            lb.arg(&a_int)
+                .arg(a_dev)
+                .arg(&m_orig)
+                .arg(&sa_orig)
+                .arg(&a_str)
+                .arg(&mt)
+                .arg(&total);
+            // SAFETY: launch contract for `pack_a`.
+            unsafe { lb.launch(cfg_1d(a_int_len)) }?;
+        }
+
+        // Pack B → bit-transposed K-major tiles.
+        let bt_len = k_chunks * n_groups * (NG as usize * 64 * KL);
+        // SAFETY: as for `a_int` above: `pack_b` writes all `bt_len` elements before any read.
+        let bt = unsafe { stream.alloc::<u64>(bt_len) }?;
+        {
+            let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
+            let mut lb = stream.launch_builder(&self.pack_b);
+            lb.arg(&bt)
+                .arg(b_dev)
+                .arg(&k_orig)
+                .arg(&nl)
+                .arg(&ng)
+                .arg(&total);
+            // SAFETY: launch contract for `pack_b`.
+            unsafe { lb.launch(cfg_1d(bt_len)) }?;
+        }
+
+        // The GEMM writes C with a bulk-tensor store (overwrite, not accumulate), covering every
+        // output tile; xor_into only reads the first m rows and trailing_limbs columns, all
+        // written. So C needs no pre-zeroing. SAFETY: uninitialized is sound because the GEMM's
+        // bulk-tensor store overwrites every output tile, as the comment above records.
+        let c_dev = unsafe { stream.alloc::<u64>(m_padded * n_padded_lim) }?;
+        run_gemm_kernel(
+            self,
+            &stream,
+            &a_int,
+            &bt,
+            &c_dev,
+            m_padded,
+            k_padded,
+            n_groups,
+            n_padded_lim,
+            1,
+        )?;
+
+        Ok((c_dev, n_padded_lim))
+    }
+
+    /// XOR a padded GEMM output into a region of a persistent device matrix.
+    ///
+    /// `c_dev` is `m × c_stride` u64 per row, as [`GpuContext::matmul_b1_dev`] returns it, and the
+    /// update is `dst[j][dst_limb + col] ^= c_dev[j][col]` for `j < m`, `col < width`. Accumulating
+    /// straight into `dst` is what avoids allocating a fresh result matrix and copying it back to
+    /// the host.
+    #[allow(clippy::too_many_arguments)]
+    pub fn xor_into_region(
+        &self,
+        stream: &Arc<CudaStream>,
+        dst: &mut CudaSlice<u64>,
+        c_dev: &CudaSlice<u64>,
+        m: usize,
+        width: usize,
+        dst_stride: usize,
+        dst_limb: usize,
+        c_stride: usize,
+    ) -> anyhow::Result<()> {
+        let total = m * width;
+        let (mm, w, ds, dl, cs) = (
+            m as u32,
+            width as u32,
+            dst_stride as u32,
+            dst_limb as u32,
+            c_stride as u32,
+        );
+        let mut lb = stream.launch_builder(&self.xor_into);
+        lb.arg(dst)
+            .arg(c_dev)
+            .arg(&mm)
+            .arg(&w)
+            .arg(&ds)
+            .arg(&dl)
+            .arg(&cs);
+        // SAFETY: launch contract for `xor_into`.
+        unsafe { lb.launch(cfg_1d(total)) }?;
+        Ok(())
+    }
+
+    /// Convenience wrapper: upload two host operands, run [`matmul_b1_dev`], and
+    /// download the trimmed `m × n.div_ceil(64)` product. Same signature and
+    /// result as [`matmul_b1_raw`] but exercising the device-resident packing +
+    /// GEMM path end to end — used to validate that path bit-for-bit against the
+    /// host oracle.
+    ///
+    /// [`matmul_b1_dev`]: GpuContext::matmul_b1_dev
+    pub fn matmul_b1_dev_roundtrip(
+        &self,
+        a: &[u64],
+        m: usize,
+        k: usize,
+        b: &[u64],
+        n: usize,
+    ) -> anyhow::Result<Vec<u64>> {
+        let n_lim = n.div_ceil(64);
+        let stream = self.stream();
+        let a_dev = stream.clone_htod(a)?;
+        let b_dev = stream.clone_htod(b)?;
+        let (c_dev, n_padded_lim) = self.matmul_b1_dev(&a_dev, m, k, &b_dev, n)?;
+        let c_all = stream.clone_dtoh(&c_dev)?;
+        Ok(c_all
+            .chunks_exact(n_padded_lim)
+            .take(m)
+            .flat_map(|row| row[..n_lim].iter().copied())
+            .collect())
+    }
+
+    /// Upload a bit-packed F₂ matrix (natural row-major limb layout, `rows *
+    /// cols.div_ceil(64)` u64) to device memory. One H2D copy.
+    pub fn upload(&self, data: &[u64], rows: usize, cols: usize) -> anyhow::Result<DeviceMatrix> {
+        let stride = cols.div_ceil(64);
+        assert_eq!(data.len(), rows * stride, "limb count mismatch");
+        let buf = self.stream().clone_htod(data)?;
+        Ok(DeviceMatrix {
+            buf,
+            rows,
+            cols,
+            stride,
+        })
+    }
+
+    /// Download a [`DeviceMatrix`] back to host limbs (natural layout). One D2H.
+    pub fn download(&self, dm: &DeviceMatrix) -> anyhow::Result<Vec<u64>> {
+        Ok(self.stream().clone_dtoh(&dm.buf)?)
+    }
+
+    /// Download into an existing host buffer, allocating nothing.
+    ///
+    /// [`Self::download`] allocates a fresh `Vec<u64>` per call, which at large sizes is a
+    /// multi-GiB allocation every time. Callers in a loop should hold one buffer and reuse it.
+    pub fn download_into(&self, dm: &DeviceMatrix, out: &mut [u64]) -> anyhow::Result<()> {
+        assert_eq!(
+            out.len(),
+            dm.rows * dm.stride,
+            "download_into: buffer is {} limbs, matrix needs {}",
+            out.len(),
+            dm.rows * dm.stride
+        );
+        self.stream().memcpy_dtoh(&dm.buf, out)?;
+        Ok(())
+    }
+
+    /// Download a device `u32` buffer (e.g. a `perm` vector) to host.
+    pub fn download_u32(&self, s: &CudaSlice<u32>) -> anyhow::Result<Vec<u32>> {
+        Ok(self.stream().clone_dtoh(s)?)
+    }
+
+    /// Accumulate a product into a region of a persistent device matrix: `dst[:, col_off:] ^= a·b`.
+    ///
+    /// `a` is `dst.rows × k` and `b` is `k × t`, with `k = a.cols = b.rows` and `t = b.cols`.
+    /// `col_off` must be a limb boundary, and the trailing region `[col_off, dst.cols)` must be
+    /// exactly `t` columns wide, so that the XOR lands on whole limbs.
+    ///
+    /// Runs [`matmul_b1_dev`](Self::matmul_b1_dev) into a scratch device buffer and XORs that into
+    /// `dst` with [`xor_into_region`](Self::xor_into_region), so the product never reaches the
+    /// host.
+    pub fn gemm_xor_into(
+        &self,
+        dst: &mut DeviceMatrix,
+        l: &DeviceMatrix,
+        u: &DeviceMatrix,
+        col_off: usize,
+    ) -> anyhow::Result<()> {
+        assert_eq!(col_off % 64, 0, "col_off must be a limb boundary");
+        assert_eq!(l.rows, dst.rows, "L rows must match dst rows");
+        assert_eq!(
+            l.cols, u.rows,
+            "inner dimension mismatch (L.cols != U.rows)"
+        );
+        assert_eq!(
+            col_off + u.cols,
+            dst.cols,
+            "trailing region must be U.cols wide"
+        );
+        let (m, k, t) = (dst.rows, l.cols, u.cols);
+        if m == 0 || k == 0 || t == 0 {
+            return Ok(());
+        }
+        let (c_dev, _n_padded_lim) = self.matmul_b1_dev(&l.buf, m, k, &u.buf, t)?;
+        let width = t.div_ceil(64); // == dst.stride - col_off/64
+        let stream = self.stream();
+        self.xor_into_region(
+            &stream,
+            &mut dst.buf,
+            &c_dev,
+            m,
+            width,
+            dst.stride,
+            col_off / 64,
+            _n_padded_lim,
+        )?;
+        stream.synchronize()?;
+        Ok(())
+    }
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.
@@ -421,6 +804,8 @@ fn transpose_b(b: &[u64], k: usize, n_lim: usize) -> Vec<u64> {
     out
 }
 
+/// Copy a `rows × stride` limb array into a zero-filled `nr × ns` one, returning it unchanged when
+/// the shapes already agree.
 fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<u64> {
     if rows == nr && stride == ns {
         return src.to_vec();
