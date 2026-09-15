@@ -1150,10 +1150,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let max_s = max.s();
         let max_n = max.n();
 
-        let in_region = |s: i32, t: i32| -> bool {
-            (0..=max_s).contains(&s) && t >= min_degree && t - s <= max_n
-        };
-
         // How far back in its own row `(s, t)` actually reads.
         //
         // The image is built at the ZERO signature, and no operation below the subalgebra's
@@ -1177,46 +1173,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             t - subalgebra.zero_signature_floor()
         };
 
-        // Edges, as "must complete before":
-        //
-        // Register(s, t-1) -> Compute(s, t) the same-row read Register(0, t) -> Compute(1, t) row 1
-        // reads its target through a full matrix Register(s-1, t-1) -> Compute(s, t) the relaxed
-        // diagonal, s >= 2 Compute(s, t) -> Register(s, t) a bidegree registers what it computed
-        // Register(s, t-1) -> Register(s, t) appends are in increasing degree
-        //
         // A predecessor outside the region imposes no edge, which is what makes the base of each
         // row a source; that replaces seeding a `progress` array to `min_degree - 1` so the
         // comparison happened to hold.
-        let mut graph = depgraph::Graph::new();
-        for s in 0..=max_s {
-            for t in min_degree..=(max_n + s) {
-                if !in_region(s, t) {
-                    continue;
-                }
-                let b = Bidegree::s_t(s, t);
-                let compute = Node::compute(b);
-                let register = Node::register(b);
-                graph.add_node(compute);
-                graph.add_edge(compute, register);
-
-                // Registration stays strictly sequential in the row; only the COMPUTE edge moves.
-                if in_region(s, t - 1) {
-                    graph.add_edge(Node::register(Bidegree::s_t(s, t - 1)), register);
-                }
-                let read_back_to = same_row_dep(s, t);
-                if in_region(s, read_back_to) {
-                    graph.add_edge(Node::register(Bidegree::s_t(s, read_back_to)), compute);
-                }
-                if s == 1 {
-                    if in_region(0, t) {
-                        graph.add_edge(Node::register(Bidegree::s_t(0, t)), compute);
-                    }
-                } else if s >= 2 && in_region(s - 1, t - 1) {
-                    graph.add_edge(Node::register(Bidegree::s_t(s - 1, t - 1)), compute);
-                }
-            }
-        }
-        graph.seed();
+        let mut graph = depgraph::Graph::new(min_degree, max_s, max_n, same_row_dep);
 
         let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
@@ -1323,17 +1283,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 /// property of needing both predecessors, and any relaxation silently broke it into double
 /// dispatch. Here a node leaves `blocked` exactly once, by construction.
 mod depgraph {
-    use std::collections::{HashMap, HashSet};
-
     use sseq::coordinates::Bidegree;
 
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub enum Phase {
         Compute,
         Register,
     }
 
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub struct Node {
         pub phase: Phase,
         pub s: i32,
@@ -1350,75 +1308,230 @@ mod depgraph {
             }
         }
 
-        /// The node that registers `b` once it has been computed.
-        pub fn register(b: Bidegree) -> Self {
-            Self {
-                phase: Phase::Register,
-                s: b.s(),
-                t: b.t(),
-            }
-        }
-
         /// The bidegree this node belongs to, discarding its phase.
         pub fn bidegree(&self) -> Bidegree {
             Bidegree::s_t(self.s, self.t)
         }
     }
 
+    /// The dependency graph for [`Resolution::compute_through_stem`].
+    ///
+    /// Each bidegree is TWO nodes, because its two halves have different dependencies:
+    ///
+    /// * `Compute(s, t)` does the expensive work. It reads rows `s-1` and `s-2` only, so it needs
+    ///   those registered -- but of its OWN row it needs only what the image computation reads.
+    /// * `Register(s, t)` appends to `modules[s]` and `differentials[s]`, which are append-only in
+    ///   increasing degree, so it needs `Register(s, t-1)`.
+    ///
+    /// Splitting them is what lets a row compute out of order while still registering in order. The
+    /// scheduler dispatches `Compute` to workers and runs `Register` itself, so a node is only ever
+    /// handed out when it can run immediately -- nothing blocks a worker waiting for its
+    /// predecessor.
+    ///
+    /// Readiness is an indegree reaching zero rather than a predicate over per-row high-water
+    /// marks. That matters: with a predicate, "each bidegree is dispatched exactly once" was an
+    /// EMERGENT property of needing both predecessors, and any relaxation silently broke it into
+    /// double dispatch. Here a node leaves the blocked set exactly once, by construction.
+    ///
+    /// # Representation
+    ///
+    /// Nothing is stored that the precedence rules already determine. Every row of the region is
+    /// one contiguous run of `t`, so a node's slot is arithmetic rather than a hash key, and both
+    /// the indegrees and the edges follow from the rules below:
+    ///
+    /// ```text
+    /// Register(s, t-1)               -> Register(s, t)      appends are in increasing degree
+    /// Compute(s, t)                  -> Register(s, t)
+    /// Register(s, same_row[(s, t)])  -> Compute(s, t)       the same-row read, relaxed
+    /// Register(0, t)                 -> Compute(1, t)       row 1 reads through a full matrix
+    /// Register(s-1, t-1)             -> Compute(s, t)       the relaxed diagonal, s >= 2
+    /// ```
+    ///
+    /// So the only per-node state is an indegree and a dispatched flag, both dense arrays. The
+    /// same-row bounds are kept because they are the one input the rules cannot recompute cheaply;
+    /// `max_gap` bounds the inverse lookup that finds a `Register`'s same-row consumers.
     pub struct Graph {
-        /// Node -> predecessors not yet complete. Removed once dispatched.
-        blocked: HashMap<Node, u32>,
-        /// Node -> nodes waiting on it.
-        dependents: HashMap<Node, Vec<Node>>,
-        ready: Vec<Node>,
-        dispatched: HashSet<Node>,
+        min_degree: i32,
+        max_s: i32,
+        max_n: i32,
+        /// Prefix sums of the row lengths, so `idx` is a single add.
+        row_offset: Vec<usize>,
+        /// `Compute(s, t)` waits for `Register(s, same_row[idx(s, t)])`.
+        same_row: Vec<i32>,
+        /// The widest `t - same_row[..]`, which bounds the scan in [`Self::successors`].
+        max_gap: i32,
+        /// Predecessors not yet complete, indexed by slot.
+        blocked: Vec<u32>,
+        ready: Vec<u32>,
+        dispatched: Vec<bool>,
+        /// Reused by [`Self::complete`] so releasing successors never allocates.
+        succ_buf: Vec<Node>,
     }
 
     impl Graph {
-        /// An empty graph. Add every node and edge, then [`Self::seed`].
-        pub fn new() -> Self {
-            Self {
-                blocked: HashMap::new(),
-                dependents: HashMap::new(),
+        /// Build the whole graph and prime the ready queue.
+        ///
+        /// `same_row_dep(s, t)` is the earliest degree in row `s` that `Compute(s, t)` reads; a
+        /// value outside the region imposes no edge, which is what makes the base of each row a
+        /// source.
+        pub fn new(
+            min_degree: i32,
+            max_s: i32,
+            max_n: i32,
+            same_row_dep: impl Fn(i32, i32) -> i32,
+        ) -> Self {
+            let mut row_offset = Vec::with_capacity(max_s as usize + 2);
+            let mut total = 0usize;
+            for s in 0..=max_s {
+                row_offset.push(total);
+                total += (max_n + s - min_degree + 1).max(0) as usize;
+            }
+            row_offset.push(total);
+
+            let mut g = Self {
+                min_degree,
+                max_s,
+                max_n,
+                row_offset,
+                same_row: Vec::new(),
+                max_gap: 1,
+                blocked: Vec::new(),
                 ready: Vec::new(),
-                dispatched: HashSet::new(),
+                dispatched: vec![false; 2 * total],
+                succ_buf: Vec::new(),
+            };
+
+            g.same_row = Vec::with_capacity(total);
+            for s in 0..=max_s {
+                for t in min_degree..=(max_n + s) {
+                    let dep = if g.in_region(s, t) {
+                        same_row_dep(s, t)
+                    } else {
+                        t - 1
+                    };
+                    g.max_gap = g.max_gap.max(t - dep);
+                    g.same_row.push(dep);
+                }
+            }
+
+            g.blocked = (0..2 * total)
+                .map(|slot| g.indegree(g.node_at(slot)))
+                .collect();
+            // Descending, so `pop` hands out ascending slots and two runs are diffable.
+            g.ready = (0..2 * total)
+                .rev()
+                .filter(|&slot| g.blocked[slot] == 0)
+                .map(|slot| slot as u32)
+                .collect();
+            g
+        }
+
+        fn in_region(&self, s: i32, t: i32) -> bool {
+            (0..=self.max_s).contains(&s) && t >= self.min_degree && t - s <= self.max_n
+        }
+
+        fn idx(&self, s: i32, t: i32) -> usize {
+            self.row_offset[s as usize] + (t - self.min_degree) as usize
+        }
+
+        fn slot(&self, n: Node) -> usize {
+            2 * self.idx(n.s, n.t) + usize::from(n.phase == Phase::Register)
+        }
+
+        fn node_at(&self, slot: usize) -> Node {
+            let phase = if slot % 2 == 0 {
+                Phase::Compute
+            } else {
+                Phase::Register
+            };
+            let idx = slot / 2;
+            // The row is the last one starting at or before `idx`.
+            let s = self.row_offset.partition_point(|&o| o <= idx) - 1;
+            Node {
+                phase,
+                s: s as i32,
+                t: self.min_degree + (idx - self.row_offset[s]) as i32,
             }
         }
 
-        /// Register `n` with no dependencies, leaving an existing indegree untouched.
-        pub fn add_node(&mut self, n: Node) {
-            self.blocked.entry(n).or_insert(0);
+        fn same_row_dep(&self, s: i32, t: i32) -> i32 {
+            self.same_row[self.idx(s, t)]
         }
 
-        /// `from` must complete before `to` may run.
-        pub fn add_edge(&mut self, from: Node, to: Node) {
-            self.add_node(from);
-            self.add_node(to);
-            self.dependents.entry(from).or_default().push(to);
-            *self.blocked.get_mut(&to).unwrap() += 1;
+        fn indegree(&self, n: Node) -> u32 {
+            let (s, t) = (n.s, n.t);
+            match n.phase {
+                // Its own compute, plus the row predecessor whose appends must land first.
+                Phase::Register => 1 + u32::from(self.in_region(s, t - 1)),
+                Phase::Compute => {
+                    let mut k = u32::from(self.in_region(s, self.same_row_dep(s, t)));
+                    if s == 1 {
+                        k += u32::from(self.in_region(0, t));
+                    } else if s >= 2 {
+                        k += u32::from(self.in_region(s - 1, t - 1));
+                    }
+                    k
+                }
+            }
         }
 
-        /// Prime the ready queue. Call once, after every edge is added.
-        pub fn seed(&mut self) {
-            let mut free: Vec<Node> = self
-                .blocked
-                .iter()
-                .filter(|&(_, &n)| n == 0)
-                .map(|(&n, _)| n)
-                .collect();
-            // Deterministic order, so two runs are diffable.
-            free.sort();
-            free.reverse();
-            self.ready.extend(free);
+        /// The nodes `n` blocks, derived from the rules rather than stored.
+        fn successors(&self, n: Node, out: &mut Vec<Node>) {
+            out.clear();
+            let (s, t) = (n.s, n.t);
+            match n.phase {
+                Phase::Compute => out.push(Node {
+                    phase: Phase::Register,
+                    s,
+                    t,
+                }),
+                Phase::Register => {
+                    if self.in_region(s, t + 1) {
+                        out.push(Node {
+                            phase: Phase::Register,
+                            s,
+                            t: t + 1,
+                        });
+                    }
+                    // Same-row consumers: every `t'` whose read reaches back exactly to `t`. The
+                    // gap is bounded by the widest zero-signature floor in the region, so this is a
+                    // short scan and not a stored edge list.
+                    for tp in (t + 1)..=(t + self.max_gap) {
+                        if self.in_region(s, tp) && self.same_row_dep(s, tp) == t {
+                            out.push(Node {
+                                phase: Phase::Compute,
+                                s,
+                                t: tp,
+                            });
+                        }
+                    }
+                    if s == 0 {
+                        if self.in_region(1, t) {
+                            out.push(Node {
+                                phase: Phase::Compute,
+                                s: 1,
+                                t,
+                            });
+                        }
+                    } else if self.in_region(s + 1, t + 1) {
+                        out.push(Node {
+                            phase: Phase::Compute,
+                            s: s + 1,
+                            t: t + 1,
+                        });
+                    }
+                }
+            }
         }
 
         /// The next node whose dependencies are all complete, or `None` if there is none right
         /// now. A node is handed out at most once, however many predecessors freed it.
         pub fn pop_ready(&mut self) -> Option<Node> {
-            while let Some(n) = self.ready.pop() {
-                if self.dispatched.insert(n) {
-                    self.blocked.remove(&n);
-                    return Some(n);
+            while let Some(slot) = self.ready.pop() {
+                let slot = slot as usize;
+                if !self.dispatched[slot] {
+                    self.dispatched[slot] = true;
+                    return Some(self.node_at(slot));
                 }
             }
             None
@@ -1430,25 +1543,26 @@ mod depgraph {
         /// successors" cannot diverge -- previously that could differ per early return in a
         /// bidegree's body.
         pub fn complete(&mut self, n: Node) {
-            let Some(deps) = self.dependents.remove(&n) else {
-                return;
-            };
-            for d in deps {
-                if let Some(k) = self.blocked.get_mut(&d) {
-                    *k -= 1;
-                    if *k == 0 {
-                        self.ready.push(d);
-                    }
+            let mut buf = std::mem::take(&mut self.succ_buf);
+            self.successors(n, &mut buf);
+            for &d in &buf {
+                let slot = self.slot(d);
+                debug_assert!(self.blocked[slot] > 0, "releasing {d:?} twice");
+                self.blocked[slot] -= 1;
+                if self.blocked[slot] == 0 {
+                    self.ready.push(slot as u32);
                 }
             }
+            self.succ_buf = buf;
         }
 
         /// Nodes never dispatched. Non-empty at the end means the edges are wrong; report it rather
         /// than exiting quietly with a partial resolution.
         pub fn undispatched(&self) -> Vec<Node> {
-            let mut v: Vec<Node> = self.blocked.keys().copied().collect();
-            v.sort();
-            v
+            (0..self.dispatched.len())
+                .filter(|&slot| !self.dispatched[slot])
+                .map(|slot| self.node_at(slot))
+                .collect()
         }
     }
 }
