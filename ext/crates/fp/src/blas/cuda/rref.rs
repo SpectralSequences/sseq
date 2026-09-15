@@ -3,12 +3,6 @@
 use super::{context, driver, fill_limbs};
 use crate::{matrix::Matrix, prime::TWO};
 
-/// Legacy minimum on the short side, `FP_CUDA_RR_THRESHOLD`.
-///
-/// Inert at its default of 0: [`DEFAULT_RR_MIN_BITS`] decides. Kept so that scripts setting it keep
-/// working, and so `FP_CUDA_RR_THRESHOLD=8192` restores the old behaviour exactly.
-const DEFAULT_RR_THRESHOLD: usize = 0;
-
 /// Smallest problem size, in bits, for which we attempt the GPU row reduction.
 ///
 /// Size rather than a short side, because that is what the crossover tracks: the device needs
@@ -16,6 +10,12 @@ const DEFAULT_RR_THRESHOLD: usize = 0;
 /// `crates/fp-cuda/EXPERIMENTS.md` for the shapes it was measured on, and for the short-side
 /// floor it replaced. Override with `FP_CUDA_RR_MIN_BITS`.
 const DEFAULT_RR_MIN_BITS: u64 = 1 << 22;
+
+/// Legacy minimum on the short side, `FP_CUDA_RR_THRESHOLD`.
+///
+/// Inert at its default of 0: [`DEFAULT_RR_MIN_BITS`] decides. Kept so that scripts setting it keep
+/// working, and so `FP_CUDA_RR_THRESHOLD=8192` restores the old behaviour exactly.
+const DEFAULT_RR_THRESHOLD: usize = 0;
 
 /// The legacy short-side floor in use, overridable via `FP_CUDA_RR_THRESHOLD`.
 fn rr_threshold() -> usize {
@@ -203,4 +203,3 @@ pub(crate) fn try_row_reduce(m: &mut Matrix) -> Option<usize> {
     }
     Some(r)
 }
-
