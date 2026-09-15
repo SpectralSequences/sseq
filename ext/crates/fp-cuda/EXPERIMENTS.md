@@ -8,7 +8,7 @@ Entries are dated and name the hardware they were measured on: the conclusions a
 and several do not transfer between H100 and H200.
 
 The knobs referred to below live in `cuda_kernels/params.h`, which both the kernel and the Rust
-host read. The CPU-side counterpart to this file is `crates/fp/EXPERIMENTS.md`.
+host read.
 
 The overall shape of the work follows the optimization ladder in Pranjal Shankhdhar's
 "Outperforming cuBLAS on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
@@ -190,54 +190,47 @@ Measured optima, half-rank inputs:
 | 2^16 | 1024 | cooperative | 8 |
 | 2^17 | 2048 | cooperative | 16 |
 
-## The row-reduce crossover is a size, not a short side (2026-09-07, H200)
+## The row-reduce crossover tracks elimination work (2026-09-15, H200)
 
-An earlier reading of this put the crossover at a short side of 8192, from half-rank squares where
-4096 measured 0.57x (a loss) and 8192 measured 1.57x (a win). Both halves of that turned out to be
-wrong: the quantity is wrong, and the numbers no longer reproduce.
+Two earlier readings of this were wrong, each because of the quantity it sorted on.
 
-Re-measured, half-rank squares, device time including upload:
+The first put the crossover at a short side of 8192, from half-rank squares. A short side is not
+the problem size, and it rejects wide matrices carrying far more work than the squares it admits.
 
-| n | size | GPU vs CPU |
-|---|---|---|
-| 1024 | 0.125 MB | 0.85x |
-| 2048 | 0.5 MB | 1.77x |
-| 4096 | 2 MB | 3.30x |
+The second replaced it with total size in bits, and was measured against `row_reduce_cpu`, a
+blocked CPU reducer that has since been removed for being slower than M4RI at every size. Measuring
+a device against a baseline slower than the one production falls back to inflates every ratio.
 
-4096 is now a 3.30x win where it was recorded as a 0.57x loss, so the throughput work above did move
-the crossover after all. Squares turn over between 1024 and 2048.
+Re-measured against `row_reduce_cpu`, the M4RI path the gate actually falls back to, half-rank,
+device time including upload, sorted by elimination work `rank² · cols`:
 
-Sorting by short side is what made 8192 look like the answer, and a short side is not the problem
-size. Measured across eleven half-rank shapes against a 24-thread `row_reduce_cpu` baseline, the
-device wins at every width tested down to 16 rows — 7.98x at 16 × 1,600,000, 33.78x at
-1024 × 1,600,000 — because what it needs is enough total work, not a fat short side. Individual
-ratios here are single runs on an idle device and are not trustworthy to better than ~2x; the
-direction is uniform.
-
-By size the turnover sits near 0.125–0.5 MB: 0.03 MB loses at 0.36x, 0.125 MB breaks even, 0.5 MB
-wins outright. Hence `DEFAULT_RR_MIN_BITS = 2^22` — 0.5 MB, the first size that wins.
-
-### What the workload actually reduces
-
-Measured from 78,786 `gpu_row_reduce{rows, cols}` shapes logged by a live stem-400 run, which is the
-authoritative source: the span records what was reduced, unlike a shape assembled from separate
-census columns.
-
-| | p10 | p50 | p90 |
+| shape | MB | rank²·cols | device vs M4RI |
 |---|---|---|---|
-| aspect `cols/rows` | 1.77x | 1.80x | 1.95x |
-| `min(rows, cols)` | 1198 | 2789 | 4799 |
-| size | 0.31 MB | 1.69 MB | 5.05 MB |
+| 16 × 1,600,000 | 3.1 | 1.0e8 | 0.17x |
+| 1024² | 0.1 | 2.7e8 | 0.06x |
+| 64 × 1,600,000 | 12.2 | 1.6e9 | 0.31x |
+| 2048² | 0.5 | 2.2e9 | 0.19x |
+| 4096² | 2.0 | 1.7e10 | 0.52x |
+| 256 × 1,600,000 | 48.8 | 2.6e10 | 1.09x |
+| 512 × 1,600,000 | 97.7 | 1.1e11 | 1.75x |
+| 8192² | 8.0 | 1.4e11 | 1.49x |
+| 1131 × 611,461 | 82.4 | 2.0e11 | 2.29x |
+| 16384² | 32.0 | 1.1e12 | 5.25x |
+| 3055 × 1,770,153 | 644.7 | 4.1e12 | 8.67x |
 
-Near-square and small. The short-side gate admitted **24 of 78,786 reductions**; the size gate admits
-75.8% of them, and 96.4% of the volume in bits. At ~1.7 MB near-square the device is worth the 2-3x
-in the table above, not the large factors the wide shapes show — those are real, but this workload
-does not produce them here, because each reduction is column-restricted by its signature's mask.
+Sorted this way the table is monotone and the crossover is a single point near `2.5e10`: everything
+below `1.7e10` loses, everything from `2.6e10` up wins. Sorted by size in bits it is not monotone at
+all — 8192² wins at 8 MB while 64 × 1,600,000 loses at 12 MB, and 1024² loses at 0.1 MB while
+256 × 1,600,000 breaks even at 48.8 MB.
 
-Caveat this gate does not capture: the device reduction takes the GPU exclusively, so admitting far
-more work concentrates it on whichever device `FP_CUDA_DEVICE` names. With the multiply on separate
-devices that is the intent. On a shared device it would be actively harmful — a reduction that runs
-1.8–9.7 ms alone takes 8.6–96.8 s co-running.
+That is the physical story rather than a fitted curve. Elimination is `O(r²c)`, and the device
+parallelises across rows within a panel step while the number of panel steps scales with the rank.
+A 16-row matrix has almost nothing to spread across the machine however wide it is, so width alone
+never buys the device anything.
+
+**Consequence: `DEFAULT_RR_MIN_BITS` is miscalibrated.** At 2²² bits it admits 2048² (0.19x) and
+4096² (0.52x), which the device loses outright, and it is the wrong quantity besides. The gate
+should ask for elimination work.
 
 ## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
 

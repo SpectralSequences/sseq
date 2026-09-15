@@ -672,7 +672,6 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
     pub fn row_reduce(&mut self) -> usize {
-
         // For large p = 2 matrices, try the device-resident GPU reduction; it produces the
         // identical canonical RREF + pivots, and falls through to the CPU M4RI path below when the
         // GPU is unavailable or the matrix is under `blas::cuda`'s threshold.
@@ -731,6 +730,18 @@ impl Matrix {
             }
         }
 
+        self.row_reduce_cpu()
+    }
+
+    /// Row-reduce on the CPU, never consulting the device.
+    ///
+    /// [`Self::row_reduce`] is the entry point callers want; this is the same M4RI reduction it
+    /// falls back to, exposed because the GPU context is a process-wide `OnceLock`. Once it is
+    /// built, `row_reduce` cannot be talked out of the device within the same process, so a test
+    /// comparing the two paths needs a CPU reduction it can name directly.
+    pub fn row_reduce_cpu(&mut self) -> usize {
+        let p = self.prime();
+
         // Everything below is the CPU M4RI reduction. `gpu_row_reduce` above cannot time it:
         // that span wraps `try_row_reduce`, which returns early when the gate declines, so a
         // declined reduction records only the cost of declining.
@@ -744,23 +755,11 @@ impl Matrix {
         let _cpu_rr_span = {
             let (r, c) = (self.rows(), self.columns());
             let bits = (r as u64).saturating_mul(c as u64);
-            (self.prime() == 2 && bits >= (1 << 20)).then(|| {
+            (p == 2 && bits >= (1 << 20)).then(|| {
                 tracing::info_span!(target: "fp::rr", "cpu_row_reduce", rows = r, cols = c)
                     .entered()
             })
         };
-
-        self.row_reduce_cpu()
-    }
-
-    /// Row-reduce on the CPU, never consulting the device.
-    ///
-    /// [`Self::row_reduce`] is the entry point callers want; this is the same M4RI reduction it
-    /// falls back to, exposed because the GPU context is a process-wide `OnceLock`. Once it is
-    /// built, `row_reduce` cannot be talked out of the device within the same process, so a test
-    /// comparing the two paths needs a CPU reduction it can name directly.
-    pub fn row_reduce_cpu(&mut self) -> usize {
-        let p = self.prime();
 
         self.initialize_pivots();
 

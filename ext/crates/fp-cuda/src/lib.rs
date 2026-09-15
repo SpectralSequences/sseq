@@ -1943,7 +1943,7 @@ impl GpuContext {
     /// [`back_substitute`](Self::back_substitute). Mutates `m` to the reduced row
     /// echelon form (addressed through the returned `perm`) and returns
     /// `(perm, rank, pivot_cols)`. Bit-for-bit equal to
-    /// `fp::Matrix::row_reduce_cpu` / `row_reduce` (validated in the examples).
+    /// `fp::Matrix::row_reduce` (validated in the examples).
     pub fn row_reduce_dev(
         &self,
         m: &mut DeviceMatrix,
