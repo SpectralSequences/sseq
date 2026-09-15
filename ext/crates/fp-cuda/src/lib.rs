@@ -1094,7 +1094,7 @@ impl GpuContext {
                     unsafe { lb.launch(cfg_1d(pr)) }?;
                 });
                 // (3) gather U = pivot rows' trailing (pr × trailing_limbs).
-                let u_buf = stream.alloc_zeros::<u64>(pr * trailing_limbs)?;
+                let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?; // gather fills it
                 timed_phase!(stream, "gather_u", {
                     let (r_u, fl, pr_u, nc, st) = (
                         r as u32,
@@ -1201,7 +1201,7 @@ impl GpuContext {
                 let x_stride = bp_eff.div_ceil(64);
 
                 // X = above rows gathered at the block's pivot columns (s × bp_eff).
-                let x_buf = stream.alloc_zeros::<u64>(s * x_stride)?;
+                let x_buf = unsafe { stream.alloc::<u64>(s * x_stride) }?; // gather_cols fills it
                 timed_phase!(stream, "bs.gather_x", {
                     let (cs, s_u, cnt, st, xs) = (
                         s as u32,
@@ -1224,7 +1224,7 @@ impl GpuContext {
                 });
 
                 // U = the (now RREF) block rows, limbs [start_limb, stride).
-                let u_buf = stream.alloc_zeros::<u64>(bp_eff * trailing_limbs)?;
+                let u_buf = unsafe { stream.alloc::<u64>(bp_eff * trailing_limbs) }?; // gather fills it
                 timed_phase!(stream, "bs.gather_u", {
                     let (s_u, fl, pr_u, nc, st) = (
                         s as u32,
