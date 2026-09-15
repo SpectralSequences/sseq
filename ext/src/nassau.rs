@@ -1265,23 +1265,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 }
 
-/// The dependency graph for [`super::Resolution::compute_through_stem`].
-///
-/// Each bidegree is TWO nodes, because its two halves have different dependencies:
-///
-/// * `Compute(s, t)` does the expensive work. It reads rows `s-1` and `s-2` only, so it needs those
-///   registered -- but of its OWN row it needs only what the image computation reads.
-/// * `Register(s, t)` appends to `modules[s]` and `differentials[s]`, which are append-only in
-///   increasing degree, so it needs `Register(s, t-1)`.
-///
-/// Splitting them is what lets a row compute out of order while still registering in order. The
-/// scheduler dispatches `Compute` to workers and runs `Register` itself, so a node is only ever
-/// handed out when it can run immediately -- nothing blocks a worker waiting for its predecessor.
-///
-/// Readiness is an indegree reaching zero rather than a predicate over per-row high-water marks.
-/// That matters: with a predicate, "each bidegree is dispatched exactly once" was an EMERGENT
-/// property of needing both predecessors, and any relaxation silently broke it into double
-/// dispatch. Here a node leaves `blocked` exactly once, by construction.
 mod depgraph {
     use sseq::coordinates::Bidegree;
 
@@ -1314,7 +1297,7 @@ mod depgraph {
         }
     }
 
-    /// The dependency graph for [`Resolution::compute_through_stem`].
+    /// The dependency graph for [`super::Resolution::compute_through_stem`].
     ///
     /// Each bidegree is TWO nodes, because its two halves have different dependencies:
     ///
