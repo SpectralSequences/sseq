@@ -3,18 +3,24 @@
 use super::{context, driver, fill_limbs};
 use crate::{matrix::Matrix, prime::TWO};
 
-/// Smallest problem size, in bits, for which we attempt the GPU row reduction.
+/// Least elimination work, in `rank² · cols`, for which we attempt the GPU row reduction.
 ///
-/// Size rather than a short side, because that is what the crossover tracks: the device needs
-/// enough total work, not a fat short side. This is the first size that wins outright. See
-/// `crates/fp-cuda/EXPERIMENTS.md` for the shapes it was measured on, and for the short-side
-/// floor it replaced. Override with `FP_CUDA_RR_MIN_BITS`.
-const DEFAULT_RR_MIN_BITS: u64 = 1 << 22;
+/// Elimination is `O(r²c)`, and that is what the crossover follows — not the short side, and not
+/// the size in bits. Neither of those separates the measured wins from the losses: an 8192 square
+/// wins at 8 MB while a 64 × 1,600,000 matrix loses at 12 MB.
+///
+/// Set where the device wins outright rather than at the break-even point, because the two shape
+/// families do not cross together: at equal work a near-square reduction runs 1.5–2x worse than a
+/// wide one, so a threshold placed on the wide curve would admit squares the device loses. See
+/// `crates/fp-cuda/EXPERIMENTS.md` for the sweep. Override with `FP_CUDA_RR_MIN_WORK`.
+///
+/// This is a high bar on purpose, and on near-square inputs it will rarely be met.
+const DEFAULT_RR_MIN_WORK: u64 = 100_000_000_000;
 
 /// Legacy minimum on the short side, `FP_CUDA_RR_THRESHOLD`.
 ///
-/// Inert at its default of 0: [`DEFAULT_RR_MIN_BITS`] decides. Kept so that scripts setting it keep
-/// working, and so `FP_CUDA_RR_THRESHOLD=8192` restores the old behaviour exactly.
+/// Inert at its default of 0: [`DEFAULT_RR_MIN_WORK`] decides. Kept so that scripts setting it keep
+/// working, and so `FP_CUDA_RR_THRESHOLD=8192` restores the original behaviour exactly.
 const DEFAULT_RR_THRESHOLD: usize = 0;
 
 /// The legacy short-side floor in use, overridable via `FP_CUDA_RR_THRESHOLD`.
@@ -25,23 +31,30 @@ fn rr_threshold() -> usize {
         .unwrap_or(DEFAULT_RR_THRESHOLD)
 }
 
-/// The row-reduction size floor in use, overridable via `FP_CUDA_RR_MIN_BITS`.
-fn rr_min_bits() -> u64 {
-    std::env::var("FP_CUDA_RR_MIN_BITS")
+/// The elimination-work floor in use, overridable via `FP_CUDA_RR_MIN_WORK`.
+fn rr_min_work() -> u64 {
+    std::env::var("FP_CUDA_RR_MIN_WORK")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(DEFAULT_RR_MIN_BITS)
+        .unwrap_or(DEFAULT_RR_MIN_WORK)
 }
 
 /// Is this reduction worth the device?
 ///
-/// Size decides; the legacy short-side floor applies only when explicitly set.
+/// Work decides; the legacy short-side floor applies only when explicitly set.
+///
+/// The rank is not known until the reduction runs, so this estimates it as `min(rows, cols) / 2`,
+/// which is exact for the half-rank inputs the crossover was measured on and an over-estimate for
+/// rank-deficient ones. Over-estimating admits a little work the device would lose on, which is the
+/// cheaper error: the loss is bounded by the ratio at the threshold, while rejecting a large
+/// reduction forfeits the whole win.
 pub(crate) fn rr_worth_gpu(rows: usize, cols: usize) -> bool {
     let t = rr_threshold();
     if rows < t || cols < t {
         return false;
     }
-    (rows as u64).saturating_mul(cols as u64) >= rr_min_bits()
+    let rank = (rows.min(cols) / 2) as u64;
+    rank.saturating_mul(rank).saturating_mul(cols as u64) >= rr_min_work()
 }
 
 /// A small pool of reusable host buffers for marshalling matrices to and from the device.

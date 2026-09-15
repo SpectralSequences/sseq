@@ -23,11 +23,11 @@ use rand::Rng;
 mod common;
 use common::upload_matrix;
 
-/// The dispatch gate this example exists to justify, mirrored from `fp`'s `DEFAULT_RR_MIN_BITS`.
+/// The dispatch gate this example exists to justify, mirrored from `fp`'s `DEFAULT_RR_MIN_WORK`.
 ///
 /// `fp` is a dev-dependency here and the predicate is crate-private, so the value cannot be read
 /// from it. Keep the two in step.
-const GATE_BITS: u64 = 1 << 22;
+const GATE_WORK: u64 = 100_000_000_000;
 
 /// Random `rows × cols` built straight into limbs.
 ///
@@ -94,7 +94,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mm = half_rank(rows, cols);
         let mb = rows as f64 * cols as f64 / 8.0 / (1 << 20) as f64;
         let aspect = cols as f64 / rows as f64;
-        let gated = if (rows as u64) * (cols as u64) >= GATE_BITS {
+        let rank = (rows.min(cols) / 2) as u64;
+        let gated = if rank * rank * cols as u64 >= GATE_WORK {
             "GPU"
         } else {
             "CPU"

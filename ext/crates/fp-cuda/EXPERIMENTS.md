@@ -197,9 +197,9 @@ Two earlier readings of this were wrong, each because of the quantity it sorted 
 The first put the crossover at a short side of 8192, from half-rank squares. A short side is not
 the problem size, and it rejects wide matrices carrying far more work than the squares it admits.
 
-The second replaced it with total size in bits, and was measured against `row_reduce_cpu`, a
-blocked CPU reducer that has since been removed for being slower than M4RI at every size. Measuring
-a device against a baseline slower than the one production falls back to inflates every ratio.
+The second replaced it with total size in bits, and was measured against a blocked GEMM-based CPU
+reducer, since removed for being slower than M4RI at every size it was tried at. Measuring a device
+against a baseline slower than the one production falls back to inflates every ratio.
 
 Re-measured against `row_reduce_cpu`, the M4RI path the gate actually falls back to, half-rank,
 device time including upload, sorted by elimination work `rank² · cols`:
@@ -228,9 +228,20 @@ parallelises across rows within a panel step while the number of panel steps sca
 A 16-row matrix has almost nothing to spread across the machine however wide it is, so width alone
 never buys the device anything.
 
-**Consequence: `DEFAULT_RR_MIN_BITS` is miscalibrated.** At 2²² bits it admits 2048² (0.19x) and
-4096² (0.52x), which the device loses outright, and it is the wrong quantity besides. The gate
-should ask for elimination work.
+**Squares and wide shapes do not cross together.** At equal work a near-square reduction runs
+1.5-2x worse than a wide one — 5000² loses at 0.72x where 256 × 1,600,000 wins at 1.09x for
+comparable `rank²·cols`, and 6000² loses at 0.89x against 384 × 1,600,000 at 1.37x. A single scalar
+therefore cannot sit exactly on both crossovers.
+
+`DEFAULT_RR_MIN_WORK` is set at `1e11`, above the square crossover rather than on the wide one, so
+the gate never admits work the device loses. The cost is forfeiting the 1.1-1.4x band that wide
+shapes reach earlier.
+
+**What this means for the resolution's own reductions.** They are near-square with a median short
+side of 2789, which is `rank²·cols ≈ 9.8e9` — an order of magnitude below the crossover. Against
+M4RI the device does not win on them at any gate setting, so on this workload the row reduction will
+essentially never dispatch. That is the honest reading of the sweep, and it is consistent with the
+end-to-end measurement that put row reduction at 0.15-0.4% of process CPU either way.
 
 ## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
 

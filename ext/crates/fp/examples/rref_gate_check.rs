@@ -1,9 +1,8 @@
-//! Correctness of the reductions the size-based gate NEWLY admits.
+//! Correctness of the reductions the gate admits, and of its refusals.
 //!
-//! Moving the gate from a short-side floor to `DEFAULT_RR_MIN_BITS` admits a large class of
-//! wide-and-short matrices that previously always went to CPU M4RI. The `cuda_dispatch` tests only
-//! cover shapes that were already admitted, and `reduce_shapes` checks rank agreement, which a
-//! wrong-but-same-rank reduction would pass.
+//! The gate decides on elimination work, so which matrices it admits differs in kind from what a
+//! short-side floor admitted. The `cuda_dispatch` tests cover a narrow set of shapes, and
+//! `reduce_shapes` checks rank agreement, which a wrong-but-same-rank reduction would pass.
 //!
 //! So compare the FULL reduced form, through the real dispatch: `row_reduce` consults the gate and
 //! goes to the device, `row_reduce_cpu` is the CPU reference in the same process. (Toggling
@@ -16,10 +15,10 @@
 use fp::{matrix::Matrix, prime::TWO};
 use rand::Rng;
 
-/// The dispatch gate under test, mirrored from `fp`'s `DEFAULT_RR_MIN_BITS`.
+/// The dispatch gate under test, mirrored from `fp`'s `DEFAULT_RR_MIN_WORK`.
 ///
 /// The predicate is crate-private, so an example cannot call it. Keep the two in step.
-const GATE_BITS: u64 = 1 << 22;
+const GATE_WORK: u64 = 100_000_000_000;
 
 /// Random `rows × cols` built straight into limbs; going through `Vec<Vec<u32>>` costs a u32 per
 /// bit and would need tens of GB at these widths.
@@ -46,27 +45,30 @@ fn half_rank(rows: usize, cols: usize) -> Matrix {
     &random_matrix(rows, rank) * &random_matrix(rank, cols)
 }
 
+/// The elimination work the gate weighs, `rank² · cols` with the rank estimated as the caller's.
+fn work(rows: usize, cols: usize) -> u64 {
+    let rank = (rows.min(cols) / 2) as u64;
+    rank * rank * cols as u64
+}
+
 /// Reduce each shape both ways and compare rank and full reduced form.
 fn main() {
-    // Every one of these was rejected by the old short-side floor and is admitted by the size
-    // gate. The last two sit below the size gate and must still be rejected — a gate that admits
-    // everything is not a gate.
+    // Shapes on both sides of the gate, from both families: a gate that admits everything is not a
+    // gate, and one tested only on wide inputs would not catch a bad square.
     let shapes: &[(usize, usize, bool)] = &[
-        (16, 1_600_000, true),
-        (64, 1_600_000, true),
         (587, 1_524_934, true),  // b=(287,5)
         (1131, 611_461, true),   // b=(255,9)
         (1676, 1_686_395, true), // b=(266,7)
         (2877, 1_622_037, true), // b=(253,10)
-        (2048, 2048, true),      // square, just above the gate
-        (512, 512, false),       // below the gate, stays on CPU
-        (1024, 1024, false),     // below the gate, stays on CPU
+        (8192, 8192, true),      // square, just above the gate
+        (6000, 6000, false),     // square, just below it
+        (64, 1_600_000, false),  // wide, but far too little work
+        (1024, 1024, false),     // small, stays on CPU
     ];
 
     let mut failures = 0;
     for &(rows, cols, expect_gpu) in shapes {
-        let bits = rows as u64 * cols as u64;
-        let admitted = bits >= GATE_BITS;
+        let admitted = work(rows, cols) >= GATE_WORK;
         let base = half_rank(rows, cols);
 
         let mut viadispatch = base.clone();
@@ -84,8 +86,9 @@ fn main() {
         }
 
         println!(
-            "  {rows:>5} x {cols:<9} {:>8.2} MB  gate={:<8} rank {r1:>6}=={r2:<6} {}  form {}  {}",
-            bits as f64 / 8.0 / (1 << 20) as f64,
+            "  {rows:>5} x {cols:<9} work {:>8.1e}  gate={:<8} rank {r1:>6}=={r2:<6} {}  form {}  \
+             {}",
+            work(rows, cols) as f64,
             if admitted { "ADMIT" } else { "reject" },
             if rank_ok { "ok" } else { "MISMATCH" },
             if form_ok { "ok" } else { "MISMATCH" },
