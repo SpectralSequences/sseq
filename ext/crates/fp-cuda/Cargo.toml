@@ -32,9 +32,12 @@ anyhow = "1.0.98"
 # the higher-level `fp` crate can depend on `fp-cuda` without a cycle. The
 # examples/benches still use `fp::Matrix` for random generation and CPU
 # cross-checks (dev-dependency cycles are permitted by Cargo).
-# `concurrent` (not `cuda`) so the CPU cross-checks/baselines in the timing
+# `concurrent` (not `gpu`) so the CPU cross-checks/baselines in the timing
 # examples run multi-threaded — a fair baseline against the GPU path — while the
 # device path is reached directly through fp-cuda, never through fp's dispatch.
+# The examples call `row_reduce_cpu` rather than relying on that: an oracle that
+# can dispatch to the device it is checking would validate nothing, and leaving
+# it to a feature flag puts that guarantee out of the example's own reach.
 fp = { path = "../fp", default-features = false, features = ["concurrent"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 rand = "0.9"

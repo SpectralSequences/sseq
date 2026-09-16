@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
         let (m4ri_secs, m4ri_ok) = if exp <= m4ri_max {
             let mut c = mm.clone();
             let t = Instant::now();
-            let rank = c.row_reduce();
+            let rank = c.row_reduce_cpu();
             (
                 Some(t.elapsed().as_secs_f64()),
                 Some(rank == r && c == dev_rref),

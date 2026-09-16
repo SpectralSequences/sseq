@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
 
         // Reference: row_reduce of the original.
         let mut reference = mm.clone();
-        let ref_rank = reference.row_reduce();
+        let ref_rank = reference.row_reduce_cpu();
         let ref_pivots = pivot_columns(&reference);
 
         // Device forward pass.
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
 
         // (1) row-space preserved: row_reduce(device) == row_reduce(original).
         let mut dev_rr = dev_m.clone();
-        let dev_rr_rank = dev_rr.row_reduce();
+        let dev_rr_rank = dev_rr.row_reduce_cpu();
         let ok_space = dev_rr == reference && dev_rr_rank == ref_rank;
         // (2) rank + pivot columns.
         pivcols.sort_unstable();

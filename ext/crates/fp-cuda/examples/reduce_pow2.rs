@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
         // CPU M4RI (pure CPU, multi-threaded).
         let mut m4ri = mm.clone();
         let t1 = Instant::now();
-        let m4ri_rank = m4ri.row_reduce();
+        let m4ri_rank = m4ri.row_reduce_cpu();
         let m4ri_secs = t1.elapsed().as_secs_f64();
 
         // Correctness: materialize device RREF (pivot k at row k via perm) and

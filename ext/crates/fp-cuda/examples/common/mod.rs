@@ -10,6 +10,35 @@
 
 use fp::{matrix::Matrix, prime::TWO};
 use fp_cuda::{DeviceMatrix, GpuContext};
+use rand::Rng;
+
+/// Random `rows × cols` over F₂, built straight into limbs.
+///
+/// Going through `Vec<Vec<u32>>` costs one `u32` per BIT, which at the widths the reduce examples
+/// use is tens of GB for an operand whose packed form is a few hundred MB.
+pub fn random_matrix(rows: usize, cols: usize) -> Matrix {
+    let stride = cols.div_ceil(64);
+    let mut rng = rand::rng();
+    let mut limbs = vec![0u64; rows * stride];
+    for l in limbs.iter_mut() {
+        *l = rng.random();
+    }
+    // Bits past `cols` in the final limb of each row must be zero or the matrix is malformed.
+    let tail = cols % 64;
+    if tail != 0 {
+        let mask = (1u64 << tail) - 1;
+        for r in 0..rows {
+            limbs[r * stride + stride - 1] &= mask;
+        }
+    }
+    Matrix::from_data(TWO, rows, cols, limbs)
+}
+
+/// Half-rank `rows × cols`, so the reduction has a non-trivial kernel to find.
+pub fn half_rank(rows: usize, cols: usize) -> Matrix {
+    let rank = (rows / 2).max(1);
+    &random_matrix(rows, rank) * &random_matrix(rank, cols)
+}
 
 /// Row-major, K-major `u64` limbs, exactly as [`matmul_b1_raw`] expects:
 /// `rows × columns.div_ceil(64)` limbs, one bit per entry, no inter-row padding.

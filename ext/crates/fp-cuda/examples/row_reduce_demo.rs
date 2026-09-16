@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
 
         // CPU oracles.
         let mut reference = mm.clone();
-        let ref_rank = reference.row_reduce();
+        let ref_rank = reference.row_reduce_cpu();
         let ref_pivots = pivot_columns(&reference);
         let mut cpu = mm.clone();
         cpu.row_reduce_cpu();
@@ -102,7 +102,7 @@ fn main() -> anyhow::Result<()> {
         println!("Some cases mismatched.");
         std::process::exit(1);
     }
-    println!("All cases matched (device row_reduce_dev == CPU row_reduce, bit-exact).");
+    println!("All cases matched (device row_reduce_dev == CPU row_reduce_cpu, bit-exact).");
     Ok(())
 }
 

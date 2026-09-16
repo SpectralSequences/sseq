@@ -12,24 +12,14 @@ use fp::{matrix::Matrix, prime::TWO};
 use fp_cuda::GpuContext;
 
 mod common;
-use common::upload_matrix;
-use rand::Rng;
+use common::{half_rank, upload_matrix};
 
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     println!("=== device vs CPU M4RI reduction (half-rank square) ===");
 
-    let mut rng = rand::rng();
     for &n in &[1024usize, 2048, 4096, 8192] {
-        let rank = n / 2;
-        // Half-rank n×n via A(n×rank)·B(rank×n).
-        let a: Vec<Vec<u32>> = (0..n)
-            .map(|_| (0..rank).map(|_| rng.random::<bool>() as u32).collect())
-            .collect();
-        let b: Vec<Vec<u32>> = (0..rank)
-            .map(|_| (0..n).map(|_| rng.random::<bool>() as u32).collect())
-            .collect();
-        let mm = &Matrix::from_vec(TWO, &a) * &Matrix::from_vec(TWO, &b);
+        let mm = half_rank(n, n);
 
         // Device: time upload + full reduce + sync (excludes download).
         let t0 = Instant::now();

@@ -16,46 +16,16 @@
 
 use std::time::Instant;
 
-use fp::{matrix::Matrix, prime::TWO};
 use fp_cuda::GpuContext;
-use rand::Rng;
 
 mod common;
-use common::upload_matrix;
+use common::{half_rank, upload_matrix};
 
 /// The dispatch gate this example exists to justify, mirrored from `fp`'s `DEFAULT_RR_MIN_WORK`.
 ///
 /// `fp` is a dev-dependency here and the predicate is crate-private, so the value cannot be read
 /// from it. Keep the two in step.
 const GATE_WORK: u64 = 100_000_000_000;
-
-/// Random `rows × cols` built straight into limbs.
-///
-/// Going through `Vec<Vec<u32>>` costs one `u32` per BIT, which at these widths is tens of GB for
-/// an operand whose packed form is a few hundred MB.
-fn random_matrix(rows: usize, cols: usize) -> Matrix {
-    let stride = cols.div_ceil(64);
-    let mut rng = rand::rng();
-    let mut limbs = vec![0u64; rows * stride];
-    for l in limbs.iter_mut() {
-        *l = rng.random();
-    }
-    // Bits past `cols` in the final limb of each row must be zero or the matrix is malformed.
-    let tail = cols % 64;
-    if tail != 0 {
-        let mask = (1u64 << tail) - 1;
-        for r in 0..rows {
-            limbs[r * stride + stride - 1] &= mask;
-        }
-    }
-    Matrix::from_data(TWO, rows, cols, limbs)
-}
-
-/// Half-rank `rows × cols`, matching the construction the square measurements use.
-fn half_rank(rows: usize, cols: usize) -> Matrix {
-    let rank = (rows / 2).max(1);
-    &random_matrix(rows, rank) * &random_matrix(rank, cols)
-}
 
 /// Time each shape on the device and on the CPU, and print the ratio.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,10 +44,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (3055, 1_770_153, "b=(262,8)"),
         ]
     } else {
+        // Reject a malformed shape rather than skipping it: silently dropping one turns a typo
+        // into a short run that looks like it measured what was asked for.
         args.iter()
-            .filter_map(|a| {
-                let (r, c) = a.split_once('x')?;
-                Some((r.parse().ok()?, c.parse().ok()?, "user"))
+            .map(|a| {
+                let parsed = a.split_once('x').and_then(|(r, c)| {
+                    Some((r.trim().parse().ok()?, c.trim().parse().ok()?, "user"))
+                });
+                parsed.unwrap_or_else(|| {
+                    eprintln!("not a shape: {a:?} (expected ROWSxCOLS, e.g. 2877x1622037)");
+                    std::process::exit(2);
+                })
             })
             .collect()
     };
