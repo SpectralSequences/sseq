@@ -703,9 +703,8 @@ impl Matrix {
                 None => {
                     if rr_big {
                         // Reaching here means the gate admitted this reduction and the device
-                        // still declined it, which is an upload failure — in practice the card
-                        // being out of memory. The fallback is a single-threaded M4RI reduction of
-                        // a matrix large enough to stall the run for hours, and it looks exactly
+                        // still declined it. The fallback is a single-threaded M4RI reduction of a
+                        // matrix large enough to stall the run for hours, and it looks exactly
                         // like a small matrix taking the CPU path by design. Warn, so the two are
                         // distinguishable in a log.
                         tracing::warn!(
@@ -714,8 +713,10 @@ impl Matrix {
                             cols = rr_cols,
                             gib = (rr_rows as f64 * rr_cols as f64 / 8.0) / (1u64 << 30) as f64,
                             "row reduce ABOVE the GPU threshold fell back to single-threaded CPU \
-                             M4RI: the device upload failed, most likely out of memory. Orders of \
-                             magnitude slower than the GPU path."
+                             M4RI — orders of magnitude slower than the GPU path. The device \
+                             declined it: no usable GPU (check the startup banner), \
+                             FP_CUDA_DISABLE set, or a failed upload, reduce or download, an \
+                             upload failure most often meaning the card is out of memory."
                         );
                         tracing::info!(
                             target: "fp::rr",
