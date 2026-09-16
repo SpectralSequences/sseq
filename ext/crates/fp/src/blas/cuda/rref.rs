@@ -75,6 +75,10 @@ mod marshal {
     struct Pool {
         free: Vec<Vec<u64>>,
         checked_out: usize,
+        /// Live buffers to allow before [`acquire`] waits for one to come back.
+        ///
+        /// Starts at [`retained`] and only rises, to the concurrency observed.
+        no_wait: usize,
     }
 
     static POOL: LazyLock<(Mutex<Pool>, Condvar)> = LazyLock::new(|| {
@@ -82,17 +86,19 @@ mod marshal {
             Mutex::new(Pool {
                 free: Vec::new(),
                 checked_out: 0,
+                no_wait: 0,
             }),
             Condvar::new(),
         )
     });
 
-    /// How many buffers may exist at once, overridable via `FP_CUDA_MARSHAL_BUFFERS`.
+    /// How many buffers to keep warm, overridable via `FP_CUDA_MARSHAL_BUFFERS`.
     ///
-    /// Enough for one buffer being filled while another is in flight. The right bound is really
-    /// bytes rather than a count — at frontier sizes a single buffer is many GiB — so raising the
-    /// count is not the way to serve more concurrent marshalling.
-    fn capacity() -> usize {
+    /// Enough for one buffer being filled while another is in flight. This bounds what the pool
+    /// *retains*, not what may be live at once — the right bound for the latter is bytes rather
+    /// than a count, since at frontier sizes a single buffer is many GiB, so raising the count is
+    /// not the way to serve more concurrent marshalling.
+    fn retained() -> usize {
         static CAP: LazyLock<usize> = LazyLock::new(|| {
             std::env::var("FP_CUDA_MARSHAL_BUFFERS")
                 .ok()
@@ -102,24 +108,28 @@ mod marshal {
         *CAP
     }
 
-    /// How long to wait for a free buffer before allocating one instead.
+    /// How long to wait for a buffer to come back before allocating one instead.
     ///
-    /// Short deliberately, because it is hit constantly rather than rarely:
-    /// [`super::try_row_reduce`] acquires twice, so one reduction in flight consumes the whole pool
-    /// while marshalling stays concurrent across every worker. Waiting bounds nothing either — the
-    /// buffer is allocated on timeout regardless — so a long deadline can only ever lose.
+    /// Short deliberately, because it is a reuse opportunity rather than a limit: the wait exists
+    /// to catch a buffer that is about to be released, and allocating is always the fallback.
     const ACQUIRE_WAIT: Duration = Duration::from_millis(200);
 
-    /// Take a buffer from the pool, or a fresh one if none is free within [`ACQUIRE_WAIT`].
+    /// Take a buffer from the pool, or a fresh one if none comes free within [`ACQUIRE_WAIT`].
+    ///
+    /// Live buffers are deliberately uncapped. A cap would deadlock: a reduction needs two and
+    /// takes them one at a time, so two callers could each hold one and wait for the other's.
+    /// Waiting therefore pays only when a buffer might actually return, which is what `no_wait`
+    /// tracks.
     pub(super) fn acquire() -> Vec<u64> {
         let (lock, cv) = &*POOL;
         let mut g = lock.lock().unwrap_or_else(|e| e.into_inner());
+        g.no_wait = g.no_wait.max(retained());
         loop {
             if let Some(b) = g.free.pop() {
                 g.checked_out += 1;
                 return b;
             }
-            if g.checked_out < capacity() {
+            if g.checked_out < g.no_wait {
                 g.checked_out += 1;
                 return Vec::new();
             }
@@ -128,21 +138,25 @@ mod marshal {
                 .unwrap_or_else(|e| e.into_inner());
             g = ng;
             if timeout.timed_out() {
-                // Either the pool is simply busy — the common case — or a permit was lost when a
-                // panicking closure failed to return its buffer. Both are handled the same way:
-                // allocate, and let the pool self-heal as live buffers come back.
+                // Either more reductions are in flight than the pool has widened for, or a
+                // permit was lost when a panicking closure failed to return its buffer. Either
+                // way: allocate, and widen so the next acquire here skips ACQUIRE_WAIT.
                 g.checked_out += 1;
+                g.no_wait = g.no_wait.max(g.checked_out);
                 return Vec::new();
             }
         }
     }
 
     /// Hand a buffer back, waking one waiter.
+    ///
+    /// Only [`retained`] are kept: these are GiB-scale, and `no_wait` may have widened far past
+    /// what is worth holding.
     pub(super) fn release(mut b: Vec<u64>) {
         let (lock, cv) = &*POOL;
         let mut g = lock.lock().unwrap_or_else(|e| e.into_inner());
         g.checked_out = g.checked_out.saturating_sub(1);
-        if g.free.len() < capacity() {
+        if g.free.len() < retained() {
             b.clear();
             g.free.push(b);
         }
