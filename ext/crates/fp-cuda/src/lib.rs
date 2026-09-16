@@ -54,11 +54,22 @@ const DEFAULT_BS_BASE: usize = 64;
 ///
 /// Wider panels raise the trailing GEMM's contraction dimension toward `b`, reclaiming the
 /// K-padding waste (Loss 1); the counter-pressure is the promotion cost, which is O(bl) for the
-/// single-CTA `promote_pivots` but ~bl-independent for the cooperative `promote_coop` used at
-/// stride ≥ 1024. See EXPERIMENTS.md for the measured optima. Override with `FP_CUDA_BL`.
+/// single-CTA `promote_pivots` but ~bl-independent for the cooperative `promote_coop`. So the
+/// divisor follows [`promote_is_coop`], the same condition the reduction selects the promote by,
+/// and not the stride alone: [`rr_coop`] is off by default, and keying on stride made every large
+/// reduction pick the wide cooperative panel while paying the O(bl) single-CTA promotion for it.
+///
+/// See EXPERIMENTS.md for the measured optima. Override with `FP_CUDA_BL`.
 fn adaptive_bl(stride: usize) -> usize {
-    let div = if stride >= 1024 { 128 } else { 256 };
+    let div = if promote_is_coop(stride) { 128 } else { 256 };
     (stride / div).clamp(1, MAX_BL)
+}
+
+/// Whether the reduction promotes pivots with the cooperative `promote_coop` kernel.
+///
+/// Below this stride the grid barrier's fixed cost outweighs the single-CTA promotion it replaces.
+fn promote_is_coop(stride: usize) -> bool {
+    rr_coop() && stride >= 1024
 }
 
 /// Whether the row reduction uses its **cooperative** kernels.
@@ -1449,7 +1460,7 @@ impl GpuContext {
         // Cooperative multi-CTA promotion (right-looking) replaces the single-CTA
         // triangular replay when the matrix is wide enough to amortize the grid
         // barriers; otherwise the grid-strided promote_pivots kernel is used.
-        let use_promote_coop = coop && stride >= 1024;
+        let use_promote_coop = promote_is_coop(stride);
         let (pc_ctas, mut pc_barrier, pc_cond) = if use_promote_coop {
             let sms = self
                 .ctx

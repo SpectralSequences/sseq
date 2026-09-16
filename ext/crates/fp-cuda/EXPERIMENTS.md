@@ -179,8 +179,8 @@ needs the whole grid, so full occupancy stands.
 
 Wider panels raise the trailing GEMM's contraction dimension, reclaiming the K-padding waste. The
 counter-pressure is the promotion cost: the single-CTA `promote_pivots` is O(bl) total, so narrow
-panels win there, while the cooperative `promote_coop` (used at stride >= 1024) is ~bl-independent,
-so the panel can widen until the forward GEMM stops padding.
+panels win there, while the cooperative `promote_coop` is ~bl-independent, so the panel can widen
+until the forward GEMM stops padding.
 
 Measured optima, half-rank inputs:
 
@@ -189,6 +189,14 @@ Measured optima, half-rank inputs:
 | 2^15 | 512 | single-CTA | 2 |
 | 2^16 | 1024 | cooperative | 8 |
 | 2^17 | 2048 | cooperative | 16 |
+
+The cooperative rows were measured with `FP_CUDA_RR_COOP=1`. That is no longer the default, and the
+rule was first written as a function of stride alone — `stride >= 1024` picking the wide panel —
+which silently meant every large reduction took the cooperative optimum while paying the O(bl)
+single-CTA promotion it was chosen against. `adaptive_bl` now asks which promote will actually run.
+Since the default path is non-cooperative, what ships is `stride/256` at every size.
+
+That is an extrapolation of the single-CTA row, not a measurement: the optimum was never swept with the single-CTA promote at stride >= 1024, because at the time that combination could not occur. Worth a sweep if the forward pass is revisited.
 
 ## The row-reduce crossover tracks elimination work (2026-09-15, H200)
 
