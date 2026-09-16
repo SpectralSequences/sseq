@@ -414,8 +414,6 @@ impl std::fmt::Display for MilnorBasisElement {
 pub struct MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
-    #[cfg(feature = "odd-primes")]
-    generic: bool,
 
     unstable_enabled: bool,
 
@@ -455,8 +453,6 @@ impl MilnorAlgebra {
         assert!(profile.is_valid());
         Self {
             p,
-            #[cfg(feature = "odd-primes")]
-            generic: p != 2,
             unstable_enabled,
             profile,
             ppart_table: OnceVec::new(),
@@ -468,17 +464,13 @@ impl MilnorAlgebra {
         }
     }
 
+    /// Whether the algebra has an exterior part, which is the case exactly at odd primes.
+    ///
+    /// Without the `odd-primes` feature [`ValidPrime`] is the zero-sized type $2$, so this folds
+    /// to a constant `false`.
     #[inline]
     pub fn generic(&self) -> bool {
-        #[cfg(feature = "odd-primes")]
-        {
-            self.generic
-        }
-
-        #[cfg(not(feature = "odd-primes"))]
-        {
-            false
-        }
+        self.p != 2
     }
 
     pub fn q(&self) -> i32 {
@@ -1195,62 +1187,6 @@ impl MilnorAlgebra {
         self.try_beps_pn(e, x).unwrap()
     }
 
-    fn multiply_qpart(&self, m1: MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
-        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, m1)];
-        let mut old_result: Vec<(u32, MilnorBasisElement)> = Vec::new();
-
-        for k in BitflagIterator::set_bit_iterator(f as u64) {
-            let k = k as u32;
-            let pk = self.p.pow(k);
-            std::mem::swap(&mut new_result, &mut old_result);
-            new_result.clear();
-
-            // We implement the formula
-            // P(R) Q_k = Q_k P^R + Q_{k+1} P(R - p^k e_1) + Q_{k+2} P(R - p^k e_2) +
-            // ... + Q_{k + i} P(R - p^k e_i) + ...
-            // where e_i is the vector with value 1 in entry i and 0 otherwise (in the above
-            // formula, the first xi is xi_1, hence the offset below). If R - p^k e_i has a
-            // negative entry, the term is 0.
-            //
-            // We also use the fact that Q_k Q_j = -Q_j Q_k
-            for (coef, term) in &old_result {
-                for i in 0..=term.p_part.len() {
-                    // If there is already Q_{k+i} on the other side, the result is 0
-                    if term.q_part & (1 << (k + i as u32)) != 0 {
-                        continue;
-                    }
-                    let mut new_p = term.p_part;
-                    if i > 0 {
-                        // Check if R - p^k e_i < 0. Only do this from the first term onwards.
-                        let entry = new_p.get(i - 1);
-                        if entry < pk {
-                            continue;
-                        }
-                        new_p.set(i - 1, entry - pk);
-                    }
-
-                    // Now calculate the number of Q's we are moving past
-                    let larger_q = (term.q_part >> (k + i as u32 + 1)).count_ones();
-
-                    // Now put everything together
-                    let m = MilnorBasisElement {
-                        p_part: new_p,
-                        q_part: term.q_part | (1 << (k + i as u32)),
-                        degree: 0, // we don't really care about the degree here. The final degree of the whole calculation is known a priori
-                    };
-                    let c = if larger_q.is_multiple_of(2) {
-                        *coef
-                    } else {
-                        *coef * (self.prime() - 1)
-                    };
-
-                    new_result.push((c, m));
-                }
-            }
-        }
-        new_result
-    }
-
     pub fn multiply(
         &self,
         res: FpSliceMut,
@@ -1270,48 +1206,16 @@ impl MilnorAlgebra {
         m1: MilnorBasisElement,
         m2: MilnorBasisElement,
         excess: i32,
-        mut allocation: PPartAllocation,
+        allocation: PPartAllocation,
     ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
-        if self.generic() {
-            let m1f = self.multiply_qpart(m1, m2.q_part);
-            for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
-                    self.prime(),
-                    basis.p_part,
-                    m2.p_part,
-                    allocation,
-                    basis.q_part,
-                    target_deg,
-                );
-
-                while let Some(c) = multiplier.next() {
-                    let idx = self.basis_element_to_index(&multiplier.ans);
-                    if idx < self.dimension_unstable(target_deg, excess) {
-                        res.add_basis_element(idx, c * cc * coef);
-                    }
-                }
-                allocation = multiplier.into_allocation()
+        let dim = self.dimension_unstable(target_deg, excess);
+        milnor_product(self.prime(), m1, m2, allocation, |c, ans| {
+            let idx = self.basis_element_to_index(ans);
+            if idx < dim {
+                res.add_basis_element(idx, c * coef);
             }
-        } else {
-            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
-                self.prime(),
-                m1.p_part,
-                m2.p_part,
-                allocation,
-                0,
-                target_deg,
-            );
-
-            while let Some(c) = multiplier.next() {
-                let idx = self.basis_element_to_index(&multiplier.ans);
-                if idx < self.dimension_unstable(target_deg, excess) {
-                    res.add_basis_element(idx, c * coef);
-                }
-            }
-            allocation = multiplier.into_allocation()
-        }
-        allocation
+        })
     }
 
     pub fn multiply_basis_by_element(
@@ -1450,6 +1354,103 @@ impl PPartAllocation {
 pub const fn next_disjoint(sum: PPartEntry, k: PPartEntry) -> PPartEntry {
     debug_assert!(k & sum == 0, "next_disjoint needs k disjoint from sum");
     ((k | sum) + 1) & !sum
+}
+
+fn multiply_qpart(p: ValidPrime, m1: MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
+    let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, m1)];
+    let mut old_result: Vec<(u32, MilnorBasisElement)> = Vec::new();
+
+    for k in BitflagIterator::set_bit_iterator(f as u64) {
+        let k = k as u32;
+        let pk = p.pow(k);
+        std::mem::swap(&mut new_result, &mut old_result);
+        new_result.clear();
+
+        // We implement the formula
+        // P(R) Q_k = Q_k P^R + Q_{k+1} P(R - p^k e_1) + Q_{k+2} P(R - p^k e_2) +
+        // ... + Q_{k + i} P(R - p^k e_i) + ...
+        // where e_i is the vector with value 1 in entry i and 0 otherwise (in the above
+        // formula, the first xi is xi_1, hence the offset below). If R - p^k e_i has a
+        // negative entry, the term is 0.
+        //
+        // We also use the fact that Q_k Q_j = -Q_j Q_k
+        for (coef, term) in &old_result {
+            for i in 0..=term.p_part.len() {
+                // If there is already Q_{k+i} on the other side, the result is 0
+                if term.q_part & (1 << (k + i as u32)) != 0 {
+                    continue;
+                }
+                let mut new_p = term.p_part;
+                if i > 0 {
+                    // Check if R - p^k e_i < 0. Only do this from the first term onwards.
+                    let entry = new_p.get(i - 1);
+                    if entry < pk {
+                        continue;
+                    }
+                    new_p.set(i - 1, entry - pk);
+                }
+
+                // Now calculate the number of Q's we are moving past
+                let larger_q = (term.q_part >> (k + i as u32 + 1)).count_ones();
+
+                // Now put everything together
+                let m = MilnorBasisElement {
+                    p_part: new_p,
+                    q_part: term.q_part | (1 << (k + i as u32)),
+                    degree: 0, // we don't really care about the degree here. The final degree of the whole calculation is known a priori
+                };
+                let c = if larger_q.is_multiple_of(2) {
+                    *coef
+                } else {
+                    *coef * (p - 1)
+                };
+
+                new_result.push((c, m));
+            }
+        }
+    }
+    new_result
+}
+
+/// Multiply two Milnor basis elements, reporting each `(coefficient, basis element)` of the result.
+///
+/// The exterior part of `m2` is commuted leftwards past `m1` by `multiply_qpart`, and each
+/// resulting polynomial part is expanded by a single [`PPartMultiplier`] walk. When `m2` has no
+/// exterior part there is nothing to commute, and this is the walk alone: the classical $p = 2$
+/// product.
+pub fn milnor_product(
+    p: ValidPrime,
+    m1: MilnorBasisElement,
+    m2: MilnorBasisElement,
+    mut allocation: PPartAllocation,
+    mut f: impl FnMut(u32, &MilnorBasisElement),
+) -> PPartAllocation {
+    let target_deg = m1.degree + m2.degree;
+    let mut walk = |cc: u32, basis: &MilnorBasisElement, allocation| {
+        let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+            p,
+            basis.p_part,
+            m2.p_part,
+            allocation,
+            basis.q_part,
+            target_deg,
+        );
+        while let Some(c) = multiplier.next() {
+            f(c * cc, &multiplier.ans);
+        }
+        multiplier.into_allocation()
+    };
+
+    // An empty exterior part commutes past `m1` trivially, so skip the `multiply_qpart` buffer and
+    // its allocation. This is every product at $p = 2$.
+    if m2.q_part == 0 {
+        return walk(1, &m1, allocation);
+    }
+
+    for (cc, basis) in multiply_qpart(p, m1, m2.q_part) {
+        allocation = walk(cc, &basis, allocation);
+    }
+    allocation
 }
 
 #[allow(non_snake_case)]
