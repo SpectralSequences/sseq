@@ -12,8 +12,10 @@ use std::{
 use anyhow::{Context, bail};
 
 const KERNEL_SRC: &str = "cuda_kernels/matmul_b1.cu";
+const RREF_SRC: &str = "cuda_kernels/row_reduce.cu";
 const PARAMS_HEADER: &str = "cuda_kernels/params.h";
 const PTX_NAME: &str = "matmul_b1.ptx";
+const RREF_PTX_NAME: &str = "row_reduce.ptx";
 const PARAMS_NAME: &str = "params.rs";
 const ARCH: &str = "sm_90a";
 
@@ -67,20 +69,11 @@ fn emit_params(out_dir: &Path) -> Vec<(String, usize)> {
     knobs
 }
 
-fn main() -> anyhow::Result<()> {
-    println!("cargo:rerun-if-changed={KERNEL_SRC}");
-    println!("cargo:rerun-if-changed={PARAMS_HEADER}");
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-env-changed=NVCC");
-
-    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set by cargo"));
-    let ptx_out = out_dir.join(PTX_NAME);
-
-    let knobs = emit_params(&out_dir);
-
-    let nvcc = env::var("NVCC").unwrap_or_else(|_| "nvcc".to_string());
-
-    let status = Command::new(&nvcc)
+/// Compile one `.cu` to PTX, passing `defines` through to nvcc.
+///
+/// Only the GEMM source has tuning knobs to verify, so `defines` is empty for the other.
+fn compile(nvcc: &str, src: &str, out: &Path, defines: &[String]) -> anyhow::Result<()> {
+    let status = Command::new(nvcc)
         .args([
             "-ptx",
             "-O3",
@@ -88,16 +81,9 @@ fn main() -> anyhow::Result<()> {
             "--use_fast_math",
             &format!("-arch={ARCH}"),
         ])
-        // Hand every parsed value back to the compiler, which checks it against the macro it was
-        // read from; see the `FP_CUDA_VERIFY` block in params.h.
-        .arg("-DFP_CUDA_VERIFY")
-        .args(
-            knobs
-                .iter()
-                .map(|(name, value)| format!("-DFP_CUDA_VERIFY_{name}={value}")),
-        )
-        .args([KERNEL_SRC, "-o"])
-        .arg(&ptx_out)
+        .args(defines)
+        .args([src, "-o"])
+        .arg(out)
         .status()
         .with_context(|| {
             format!("failed to run nvcc ('{nvcc}'). Set the NVCC env var to a working nvcc.")
@@ -107,10 +93,35 @@ fn main() -> anyhow::Result<()> {
     // failure explicitly or the build script would succeed with no PTX written.
     if !status.success() {
         bail!(
-            "nvcc failed to compile {KERNEL_SRC} ({status}). Check that your CUDA Toolkit \
-             supports {ARCH} (Hopper)."
+            "nvcc failed to compile {src} ({status}). Check that your CUDA Toolkit supports \
+             {ARCH} (Hopper)."
         );
     }
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    println!("cargo:rerun-if-changed={KERNEL_SRC}");
+    println!("cargo:rerun-if-changed={RREF_SRC}");
+    println!("cargo:rerun-if-changed={PARAMS_HEADER}");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=NVCC");
+
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set by cargo"));
+    let knobs = emit_params(&out_dir);
+    let nvcc = env::var("NVCC").unwrap_or_else(|_| "nvcc".to_string());
+
+    // Hand every parsed value back to the compiler, which checks it against the macro it was read
+    // from; see the `FP_CUDA_VERIFY` block in params.h.
+    let mut defines = vec!["-DFP_CUDA_VERIFY".to_string()];
+    defines.extend(
+        knobs
+            .iter()
+            .map(|(name, value)| format!("-DFP_CUDA_VERIFY_{name}={value}")),
+    );
+
+    compile(&nvcc, KERNEL_SRC, &out_dir.join(PTX_NAME), &defines)?;
+    compile(&nvcc, RREF_SRC, &out_dir.join(RREF_PTX_NAME), &[])?;
 
     Ok(())
 }

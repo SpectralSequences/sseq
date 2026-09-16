@@ -152,3 +152,118 @@ on this hardware, but not guaranteed by the model.
 Output stays bit-exact either way. The reorder costs ~0.96% at 4096 and ~0.73% at 8192 (every
 post-change run below the lowest pre-change run, so the loss is real), and is at noise level at
 16384 and 32768, the sizes the kernel is actually used at. Paid.
+
+## Grid caps for the barrier-bound row-reduce kernels (2026-07-28, H200)
+
+**Chosen:** cap the grid well below full occupancy for the three grid-barrier-bound kernels, with
+env overrides. Defaults live in `src/lib.rs` as `DEFAULT_PF_CTAS`, `DEFAULT_PROM_CTAS` and
+`DEFAULT_BR_CTAS`.
+
+A `grid_sync`'s cost scales with the CTA count, and these kernels sync per pivot, so past the point
+where the grid covers the per-pivot work more CTAs only buy more expensive barriers.
+
+| kernel | syncs | gain from the cap | override |
+|---|---|---|---|
+| `panel_factor_coop` | 1 per pivot bit | +3% at 2^16 | `FP_CUDA_PF_CTAS` |
+| `promote_coop` | 1 per pivot | +6% at 2^16, +5% at 2^17 | `FP_CUDA_PROM_CTAS` |
+| `block_reduce_coop` (TRSM) | 2 per pivot | 334 -> 115 ms (2.9x) at 2^16, +12% end-to-end | `FP_CUDA_BR_CTAS` |
+
+The block-reduce cap applies **only under TRSM**, where the reduces are narrow base blocks whose
+per-pivot XOR needs little width. Without TRSM the reduce is the full block and its XOR genuinely
+needs the whole grid, so full occupancy stands.
+
+## Forward-pass panel width scales with stride (2026-07-20, H200)
+
+**Chosen:** `adaptive_bl` in `src/lib.rs` — `stride/256` without the cooperative promote,
+`stride/128` with it, capped at `MAX_BL`. Override with `FP_CUDA_BL`.
+
+Wider panels raise the trailing GEMM's contraction dimension, reclaiming the K-padding waste. The
+counter-pressure is the promotion cost: the single-CTA `promote_pivots` is O(bl) total, so narrow
+panels win there, while the cooperative `promote_coop` is ~bl-independent, so the panel can widen
+until the forward GEMM stops padding.
+
+Measured optima, half-rank inputs:
+
+| n | stride | promote | optimal bl |
+|---|---|---|---|
+| 2^15 | 512 | single-CTA | 2 |
+| 2^16 | 1024 | cooperative | 8 |
+| 2^17 | 2048 | cooperative | 16 |
+
+The cooperative rows were measured with `FP_CUDA_RR_COOP=1`. That is no longer the default, and the
+rule was first written as a function of stride alone — `stride >= 1024` picking the wide panel —
+which silently meant every large reduction took the cooperative optimum while paying the O(bl)
+single-CTA promotion it was chosen against. `adaptive_bl` now asks which promote will actually run.
+Since the default path is non-cooperative, what ships is `stride/256` at every size.
+
+That is an extrapolation of the single-CTA row, not a measurement: the optimum was never swept with the single-CTA promote at stride >= 1024, because at the time that combination could not occur. Worth a sweep if the forward pass is revisited.
+
+## The row-reduce crossover tracks elimination work (2026-09-15, H200)
+
+Two earlier readings of this were wrong, each because of the quantity it sorted on.
+
+The first put the crossover at a short side of 8192, from half-rank squares. A short side is not
+the problem size, and it rejects wide matrices carrying far more work than the squares it admits.
+
+The second replaced it with total size in bits, and was measured against a blocked GEMM-based CPU
+reducer, since removed for being slower than M4RI at every size it was tried at. Measuring a device
+against a baseline slower than the one production falls back to inflates every ratio.
+
+Re-measured against `row_reduce_cpu`, the M4RI path the gate actually falls back to, half-rank,
+device time including upload, sorted by elimination work `rank² · cols`:
+
+| shape | MB | rank²·cols | device vs M4RI |
+|---|---|---|---|
+| 16 × 1,600,000 | 3.1 | 1.0e8 | 0.17x |
+| 1024² | 0.1 | 2.7e8 | 0.06x |
+| 64 × 1,600,000 | 12.2 | 1.6e9 | 0.31x |
+| 2048² | 0.5 | 2.2e9 | 0.19x |
+| 4096² | 2.0 | 1.7e10 | 0.52x |
+| 256 × 1,600,000 | 48.8 | 2.6e10 | 1.09x |
+| 512 × 1,600,000 | 97.7 | 1.1e11 | 1.75x |
+| 8192² | 8.0 | 1.4e11 | 1.49x |
+| 1131 × 611,461 | 82.4 | 2.0e11 | 2.29x |
+| 16384² | 32.0 | 1.1e12 | 5.25x |
+| 3055 × 1,770,153 | 644.7 | 4.1e12 | 8.67x |
+
+Sorted this way the table is monotone and the crossover is a single point near `2.5e10`: everything
+below `1.7e10` loses, everything from `2.6e10` up wins. Sorted by size in bits it is not monotone at
+all — 8192² wins at 8 MB while 64 × 1,600,000 loses at 12 MB, and 1024² loses at 0.1 MB while
+256 × 1,600,000 breaks even at 48.8 MB.
+
+That is the physical story rather than a fitted curve. Elimination is `O(r²c)`, and the device
+parallelises across rows within a panel step while the number of panel steps scales with the rank.
+A 16-row matrix has almost nothing to spread across the machine however wide it is, so width alone
+never buys the device anything.
+
+**Squares and wide shapes do not cross together.** At equal work a near-square reduction runs
+1.5-2x worse than a wide one — 5000² loses at 0.72x where 256 × 1,600,000 wins at 1.09x for
+comparable `rank²·cols`, and 6000² loses at 0.89x against 384 × 1,600,000 at 1.37x. A single scalar
+therefore cannot sit exactly on both crossovers.
+
+`DEFAULT_RR_MIN_WORK` is set at `1e11`, above the square crossover rather than on the wide one, so
+the gate never admits work the device loses. The cost is forfeiting the 1.1-1.4x band that wide
+shapes reach earlier.
+
+**What this means for the resolution's own reductions.** They are near-square with a median short
+side of 2789, which is `rank²·cols ≈ 9.8e9` — an order of magnitude below the crossover. Against
+M4RI the device does not win on them at any gate setting, so on this workload the row reduction will
+essentially never dispatch. That is the honest reading of the sweep, and it is consistent with the
+end-to-end measurement that put row reduction at 0.15-0.4% of process CPU either way.
+
+## Multi-CTA block reduction pays only on wide matrices (2026-07-30, H200)
+
+**Chosen:** gate the grid-parallel back-substitution reduce on `stride >= 1024`; below that the
+single-CTA `block_reduce_rref` wins.
+
+Spreading each block's per-pivot clear across the whole grid only pays once the block work
+(~`bp · stride`) is large enough to cover the extra barrier traffic:
+
+| n | stride | grid-parallel vs single-CTA |
+|---|---|---|
+| 2^15 | 512 | neutral |
+| 2^16 | 1024 | +6% |
+| 2^17 | 2048 | +18% |
+
+Both grid-parallel variants are gated the same way — the cooperative `block_reduce_coop` and the
+kernel-boundary `br_cond`/`br_xor` pair that is the default.

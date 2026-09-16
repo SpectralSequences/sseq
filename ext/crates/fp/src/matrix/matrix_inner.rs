@@ -672,7 +672,97 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
     pub fn row_reduce(&mut self) -> usize {
+        // For large p = 2 matrices, try the device-resident GPU reduction; it produces the
+        // identical canonical RREF + pivots, and falls through to the CPU M4RI path below when the
+        // GPU is unavailable or the matrix is under `blas::cuda`'s threshold.
+        //
+        // The `fp::rr` event records which path a non-trivial reduction took. `path="cpu"` does not
+        // say why — under the threshold and a launch failure look the same here — but the logged
+        // dimensions disambiguate. It is emitted inside whatever span the caller is in, so it picks
+        // up the caller's context.
+        #[cfg(feature = "gpu")]
+        if self.prime() == 2 {
+            let (rr_rows, rr_cols) = (self.rows(), self.columns());
+            // Log exactly what the gate would admit, so `path=` covers the decisions it makes.
+            let rr_big = crate::blas::cuda::rref::rr_worth_gpu(rr_rows, rr_cols);
+            match crate::blas::cuda::rref::try_row_reduce(self) {
+                Some(rank) => {
+                    if rr_big {
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "gpu",
+                            rank,
+                            "row_reduce"
+                        );
+                    }
+                    return rank;
+                }
+                None => {
+                    if rr_big {
+                        // Reaching here means the gate admitted this reduction and the device
+                        // still declined it. The fallback is a single-threaded M4RI reduction of a
+                        // matrix large enough to stall the run for hours, and it looks exactly
+                        // like a small matrix taking the CPU path by design. Warn, so the two are
+                        // distinguishable in a log.
+                        tracing::warn!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            gib = (rr_rows as f64 * rr_cols as f64 / 8.0) / (1u64 << 30) as f64,
+                            "row reduce ABOVE the GPU threshold fell back to single-threaded CPU \
+                             M4RI — orders of magnitude slower than the GPU path. The device \
+                             declined it: no usable GPU (check the startup banner), \
+                             FP_CUDA_DISABLE set, or a failed upload, reduce or download, an \
+                             upload failure most often meaning the card is out of memory."
+                        );
+                        tracing::info!(
+                            target: "fp::rr",
+                            rows = rr_rows,
+                            cols = rr_cols,
+                            min = rr_rows.min(rr_cols),
+                            path = "cpu",
+                            "row_reduce"
+                        );
+                    }
+                }
+            }
+        }
+
+        self.row_reduce_cpu()
+    }
+
+    /// Row-reduce on the CPU, never consulting the device.
+    ///
+    /// [`Self::row_reduce`] is the entry point callers want; this is the same M4RI reduction it
+    /// falls back to, exposed because the GPU context is a process-wide `OnceLock`. Once it is
+    /// built, `row_reduce` cannot be talked out of the device within the same process, so a test
+    /// comparing the two paths needs a CPU reduction it can name directly.
+    pub fn row_reduce_cpu(&mut self) -> usize {
         let p = self.prime();
+
+        // Everything below is the CPU M4RI reduction. `gpu_row_reduce` above cannot time it:
+        // that span wraps `try_row_reduce`, which returns early when the gate declines, so a
+        // declined reduction records only the cost of declining.
+        //
+        // The criterion is elimination work, the same quantity the gate weighs, so the two can be
+        // read against each other. It sits far below the gate's own floor, which is deliberate:
+        // the span has to cover reductions on both sides of the gate, or a threshold A/B would
+        // instrument its two arms differently. For the same reason it is a fixed number rather
+        // than something derived from `rr_worth_gpu`, which moves.
+        #[cfg(feature = "gpu")]
+        let _cpu_rr_span = {
+            let (r, c) = (self.rows(), self.columns());
+            let rank = (r.min(c) / 2) as u64;
+            let work = rank.saturating_mul(rank).saturating_mul(c as u64);
+            (p == 2 && work >= 100_000_000).then(|| {
+                tracing::info_span!(target: "fp::rr", "cpu_row_reduce", rows = r, cols = c)
+                    .entered()
+            })
+        };
+
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());
@@ -893,7 +983,8 @@ impl Matrix {
 
         // Find the first kernel row
         let first_kernel_row = self.find_first_row_in_block(first_source_column);
-        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
+        // Every row after the first kernel row is also a kernel row, so now we know how big it is
+        // and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Self::new(p, kernel_dimension, source_dimension);
         kernel.initialize_pivots();
