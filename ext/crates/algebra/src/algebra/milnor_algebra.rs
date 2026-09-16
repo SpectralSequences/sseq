@@ -398,7 +398,7 @@ impl std::fmt::Display for MilnorBasisElement {
 }
 
 mod private {
-    /// Seals [`MilnorFlavour`](super::MilnorFlavour) so that `q` and the presence of an exterior
+    /// Seals [`MilnorShape`](super::MilnorShape) so that `q` and the presence of an exterior
     /// part cannot be chosen independently.
     pub trait Sealed {}
 }
@@ -409,7 +409,7 @@ mod private {
 /// algebra on the $\tau_k$. The exterior part is absent in exactly one case, the classical algebra
 /// at $p = 2$, which is why the two shapes are distinguished here rather than by the prime: the
 /// mod-$\tau$ C-motivic algebra $A^{\mathbb{C}}/\tau$ has the exterior shape *at* $p = 2$.
-pub trait MilnorFlavour: private::Sealed + Sized + Send + Sync + 'static {
+pub trait MilnorShape: private::Sealed + Sized + Send + Sync + 'static {
     /// Whether basis elements carry an exterior part.
     const HAS_EXTERIOR: bool;
 
@@ -445,13 +445,13 @@ pub struct Exterior;
 impl private::Sealed for NoExterior {}
 impl private::Sealed for Exterior {}
 
-pub struct MilnorAlgebraInner<F: MilnorFlavour> {
+pub struct MilnorAlgebraInner<F: MilnorShape> {
     profile: MilnorProfile,
     p: ValidPrime,
 
     unstable_enabled: bool,
 
-    flavour: PhantomData<F>,
+    shape: PhantomData<F>,
 
     /// This is a list of possible P(R) of each degree, where `ppart_table[i]` contains elements of
     /// degree `q * i`.
@@ -474,13 +474,13 @@ pub struct MilnorAlgebraInner<F: MilnorFlavour> {
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>,
 }
 
-impl<F: MilnorFlavour> std::fmt::Display for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> std::fmt::Display for MilnorAlgebraInner<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MilnorAlgebra(p={})", self.prime())
     }
 }
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
         Self::new_with_profile(p, MilnorProfile::default(), unstable_enabled)
     }
@@ -490,7 +490,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         Self {
             p,
             unstable_enabled,
-            flavour: PhantomData,
+            shape: PhantomData,
             profile,
             ppart_table: OnceVec::new(),
             basis_table: OnceVec::new(),
@@ -503,13 +503,13 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
 
     /// Whether basis elements carry an exterior part.
     ///
-    /// This is a constant of the flavour, so the branches it guards fold away.
+    /// This is a constant of the shape, so the branches it guards fold away.
     #[inline]
     pub fn has_exterior(&self) -> bool {
         F::HAS_EXTERIOR
     }
 
-    /// The scale of the polynomial grading; see [`MilnorFlavour::q`].
+    /// The scale of the polynomial grading; see [`MilnorShape::q`].
     pub fn q(&self) -> i32 {
         F::q(self.p)
     }
@@ -552,8 +552,8 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-/// Operations shared by both flavours, parameterised only by [`MilnorFlavour::q`].
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+/// Operations shared by both shapes, parameterised only by [`MilnorShape::q`].
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Set `elt`'s degree component to the degree it has in this algebra.
     pub fn compute_degree(&self, elt: &mut MilnorBasisElement) {
         let p = self.prime();
@@ -633,7 +633,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-impl MilnorFlavour for NoExterior {
+impl MilnorShape for NoExterior {
     const HAS_EXTERIOR: bool = false;
 
     /// The polynomial grading is unscaled: $\xi_i$ has degree `XI_DEGREES[i]` exactly.
@@ -685,11 +685,11 @@ impl MilnorFlavour for NoExterior {
     }
 }
 
-impl MilnorFlavour for Exterior {
+impl MilnorShape for Exterior {
     const HAS_EXTERIOR: bool = true;
 
     /// At `p = 2` this is 2, the scale $A^{\mathbb{C}}/\tau$ needs — the classical algebra takes
-    /// `q = 1` there because it is the *other* flavour, not because the formula fails.
+    /// `q = 1` there because it is the *other* shape, not because the formula fails.
     fn q(p: ValidPrime) -> i32 {
         2 * (p.as_i32() - 1)
     }
@@ -775,23 +775,23 @@ impl MilnorFlavour for Exterior {
     }
 }
 
-impl<F: MilnorFlavour> Algebra for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     fn prefix(&self) -> &str {
         "milnor"
     }
 
     fn magic(&self) -> u32 {
         // Saved resolutions store coefficients by basis index, so two algebras sharing a magic
-        // decode each other's files as their own basis. The prime settles the flavour everywhere
+        // decode each other's files as their own basis. The prime settles the shape everywhere
         // except `Exterior` at `p = 2`, so only that case takes a bit; every configuration that
         // could already have written a file keeps the value it had.
-        let flavour = if F::HAS_EXTERIOR && self.p == 2 {
+        let shape = if F::HAS_EXTERIOR && self.p == 2 {
             0x4000
         } else {
             0
         };
         (self.p << 16)
-            + flavour
+            + shape
             + if self.profile.is_trivial() {
                 0x8000
             } else {
@@ -1048,7 +1048,7 @@ impl<F: MilnorFlavour> Algebra for MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> UnstableAlgebra for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> UnstableAlgebra for MilnorAlgebraInner<F> {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
         if degree < 0 || excess < 0 {
             0
@@ -1077,7 +1077,7 @@ impl<F: MilnorFlavour> UnstableAlgebra for MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> GeneratedAlgebra for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
         F::generator_to_string(self, degree, idx)
     }
@@ -1153,7 +1153,7 @@ impl<F: MilnorFlavour> GeneratedAlgebra for MilnorAlgebraInner<F> {
 }
 
 // Compute basis functions
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn compute_ppart(&self, max_degree: i32) {
         self.ppart_table.extend(0, |_| vec![PPart::zero()]);
 
@@ -1292,7 +1292,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
 }
 
 // Multiplication logic
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
     /// (e.g. out of range or excluded by the profile).
     pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
@@ -1865,7 +1865,7 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
     }
 }
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn decompose_basis_element_qpart(
         &self,
         degree: i32,
@@ -2043,7 +2043,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Advance `element` to the next p-part bounded entrywise by `max`, in odometer order.
     ///
     /// Returns `true` once the odometer wraps, i.e. when `element` was already `max`.
@@ -2119,7 +2119,7 @@ impl Bialgebra for MilnorAlgebraInner<NoExterior> {
     }
 }
 
-/// Forward an inherent method to whichever flavour this algebra has.
+/// Forward an inherent method to whichever shape this algebra has.
 macro_rules! dispatch_milnor {
     () => {};
     ($(#[$meta:meta])* $vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
@@ -2134,9 +2134,9 @@ macro_rules! dispatch_milnor {
     };
 }
 
-/// A dual Steenrod algebra in the Milnor basis, of either [flavour](MilnorFlavour).
+/// A dual Steenrod algebra in the Milnor basis, of either [shape](MilnorShape).
 ///
-/// [`Self::new`] picks the flavour that the prime implies, so the classical algebra is all this
+/// [`Self::new`] picks the shape that the prime implies, so the classical algebra is all this
 /// exposes. `MilnorAlgebraInner<Exterior>` at `p = 2` is the mod-$\tau$ C-motivic algebra, which
 /// is a different algebra rather than a different presentation of this one; it is reached through
 /// its own wrapper, not from here.
@@ -2199,9 +2199,9 @@ impl MilnorAlgebra {
     }
 }
 
-/// Forwards to the classical flavour, which is the only one with a coproduct.
+/// Forwards to the classical shape, which is the only one with a coproduct.
 ///
-/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where the coproduct
+/// A [`MilnorAlgebra`] only ever holds the exterior shape at an odd prime, where the coproduct
 /// was already unsupported.
 impl Bialgebra for MilnorAlgebra {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
@@ -2852,7 +2852,7 @@ mod tests {
         );
     }
 
-    /// The exterior flavour at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
+    /// The exterior shape at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
     ///
     /// That configuration is unreachable through [`MilnorAlgebra`], so these check it against the
     /// independent Kong–Lin closed form in [`crate::algebra::motivic::milnor`], which shares no
@@ -2865,7 +2865,7 @@ mod tests {
             Bigraded, Dual, Monomial, enum_basis, multiply_closed_mod_tau,
         };
 
-        /// The mod-$\tau$ C-motivic Steenrod algebra: the exterior flavour at the prime 2.
+        /// The mod-$\tau$ C-motivic Steenrod algebra: the exterior shape at the prime 2.
         fn ctau() -> MilnorAlgebraInner<Exterior> {
             MilnorAlgebraInner::<Exterior>::new(TWO, false)
         }
@@ -3138,7 +3138,7 @@ mod tests {
             );
         }
 
-        /// The coproduct is not available on this flavour at all.
+        /// The coproduct is not available on this shape at all.
         ///
         /// It is a compile-time restriction rather than an assertion, so this only records that
         /// the classical one still works and that `MilnorAlgebraInner<Exterior>` does not offer
@@ -3157,14 +3157,14 @@ mod tests {
             assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
-        /// The two flavours at `p = 2` must not share a [`Algebra::magic`].
+        /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
         ///
         /// `SaveFile` validates the header against it, so a collision would let a file written
         /// over one basis load as the other with every coefficient reindexed. The literals pin
         /// the classical values, which are a wire format: changing one invalidates saved
         /// resolutions without any error at load time.
         #[test]
-        fn magic_distinguishes_the_flavours() {
+        fn magic_distinguishes_the_shapes() {
             let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);
             let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
             assert_ne!(exterior.magic(), classical.magic());
