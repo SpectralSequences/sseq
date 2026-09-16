@@ -17,9 +17,12 @@ use crate::matrix::Matrix;
 /// `None` if no usable device is present (no driver, no Hopper GPU, or the kernel PTX is the
 /// nvcc-absent build stub), or if `FP_CUDA_DISABLE` is set.
 ///
-/// Shared as `&'static` with no lock: `GpuContext` is `Send + Sync`, every submission goes through
-/// a per-thread stream ([`GpuContext::stream`]) so concurrent callers overlap instead of
-/// serializing, and device buffers are per-call, so there is no shared state to guard.
+/// Shared as `&'static` with no lock: `GpuContext` is `Send + Sync`, each thread gets its own
+/// stream ([`GpuContext::stream`]) rather than sharing one, and device buffers are per-call, so
+/// there is no shared state to guard.
+///
+/// That is about there being nothing to protect, not about overlap. Submissions do not overlap:
+/// every one of them goes through [`driver`], which runs them one at a time.
 fn context() -> Option<&'static GpuContext> {
     static GPU: OnceLock<Option<GpuContext>> = OnceLock::new();
     GPU.get_or_init(|| {
