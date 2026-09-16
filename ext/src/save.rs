@@ -127,6 +127,11 @@ pub enum SaveKind {
 
     /// The quasi-inverse data in Nassau's algorithm
     NassauQi,
+
+    /// The closed-form coboundary `δ_Q` of an untwisted tensor resolution `Q• = P• ⊗ M`. This is
+    /// module-specific: the header only distinguishes by algebra and bidegree, so the save
+    /// directory must be dedicated to a single module `M`.
+    TensorDifferential,
 }
 
 impl SaveKind {
@@ -143,6 +148,7 @@ impl SaveKind {
             Self::ChainHomotopy => 0x11110000,
             Self::NassauDifferential => 0xD1FF0001,
             Self::NassauQi => 0x0100D1FE,
+            Self::TensorDifferential => 0xD1FF0002,
         }
     }
 
@@ -159,6 +165,7 @@ impl SaveKind {
             Self::ChainHomotopy => "chain_homotopy",
             Self::NassauDifferential => "nassau_differential",
             Self::NassauQi => "nassau_qi",
+            Self::TensorDifferential => "tensor_differential",
         }
     }
 
