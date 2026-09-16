@@ -5,11 +5,11 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, PPart, PPartEntry};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
     /// (e.g. out of range or excluded by the profile).
     pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {

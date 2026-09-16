@@ -14,25 +14,25 @@ use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, comb
 mod algebra_impl;
 mod basis_element;
 mod bialgebra_impl;
-mod flavour;
 mod generated_impl;
 mod multiplication;
 mod ppart;
 mod profile;
+mod shape;
 
 pub use basis_element::MilnorBasisElement;
-pub use flavour::{Exterior, MilnorFlavour, NoExterior};
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
+pub use shape::{Exterior, MilnorShape, NoExterior};
 
-pub struct MilnorAlgebraInner<F: MilnorFlavour> {
+pub struct MilnorAlgebraInner<F: MilnorShape> {
     profile: MilnorProfile,
     p: ValidPrime,
 
     unstable_enabled: bool,
 
-    flavour: PhantomData<F>,
+    shape: PhantomData<F>,
 
     /// This is a list of possible P(R) of each degree, where `ppart_table[i]` contains elements of
     /// degree `q * i`.
@@ -55,13 +55,13 @@ pub struct MilnorAlgebraInner<F: MilnorFlavour> {
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>,
 }
 
-impl<F: MilnorFlavour> std::fmt::Display for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> std::fmt::Display for MilnorAlgebraInner<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MilnorAlgebra(p={})", self.prime())
     }
 }
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
         Self::new_with_profile(p, MilnorProfile::default(), unstable_enabled)
     }
@@ -71,7 +71,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
         Self {
             p,
             unstable_enabled,
-            flavour: PhantomData,
+            shape: PhantomData,
             profile,
             ppart_table: OnceVec::new(),
             basis_table: OnceVec::new(),
@@ -84,13 +84,13 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
 
     /// Whether basis elements carry an exterior part.
     ///
-    /// This is a constant of the flavour, so the branches it guards fold away.
+    /// This is a constant of the shape, so the branches it guards fold away.
     #[inline]
     pub fn has_exterior(&self) -> bool {
         F::HAS_EXTERIOR
     }
 
-    /// The scale of the polynomial grading; see [`MilnorFlavour::q`].
+    /// The scale of the polynomial grading; see [`MilnorShape::q`].
     pub fn q(&self) -> i32 {
         F::q(self.p)
     }
@@ -134,7 +134,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
 }
 
 // Compute basis functions
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn compute_ppart(&self, max_degree: i32) {
         self.ppart_table.extend(0, |_| vec![PPart::zero()]);
 
@@ -272,7 +272,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-/// Forward an inherent method to whichever flavour this algebra has.
+/// Forward an inherent method to whichever shape this algebra has.
 macro_rules! dispatch_milnor {
     () => {};
     ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
@@ -286,9 +286,9 @@ macro_rules! dispatch_milnor {
     };
 }
 
-/// A dual Steenrod algebra in the Milnor basis, of either [flavour](MilnorFlavour).
+/// A dual Steenrod algebra in the Milnor basis, of either [shape](MilnorShape).
 ///
-/// [`Self::new`] picks the flavour that the prime implies, so the classical algebra is all this
+/// [`Self::new`] picks the shape that the prime implies, so the classical algebra is all this
 /// exposes. `MilnorAlgebraInner<Exterior>` at `p = 2` is the mod-$\tau$ C-motivic algebra, which
 /// is a different algebra rather than a different presentation of this one; it is reached through
 /// its own wrapper, not from here.
@@ -338,9 +338,9 @@ impl MilnorAlgebra {
     }
 }
 
-/// Forwards to the classical flavour, which is the only one with a coproduct.
+/// Forwards to the classical shape, which is the only one with a coproduct.
 ///
-/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where the coproduct
+/// A [`MilnorAlgebra`] only ever holds the exterior shape at an odd prime, where the coproduct
 /// was already unsupported.
 impl Bialgebra for MilnorAlgebra {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {

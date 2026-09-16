@@ -3,10 +3,10 @@ use fp::{
     vector::FpVector,
 };
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, PPart, PPartEntry};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 use crate::algebra::{Algebra, GeneratedAlgebra, combinatorics};
 
-impl<F: MilnorFlavour> GeneratedAlgebra for MilnorAlgebraInner<F> {
+impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
         F::generator_to_string(self, degree, idx)
     }
@@ -81,7 +81,7 @@ impl<F: MilnorFlavour> GeneratedAlgebra for MilnorAlgebraInner<F> {
     }
 }
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn decompose_basis_element_qpart(
         &self,
         degree: i32,

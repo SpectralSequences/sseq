@@ -1,7 +1,7 @@
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorFlavour, NoExterior, PPart};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, NoExterior, PPart};
 use crate::algebra::{Algebra, Bialgebra, combinatorics};
 
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Advance `element` to the next p-part bounded entrywise by `max`, in odometer order.
     ///
     /// Returns `true` once the odometer wraps, i.e. when `element` was already `max`.

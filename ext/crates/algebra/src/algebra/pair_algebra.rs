@@ -130,7 +130,7 @@ pub struct MilnorPairElement {
     ys: Vec<Vec<FpVector>>,
 }
 
-/// Forward a [`PairAlgebra`] method to the classical flavour, which is the only one that has one.
+/// Forward a [`PairAlgebra`] method to the classical shape, which is the only one that has one.
 macro_rules! dispatch_pair_milnor {
     () => {};
     ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
@@ -453,9 +453,9 @@ fn a_y_inner(
     result
 }
 
-/// Forwards to the classical flavour; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
+/// Forwards to the classical shape; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
 ///
-/// A [`MilnorAlgebra`] only ever holds the exterior flavour at an odd prime, where this machinery
+/// A [`MilnorAlgebra`] only ever holds the exterior shape at an odd prime, where this machinery
 /// does not apply.
 impl PairAlgebra for MilnorAlgebra {
     type Element = MilnorPairElement;
@@ -469,7 +469,7 @@ impl PairAlgebra for MilnorAlgebra {
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
     }
 
-    /// Unlike the rest of this impl, this does not depend on the flavour: it was `0` at every
+    /// Unlike the rest of this impl, this does not depend on the shape: it was `0` at every
     /// prime before the algebra was split, and dispatching it would turn an odd-prime call from a
     /// value into a panic.
     fn p_tilde(&self) -> usize {

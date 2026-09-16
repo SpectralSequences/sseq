@@ -4,7 +4,7 @@ use super::{MilnorAlgebraInner, MilnorBasisElement, PPart};
 use crate::algebra::{Algebra, combinatorics};
 
 mod private {
-    /// Seals [`MilnorFlavour`](super::MilnorFlavour) so that `q` and the presence of an exterior
+    /// Seals [`MilnorShape`](super::MilnorShape) so that `q` and the presence of an exterior
     /// part cannot be chosen independently.
     pub trait Sealed {}
 }
@@ -15,7 +15,7 @@ mod private {
 /// algebra on the $\tau_k$. The exterior part is absent in exactly one case, the classical algebra
 /// at $p = 2$, which is why the two shapes are distinguished here rather than by the prime: the
 /// mod-$\tau$ C-motivic algebra $A^{\mathbb{C}}/\tau$ has the exterior shape *at* $p = 2$.
-pub trait MilnorFlavour: private::Sealed + Sized + Send + Sync + 'static {
+pub trait MilnorShape: private::Sealed + Sized + Send + Sync + 'static {
     /// Whether basis elements carry an exterior part.
     const HAS_EXTERIOR: bool;
 
@@ -52,8 +52,8 @@ pub struct Exterior;
 impl private::Sealed for NoExterior {}
 impl private::Sealed for Exterior {}
 
-/// Operations shared by both flavours, parameterised only by [`MilnorFlavour::q`].
-impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
+/// Operations shared by both shapes, parameterised only by [`MilnorShape::q`].
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Set `elt`'s degree component to the degree it has in this algebra.
     pub fn compute_degree(&self, elt: &mut MilnorBasisElement) {
         let p = self.prime();
@@ -133,7 +133,7 @@ impl<F: MilnorFlavour> MilnorAlgebraInner<F> {
     }
 }
 
-impl MilnorFlavour for NoExterior {
+impl MilnorShape for NoExterior {
     const HAS_EXTERIOR: bool = false;
 
     /// The polynomial grading is unscaled: $\xi_i$ has degree `XI_DEGREES[i]` exactly.
@@ -185,11 +185,11 @@ impl MilnorFlavour for NoExterior {
     }
 }
 
-impl MilnorFlavour for Exterior {
+impl MilnorShape for Exterior {
     const HAS_EXTERIOR: bool = true;
 
     /// At `p = 2` this is 2, the scale $A^{\mathbb{C}}/\tau$ needs — the classical algebra takes
-    /// `q = 1` there because it is the *other* flavour, not because the formula fails.
+    /// `q = 1` there because it is the *other* shape, not because the formula fails.
     fn q(p: ValidPrime) -> i32 {
         2 * (p.as_i32() - 1)
     }
@@ -285,7 +285,7 @@ mod tests {
         milnor_algebra::{MilnorAlgebra, MilnorProfile},
     };
 
-    /// The exterior flavour at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
+    /// The exterior shape at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
     ///
     /// That configuration is unreachable through [`MilnorAlgebra`], so these check it against the
     /// independent Kong–Lin closed form in [`crate::algebra::motivic::milnor`], which shares no
@@ -298,7 +298,7 @@ mod tests {
             Bigraded, Dual, Monomial, enum_basis, multiply_closed_mod_tau,
         };
 
-        /// The mod-$\tau$ C-motivic Steenrod algebra: the exterior flavour at the prime 2.
+        /// The mod-$\tau$ C-motivic Steenrod algebra: the exterior shape at the prime 2.
         fn ctau() -> MilnorAlgebraInner<Exterior> {
             MilnorAlgebraInner::<Exterior>::new(TWO, false)
         }
@@ -571,7 +571,7 @@ mod tests {
             );
         }
 
-        /// The coproduct is not available on this flavour at all.
+        /// The coproduct is not available on this shape at all.
         ///
         /// It is a compile-time restriction rather than an assertion, so this only records that
         /// the classical one still works and that `MilnorAlgebraInner<Exterior>` does not offer
@@ -590,14 +590,14 @@ mod tests {
             assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
-        /// The two flavours at `p = 2` must not share a [`Algebra::magic`].
+        /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
         ///
         /// `SaveFile` validates the header against it, so a collision would let a file written
         /// over one basis load as the other with every coefficient reindexed. The literals pin
         /// the classical values, which are a wire format: changing one invalidates saved
         /// resolutions without any error at load time.
         #[test]
-        fn magic_distinguishes_the_flavours() {
+        fn magic_distinguishes_the_shapes() {
             let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);
             let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
             assert_ne!(exterior.magic(), classical.magic());
