@@ -414,8 +414,6 @@ pub trait MilnorShape: private::Sealed + Sized + Send + Sync + 'static {
     const HAS_EXTERIOR: bool;
 
     /// The scale of the polynomial grading: $\xi_i$ has degree `q * XI_DEGREES[i]`.
-    ///
-    /// Equivalently, `q == 1` exactly when there is no exterior part.
     fn q(p: ValidPrime) -> i32;
 
     /// Fill in the algebra's basis table up to `max_degree`.
