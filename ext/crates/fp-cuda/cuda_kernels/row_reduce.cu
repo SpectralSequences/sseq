@@ -117,8 +117,10 @@ extern "C" __global__ void panel_factor(
 // thread __threadfence()s its global writes, atomically arrives at a shared
 // counter, and spins until all `total_ctas` CTAs of the current round have
 // arrived. `goal` (= round · total_ctas) is tracked in a register that every
-// thread advances identically — control flow is grid-uniform (all CTAs branch
-// on the same broadcast `g_min`), so the arrival counts always match. Requires
+// thread advances identically, so every CTA must reach the same number of
+// grid_syncs. A branch on a broadcast value stays uniform only while no CTA can
+// run ahead and rewrite it, so each read of one is fenced before its next write.
+// Requires
 // co-residency, which the cooperative launch guarantees; `barrier` must be 0 at
 // launch.
 __device__ __forceinline__ void grid_sync(unsigned* barrier, unsigned goal) {
@@ -225,8 +227,13 @@ extern "C" __global__ void panel_factor_coop(
                 }
             }
             goal += total_ctas; grid_sync(barrier, goal); // [C] XOR done before next find
+        } else {
+            // Free column: an empty branch that must still barrier. Without it the next column's
+            // find-first can overwrite g_min while a slow CTA is still reading it here, and that
+            // CTA then takes the pivot branch alone. Barrier [B] closes the same window on the
+            // pivot path.
+            goal += total_ctas; grid_sync(barrier, goal); // [D] all CTAs read g_min before reuse
         }
-        // free column (pivpos == INT_MAX): grid-uniform, no extra barriers.
     }
     if (gtid == 0) *pr_out = *g_pr;
 }
