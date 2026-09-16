@@ -614,9 +614,20 @@ impl GpuContext {
         })
     }
 
+    /// Wait for this thread's stream to drain.
+    ///
+    /// `cudarc`'s `memcpy_dtoh` is `cuMemcpyDtoHAsync`: a download appears synchronous only
+    /// because a device-to-host copy into pageable memory blocks until it completes, which a
+    /// page-locked destination would silently stop doing. Every download ends here instead.
+    fn sync(&self) -> anyhow::Result<()> {
+        Ok(self.stream().synchronize()?)
+    }
+
     /// Download a [`DeviceMatrix`] back to host limbs (natural layout). One D2H.
     pub fn download(&self, dm: &DeviceMatrix) -> anyhow::Result<Vec<u64>> {
-        Ok(self.stream().clone_dtoh(&dm.buf)?)
+        let out = self.stream().clone_dtoh(&dm.buf)?;
+        self.sync()?;
+        Ok(out)
     }
 
     /// Download into an existing host buffer, allocating nothing.
@@ -632,12 +643,14 @@ impl GpuContext {
             dm.rows * dm.stride
         );
         self.stream().memcpy_dtoh(&dm.buf, out)?;
-        Ok(())
+        self.sync()
     }
 
     /// Download a device `u32` buffer (e.g. a `perm` vector) to host.
     pub fn download_u32(&self, s: &CudaSlice<u32>) -> anyhow::Result<Vec<u32>> {
-        Ok(self.stream().clone_dtoh(s)?)
+        let out = self.stream().clone_dtoh(s)?;
+        self.sync()?;
+        Ok(out)
     }
 
     /// Accumulate a product into a region of a persistent device matrix: `dst[:, col_off:] ^= a·b`.
