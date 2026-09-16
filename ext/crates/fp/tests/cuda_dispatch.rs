@@ -7,11 +7,24 @@
 use fp::{matrix::Matrix, prime::TWO};
 use rand::Rng;
 
-fn random_matrix(rows: usize, cols: usize) -> Matrix {
+/// A well-formed random 0/1 matrix, of rank at most `rank` when `rank > 0`.
+///
+/// Building through `from_vec` rather than from raw limbs matters: a matrix filled with random
+/// `u64`s has the bits past its last column set, which is not a state the rest of `fp` ever
+/// produces, so a kernel could disagree with the CPU there without either being wrong.
+fn clean_matrix(rows: usize, cols: usize, rank: usize) -> Matrix {
     let mut rng = rand::rng();
-    let limbs = cols.div_ceil(64);
-    let data: Vec<u64> = (0..rows * limbs).map(|_| rng.random()).collect();
-    Matrix::from_data(TWO, rows, cols, data)
+    let mut rand_vec = |r: usize, c: usize| -> Matrix {
+        let v: Vec<Vec<u32>> = (0..r)
+            .map(|_| (0..c).map(|_| rng.random::<bool>() as u32).collect())
+            .collect();
+        Matrix::from_vec(TWO, &v)
+    };
+    if rank == 0 {
+        rand_vec(rows, cols)
+    } else {
+        &rand_vec(rows, rank) * &rand_vec(rank, cols)
+    }
 }
 
 /// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
@@ -22,7 +35,8 @@ fn threshold() -> usize {
         .unwrap_or(2048)
 }
 
-/// The dispatched product must be bit-identical to the CPU BLAS kernel.
+/// The dispatched product must be bit-identical to the CPU BLAS kernel. Sizes
+/// are chosen above the default 2048 threshold so the GPU path is attempted.
 #[test]
 fn gpu_dispatch_matches_cpu() {
     let t = threshold();
@@ -40,8 +54,8 @@ fn gpu_dispatch_matches_cpu() {
             m >= t && k >= t && n >= t,
             "{m}x{k} * {k}x{n} is below the threshold {t}, so the GPU path is not attempted"
         );
-        let a = random_matrix(m, k);
-        let b = random_matrix(k, n);
+        let a = clean_matrix(m, k, 0);
+        let b = clean_matrix(k, n, 0);
 
         let dispatched = &a * &b;
         let reference = a.fast_mul_concurrent(&b);
@@ -69,8 +83,8 @@ fn gpu_matmul_concurrent() {
                     let m = 2048 + 256 * (t % 6);
                     let k = 2048 + 256 * (i % 5);
                     let n = 2048 + 128 * ((t + i) % 6);
-                    let a = random_matrix(m, k);
-                    let b = random_matrix(k, n);
+                    let a = clean_matrix(m, k, 0);
+                    let b = clean_matrix(k, n, 0);
                     let dispatched = &a * &b;
                     let reference = a.fast_mul_concurrent(&b);
                     assert_eq!(
