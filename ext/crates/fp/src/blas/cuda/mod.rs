@@ -34,7 +34,11 @@ fn context() -> Option<&'static GpuContext> {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
-        GpuContext::new(device).ok()
+        // `cudarc` dlopen's the driver on first use and *panics* if there is none, rather than
+        // returning an error, so `None` has to be caught out of a panic here. The hook is left
+        // installed on purpose: the driver's message says why the GPU is unavailable, and
+        // silencing it would also swallow an unrelated thread's panic.
+        std::panic::catch_unwind(|| GpuContext::new(device).ok()).unwrap_or(None)
     })
     .as_ref()
 }
