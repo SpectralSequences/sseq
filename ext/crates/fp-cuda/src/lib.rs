@@ -539,6 +539,8 @@ impl GpuContext {
     /// update is `dst[j][dst_limb + col] ^= c_dev[j][col]` for `j < m`, `col < width`. Accumulating
     /// straight into `dst` is what avoids allocating a fresh result matrix and copying it back to
     /// the host.
+    ///
+    /// Panics unless the region lies inside both buffers.
     #[allow(clippy::too_many_arguments)]
     pub fn xor_into_region(
         &self,
@@ -551,7 +553,41 @@ impl GpuContext {
         dst_limb: usize,
         c_stride: usize,
     ) -> anyhow::Result<()> {
-        let total = m * width;
+        // `xor_into` bounds its thread index and nothing else, so an index in range still
+        // dereferences `j * stride + dst_limb + col`, which only these checks constrain. Getting
+        // it wrong is an illegal device access, which kills the context for the whole process
+        // rather than failing this call.
+        let dst_end = dst_limb
+            .checked_add(width)
+            .expect("xor_into_region: destination region overflows");
+        assert!(
+            dst_end <= dst_stride,
+            "xor_into_region: region ends at limb {dst_end}, past the {dst_stride}-limb row"
+        );
+        assert!(
+            c_stride >= width,
+            "xor_into_region: source stride {c_stride} is narrower than the {width}-limb update"
+        );
+        let (need_dst, need_c, total) = (
+            m.checked_mul(dst_stride),
+            m.checked_mul(c_stride),
+            m.checked_mul(width),
+        );
+        let (need_dst, need_c, total) = (
+            need_dst.expect("xor_into_region: destination extent overflows"),
+            need_c.expect("xor_into_region: source extent overflows"),
+            total.expect("xor_into_region: launch size overflows"),
+        );
+        assert!(
+            dst.len() >= need_dst,
+            "xor_into_region: destination is {} limbs, region needs {need_dst}",
+            dst.len()
+        );
+        assert!(
+            c_dev.len() >= need_c,
+            "xor_into_region: source is {} limbs, region needs {need_c}",
+            c_dev.len()
+        );
         let (mm, w, ds, dl, cs) = (
             m as u32,
             width as u32,
