@@ -48,6 +48,12 @@ odd-primes = []
 # Dispatch large p=2 matrix products to the Hopper GPU backend (`fp-cuda`).
 gpu = ["dep:fp-cuda", "dep:tracing"]
 
+# Uses `tracing` to observe the dispatch path, which only `gpu` pulls in — and is meaningless
+# without a device in any case.
+[[example]]
+name = "rref_gate_check"
+required-features = ["gpu"]
+
 [[bench]]
 name = "mul"
 harness = false
