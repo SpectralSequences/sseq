@@ -423,8 +423,11 @@ struct SeqnoTables {
 
 /// A borrowed view of the seqno tables, acquired once for a batch of lookups.
 ///
-/// See [`MilnorAlgebra::seqno_ranker`]. Holding this pins one revision of the tables, so the
-/// per-lookup cost is the rank itself with no atomic and no table re-acquisition.
+/// See [`MilnorAlgebra::seqno_ranker`]. Holding this pins the revision of the tables that was
+/// current at acquisition, so the per-lookup cost is the rank itself with no atomic and no table
+/// re-acquisition. It is therefore valid only for the degrees that revision covered: a ranker held
+/// across a concurrent [`MilnorAlgebra::compute_seqno_tables`] that grew the tables will not see
+/// the new degrees, and ranking one panics.
 pub struct SeqnoRanker {
     tables: Arc<SeqnoTables>,
     xi: &'static [i32],
@@ -1249,15 +1252,15 @@ impl MilnorAlgebra {
 
     /// A handle that borrows the seqno tables once for a batch of lookups.
     ///
-    /// [`Self::seqno`] acquires the [`arc_swap`] guard on every call. That is one atomic per
-    /// lookup, which is pure overhead in a loop that ranks many elements — the tables cannot
-    /// change underneath it in any way that matters, since the publish is monotonic. A hot loop
-    /// should hoist the acquisition with this instead.
+    /// [`Self::seqno`] acquires the [`arc_swap`] guard on every call, which is one atomic per
+    /// lookup. A hot loop should hoist the acquisition with this instead, subject to the staleness
+    /// bound documented on [`SeqnoRanker`].
     ///
     /// # Panics
     ///
     /// If the tables have not been built; call [`Self::compute_seqno_tables`] first.
     pub fn seqno_ranker(&self) -> SeqnoRanker {
+        debug_assert!(self.seqno_applicable());
         SeqnoRanker {
             tables: self
                 .seqno_tables
@@ -2197,7 +2200,7 @@ mod tests {
 
     /// The table-based [`MilnorAlgebra::seqno`] must return the position of every basis element in
     /// its degree — i.e. agree with the enumeration order that defines the index — for the stable
-    /// `p = 2` full algebra, and reject non-basis elements via `try_`.
+    /// `p = 2` full algebra.
     #[test]
     fn seqno_matches_enumeration_order() {
         let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
@@ -2205,7 +2208,6 @@ mod tests {
         let max_degree = 100;
         algebra.compute_basis(max_degree);
 
-        // `seqno` must return the enumeration index of every basis element in `0..=upto`.
         let check = |upto: i32| {
             for d in 0..=upto {
                 let dim = algebra.dimension(d);
@@ -2216,6 +2218,7 @@ mod tests {
                         i,
                         "seqno mismatch at degree {d}, index {i}: {elt:?}"
                     );
+                    assert_eq!(algebra.basis_element_to_index(&elt), i);
                 }
             }
         };
@@ -2231,6 +2234,30 @@ mod tests {
         check(max_degree);
         algebra.compute_seqno_tables(50);
         check(max_degree);
+    }
+
+    /// The tables are per-algebra and built on demand, so ranking through an algebra that never
+    /// called `compute_seqno_tables` must say so rather than read uninitialised state.
+    #[test]
+    #[should_panic(expected = "seqno tables not built")]
+    fn seqno_without_tables_panics() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        algebra.compute_basis(10);
+        algebra.seqno(algebra.basis_element_from_index(1, 0).p_part, 1);
+    }
+
+    /// A ranker pins the revision current at acquisition, so it covers only the degrees that
+    /// revision reached even after the tables have grown.
+    #[test]
+    #[should_panic(expected = "exceeds seqno tables built to")]
+    fn seqno_ranker_is_stale_past_its_degree() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        algebra.compute_basis(60);
+        algebra.compute_seqno_tables(20);
+        let ranker = algebra.seqno_ranker();
+        algebra.compute_seqno_tables(60);
+        let elt = algebra.basis_element_from_index(60, 0);
+        ranker.rank(elt.p_part, 60);
     }
 
     #[rstest]
