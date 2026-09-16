@@ -4,12 +4,8 @@ use algebra::{Algebra, MilnorAlgebra};
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 use fp::prime::TWO;
 
-/// Degrees to sample.
-///
-/// The two indices scale differently, which is why this sweeps a range instead of sampling one
-/// size. The hashmap is per-degree, so its working set grows with the dimension of that degree and
-/// eventually falls out of cache; the `g` table is shared across degrees and grows only linearly in
-/// the degree, so it stays resident. The range is chosen to span the point where that crosses over.
+/// Degrees to sample, spanning the point where the table index overtakes the hashmap (see
+/// `EXPERIMENTS.md`).
 ///
 /// `compute_basis` builds every degree below the maximum, so raising the top of this range costs
 /// memory as well as time.
@@ -29,15 +25,13 @@ fn seqno(c: &mut Criterion) {
         if dim == 0 {
             continue;
         }
-        // Snapshot the basis so neither index pays to walk the algebra's storage during timing.
+        // Snapshot the basis so neither index pays to walk the algebra's storage while timed.
         let basis: Vec<_> = (0..dim)
             .map(|i| algebra.basis_element_from_index(degree, i))
             .collect();
 
         g.throughput(Throughput::Elements(dim as u64));
 
-        // Reads the degree straight off the basis element, then one hash and probe of the packed
-        // key.
         g.bench_function(format!("hashmap/deg{degree}"), |b| {
             b.iter(|| {
                 for elt in &basis {
@@ -46,7 +40,6 @@ fn seqno(c: &mut Criterion) {
             });
         });
 
-        // The tables acquired once, the degree supplied by the caller — what a hot loop would do.
         g.bench_function(format!("seqno/deg{degree}"), |b| {
             let ranker = algebra.seqno_ranker();
             b.iter(|| {
@@ -56,8 +49,8 @@ fn seqno(c: &mut Criterion) {
             });
         });
 
-        // The convenience API, which re-acquires the tables on every call. The gap between this and
-        // `seqno` is what hoisting the guard is worth.
+        // `seqno` hoists the table guard out of the loop as a hot caller would; the gap against
+        // `seqno_naive`, which re-acquires it per call, is what that hoisting is worth.
         g.bench_function(format!("seqno_naive/deg{degree}"), |b| {
             b.iter(|| {
                 for elt in &basis {

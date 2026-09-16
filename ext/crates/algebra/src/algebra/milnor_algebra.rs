@@ -437,9 +437,7 @@ impl SeqnoRanker {
     /// The basis is enumerated by increasing highest ξ-index, so the rank of `P` accumulates, for
     /// each populated position `h`, the number of basis elements whose highest index is `< h`
     /// together with `h` — which is exactly the `g` difference across the degree consumed at that
-    /// position. `degree` is taken from the caller rather than re-derived as `Σ rᵢ·ξᵢ`: every
-    /// caller already knows it, and the hashmap it competes with reads it straight off the basis
-    /// element.
+    /// position.
     #[inline]
     pub fn rank(&self, p_part: PPart, degree: i32) -> usize {
         let t = &*self.tables;
@@ -453,8 +451,7 @@ impl SeqnoRanker {
                 .sum::<i32>(),
             "degree {degree} does not match the p-part {p_part:?}"
         );
-        // `cur_d` only decreases in the loop below, so this bounds every `t.g` index. A raw
-        // out-of-bounds panic here means the tables were not built far enough for this element.
+        // `cur_d` only decreases below, so this one check bounds every `t.g` index.
         debug_assert!(
             degree <= t.max_degree,
             "degree {degree} exceeds seqno tables built to {}; call compute_seqno_tables first",
@@ -462,7 +459,7 @@ impl SeqnoRanker {
         );
         let mut cur_d = degree;
         let mut rank = 0;
-        // Consume positions from the highest down; position 0 contributes nothing.
+        // Position 0 contributes nothing.
         for h in (1..p_part.len()).rev() {
             let r = p_part.get(h) as i32;
             if r == 0 {
@@ -505,8 +502,7 @@ pub struct MilnorAlgebra {
     /// row-major `g` array described in [`Self::compute_seqno_tables`]; [`Self::seqno`] ranks a
     /// `p_part` from it with plain array indexing and no hash lookup. Stored behind an
     /// [`arc_swap::ArcSwapOption`] rather than a [`OnceVec`] so that reads on the hot path are a
-    /// single guard load followed by direct indexing — the earlier `OnceVec<Vec<_>>` layout paid two
-    /// atomics *per table access*, which is what made the table lose to the hashmap.
+    /// single guard load followed by direct indexing.
     seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
@@ -586,13 +582,10 @@ impl MilnorAlgebra {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        // NB: [`Self::seqno`] computes this same index without a hash, and which one is faster
-        // depends on the degree. This map holds one entry per basis element of `elt.degree`, so its
-        // working set grows with that dimension and leaves cache; the `g` table behind `seqno` is
-        // shared across degrees and grows only linearly in the degree, so its cost is flat. The
-        // hashmap wins while it is cache-resident and loses once it is not — see `benches/seqno.rs`
-        // for the curve. This path stays on the hashmap because `compute_basis` does not build the
-        // seqno tables, so they are not guaranteed to exist here.
+        // NB: [`Self::seqno`] computes this same index without a hash, and wins above the degree
+        // where this map stops being cache-resident (see `EXPERIMENTS.md`). This path stays on the
+        // hashmap regardless, because `compute_basis` does not build the seqno tables, so they are
+        // not guaranteed to exist here.
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
             .copied()
@@ -696,11 +689,6 @@ impl Algebra for MilnorAlgebra {
         } else {
             self.generate_basis_2(max_degree);
         }
-
-        // The `seqno` tables are *not* built here: they are useful only above the degree where
-        // they overtake the hashmap (see `try_basis_element_to_index`), and a resolution that never
-        // gets there should not pay to build them. Callers that want the hash-free index — a GPU
-        // backend, or a high-degree CPU run — call `compute_seqno_tables` themselves.
 
         // Populate hash map
         self.basis_element_to_index_map
@@ -1192,8 +1180,8 @@ impl MilnorAlgebra {
     /// step `ξ_{h+1}`, letting `seqno` rank a `p_part` without a hash lookup.
     pub fn compute_seqno_tables(&self, max_degree: i32) {
         assert!(self.seqno_applicable());
-        // Mirrors the gate in `compute_basis`: a negative degree would wrap `rows` to a huge
-        // `usize`, and one past the bound would build rows for elements the packing cannot hold.
+        // As in `compute_basis`: a negative degree would wrap `rows`, and one past the bound would
+        // build rows for elements the packing cannot hold.
         assert!(
             (0..=PPart::MAX_DEGREE).contains(&max_degree),
             "seqno tables are only supported for degrees 0..={}, got {max_degree}",
@@ -1246,10 +1234,8 @@ impl MilnorAlgebra {
             }
         }
 
-        // Guard the publish: under `concurrent`, parallel `get_partial_matrix` builds can race here,
-        // and an unconditional store would let a smaller table clobber a larger one already in place
-        // — after which `seqno` would index past the shrunken `g` and panic. Only replace when ours
-        // reaches at least as far, so the cached `max_degree` is monotonic.
+        // Parallel `get_partial_matrix` builds race here under `concurrent`, and `seqno` would
+        // panic on a table that shrank under it, so only ever replace with one that reaches as far.
         let new_tables = Arc::new(SeqnoTables {
             max_degree,
             width,
