@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::{cell::Cell, sync::Arc};
 
 use fp::{
     prime::{Binomial, Prime, ValidPrime, factor_pk, iter::BitflagIterator},
@@ -426,7 +426,7 @@ struct SeqnoTables {
 /// See [`MilnorAlgebra::seqno_ranker`]. Holding this pins one revision of the tables, so the
 /// per-lookup cost is the rank itself with no atomic and no table re-acquisition.
 pub struct SeqnoRanker {
-    tables: std::sync::Arc<SeqnoTables>,
+    tables: Arc<SeqnoTables>,
     xi: &'static [i32],
 }
 
@@ -1250,7 +1250,7 @@ impl MilnorAlgebra {
         // and an unconditional store would let a smaller table clobber a larger one already in place
         // — after which `seqno` would index past the shrunken `g` and panic. Only replace when ours
         // reaches at least as far, so the cached `max_degree` is monotonic.
-        let new_tables = std::sync::Arc::new(SeqnoTables {
+        let new_tables = Arc::new(SeqnoTables {
             max_degree,
             width,
             g,
