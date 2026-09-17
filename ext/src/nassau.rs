@@ -13,6 +13,7 @@
 //! we find that this the easiest way to make all scripts support both types of resolutions.
 
 use std::{
+    collections::HashMap,
     fmt::Display,
     io,
     sync::{Arc, Mutex, mpsc},
@@ -33,29 +34,55 @@ use fp::{
     prime::{TWO, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
-    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
+    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex},
     save::{SaveDirectory, SaveKind},
     utils::{LogWriter, parallel::ParallelGuard},
 };
 
-/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
+/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having
+/// the `new` field. What a computed bidegree still has to register.
+///
+/// `modules[s]` and `differentials[s]` are append-only in increasing degree, so registration has to
+/// happen in `t` order within a row even when the computations that produced it did not. Carrying
+/// it as a value lets the scheduler apply it in graph order; nothing waits on a lock to do so.
+pub(crate) struct PendingRegistration {
+    b: Bidegree,
+    num_new_gens: usize,
+    /// One row per new generator: its differential, in the target's full basis.
+    rows: Vec<FpVector>,
+    /// Column count the rows were built against, needed by the save format.
+    target_dim: usize,
+    /// False when the differential was just READ from a save file and must not be rewritten.
+    write_save: bool,
+    /// Whether to extend the chain map by zero. The main path does; the save-load path never did,
+    /// and this keeps that difference rather than quietly changing it.
+    extend_chain_map: bool,
+}
+
 struct SenderData {
     b: Bidegree,
     retry: bool,
+    /// What the worker computed and the scheduler still has to register, if anything.
+    pending: Option<PendingRegistration>,
     sender: mpsc::Sender<Self>,
 }
 
 impl SenderData {
-    pub(crate) fn send(b: Bidegree, sender: mpsc::Sender<Self>) {
+    pub(crate) fn send(
+        b: Bidegree,
+        pending: Option<PendingRegistration>,
+        sender: mpsc::Sender<Self>,
+    ) {
         sender
             .send(Self {
                 b,
                 retry: false,
+                pending,
                 sender: sender.clone(),
             })
             .unwrap()
@@ -67,6 +94,7 @@ impl SenderData {
             .send(Self {
                 b,
                 retry: true,
+                pending: None,
                 sender: sender.clone(),
             })
             .unwrap()
@@ -130,7 +158,37 @@ impl MilnorSubalgebra {
         vec![0; self.profile.len()]
     }
 
+    /// The smallest POSITIVE degree of an operation carrying the zero signature.
+    ///
+    /// An operation has the zero signature when every p-part entry is zero modulo its field
+    /// width, so the smallest non-trivial one is `min_i 2^{w_i} (2^i - 1)`; for `A(k)` that is
+    /// `2^{k + 1}`, i.e. 2, 4, 8, 16, 32 for `A(0)` through `A(4)`.
+    ///
+    /// This bounds how far ahead of its own row a bidegree may be computed. The image is built at
+    /// the zero signature, so a source generator whose operation degree is below this floor
+    /// contributes no basis element to it, and excluding such generators cannot change the answer.
+    ///
+    /// It is a property of the SUBALGEBRA, hence of the bidegree. A single global bound is wrong:
+    /// one large enough to help an `A(3)` bidegree exceeds the floor of a nearby `A(0)` or `A(1)`
+    /// one, and excluding generators that do contribute inflates the generator count without bound.
+    fn zero_signature_floor(&self) -> i32 {
+        self.profile
+            .iter()
+            .enumerate()
+            .map(|(i, &entry)| {
+                let width = std::cmp::min(entry as u32, PPart::width(i));
+                ((1i64 << width) * ((1i64 << (i + 1)) - 1)) as i32
+            })
+            .min()
+            .unwrap_or(1)
+    }
+
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
+    ///
+    /// Only basis elements coming from generators of degree strictly less than `max_gen_degree`
+    /// are considered; `None` imposes no restriction. Because generators are laid out in
+    /// increasing degree, a restricted result is a prefix of the unrestricted one; see
+    /// [`Resolution::step_resolution_with_subalgebra`] for why we restrict.
     ///
     /// This requires passing the algebra for borrow checker reasons.
     fn signature_mask<'a>(
@@ -139,41 +197,47 @@ impl MilnorSubalgebra {
         module: &'a FreeModule<MilnorAlgebra>,
         degree: i32,
         signature: &'a [PPartEntry],
+        max_gen_degree: Option<i32>,
     ) -> impl Iterator<Item = usize> + 'a {
-        // Every element is tested against the same signature, so compile it once. An unsatisfiable
-        // signature gives no mask, and the empty `Option` masks off the whole iterator.
-        self.packed_signature(signature)
-            .into_iter()
-            .flat_map(move |(mask, value)| {
-                module.iter_gen_offsets([degree]).flat_map(
-                    move |GeneratorData {
-                              gen_deg,
-                              start: [offset],
-                              end: _,
-                          }| {
-                        algebra
-                            .ppart_table(degree - gen_deg)
-                            .iter()
-                            .enumerate()
-                            .filter_map(move |(n, op)| {
-                                if op.bits() & mask == value {
-                                    Some(offset + n)
-                                } else {
-                                    None
-                                }
-                            })
-                    },
-                )
-            })
+        // Every element is tested against the same signature, so compile it once.
+        let Some((mask, value)) = self.packed_signature(signature) else {
+            return Either::Right(std::iter::empty());
+        };
+
+        let matching = module
+            .iter_gen_offsets([degree])
+            .take_while(move |gen_data| max_gen_degree.is_none_or(|bound| gen_data.gen_deg < bound))
+            .flat_map(move |gen_data| {
+                let GeneratorData {
+                    gen_deg,
+                    start: [offset],
+                    ..
+                } = gen_data;
+                algebra
+                    .ppart_table(degree - gen_deg)
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(n, op)| (op.bits() & mask == value).then_some(offset + n))
+            });
+
+        Either::Left(matching)
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
     /// the signature.
+    ///
+    /// Only generators of the target of degree strictly less than `target_max_gen_degree` are used
+    /// (see [`Self::signature_mask`]).
     fn signature_matrix(
         &self,
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
         signature: &[PPartEntry],
+        target_max_gen_degree: i32,
+        // Generators of the SOURCE at or above this degree are excluded; `None` reads them all. The
+        // image is built at the zero signature, so passing the zero-signature floor here lets a
+        // bidegree be computed before its own row predecessor has registered.
+        source_max_gen_degree: Option<i32>,
     ) -> Matrix {
         let p = hom.prime();
         let source = hom.source();
@@ -182,19 +246,28 @@ impl MilnorSubalgebra {
         let target_degree = degree - hom.degree_shift();
 
         let target_mask: Vec<usize> = self
-            .signature_mask(&algebra, &target, degree - hom.degree_shift(), signature)
+            .signature_mask(
+                &algebra,
+                &target,
+                target_degree,
+                signature,
+                Some(target_max_gen_degree),
+            )
             .collect();
 
         let source_mask: Vec<usize> = self
-            .signature_mask(&algebra, &source, degree, signature)
+            .signature_mask(&algebra, &source, degree, signature, source_max_gen_degree)
             .collect();
 
-        let mut scratch = FpVector::new(p, target.dimension(target_degree));
+        let mut scratch = FpVector::new(
+            p,
+            target.dimension_from_gens_below(target_degree, target_max_gen_degree),
+        );
         let mut result = Matrix::new(p, source_mask.len(), target_mask.len());
 
         for (mut row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
             scratch.set_to_zero();
-            hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
+            hom.apply_to_basis_element_restricted(scratch.as_slice_mut(), 1, degree, masked_index);
 
             row.add_masked(scratch.as_slice(), 1, &target_mask);
         }
@@ -604,13 +677,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         &self,
         b: Bidegree,
         subalgebra: MilnorSubalgebra,
-    ) -> anyhow::Result<()> {
-        let end = || {
-            tracing::Span::current().record("num_new_gens", self.number_of_gens_in_bidegree(b));
-            tracing::Span::current().record(
-                "density",
-                self.differentials[b.s()].differential_density(b.t()) * 100.0,
-            );
+    ) -> anyhow::Result<PendingRegistration> {
+        // Takes the count rather than reading it back from the module: registration now happens in
+        // a later phase, so `number_of_gens_in_bidegree` would still be zero here. `density` is
+        // dropped for the same reason -- it reads the registered differential -- and is reported by
+        // the registration phase instead.
+        let end = |num_new_gens: usize| {
+            tracing::Span::current().record("num_new_gens", num_new_gens);
         };
 
         let p = self.prime();
@@ -619,21 +692,32 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target = &*self.modules[b.s() - 1];
         let algebra = target.algebra();
 
+        // We compute this bidegree treating the target `C_{b.s() - 1}` as if it had no generators
+        // of degree `>= b.t()`, and `C_{b.s() - 2}` as if it had none of degree `>= b.t() - 1`.
+        // By minimality this loses no information (the differentials we care about land in the
+        // radical, hence in strictly lower-degree generators), and it makes the computation depend
+        // only on data that is frozen once `(b.s() - 1, b.t() - 1)` and `(b.s(), b.t() - 1)` have
+        // been committed. This is what lets [`Self::compute_through_stem`] compute `(b.s(), b.t())`
+        // concurrently with `(b.s() - 1, b.t())`, which is adding those degree-`b.t()` generators.
+        let target_bound = b.t();
+        let next_bound = b.t() - 1;
+
         let zero_sig = subalgebra.zero_signature();
-        let target_dim = target.dimension(b.t());
+        let target_dim = target.dimension_from_gens_below(b.t(), target_bound);
         let target_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, target, b.t(), &zero_sig)
+            .signature_mask(&algebra, target, b.t(), &zero_sig, Some(target_bound))
             .collect();
         let target_masked_dim = target_mask.len();
 
         let next = &self.modules[b.s() - 2];
         next.compute_basis(b.t());
+        let next_dim = next.dimension_from_gens_below(b.t(), next_bound);
 
         let mut f = if let Some(dir) = self.save_dir().write() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
-            f.write_u64::<LittleEndian>(next.dimension(b.t()) as u64)?;
+            f.write_u64::<LittleEndian>(next_dim as u64)?;
             f.write_u64::<LittleEndian>(target_masked_dim as u64)?;
             subalgebra.to_bytes(&mut f)?;
             Some(f)
@@ -643,13 +727,17 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let guard = tracing::info_span!("step", signature = ?zero_sig).entered();
         let next_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, &self.modules[b.s() - 2], b.t(), &zero_sig)
+            .signature_mask(&algebra, next, b.t(), &zero_sig, Some(next_bound))
             .collect();
         let next_masked_dim = next_mask.len();
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+            self.differentials[b.s() - 1].get_partial_matrix_restricted(
+                b.t(),
+                &target_mask,
+                next_dim,
+            )
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -670,14 +758,23 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             &masked_matrix,
         )?;
 
-        if let Some(f) = &mut f
-            && target.max_computed_degree() < b.t()
-        {
+        // The quasi-inverse is always computed on the restricted (degree `< b.t()`) target basis,
+        // so from the point of view of a later `apply_quasi_inverse` it was computed with
+        // "incomplete information": the differentials on the degree-`b.t()` generators of the
+        // target were not available. We flag this unconditionally so the lift is corrected using
+        // those differentials once they are known.
+        if let Some(f) = &mut f {
             f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
         }
 
         // Compute image
-        let mut n = subalgebra.signature_matrix(&self.differentials[b.s()], b.t(), &zero_sig);
+        let mut n = subalgebra.signature_matrix(
+            &self.differentials[b.s()],
+            b.t(),
+            &zero_sig,
+            target_bound,
+            Some(b.t() - (subalgebra.zero_signature_floor() - 1)),
+        );
         n.row_reduce();
         let next_row = n.rows();
 
@@ -687,10 +784,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             assert_eq!(num_new_gens, 0, "Adding generators at {b}");
         }
 
-        self.add_generators(b, num_new_gens);
-
+        // NOT registered here: `add_generators` appends to `modules[b.s()]` in increasing degree,
+        // and this bidegree may have been computed before its row predecessor. The count travels
+        // back to the scheduler in `PendingRegistration` instead. Nothing between here and the end
+        // of the signature loop reads `modules[b.s()]` -- the loop works on rows `s-1` and `s-2`.
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
-        let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
+        let mut dxs = vec![FpVector::new(p, next_dim); num_new_gens];
 
         for ((x, x_masked), dx) in xs
             .iter_mut()
@@ -713,13 +812,28 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
-            target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
-            next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
+            target_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                target,
+                b.t(),
+                &signature,
+                Some(target_bound),
+            ));
+            next_mask.extend(subalgebra.signature_mask(
+                &algebra,
+                next,
+                b.t(),
+                &signature,
+                Some(next_bound),
+            ));
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
-                self.differential(b.s() - 1)
-                    .get_partial_matrix(b.t(), &target_mask)
+                self.differentials[b.s() - 1].get_partial_matrix_restricted(
+                    b.t(),
+                    &target_mask,
+                    next_dim,
+                )
             };
 
             let mut masked_matrix =
@@ -763,16 +877,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         for dx in &dxs {
             assert!(dx.is_zero(), "dx non-zero at {b}");
         }
-        self.differential(b.s()).add_generators_from_rows(b.t(), xs);
-
-        end();
+        end(num_new_gens);
 
         if let Some(f) = &mut f {
             f.write_u64::<LittleEndian>(Magic::End as u64)?;
         }
 
-        self.write_differential(b, num_new_gens, target_dim)?;
-        Ok(())
+        Ok(PendingRegistration {
+            b,
+            num_new_gens,
+            rows: xs,
+            target_dim,
+            write_save: true,
+            extend_chain_map: true,
+        })
     }
 
     /// Step resolution for s = 0
@@ -881,7 +999,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    fn step_resolution_with_result(&self, b: Bidegree) -> anyhow::Result<()> {
+    /// Compute `b`, returning what still has to be registered.
+    ///
+    /// `None` means the bidegree registered itself: rows 0 and 1 keep the strict schedule, so their
+    /// row order is already guaranteed and there is nothing for the scheduler to sequence.
+    fn step_resolution_with_result(
+        &self,
+        b: Bidegree,
+    ) -> anyhow::Result<Option<PendingRegistration>> {
         let p = self.prime();
         let set_data = || {
             let d = &self.differentials[b.s()];
@@ -902,7 +1027,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         if b.s() == 0 {
             self.step0(b.t());
-            return Ok(());
+            return Ok(None);
         }
 
         if let Some(dir) = self.save_dir.read()
@@ -919,71 +1044,152 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             // want to resolve further, it will be bigger.
             let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
-            self.add_generators(b, num_new_gens);
-
             let mut d_targets = Vec::with_capacity(num_new_gens);
 
             for _ in 0..num_new_gens {
                 d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
             }
 
-            self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
-
-            set_data();
-
-            return Ok(());
+            return Ok(Some(PendingRegistration {
+                b,
+                num_new_gens,
+                rows: d_targets,
+                target_dim: saved_target_res_dimension,
+                // Read from a save file; rewriting it would be pointless work.
+                write_save: false,
+                extend_chain_map: false,
+            }));
         }
 
         if b.s() == 1 {
             self.step1(b.t())?;
             set_data();
-            return Ok(());
+            return Ok(None);
         }
 
-        self.step_resolution_with_subalgebra(
+        let pending = self.step_resolution_with_subalgebra(
             b,
             MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree)),
         )?;
-        self.chain_maps[b.s()].extend_by_zero(b.t());
+        Ok(Some(pending))
+    }
 
-        set_data();
+    /// Apply a computed bidegree's registration.
+    ///
+    /// Everything here appends per degree -- `modules[s]`, the differential's outputs, the chain
+    /// map, and the per-degree subspace caches -- so it must run in `t` order within a row. The
+    /// scheduler guarantees that by ordering the `Register` nodes; nothing here waits on a lock.
+    fn register(&self, pending: PendingRegistration) -> anyhow::Result<()> {
+        let PendingRegistration {
+            b,
+            num_new_gens,
+            rows,
+            target_dim,
+            write_save,
+            extend_chain_map,
+        } = pending;
+
+        self.add_generators(b, num_new_gens);
+        self.differentials[b.s()].add_generators_from_rows(b.t(), rows);
+
+        if write_save {
+            self.write_differential(b, num_new_gens, target_dim)?;
+        }
+        if extend_chain_map {
+            self.chain_maps[b.s()].extend_by_zero(b.t());
+        }
+
+        // `density` used to be recorded as a span field on the compute span; it reads the
+        // registered differential, so it belongs here now and is emitted as an event instead.
+        tracing::info!(
+            %b,
+            num_new_gens,
+            density = self.differentials[b.s()].differential_density(b.t()) * 100.0,
+            "registered"
+        );
+
+        let d = &self.differentials[b.s()];
+        let c = &self.chain_maps[b.s()];
+        d.set_kernel(b.t(), None);
+        d.set_image(b.t(), None);
+        d.set_quasi_inverse(b.t(), None);
+        c.set_kernel(b.t(), None);
+        c.set_image(b.t(), None);
+        c.set_quasi_inverse(b.t(), None);
         Ok(())
     }
 
-    fn step_resolution(&self, b: Bidegree) {
+    /// [`Self::step_resolution_with_result`], panicking rather than returning the error.
+    fn step_resolution(&self, b: Bidegree) -> Option<PendingRegistration> {
         self.step_resolution_with_result(b)
-            .unwrap_or_else(|e| panic!("Error computing bidegree {b}: {e}"));
+            .unwrap_or_else(|e| panic!("Error computing bidegree {b}: {e}"))
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
+    ///
+    /// The dependency graph is built explicitly, with each bidegree split into a `Compute` node and
+    /// a `Register` node; see `depgraph` for why. `Compute` runs on a worker and returns what has
+    /// to be registered; `Register` is applied by this function, in graph order, so appends to
+    /// `modules[s]` and `differentials[s]` stay in increasing degree without any worker ever
+    /// blocking on its row predecessor.
+    ///
+    /// `Compute(s, t)` requires `(s - 1, t - 1)` registered rather than `(s - 1, t)` -- the relaxed
+    /// diagonal, see `step_resolution_with_subalgebra` for why that suffices -- which lets `(s, t)`
+    /// run concurrently with `(s - 1, t)`. Rows 0 and 1 keep the strict schedule: `step0` and
+    /// `step1` read their targets through full matrices, so they wait for `(s - 1, t)`.
     #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
+        use depgraph::{Node, Phase};
+
         let _lock = self.lock.lock();
 
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t());
 
+        let min_degree = self.min_degree();
+        let max_s = max.s();
+        let max_n = max.n();
+
+        // How far back in its own row `(s, t)` actually reads.
+        //
+        // The image is built at the ZERO signature, and no operation below the subalgebra's
+        // zero-signature floor carries it, so generators within that many degrees contribute
+        // nothing to the image and need not be registered yet. `signature_matrix` is passed the
+        // matching bound, so the two agree by construction.
+        //
+        // Rows 0 and 1 keep the strict schedule: `step0` and `step1` read their targets through
+        // full matrices rather than the signature-masked image, so this reasoning does not apply to
+        // them.
+        //
+        // The floor is per bidegree, via the same subalgebra the computation will use. A single
+        // global value would be wrong in both directions: too small to help `A(3)`, and large
+        // enough to exclude generators that a nearby `A(0)` or `A(1)` bidegree genuinely needs.
+        let same_row_dep = |s: i32, t: i32| -> i32 {
+            if s <= 1 {
+                return t - 1;
+            }
+            let b = Bidegree::s_t(s, t);
+            let subalgebra = MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree));
+            t - subalgebra.zero_signature_floor()
+        };
+
+        // A predecessor outside the region imposes no edge, which is what makes the base of each
+        // row a source; that replaces seeding a `progress` array to `min_degree - 1` so the
+        // comparison happened to hold.
+        let mut graph = depgraph::Graph::new(min_degree, max_s, max_n, same_row_dep);
+
         let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
             let _tracing_guard = tracing_span.enter();
 
-            // This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
-            // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
-            // but having the dimensions of the modules change halfway through the computation is
-            // annoying to do correctly. It seems more prudent to improve parallelism elsewhere.
-
-            // Things that we have finished computing.
-            let mut progress: Vec<i32> = vec![-1; max.s() as usize + 1];
-            // We will kickstart the process by pretending we have computed (0, - 1). So
-            // we must pretend we have only computed up to (0, - 2);
-            progress[0] = -2;
-
             let (sender, receiver) = mpsc::channel();
-            SenderData::send(Bidegree::s_t(0, -1), sender);
 
-            let f = |b, sender| {
+            let spawn_compute = |b: Bidegree, sender: mpsc::Sender<SenderData>| {
                 if self.has_computed_bidegree(b) {
-                    SenderData::send(b, sender);
+                    // Already present, so there is nothing to compute and nothing to register. It
+                    // still travels the normal completion path so its successors are released in
+                    // the one place that does that.
+                    SenderData::send(b, None, sender);
                 } else {
                     let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
@@ -992,35 +1198,355 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                             SenderData::send_retry(b, sender);
                             return;
                         }
-                        self.step_resolution(b);
-                        SenderData::send(b, sender);
+                        let pending = self.step_resolution(b);
+                        SenderData::send(b, pending, sender);
                     });
                 }
             };
 
-            while let Ok(SenderData { b, retry, sender }) = receiver.recv() {
+            // A computed bidegree's registration, waiting for its `Register` node to come up.
+            let mut payloads: HashMap<Bidegree, Option<PendingRegistration>> = HashMap::new();
+            let mut in_flight = 0usize;
+
+            loop {
+                // Dispatch everything the graph has freed. Running a `Register` can free more, so
+                // this drains rather than taking one pass.
+                while let Some(node) = graph.pop_ready() {
+                    let b = node.bidegree();
+                    match node.phase {
+                        Phase::Compute => {
+                            in_flight += 1;
+                            spawn_compute(b, sender.clone());
+                        }
+                        Phase::Register => {
+                            if let Some(pending) = payloads.remove(&b).flatten() {
+                                self.register(pending).unwrap_or_else(|e| {
+                                    panic!("Error registering bidegree {b}: {e}")
+                                });
+                            }
+                            graph.complete(node);
+                        }
+                    }
+                }
+
+                if in_flight == 0 {
+                    break;
+                }
+
+                let Ok(SenderData {
+                    b,
+                    retry,
+                    pending,
+                    sender,
+                }) = receiver.recv()
+                else {
+                    break;
+                };
                 if retry {
-                    f(b, sender);
+                    // Bounced off a worker already inside a parallel section. Still in flight; hand
+                    // it back out without touching the graph.
+                    spawn_compute(b, sender);
                     continue;
                 }
-                assert!(progress[b.s() as usize] == b.t() - 1);
-                progress[b.s() as usize] = b.t();
+                in_flight -= 1;
+                payloads.insert(b, pending);
+                graph.complete(Node::compute(b));
+            }
 
-                // How far we are from the last one for this s.
-                let distance = max.n() - b.n() + 1;
+            // A stalled graph is an edge bug, not a slow run.
+            let stuck = graph.undispatched();
+            assert!(
+                stuck.is_empty(),
+                "dependency graph stalled: {} nodes never dispatched, first {:?}",
+                stuck.len(),
+                &stuck[..stuck.len().min(5)]
+            );
+        });
+    }
+}
 
-                if b.s() < max.s() && progress[b.s() as usize + 1] == b.t() - 1 {
-                    f(b + Bidegree::s_t(1, 0), sender.clone());
-                }
+mod depgraph {
+    use sseq::coordinates::Bidegree;
 
-                if distance > 1 && (b.s() == 0 || progress[b.s() as usize - 1] > b.t()) {
-                    // We are computing a normal step
-                    f(b + Bidegree::s_t(0, 1), sender);
-                } else if distance == 1 && b.s() < max.s() {
-                    SenderData::send(b + Bidegree::s_t(0, 1), sender);
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub enum Phase {
+        Compute,
+        Register,
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub struct Node {
+        pub phase: Phase,
+        pub s: i32,
+        pub t: i32,
+    }
+
+    impl Node {
+        /// The node that computes `b` without registering it.
+        pub fn compute(b: Bidegree) -> Self {
+            Self {
+                phase: Phase::Compute,
+                s: b.s(),
+                t: b.t(),
+            }
+        }
+
+        /// The bidegree this node belongs to, discarding its phase.
+        pub fn bidegree(&self) -> Bidegree {
+            Bidegree::s_t(self.s, self.t)
+        }
+    }
+
+    /// The dependency graph for [`super::Resolution::compute_through_stem`].
+    ///
+    /// Each bidegree is TWO nodes, because its two halves have different dependencies:
+    ///
+    /// * `Compute(s, t)` does the expensive work. It reads rows `s-1` and `s-2` only, so it needs
+    ///   those registered -- but of its OWN row it needs only what the image computation reads.
+    /// * `Register(s, t)` appends to `modules[s]` and `differentials[s]`, which are append-only in
+    ///   increasing degree, so it needs `Register(s, t-1)`.
+    ///
+    /// Splitting them is what lets a row compute out of order while still registering in order. The
+    /// scheduler dispatches `Compute` to workers and runs `Register` itself, so a node is only ever
+    /// handed out when it can run immediately -- nothing blocks a worker waiting for its
+    /// predecessor.
+    ///
+    /// Readiness is an indegree reaching zero rather than a predicate over per-row high-water
+    /// marks. That matters: with a predicate, "each bidegree is dispatched exactly once" was an
+    /// EMERGENT property of needing both predecessors, and any relaxation silently broke it into
+    /// double dispatch. Here a node leaves the blocked set exactly once, by construction.
+    ///
+    /// # Representation
+    ///
+    /// Nothing is stored that the precedence rules already determine. Every row of the region is
+    /// one contiguous run of `t`, so a node's slot is arithmetic rather than a hash key, and both
+    /// the indegrees and the edges follow from the rules below:
+    ///
+    /// ```text
+    /// Register(s, t-1)               -> Register(s, t)      appends are in increasing degree
+    /// Compute(s, t)                  -> Register(s, t)
+    /// Register(s, same_row[(s, t)])  -> Compute(s, t)       the same-row read, relaxed
+    /// Register(0, t)                 -> Compute(1, t)       row 1 reads through a full matrix
+    /// Register(s-1, t-1)             -> Compute(s, t)       the relaxed diagonal, s >= 2
+    /// ```
+    ///
+    /// So the only per-node state is an indegree and a dispatched flag, both dense arrays. The
+    /// same-row bounds are kept because they are the one input the rules cannot recompute cheaply;
+    /// `max_gap` bounds the inverse lookup that finds a `Register`'s same-row consumers.
+    pub struct Graph {
+        min_degree: i32,
+        max_s: i32,
+        max_n: i32,
+        /// Prefix sums of the row lengths, so `idx` is a single add.
+        row_offset: Vec<usize>,
+        /// `Compute(s, t)` waits for `Register(s, same_row[idx(s, t)])`.
+        same_row: Vec<i32>,
+        /// The widest `t - same_row[..]`, which bounds the scan in [`Self::successors`].
+        max_gap: i32,
+        /// Predecessors not yet complete, indexed by slot.
+        blocked: Vec<u32>,
+        ready: Vec<u32>,
+        dispatched: Vec<bool>,
+        /// Reused by [`Self::complete`] so releasing successors never allocates.
+        succ_buf: Vec<Node>,
+    }
+
+    impl Graph {
+        /// Build the whole graph and prime the ready queue.
+        ///
+        /// `same_row_dep(s, t)` is the earliest degree in row `s` that `Compute(s, t)` reads; a
+        /// value outside the region imposes no edge, which is what makes the base of each row a
+        /// source.
+        pub fn new(
+            min_degree: i32,
+            max_s: i32,
+            max_n: i32,
+            same_row_dep: impl Fn(i32, i32) -> i32,
+        ) -> Self {
+            let mut row_offset = Vec::with_capacity(max_s as usize + 2);
+            let mut total = 0usize;
+            for s in 0..=max_s {
+                row_offset.push(total);
+                total += (max_n + s - min_degree + 1).max(0) as usize;
+            }
+            row_offset.push(total);
+
+            let mut g = Self {
+                min_degree,
+                max_s,
+                max_n,
+                row_offset,
+                same_row: Vec::new(),
+                max_gap: 1,
+                blocked: Vec::new(),
+                ready: Vec::new(),
+                dispatched: vec![false; 2 * total],
+                succ_buf: Vec::new(),
+            };
+
+            g.same_row = Vec::with_capacity(total);
+            for s in 0..=max_s {
+                for t in min_degree..=(max_n + s) {
+                    let dep = if g.in_region(s, t) {
+                        same_row_dep(s, t)
+                    } else {
+                        t - 1
+                    };
+                    g.max_gap = g.max_gap.max(t - dep);
+                    g.same_row.push(dep);
                 }
             }
-        });
+
+            g.blocked = (0..2 * total)
+                .map(|slot| g.indegree(g.node_at(slot)))
+                .collect();
+            // Descending, so `pop` hands out ascending slots and two runs are diffable.
+            g.ready = (0..2 * total)
+                .rev()
+                .filter(|&slot| g.blocked[slot] == 0)
+                .map(|slot| slot as u32)
+                .collect();
+            g
+        }
+
+        fn in_region(&self, s: i32, t: i32) -> bool {
+            (0..=self.max_s).contains(&s) && t >= self.min_degree && t - s <= self.max_n
+        }
+
+        fn idx(&self, s: i32, t: i32) -> usize {
+            self.row_offset[s as usize] + (t - self.min_degree) as usize
+        }
+
+        fn slot(&self, n: Node) -> usize {
+            2 * self.idx(n.s, n.t) + usize::from(n.phase == Phase::Register)
+        }
+
+        fn node_at(&self, slot: usize) -> Node {
+            let phase = if slot.is_multiple_of(2) {
+                Phase::Compute
+            } else {
+                Phase::Register
+            };
+            let idx = slot / 2;
+            // The row is the last one starting at or before `idx`.
+            let s = self.row_offset.partition_point(|&o| o <= idx) - 1;
+            Node {
+                phase,
+                s: s as i32,
+                t: self.min_degree + (idx - self.row_offset[s]) as i32,
+            }
+        }
+
+        fn same_row_dep(&self, s: i32, t: i32) -> i32 {
+            self.same_row[self.idx(s, t)]
+        }
+
+        fn indegree(&self, n: Node) -> u32 {
+            let (s, t) = (n.s, n.t);
+            match n.phase {
+                // Its own compute, plus the row predecessor whose appends must land first.
+                Phase::Register => 1 + u32::from(self.in_region(s, t - 1)),
+                Phase::Compute => {
+                    let mut k = u32::from(self.in_region(s, self.same_row_dep(s, t)));
+                    if s == 1 {
+                        k += u32::from(self.in_region(0, t));
+                    } else if s >= 2 {
+                        k += u32::from(self.in_region(s - 1, t - 1));
+                    }
+                    k
+                }
+            }
+        }
+
+        /// The nodes `n` blocks, derived from the rules rather than stored.
+        fn successors(&self, n: Node, out: &mut Vec<Node>) {
+            out.clear();
+            let (s, t) = (n.s, n.t);
+            match n.phase {
+                Phase::Compute => out.push(Node {
+                    phase: Phase::Register,
+                    s,
+                    t,
+                }),
+                Phase::Register => {
+                    if self.in_region(s, t + 1) {
+                        out.push(Node {
+                            phase: Phase::Register,
+                            s,
+                            t: t + 1,
+                        });
+                    }
+                    // Same-row consumers: every `t'` whose read reaches back exactly to `t`. The
+                    // gap is bounded by the widest zero-signature floor in the region, so this is a
+                    // short scan and not a stored edge list.
+                    for tp in (t + 1)..=(t + self.max_gap) {
+                        if self.in_region(s, tp) && self.same_row_dep(s, tp) == t {
+                            out.push(Node {
+                                phase: Phase::Compute,
+                                s,
+                                t: tp,
+                            });
+                        }
+                    }
+                    if s == 0 {
+                        if self.in_region(1, t) {
+                            out.push(Node {
+                                phase: Phase::Compute,
+                                s: 1,
+                                t,
+                            });
+                        }
+                    } else if self.in_region(s + 1, t + 1) {
+                        out.push(Node {
+                            phase: Phase::Compute,
+                            s: s + 1,
+                            t: t + 1,
+                        });
+                    }
+                }
+            }
+        }
+
+        /// The next node whose dependencies are all complete, or `None` if there is none right
+        /// now. A node is handed out at most once, however many predecessors freed it.
+        pub fn pop_ready(&mut self) -> Option<Node> {
+            while let Some(slot) = self.ready.pop() {
+                let slot = slot as usize;
+                if !self.dispatched[slot] {
+                    self.dispatched[slot] = true;
+                    return Some(self.node_at(slot));
+                }
+            }
+            None
+        }
+
+        /// Mark `n` complete, moving anything it was blocking into the ready queue.
+        ///
+        /// This is the ONLY way a node becomes ready, so "reports completion" and "releases
+        /// successors" cannot diverge -- previously that could differ per early return in a
+        /// bidegree's body.
+        pub fn complete(&mut self, n: Node) {
+            let mut buf = std::mem::take(&mut self.succ_buf);
+            self.successors(n, &mut buf);
+            for &d in &buf {
+                let slot = self.slot(d);
+                debug_assert!(self.blocked[slot] > 0, "releasing {d:?} twice");
+                self.blocked[slot] -= 1;
+                if self.blocked[slot] == 0 {
+                    self.ready.push(slot as u32);
+                }
+            }
+            self.succ_buf = buf;
+        }
+
+        /// Nodes never dispatched. Non-empty at the end means the edges are wrong; report it rather
+        /// than exiting quietly with a partial resolution.
+        pub fn undispatched(&self) -> Vec<Node> {
+            (0..self.dispatched.len())
+                .filter(|&slot| !self.dispatched[slot])
+                .map(|slot| self.node_at(slot))
+                .collect()
+        }
     }
 }
 
@@ -1070,7 +1596,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 if self.has_computed_bidegree(b) {
                     continue;
                 }
-                self.step_resolution(b);
+                // This walks `t` then `s`, so registering each bidegree as it is computed is
+                // already in order. Dropping the returned registration would leave the generators
+                // unadded and every later bidegree reading a differential that is not there.
+                if let Some(pending) = self.step_resolution(b) {
+                    self.register(pending)
+                        .unwrap_or_else(|e| panic!("Error registering bidegree {b}: {e}"));
+                }
             }
         }
     }
@@ -1114,6 +1646,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             source,
             b.t(),
             &subalgebra.zero_signature(),
+            None,
         ));
 
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
@@ -1142,7 +1675,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature())
+                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature(), None)
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -1174,7 +1707,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
+                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature, None));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem
@@ -1273,6 +1806,9 @@ mod tests {
     use expect_test::expect;
 
     use super::*;
+    // Pulled in here rather than at file scope: the resolution itself no longer calls a
+    // `FreeChainComplex` method, so a top-level import would be unused in a non-test build.
+    use crate::chain_complex::FreeChainComplex;
 
     #[test]
     fn test_restart_stem() {
@@ -1310,6 +1846,74 @@ mod tests {
             subalgebra
                 .packed_signature(&[PPart::max_entry(0) + 1, 0])
                 .is_none()
+        );
+    }
+
+    /// Cross-check the secondary (d2) computation on a *save-backed* Nassau resolution computed
+    /// with the relaxed [`Resolution::compute_through_stem`] against the standard resolution. This
+    /// exercises the quasi-inverse save files, which under the relaxed schedule are always written
+    /// using the "incomplete information" (`Magic::Fix`) path, since a bidegree is computed while
+    /// ignoring the same-degree generators of its target.
+    #[test]
+    fn test_stem_concurrent_secondary() {
+        use std::sync::Arc;
+
+        use algebra::pair_algebra::PairAlgebra;
+
+        use crate::{
+            chain_complex::FreeChainComplex, resolution::secondary::SecondaryResolution,
+            secondary::SecondaryLift, utils::construct_standard,
+        };
+
+        /// Render every non-trivial d2 in `lift` as one line, for comparison across resolutions.
+        fn d2_chart<CC>(lift: &SecondaryResolution<CC>) -> String
+        where
+            CC: FreeChainComplex,
+            CC::Algebra: PairAlgebra,
+        {
+            let underlying = lift.underlying();
+            let mut out = String::new();
+            // Mirror the guarded iteration in `SecondaryResolution::e3_page`.
+            for b in underlying.iter_stem() {
+                if b.t() > 0 && underlying.has_computed_bidegree(b + Bidegree::n_s(-1, 2)) {
+                    let matrix = lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                    if matrix.iter().any(|row| !row.is_empty()) {
+                        out.push_str(&format!("d2 {b}: {matrix:?}\n"));
+                    }
+                }
+            }
+            out
+        }
+
+        // Far enough to carry a nonzero d2 (the first is `d2(h4) = h0 h3^2`, out of stem 15) and
+        // no further: this runs on every `cargo test`, and the assertion below fails loudly if the
+        // range is ever trimmed past the last differential it is meant to compare.
+        let max = Bidegree::n_s(16, 5);
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let nassau = crate::utils::construct_nassau("S_2", Some(dir.path().to_owned())).unwrap();
+        nassau.compute_through_stem(max);
+        let nassau_lift = SecondaryResolution::new(Arc::new(nassau));
+        nassau_lift.extend_all();
+
+        let standard = construct_standard::<false, _, _>("S_2", None).unwrap();
+        standard.compute_through_stem(max);
+        let standard_lift = SecondaryResolution::new(Arc::new(standard));
+        standard_lift.extend_all();
+
+        let nassau_chart = d2_chart(&nassau_lift);
+        // Both charts are built by the same guarded iteration, so an empty pair would compare
+        // equal without having compared any d2 at all.
+        assert!(
+            !nassau_chart.is_empty(),
+            "no d2 differentials were compared"
+        );
+
+        assert_eq!(
+            nassau_chart,
+            d2_chart(&standard_lift),
+            "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and \
+             standard"
         );
     }
 

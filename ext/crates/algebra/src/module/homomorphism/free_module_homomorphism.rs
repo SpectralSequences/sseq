@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
 use fp::{
-    matrix::{MatrixSliceMut, QuasiInverse, Subspace},
+    matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
+// See the note in [`super`] for why this import looks unused.
+#[allow(unused_imports)]
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 
 use crate::{
@@ -59,31 +62,11 @@ where
         input_degree: i32,
         input_index: usize,
     ) {
-        assert!(input_degree >= self.source.min_degree());
-        assert!(input_index < self.source.dimension(input_degree));
-        let output_degree = input_degree - self.degree_shift;
         assert_eq!(
-            self.target.dimension(output_degree),
+            self.target.dimension(input_degree - self.degree_shift),
             result.as_slice().len()
         );
-        let OperationGeneratorPair {
-            operation_degree,
-            generator_degree,
-            operation_index,
-            generator_index,
-        } = *self.source.index_to_op_gen(input_degree, input_index);
-
-        if generator_degree >= self.min_degree() {
-            let output_on_generator = self.output(generator_degree, generator_index);
-            self.target.act(
-                result,
-                coeff,
-                operation_degree,
-                operation_index,
-                generator_degree - self.degree_shift,
-                output_on_generator.as_slice(),
-            );
-        }
+        self.apply_to_basis_element_inner(result, coeff, input_degree, input_index);
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
@@ -160,6 +143,81 @@ where
             self.source.number_of_gens_in_degree(generator_degree)
         );
         &self.outputs[generator_degree][generator_index]
+    }
+
+    /// A truncating variant of [`ModuleHomomorphism::apply_to_basis_element`] that allows `result`
+    /// to span only a prefix of the target's degree-`(input_degree - degree_shift)` basis, rather
+    /// than the whole thing.
+    ///
+    /// The caller must guarantee that the image of the basis element is supported within that
+    /// prefix; otherwise `act` will panic on an out-of-bounds write. The Nassau resolution in the
+    /// `ext` crate relies on this.
+    pub fn apply_to_basis_element_restricted(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
+        assert!(
+            result.as_slice().len() <= self.target.dimension(input_degree - self.degree_shift),
+            "restricted result longer than target dimension"
+        );
+        self.apply_to_basis_element_inner(result, coeff, input_degree, input_index);
+    }
+
+    /// A truncating variant of [`ModuleHomomorphism::get_partial_matrix`] whose target spans only
+    /// the first `target_dim` basis elements of degree `degree - degree_shift`.
+    ///
+    /// Unlike [`ModuleHomomorphism::get_partial_matrix`], which sizes the matrix from the target's
+    /// dimension, this takes the number of columns from the caller. Each row is filled by
+    /// [`Self::apply_to_basis_element_restricted`], so the same support requirement applies.
+    pub fn get_partial_matrix_restricted(
+        &self,
+        degree: i32,
+        inputs: &[usize],
+        target_dim: usize,
+    ) -> Matrix {
+        let mut matrix = Matrix::new(self.prime(), inputs.len(), target_dim);
+        if target_dim > 0 {
+            matrix
+                .maybe_par_iter_mut()
+                .enumerate()
+                .for_each(|(i, row)| {
+                    self.apply_to_basis_element_restricted(row, 1, degree, inputs[i])
+                });
+        }
+        matrix
+    }
+
+    /// The body of the two `apply_to_basis_element` variants, with no length check on `result`.
+    fn apply_to_basis_element_inner(
+        &self,
+        result: FpSliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
+        assert!(input_degree >= self.source.min_degree());
+        assert!(input_index < self.source.dimension(input_degree));
+        let OperationGeneratorPair {
+            operation_degree,
+            generator_degree,
+            operation_index,
+            generator_index,
+        } = *self.source.index_to_op_gen(input_degree, input_index);
+
+        if generator_degree >= self.min_degree() {
+            let output_on_generator = self.output(generator_degree, generator_index);
+            self.target.act(
+                result,
+                coeff,
+                operation_degree,
+                operation_index,
+                generator_degree - self.degree_shift,
+                output_on_generator.as_slice(),
+            );
+        }
     }
 
     pub fn differential_density(&self, degree: i32) -> f32 {

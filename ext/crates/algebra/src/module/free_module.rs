@@ -316,8 +316,32 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         }
     }
 
+    /// The dimension in `degree` of the submodule spanned by the generators of degree strictly
+    /// less than `max_gen_degree`.
+    ///
+    /// Equivalently, the dimension in `degree` when we pretend the generators of degree
+    /// `>= max_gen_degree` do not exist. Use [`Module::dimension`] for the unrestricted count.
+    ///
+    /// This recomputes the offset by summing the operation dimensions over the generators below
+    /// `max_gen_degree`, rather than reading the stored one as [`Self::generator_offset`] does.
+    /// The stored offsets only exist for generators that have been added, so the offset one past
+    /// the last generator below `max_gen_degree` is not available until a generator of degree
+    /// `>= max_gen_degree` is added. Recomputing reads only generator counts of degree
+    /// `< max_gen_degree`, which lets a caller use this while another thread adds generators of
+    /// degree `max_gen_degree`.
+    pub fn dimension_from_gens_below(&self, degree: i32, max_gen_degree: i32) -> usize {
+        self.iter_gen_offsets([degree])
+            .take_while(|gen_data| gen_data.gen_deg < max_gen_degree)
+            .map(|gen_data| gen_data.end[0])
+            .last()
+            .unwrap_or(0)
+    }
+
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
     /// elements from the generator.
+    ///
+    /// This reads the generator count in `gen_deg`. See [`Self::dimension_from_gens_below`] for a
+    /// variant that does not, at the cost of recomputing the offset.
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> usize {
         assert!(gen_deg >= self.min_degree);
         assert!(gen_idx < self.num_gens[gen_deg]);
@@ -641,3 +665,70 @@ impl std::ops::IndexMut<usize> for AdmissibleMatrix {
     }
 }
 */
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::{MilnorAlgebra, algebra::Algebra};
+
+    /// The recomputed prefix must agree with the stored offset wherever both are defined, and
+    /// must bracket correctly at the two ends of the generator range.
+    #[test]
+    fn test_dimension_from_gens_below() {
+        const NUM_GENS: [usize; 3] = [1, 2, 1];
+        const MAX_DEGREE: i32 = 5;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX_DEGREE);
+
+        let module = FreeModule::new(Arc::clone(&algebra), "F".to_string(), 0);
+        for (gen_deg, num_gens) in NUM_GENS.into_iter().enumerate() {
+            module.add_generators(gen_deg as i32, num_gens, None);
+        }
+        module.compute_basis(MAX_DEGREE);
+
+        for degree in 0..=MAX_DEGREE {
+            // A bound above every generator counts everything.
+            assert_eq!(
+                module.dimension_from_gens_below(degree, NUM_GENS.len() as i32),
+                module.dimension(degree)
+            );
+            assert_eq!(module.dimension_from_gens_below(degree, 0), 0);
+
+            for gen_deg in 0..=degree.min(NUM_GENS.len() as i32 - 1) {
+                assert_eq!(
+                    module.dimension_from_gens_below(degree, gen_deg),
+                    module.generator_offset(degree, gen_deg, 0)
+                );
+            }
+        }
+    }
+
+    /// A generator exactly at `max_gen_degree` is excluded, since the bound is strict.
+    #[test]
+    fn test_dimension_from_gens_below_is_strict() {
+        const MAX_DEGREE: i32 = 4;
+
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+        algebra.compute_basis(MAX_DEGREE);
+
+        let module = FreeModule::new(Arc::clone(&algebra), "F".to_string(), 0);
+        module.add_generators(0, 1, None);
+        module.add_generators(1, 1, None);
+        module.compute_basis(MAX_DEGREE);
+
+        // The degree-1 generator contributes `dimension_unstable(degree - 1, 1)` basis elements in
+        // `degree`, and is counted by the bound 2 but not by the bound 1.
+        for degree in 1..=MAX_DEGREE {
+            let contribution =
+                <MilnorAlgebra as MuAlgebra<false>>::dimension_unstable(&algebra, degree - 1, 1);
+            assert_eq!(
+                module.dimension_from_gens_below(degree, 2)
+                    - module.dimension_from_gens_below(degree, 1),
+                contribution
+            );
+        }
+    }
+}
