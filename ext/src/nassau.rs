@@ -419,6 +419,74 @@ enum Magic {
     Fix = -3,
 }
 
+/// Build the partial matrix of a differential, dispatching to the GPU Milnor-multiply
+/// path when it is compiled in, opted into (`NASSAU_GPU`), applicable, and the launch is
+/// large enough to amortise the fixed per-launch GPU cost.
+///
+/// Defaults to the CPU per-term sweep, so behaviour is unchanged unless a caller sets
+/// `NASSAU_GPU`. A resolution issues thousands of small signature-masked launches (avg
+/// ~10³ term-pairs), for which the GPU's per-launch overhead (kernel launch + readback
+/// sync, ~0.7 ms) dwarfs the multiply; only launches whose `rows × cols` exceeds
+/// `NASSAU_GPU_MIN_WORK` (default 4M) are offloaded. `NASSAU_GPU_VERIFY` builds the CPU
+/// matrix too and asserts they agree. Without the `gpu` feature this is exactly
+/// `diff.get_partial_matrix(t, mask)`.
+fn build_partial_matrix(
+    diff: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+    t: i32,
+    mask: &[usize],
+) -> Matrix {
+    #[cfg(feature = "gpu")]
+    {
+        if std::env::var_os("NASSAU_GPU").is_some() && crate::nassau_gpu::applicable(diff) {
+            let min_work: u64 = std::env::var("NASSAU_GPU_MIN_WORK")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(4_000_000);
+            let work = mask.len() as u64 * diff.target().dimension(t) as u64;
+            if work >= min_work {
+                return if std::env::var_os("NASSAU_GPU_VERIFY").is_some() {
+                    crate::nassau_gpu::get_partial_matrix_verified(diff, t, mask)
+                } else {
+                    crate::nassau_gpu::get_partial_matrix(diff, t, mask)
+                };
+            }
+        }
+    }
+    diff.get_partial_matrix(t, mask)
+}
+
+/// Whether to compute the full differential matrix once per bidegree and reuse row slices
+/// across the signature passes, instead of relaunching the multiply once per signature.
+///
+/// Each signature's [`build_partial_matrix`] is a *row subset* of one full matrix — the
+/// masks partition the source basis, so the per-signature builds together compute every
+/// row exactly once, the same total multiply work as one all-rows build. On the CPU that
+/// restructuring is roughly neutral, but for the GPU it turns thousands of small
+/// (often sub-threshold, CPU-fallback) launches into one big launch per bidegree that
+/// amortises all fixed per-launch overhead. So it is gated on the same opt-in as the GPU
+/// path; without it the per-signature build is unchanged.
+fn reuse_full_matrix(_diff: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>) -> bool {
+    #[cfg(feature = "gpu")]
+    {
+        std::env::var_os("NASSAU_GPU").is_some() && crate::nassau_gpu::applicable(_diff)
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        false
+    }
+}
+
+/// Extract `rows` of `full` into a fresh matrix (`out.row(i) = full.row(rows[i])`),
+/// preserving the column layout. Slices a precomputed full differential matrix into one
+/// signature's partial matrix (see [`reuse_full_matrix`]).
+fn select_rows(full: &Matrix, rows: &[usize]) -> Matrix {
+    let mut out = Matrix::new(full.prime(), rows.len(), full.columns());
+    for (dst, &src) in rows.iter().enumerate() {
+        out.row_mut(dst).assign(full.row(src));
+    }
+    out
+}
+
 /// A resolution of `S_2` using Nassau's algorithm.
 ///
 /// This aims to have an API similar to that of
@@ -647,9 +715,26 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             .collect();
         let next_masked_dim = next_mask.len();
 
-        let full_matrix = {
+        // Compute the full differential matrix once when reuse is active, then slice each
+        // signature's rows out of it instead of relaunching the multiply per signature.
+        let full_reuse: Option<Matrix> = if reuse_full_matrix(&self.differentials[b.s() - 1]) {
+            let all_rows: Vec<usize> = (0..target_dim).collect();
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask)
+            Some(build_partial_matrix(
+                &self.differentials[b.s() - 1],
+                b.t(),
+                &all_rows,
+            ))
+        } else {
+            None
+        };
+
+        let full_matrix = match &full_reuse {
+            Some(full) => select_rows(full, &target_mask),
+            None => {
+                let _guard = ParallelGuard::new();
+                build_partial_matrix(&self.differentials[b.s() - 1], b.t(), &target_mask)
+            }
         };
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
@@ -716,10 +801,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
             next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
 
-            let full_matrix = {
-                let _guard = ParallelGuard::new();
-                self.differential(b.s() - 1)
-                    .get_partial_matrix(b.t(), &target_mask)
+            let full_matrix = match &full_reuse {
+                Some(full) => select_rows(full, &target_mask),
+                None => {
+                    let _guard = ParallelGuard::new();
+                    build_partial_matrix(&self.differential(b.s() - 1), b.t(), &target_mask)
+                }
             };
 
             let mut masked_matrix =

@@ -21,6 +21,9 @@ pub use milnor_algebra::MilnorAlgebra;
 pub mod motivic;
 pub use motivic::MotivicMilnorAlgebra;
 
+#[cfg(feature = "gpu")]
+pub mod milnor_gpu;
+
 mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra};
 

@@ -59,8 +59,14 @@ concurrent = [
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
 nassau = []
-# Dispatch large p=2 matrix products to the Hopper GPU backend via `fp`.
-gpu = ["fp/gpu"]
+# Both GPU backends: `fp`'s Hopper F_2 matmul for large p=2 matrix products, and
+# `algebra`'s CubeCL offload for the Milnor multiply feeding Nassau (which also enables the
+# `milnor_gpu_ab` A/B microbenchmark). Build this under `nix develop .#gpu`: `fp-cuda`
+# compiles its kernel with nvcc in a build script, so the toolkit is needed at build time —
+# which is why the workspace excludes that crate. The Milnor half alone has no such
+# requirement (cubecl JITs through NVRTC at runtime), so `cargo check -p algebra
+# --features gpu` type-checks it with no CUDA installed at all.
+gpu = ["fp/gpu", "algebra/gpu"]
 
 [workspace]
 # `fp-cuda` needs nvcc. `default-members` is not enough: `--workspace` selects every member, so
@@ -91,4 +97,10 @@ harness = false
 
 [[bench]]
 name = "load_resolution"
+harness = false
+
+# A/B: GPU batch Milnor-multiply vs CPU get_partial_matrix on a real Nassau launch.
+# Requires the `gpu` feature and a live CUDA device (run under the `gpu` dev shell).
+[[bench]]
+name = "milnor_gpu_ab"
 harness = false
