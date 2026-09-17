@@ -57,15 +57,11 @@ pub struct MuFreeModule<const U: bool, A: MuAlgebra<U>> {
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
     /// internal index -> the degree of that generator.
     ///
-    /// The inverse of `gen_deg_idx_to_internal_idx`, materialised so that
-    /// [`Self::index_to_op_gen`] can invert it by indexing rather than by searching. One `i32` per
-    /// generator, and there are far fewer generators than basis elements.
+    /// The inverse of `gen_deg_idx_to_internal_idx`, materialised so that [`Self::index_to_op_gen`]
+    /// can invert it by indexing rather than by searching.
     internal_idx_to_gen_deg: OnceVec<i32>,
     num_gens: OnceBiVec<usize>,
     /// degree -> number of basis elements.
-    ///
-    /// This is all that is kept of the per-basis-element table: the records themselves are derived
-    /// by [`Self::index_to_op_gen`].
     dimensions: OnceBiVec<AtomicUsize>,
     /// degree -> internal_gen_idx -> the offset of the generator in degree
     generator_to_index: OnceBiVec<OnceVec<usize>>,
@@ -497,15 +493,8 @@ pub struct GeneratorData<const N: usize> {
 
 /// A position in one degree's basis, for callers that look up many indices in ascending order.
 ///
-/// [`MuFreeModule::index_to_op_gen`] searches the block offsets on every call. A caller walking a
-/// degree's basis crosses a block boundary only once every `num_ops` indices, so remembering the
-/// current block answers almost every lookup with a range check instead.
-///
-/// The cursor borrows the module, which is what makes it sound: it cannot outlive the module whose
-/// layout it caches, and `generator_to_index` is append-only, so the block it remembers is never
-/// rewritten. It is also pinned to the dimension `degree` had when it was created, which is what
-/// bounds the last block -- that block is the only one with no following offset to end it, and a
-/// concurrent [`MuFreeModule::add_generators`] would otherwise extend it under the cursor.
+/// A caller walking a degree's basis crosses a block boundary only once every `num_ops` indices, so
+/// remembering the current block answers almost every lookup with a range check instead.
 ///
 /// Lookups need not actually ascend. Any index below the pinned dimension is answered correctly; a
 /// descending or scattered walk just misses more often and pays for the search.
@@ -514,9 +503,6 @@ pub struct OpGenCursor<'a, const U: bool, A: MuAlgebra<U>> {
     degree: i32,
     dimension: usize,
     /// The indices `block` covers.
-    ///
-    /// [`core::range::Range`] rather than [`std::ops::Range`], because the latter is an iterator
-    /// and so deliberately not `Copy`, which a field read here would otherwise have to clone.
     range: Range<usize>,
     block: GeneratorBlock,
 }
@@ -529,6 +515,10 @@ impl<const U: bool, A: MuAlgebra<U>> OpGenCursor<'_, U, A> {
             "index {index} is past the dimension this cursor was created with"
         );
         if !self.range.contains(&index) {
+            // We usually walk basis elements in such a way that the next block is the one directly
+            // to the right. We could optimize for that case. However, blocks grow fairly quickly in
+            // size, much faster than the number of them, so falling outside the range will already
+            // be infrequent enough that it's not worth the additional complexity.
             self.block = self.module.block_containing(self.degree, index);
             let offsets = &self.module.generator_to_index[self.degree];
             // The final block ends at the pinned dimension. A later `add_generators` may since
