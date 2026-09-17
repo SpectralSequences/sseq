@@ -406,3 +406,44 @@ extern "C" __global__ void matmul_b1_kernel(
     // Drain the last outstanding output store before the CTA exits.
     if (t == 0) tma_store_wait();
 }
+
+// Build the K-major tiles the matmul consumes, reading B in its natural row-major layout.
+//
+// Tile (k_chunk, column group) row `lg*64 + jj`, limb `kl`, bit `bit` is bit `jj` of
+// B[k_chunk*TK + kl*64 + bit][cg*NG + lg]. One block owns one (k_chunk, cg, lg, kl) quadruple and
+// so one 64-square bit block: thread `bit` loads that block's row into shared memory, then thread
+// `jj` gathers bit `jj` out of all 64 rows. The gather reads one shared slot at a time across the
+// whole block, so every read is a broadcast rather than a bank conflict.
+//
+// Both the loads (a column of B, stride n_lim) and the stores (stride KL) are strided.
+extern "C" __global__ void transpose_tile_b1_kernel(
+    const unsigned long long* __restrict__ b, // k_padded x n_lim, row-major
+    unsigned long long* __restrict__ out,     // k_chunks x n_groups x (NB*KL)
+    int n_lim,                                // limbs per row of B
+    int k_rows,                               // rows of B actually uploaded (the unpadded k)
+    int n_groups)                             // column groups of NG limbs
+{
+    __shared__ unsigned long long sB[64];
+
+    const int kl = blockIdx.x % KL;
+    const int lg = (blockIdx.x / KL) % (NB / 64);
+    const int cg = blockIdx.y;
+    const int kk = blockIdx.z;
+    const int t = threadIdx.x; // 0..63
+
+    const int limb = cg * (NB / 64) + lg;
+    const int row = kk * TK + kl * 64 + t;
+    // Column groups past the operand, and K rows past the end of B, contribute zeros — so B is
+    // uploaded unpadded and the K padding costs no host copy.
+    sB[t] = (limb < n_lim && row < k_rows) ? b[(long long)row * n_lim + limb] : 0ULL;
+    __syncthreads();
+
+    unsigned long long val = 0;
+    for (int bit = 0; bit < 64; ++bit) {
+        val |= ((sB[bit] >> t) & 1ULL) << bit;
+    }
+
+    const long long tile = (long long)NB * KL;
+    const long long base = ((long long)kk * n_groups + cg) * tile;
+    out[base + (long long)(lg * 64 + t) * KL + kl] = val;
+}

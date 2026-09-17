@@ -18,9 +18,17 @@ fn main() -> anyhow::Result<()> {
 
     let mut rng = rand::rng();
     let mut make = |rows: usize, cols: usize| {
-        let data: Vec<u64> = (0..rows * cols.div_ceil(64))
-            .map(|_| rng.random())
-            .collect();
+        let stride = cols.div_ceil(64);
+        let mut data: Vec<u64> = (0..rows * stride).map(|_| rng.random()).collect();
+        // `Matrix` requires the bits past the last column to be zero, and random limbs do not
+        // respect that. Comparisons are limb-wise, so leaving them set makes two matrices that
+        // agree on every entry compare unequal.
+        if !cols.is_multiple_of(64) {
+            let mask = (1u64 << (cols % 64)) - 1;
+            for row in 0..rows {
+                data[row * stride + stride - 1] &= mask;
+            }
+        }
         Matrix::from_data(TWO, rows, cols, data)
     };
 
