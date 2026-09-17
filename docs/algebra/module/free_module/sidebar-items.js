@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["GeneratorData","MuFreeModule","OffsetIterator","OperationGeneratorPair"],"type":["FreeModule","UnstableFreeModule"]};
+window.SIDEBAR_ITEMS = {"struct":["GeneratorBlock","GeneratorData","MuFreeModule","OffsetIterator","OpGenCursor","OperationGeneratorPair"],"type":["FreeModule","UnstableFreeModule"]};
