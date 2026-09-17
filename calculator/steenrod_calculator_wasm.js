@@ -83,10 +83,10 @@ let wasm_bindgen = (function(exports) {
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_throw_bb96b2010945f0bc: function(arg0, arg1) {
+            __wbg___wbindgen_throw_5d9e815e6fdf150f: function(arg0, arg1) {
                 throw new Error(getStringFromWasm0(arg0, arg1));
             },
-            __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            __wbindgen_generic_0000000000000001: function(arg0, arg1) {
                 // Cast intrinsic for `Ref(String) -> Externref`.
                 const ret = getStringFromWasm0(arg0, arg1);
                 return ret;
