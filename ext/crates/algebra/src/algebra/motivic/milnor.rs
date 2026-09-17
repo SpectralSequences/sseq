@@ -1468,7 +1468,7 @@ mod tests {
                     p_part: PPart::try_from_slice(p).unwrap(),
                     degree: 0,
                 };
-                m.compute_degree(TWO);
+                alg.compute_degree(&mut m);
                 m
             };
             let (m1, m2) = (mk(a), mk(b));
