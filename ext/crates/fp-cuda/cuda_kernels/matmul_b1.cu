@@ -25,11 +25,34 @@
 // The CTAs are independent: no thread-block cluster, no TMA multicast, so the grid carries no
 // placement constraint. Clusters were tried and removed; see EXPERIMENTS.md.
 
+// The tuning knobs (MSTRIPS, MW, TK, NB, STAGES, GROUP_M, THREADS_PER_WG) are not defined here:
+// the host passes them as -D options, from the Rust constants in `src/params.rs`. That is the
+// single source of truth, so the host and the kernel cannot disagree about a tile size.
+#if !defined(MSTRIPS) || !defined(MW) || !defined(TK) || !defined(NB) || !defined(STAGES) || \
+    !defined(GROUP_M) || !defined(THREADS_PER_WG)
+#error "compile this with -DMSTRIPS=.. -DMW=.. -DTK=.. -DNB=.. -DSTAGES=.. -DGROUP_M=.. \
+-DTHREADS_PER_WG=..; see src/params.rs"
+#endif
+
+#ifdef __CUDACC_RTC__
+// NVRTC compiles a bare string with no filesystem behind it: neither the C++ standard headers nor
+// the CUDA ones are available, so the two things this file needs from them are declared here. Every
+// other CUDA name it uses (__cvta_generic_to_shared, __grid_constant__, the launch builtins) is an
+// NVRTC builtin needing no include.
+using int32_t  = int;
+using uint32_t = unsigned int;
+using uint64_t = unsigned long long;
+// Opaque stand-in for the driver's CUtensorMap: 128 bytes, 64-byte aligned, matching
+// `CUtensorMap_st` exactly. The kernel never reads it — it only takes its address and hands that to
+// the TMA instructions, which is what the parameter has to be layout-compatible for.
+struct alignas(64) CUtensorMap { uint64_t opaque[16]; };
+#else
+// Compiling with nvcc, which has the headers. See the README for the -D line it needs; the
+// `kernel_ptx` example is the shorter route to the same PTX.
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <cuda.h>
-
-#include "params.h"
+#endif
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -151,8 +174,8 @@ __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.
 // Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
 // issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
 // load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
-// ~1/(1+NB/BM). The knobs themselves live in params.h (shared with the host);
-// everything below is derived.
+// ~1/(1+NB/BM). The knobs themselves are -D'd in by the host (see the top of
+// this file and `src/params.rs`); everything below is derived.
 constexpr int KL = TK/64;          // u64 per tile row (= 128 B, the swizzle width)
 constexpr int TM = MW*MSTRIPS;     // output rows per CTA
 constexpr int NG = NB/64;          // output column-limbs per CTA

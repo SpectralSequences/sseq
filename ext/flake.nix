@@ -44,11 +44,12 @@
         ]
         ++ super.defaultPackages.devTools.${system};
 
-      # CUDA toolkit for building fp-cuda's Hopper wgmma.b1 kernel: nvcc + headers
-      # at build time. Kept out of `commonPackages` (and the default shell) so
-      # contributors and the `apps.test`/CI closure don't fetch the multi-GB unfree
-      # CUDA tree for the opt-in backend. cudarc dlopens libcuda at runtime, so
-      # only running — not building the Rust — needs the host driver.
+      # CUDA toolkit for fp-cuda's Hopper wgmma.b1 kernel: libnvrtc, which compiles
+      # the kernel at *runtime*. Kept out of `commonPackages` (and the default
+      # shell) so contributors and the `apps.test`/CI closure don't fetch the
+      # multi-GB unfree CUDA tree for the opt-in backend. cudarc dlopens both
+      # libnvrtc and libcuda, so building the Rust needs neither — only running
+      # does (plus the host driver).
       cudatoolkit = pkgs.cudaPackages.cudatoolkit;
     in {
       devShells.default = pkgs.mkShell {
@@ -58,8 +59,9 @@
         '';
       };
 
-      # GPU dev shell: `nix develop .#gpu`. Adds the CUDA toolkit (nvcc + headers)
-      # and points the loader at both it and the host driver's libcuda.
+      # GPU dev shell: `nix develop .#gpu`. Adds the CUDA toolkit (libnvrtc, and
+      # ptxas for inspecting the generated PTX) and points the loader at both it
+      # and the host driver's libcuda.
       devShells.gpu = pkgs.mkShell {
         packages = commonPackages ++ [cudatoolkit];
         shellHook = ''
