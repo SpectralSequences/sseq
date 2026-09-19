@@ -67,9 +67,9 @@ members = [
     "crates/algebra",
     "crates/bivec",
     "crates/fp",
-    # A member despite needing a GPU to *run*: nothing about building it does. The kernel is
-    # compiled at runtime by NVRTC and cudarc dlopens the driver, so `cargo check --workspace`,
-    # clippy and rust-analyzer cover its host code with no CUDA installed.
+    # Needs a GPU to run, nothing to build: the kernel is compiled at runtime by NVRTC and cudarc
+    # dlopens the driver, so `cargo check --workspace`, clippy and rust-analyzer cover its host
+    # code with no CUDA installed.
     "crates/fp-cuda",
     "crates/maybe-rayon",
     "crates/once",

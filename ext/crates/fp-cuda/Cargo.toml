@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 # See README.md for what this crate is and how to build it. The kernel is compiled at runtime by
-# NVRTC, so there is no build script and building needs no CUDA Toolkit.
+# NVRTC, so building needs no CUDA Toolkit.
 
 [dependencies]
 anyhow = "1.0.98"

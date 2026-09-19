@@ -80,19 +80,18 @@ Builds on **stable** Rust — no nightly toolchain required.
 cargo build -p fp-cuda          # from ext/; no CUDA needed
 ```
 
-There is nothing to compile ahead of time: `src/lib.rs` embeds
-`cuda_kernels/matmul_b1.cu` with `include_str!` and NVRTC compiles it to PTX on
-the first `GpuContext::new`, once per process (a couple hundred milliseconds),
-after which the driver JITs it as it did before.
+`src/lib.rs` embeds `cuda_kernels/matmul_b1.cu` with `include_str!`, NVRTC
+compiles it to PTX on the first `GpuContext::new` — once per process, a couple
+hundred milliseconds — and the driver JITs that PTX at module load.
 
 The kernel's tuning knobs live in `src/params.rs`. The host reads those
 constants directly and passes the same values to NVRTC as `-D` options; the
 kernel defines none of them itself and refuses to compile if one is missing, so
 there is one set of values and nothing to keep in sync.
 
-**When libnvrtc is absent** (CI, or a contributor without the CUDA Toolkit)
-everything still builds and the tests pass: `GpuContext::new` returns `Err`, and
-`fp`'s `gpu` feature — off by default — falls back to the CPU path.
+**When libnvrtc is absent** (CI, or a contributor without the CUDA Toolkit) the
+crate builds and its tests pass: `GpuContext::new` returns `Err`, and `fp`'s
+`gpu` feature — off by default — falls back to the CPU path.
 
 ## Checking the kernel without a GPU
 
