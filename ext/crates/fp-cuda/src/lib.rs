@@ -30,14 +30,9 @@ static KERNEL_SRC: &str = include_str!("../cuda_kernels/matmul_b1.cu");
 /// `wgmma.*` and `cp.async.bulk.tensor.*`, which exist on Hopper and nowhere else.
 const ARCH: &str = "compute_90a";
 
-/// Compile the kernel to PTX with NVRTC.
+/// Compile the kernel to PTX with NVRTC, passing the knobs from [`params::defines`].
 ///
-/// The tuning knobs go in as `-D` options from [`params`], which is why `matmul_b1.cu` defines
-/// none of them itself: there is one set of values, held in Rust, and the kernel cannot be built
-/// against a different one.
-///
-/// This needs `libnvrtc` but **no GPU**, so it is also what the `kernel_compiles` test and the
-/// `kernel_ptx` example use to check the kernel where there is no device.
+/// Needs `libnvrtc`, but no GPU.
 pub fn compile_kernel() -> anyhow::Result<Ptx> {
     // SAFETY: `is_culib_present` only attempts to `dlopen` the candidate library names and reports
     // whether one of them resolved; it dereferences nothing and leaves no state behind. Probing
@@ -53,7 +48,7 @@ pub fn compile_kernel() -> anyhow::Result<Ptx> {
 
     let opts = CompileOptions {
         arch: Some(ARCH),
-        // Names the program, so NVRTC's diagnostics point at the file rather than "default_program".
+        // Names the program, so NVRTC's diagnostics say matmul_b1.cu rather than "default_program".
         name: Some("matmul_b1.cu".to_string()),
         options: params::defines(),
         ..Default::default()
@@ -73,9 +68,9 @@ pub fn compile_kernel() -> anyhow::Result<Ptx> {
 
 /// The compiled kernel, compiled once per process and reused.
 ///
-/// NVRTC is not free (a couple hundred milliseconds), and a host opening one context per device
-/// would otherwise pay it once per device for identical output — the compile depends only on the
-/// source and [`ARCH`], neither of which varies at runtime.
+/// The compile depends only on [`KERNEL_SRC`] and [`ARCH`], neither of which varies at runtime, so
+/// a host opening one context per device would otherwise pay NVRTC once per device for identical
+/// output.
 fn kernel_ptx() -> anyhow::Result<Ptx> {
     static PTX: OnceLock<Ptx> = OnceLock::new();
     if let Some(ptx) = PTX.get() {
@@ -501,8 +496,7 @@ mod tests {
     /// The kernel compiles.
     ///
     /// NVRTC needs no device, so this covers the kernel wherever the CUDA Toolkit is installed,
-    /// GPU or not. Where libnvrtc is absent too there is nothing to compile with, and the test
-    /// passes trivially.
+    /// GPU or not; where libnvrtc is absent the test passes trivially.
     #[test]
     fn kernel_compiles() {
         // SAFETY: see `compile_kernel`; the probe only tries to `dlopen` the library.

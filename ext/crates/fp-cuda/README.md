@@ -108,7 +108,7 @@ ptxas -arch=sm_90a -v matmul_b1.ptx -o /dev/null
 
 `matmul_b1.cu` compiles under nvcc too — it takes the standard headers when
 `__CUDACC_RTC__` is undefined — provided the knobs are passed:
-`nvcc -ptx -arch=sm_90a -DMSTRIPS=3 -DMW=64 …`, one `-D` per constant in
+`nvcc -ptx -arch=sm_90a -DMSTRIPS=… -DMW=… …`, one `-D` per constant in
 `src/params.rs`.
 
 ## Running

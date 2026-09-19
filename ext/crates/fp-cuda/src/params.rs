@@ -2,10 +2,10 @@
 
 /// m64 row-strips per CTA (block knob).
 ///
-/// Each k256 step issues `MSTRIPS` m64n128 wgmmas that share one B sub-tile: 2 → 128×128 block
-/// (−20% bytes/MAC, 128 acc regs), 3 → 192×128 (−33%, 192). Accumulator regs per thread =
-/// `MSTRIPS * ACC_N` ≤ 240; see EXPERIMENTS.md for why we spend the register file on the
-/// accumulator rather than on a second resident CTA.
+/// Each k256 step issues `MSTRIPS` m64n128 wgmmas that share one loaded B sub-tile, so raising it
+/// cuts operand-refill bytes per MAC and costs accumulator registers: the consumer holds
+/// `MSTRIPS * ACC_N` of them, which the register file bounds. See EXPERIMENTS.md for the
+/// measurements behind the value.
 pub const MSTRIPS: usize = 3;
 
 /// wgmma M extent, fixed for binary wgmma.
@@ -19,7 +19,7 @@ pub const NB: usize = 128;
 
 /// K-loop pipeline depth (full/empty buffers).
 ///
-/// Capped at 4; see EXPERIMENTS.md.
+/// Bounded by the SMEM a stage costs; see EXPERIMENTS.md.
 pub const STAGES: usize = 4;
 
 /// M-tiles per rasterization group (L2 reuse knob). Device-side only.
@@ -30,10 +30,8 @@ pub const THREADS_PER_WG: usize = 128;
 
 /// The knobs as NVRTC `-D` options.
 ///
-/// These constants are the single source of truth: the host reads them directly and the kernel
-/// gets these very same values, so the two cannot disagree about a tile size. `matmul_b1.cu`
-/// defines none of them itself and `#error`s on a missing one, so a knob added here but left out
-/// of this list stops the compile rather than silently taking a default.
+/// The kernel defines none of them itself and `#error`s on a missing one, so a knob this list
+/// omits stops the compile rather than silently taking a default.
 pub fn defines() -> Vec<String> {
     [
         ("MSTRIPS", MSTRIPS),

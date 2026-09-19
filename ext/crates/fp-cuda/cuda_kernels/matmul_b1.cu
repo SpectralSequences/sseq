@@ -25,9 +25,7 @@
 // The CTAs are independent: no thread-block cluster, no TMA multicast, so the grid carries no
 // placement constraint. Clusters were tried and removed; see EXPERIMENTS.md.
 
-// The tuning knobs (MSTRIPS, MW, TK, NB, STAGES, GROUP_M, THREADS_PER_WG) are not defined here:
-// the host passes them as -D options, from the Rust constants in `src/params.rs`. That is the
-// single source of truth, so the host and the kernel cannot disagree about a tile size.
+// The tuning knobs are defined in src/params.rs and arrive as -D options.
 #if !defined(MSTRIPS) || !defined(MW) || !defined(TK) || !defined(NB) || !defined(STAGES) || \
     !defined(GROUP_M) || !defined(THREADS_PER_WG)
 #error "compile this with -DMSTRIPS=.. -DMW=.. -DTK=.. -DNB=.. -DSTAGES=.. -DGROUP_M=.. \
@@ -35,16 +33,16 @@
 #endif
 
 #ifdef __CUDACC_RTC__
-// NVRTC compiles a bare string with no filesystem behind it: neither the C++ standard headers nor
-// the CUDA ones are available, so the two things this file needs from them are declared here. Every
-// other CUDA name it uses (__cvta_generic_to_shared, __grid_constant__, the launch builtins) is an
-// NVRTC builtin needing no include.
+// NVRTC compiles a bare string with no filesystem behind it, so neither the C++ standard headers
+// nor the CUDA ones are available. Every other CUDA name this file uses
+// (__cvta_generic_to_shared, __grid_constant__, the launch builtins) is an NVRTC builtin needing
+// no include.
 using int32_t  = int;
 using uint32_t = unsigned int;
 using uint64_t = unsigned long long;
-// Opaque stand-in for the driver's CUtensorMap: 128 bytes, 64-byte aligned, matching
-// `CUtensorMap_st` exactly. The kernel never reads it — it only takes its address and hands that to
-// the TMA instructions, which is what the parameter has to be layout-compatible for.
+// Opaque stand-in for the driver's CUtensorMap, laid out as CUtensorMap_st is. The kernel never
+// reads it: it takes its address and hands that to the TMA instructions, so layout compatibility
+// is all the parameter needs.
 struct alignas(64) CUtensorMap { uint64_t opaque[16]; };
 #else
 // Compiling with nvcc, which has the headers. See the README for the -D line it needs; the
