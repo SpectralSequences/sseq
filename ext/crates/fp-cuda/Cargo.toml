@@ -7,15 +7,16 @@ description = "CUDA backend for fp's F_2 BLAS routines (Hopper wgmma.b1 via inli
 license = "MIT OR Apache-2.0"
 publish = false
 
-# See README.md for what this crate is and how to build it.
-build = "build.rs"
+# See README.md for what this crate is and how to build it. The kernel is compiled at runtime by
+# NVRTC, so building needs no CUDA Toolkit.
 
 [dependencies]
 anyhow = "1.0.98"
 
-# Driver API only. `cuda-12080` selects which pre-generated driver bindings to compile; it does not
-# pin the driver, since `dynamic-loading` dlopen's the real one at runtime, so a newer driver
-# (12.8+/13.x) still works and the crate builds with no CUDA present.
+# Driver API + NVRTC (the kernel is compiled at runtime). `cuda-12080` selects which pre-generated
+# bindings to compile; it does not pin the driver or the toolkit, since `dynamic-loading` dlopen's
+# the real libcuda/libnvrtc at runtime, so newer ones (12.8+/13.x) still work and the crate builds
+# with no CUDA present.
 cudarc = { version = "0.19", default-features = false, features = [
     "std",
     "driver",
@@ -23,9 +24,6 @@ cudarc = { version = "0.19", default-features = false, features = [
     "cuda-12080",
     "dynamic-loading",
 ] }
-
-[build-dependencies]
-anyhow = "1.0.98"
 
 [dev-dependencies]
 # The library API is fp-agnostic (raw limbs), so that the higher-level `fp` crate

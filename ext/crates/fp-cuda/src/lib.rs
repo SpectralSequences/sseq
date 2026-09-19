@@ -4,29 +4,81 @@ use std::{
     collections::HashMap,
     ffi::c_void,
     mem::MaybeUninit,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     thread::ThreadId,
     time::Instant,
 };
 
+use anyhow::{anyhow, bail};
 use cudarc::{
     driver::{
         CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
         PushKernelArg, sys,
     },
-    nvrtc::Ptx,
+    nvrtc::{CompileError, CompileOptions, Ptx, compile_ptx_with_opts},
 };
 
-static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
-
-/// The tuning knobs from `cuda_kernels/params.h`, mirrored into Rust by `build.rs`.
-///
-/// The kernel includes the same header, so these cannot drift from it.
-mod params {
-    #![allow(dead_code)]
-    include!(concat!(env!("OUT_DIR"), "/params.rs"));
-}
+pub mod params;
 use params::{MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+
+/// The CUDA C++ kernel, compiled to PTX at runtime by NVRTC — see [`compile_kernel`].
+static KERNEL_SRC: &str = include_str!("../cuda_kernels/matmul_b1.cu");
+
+/// The virtual architecture the kernel is compiled for.
+///
+/// `90a` is architecture-*specific* and deliberately not forward-compatible: the kernel emits
+/// `wgmma.*` and `cp.async.bulk.tensor.*`, which exist on Hopper and nowhere else.
+const ARCH: &str = "compute_90a";
+
+/// Compile the kernel to PTX with NVRTC, passing the knobs from [`params::defines`].
+///
+/// Needs `libnvrtc`, but no GPU.
+pub fn compile_kernel() -> anyhow::Result<Ptx> {
+    // SAFETY: `is_culib_present` only attempts to `dlopen` the candidate library names and reports
+    // whether one of them resolved; it dereferences nothing and leaves no state behind. Probing
+    // first is what turns a missing CUDA Toolkit into the `Err` below, rather than the panic
+    // cudarc raises the first time it reaches for a symbol in a library that is not there.
+    if !unsafe { cudarc::nvrtc::sys::is_culib_present() } {
+        bail!(
+            "libnvrtc was not found, so the CUDA kernel cannot be compiled. Install the CUDA \
+             Toolkit (12.x+) and make sure its lib directory is on the loader path; in this repo, \
+             `nix develop ./ext#gpu` does both."
+        );
+    }
+
+    let opts = CompileOptions {
+        arch: Some(ARCH),
+        // Names the program, so NVRTC's diagnostics say matmul_b1.cu rather than "default_program".
+        name: Some("matmul_b1.cu".to_string()),
+        options: params::defines(),
+        ..Default::default()
+    };
+
+    compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| match &e {
+        // The compiler log is the whole diagnostic, and it is the thing a person needs to see when
+        // a kernel edit does not compile; `CompileError`'s own `Display` is a `Debug` dump that
+        // buries it in escapes.
+        CompileError::CompileError { log, .. } => anyhow!(
+            "NVRTC failed to compile matmul_b1.cu for {ARCH}:\n{}",
+            log.to_string_lossy()
+        ),
+        _ => anyhow!("NVRTC failed to compile matmul_b1.cu: {e}"),
+    })
+}
+
+/// The compiled kernel, compiled once per process and reused.
+///
+/// The compile depends only on [`KERNEL_SRC`] and [`ARCH`], neither of which varies at runtime, so
+/// a host opening one context per device would otherwise pay NVRTC once per device for identical
+/// output.
+fn kernel_ptx() -> anyhow::Result<Ptx> {
+    static PTX: OnceLock<Ptx> = OnceLock::new();
+    if let Some(ptx) = PTX.get() {
+        return Ok(ptx.clone());
+    }
+    let ptx = compile_kernel()?;
+    Ok(PTX.get_or_init(|| ptx).clone())
+}
 
 const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
 const TILE_K: usize = TK;
@@ -63,8 +115,10 @@ pub struct GpuContext {
 impl GpuContext {
     /// Open device `device_id` and load the kernel onto it.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
+        // Compile before touching the device: a kernel that does not build is worth reporting
+        // whether or not there is a GPU to run it on.
+        let ptx = kernel_ptx()?;
         let ctx = CudaContext::new(device_id)?;
-        let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
         let transpose_kernel = module.load_function("transpose_tile_b1_kernel")?;
@@ -437,6 +491,26 @@ mod tests {
             std::panic::set_hook(prev_hook);
             ok
         })
+    }
+
+    /// The kernel compiles.
+    ///
+    /// NVRTC needs no device, so this covers the kernel wherever the CUDA Toolkit is installed,
+    /// GPU or not; where libnvrtc is absent the test passes trivially.
+    #[test]
+    fn kernel_compiles() {
+        // SAFETY: see `compile_kernel`; the probe only tries to `dlopen` the library.
+        if !unsafe { cudarc::nvrtc::sys::is_culib_present() } {
+            return; // no CUDA Toolkit in this environment — nothing to compile with
+        }
+        let ptx = compile_kernel().expect("matmul_b1.cu must compile");
+        let src = ptx.to_src();
+        for kernel in ["matmul_b1_kernel", "transpose_tile_b1_kernel"] {
+            assert!(
+                src.contains(kernel),
+                "{kernel} is missing from the compiled PTX"
+            );
+        }
     }
 
     /// Regression for the per-thread stream cache being scoped to its context.

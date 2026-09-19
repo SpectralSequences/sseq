@@ -58,51 +58,57 @@ the TMA applies the swizzle that the wgmma matrix descriptors expect.
 Rust-side glue uses [`cudarc`](https://crates.io/crates/cudarc) for the host
 driver-API surface (module load, device buffers, typed launch) and its
 `driver::sys` raw bindings for the `cuTensorMapEncodeTiled` call that builds the
-TMA descriptors. `cudarc` is stable Rust and dynamically loads the CUDA driver
-at runtime, so the Rust side builds with no CUDA present.
-
-This crate is **excluded from the workspace**, so `--workspace` never selects it. It is built only
-as a path dependency, when `fp`'s `gpu` feature is on. Building requires nvcc on `PATH`, and a
-Hopper-class GPU at runtime.
+TMA descriptors. `cudarc` is stable Rust and dynamically loads both the CUDA
+driver and NVRTC at runtime, so **the crate builds with no CUDA installed at
+all** — there is no build script.
 
 ## Prerequisites
 
-1. **nvcc** (CUDA Toolkit 12.x+, since TMA + wgmma require 12.0+) on `PATH`,
-   with Hopper (sm_90a) support. Override the binary location with the
-   `NVCC` env var if needed.
-2. A **Hopper GPU** at runtime (sm_90a). The kernel is built for `sm_90a`, an
-   architecture-specific target that is **not** forward-compatible, so the PTX
-   runs only on Hopper — not on pre-Hopper devices (which lack the `wgmma.*` and
-   `cp.async.bulk.tensor.*` instructions it emits) nor on newer architectures
-   such as Blackwell (`sm_100`).
+1. **libnvrtc** (CUDA Toolkit 12.x+, since TMA + wgmma require 12.0+) reachable
+   by the dynamic loader, at *runtime*. Nothing is needed to build.
+2. A **Hopper GPU** at runtime (sm_90a). The kernel is compiled for
+   `compute_90a`, an architecture-specific target that is **not**
+   forward-compatible, so it runs only on Hopper — not on pre-Hopper devices
+   (which lack the `wgmma.*` and `cp.async.bulk.tensor.*` instructions it emits)
+   nor on newer architectures such as Blackwell (`sm_100`).
 
-Builds on **stable** Rust — no nightly toolchain required. (`nvcc` is still
-needed at build time to compile the kernel to PTX, and a CUDA driver at runtime.)
+Builds on **stable** Rust — no nightly toolchain required.
 
 ## Building
 
 ```bash
-# nvcc lives in the opt-in dev shell, not the default one.
-nix develop ./ext#gpu
-
-# The crate is excluded from the workspace, so run cargo from its own directory
-# rather than selecting it with -p from the root.
-cd ext/crates/fp-cuda
-cargo build
+cargo build -p fp-cuda          # from ext/; no CUDA needed
 ```
 
-`build.rs` invokes nvcc on `cuda_kernels/matmul_b1.cu` and emits
-`matmul_b1.ptx` into the cargo `OUT_DIR`. `src/lib.rs` embeds it via
-`include_bytes!` and loads it at runtime through cudarc.
+`src/lib.rs` embeds `cuda_kernels/matmul_b1.cu` with `include_str!`, NVRTC
+compiles it to PTX on the first `GpuContext::new` — once per process, a couple
+hundred milliseconds — and the driver JITs that PTX at module load.
 
-The kernel's tuning knobs live in `cuda_kernels/params.h`. The kernel includes
-that header directly, and `build.rs` parses it to generate the Rust mirror, so
-the host and device cannot disagree about a tile size.
+The kernel's tuning knobs live in `src/params.rs`. The host reads those
+constants directly and passes the same values to NVRTC as `-D` options; the
+kernel defines none of them itself and refuses to compile if one is missing, so
+there is one set of values and nothing to keep in sync.
 
-**When nvcc is absent** (CI, or a contributor without the CUDA Toolkit) the
-build fails. Nothing in the workspace's own `just` recipes builds this crate: it
-is not a member, and none of them enable `fp`'s optional `gpu` feature, which is
-off by default and falls back to the CPU path when it is not enabled.
+**When libnvrtc is absent** (CI, or a contributor without the CUDA Toolkit) the
+crate builds and its tests pass: `GpuContext::new` returns `Err`, and `fp`'s
+`gpu` feature — off by default — falls back to the CPU path.
+
+## Checking the kernel without a GPU
+
+NVRTC needs no device, so `cargo test -p fp-cuda` compiles the kernel (the
+`kernel_compiles` test) anywhere the toolkit is installed. The `kernel_ptx`
+example prints the generated PTX, which is how to read the per-thread register
+counts EXPERIMENTS.md tunes against:
+
+```bash
+cargo run -p fp-cuda --example kernel_ptx > matmul_b1.ptx
+ptxas -arch=sm_90a -v matmul_b1.ptx -o /dev/null
+```
+
+`matmul_b1.cu` compiles under nvcc too — it takes the standard headers when
+`__CUDACC_RTC__` is undefined — provided the knobs are passed:
+`nvcc -ptx -arch=sm_90a -DMSTRIPS=… -DMW=… …`, one `-D` per constant in
+`src/params.rs`.
 
 ## Running
 
@@ -146,22 +152,16 @@ dependency is acyclic; the `Matrix` glue lives on the `fp` side
 (`src/blas/cuda.rs`) and in the examples/benches, which take a dev-dependency on
 `fp`.
 
-## Why excluded from the workspace?
+## A workspace member
 
-Contributors without nvcc would otherwise see this crate's build fail every time
-they run a workspace-wide command. Leaving it out of `default-members` is not
-enough: path dependencies residing in the workspace directory are auto-discovered
-as members, and `--workspace` selects every member, so `cargo check --workspace`
-and rust-analyzer's flycheck would still build it. Only `exclude` keeps it out.
+Nothing about building the crate needs CUDA, so it is an ordinary member:
+`cargo check --workspace`, `just lint` and rust-analyzer cover its host code on
+any machine, and it is addressable as `-p fp-cuda` from `ext/`. Only *running*
+it needs CUDA, and the tests that reach for a device (or for NVRTC) skip
+themselves when there is none.
 
-That means:
-
-- `cargo build`, `cargo test`, `cargo check --workspace`, `nix run .#test` and
-  rust-analyzer all ignore the crate.
-- `fp`'s `gpu` feature still reaches it as a path dependency, so enabling the
-  backend works as before.
-- It is no longer addressable as `-p fp-cuda` from the workspace root. Build and
-  test it from its own directory: `cd crates/fp-cuda && cargo test`.
+`fp`'s `gpu` feature reaches it as a path dependency, so enabling the backend
+goes through that feature rather than through this crate directly.
 
 ## Status
 

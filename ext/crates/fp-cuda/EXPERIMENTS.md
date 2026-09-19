@@ -7,8 +7,8 @@ as it is rather than how it got there.
 Entries are dated and name the hardware they were measured on: the conclusions are Hopper-specific
 and several do not transfer between H100 and H200.
 
-The knobs referred to below live in `cuda_kernels/params.h`, which both the kernel and the Rust
-host read.
+The knobs referred to below live in `src/params.rs`, which the Rust host reads directly and hands
+to the kernel as `-D` options.
 
 The overall shape of the work follows the optimization ladder in Pranjal Shankhdhar's
 "Outperforming cuBLAS on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
