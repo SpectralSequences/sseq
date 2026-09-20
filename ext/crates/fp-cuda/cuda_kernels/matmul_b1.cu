@@ -33,20 +33,16 @@
 #endif
 
 #ifdef __CUDACC_RTC__
-// NVRTC compiles a bare string with no filesystem behind it, so neither the C++ standard headers
-// nor the CUDA ones are available. Every other CUDA name this file uses
-// (__cvta_generic_to_shared, __grid_constant__, the launch builtins) is an NVRTC builtin needing
-// no include.
+// NVRTC compiles a bare string with no filesystem behind it, so no headers are available. Every
+// other CUDA name here is an NVRTC builtin.
 using int32_t  = int;
 using uint32_t = unsigned int;
 using uint64_t = unsigned long long;
-// Opaque stand-in for the driver's CUtensorMap, laid out as CUtensorMap_st is. The kernel never
-// reads it: it takes its address and hands that to the TMA instructions, so layout compatibility
-// is all the parameter needs.
+// Opaque stand-in for the driver's CUtensorMap, laid out as CUtensorMap_st is. The kernel only
+// takes its address, so layout compatibility is all the parameter needs.
 struct alignas(64) CUtensorMap { uint64_t opaque[16]; };
 #else
-// Compiling with nvcc, which has the headers. See the README for the -D line it needs; the
-// `kernel_ptx` example is the shorter route to the same PTX.
+// nvcc has the headers.
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <cuda.h>

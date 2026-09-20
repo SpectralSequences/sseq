@@ -1,11 +1,7 @@
 //! Tuning knobs shared by the Rust host code and the CUDA kernel.
 
-/// m64 row-strips per CTA (block knob).
-///
-/// Each k256 step issues `MSTRIPS` m64n128 wgmmas that share one loaded B sub-tile, so raising it
-/// cuts operand-refill bytes per MAC and costs accumulator registers: the consumer holds
-/// `MSTRIPS * ACC_N` of them, which the register file bounds. See EXPERIMENTS.md for the
-/// measurements behind the value.
+/// m64 row-strips per CTA, trading operand-refill bytes per MAC against accumulator registers;
+/// see EXPERIMENTS.md.
 pub const MSTRIPS: usize = 3;
 
 /// wgmma M extent, fixed for binary wgmma.
@@ -28,10 +24,7 @@ pub const GROUP_M: usize = 16;
 /// Threads per warpgroup. A CTA runs two: producer and consumer.
 pub const THREADS_PER_WG: usize = 128;
 
-/// The knobs as NVRTC `-D` options.
-///
-/// The kernel defines none of them itself and `#error`s on a missing one, so a knob this list
-/// omits stops the compile rather than silently taking a default.
+/// The knobs as NVRTC `-D` options; the kernel defines none itself and `#error`s on a missing one.
 pub fn defines() -> Vec<String> {
     [
         ("MSTRIPS", MSTRIPS),
