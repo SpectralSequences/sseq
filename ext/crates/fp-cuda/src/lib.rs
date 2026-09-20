@@ -34,10 +34,9 @@ const ARCH: &str = "compute_90a";
 ///
 /// Needs `libnvrtc`, but no GPU.
 pub fn compile_kernel() -> anyhow::Result<Ptx> {
-    // SAFETY: `is_culib_present` only attempts to `dlopen` the candidate library names and reports
-    // whether one of them resolved; it dereferences nothing and leaves no state behind. Probing
-    // first is what turns a missing CUDA Toolkit into the `Err` below, rather than the panic
-    // cudarc raises the first time it reaches for a symbol in a library that is not there.
+    // SAFETY: `is_culib_present` only `dlopen`s the candidate library names and reports whether
+    // one resolved; it dereferences nothing. cudarc panics on the first missing symbol, so the
+    // probe has to come before any other nvrtc call.
     if !unsafe { cudarc::nvrtc::sys::is_culib_present() } {
         bail!(
             "libnvrtc was not found, so the CUDA kernel cannot be compiled. Install the CUDA \
@@ -55,9 +54,7 @@ pub fn compile_kernel() -> anyhow::Result<Ptx> {
     };
 
     compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| match &e {
-        // The compiler log is the whole diagnostic, and it is the thing a person needs to see when
-        // a kernel edit does not compile; `CompileError`'s own `Display` is a `Debug` dump that
-        // buries it in escapes.
+        // `CompileError`'s `Display` is a `Debug` dump that buries the log in escapes.
         CompileError::CompileError { log, .. } => anyhow!(
             "NVRTC failed to compile matmul_b1.cu for {ARCH}:\n{}",
             log.to_string_lossy()
