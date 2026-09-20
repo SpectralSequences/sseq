@@ -21,8 +21,7 @@ fn threshold() -> usize {
 
 /// The process-wide GPU context, created lazily on first use.
 ///
-/// `None` if no usable device is present (no driver, no libnvrtc to compile the kernel with, or
-/// no Hopper GPU), or if `FP_CUDA_DISABLE` is set.
+/// `None` if no usable device is present or if `FP_CUDA_DISABLE` is set.
 ///
 /// Shared as `&'static` with no lock: `GpuContext` is `Send + Sync`, every submission goes through
 /// a per-thread stream ([`GpuContext::stream`]) so concurrent callers overlap instead of

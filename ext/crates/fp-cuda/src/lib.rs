@@ -67,10 +67,6 @@ pub fn compile_kernel() -> anyhow::Result<Ptx> {
 }
 
 /// The compiled kernel, compiled once per process and reused.
-///
-/// The compile depends only on [`KERNEL_SRC`] and [`ARCH`], neither of which varies at runtime, so
-/// a host opening one context per device would otherwise pay NVRTC once per device for identical
-/// output.
 fn kernel_ptx() -> anyhow::Result<Ptx> {
     static PTX: OnceLock<Ptx> = OnceLock::new();
     if let Some(ptx) = PTX.get() {
@@ -115,8 +111,6 @@ pub struct GpuContext {
 impl GpuContext {
     /// Open device `device_id` and load the kernel onto it.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
-        // Compile before touching the device: a kernel that does not build is worth reporting
-        // whether or not there is a GPU to run it on.
         let ptx = kernel_ptx()?;
         let ctx = CudaContext::new(device_id)?;
         let module = ctx.load_module(ptx)?;
@@ -494,9 +488,6 @@ mod tests {
     }
 
     /// The kernel compiles.
-    ///
-    /// NVRTC needs no device, so this covers the kernel wherever the CUDA Toolkit is installed,
-    /// GPU or not; where libnvrtc is absent the test passes trivially.
     #[test]
     fn kernel_compiles() {
         // SAFETY: see `compile_kernel`; the probe only tries to `dlopen` the library.
