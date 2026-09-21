@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Block the first push or PR command on a branch until the comment-trim pass has run."""
+"""Block a push or PR command until the comment-trim pass has run on the current commit."""
 
 import json
 import os
@@ -7,12 +7,18 @@ import re
 import subprocess
 import sys
 from typing import cast
+from urllib.parse import quote
 
-# The three ways work reaches a reviewer. Each has to sit where a command starts -- at the front of
-# the string or after a separator -- so that quoting one inside a heredoc or a commit message is
-# not mistaken for running it.
-START = r"(?:^|[;&|\n]|&&|\|\|)\s*"
-TRIGGER = re.compile(START + r"(?:\w+=\S+\s+)*(?:git\s+push|gh\s+pr\s+(?:create|edit))\b")
+# The three ways work reaches a reviewer. `git` or `gh` has to sit where a command starts, so a
+# mention mid-sentence passes; the subcommand may come after global options like `git -C dir` or
+# `gh --repo owner/repo`. This errs toward blocking -- `git commit -m "... push ..."` or a heredoc
+# line that reads as a push also trips it -- since a false block costs a retry and a miss skips the
+# check.
+START = r"(?:^|[;&|\n]|&&|\|\|)\s*(?:\w+=\S+\s+)*"
+SAME_COMMAND = r"[^;&|\n]*?\s"
+TRIGGER = re.compile(
+    START + rf"(?:git\s{SAME_COMMAND}?push|gh\s{SAME_COMMAND}?pr\s+(?:create|edit))\b"
+)
 
 # An explicit opt-out, for a push that is not review-bound (a backup branch, a CI retrigger).
 OPT_OUT = re.compile(r"\bTRIM_OK=1\b")
@@ -78,7 +84,7 @@ def main() -> int:
     # The marker lives in .git, so it is per-clone, never committed, and goes with the worktree. It
     # records the commit it cleared, so a branch that has gained commits since is checked again --
     # updating an open PR puts new commits in front of a reviewer just as opening one did.
-    marker = os.path.join(git_dir, "claude-comment-trim", branch.replace("/", "%2F"))
+    marker = os.path.join(git_dir, "claude-comment-trim", quote(branch, safe=""))
     try:
         with open(marker) as f:
             if f.read().strip() == head:
