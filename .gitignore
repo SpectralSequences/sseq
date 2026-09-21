@@ -37,6 +37,9 @@ chart/python/*.egg-info
 # pre-commit
 .pre-commit-config.yaml
 
-# Claude
-.claude
+# Claude. The directory itself stays visible to git so that shared hooks can live in it; the
+# machine-local contents (worktrees, settings.local.json) fall through the whitelist below.
+**/.claude/*
+!**/.claude/settings.json
+!**/.claude/hooks/
 
