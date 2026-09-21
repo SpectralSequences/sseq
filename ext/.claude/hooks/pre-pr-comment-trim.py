@@ -33,8 +33,9 @@ Check each one against every rule there, in particular:
   - every function documented, every `unsafe` block carrying SAFETY:
   - doc comments wrap at 100 columns; run `cargo fmt`
 
-Apply the trims, commit them, then re-run the command - this fires once per branch.
-Prefix the command with TRIM_OK=1 to skip it for a push that is not review-bound."""
+Apply the trims, commit them, then re-run the command. This fires once per commit, so a trim
+commit is itself checked before it goes out; a re-run with nothing new to say passes straight
+through. Prefix the command with TRIM_OK=1 to skip it for a push that is not review-bound."""
 
 
 def field(obj: object, key: str) -> object:
@@ -70,17 +71,24 @@ def main() -> int:
     try:
         git_dir = git("rev-parse", "--absolute-git-dir")
         branch = git("rev-parse", "--abbrev-ref", "HEAD")
+        head = git("rev-parse", "HEAD")
     except (subprocess.CalledProcessError, FileNotFoundError):
         return 0
 
-    # The marker lives in .git, so it is per-clone, never committed, and goes with the worktree.
+    # The marker lives in .git, so it is per-clone, never committed, and goes with the worktree. It
+    # records the commit it cleared, so a branch that has gained commits since is checked again --
+    # updating an open PR puts new commits in front of a reviewer just as opening one did.
     marker = os.path.join(git_dir, "claude-comment-trim", branch.replace("/", "%2F"))
-    if os.path.exists(marker):
-        return 0
+    try:
+        with open(marker) as f:
+            if f.read().strip() == head:
+                return 0
+    except FileNotFoundError:
+        pass
 
     os.makedirs(os.path.dirname(marker), exist_ok=True)
     with open(marker, "w") as f:
-        _ = f.write(command + "\n")
+        _ = f.write(head + "\n")
 
     # Exit 2 is the contract for "refuse the call and hand this text back to the model".
     print(REMINDER.format(branch=branch), file=sys.stderr)

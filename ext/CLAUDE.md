@@ -30,8 +30,9 @@ the code should do. Trim them as the last step before a PR merges, against the r
 - Document every function, including one-line wrappers, for consistency. Every `unsafe` block gets a
   `SAFETY:` comment naming the obligations it discharges.
 
-`.claude/hooks/pre-pr-comment-trim.py` blocks the first `git push` or `gh pr create` on a branch
-until that pass has run; `TRIM_OK=1` in front of the command skips it for a push no one will read.
+`.claude/hooks/pre-pr-comment-trim.py` blocks `git push` and `gh pr create` until that pass has
+run, once per commit, so updating an open PR is checked as opening one is. `TRIM_OK=1` in front of
+the command skips it for a push no one will read.
 
 Rust doc comments: one-line summary, blank line, body; wrap at 100 columns. Run `cargo fmt` after
 editing any Rust.
