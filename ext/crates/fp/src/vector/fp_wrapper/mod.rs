@@ -112,14 +112,13 @@ impl FpVector {
         v
     }
 
-    // Convenient for some matrix methods
-    pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
-        Fp::new(p).number(len)
-    }
-
-    // Convenient for some matrix methods
+    // Round `len` up to a whole number of groups, so that an augmented-matrix segment of this
+    // length ends on a group boundary and the next segment starts on one. A group spans 64
+    // entries (across several limbs in the bit-sliced layout), and segments must align to those
+    // 64-entry boundaries or a single group would straddle two segments.
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * Fp::new(p).entries_per_limb()
+        let entries_per_group = Fp::new(p).entries_per_group();
+        len.div_ceil(entries_per_group) * entries_per_group
     }
 }
 
