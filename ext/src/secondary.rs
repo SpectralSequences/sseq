@@ -183,10 +183,20 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
                     continue;
                 }
 
+                let len = algebra.dimension(module_op_deg + op_degree - 1);
+                // The output block is empty when `module_op_deg + op_degree - 1 < 0`, i.e. when the
+                // target generator sits above degree `self.degree + op_degree - 1`. This never
+                // happens for a minimal resolution (its differential has no identity component, so
+                // `op_degree ≥ 1` and same-degree generators are absent), but a non-minimal
+                // resolution with `hit_generator = true` can act by the identity (`op_degree = 0`)
+                // on a same-degree generator. Skip before taking the offset, which would otherwise
+                // index out of range.
+                if len == 0 {
+                    continue;
+                }
                 let offset =
                     self.target
                         .generator_offset(self.degree + op_degree - 1, gen_deg, gen_idx);
-                let len = algebra.dimension(module_op_deg + op_degree - 1);
 
                 algebra.a_multiply(
                     result.slice_mut(offset, offset + len),
@@ -370,6 +380,16 @@ pub trait SecondaryLift: Sync + Sized {
     /// [`SecondaryResolution`], we need to ignore target generators of the same degree uniformly.
     const HIT_GENERATOR: bool = false;
 
+    /// Whether composites may hit same-degree generators, defaulting to the compile-time
+    /// [`HIT_GENERATOR`](Self::HIT_GENERATOR). Overridable at runtime by implementors that decide
+    /// it per instance — e.g. a [`SecondaryResolution`] of a *non-minimal* resolution, whose
+    /// differential has identity components so the composite $\partial\partial$ genuinely lands
+    /// on same-degree generators. When `true`, the underlying resolution must be computed as a
+    /// full rectangle (not truncated to a stem), since those same-degree generators are consulted.
+    fn hit_generator(&self) -> bool {
+        Self::HIT_GENERATOR
+    }
+
     fn underlying(&self) -> Arc<Self::Underlying>;
     fn algebra(&self) -> Arc<Self::Algebra>;
     fn prime(&self) -> ValidPrime {
@@ -395,12 +415,13 @@ pub trait SecondaryLift: Sync + Sized {
         let shift = self.shift();
         let max = self.max();
 
+        let hit_generator = self.hit_generator();
         self.homotopies().extend(max.s() - 1, |s| {
             SecondaryHomotopy::new(
                 self.source().module(s),
                 self.target().module(s - shift.s()),
                 shift.t(),
-                Self::HIT_GENERATOR,
+                hit_generator,
             )
         });
     }
