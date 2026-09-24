@@ -1,4 +1,4 @@
-# fp-cuda experiment log
+# `fp::blas::cuda` experiment log
 
 What we tried, what it gained, and why the rejected alternatives were rejected. This is the place
 for that record — the code comments are not, and neither is the README, which describes the crate
@@ -7,8 +7,8 @@ as it is rather than how it got there.
 Entries are dated and name the hardware they were measured on: the conclusions are Hopper-specific
 and several do not transfer between H100 and H200.
 
-The knobs referred to below live in `cuda_kernels/params.h`, which both the kernel and the Rust
-host read.
+The knobs referred to below live in `params.rs`, which the Rust host reads directly and hands
+to the kernel as `-D` options.
 
 The overall shape of the work follows the optimization ladder in Pranjal Shankhdhar's
 "Outperforming cuBLAS on H100" worklog, adapted to the binary (`b1`) GF(2) kernel.
@@ -190,3 +190,14 @@ the 64-iteration gather.
 Neither is worth doing. The kernel runs 113 us against `matmul_b1_kernel`'s 1.36 ms, inside a 77 ms
 end-to-end call. Making it infinitely fast would buy about 0.15%. Of that 77 ms, roughly 55 ms is
 H2D/D2H and device allocation, which is where the time actually is.
+
+## Kernel-only throughput after the persistent grid (2026-07-07, H200 NVL)
+
+`bench_kernel_only`, host setup and H2D/D2H excluded:
+
+| size (M=K=N) | binary TOPS | ms/launch |
+|--------------|-------------|-----------|
+| 4096         | ~4,100      | 0.033     |
+| 8192         | ~7,000      | 0.158     |
+| 16384        | ~8,500      | 1.04      |
+| 32768        | ~9,600      | 7.35      |
