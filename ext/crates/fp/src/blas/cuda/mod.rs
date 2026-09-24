@@ -42,9 +42,7 @@ fn context() -> Option<&'static GpuContext> {
 
 /// Try to compute `a · b` on the GPU.
 ///
-/// This is consulted by `<&Matrix as Mul>::mul` before the CPU BLAS path. Anything that makes the
-/// GPU path unavailable or unsuitable — no device, a launch error, or a below-threshold size —
-/// returns `None`.
+/// `None` if there is no device, the product is below the threshold, or the launch fails.
 pub(super) fn try_mul(a: &Matrix, b: &Matrix) -> Option<Matrix> {
     debug_assert_eq!(a.prime(), TWO);
     debug_assert_eq!(b.prime(), TWO);

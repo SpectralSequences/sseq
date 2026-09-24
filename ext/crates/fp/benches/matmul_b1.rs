@@ -1,3 +1,5 @@
+//! End-to-end GPU matmul against the CPU one, at square sizes.
+
 use std::time::Instant;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
@@ -6,6 +8,7 @@ use rand::Rng;
 
 const SIZES: &[usize] = &[128, 256, 512, 1024, 2048, 4096, 8192];
 
+/// A random `rows × cols` matrix over F₂.
 fn random_matrix(rows: usize, cols: usize) -> Matrix {
     let mut rng = rand::rng();
     let data_len = rows * cols.div_ceil(64);
@@ -13,6 +16,7 @@ fn random_matrix(rows: usize, cols: usize) -> Matrix {
     Matrix::from_data(TWO, rows, cols, data)
 }
 
+/// Panic unless the CPU and GPU products agree.
 fn assert_bit_equal(cpu: &Matrix, gpu: &Matrix) {
     assert_eq!(cpu.rows(), gpu.rows(), "row count mismatch");
     assert_eq!(cpu.columns(), gpu.columns(), "column count mismatch");
@@ -24,11 +28,13 @@ fn assert_bit_equal(cpu: &Matrix, gpu: &Matrix) {
     );
 }
 
+/// Binary TOPS of an `m × k` by `k × n` product that took `secs`, counting one AND and one XOR per
+/// inner-product step.
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
-    // 2 * M * N * K binary ops (one AND + one XOR per inner-product step).
     2.0 * (m as f64) * (n as f64) * (k as f64) / secs / 1e12
 }
 
+/// Check, bench and report both products at `size × size`.
 fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
     let mut group = c.benchmark_group(format!("matmul_b1_{size}x{size}"));
     group.throughput(criterion::Throughput::Elements(
@@ -59,8 +65,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
 
     group.finish();
 
-    // Coarse manual binary-TOPS report (criterion has its own throughput, but explicit logging makes
-    // binary-op throughput easy to grep from the bench output).
+    // Criterion reports throughput too, but a binary-TOPS line is easy to grep from the output.
     let runs = 5;
     let start = Instant::now();
     for _ in 0..runs {
@@ -85,6 +90,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
     );
 }
 
+/// Bench every size in [`SIZES`] on device 0.
 fn bench_all(c: &mut Criterion) {
     let gpu = GpuContext::new(0).expect("failed to initialise GpuContext");
     let (major, minor) = gpu

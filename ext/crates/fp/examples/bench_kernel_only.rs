@@ -1,20 +1,17 @@
-//! Kernel-only throughput for `matmul_b1`.
-//!
-//! Unlike `bench_kernel` (end-to-end, host-serialization-bound) and the `cargo bench` criterion
-//! harness (also end-to-end), this isolates the GPU kernel: all host (de)serialization, the
-//! TMA-layout pre-arrangement, and the H2D/D2H copies happen once, then only back-to-back kernel
-//! launches are timed (see `matmul_b1_timed`). This is the apples-to-apples number to compare
-//! against the ~100-binary-TOPS pre-swizzle kernel baseline.
-//!
-//! Run: `cargo run --release -p fp --features gpu --example bench_kernel_only`.
+//! Kernel-only throughput of the GPU matmul: the number to quote.
 
 use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
+/// Binary TOPS of an `m × k` by `k × n` product that took `secs`.
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
     2.0 * (m as f64) * (n as f64) * (k as f64) / secs / 1e12
 }
 
+/// Time back-to-back launches at a few cube sizes, and check each product against the CPU.
+///
+/// Host marshalling and the H2D/D2H copies happen once per size and are not timed; see
+/// `Matrix::cuda_mul_timed`.
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     let (major, minor) = gpu.compute_capability()?;
@@ -38,22 +35,15 @@ fn main() -> anyhow::Result<()> {
         let a = make(m, k);
         let b = make(k, n);
 
-        // Bit-exact correctness check against the CPU path once per shape.
-        let cpu = &a * &b;
-        let (gpu_ref, _) = a.cuda_mul_timed(&gpu, &b, 1)?;
-        let ok = cpu == gpu_ref;
-        // matmul_b1 (single launch) must agree with the timed multi-launch path.
-        let single = a.cuda_mul(&gpu, &b)?;
-        let idempotent = single == gpu_ref;
-
-        let (_, secs) = a.cuda_mul_timed(&gpu, &b, iters)?;
+        let (c, secs) = a.cuda_mul_timed(&gpu, &b, iters)?;
+        let ok = c == &a * &b;
         println!(
             "  {m:>6} x {k:>6} x {n:>6}: {:>7.1} binary TOPS  ({:>8.3} ms/launch, {iters} iters)  \
-             correct={ok} idempotent={idempotent}",
+             correct={ok}",
             binary_tops(m, k, n, secs),
             secs * 1e3,
         );
-        if !ok || !idempotent {
+        if !ok {
             eprintln!("    CORRECTNESS FAILURE at {m}x{k}x{n}");
             std::process::exit(1);
         }

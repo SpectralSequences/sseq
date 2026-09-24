@@ -1,7 +1,4 @@
 //! GPU-dispatch correctness for `<&Matrix as Mul>::mul` under the `gpu` feature.
-//!
-//! Run with `FP_CUDA_DEBUG=1` to see the `[fp-cuda]` launch line and confirm the GPU path was
-//! taken.
 #![cfg(feature = "gpu")]
 
 use fp::{
@@ -70,9 +67,8 @@ proptest! {
 
 /// Many threads matmul-ing on the GPU at once must each stay bit-identical to the CPU.
 ///
-/// This is the concurrency the per-thread-stream refactor enables. If concurrent matmuls shared
-/// device state this would corrupt results or fail the launch; independent per-stream buffers make
-/// it pass.
+/// Each thread submits on its own stream with its own buffers (see `GpuContext::stream`); shared
+/// device state would corrupt results or fail the launch.
 #[test]
 fn gpu_matmul_concurrent() {
     const THREADS: usize = 16;

@@ -97,7 +97,7 @@ pub struct GpuContext {
     /// Per-thread CUDA streams for *this* context, created lazily (see [`Self::stream`]). Owned by
     /// the context so a thread using several contexts (e.g. one per device) gets a distinct stream
     /// per context. The mutex is held only for the map lookup, never across a GPU submission, so it
-    /// does not serialize device work — unlike the whole-op lock this design replaced.
+    /// does not serialize device work.
     streams: Mutex<HashMap<ThreadId, Arc<CudaStream>>>,
     #[allow(dead_code)]
     module: Arc<CudaModule>,
@@ -139,8 +139,8 @@ impl GpuContext {
     /// `streams` map. Submitting through this instead of the context's single default stream
     /// lets calls from different threads run on distinct streams — overlapping transfers and
     /// kernels instead of serializing — while all sub-steps of one call share one stream, which
-    /// keeps ordering correct within a thread. This is what lets `try_mul` (and the row-reduce) run
-    /// lock-free from many threads at once.
+    /// keeps ordering correct within a thread. This is what lets `try_mul` run lock-free from many
+    /// threads at once.
     pub fn stream(&self) -> Arc<CudaStream> {
         self.streams
             .lock()
@@ -400,7 +400,7 @@ fn encode_tma(
 
 /// Gather A into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Output: contiguous tiles, each TILE_M rows × KL u64s, so a row is 128 bytes — the swizzle width.
+/// Output: contiguous tiles, each TILE_M rows × KL u64s, so a row is exactly the swizzle width.
 /// The TMA applies the 128B swizzle on load, so the host layout is the natural row-major sub-block:
 /// tile row `row` holds K bits `kk*TILE_K .. +TILE_K` of global row `bi*TILE_M + row`, zero-padded
 /// out of bounds.
@@ -511,10 +511,12 @@ mod tests {
             let Some(gpu) = gpu() else {
                 return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
             };
-            let reference = if a.rows() >= 32 && b.rows() >= 32 {
+            // The tiled CPU kernel needs its operands padded to whole blocks, as `Mul` checks.
+            let reference = if a.physical_rows().is_multiple_of(64)
+                && b.physical_rows().is_multiple_of(64)
+            {
                 a.fast_mul_sequential(&b)
             } else {
-                // Below 32 rows a matrix is not padded for the tiled CPU kernel.
                 a.naive_mul(&b)
             };
             let (a, b) = (with_spare_columns(&a, spare), with_spare_columns(&b, spare));

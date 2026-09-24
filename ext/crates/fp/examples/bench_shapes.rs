@@ -1,23 +1,21 @@
-//! Isolate *why* kernel-only throughput drops past N=16384: is it total size, or the B operand
-//! spilling out of the 50 MB L2?
-//!
-//! Each B column-panel is reused across every M-tile, so the L2-reuse condition is simply whether
-//! the whole B matrix (K*N/8 bytes) fits in L2. These shapes hold FLOPs fixed while flipping "B
-//! fits in L2", which a pure size/occupancy story cannot explain.
-//!
-//! Run: `cargo run --release -p fp --features gpu --example bench_shapes`.
+//! Kernel-only throughput at equal-work shapes where B does and does not fit in L2.
 
 use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
+/// Binary TOPS of an `m × k` by `k × n` product that took `secs`.
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
     2.0 * (m as f64) * (n as f64) * (k as f64) / secs / 1e12
 }
 
+/// Time shapes that hold the work fixed while flipping whether B fits in L2.
+///
+/// Each B column panel is reused across every M tile, so L2 reuse depends only on whether the whole
+/// of B fits; a size or occupancy effect would not track that.
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
-    // Assumed L2 capacity (H100 / H200 NVL ≈ 50 MB); not read from the device.
-    // Override when profiling a card with a different L2 size.
+    // The H100/H200 NVL L2 capacity, assumed rather than read from the device; change it when
+    // profiling another card.
     let l2_mb = 50.0;
     println!(
         "Assumed GPU L2 ~= {l2_mb} MB (H100/H200 NVL). B in L2 (bytes = K*N/8) governs \
