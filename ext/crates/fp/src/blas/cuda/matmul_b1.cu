@@ -225,6 +225,7 @@ extern "C" __global__ void matmul_b1_kernel(
     uint32_t n_groups,
     uint32_t M, uint32_t K)
 {
+    // TMA faults on a destination that is not 128-byte aligned.
     extern __shared__ __align__(128) uint64_t smem[];
     uint64_t* sA = smem;                          // [STAGES][TILE_A]
     uint64_t* sB = sA + STAGES * TILE_A;          // [STAGES][TILE_B]
@@ -237,9 +238,10 @@ extern "C" __global__ void matmul_b1_kernel(
     const int t_wg = t - wg * THREADS_PER_WG; // 0..127 within warpgroup
 
     const int nchunks = (K + TK - 1) / TK;
-    // One full A tile + one full B tile per stage (B is zero-padded on the
-    // host to a multiple of NB columns, so it is always a complete tile). Both
-    // target this CTA's full barrier.
+    // One full A tile + one full B tile per stage (transpose_tile_b1_kernel
+    // writes B as whole zero-padded tiles). Both loads target this CTA's full
+    // barrier, and this must equal the bytes they complete, or the barrier
+    // never flips.
     const uint32_t expected_tx = (uint32_t)((TILE_A + TILE_B) * sizeof(uint64_t));
 
     // Tile-grid geometry: one CTA per output tile-iteration, striding the whole

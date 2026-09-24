@@ -190,3 +190,14 @@ the 64-iteration gather.
 Neither is worth doing. The kernel runs 113 us against `matmul_b1_kernel`'s 1.36 ms, inside a 77 ms
 end-to-end call. Making it infinitely fast would buy about 0.15%. Of that 77 ms, roughly 55 ms is
 H2D/D2H and device allocation, which is where the time actually is.
+
+## Kernel-only throughput after the persistent grid (2026-07-07, H200 NVL)
+
+`bench_kernel_only`, host setup and H2D/D2H excluded:
+
+| size (M=K=N) | binary TOPS | ms/launch |
+|--------------|-------------|-----------|
+| 4096         | ~4,100      | 0.033     |
+| 8192         | ~7,000      | 0.158     |
+| 16384        | ~8,500      | 1.04      |
+| 32768        | ~9,600      | 7.35      |

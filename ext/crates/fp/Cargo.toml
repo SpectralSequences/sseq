@@ -73,7 +73,7 @@ name = "matmul_b1"
 harness = false
 required-features = ["gpu"]
 
-# The GPU examples. The kernel runs only on Hopper; see `src/blas/cuda/README.md`.
+# The GPU examples. The kernel runs only on Hopper; see README.md.
 [[example]]
 name = "bench_kernel_only"
 required-features = ["gpu"]
