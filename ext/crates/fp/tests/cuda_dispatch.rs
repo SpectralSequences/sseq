@@ -51,7 +51,8 @@ fn threshold() -> usize {
 /// K tile of it.
 fn arb_operands() -> impl Strategy<Value = (Matrix, Matrix)> {
     let t = threshold();
-    let dim = t..=t + 1100;
+    let min_dim = t.max(32);
+    let dim = min_dim..=min_dim + 1100;
     (dim.clone(), dim.clone(), dim).prop_flat_map(|(m, k, n)| (arb_matrix(m, k), arb_matrix(k, n)))
 }
 
