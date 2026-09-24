@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use super::{QuasiInverse, Subspace};
 use crate::{
+    blas::block::transpose_lanes,
     field::{Field, Fp, field_internal::FieldInternal},
     limb::Limb,
     matrix::m4ri::M4riTable,
@@ -516,6 +517,96 @@ impl fmt::Debug for Matrix {
 }
 
 impl Matrix {
+    /// The transpose of this matrix.
+    ///
+    /// At `p = 2` this transposes whole 64-square bit blocks at a time with [`transpose_lanes`];
+    /// at odd primes it falls back to copying one entry at a time.
+    ///
+    /// ```
+    /// # use fp::matrix::Matrix;
+    /// # use fp::prime::TWO;
+    /// let m = Matrix::from_vec(TWO, &[vec![0, 1, 0], vec![1, 1, 0]]);
+    /// assert_eq!(
+    ///     m.transpose(),
+    ///     Matrix::from_vec(TWO, &[vec![0, 1], vec![1, 1], vec![0, 0]])
+    /// );
+    /// ```
+    pub fn transpose(&self) -> Self {
+        let mut m = Self::new(self.prime(), self.columns, self.rows());
+        if self.prime() == prime::TWO {
+            self.transpose_two_into(&mut m);
+        } else {
+            for i in 0..self.rows() {
+                for j in 0..self.columns() {
+                    let entry = self.row(i).entry(j);
+                    m.row_mut(j).set_entry(i, entry);
+                }
+            }
+        }
+        m
+    }
+
+    /// Write the transpose into `out`, a tile of 64-square bit blocks at a time.
+    ///
+    /// Entry `(i, j)` of a `p = 2` matrix is bit `j % 64` of limb `j / 64` of row `i`, so the block
+    /// of entries `[r, r + 64) x [c, c + 64)` is exactly one limb from each of 64 consecutive rows,
+    /// and [`transpose_lanes`] moves a whole row of such blocks at once. Blocks that run off the
+    /// bottom or right edge are gathered as zeros, which transpose into positions `out` never reads
+    /// back.
+    fn transpose_two_into(&self, out: &mut Self) {
+        // Work an LANES x LANES tile of 64-square blocks at a time, held in a scratch buffer small
+        // enough to stay in L1. Both trips to main memory are then contiguous: a row of the tile is
+        // LANES consecutive limbs of one source row, and a destination row receives LANES
+        // consecutive limbs. All the transposing happens inside the scratch.
+        //
+        // Within the scratch, lane `p` holds block `p` of the row, so the delta swap runs on all
+        // LANES blocks at once with no cross-lane movement — the operation vectorizes as written.
+        const LANES: usize = 8; // 8 limbs = 64 bytes = one cache line, and one AVX-512 register
+        let mut tile = vec![[[0 as Limb; LANES]; 64]; LANES];
+
+        let row_blocks = self.rows().div_ceil(64);
+        let col_blocks = self.columns().div_ceil(64);
+
+        for rb0 in (0..row_blocks).step_by(LANES) {
+            let rbs = LANES.min(row_blocks - rb0);
+            for cb0 in (0..col_blocks).step_by(LANES) {
+                let cbs = LANES.min(col_blocks - cb0);
+
+                for (rb, block_rows) in tile[..rbs].iter_mut().enumerate() {
+                    for (i, lanes) in block_rows.iter_mut().enumerate() {
+                        let row = (rb0 + rb) * 64 + i;
+                        if row >= self.rows() {
+                            lanes.fill(0);
+                            continue;
+                        }
+                        let src = row * self.stride + cb0;
+                        for (p, slot) in lanes.iter_mut().enumerate() {
+                            *slot = if cb0 + p < self.stride {
+                                self.data[src + p]
+                            } else {
+                                0
+                            };
+                        }
+                    }
+                    transpose_lanes(block_rows);
+                }
+
+                for p in 0..cbs {
+                    for j in 0..64 {
+                        let row = (cb0 + p) * 64 + j;
+                        if row >= out.rows() {
+                            break;
+                        }
+                        let dst = row * out.stride + rb0;
+                        for (rb, block_rows) in tile[..rbs].iter().enumerate() {
+                            out.data[dst + rb] = block_rows[j][p];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// A no-nonsense, safe, row operation. Adds `c * self[source]` to `self[target]`.
     pub fn safe_row_op(&mut self, target: usize, source: usize, c: u32) {
         assert_ne!(target, source);
@@ -1620,6 +1711,53 @@ mod tests {
         }
     }
 
+    use crate::prime::TWO;
+
+    /// The entry-at-a-time transpose, as an oracle for the `p = 2` blocked path.
+    fn naive_transpose(m: &Matrix) -> Matrix {
+        let mut out = Matrix::new(m.prime(), m.columns(), m.rows());
+        for i in 0..m.rows() {
+            for (j, entry) in m.row(i).iter().enumerate() {
+                out.row_mut(j).set_entry(i, entry);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn transpose_two_spans_block_boundaries() {
+        // Around a multiple of BITS_PER_LIMB in each dimension independently, so a ragged block on
+        // one axis is exercised against a full block on the other.
+        let mut state: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for &rows in &[1, 63, 64, 65, 127, 128, 129, 200] {
+            for &columns in &[1, 63, 64, 65, 127, 128, 129, 200] {
+                let mut m = Matrix::new(TWO, rows, columns);
+                for i in 0..rows {
+                    for j in 0..columns {
+                        m.row_mut(i).set_entry(j, (next() & 1) as u32);
+                    }
+                }
+                assert_eq!(
+                    m.transpose(),
+                    naive_transpose(&m),
+                    "mismatch at {rows}x{columns}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn transpose_is_an_involution() {
+        let m = Matrix::from_vec(TWO, &[vec![0, 1, 0, 1], vec![1, 1, 0, 0], vec![0, 0, 1, 1]]);
+        assert_eq!(m.transpose().transpose(), m);
+    }
+
     proptest! {
         // Test that `arbitrary_rref` generates matrices in rref.
         #[test]
@@ -1627,6 +1765,18 @@ mod tests {
             let mut m_red = m.clone();
             m_red.row_reduce();
             prop_assert_eq!(m, m_red);
+        }
+
+        /// The blocked `p = 2` transpose must agree with the entry-at-a-time one, at every shape.
+        #[test]
+        fn test_transpose_matches_naive(m: Matrix) {
+            prop_assert_eq!(m.transpose(), naive_transpose(&m));
+        }
+
+        /// Transposing twice is the identity, at every prime.
+        #[test]
+        fn test_transpose_involution(m: Matrix) {
+            prop_assert_eq!(m.transpose().transpose(), m);
         }
     }
 }
