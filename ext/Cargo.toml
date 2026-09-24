@@ -67,7 +67,6 @@ members = [
     "crates/algebra",
     "crates/bivec",
     "crates/fp",
-    "crates/fp-cuda",
     "crates/maybe-rayon",
     "crates/once",
     "crates/query",

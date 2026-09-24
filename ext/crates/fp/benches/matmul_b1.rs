@@ -1,12 +1,7 @@
 use std::time::Instant;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-#[path = "../examples/common/mod.rs"]
-mod common;
-use common::matmul_b1;
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 const SIZES: &[usize] = &[128, 256, 512, 1024, 2048, 4096, 8192];
@@ -43,7 +38,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
     // One-shot correctness check (outside the criterion timing loop) before benching.
     let (a, b) = (random_matrix(size, size), random_matrix(size, size));
     let cpu_ref = &a * &b;
-    let gpu_ref = matmul_b1(gpu, &a, &b).expect("GPU matmul launch failed");
+    let gpu_ref = a.cuda_mul(gpu, &b).expect("GPU matmul launch failed");
     assert_bit_equal(&cpu_ref, &gpu_ref);
 
     group.bench_function("cpu_fast_mul_concurrent", |bencher| {
@@ -57,7 +52,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
     group.bench_function("gpu_matmul_b1", |bencher| {
         bencher.iter_batched(
             || (random_matrix(size, size), random_matrix(size, size)),
-            |(a, b)| matmul_b1(gpu, &a, &b).expect("GPU matmul launch failed"),
+            |(a, b)| a.cuda_mul(gpu, &b).expect("GPU matmul launch failed"),
             BatchSize::SmallInput,
         );
     });
@@ -69,7 +64,7 @@ fn bench_square(c: &mut Criterion, gpu: &GpuContext, size: usize) {
     let runs = 5;
     let start = Instant::now();
     for _ in 0..runs {
-        let _ = matmul_b1(gpu, &a, &b).expect("GPU matmul launch failed");
+        let _ = a.cuda_mul(gpu, &b).expect("GPU matmul launch failed");
     }
     let gpu_avg = start.elapsed().as_secs_f64() / runs as f64;
 
@@ -95,7 +90,7 @@ fn bench_all(c: &mut Criterion) {
     let (major, minor) = gpu
         .compute_capability()
         .expect("failed to query compute capability");
-    println!("fp-cuda bench running on sm_{major}{minor}");
+    println!("fp gpu bench running on sm_{major}{minor}");
 
     for &size in SIZES {
         bench_square(c, &gpu, size);

@@ -5,13 +5,9 @@
 //! the whole B matrix (K*N/8 bytes) fits in L2. These shapes hold FLOPs fixed while flipping "B
 //! fits in L2", which a pure size/occupancy story cannot explain.
 //!
-//! Run: `cargo run --release -p fp-cuda --example bench_shapes`.
+//! Run: `cargo run --release -p fp --features gpu --example bench_shapes`.
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::matmul_b1_timed;
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
@@ -80,7 +76,7 @@ fn main() -> anyhow::Result<()> {
         let b_mb = (k as f64) * (n as f64) / 8.0 / 1e6;
         let a = make(m, k);
         let b = make(k, n);
-        let (_, secs) = matmul_b1_timed(&gpu, &a, &b, iters)?;
+        let (_, secs) = a.cuda_mul_timed(&gpu, &b, iters)?;
         println!(
             "{m:>7} {k:>7} {n:>7} | {b_mb:>9.1} {:>6} | {:>9.1} | {note}",
             if b_mb <= l2_mb { "yes" } else { "NO" },

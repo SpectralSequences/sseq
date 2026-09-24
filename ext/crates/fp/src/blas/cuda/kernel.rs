@@ -1,4 +1,4 @@
-//! CUDA backend for `fp::blas` F_2 matrix multiplication on Hopper.
+//! Host side of the Hopper `matmul_b1` kernel: compilation, marshalling and launch.
 
 use std::{
     collections::HashMap,
@@ -18,11 +18,11 @@ use cudarc::{
     nvrtc::{CompileError, CompileOptions, Ptx, compile_ptx_with_opts},
 };
 
-pub mod params;
-use params::{MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+use super::params::{self, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+use crate::{matrix::Matrix, prime::TWO};
 
 /// The CUDA C++ kernel, compiled to PTX at runtime by NVRTC — see [`compile_kernel`].
-static KERNEL_SRC: &str = include_str!("../cuda_kernels/matmul_b1.cu");
+static KERNEL_SRC: &str = include_str!("matmul_b1.cu");
 
 /// The virtual architecture the kernel is compiled for.
 ///
@@ -133,14 +133,10 @@ impl GpuContext {
         Ok((major, minor))
     }
 
-    pub fn default_stream(&self) -> Arc<CudaStream> {
-        self.ctx.default_stream()
-    }
-
     /// A CUDA stream **private to the calling OS thread**.
     ///
     /// Created lazily on first use and reused thereafter, cached per thread in this context's
-    /// `streams` map. Submitting through this instead of the context's single `default_stream()`
+    /// `streams` map. Submitting through this instead of the context's single default stream
     /// lets calls from different threads run on distinct streams — overlapping transfers and
     /// kernels instead of serializing — while all sub-steps of one call share one stream, which
     /// keeps ordering correct within a thread. This is what lets `try_mul` (and the row-reduce) run
@@ -159,71 +155,53 @@ impl GpuContext {
             })
             .clone()
     }
+}
 
-    pub fn kernel(&self) -> &CudaFunction {
-        &self.kernel
+impl Matrix {
+    /// Compute `self · rhs` on the GPU.
+    ///
+    /// Both operands must be over F₂. The operands are read in place: A is gathered into the
+    /// kernel's tile layout straight from its limbs, and B is uploaded as it stands, to be
+    /// rearranged K-major on the device by `transpose_tile_b1_kernel`.
+    pub fn cuda_mul(&self, gpu: &GpuContext, rhs: &Self) -> anyhow::Result<Self> {
+        Ok(matmul_b1(gpu, self, rhs, 1)?.0)
+    }
+
+    /// Like [`Self::cuda_mul`], but also returns the average **kernel-only** wall time in seconds.
+    ///
+    /// The time is averaged over `time_iters` back-to-back launches, and excludes host
+    /// marshalling and the H2D/D2H copies.
+    ///
+    /// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor *store* (overwrite,
+    /// not accumulate), so repeated launches against the same device buffers are idempotent and the
+    /// returned matrix is the correct product.
+    pub fn cuda_mul_timed(
+        &self,
+        gpu: &GpuContext,
+        rhs: &Self,
+        time_iters: usize,
+    ) -> anyhow::Result<(Self, f64)> {
+        matmul_b1(gpu, self, rhs, time_iters.max(1))
     }
 }
 
-/// Multiply two bit-packed F₂ matrices on the GPU.
-///
-/// Operands are plain **row-major, K-major** limb arrays — the exact layout `fp::Matrix::to_bytes`
-/// produces (little-endian `u64` limbs, one bit per entry, `columns.div_ceil(64)` limbs per row, no
-/// inter-row padding):
-///
-/// - `a`: the `m`×`k` left operand, `m * k.div_ceil(64)` limbs.
-/// - `b`: the `k`×`n` right operand, `k * n.div_ceil(64)` limbs.
-///
-/// The kernel wants B K-major; `transpose_tile_b1_kernel` rearranges it on the device, so B is
-/// uploaded exactly as it stands and the host does no bit-level work on either operand.
-///
-/// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to hand to
-/// `fp::Matrix::from_data`.
-pub fn matmul_b1_raw(
+/// Multiply `a · b` over F₂ on the GPU, launching the kernel `time_iters` times.
+fn matmul_b1(
     gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
-) -> anyhow::Result<Vec<u64>> {
-    Ok(matmul_b1_inner(gpu, a, m, k, b, n, 1)?.0)
-}
-
-/// Like [`matmul_b1_raw`], but also returns the average **kernel-only** wall time in seconds.
-///
-/// The time is averaged over `time_iters` back-to-back launches, and excludes host
-/// (de)serialization, the TMA-layout pre-arrangement, and the H2D/D2H copies.
-///
-/// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor *store* (overwrite, not
-/// accumulate), so repeated launches against the same device buffers are idempotent and the
-/// returned limbs are the correct product.
-pub fn matmul_b1_raw_timed(
-    gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
+    a: &Matrix,
+    b: &Matrix,
     time_iters: usize,
-) -> anyhow::Result<(Vec<u64>, f64)> {
-    matmul_b1_inner(gpu, a, m, k, b, n, time_iters.max(1))
-}
+) -> anyhow::Result<(Matrix, f64)> {
+    assert_eq!(a.prime(), TWO);
+    assert_eq!(b.prime(), TWO);
+    assert_eq!(a.columns(), b.rows());
 
-#[allow(clippy::too_many_arguments)]
-fn matmul_b1_inner(
-    gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
-    time_iters: usize,
-) -> anyhow::Result<(Vec<u64>, f64)> {
+    let (m, k, n) = (a.rows(), a.columns(), b.columns());
+    let mut c = Matrix::new(TWO, m, n);
+    if m == 0 || k == 0 || n == 0 {
+        return Ok((c, 0.0));
+    }
     let n_lim = n.div_ceil(64);
-    let k_lim = k.div_ceil(64);
-    assert_eq!(a.len(), m * k_lim, "A limb count mismatch");
-    assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
 
     let k_padded = k.next_multiple_of(TILE_K);
     // Pad M to a whole number of M-tiles; the extra padded rows produce zeros
@@ -238,13 +216,13 @@ fn matmul_b1_inner(
 
     let stream = gpu.stream();
 
-    let a_padded = pad_2d(a, m, k_lim, m_padded, k_padded / 64);
-    let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
+    let a_interleaved = interleave_a(a, m_tiles, k_chunks);
     let a_dev = stream.clone_htod(&a_interleaved)?;
 
-    // B goes up unpadded; the kernel reads rows past `k` as zeros, so the K padding costs no host
-    // copy.
-    let b_dev = stream.clone_htod(b)?;
+    // B goes up as its first `k` rows, row stride and all; the kernel reads rows past `k` as zeros,
+    // so the K padding costs no host copy.
+    let b_stride = b.stride();
+    let b_dev = stream.clone_htod(&b.data()[..k * b_stride])?;
     let bt_dev = stream.alloc_zeros::<u64>(k_chunks * n_groups * (NG as usize * 64) * KL)?;
     {
         let cfg = LaunchConfig {
@@ -253,16 +231,19 @@ fn matmul_b1_inner(
             shared_mem_bytes: 0,
         };
         let mut lb = stream.launch_builder(&gpu.transpose_kernel);
-        let (n_lim_i, k_i, n_groups_i) = (n_lim as i32, k as i32, n_groups as i32);
+        let (n_lim_i, b_stride_i, k_i, n_groups_i) =
+            (n_lim as i32, b_stride as i32, k as i32, n_groups as i32);
         lb.arg(&b_dev)
             .arg(&bt_dev)
             .arg(&n_lim_i)
+            .arg(&b_stride_i)
             .arg(&k_i)
             .arg(&n_groups_i);
-        // SAFETY: the five pushed arguments match `transpose_tile_b1_kernel`'s parameter list in
-        // order and type; `b_dev` holds `k * n_lim` limbs and the kernel indexes it only where
-        // `row < k` and `limb < n_lim`; `bt_dev` is exactly the tile count the grid covers; both
-        // buffers outlive the launch, their guards being held until the final synchronize.
+        // SAFETY: the six pushed arguments match `transpose_tile_b1_kernel`'s parameter list in
+        // order and type; `b_dev` holds `k * b_stride` limbs and the kernel indexes it only where
+        // `row < k` and `limb < n_lim <= b_stride`; `bt_dev` is exactly the tile count the grid
+        // covers; both buffers outlive the launch, their guards being held until the final
+        // synchronize.
         unsafe { lb.launch(cfg) }?;
     }
 
@@ -370,12 +351,16 @@ fn matmul_b1_inner(
     let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
 
     let c_all = stream.clone_dtoh(&c_dev)?;
-    let c_limbs: Vec<u64> = c_all
-        .chunks_exact(n_padded_lim)
+    let c_stride = c.stride();
+    for (dst, src) in c
+        .data_mut()
+        .chunks_exact_mut(c_stride)
+        .zip(c_all.chunks_exact(n_padded_lim))
         .take(m)
-        .flat_map(|row| row[..n_lim].iter().copied())
-        .collect();
-    Ok((c_limbs, kernel_secs))
+    {
+        dst[..n_lim].copy_from_slice(&src[..n_lim]);
+    }
+    Ok((c, kernel_secs))
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.
@@ -421,41 +406,22 @@ fn encode_tma(
 /// out of bounds.
 ///
 /// Tiles are ordered: for K-chunk kk=0..k_chunks-1, then M-tile bi=0..m_tiles-1.
-fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
-    let sa = k / 64;
-    let k_chunks = k / TILE_K;
-    let m_tiles = m / TILE_M;
+fn interleave_a(a: &Matrix, m_tiles: usize, k_chunks: usize) -> Vec<u64> {
+    let (m, k_lim, stride) = (a.rows(), a.columns().div_ceil(64), a.stride());
+    let data = a.data();
     let tile_u64s = TILE_M * KL;
     let mut out = vec![0u64; k_chunks * m_tiles * tile_u64s];
 
     for kk in 0..k_chunks {
+        let (kl_start, kl_end) = (kk * KL, ((kk + 1) * KL).min(k_lim));
         for bi in 0..m_tiles {
             let base = (kk * m_tiles + bi) * tile_u64s;
-            for row in 0..TILE_M {
-                for kl in 0..KL {
-                    let global_row = bi * TILE_M + row;
-                    let global_kl = kk * KL + kl;
-                    let val = if global_row < m && global_kl < sa {
-                        a[global_row * sa + global_kl]
-                    } else {
-                        0
-                    };
-                    out[base + row * KL + kl] = val;
-                }
+            for row in 0..TILE_M.min(m.saturating_sub(bi * TILE_M)) {
+                let src = (bi * TILE_M + row) * stride;
+                out[base + row * KL..][..kl_end - kl_start]
+                    .copy_from_slice(&data[src + kl_start..src + kl_end]);
             }
         }
-    }
-    out
-}
-
-fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<u64> {
-    if rows == nr && stride == ns {
-        return src.to_vec();
-    }
-    let mut out = vec![0u64; nr * ns];
-    for r in 0..rows {
-        let n = stride.min(ns);
-        out[r * ns..r * ns + n].copy_from_slice(&src[r * stride..r * stride + n]);
     }
     out
 }
@@ -497,6 +463,42 @@ mod tests {
             assert!(
                 src.contains(kernel),
                 "{kernel} is missing from the compiled PTX"
+            );
+        }
+    }
+
+    /// A random `rows × columns` matrix over F₂ whose row stride has room for `spare` more columns.
+    fn random_strided(rows: usize, columns: usize, spare: usize) -> Matrix {
+        let mut m = Matrix::new_with_capacity(TWO, rows, columns, rows, columns + spare);
+        for i in 0..rows {
+            for j in 0..columns {
+                m.row_mut(i).set_entry(j, rand::random::<bool>() as u32);
+            }
+        }
+        m
+    }
+
+    /// The kernel reads operands in place, so a row stride wider than the columns (as
+    /// `Matrix::new_with_capacity` produces) must not leak into the product.
+    #[test]
+    fn cuda_mul_strided_operands() {
+        if !gpu_available() {
+            return; // no usable GPU/driver in this environment — nothing to exercise
+        }
+        let gpu = GpuContext::new(0).expect("GPU is available");
+        for &(m, k, n, spare) in &[
+            (300, 700, 500, 200),
+            (64, 1500, 130, 64),
+            (200, 65, 2100, 1000),
+        ] {
+            let a = random_strided(m, k, spare);
+            let b = random_strided(k, n, spare);
+            assert!(a.stride() > k.div_ceil(64) && b.stride() > n.div_ceil(64));
+            let c = a.cuda_mul(&gpu, &b).expect("GPU matmul launch failed");
+            assert_eq!(
+                c,
+                a.fast_mul_sequential(&b),
+                "mismatch at {m}x{k} * {k}x{n}"
             );
         }
     }

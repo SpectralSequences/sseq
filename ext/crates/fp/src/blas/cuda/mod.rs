@@ -2,9 +2,12 @@
 
 use std::sync::OnceLock;
 
-use fp_cuda::GpuContext;
-
 use crate::{matrix::Matrix, prime::TWO};
+
+mod kernel;
+mod params;
+
+pub use kernel::{GpuContext, compile_kernel};
 
 /// Smallest `min(m, k, n)` for which we attempt the GPU.
 ///
@@ -37,43 +40,19 @@ fn context() -> Option<&'static GpuContext> {
     .as_ref()
 }
 
-/// Row-major, K-major `u64` limbs — the exact layout `fp_cuda::matmul_b1_raw` expects.
-///
-/// That is `rows × columns.div_ceil(64)` limbs with no inter-row padding. Uses `Matrix::to_bytes`,
-/// which already strips the physical row stride.
-fn to_limbs(m: &Matrix) -> Vec<u64> {
-    let stride = m.columns().div_ceil(64);
-    let mut bytes = Vec::with_capacity(m.rows() * stride * 8);
-    m.to_bytes(&mut bytes).expect("Vec writes never fail");
-    let (chunks, _) = bytes.as_chunks::<8>();
-    chunks.iter().map(|&c| u64::from_le_bytes(c)).collect()
-}
-
 /// Try to compute `a · b` on the GPU.
 ///
-/// This is consulted by `<&Matrix as Mul>::mul` before the CPU BLAS path: for large enough
-/// `p = 2` products it converts the operands to the raw row-major limb layout `fp-cuda` expects,
-/// runs the kernel, and rebuilds a [`Matrix`]. Anything that makes the GPU path unavailable or
-/// unsuitable — no device, a launch error, or a below-threshold size — returns `None`.
-///
-/// Assumes `a.prime() == b.prime() == 2` and `a.columns() == b.rows()`.
+/// This is consulted by `<&Matrix as Mul>::mul` before the CPU BLAS path. Anything that makes the
+/// GPU path unavailable or unsuitable — no device, a launch error, or a below-threshold size —
+/// returns `None`.
 pub(super) fn try_mul(a: &Matrix, b: &Matrix) -> Option<Matrix> {
     debug_assert_eq!(a.prime(), TWO);
     debug_assert_eq!(b.prime(), TWO);
     debug_assert_eq!(a.columns(), b.rows());
 
-    let (m, k, n) = (a.rows(), a.columns(), b.columns());
     let t = threshold();
-    if m < t || k < t || n < t {
+    if a.rows() < t || a.columns() < t || b.columns() < t {
         return None;
     }
-
-    let ctx = context()?;
-    let a_limbs = to_limbs(a);
-    let b_limbs = to_limbs(b);
-
-    // Lock-free: `matmul_b1_raw` submits on the calling thread's own stream with per-call device
-    // buffers, so concurrent callers do not interfere (see [`context`]).
-    let c = fp_cuda::matmul_b1_raw(ctx, &a_limbs, m, k, &b_limbs, n).ok()?;
-    Some(Matrix::from_data(TWO, m, n, c))
+    a.cuda_mul(context()?, b).ok()
 }

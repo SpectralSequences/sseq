@@ -1,10 +1,6 @@
 use std::time::Instant;
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::matmul_b1;
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn main() -> anyhow::Result<()> {
@@ -40,14 +36,14 @@ fn main() -> anyhow::Result<()> {
         let b = Matrix::from_data(TWO, k, n, b_data);
 
         // Warmup (includes compilation, allocation)
-        let _ = matmul_b1(&gpu, &a, &b)?;
+        let _ = a.cuda_mul(&gpu, &b)?;
 
         // Timed: end-to-end (host serial + H2D + kernel + D2H)
         let trials = 3;
         let mut best = f64::MAX;
         for _ in 0..trials {
             let t0 = Instant::now();
-            let _ = matmul_b1(&gpu, &a, &b)?;
+            let _ = a.cuda_mul(&gpu, &b)?;
             best = best.min(t0.elapsed().as_secs_f64());
         }
 

@@ -3,13 +3,9 @@
 //! No CPU cross-check beyond a single correctness spot-check at 4096, so a knob configuration can
 //! be compared quickly:
 //!
-//! `cargo run --release -p fp-cuda --example tune`
+//! `cargo run --release -p fp --features gpu --example tune`
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::{matmul_b1, matmul_b1_timed};
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
@@ -31,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         let a = make(4096, 4096);
         let b = make(4096, 4096);
         let cpu = &a * &b;
-        let gpu_ref = matmul_b1(&gpu, &a, &b)?;
+        let gpu_ref = a.cuda_mul(&gpu, &b)?;
         if cpu != gpu_ref {
             eprintln!("CORRECTNESS FAILURE at 4096");
             std::process::exit(1);
@@ -45,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     ] {
         let a = make(m, k);
         let b = make(k, n);
-        let (_, secs) = matmul_b1_timed(&gpu, &a, &b, iters)?;
+        let (_, secs) = a.cuda_mul_timed(&gpu, &b, iters)?;
         println!(
             "  {m:>6} x {k:>6} x {n:>6}: {:>7.1} TOPS  ({:>8.3} ms)",
             binary_tops(m, k, n, secs),

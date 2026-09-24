@@ -432,11 +432,12 @@ extern "C" __global__ void matmul_b1_kernel(
 // `jj` gathers bit `jj` out of all 64 rows. The gather reads one shared slot at a time across the
 // whole block, so every read is a broadcast rather than a bank conflict.
 //
-// Both the loads (a column of B, stride n_lim) and the stores (stride KL) are strided.
+// Both the loads (a column of B, stride b_stride) and the stores (stride KL) are strided.
 extern "C" __global__ void transpose_tile_b1_kernel(
-    const unsigned long long* __restrict__ b, // k_padded x n_lim, row-major
+    const unsigned long long* __restrict__ b, // k_rows x b_stride, row-major
     unsigned long long* __restrict__ out,     // k_chunks x n_groups x (NB*KL)
-    int n_lim,                                // limbs per row of B
+    int n_lim,                                // limbs per row of B that hold columns
+    int b_stride,                             // limbs between rows of B (>= n_lim)
     int k_rows,                               // rows of B actually uploaded (the unpadded k)
     int n_groups)                             // column groups of NG limbs
 {
@@ -452,7 +453,7 @@ extern "C" __global__ void transpose_tile_b1_kernel(
     const int row = kk * TK + kl * 64 + t;
     // Column groups past the operand, and K rows past the end of B, contribute zeros — so B is
     // uploaded unpadded and the K padding costs no host copy.
-    sB[t] = (limb < n_lim && row < k_rows) ? b[(long long)row * n_lim + limb] : 0ULL;
+    sB[t] = (limb < n_lim && row < k_rows) ? b[(long long)row * b_stride + limb] : 0ULL;
     __syncthreads();
 
     unsigned long long val = 0;

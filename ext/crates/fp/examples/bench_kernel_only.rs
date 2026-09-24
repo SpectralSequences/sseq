@@ -6,13 +6,9 @@
 //! launches are timed (see `matmul_b1_timed`). This is the apples-to-apples number to compare
 //! against the ~100-binary-TOPS pre-swizzle kernel baseline.
 //!
-//! Run: `cargo run --release -p fp-cuda --example bench_kernel_only`.
+//! Run: `cargo run --release -p fp --features gpu --example bench_kernel_only`.
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::{matmul_b1, matmul_b1_timed};
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn binary_tops(m: usize, k: usize, n: usize, secs: f64) -> f64 {
@@ -44,13 +40,13 @@ fn main() -> anyhow::Result<()> {
 
         // Bit-exact correctness check against the CPU path once per shape.
         let cpu = &a * &b;
-        let (gpu_ref, _) = matmul_b1_timed(&gpu, &a, &b, 1)?;
+        let (gpu_ref, _) = a.cuda_mul_timed(&gpu, &b, 1)?;
         let ok = cpu == gpu_ref;
         // matmul_b1 (single launch) must agree with the timed multi-launch path.
-        let single = matmul_b1(&gpu, &a, &b)?;
+        let single = a.cuda_mul(&gpu, &b)?;
         let idempotent = single == gpu_ref;
 
-        let (_, secs) = matmul_b1_timed(&gpu, &a, &b, iters)?;
+        let (_, secs) = a.cuda_mul_timed(&gpu, &b, iters)?;
         println!(
             "  {m:>6} x {k:>6} x {n:>6}: {:>7.1} binary TOPS  ({:>8.3} ms/launch, {iters} iters)  \
              correct={ok} idempotent={idempotent}",

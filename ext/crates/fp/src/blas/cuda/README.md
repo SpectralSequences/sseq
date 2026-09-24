@@ -1,6 +1,6 @@
-# fp-cuda
+# `fp::blas::cuda`
 
-CUDA backend for the F₂ matrix multiplication implemented in `crates/fp/src/blas/`.
+Hopper GPU backend for the F₂ matrix multiplication in `fp::blas`, behind `fp`'s `gpu` feature.
 
 ## Why a binary tensor-core kernel?
 
@@ -73,15 +73,15 @@ driver and NVRTC at runtime.
 
 ## Building
 
-`src/lib.rs` embeds `cuda_kernels/matmul_b1.cu` with `include_str!`, NVRTC compiles it to PTX on the
+`kernel.rs` embeds `matmul_b1.cu` with `include_str!`, NVRTC compiles it to PTX on the
 first `GpuContext::new` — once per process, a couple hundred milliseconds — and the driver JITs that
 PTX at module load.
 
-The kernel's tuning knobs live in `src/params.rs`. The host reads those constants directly and
+The kernel's tuning knobs live in `params.rs`. The host reads those constants directly and
 passes the same values to NVRTC as `-D` options; the kernel defines none of them itself and refuses
 to compile if one is missing.
 
-**When libnvrtc is absent** (CI, or a contributor without the CUDA Toolkit) the crate builds and its
+**When libnvrtc is absent** (CI, or a contributor without the CUDA Toolkit) `fp` builds and its
 tests pass: `GpuContext::new` returns `Err`, and `fp`'s `gpu` feature — off by default — falls back
 to the CPU path.
 
@@ -90,27 +90,27 @@ to the CPU path.
 The `kernel_ptx` example prints the generated PTX:
 
 ```bash
-cargo run -p fp-cuda --example kernel_ptx > matmul_b1.ptx
+cargo run -p fp --features gpu --example kernel_ptx > matmul_b1.ptx
 ptxas -arch=sm_90a -v matmul_b1.ptx -o /dev/null
 ```
 
 ## Running
 
-All from `ext/crates/fp-cuda`:
+All from `ext/crates/fp`:
 
 ```bash
 # Smoke test (multiplies a few small shapes, asserts CPU↔GPU equality):
-cargo run --example matmul_b1_demo
+cargo run --features gpu --example matmul_b1_demo
 
 # Kernel-only throughput (the number to quote):
-cargo run --release --example bench_kernel_only
+cargo run --release --features gpu --example bench_kernel_only
 
 # Fast throughput sweep, and the L2-residency check:
-cargo run --release --example tune
-cargo run --release --example bench_shapes
+cargo run --release --features gpu --example tune
+cargo run --release --features gpu --example bench_shapes
 
 # Benchmark against the CPU AVX-512 path in fp::blas:
-cargo bench
+cargo bench --features gpu --bench matmul_b1
 ```
 
 The bench compares each square size in `{128, 256, 512, 1024, 2048, 4096, 8192}`
@@ -118,23 +118,22 @@ against `fp::blas::fast_mul_concurrent`, asserts bit-equality of the outputs,
 and prints binary TOPS for both backends.
 
 Note that the end-to-end `cargo bench` figures (≤30 TOPS) are dominated by host
-serialization and the TMA-layout pre-arrangement, not by the kernel; use
+marshalling and the TMA-layout pre-arrangement, not by the kernel; use
 `bench_kernel_only` for the kernel number.
 
-## Using it from `fp`
+## Using it
 
-The `fp` crate has an optional `gpu` feature (`cargo … --features fp/gpu`)
-that pulls in `fp-cuda` and dispatches large `p = 2` products from
-`<&Matrix as Mul>::mul` to the GPU. It falls back to the CPU BLAS kernel when no
-device is present, when the size is below `FP_CUDA_THRESHOLD` (default 2048), or
+With the `gpu` feature (`cargo … --features fp/gpu`), `<&Matrix as Mul>::mul`
+dispatches large `p = 2` products to the GPU. It falls back to the CPU BLAS
+kernel when no device is present, when the size is below `FP_CUDA_THRESHOLD`, or
 when a launch fails; `FP_CUDA_DISABLE` forces the CPU path, and `FP_CUDA_DEBUG`
 prints the launch parameters. See the `gpu_dispatch_matches_cpu` integration
 test.
 
-`fp-cuda`'s library API is fp-agnostic (raw row-major limb slices) so the
-dependency is acyclic; the `Matrix` glue lives on the `fp` side
-(`src/blas/cuda.rs`) and in the examples/benches, which take a dev-dependency on
-`fp`.
+To drive a device directly, open a `GpuContext` and call `Matrix::cuda_mul` (or
+`Matrix::cuda_mul_timed`, which also reports the kernel-only time). Both read the
+operands' limbs in place, row stride included, and build the product straight
+into a new `Matrix`.
 
 ## Status
 
@@ -173,5 +172,3 @@ loads.
 
 - Keep operands resident on the device across `step_resolution`'s successive
   multiplications (the current dispatch re-marshals and re-copies each product).
-- Speed up the host-side bit transpose in `transpose_b`, which dominates
-  end-to-end time at large sizes.

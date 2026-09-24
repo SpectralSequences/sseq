@@ -1,19 +1,15 @@
-//! Smoke test for the `fp-cuda` matmul kernel.
+//! Smoke test for the `fp::blas::cuda` matmul kernel.
 //!
 //! Multiplies one pair of small F_2 matrices on the GPU and verifies the result against `fp::blas`.
-//! Run with `cargo oxide run -p fp-cuda --example matmul_b1_demo`.
+//! Run with `cargo run -p fp --features gpu --example matmul_b1_demo`.
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::matmul_b1;
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn main() -> anyhow::Result<()> {
     let gpu = GpuContext::new(0)?;
     let (major, minor) = gpu.compute_capability()?;
-    println!("=== fp-cuda matmul_b1 demo ===");
+    println!("=== fp::blas::cuda matmul_b1 demo ===");
     println!("GPU compute capability: sm_{major}{minor}");
 
     let mut rng = rand::rng();
@@ -48,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         let a = make(m, k);
         let b = make(k, n);
         let cpu = &a * &b;
-        let gpu_out = matmul_b1(&gpu, &a, &b)?;
+        let gpu_out = a.cuda_mul(&gpu, &b)?;
         let ok = cpu == gpu_out;
         println!(
             "  {m}x{k} * {k}x{n}: {}",

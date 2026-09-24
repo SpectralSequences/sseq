@@ -5,11 +5,7 @@
 //!
 //! `ncu --set basic --launch-count 2 target/release/examples/prof_sizes`
 
-use fp::{matrix::Matrix, prime::TWO};
-use fp_cuda::GpuContext;
-
-mod common;
-use common::matmul_b1;
+use fp::{blas::cuda::GpuContext, matrix::Matrix, prime::TWO};
 use rand::Rng;
 
 fn main() -> anyhow::Result<()> {
@@ -25,7 +21,7 @@ fn main() -> anyhow::Result<()> {
     for &n in &[16384usize, 32768] {
         let a = make(n, n);
         let b = make(n, n);
-        let _ = matmul_b1(&gpu, &a, &b)?;
+        let _ = a.cuda_mul(&gpu, &b)?;
         eprintln!("launched {n}");
     }
     Ok(())

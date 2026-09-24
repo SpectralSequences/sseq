@@ -44,7 +44,7 @@
         ]
         ++ super.defaultPackages.devTools.${system};
 
-      # CUDA toolkit for fp-cuda's Hopper wgmma.b1 kernel: libnvrtc, which compiles
+      # CUDA toolkit for fp's Hopper wgmma.b1 kernel (the `gpu` feature): libnvrtc, which compiles
       # the kernel at *runtime*. Kept out of `commonPackages` (and the default
       # shell) so contributors and the `apps.test`/CI closure don't fetch the
       # multi-GB unfree CUDA tree for the opt-in backend. cudarc dlopens both
