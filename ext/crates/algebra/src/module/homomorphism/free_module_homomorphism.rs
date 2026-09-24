@@ -99,13 +99,11 @@ where
         input_degree: i32,
         input_index: usize,
     ) {
-        assert!(input_degree >= self.source.min_degree());
         assert_eq!(
             self.target.dimension(input_degree - self.degree_shift),
             result.as_slice().len()
         );
-        let mut cursor = self.source.opgen_cursor(input_degree);
-        self.apply_to_basis_element_with(&mut cursor, result, coeff, input_index);
+        self.apply_to_basis_element_restricted(result, coeff, input_degree, input_index)
     }
 
     /// Reuses one cursor across the terms of `input`, which `iter_nonzero` yields in ascending
@@ -147,23 +145,11 @@ where
     /// The columns are the target's dimension in the SHIFTED degree, matching what
     /// [`Self::get_matrix`] asserts and what each row is then filled to.
     fn get_partial_matrix(&self, degree: i32, inputs: &[usize]) -> Matrix {
-        let mut matrix = Matrix::new(
-            self.prime(),
-            inputs.len(),
+        self.get_partial_matrix_restricted(
+            degree,
+            inputs,
             self.target.dimension(degree - self.degree_shift),
-        );
-
-        if matrix.columns() == 0 {
-            return matrix;
-        }
-
-        let source = &*self.source;
-        matrix.maybe_par_iter_mut().enumerate().for_each_init(
-            || source.opgen_cursor(degree),
-            |cursor, (i, row)| self.apply_to_basis_element_with(cursor, row, 1, inputs[i]),
-        );
-
-        matrix
+        )
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
