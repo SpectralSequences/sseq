@@ -430,24 +430,28 @@ fn interleave_a(a: &Matrix, m_tiles: usize, k_chunks: usize) -> Vec<u64> {
 mod tests {
     use std::sync::OnceLock;
 
-    use super::*;
+    use proptest::prelude::*;
 
-    /// `true` iff a usable CUDA device is present, probed once for the whole test binary.
+    use super::*;
+    use crate::matrix::arbitrary::MatrixArbParams;
+
+    /// A context on device 0 shared by the whole test binary, or `None` if there is no usable GPU.
     ///
     /// `GpuContext::new` initializes the CUDA driver through cudarc, which *panics* (rather than
     /// returning `Err`) when no driver library is present — as on GPU-less CI. We silence the panic
     /// hook and catch the unwind so the probe reports "no GPU" instead of aborting the run. Every
-    /// device-touching test gates on this and returns early when it is `false`, so the whole GPU
-    /// test suite is disabled cleanly (rather than failing) wherever there is no device.
-    fn gpu_available() -> bool {
-        static AVAIL: OnceLock<bool> = OnceLock::new();
-        *AVAIL.get_or_init(|| {
+    /// device-touching test gates on this and returns early on `None`, so the whole GPU test suite
+    /// is disabled cleanly (rather than failing) wherever there is no device.
+    fn gpu() -> Option<&'static GpuContext> {
+        static GPU: OnceLock<Option<GpuContext>> = OnceLock::new();
+        GPU.get_or_init(|| {
             let prev_hook = std::panic::take_hook();
             std::panic::set_hook(Box::new(|_| {}));
-            let ok = std::panic::catch_unwind(|| GpuContext::new(0).is_ok()).unwrap_or(false);
+            let ctx = std::panic::catch_unwind(|| GpuContext::new(0).ok()).unwrap_or(None);
             std::panic::set_hook(prev_hook);
-            ok
+            ctx
         })
+        .as_ref()
     }
 
     /// The kernel compiles.
@@ -467,39 +471,55 @@ mod tests {
         }
     }
 
-    /// A random `rows × columns` matrix over F₂ whose row stride has room for `spare` more columns.
-    fn random_strided(rows: usize, columns: usize, spare: usize) -> Matrix {
-        let mut m = Matrix::new_with_capacity(TWO, rows, columns, rows, columns + spare);
+    /// `m` copied into a matrix whose row stride has room for `spare` more columns.
+    fn with_spare_columns(m: &Matrix, spare: usize) -> Matrix {
+        let (rows, columns) = (m.rows(), m.columns());
+        let mut out = Matrix::new_with_capacity(TWO, rows, columns, rows, columns + spare);
         for i in 0..rows {
-            for j in 0..columns {
-                m.row_mut(i).set_entry(j, rand::random::<bool>() as u32);
-            }
+            out.row_mut(i).assign(m.row(i));
         }
-        m
+        out
     }
 
-    /// The kernel reads operands in place, so a row stride wider than the columns (as
-    /// `Matrix::new_with_capacity` produces) must not leak into the product.
-    #[test]
-    fn cuda_mul_strided_operands() {
-        if !gpu_available() {
-            return; // no usable GPU/driver in this environment — nothing to exercise
-        }
-        let gpu = GpuContext::new(0).expect("GPU is available");
-        for &(m, k, n, spare) in &[
-            (300, 700, 500, 200),
-            (64, 1500, 130, 64),
-            (200, 65, 2100, 1000),
-        ] {
-            let a = random_strided(m, k, spare);
-            let b = random_strided(k, n, spare);
-            assert!(a.stride() > k.div_ceil(64) && b.stride() > n.div_ceil(64));
-            let c = a.cuda_mul(&gpu, &b).expect("GPU matmul launch failed");
-            assert_eq!(
-                c,
-                a.fast_mul_sequential(&b),
-                "mismatch at {m}x{k} * {k}x{n}"
-            );
+    /// An arbitrary `rows × columns` matrix over F₂.
+    fn arb_matrix(rows: usize, columns: usize) -> BoxedStrategy<Matrix> {
+        Matrix::arbitrary_with(MatrixArbParams {
+            p: Some(TWO),
+            rows: Just(rows).boxed(),
+            columns: Just(columns).boxed(),
+        })
+    }
+
+    /// Multipliable operands, a number of spare columns to widen their row stride by, and a launch
+    /// count.
+    ///
+    /// The dimensions straddle the kernel's M, N and K tiles, so every axis sees both whole tiles
+    /// and ragged tails.
+    fn arb_operands() -> impl Strategy<Value = (Matrix, Matrix, usize, usize)> {
+        (1..=2 * TILE_M + 1, 1..=TILE_K + 65, 1..=2 * NB + 1).prop_flat_map(|(m, k, n)| {
+            (arb_matrix(m, k), arb_matrix(k, n), 0..=128usize, 1..=3usize)
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        /// The GPU product is the product whatever the operands' row stride, and relaunching the
+        /// kernel against the same buffers does not change it.
+        #[test]
+        fn cuda_mul_is_mul((a, b, spare, iters) in arb_operands()) {
+            let Some(gpu) = gpu() else {
+                return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
+            };
+            let reference = if a.rows() >= 32 && b.rows() >= 32 {
+                a.fast_mul_sequential(&b)
+            } else {
+                // Below 32 rows a matrix is not padded for the tiled CPU kernel.
+                a.naive_mul(&b)
+            };
+            let (a, b) = (with_spare_columns(&a, spare), with_spare_columns(&b, spare));
+            let (c, _) = a.cuda_mul_timed(gpu, &b, iters).expect("GPU matmul launch failed");
+            prop_assert_eq!(c, reference);
         }
     }
 
@@ -511,7 +531,7 @@ mod tests {
     /// 0 twice: distinct instances, so distinct streams, without needing a second GPU.
     #[test]
     fn stream_is_scoped_per_context() {
-        if !gpu_available() {
+        if gpu().is_none() {
             return; // no usable GPU/driver in this environment — nothing to exercise
         }
         let a = GpuContext::new(0).expect("GPU is available");

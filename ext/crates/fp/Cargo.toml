@@ -75,14 +75,6 @@ required-features = ["gpu"]
 
 # The GPU examples. The kernel runs only on Hopper; see `src/blas/cuda/README.md`.
 [[example]]
-name = "bench_giant"
-required-features = ["gpu"]
-
-[[example]]
-name = "bench_kernel"
-required-features = ["gpu"]
-
-[[example]]
 name = "bench_kernel_only"
 required-features = ["gpu"]
 
@@ -92,16 +84,4 @@ required-features = ["gpu"]
 
 [[example]]
 name = "kernel_ptx"
-required-features = ["gpu"]
-
-[[example]]
-name = "matmul_b1_demo"
-required-features = ["gpu"]
-
-[[example]]
-name = "prof_sizes"
-required-features = ["gpu"]
-
-[[example]]
-name = "tune"
 required-features = ["gpu"]

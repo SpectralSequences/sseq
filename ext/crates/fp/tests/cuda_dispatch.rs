@@ -4,14 +4,42 @@
 //! taken.
 #![cfg(feature = "gpu")]
 
-use fp::{matrix::Matrix, prime::TWO};
-use rand::Rng;
+use fp::{
+    matrix::{Matrix, arbitrary::MatrixArbParams},
+    prime::TWO,
+};
+use proptest::prelude::*;
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
-fn random_matrix(rows: usize, cols: usize) -> Matrix {
-    let mut rng = rand::rng();
+/// A `rows × cols` matrix over F₂ built from `data`, one `u64` limb per 64 entries of a row.
+fn from_limbs(rows: usize, cols: usize, mut data: Vec<u64>) -> Matrix {
     let limbs = cols.div_ceil(64);
-    let data: Vec<u64> = (0..rows * limbs).map(|_| rng.random()).collect();
+    // `Matrix` keeps the bits past the last column zero.
+    if !cols.is_multiple_of(64) {
+        let mask = (1u64 << (cols % 64)) - 1;
+        for row in data.chunks_exact_mut(limbs) {
+            row[limbs - 1] &= mask;
+        }
+    }
     Matrix::from_data(TWO, rows, cols, data)
+}
+
+/// An arbitrary `rows × cols` matrix over F₂.
+fn arb_matrix(rows: usize, cols: usize) -> BoxedStrategy<Matrix> {
+    Matrix::arbitrary_with(MatrixArbParams {
+        p: Some(TWO),
+        rows: Just(rows).boxed(),
+        columns: Just(cols).boxed(),
+    })
+}
+
+/// A pseudorandom `rows × cols` matrix over F₂, for the concurrency test.
+fn random_matrix(rows: usize, cols: usize, seed: u64) -> Matrix {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let data = (0..rows * cols.div_ceil(64))
+        .map(|_| rng.random())
+        .collect();
+    from_limbs(rows, cols, data)
 }
 
 /// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
@@ -22,34 +50,21 @@ fn threshold() -> usize {
         .unwrap_or(2048)
 }
 
-/// The dispatched product must be bit-identical to the CPU BLAS kernel.
-#[test]
-fn gpu_dispatch_matches_cpu() {
+/// Multipliable operands, every dimension at or above the dispatch threshold and reaching past one
+/// K tile of it.
+fn arb_operands() -> impl Strategy<Value = (Matrix, Matrix)> {
     let t = threshold();
-    for &(m, k, n) in &[
-        (2048, 2048, 2048),
-        (4096, 2048, 3072),
-        (3072, 4096, 2048),
-        // Non-tile-aligned dims (not multiples of the kernel's 192/128/1024
-        // tiles; rows still pad to a multiple of 64 so dispatch fires):
-        // exercise edge masks, partial limbs, and raster tails.
-        (2049, 2051, 2053),
-        (3000, 2112, 4097),
-    ] {
-        assert!(
-            m >= t && k >= t && n >= t,
-            "{m}x{k} * {k}x{n} is below the threshold {t}, so the GPU path is not attempted"
-        );
-        let a = random_matrix(m, k);
-        let b = random_matrix(k, n);
+    let dim = t..=t + 1100;
+    (dim.clone(), dim.clone(), dim).prop_flat_map(|(m, k, n)| (arb_matrix(m, k), arb_matrix(k, n)))
+}
 
-        let dispatched = &a * &b;
-        let reference = a.fast_mul_concurrent(&b);
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(16))]
 
-        assert_eq!(
-            dispatched, reference,
-            "GPU/CPU mismatch at {m}x{k} * {k}x{n}"
-        );
+    /// The dispatched product must be bit-identical to the CPU BLAS kernel.
+    #[test]
+    fn gpu_dispatch_matches_cpu((a, b) in arb_operands()) {
+        prop_assert_eq!(&a * &b, a.fast_mul_concurrent(&b));
     }
 }
 
@@ -69,8 +84,9 @@ fn gpu_matmul_concurrent() {
                     let m = 2048 + 256 * (t % 6);
                     let k = 2048 + 256 * (i % 5);
                     let n = 2048 + 128 * ((t + i) % 6);
-                    let a = random_matrix(m, k);
-                    let b = random_matrix(k, n);
+                    let seed = (t * ITERS + i) as u64;
+                    let a = random_matrix(m, k, 2 * seed);
+                    let b = random_matrix(k, n, 2 * seed + 1);
                     let dispatched = &a * &b;
                     let reference = a.fast_mul_concurrent(&b);
                     assert_eq!(

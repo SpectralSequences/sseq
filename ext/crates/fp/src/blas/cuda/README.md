@@ -99,14 +99,14 @@ ptxas -arch=sm_90a -v matmul_b1.ptx -o /dev/null
 All from `ext/crates/fp`:
 
 ```bash
-# Smoke test (multiplies a few small shapes, asserts CPU↔GPU equality):
-cargo run --features gpu --example matmul_b1_demo
+# Correctness: proptests of the kernel against the CPU path, and of the `Mul` dispatch:
+cargo test --release --features gpu -- cuda
+cargo test --release --features gpu --test cuda_dispatch
 
 # Kernel-only throughput (the number to quote):
 cargo run --release --features gpu --example bench_kernel_only
 
-# Fast throughput sweep, and the L2-residency check:
-cargo run --release --features gpu --example tune
+# The L2-residency check:
 cargo run --release --features gpu --example bench_shapes
 
 # Benchmark against the CPU AVX-512 path in fp::blas:
@@ -138,8 +138,8 @@ into a new `Matrix`.
 ## Status
 
 Validated on an H200 NVL (CUDA 12.4 toolkit) and earlier on an H100 NVL. Outputs
-are **bit-exact** against the CPU `fp::blas` path across `matmul_b1_demo`
-(64…8192) and the kernel-only bench (4096…32768, including a full 32768³ CPU
+are **bit-exact** against the CPU `fp::blas` path across the `cuda_mul_is_mul`
+proptest and the kernel-only bench (4096…32768, including a full 32768³ CPU
 cross-check).
 
 Throughput, **kernel-only** (host setup + H2D/D2H excluded), H200 NVL:
@@ -153,13 +153,13 @@ Throughput, **kernel-only** (host setup + H2D/D2H excluded), H200 NVL:
 
 ## Debugging notes
 
-If a correctness regression appears, start with the **64×256×64 identity /
-small product** — the smallest path that exercises one swizzled tile end to end,
-and the first `matmul_b1_demo` case. A failure there points at the swizzled wgmma
-descriptor constants (`DESC_LBO`, `DESC_SBO`, and the per-k256 advance), which
-derive from CUTLASS `make_gmma_desc<Major::K>` (`LayoutType::B128`), or at a
-host-layout / TMA-box mismatch. Widen to the full `matmul_b1_demo` sweep only
-once that passes.
+If a correctness regression appears, let `cuda_mul_is_mul` shrink it: the
+smallest failing product exercises as few tiles as possible. A failure within a
+single tile points at the swizzled wgmma descriptor constants (`DESC_LBO`,
+`DESC_SBO`, and the per-k256 advance), which derive from CUTLASS
+`make_gmma_desc<Major::K>` (`LayoutType::B128`), or at a host-layout / TMA-box
+mismatch; one that needs several tiles points at the tail masking or the
+rasterization.
 
 Two further invariants are worth a trace if loads fault rather than miscompute:
 the dynamic-SMEM base must be 128-byte aligned for TMA (declared
