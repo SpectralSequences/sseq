@@ -355,19 +355,11 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         }
     }
 
-    /// The dimension in `degree` of the submodule spanned by the generators of degree strictly
-    /// less than `max_gen_degree`.
-    ///
-    /// Equivalently, the dimension in `degree` when we pretend the generators of degree
-    /// `>= max_gen_degree` do not exist. Use [`Module::dimension`] for the unrestricted count.
+    /// The dimension in `degree` of the submodule spanned by the generators of degree strictly less
+    /// than `max_gen_degree`.
     ///
     /// This recomputes the offset by summing the operation dimensions over the generators below
     /// `max_gen_degree`, rather than reading the stored one as [`Self::generator_offset`] does.
-    /// The stored offsets only exist for generators that have been added, so the offset one past
-    /// the last generator below `max_gen_degree` is not available until a generator of degree
-    /// `>= max_gen_degree` is added. Recomputing reads only generator counts of degree
-    /// `< max_gen_degree`, which lets a caller use this while another thread adds generators of
-    /// degree `max_gen_degree`.
     pub fn dimension_from_gens_below(&self, degree: i32, max_gen_degree: i32) -> usize {
         self.iter_gen_offsets([degree])
             .take_while(|gen_data| gen_data.gen_deg < max_gen_degree)

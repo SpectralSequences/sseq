@@ -1006,15 +1006,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
-    ///
-    /// The dependency graph we use is the relaxed one: computing `(s, t)` only requires
-    /// `(s, t - 1)` and `(s - 1, t - 1)` (for `s >= 2`), rather than `(s - 1, t)` and `(s, t - 1)`;
-    /// see `step_resolution_with_subalgebra` for why that suffices. This lets `(s, t)` run
-    /// concurrently with `(s - 1, t)` and keeps many `t`-diagonals (`n = t - s` fixed) in flight at
-    /// once, which is where the parallelism comes from.
-    ///
-    /// The rows `s = 0` and `s = 1` are kept on the strict schedule: `step0` and `step1` read their
-    /// targets through full matrices, so they wait for `(s - 1, t)`.
     #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
