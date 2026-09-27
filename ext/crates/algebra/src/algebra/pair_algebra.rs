@@ -453,10 +453,7 @@ fn a_y_inner(
     result
 }
 
-/// Forwards to the classical shape; see [`PairAlgebra`] for [`MilnorAlgebraInner<NoExterior>`].
-///
-/// A [`MilnorAlgebra`] only ever holds the exterior shape at an odd prime, where this machinery
-/// does not apply.
+/// Forwards to the classical shape, the only one with a secondary algebra.
 impl PairAlgebra for MilnorAlgebra {
     type Element = MilnorPairElement;
 
@@ -469,17 +466,17 @@ impl PairAlgebra for MilnorAlgebra {
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl std::io::Read) -> std::io::Result<Self::Element>;
     }
 
-    /// Unlike the rest of this impl, this does not depend on the shape: it was `0` at every
-    /// prime before the algebra was split, and dispatching it would turn an odd-prime call from a
-    /// value into a panic.
+    /// Answered directly rather than dispatched, so that it stays total at odd primes.
     fn p_tilde(&self) -> usize {
         0
     }
 
+    /// See [`PairAlgebra::element_is_zero`].
     fn element_is_zero(elt: &Self::Element) -> bool {
         MilnorAlgebraInner::<NoExterior>::element_is_zero(elt)
     }
 
+    /// See [`PairAlgebra::finalize_element`].
     fn finalize_element(elt: &mut Self::Element) {
         MilnorAlgebraInner::<NoExterior>::finalize_element(elt);
     }

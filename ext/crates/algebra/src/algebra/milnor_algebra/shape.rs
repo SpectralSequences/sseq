@@ -70,11 +70,9 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// The index of the polynomial generator in `degree`, if there is one.
     ///
     /// The generators are $P(0, \ldots, 0, p^k)$ with the entry in slot `j - 1`, of degree
-    /// `q * XI_DEGREES[j - 1] * p^k`. Dividing by `q` first makes the decoding uniform in the
-    /// prime: the cofactor left by [`factor_pk`] is then exactly `XI_DEGREES[j - 1]`, which is
-    /// coprime to `p` because it is $1 + p + \cdots + p^{j-1}$. Factoring the undivided degree
-    /// instead would over-count the powers of `p` whenever `q` is itself divisible by `p`, which
-    /// is what happens for [`Exterior`] at `p = 2`.
+    /// `q * XI_DEGREES[j - 1] * p^k`. The degree is divided by `q` before factoring out `p`, which
+    /// leaves `XI_DEGREES[j - 1]` as the cofactor; factoring the undivided degree over-counts `k`
+    /// when `p` divides `q`, as for [`Exterior`] at `p = 2`.
     fn polynomial_generator(&self, degree: i32) -> Vec<usize> {
         let p = self.prime();
         let q = self.q() as u32;
@@ -144,7 +142,7 @@ impl MilnorShape for NoExterior {
         algebra.generate_basis_polynomial(max_degree);
     }
 
-    /// Every generator is polynomial; there is no exterior part to contribute any.
+    /// Every generator is polynomial.
     fn generators(algebra: &MilnorAlgebraInner<Self>, degree: i32) -> Vec<usize> {
         algebra.polynomial_generator(degree)
     }
@@ -186,8 +184,7 @@ impl MilnorShape for NoExterior {
 impl MilnorShape for Exterior {
     const HAS_EXTERIOR: bool = true;
 
-    /// At `p = 2` this is 2, the scale $A^{\mathbb{C}}/\tau$ needs — the classical algebra takes
-    /// `q = 1` there because it is the *other* shape, not because the formula fails.
+    /// Uniform in the prime: at `p = 2` it is the grading of $A^{\mathbb{C}}/\tau$.
     fn q(p: ValidPrime) -> i32 {
         2 * (p.as_i32() - 1)
     }
@@ -205,9 +202,8 @@ impl MilnorShape for Exterior {
             if algebra.profile.is_an(true) {
                 return vec![];
             }
-            // $|Q_k| = 2p^k - 1$ is exactly `TAU_DEGREES[k]`. Looking it up keeps this correct at
-            // `p = 2`, where testing `factor_pk(p, degree + 1) == (k, 2)` fails: `2p^k` is then a
-            // pure power of the prime and the cofactor is 1, not 2.
+            // Look up $|Q_k| = 2p^k - 1$ rather than factoring `degree + 1`: at `p = 2` that is a
+            // pure power of the prime, so the cofactor does not identify $Q_k$.
             let Some(k) = combinatorics::tau_degrees(algebra.prime())
                 .iter()
                 .position(|&d| d == degree)
@@ -341,10 +337,7 @@ mod tests {
         /// Every structure constant, against the closed form.
         ///
         /// The two order their factors oppositely: this algebra commutes the *right* factor's
-        /// exterior part leftwards, and the engine the left factor's. The orientation is asserted
-        /// rather than assumed — [`product_orientation_is_not_symmetric`] shows the transposed
-        /// reading is a genuinely different answer, so a wrong choice here would fail loudly
-        /// rather than quietly agree.
+        /// exterior part leftwards, and the engine the left factor's.
         #[test]
         fn products_match_the_engine() {
             let algebra = ctau();
@@ -388,10 +381,8 @@ mod tests {
 
         /// The orientation in [`products_match_the_engine`] is load-bearing.
         ///
-        /// Transposing the factors is not a no-op that happens to agree: it disagrees with the
-        /// engine on some product. Without this, passing the check above would be equally
-        /// consistent with the two conventions coinciding, and a transposed reading of a
-        /// non-commutative product is a well-formed wrong answer rather than an error.
+        /// If transposing the factors agreed everywhere, that test could not tell the two
+        /// conventions apart.
         #[test]
         fn the_transposed_orientation_disagrees() {
             let algebra = ctau();
@@ -455,12 +446,6 @@ mod tests {
         }
 
         /// Under a profile that is not an A(n), $Q_k$ *is* a generator.
-        ///
-        /// It sits in degree `|Q_k| = 2^{k+1} - 1`.
-        ///
-        /// This is the branch where the prime alone no longer identifies the degrees: the
-        /// classical test for it, `factor_pk(p, degree + 1) == (k, 2)`, matches nothing at
-        /// `p = 2`, because `2 p^k` is then a pure power of the prime and leaves cofactor 1.
         #[test]
         fn q_k_is_a_generator_under_a_profile() {
             let profile = MilnorProfile {
@@ -492,10 +477,7 @@ mod tests {
             }
         }
 
-        /// The polynomial generators are the $P(2^k)$, in degree `q * 2^k = 2^{k+1}`.
-        ///
-        /// The classical decoding factors the undivided degree, which at `q = 2` counts one power
-        /// of the prime too many.
+        /// The polynomial generators are the $P(2^k)$, in degree `q * 2^k`.
         #[test]
         fn polynomial_generators_are_found() {
             let algebra = ctau();
@@ -519,13 +501,7 @@ mod tests {
             }
         }
 
-        /// The polynomial generators under a profile that is not an A(n).
-        ///
-        /// They are the $P(0, \ldots, 0, 2^k)$ there, rather than only the $P(2^k)$.
-        ///
-        /// This is the branch that has to divide by `q` before factoring out the prime. Factoring
-        /// the undivided degree — as the classical code does — absorbs `q`'s own factor of 2 at
-        /// `p = 2` and decodes degree 6 as $P(2)$, which lives in degree 4.
+        /// Under a profile that is not an A(n), the $P(0, \ldots, 0, 2^k)$ are generators too.
         #[test]
         fn polynomial_generators_under_a_profile() {
             let profile = MilnorProfile {
@@ -569,14 +545,9 @@ mod tests {
             );
         }
 
-        /// The coproduct is not available on this shape at all.
-        ///
-        /// It is a compile-time restriction rather than an assertion, so this only records that
-        /// the classical one still works and that `MilnorAlgebraInner<Exterior>` does not offer
-        /// the method. The formula ignores the exterior part and grades $\xi_i$ with `q = 1`, so
-        /// reaching it here would give a wrong answer, not an error.
+        /// The classical coproduct of $Sq^2$ has three terms.
         #[test]
-        fn the_classical_coproduct_is_unaffected() {
+        fn classical_coproduct_of_sq2() {
             let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
             classical.compute_basis(8);
             let idx = classical.basis_element_to_index(&MilnorBasisElement {
@@ -590,10 +561,8 @@ mod tests {
 
         /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
         ///
-        /// `SaveFile` validates the header against it, so a collision would let a file written
-        /// over one basis load as the other with every coefficient reindexed. The literals pin
-        /// the classical values, which are a wire format: changing one invalidates saved
-        /// resolutions without any error at load time.
+        /// The literals pin the classical values, which are a wire format: changing one
+        /// invalidates existing saved resolutions.
         #[test]
         fn magic_distinguishes_the_shapes() {
             let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);

@@ -13,10 +13,9 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn magic(&self) -> u32 {
-        // Saved resolutions store coefficients by basis index, so two algebras sharing a magic
-        // decode each other's files as their own basis. The prime settles the shape everywhere
-        // except `Exterior` at `p = 2`, so only that case takes a bit; every configuration that
-        // could already have written a file keeps the value it had.
+        // Saved resolutions store coefficients by basis index, so the shapes must not share a
+        // magic. The prime settles the shape except for `Exterior` at `p = 2`, so only that case
+        // sets a shape bit.
         let shape = if F::HAS_EXTERIOR && self.p == 2 {
             0x4000
         } else {

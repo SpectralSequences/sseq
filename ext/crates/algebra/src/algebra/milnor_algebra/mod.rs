@@ -82,9 +82,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         }
     }
 
-    /// Whether basis elements carry an exterior part.
-    ///
-    /// This is a constant of the shape, so the branches it guards fold away.
+    /// See [`MilnorShape::HAS_EXTERIOR`].
     #[inline]
     pub fn has_exterior(&self) -> bool {
         F::HAS_EXTERIOR
@@ -287,11 +285,6 @@ macro_rules! dispatch_milnor {
 }
 
 /// A dual Steenrod algebra in the Milnor basis, of either [shape](MilnorShape).
-///
-/// [`Self::new`] picks the shape that the prime implies, so the classical algebra is all this
-/// exposes. `MilnorAlgebraInner<Exterior>` at `p = 2` is the mod-$\tau$ C-motivic algebra, which
-/// is a different algebra rather than a different presentation of this one; it is reached through
-/// its own wrapper, not from here.
 #[allow(clippy::large_enum_variant)]
 #[enum_dispatch::enum_dispatch(Algebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum MilnorAlgebra {
@@ -339,10 +332,8 @@ impl MilnorAlgebra {
 }
 
 /// Forwards to the classical shape, which is the only one with a coproduct.
-///
-/// A [`MilnorAlgebra`] only ever holds the exterior shape at an odd prime, where the coproduct
-/// was already unsupported.
 impl Bialgebra for MilnorAlgebra {
+    /// See [`MilnorAlgebraInner::coproduct`].
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         match self {
             Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
@@ -350,12 +341,14 @@ impl Bialgebra for MilnorAlgebra {
         }
     }
 
+    /// The coproduct is computed directly on basis elements, so no decomposition is needed.
     fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
         vec![(op_deg, op_idx)]
     }
 }
 
 impl std::fmt::Display for MilnorAlgebra {
+    /// Forward to the inner algebra.
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Polynomial(a) => a.fmt(f),
