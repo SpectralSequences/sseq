@@ -581,7 +581,10 @@ mod tests {
             );
         }
 
-        /// Generators generate: every basis element in low degrees is a product of them.
+        /// Every non-generator is the product its decomposition claims it is.
+        ///
+        /// Multiplying the terms back is what makes this more than a liveness check: a wrong
+        /// coefficient or a wrong factor still yields a non-empty decomposition.
         #[test]
         fn generators_span_the_algebra() {
             let algebra = ctau();
@@ -600,8 +603,34 @@ mod tests {
                         "{} (degree {t}) does not decompose",
                         algebra.basis_element_from_index(t, i)
                     );
+
+                    let mut product = FpVector::new(TWO, algebra.dimension(t));
+                    for (c, (d1, i1), (d2, i2)) in decomposition {
+                        algebra.multiply_basis_elements(product.as_slice_mut(), c, d1, i1, d2, i2);
+                    }
+                    let mut expected = FpVector::new(TWO, algebra.dimension(t));
+                    expected.set_entry(i, 1);
+                    assert_eq!(
+                        product,
+                        expected,
+                        "{} (degree {t}) decomposes to the wrong element",
+                        algebra.basis_element_from_index(t, i)
+                    );
                 }
             }
+        }
+
+        /// The classical Adem relations are refused here rather than returned wrongly.
+        ///
+        /// They do not hold in $A^{\\mathbb{C}}/\\tau$: in degree 7 the classical relation comes
+        /// back with `P(2) Q_0 P(1)` twice, which cancels over $\\mathbb{F}_2$ and leaves
+        /// `Q_0 P(2) P(1)`, whose value is `Q_0 P(3) + Q_0 P(0, 1)`.
+        #[test]
+        #[should_panic(expected = "not the classical ones")]
+        fn generating_relations_are_refused() {
+            let algebra = ctau();
+            algebra.compute_basis(9);
+            algebra.generating_relations(7);
         }
     }
 }
