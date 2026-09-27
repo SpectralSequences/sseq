@@ -559,6 +559,16 @@ mod tests {
             assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
+        /// The polynomial shape cannot be built at an odd prime.
+        ///
+        /// Were it constructible it would share a [`Algebra::magic`] with the real algebra at that
+        /// prime, since only the exterior shape at 2 carries the discriminating bit.
+        #[test]
+        #[should_panic(expected = "exists only at p = 2")]
+        fn the_polynomial_shape_is_rejected_at_odd_primes() {
+            MilnorAlgebraInner::<NoExterior>::new(ValidPrime::new(3), false);
+        }
+
         /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
         ///
         /// The literals pin the classical values, which are a wire format: changing one

@@ -68,6 +68,13 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 
     pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile, unstable_enabled: bool) -> Self {
         assert!(profile.is_valid());
+        // An odd prime always has an exterior part, so `NoExterior` names an algebra that exists
+        // only at 2. Admitting the pair would also give it the [`Algebra::magic`] of the real
+        // algebra at that prime, whose basis it does not share.
+        assert!(
+            F::HAS_EXTERIOR || p == 2,
+            "the polynomial shape exists only at p = 2"
+        );
         Self {
             p,
             unstable_enabled,
