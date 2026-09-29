@@ -466,6 +466,7 @@ pub(crate) mod tests {
     }
 
     proptest! {
+        /// `binomial2` satisfies Pascal's rule, including where `k` is negative or exceeds `n`.
         #[test]
         fn binomial2_pascal(n in 1i32..10_000, k in -100i32..10_100) {
             prop_assert_eq!(
@@ -474,16 +475,19 @@ pub(crate) mod tests {
             );
         }
 
+        /// `binomial2` is zero for every negative `k`.
         #[test]
         fn binomial2_negative_k(n: i32, k in i32::MIN..0) {
             prop_assert_eq!(i32::binomial2(n, k), 0);
         }
 
+        /// `binomial2` is zero for every negative `n`.
         #[test]
         fn binomial2_negative_n(n in i32::MIN..0, k: i32) {
             prop_assert_eq!(i32::binomial2(n, k), 0);
         }
 
+        /// `binomial2` gives the same answer for `u16`, `u32` and `i32` where their domains overlap.
         #[test]
         fn binomial2_types_agree(n: u16, k: u16) {
             let ans = u16::binomial2(n, k);
@@ -491,15 +495,28 @@ pub(crate) mod tests {
             prop_assert_eq!(i32::binomial2(n.into(), k.into()), ans.into());
         }
 
+        /// `multinomial2` matches the product of binomials in [`multinomial2_ref`].
         #[test]
         fn multinomial2_vs_binomial2(l in proptest::collection::vec(-1000i32..10_000, 0..6)) {
             prop_assert_eq!(i32::multinomial2(&l), multinomial2_ref(&l));
         }
 
+        /// `multinomial2` gives the same answer for `u32` and `i32` on nonnegative entries.
         #[test]
         fn multinomial2_types_agree(l in proptest::collection::vec(0u32..10_000, 0..6)) {
             let l_i32: Vec<i32> = l.iter().map(|&e| e as i32).collect();
             prop_assert_eq!(u32::multinomial2(&l) as i32, i32::multinomial2(&l_i32));
+        }
+
+        /// `multinomial2` is zero, without overflowing, once any entry is negative.
+        #[test]
+        fn multinomial2_negative_entry(
+            prefix in proptest::collection::vec(0i32..10_000, 0..3),
+            neg in i32::MIN..0,
+            suffix in proptest::collection::vec(any::<i32>(), 0..3),
+        ) {
+            let l: Vec<i32> = prefix.into_iter().chain([neg]).chain(suffix).collect();
+            prop_assert_eq!(i32::multinomial2(&l), 0);
         }
     }
 
