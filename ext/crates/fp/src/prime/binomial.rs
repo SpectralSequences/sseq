@@ -82,12 +82,15 @@ macro_rules! impl_binomial {
                 let mut bit_or: Self = 0;
                 let mut sum: Self = 0;
                 for &e in l {
+                    // Checked before the addition, which could otherwise overflow.
+                    #[allow(unused_comparisons)]
+                    if e < 0 {
+                        return 0;
+                    }
                     sum += e;
                     bit_or |= e;
                 }
-                // A negative entry sets the sign bit of `bit_or`.
-                #[allow(unused_comparisons)]
-                if bit_or < 0 || bit_or != sum { 0 } else { 1 }
+                if bit_or == sum { 1 } else { 0 }
             }
 
             #[inline]
