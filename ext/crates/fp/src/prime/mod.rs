@@ -349,6 +349,8 @@ pub fn minus_one_to_the_n<P: Prime>(p: P, i: i32) -> u32 {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use proptest::prelude::*;
+
     use super::{Prime, ValidPrime, binomial::Binomial, inverse, iter::BinomialIterator};
     use crate::{
         constants::PRIMES,
@@ -446,6 +448,58 @@ pub(crate) mod tests {
                     );
                 }
             }
+        }
+    }
+
+    /// Reference mod 2 multinomial coefficient: a product of binomials over the partial sums.
+    fn multinomial2_ref(l: &[i32]) -> i32 {
+        if l.iter().any(|&e| e < 0) {
+            return 0;
+        }
+        let mut sum = 0;
+        let mut ans = 1;
+        for &e in l {
+            sum += e;
+            ans *= i32::binomial2(sum, e);
+        }
+        ans
+    }
+
+    proptest! {
+        #[test]
+        fn binomial2_pascal(n in 1i32..10_000, k in -100i32..10_100) {
+            prop_assert_eq!(
+                i32::binomial2(n, k),
+                (i32::binomial2(n - 1, k - 1) + i32::binomial2(n - 1, k)) % 2
+            );
+        }
+
+        #[test]
+        fn binomial2_negative_k(n: i32, k in i32::MIN..0) {
+            prop_assert_eq!(i32::binomial2(n, k), 0);
+        }
+
+        #[test]
+        fn binomial2_negative_n(n in i32::MIN..0, k: i32) {
+            prop_assert_eq!(i32::binomial2(n, k), 0);
+        }
+
+        #[test]
+        fn binomial2_types_agree(n: u16, k: u16) {
+            let ans = u16::binomial2(n, k);
+            prop_assert_eq!(u32::binomial2(n.into(), k.into()), ans.into());
+            prop_assert_eq!(i32::binomial2(n.into(), k.into()), ans.into());
+        }
+
+        #[test]
+        fn multinomial2_vs_binomial2(l in proptest::collection::vec(-1000i32..10_000, 0..6)) {
+            prop_assert_eq!(i32::multinomial2(&l), multinomial2_ref(&l));
+        }
+
+        #[test]
+        fn multinomial2_types_agree(l in proptest::collection::vec(0u32..10_000, 0..6)) {
+            let l_i32: Vec<i32> = l.iter().map(|&e| e as i32).collect();
+            prop_assert_eq!(u32::multinomial2(&l) as i32, i32::multinomial2(&l_i32));
         }
     }
 

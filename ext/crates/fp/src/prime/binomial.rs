@@ -85,18 +85,19 @@ macro_rules! impl_binomial {
                     sum += e;
                     bit_or |= e;
                 }
-                if bit_or == sum { 1 } else { 0 }
+                // A negative entry sets the sign bit of `bit_or`.
+                #[allow(unused_comparisons)]
+                if bit_or < 0 || bit_or != sum { 0 } else { 1 }
             }
 
             #[inline]
             fn binomial2(n: Self, k: Self) -> Self {
-                if n < k {
-                    0
-                } else if (n - k) & k == 0 {
-                    1
-                } else {
-                    0
-                }
+                // The wrapped difference is only meaningful when `0 <= k <= n`, which the other two
+                // conditions check. Combining with `&` rather than `&&` keeps this branchless.
+                let d = n.wrapping_sub(k);
+                #[allow(unused_comparisons)]
+                let ans = (k <= n) & (k >= 0) & (d & k == 0);
+                ans as Self
             }
 
             #[inline]
