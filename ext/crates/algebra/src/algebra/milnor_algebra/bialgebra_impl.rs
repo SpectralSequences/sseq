@@ -22,8 +22,9 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     }
 }
 
-/// The coproduct drops the exterior part and grades the polynomial part with `q = 1`, so it is
-/// implemented for [`NoExterior`] alone; a guard on the prime would admit [`Exterior`] at `p = 2`.
+/// The coproduct is written for the classical algebra at `p = 2`, which needs both the shape bound
+/// and the assert on the prime: [`Exterior`](super::shape::Exterior) at `p = 2` and [`NoExterior`]
+/// at an odd prime each satisfy one of the two on its own.
 impl Bialgebra for MilnorAlgebraInner<NoExterior> {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");

@@ -146,6 +146,8 @@ macro_rules! dispatch_pair_milnor {
     };
 }
 
+/// Written for the classical algebra at `p = 2`, hence the shape bound and the assert on the
+/// prime; see [`Bialgebra`](crate::algebra::Bialgebra) for the same pair of guards.
 impl PairAlgebra for MilnorAlgebraInner<NoExterior> {
     type Element = MilnorPairElement;
 

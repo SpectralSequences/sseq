@@ -13,10 +13,10 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn magic(&self) -> u32 {
-        // Saved resolutions store coefficients by basis index, so the shapes must not share a
-        // magic. The prime settles the shape except for `Exterior` at `p = 2`, so only that case
-        // sets a shape bit.
-        let shape = if F::HAS_EXTERIOR && self.p == 2 {
+        // Saved resolutions store coefficients by basis index, so no two shape-and-prime pairs
+        // may share a magic. The bit marks the two pairs the prime alone would have called wrong,
+        // which are exactly the ones that could not already have written a file.
+        let shape = if F::HAS_EXTERIOR == (self.p == 2) {
             0x4000
         } else {
             0
@@ -35,7 +35,9 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-        let (products, max_degree) = F::filtration_one_products(self);
+        let products = F::filtration_one_products(self);
+        // Each product is looked up by index, so the table must reach the last of them.
+        let max_degree = products.iter().map(|(_, b)| b.degree).max().unwrap_or(0);
         self.compute_basis(max_degree + 1);
 
         products
@@ -112,7 +114,7 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
         if self.stores_basis_table() {
             self.basis_table[degree as usize].len()
         } else {
-            self.ppart_table[degree as usize].len()
+            self.ppart_table(degree).len()
         }
     }
 

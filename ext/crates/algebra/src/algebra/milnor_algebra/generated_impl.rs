@@ -40,7 +40,8 @@ impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
         let p = self.prime();
-        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, F::HAS_EXTERIOR, degree);
+        let inadmissible_pairs =
+            combinatorics::inadmissible_pairs(p, F::HAS_EXTERIOR, self.q(), degree);
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();

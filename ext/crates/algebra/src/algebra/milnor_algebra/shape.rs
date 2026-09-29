@@ -1,6 +1,6 @@
 use fp::prime::{Prime, ValidPrime, factor_pk, iter::BitflagIterator};
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, PPart};
+use super::{MilnorAlgebraInner, MilnorBasisElement, PPart, PPartEntry};
 use crate::algebra::{Algebra, combinatorics};
 
 mod private {
@@ -12,9 +12,10 @@ mod private {
 /// The shape of the Milnor basis of a dual Steenrod algebra.
 ///
 /// The dual Steenrod algebra is a polynomial algebra on the $\xi_i$ tensored with an exterior
-/// algebra on the $\tau_k$. The exterior part is absent in exactly one case, the classical algebra
-/// at $p = 2$, which is why the two shapes are distinguished here rather than by the prime: the
-/// mod-$\tau$ C-motivic algebra $A^{\mathbb{C}}/\tau$ has the exterior shape *at* $p = 2$.
+/// algebra on the $\tau_k$. Which of the two shapes a given algebra has is not settled by the
+/// prime, which is why it is a parameter here: the mod-$\tau$ C-motivic algebra
+/// $A^{\mathbb{C}}/\tau$ has the exterior shape at $p = 2$, and the polynomial part of an
+/// odd-primary algebra has the polynomial shape at an odd prime.
 pub trait MilnorShape: private::Sealed + Sized + Send + Sync + 'static {
     /// Whether basis elements carry an exterior part.
     const HAS_EXTERIOR: bool;
@@ -32,13 +33,14 @@ pub trait MilnorShape: private::Sealed + Sized + Send + Sync + 'static {
     /// The name of the generator at `(degree, idx)`.
     fn generator_to_string(algebra: &MilnorAlgebraInner<Self>, degree: i32, idx: usize) -> String;
 
-    /// The elements that induce the filtration one products, with the degree to compute up to.
+    /// The elements that induce the filtration one products.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
-    ) -> (Vec<(String, MilnorBasisElement)>, i32);
+    ) -> Vec<(String, MilnorBasisElement)>;
 }
 
-/// The polynomial-only Milnor basis: the classical dual Steenrod algebra at $p = 2$.
+/// The polynomial-only Milnor basis: the classical dual Steenrod algebra at $p = 2$, and the
+/// quotient by the exterior part, $A/\!/E$ with $E = E(Q_0, Q_1, \dots)$, at odd primes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoExterior;
 
@@ -132,9 +134,10 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 impl MilnorShape for NoExterior {
     const HAS_EXTERIOR: bool = false;
 
-    /// The polynomial grading is unscaled: $\xi_i$ has degree `XI_DEGREES[i]` exactly.
-    fn q(_p: ValidPrime) -> i32 {
-        1
+    /// Unscaled at `p = 2`, and the scale of the whole algebra at odd primes, where the
+    /// exterior-free elements form a subalgebra of it rather than an algebra of their own.
+    fn q(p: ValidPrime) -> i32 {
+        if p == 2 { 1 } else { Exterior::q(p) }
     }
 
     /// Without an exterior part the p-part table is already the basis.
@@ -147,15 +150,18 @@ impl MilnorShape for NoExterior {
         algebra.polynomial_generator(degree)
     }
 
-    /// $P(n)$ is written $Sq^n$ at the prime 2.
+    /// $P(n)$ is written $Sq^n$ at the prime 2, and $P^n$ at odd primes as in the full algebra.
     fn generator_to_string(algebra: &MilnorAlgebraInner<Self>, degree: i32, idx: usize) -> String {
-        algebra.polynomial_generator_to_string(degree, idx, "Sq")
+        let single = if algebra.prime() == 2 { "Sq" } else { "P" };
+        algebra.polynomial_generator_to_string(degree, idx, single)
     }
 
-    /// The $h_i$, dual to $Sq^{2^i}$, as far as the profile allows.
+    /// The $h_i$, dual to $\xi_1^{p^i}$, as far as the profile allows.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
-    ) -> (Vec<(String, MilnorBasisElement)>, i32) {
+    ) -> Vec<(String, MilnorBasisElement)> {
+        let p = algebra.prime();
+        let q = Self::q(p);
         let profile = &algebra.profile;
         let max = if !profile.p_part.is_empty() {
             std::cmp::min(4, profile.p_part[0])
@@ -164,20 +170,19 @@ impl MilnorShape for NoExterior {
         } else {
             4
         };
-        let products = (0..max)
+        (0..max)
             .map(|i| {
-                let degree = 1 << i; // degree is 2^hi
+                let entry = p.pow(i);
                 (
                     format!("h_{i}"),
                     MilnorBasisElement {
-                        degree,
+                        degree: q * entry as i32,
                         q_part: 0,
-                        p_part: PPart::from_iter([1 << i]),
+                        p_part: PPart::from_iter([entry as PPartEntry]),
                     },
                 )
             })
-            .collect();
-        (products, 1 << 3)
+            .collect()
     }
 }
 
@@ -240,7 +245,7 @@ impl MilnorShape for Exterior {
     /// $a_0$, dual to the Bockstein, and $h_0$, dual to $P(1)$.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
-    ) -> (Vec<(String, MilnorBasisElement)>, i32) {
+    ) -> Vec<(String, MilnorBasisElement)> {
         let profile = &algebra.profile;
         let mut products = Vec::with_capacity(2);
         if profile.q_part & 1 != 0 {
@@ -265,7 +270,7 @@ impl MilnorShape for Exterior {
                 },
             ));
         }
-        (products, Self::q(algebra.prime()))
+        products
     }
 }
 
@@ -559,20 +564,10 @@ mod tests {
             assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
-        /// The polynomial shape cannot be built at an odd prime.
-        ///
-        /// Were it constructible it would share a [`Algebra::magic`] with the real algebra at that
-        /// prime, since only the exterior shape at 2 carries the discriminating bit.
-        #[test]
-        #[should_panic(expected = "exists only at p = 2")]
-        fn the_polynomial_shape_is_rejected_at_odd_primes() {
-            MilnorAlgebraInner::<NoExterior>::new(ValidPrime::new(3), false);
-        }
-
         /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
         ///
-        /// The literals pin the classical values, which are a wire format: changing one
-        /// invalidates existing saved resolutions.
+        /// The literal is the classical value, which is a wire format: changing it invalidates
+        /// existing saved resolutions.
         #[test]
         fn magic_distinguishes_the_shapes() {
             let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);
@@ -581,14 +576,6 @@ mod tests {
 
             assert_eq!(classical.magic(), 0x0002_8000);
             assert_eq!(MilnorAlgebra::new(TWO, false).magic(), 0x0002_8000);
-            assert_eq!(
-                MilnorAlgebra::new(ValidPrime::new(3), false).magic(),
-                0x0003_8000
-            );
-            assert_eq!(
-                MilnorAlgebra::new(ValidPrime::new(5), false).magic(),
-                0x0005_8000
-            );
         }
 
         /// Every non-generator is the product its decomposition claims it is.
@@ -656,6 +643,211 @@ mod tests {
                 }
             }
             assert!(checked > 0, "no relations were exercised");
+        }
+    }
+
+    /// The exterior-free part of an odd-primary dual Steenrod algebra, $A/\!/E$.
+    ///
+    /// Everything here is stated against the full algebra at the same prime, which contains it:
+    /// the shape is the only thing that differs, so the two must agree wherever the full algebra
+    /// has no exterior part.
+    #[cfg(feature = "odd-primes")]
+    mod polynomial_at_odd_primes {
+        use rstest::rstest;
+
+        use super::*;
+
+        /// $P_*$ at `p`, and the full algebra containing it.
+        fn pair(p: u32) -> (MilnorAlgebraInner<NoExterior>, MilnorAlgebraInner<Exterior>) {
+            let p = ValidPrime::new(p);
+            (
+                MilnorAlgebraInner::<NoExterior>::new(p, false),
+                MilnorAlgebraInner::<Exterior>::new(p, false),
+            )
+        }
+
+        /// The polynomial grading is the full algebra's, not the unscaled one.
+        ///
+        /// A grading with $q = 1$ would put $\xi_1$ in degree 1, and an odd-degree element of a
+        /// graded-commutative $\mathbb{F}_p$-algebra at an odd prime squares to zero, so it cannot
+        /// be a polynomial generator.
+        #[rstest]
+        #[case(3)]
+        #[case(5)]
+        fn the_grading_is_the_full_algebra_s(#[case] p: u32) {
+            let (polynomial, full) = pair(p);
+            assert_eq!(polynomial.q(), full.q());
+            assert_ne!(polynomial.q(), 1);
+        }
+
+        /// The basis is the full algebra's, keeping the elements with no exterior part.
+        #[rstest]
+        #[case(3, 60)]
+        #[case(5, 100)]
+        fn basis_is_the_exterior_free_part(#[case] p: u32, #[case] max_degree: i32) {
+            let (polynomial, full) = pair(p);
+            polynomial.compute_basis(max_degree);
+            full.compute_basis(max_degree);
+
+            for t in 0..=max_degree {
+                let expected: Vec<PPart> = (0..full.dimension(t))
+                    .map(|i| full.basis_element_from_index(t, i))
+                    .filter(|elt| elt.q_part == 0)
+                    .map(|elt| elt.p_part)
+                    .collect();
+                let ours: Vec<PPart> = (0..polynomial.dimension(t))
+                    .map(|i| polynomial.basis_element_from_index(t, i).p_part)
+                    .collect();
+                assert_eq!(ours, expected, "the basis disagrees in degree {t}");
+            }
+        }
+
+        /// Every structure constant is the full algebra's.
+        ///
+        /// A product of exterior-free elements is exterior-free, which is why the sub-algebra
+        /// exists at all; the test asserts that rather than assuming it.
+        #[rstest]
+        #[case(3, 120)]
+        #[case(5, 300)]
+        fn products_match_the_full_algebra(#[case] p: u32, #[case] max_degree: i32) {
+            let prime = ValidPrime::new(p);
+            let (polynomial, full) = pair(p);
+            polynomial.compute_basis(max_degree);
+            full.compute_basis(max_degree);
+
+            let mut checked = 0;
+            for t1 in 0..=max_degree {
+                for t2 in 0..=(max_degree - t1) {
+                    let t = t1 + t2;
+                    for i1 in 0..polynomial.dimension(t1) {
+                        for i2 in 0..polynomial.dimension(t2) {
+                            let m1 = polynomial.basis_element_from_index(t1, i1);
+                            let m2 = polynomial.basis_element_from_index(t2, i2);
+
+                            let mut ours = FpVector::new(prime, polynomial.dimension(t));
+                            polynomial.multiply(ours.as_slice_mut(), 1, m1, m2);
+
+                            let mut theirs = FpVector::new(prime, full.dimension(t));
+                            full.multiply(theirs.as_slice_mut(), 1, m1, m2);
+
+                            let mut expected = FpVector::new(prime, polynomial.dimension(t));
+                            for i in 0..full.dimension(t) {
+                                let c = theirs.entry(i);
+                                if c == 0 {
+                                    continue;
+                                }
+                                let elt = full.basis_element_from_index(t, i);
+                                assert_eq!(
+                                    elt.q_part, 0,
+                                    "({m1}) * ({m2}) leaves the polynomial part"
+                                );
+                                expected
+                                    .add_basis_element(polynomial.basis_element_to_index(&elt), c);
+                            }
+
+                            assert_eq!(ours, expected, "({m1}) * ({m2}) in degree {t}");
+                            checked += 1;
+                        }
+                    }
+                }
+            }
+            assert!(checked > 400, "only {checked} products checked");
+        }
+
+        /// Every non-generator is the product its decomposition claims it is.
+        #[rstest]
+        #[case(3, 60)]
+        #[case(5, 100)]
+        fn generators_span_the_algebra(#[case] p: u32, #[case] max_degree: i32) {
+            let prime = ValidPrime::new(p);
+            let (algebra, _) = pair(p);
+            algebra.compute_basis(max_degree);
+
+            for t in 1..=max_degree {
+                let generators = algebra.generators(t);
+                for i in 0..algebra.dimension(t) {
+                    if generators.contains(&i) {
+                        continue;
+                    }
+                    let decomposition = algebra.decompose_basis_element(t, i);
+                    assert!(
+                        !decomposition.is_empty(),
+                        "{} (degree {t}) is neither a generator nor decomposable",
+                        algebra.basis_element_to_string(t, i)
+                    );
+                    let mut product = FpVector::new(prime, algebra.dimension(t));
+                    for (c, (d1, i1), (d2, i2)) in decomposition {
+                        algebra.multiply_basis_elements(product.as_slice_mut(), c, d1, i1, d2, i2);
+                    }
+                    let mut expected = FpVector::new(prime, algebra.dimension(t));
+                    expected.set_entry(i, 1);
+                    assert_eq!(
+                        product,
+                        expected,
+                        "{} (degree {t}) decomposes to the wrong element",
+                        algebra.basis_element_to_string(t, i)
+                    );
+                }
+            }
+        }
+
+        /// The relations are the full algebra's between the $P^i$, and nothing else.
+        ///
+        /// The Adem relations on $P^i \beta P^j$ have a $\beta$ in every term, so they say nothing
+        /// here; `inadmissible_pairs` must not offer them, and the ones it does offer must hold.
+        #[rstest]
+        #[case(3, 60)]
+        #[case(5, 100)]
+        fn generating_relations_hold(#[case] p: u32, #[case] max_degree: i32) {
+            let prime = ValidPrime::new(p);
+            let (algebra, _) = pair(p);
+            algebra.compute_basis(max_degree + 2);
+
+            let mut checked = 0;
+            for t in 1..=max_degree {
+                for relation in algebra.generating_relations(t) {
+                    let mut sum = FpVector::new(prime, algebra.dimension(t));
+                    for (c, (d1, i1), (d2, i2)) in relation {
+                        algebra.multiply_basis_elements(sum.as_slice_mut(), c, d1, i1, d2, i2);
+                    }
+                    assert!(sum.is_zero(), "a relation in degree {t} does not vanish");
+                    checked += 1;
+                }
+            }
+            assert!(checked > 0, "no relations were exercised");
+        }
+
+        /// The $h_i$ are dual to $\xi_1^{p^i}$, so they live in degrees `q * p^i`.
+        #[rstest]
+        #[case(3)]
+        #[case(5)]
+        fn filtration_one_products_are_graded_by_q(#[case] p: u32) {
+            let prime = ValidPrime::new(p);
+            let (algebra, _) = pair(p);
+            // Looking each one up by index is itself the check that it is in the basis.
+            let products = algebra.default_filtration_one_products();
+            assert_eq!(products.len(), 4);
+            for (i, (name, degree, _)) in products.iter().enumerate() {
+                assert_eq!(name, &format!("h_{i}"));
+                assert_eq!(*degree, algebra.q() * prime.pow(i as u32) as i32);
+            }
+        }
+
+        /// The shapes at an odd prime must not share a [`Algebra::magic`] either.
+        ///
+        /// The literals are the classical values, which are a wire format: the polynomial part
+        /// takes the new bit so that existing saved resolutions stay readable.
+        #[rstest]
+        #[case(3, 0x0003_8000)]
+        #[case(5, 0x0005_8000)]
+        fn magic_distinguishes_the_shapes(#[case] p: u32, #[case] classical: u32) {
+            let (polynomial, full) = pair(p);
+            assert_eq!(full.magic(), classical);
+            assert_eq!(
+                MilnorAlgebra::new(ValidPrime::new(p), false).magic(),
+                classical
+            );
+            assert_ne!(polynomial.magic(), classical);
         }
     }
 }

@@ -54,9 +54,17 @@ pub fn adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32,
     c % p
 }
 
-pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32, u32, u32)> {
+/// The inadmissible pairs in `degree`, where `q` is the scale of the polynomial grading and
+/// `has_bockstein` says whether the algebra has one. The two are independent: the polynomial part
+/// of an odd-primary algebra is scaled like the algebra but has no Bockstein.
+pub fn inadmissible_pairs(
+    p: ValidPrime,
+    has_bockstein: bool,
+    q: i32,
+    degree: i32,
+) -> Vec<(u32, u32, u32)> {
     let degree = degree as u32;
-    let q = if generic { 2 * p - 2 } else { 1 };
+    let q = q as u32;
     // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
     let mut inadmissible_pairs = Vec::new();
 
@@ -70,7 +78,7 @@ pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32
         for i in 1..(p * degq + p) / (p + 1) {
             inadmissible_pairs.push((i, 0, degq - i));
         }
-    } else if degree % q == 1 {
+    } else if has_bockstein && degree % q == 1 {
         let degq = degree / q; // Since we round down, this is actually (degree - 1)/q
         // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
         // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round

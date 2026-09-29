@@ -68,13 +68,6 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 
     pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile, unstable_enabled: bool) -> Self {
         assert!(profile.is_valid());
-        // An odd prime always has an exterior part, so `NoExterior` names an algebra that exists
-        // only at 2. Admitting the pair would also give it the [`Algebra::magic`] of the real
-        // algebra at that prime, whose basis it does not share.
-        assert!(
-            F::HAS_EXTERIOR || p == 2,
-            "the polynomial shape exists only at p = 2"
-        );
         Self {
             p,
             unstable_enabled,
@@ -106,8 +99,8 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 
     /// Whether the basis of each degree has to be stored rather than derived.
     ///
-    /// At odd primes the q-part varies within a degree, and with unstable support enabled the
-    /// basis is re-sorted by excess; in both cases the basis is not a re-wrapping of
+    /// With an exterior part the q-part varies within a degree, and with unstable support enabled
+    /// the basis is re-sorted by excess; in both cases the basis is not a re-wrapping of
     /// [`Self::ppart_table`] and must be kept.
     fn stores_basis_table(&self) -> bool {
         F::HAS_EXTERIOR || self.unstable_enabled
@@ -117,7 +110,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         if self.stores_basis_table() {
             self.basis_table[degree as usize][idx]
         } else {
-            MilnorBasisElement::from_p(self.ppart_table[degree as usize][idx], degree)
+            MilnorBasisElement::from_p(self.ppart_table(degree)[idx], degree)
         }
     }
 
@@ -132,9 +125,16 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             .unwrap_or_else(|| panic!("Didn't find element: {elt:?}"))
     }
 
-    /// Gives a list of PPart's in degree `t`.
+    /// The $P(R)$ of degree `t`.
+    ///
+    /// The table is indexed by `t / q`, so a degree the polynomial part does not occupy has no row
+    /// rather than the wrong one.
     pub fn ppart_table(&self, t: i32) -> &[PPart] {
-        &self.ppart_table[t as usize]
+        let q = self.q();
+        if t < 0 || t % q != 0 {
+            return &[];
+        }
+        &self.ppart_table[(t / q) as usize]
     }
 }
 
@@ -247,11 +247,12 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             return;
         }
         self.basis_table.extend(max_degree as usize, |d| {
-            let mut table: Vec<_> = self.ppart_table[d]
+            let mut table: Vec<_> = self
+                .ppart_table(d as i32)
                 .iter()
                 .map(|&p| MilnorBasisElement::from_p(p, d as i32))
                 .collect();
-            table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
+            table.sort_by_cached_key(|e| e.excess(self.prime()));
             table
         });
     }
