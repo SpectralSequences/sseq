@@ -15,7 +15,14 @@ impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
         if degree <= 0 {
             return vec![];
         } else if degree == 1 {
-            return vec![0]; // Q_0
+            // $Q_0$ is a generator under every profile that admits it, an $A(n)$ included, so
+            // degree 1 is answered here rather than left to the shape. It can still be empty: a
+            // profile may exclude $Q_0$, and the polynomial part misses the degree unless `q = 1`.
+            return if self.dimension(1) == 0 {
+                vec![]
+            } else {
+                vec![0]
+            };
         }
         F::generators(self, degree)
     }
@@ -324,6 +331,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Degree 1 can be empty, and then it has no generator.
+    ///
+    /// $Q_0$ is a generator under every profile that admits it, so `generators` answers degree 1
+    /// itself rather than leaving it to the shape. A profile excluding $Q_0$ got the index anyway,
+    /// naming a generator the algebra does not have.
+    #[test]
+    #[cfg(feature = "odd-primes")]
+    fn degree_one_without_q0_has_no_generator() {
+        let profile = MilnorProfile {
+            q_part: 0b1110,
+            p_part: vec![2, 1],
+            truncated: true,
+        };
+        assert!(profile.is_valid(), "the test needs a valid profile");
+        let algebra = MilnorAlgebra::new_with_profile(ValidPrime::new(3), profile, false);
+        algebra.compute_basis(20);
+        assert_eq!(algebra.dimension(1), 0);
+        assert!(algebra.generators(1).is_empty());
     }
 
     use crate::module::ModuleFailedRelationError;

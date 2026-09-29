@@ -817,6 +817,17 @@ mod tests {
             assert!(checked > 0, "no relations were exercised");
         }
 
+        /// Degree 1 is empty, since `q > 1`, so it holds no generator either.
+        #[rstest]
+        #[case(3)]
+        #[case(5)]
+        fn degree_one_is_empty(#[case] p: u32) {
+            let (algebra, _) = pair(p);
+            algebra.compute_basis(20);
+            assert_eq!(algebra.dimension(1), 0);
+            assert!(algebra.generators(1).is_empty());
+        }
+
         /// The $h_i$ are dual to $\xi_1^{p^i}$, so they live in degrees `q * p^i`.
         #[rstest]
         #[case(3)]

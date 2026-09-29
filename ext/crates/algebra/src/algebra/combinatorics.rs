@@ -54,9 +54,11 @@ pub fn adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32,
     c % p
 }
 
-/// The inadmissible pairs in `degree`, where `q` is the scale of the polynomial grading and
-/// `has_bockstein` says whether the algebra has one. The two are independent: the polynomial part
-/// of an odd-primary algebra is scaled like the algebra but has no Bockstein.
+/// The inadmissible pairs in `degree`.
+///
+/// `q` is the scale of the polynomial grading and `has_bockstein` says whether the algebra has a
+/// Bockstein. The two are independent: the polynomial part of an odd-primary algebra is scaled like
+/// the algebra but has no Bockstein.
 pub fn inadmissible_pairs(
     p: ValidPrime,
     has_bockstein: bool,
