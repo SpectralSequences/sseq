@@ -35,15 +35,6 @@ impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
     }
 
     fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
-        // `inadmissible_pairs` and `adem_relation_coefficient` encode the classical Adem
-        // relations, which are this algebra's own exactly when the prime implies the shape. At
-        // `p = 2` the exterior shape is $A^{\mathbb{C}}/\tau$, whose relations differ: the
-        // classical ones come back with a pair of equal terms that cancel over $\mathbb{F}_2$,
-        // leaving a relation that does not hold.
-        assert!(
-            !(F::HAS_EXTERIOR && self.prime() == 2),
-            "the Adem relations of A_C/tau are not the classical ones"
-        );
         if F::HAS_EXTERIOR && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];

@@ -630,17 +630,32 @@ mod tests {
             }
         }
 
-        /// The classical Adem relations are refused here rather than returned wrongly.
+        /// The classical Adem relations are this algebra's own.
         ///
-        /// They do not hold in $A^{\\mathbb{C}}/\\tau$: in degree 7 the classical relation comes
-        /// back with `P(2) Q_0 P(1)` twice, which cancels over $\\mathbb{F}_2$ and leaves
-        /// `Q_0 P(2) P(1)`, whose value is `Q_0 P(3) + Q_0 P(0, 1)`.
+        /// `inadmissible_pairs` and `adem_relation_coefficient` are written formally in `p`, so
+        /// the odd-primary relations evaluated at `p = 2` with `q = 2` are the mod-$\tau$ motivic
+        /// ones. That holds only because `binomial2` agrees with `binomial_odd` on a negative `k`:
+        /// otherwise the degree 7 coefficient of `P(2) Q_0 P(1)` comes back as 1, duplicating a
+        /// term that cancels the left-hand side over $\mathbb{F}_2$ and leaves a relation claiming
+        /// `Q_0 P(2) P(1) = 0`.
         #[test]
-        #[should_panic(expected = "not the classical ones")]
-        fn generating_relations_are_refused() {
+        fn generating_relations_hold() {
             let algebra = ctau();
-            algebra.compute_basis(9);
-            algebra.generating_relations(7);
+            const MAX: i32 = 24;
+            algebra.compute_basis(MAX + 2);
+
+            let mut checked = 0;
+            for t in 1..=MAX {
+                for relation in algebra.generating_relations(t) {
+                    let mut sum = FpVector::new(TWO, algebra.dimension(t));
+                    for (c, (d1, i1), (d2, i2)) in relation {
+                        algebra.multiply_basis_elements(sum.as_slice_mut(), c, d1, i1, d2, i2);
+                    }
+                    assert!(sum.is_zero(), "a relation in degree {t} does not vanish");
+                    checked += 1;
+                }
+            }
+            assert!(checked > 0, "no relations were exercised");
         }
     }
 }
