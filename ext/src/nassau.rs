@@ -44,8 +44,7 @@ use crate::{
     utils::{LogWriter, parallel::ParallelGuard},
 };
 
-/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having
-/// the `new` field. What a computed bidegree still has to register.
+/// What a computed bidegree still has to register.
 ///
 /// `modules[s]` and `differentials[s]` are append-only in increasing degree, so registration has to
 /// happen in `t` order within a row even when the computations that produced it did not. Carrying
@@ -64,6 +63,9 @@ pub(crate) struct PendingRegistration {
     extend_chain_map: bool,
 }
 
+/// See [`resolution::SenderData`](../resolution/struct.SenderData.html).
+///
+/// This differs by carrying a [`PendingRegistration`] instead of the `new` field.
 struct SenderData {
     b: Bidegree,
     retry: bool,
@@ -73,6 +75,7 @@ struct SenderData {
 }
 
 impl SenderData {
+    /// Report `b` as computed, with whatever the scheduler still has to register.
     pub(crate) fn send(
         b: Bidegree,
         pending: Option<PendingRegistration>,
@@ -88,6 +91,8 @@ impl SenderData {
             .unwrap()
     }
 
+    /// Hand `b` back to the scheduler to respawn, because its worker was already inside a parallel
+    /// section.
     pub(crate) fn send_retry(b: Bidegree, sender: mpsc::Sender<Self>) {
         tracing::info!(%b, "retrying");
         sender
@@ -1537,6 +1542,7 @@ mod depgraph {
             })
         }
 
+        /// Every successor edge is a predecessor edge, and the reverse.
         #[test]
         fn successors_invert_predecessors() {
             let g = graph();
@@ -1555,6 +1561,7 @@ mod depgraph {
             }
         }
 
+        /// Draining the graph dispatches every node and registers each row in increasing `t`.
         #[test]
         fn drains_registering_rows_in_order() {
             let mut g = graph();
