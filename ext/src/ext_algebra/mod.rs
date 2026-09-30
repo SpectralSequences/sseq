@@ -48,60 +48,24 @@ use crate::{
     utils::{QueryModuleResolution, get_unit},
 };
 
-/// The coboundary of the Ext cochain complex $\Hom(P_\bullet, k) = k^{\text{gens}}$,
-/// whose cohomology is $\Ext$.
+/// The coboundary of the Ext cochain complex $\Hom(P_\bullet, k) = k^{\text{gens}}$, whose
+/// cohomology is $\Ext$.
 ///
-/// It shifts bidegree by a fixed [`shift`](ExtDifferential::shift) and, at each
-/// bidegree, gives its matrix in the generator bases. For a **minimal** resolution
-/// this coboundary is identically zero — $d_s$ lands in $\bar A \cdot P_{s-1}$,
-/// which every $\varphi\colon P_{s-1} \to k$ kills — so $\Ext$ is just the
-/// generators and taking cohomology is a no-op (no differential is attached). For a
-/// **non-minimal** resolution it is the canonical dualised differential
-/// $\Hom(d, k)$. Both are classical homological algebra.
+/// It shifts bidegree by a fixed [`shift`](ExtDifferential::shift) and, at each bidegree, gives its
+/// matrix in the generator bases. For a **minimal** resolution this coboundary is identically zero.
+/// For a **non-minimal** resolution it is the canonical dualised differential $\Hom(d, k)$.
 ///
-/// The same trait is *also* how a **deformation** hangs its connecting differential
-/// on this complex — the Adams $d_2$ ([`secondary`]) or the motivic $\delta$ — as
-/// instances defined in their own modules; those are what
-/// [`ExtAlgebra::cohomology_subquotient`] reads to compute the next page of a
-/// deformation spectral sequence. That story is kept out of [`ExtAlgebra`]'s own
-/// interface on purpose: here the differential is just a pluggable coboundary,
-/// deformation or not.
+/// This is also how a deformation encodes the connecting differential in this complex — the Adams
+/// $d_2$ ([`secondary`]) or the motivic $\delta$ — as instances defined in their own modules.
 pub trait ExtDifferential: Send + Sync {
     /// The fixed bidegree shift the differential applies: $\delta\colon \Ext_b \to
     /// \Ext_{b + \mathrm{shift}}$.
     fn shift(&self) -> Bidegree;
 
-    /// The matrix of $\delta$ out of bidegree `b`: rows index the generators at
-    /// `b`, columns the generators at `b + shift`. `None` if the differential out
-    /// of `b` is out of the computed range; a computed-but-empty bidegree yields a
-    /// valid zero-size matrix, not `None`.
+    /// The matrix of $\delta$ out of bidegree `b`: rows index the generators at `b`, columns the
+    /// generators at `b + shift`. `None` if the differential out of `b` is out of the computed
+    /// range.
     fn matrix(&self, b: Bidegree) -> Option<Matrix>;
-
-    /// For a coefficient **graded by a deformation base** $R$ (e.g.
-    /// $\mathbb{F}_2[\tau]$ graded by motivic weight), the number of cochain
-    /// generators at `b` whose grade is `≤ cap`; sweeping `cap` walks up the
-    /// $R$-adic tower and exposes the $R$-torsion of the Ext module. The default —
-    /// an ungraded (field) coefficient — returns `None`, meaning "no grading", and
-    /// the capped cohomology falls back to the full dimension.
-    fn graded_dimension(&self, b: Bidegree, cap: i32) -> Option<usize> {
-        let _ = (b, cap);
-        None
-    }
-
-    /// The differential [`matrix`](Self::matrix) restricted to generators of grade
-    /// `≤ cap` at both ends (rows and columns compacted to the kept generators).
-    /// The default ignores `cap` (ungraded), returning the full matrix.
-    ///
-    /// A graded implementor **must override this together with
-    /// [`graded_dimension`](Self::graded_dimension)** and keep them consistent: the
-    /// capped matrix's row count must equal `graded_dimension(b, cap)` (and its
-    /// column count `graded_dimension(b + shift, cap)`). Otherwise
-    /// [`cohomology_dimension_capped`](ExtAlgebra::cohomology_dimension_capped) mixes
-    /// a capped generator count with an uncapped rank.
-    fn matrix_capped(&self, b: Bidegree, cap: i32) -> Option<Matrix> {
-        let _ = cap;
-        self.matrix(b)
-    }
 }
 
 /// $\Ext(M, k)$ as a bigraded module over the bigraded algebra $\Ext(k, k)$, backed by a
@@ -187,52 +151,35 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// non-minimal resolution's $\Hom(d, k)$, or a deformation's connecting map)
     /// makes it a genuine kernel-mod-image.
     ///
-    /// Returns `None` if the outgoing differential at `b` is out of the computed
-    /// range; a missing incoming differential (no source bidegree, or empty) counts
-    /// as rank $0$.
+    /// `None` if either differential at `b` is out of the computed range. An unknown incoming rank
+    /// is not read as zero: that would overstate the cohomology at the edge of the computed region.
     pub fn cohomology_dimension(&self, b: Bidegree) -> Option<usize> {
-        self.cohomology_dimension_capped(b, i32::MAX)
-    }
-
-    /// The dimension of the DGA's cohomology at `b` restricted to the coefficient's
-    /// weight slice `≤ cap` — for a graded coefficient like $\mathbb{F}_2[\tau]$
-    /// this is a slice of the Ext *module*, and sweeping `cap` exposes the
-    /// $\tau$-torsion (dimension above the free/`cap = ∞` rank). For an ungraded
-    /// (field) coefficient the differential reports no grading and this is just
-    /// [`cohomology_dimension`](Self::cohomology_dimension) for every `cap`.
-    pub fn cohomology_dimension_capped(&self, b: Bidegree, cap: i32) -> Option<usize> {
         let Some(d) = &self.differential else {
             return Some(self.dimension(b));
         };
-        let gens = d
-            .graded_dimension(b, cap)
-            .unwrap_or_else(|| self.dimension(b));
+        let gens = self.dimension(b);
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
-        // The capped matrix must line up with the capped generator count `gens`, or
-        // an undersized matrix would understate a rank and overstate the cohomology
-        // (matching the shape checks in `cohomology_subquotient`).
-        let mut out = d.matrix_capped(b, cap)?;
+        // Each matrix must line up with the generator count, or an undersized one would understate
+        // a rank and overstate the cohomology (matching the shape checks in
+        // `cohomology_subquotient`).
+        let mut out = d.matrix(b)?;
         assert_eq!(
             out.rows(),
             gens,
-            "ExtDifferential::matrix_capped({b:?}, {cap}) must have gens = {gens} rows, got {}",
+            "ExtDifferential::matrix({b:?}) must have gens = {gens} rows, got {}",
             out.rows()
         );
         let rank_out = out.row_reduce();
-        let rank_in = match d.matrix_capped(source, cap) {
-            Some(mut incoming) => {
-                assert_eq!(
-                    incoming.columns(),
-                    gens,
-                    "ExtDifferential::matrix_capped({source:?}, {cap}) into {b:?} must have gens \
-                     = {gens} columns, got {}",
-                    incoming.columns()
-                );
-                incoming.row_reduce()
-            }
-            None => 0,
-        };
+        let mut incoming = d.matrix(source)?;
+        assert_eq!(
+            incoming.columns(),
+            gens,
+            "ExtDifferential::matrix({source:?}) into {b:?} must have gens = {gens} columns, got \
+             {}",
+            incoming.columns()
+        );
+        let rank_in = incoming.row_reduce();
         // ker ⊇ im requires d∘d = 0; a malformed differential could underflow here.
         debug_assert!(
             rank_out + rank_in <= gens,
@@ -249,8 +196,8 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// $\operatorname{im}(\delta \text{ into } b)$. With no differential attached
     /// every generator survives, so this is the full space.
     ///
-    /// `None` if the outgoing differential at `b` is out of the computed range (as
-    /// with [`cohomology_dimension`](Self::cohomology_dimension)).
+    /// `None` if either differential at `b` is out of the computed range, as with
+    /// [`cohomology_dimension`](Self::cohomology_dimension).
     pub fn cohomology_subquotient(&self, b: Bidegree) -> Option<Subquotient> {
         let p = self.prime();
         let dim = self.dimension(b);
@@ -277,22 +224,18 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
 
         // Denominator: im(δ into b) = row space of δ out of the source bidegree. A
         // well-shaped differential lands in the gens(b)-space (`dim` columns), so its
-        // rows are vectors of the right ambient; a missing source is the zero image.
+        // rows are vectors of the right ambient.
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
-        let denominator = match d.matrix(source) {
-            Some(m) => {
-                assert_eq!(
-                    m.columns(),
-                    dim,
-                    "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} \
-                     columns, got {}",
-                    m.columns()
-                );
-                Subspace::from_matrix(m)
-            }
-            None => Subspace::new(p, dim),
-        };
+        let m = d.matrix(source)?;
+        assert_eq!(
+            m.columns(),
+            dim,
+            "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} columns, \
+             got {}",
+            m.columns()
+        );
+        let denominator = Subspace::from_matrix(m);
 
         Some(Subquotient::from_parts(numerator, denominator))
     }
