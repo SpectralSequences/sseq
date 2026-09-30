@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ALLOCATION"],"fn":["next_disjoint"],"struct":["Matrix2D","PPartAllocation","PPartMultiplier"]};

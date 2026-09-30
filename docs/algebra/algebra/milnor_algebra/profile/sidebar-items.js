@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["q_part_default"],"struct":["MilnorProfile"]};
