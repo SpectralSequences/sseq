@@ -63,10 +63,6 @@ nassau = []
 gpu = ["fp/gpu"]
 
 [workspace]
-# `fp-cuda` needs nvcc. `default-members` is not enough: `--workspace` selects every member, so
-# `cargo check --workspace` and rust-analyzer would still build it.
-exclude = ["crates/fp-cuda"]
-
 members = [
     "crates/algebra",
     "crates/bivec",

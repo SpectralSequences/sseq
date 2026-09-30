@@ -25,11 +25,28 @@
 // The CTAs are independent: no thread-block cluster, no TMA multicast, so the grid carries no
 // placement constraint. Clusters were tried and removed; see EXPERIMENTS.md.
 
+// The tuning knobs are defined in src/params.rs and arrive as -D options.
+#if !defined(MSTRIPS) || !defined(MW) || !defined(TK) || !defined(NB) || !defined(STAGES) || \
+    !defined(GROUP_M) || !defined(THREADS_PER_WG)
+#error "compile this with -DMSTRIPS=.. -DMW=.. -DTK=.. -DNB=.. -DSTAGES=.. -DGROUP_M=.. \
+-DTHREADS_PER_WG=..; see src/params.rs"
+#endif
+
+#ifdef __CUDACC_RTC__
+// NVRTC compiles a bare string with no filesystem behind it, so no headers are available. Every
+// other CUDA name here is an NVRTC builtin.
+using int32_t  = int;
+using uint32_t = unsigned int;
+using uint64_t = unsigned long long;
+// Opaque stand-in for the driver's CUtensorMap, laid out as CUtensorMap_st is. The kernel only
+// takes its address, so layout compatibility is all the parameter needs.
+struct alignas(64) CUtensorMap { uint64_t opaque[16]; };
+#else
+// nvcc has the headers.
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <cuda.h>
-
-#include "params.h"
+#endif
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -151,8 +168,8 @@ __device__ __forceinline__ void fence_async_shared(){ asm volatile("fence.proxy.
 // Output block = MSTRIPS m64 row-strips × NB columns per CTA. Each k256 step
 // issues MSTRIPS m64n128 wgmmas that SHARE one B sub-tile, so a single L2→SMEM
 // load of B feeds MSTRIPS strips — cutting refill bytes/MAC (the bottleneck) by
-// ~1/(1+NB/BM). The knobs themselves live in params.h (shared with the host);
-// everything below is derived.
+// ~1/(1+NB/BM). The knobs themselves are -D'd in by the host (see the top of
+// this file and `src/params.rs`); everything below is derived.
 constexpr int KL = TK/64;          // u64 per tile row (= 128 B, the swizzle width)
 constexpr int TM = MW*MSTRIPS;     // output rows per CTA
 constexpr int NG = NB/64;          // output column-limbs per CTA
@@ -208,6 +225,7 @@ extern "C" __global__ void matmul_b1_kernel(
     uint32_t n_groups,
     uint32_t M, uint32_t K)
 {
+    // TMA faults on a destination that is not 128-byte aligned.
     extern __shared__ __align__(128) uint64_t smem[];
     uint64_t* sA = smem;                          // [STAGES][TILE_A]
     uint64_t* sB = sA + STAGES * TILE_A;          // [STAGES][TILE_B]
@@ -220,9 +238,10 @@ extern "C" __global__ void matmul_b1_kernel(
     const int t_wg = t - wg * THREADS_PER_WG; // 0..127 within warpgroup
 
     const int nchunks = (K + TK - 1) / TK;
-    // One full A tile + one full B tile per stage (B is zero-padded on the
-    // host to a multiple of NB columns, so it is always a complete tile). Both
-    // target this CTA's full barrier.
+    // One full A tile + one full B tile per stage (transpose_tile_b1_kernel
+    // writes B as whole zero-padded tiles). Both loads target this CTA's full
+    // barrier, and this must equal the bytes they complete, or the barrier
+    // never flips.
     const uint32_t expected_tx = (uint32_t)((TILE_A + TILE_B) * sizeof(uint64_t));
 
     // Tile-grid geometry: one CTA per output tile-iteration, striding the whole
@@ -415,11 +434,12 @@ extern "C" __global__ void matmul_b1_kernel(
 // `jj` gathers bit `jj` out of all 64 rows. The gather reads one shared slot at a time across the
 // whole block, so every read is a broadcast rather than a bank conflict.
 //
-// Both the loads (a column of B, stride n_lim) and the stores (stride KL) are strided.
+// Both the loads (a column of B, stride b_stride) and the stores (stride KL) are strided.
 extern "C" __global__ void transpose_tile_b1_kernel(
-    const unsigned long long* __restrict__ b, // k_padded x n_lim, row-major
+    const unsigned long long* __restrict__ b, // k_rows x b_stride, row-major
     unsigned long long* __restrict__ out,     // k_chunks x n_groups x (NB*KL)
-    int n_lim,                                // limbs per row of B
+    int n_lim,                                // limbs per row of B that hold columns
+    int b_stride,                             // limbs between rows of B (>= n_lim)
     int k_rows,                               // rows of B actually uploaded (the unpadded k)
     int n_groups)                             // column groups of NG limbs
 {
@@ -435,7 +455,7 @@ extern "C" __global__ void transpose_tile_b1_kernel(
     const int row = kk * TK + kl * 64 + t;
     // Column groups past the operand, and K rows past the end of B, contribute zeros — so B is
     // uploaded unpadded and the K padding costs no host copy.
-    sB[t] = (limb < n_lim && row < k_rows) ? b[(long long)row * n_lim + limb] : 0ULL;
+    sB[t] = (limb < n_lim && row < k_rows) ? b[(long long)row * b_stride + limb] : 0ULL;
     __syncthreads();
 
     unsigned long long val = 0;

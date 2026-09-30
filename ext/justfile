@@ -17,12 +17,12 @@ test:
 
 lint:
     cargo fmt --all -- --check
-    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test
+    cargo hack clippy --workspace --all-targets --feature-powerset --profile test
 
 # Apply the fixes that `lint` only checks.
 fix:
     cargo fmt --all
-    cargo hack clippy --workspace --all-targets --feature-powerset --skip gpu --profile test --fix --allow-dirty --allow-staged
+    cargo hack clippy --workspace --all-targets --feature-powerset --profile test --fix --allow-dirty --allow-staged
 
 docs:
     ./build_docs.py

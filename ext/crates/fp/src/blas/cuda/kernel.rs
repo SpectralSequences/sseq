@@ -1,32 +1,77 @@
-//! CUDA backend for `fp::blas` F_2 matrix multiplication on Hopper.
+//! Host side of the Hopper `matmul_b1` kernel: compilation, marshalling and launch.
 
 use std::{
     collections::HashMap,
     ffi::c_void,
     mem::MaybeUninit,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     thread::ThreadId,
     time::Instant,
 };
 
+use anyhow::{anyhow, bail};
 use cudarc::{
     driver::{
         CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
         PushKernelArg, sys,
     },
-    nvrtc::Ptx,
+    nvrtc::{CompileError, CompileOptions, Ptx, compile_ptx_with_opts},
 };
 
-static PTX_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/matmul_b1.ptx"));
+use super::params::{self, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+use crate::{matrix::Matrix, prime::TWO};
 
-/// The tuning knobs from `cuda_kernels/params.h`, mirrored into Rust by `build.rs`.
+/// The CUDA C++ kernel, compiled to PTX at runtime by NVRTC — see [`compile_kernel`].
+static KERNEL_SRC: &str = include_str!("matmul_b1.cu");
+
+/// The virtual architecture the kernel is compiled for.
 ///
-/// The kernel includes the same header, so these cannot drift from it.
-mod params {
-    #![allow(dead_code)]
-    include!(concat!(env!("OUT_DIR"), "/params.rs"));
+/// `90a` is architecture-*specific* and deliberately not forward-compatible: the kernel emits
+/// `wgmma.*` and `cp.async.bulk.tensor.*`, which exist on Hopper and nowhere else.
+const ARCH: &str = "compute_90a";
+
+/// Compile the kernel to PTX with NVRTC, passing the knobs from [`params::defines`].
+///
+/// Needs `libnvrtc`, but no GPU.
+pub fn compile_kernel() -> anyhow::Result<Ptx> {
+    // SAFETY: `is_culib_present` only `dlopen`s the candidate library names and reports whether
+    // one resolved; it dereferences nothing. cudarc panics on the first missing symbol, so the
+    // probe has to come before any other nvrtc call.
+    if !unsafe { cudarc::nvrtc::sys::is_culib_present() } {
+        bail!(
+            "libnvrtc was not found, so the CUDA kernel cannot be compiled. Install the CUDA \
+             Toolkit (12.x+) and make sure its lib directory is on the loader path; in this repo, \
+             `nix develop ./ext#gpu` does both."
+        );
+    }
+
+    let opts = CompileOptions {
+        arch: Some(ARCH),
+        // Names the program, so NVRTC's diagnostics say matmul_b1.cu rather than "default_program".
+        name: Some("matmul_b1.cu".to_string()),
+        options: params::defines(),
+        ..Default::default()
+    };
+
+    compile_ptx_with_opts(KERNEL_SRC, opts).map_err(|e| match &e {
+        // `CompileError`'s `Display` is a `Debug` dump that buries the log in escapes.
+        CompileError::CompileError { log, .. } => anyhow!(
+            "NVRTC failed to compile matmul_b1.cu for {ARCH}:\n{}",
+            log.to_string_lossy()
+        ),
+        _ => anyhow!("NVRTC failed to compile matmul_b1.cu: {e}"),
+    })
 }
-use params::{MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+
+/// The compiled kernel, compiled once per process and reused.
+fn kernel_ptx() -> anyhow::Result<Ptx> {
+    static PTX: OnceLock<Ptx> = OnceLock::new();
+    if let Some(ptx) = PTX.get() {
+        return Ok(ptx.clone());
+    }
+    let ptx = compile_kernel()?;
+    Ok(PTX.get_or_init(|| ptx).clone())
+}
 
 const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
 const TILE_K: usize = TK;
@@ -52,7 +97,7 @@ pub struct GpuContext {
     /// Per-thread CUDA streams for *this* context, created lazily (see [`Self::stream`]). Owned by
     /// the context so a thread using several contexts (e.g. one per device) gets a distinct stream
     /// per context. The mutex is held only for the map lookup, never across a GPU submission, so it
-    /// does not serialize device work — unlike the whole-op lock this design replaced.
+    /// does not serialize device work.
     streams: Mutex<HashMap<ThreadId, Arc<CudaStream>>>,
     #[allow(dead_code)]
     module: Arc<CudaModule>,
@@ -63,8 +108,8 @@ pub struct GpuContext {
 impl GpuContext {
     /// Open device `device_id` and load the kernel onto it.
     pub fn new(device_id: usize) -> anyhow::Result<Self> {
+        let ptx = kernel_ptx()?;
         let ctx = CudaContext::new(device_id)?;
-        let ptx = Ptx::from_src(String::from_utf8(PTX_IMAGE.to_vec())?);
         let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
         let transpose_kernel = module.load_function("transpose_tile_b1_kernel")?;
@@ -88,18 +133,14 @@ impl GpuContext {
         Ok((major, minor))
     }
 
-    pub fn default_stream(&self) -> Arc<CudaStream> {
-        self.ctx.default_stream()
-    }
-
     /// A CUDA stream **private to the calling OS thread**.
     ///
     /// Created lazily on first use and reused thereafter, cached per thread in this context's
-    /// `streams` map. Submitting through this instead of the context's single `default_stream()`
+    /// `streams` map. Submitting through this instead of the context's single default stream
     /// lets calls from different threads run on distinct streams — overlapping transfers and
     /// kernels instead of serializing — while all sub-steps of one call share one stream, which
-    /// keeps ordering correct within a thread. This is what lets `try_mul` (and the row-reduce) run
-    /// lock-free from many threads at once.
+    /// keeps ordering correct within a thread. This is what lets `try_mul` run lock-free from many
+    /// threads at once.
     pub fn stream(&self) -> Arc<CudaStream> {
         self.streams
             .lock()
@@ -114,71 +155,53 @@ impl GpuContext {
             })
             .clone()
     }
+}
 
-    pub fn kernel(&self) -> &CudaFunction {
-        &self.kernel
+impl Matrix {
+    /// Compute `self · rhs` on the GPU.
+    ///
+    /// Both operands must be over F₂. The operands are read in place: A is gathered into the
+    /// kernel's tile layout straight from its limbs, and B is uploaded as it stands, to be
+    /// rearranged K-major on the device by `transpose_tile_b1_kernel`.
+    pub fn cuda_mul(&self, gpu: &GpuContext, rhs: &Self) -> anyhow::Result<Self> {
+        Ok(matmul_b1(gpu, self, rhs, 1)?.0)
+    }
+
+    /// Like [`Self::cuda_mul`], but also returns the average **kernel-only** wall time in seconds.
+    ///
+    /// The time is averaged over `time_iters` back-to-back launches, and excludes host
+    /// marshalling and the H2D/D2H copies.
+    ///
+    /// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor *store* (overwrite,
+    /// not accumulate), so repeated launches against the same device buffers are idempotent and the
+    /// returned matrix is the correct product.
+    pub fn cuda_mul_timed(
+        &self,
+        gpu: &GpuContext,
+        rhs: &Self,
+        time_iters: usize,
+    ) -> anyhow::Result<(Self, f64)> {
+        matmul_b1(gpu, self, rhs, time_iters.max(1))
     }
 }
 
-/// Multiply two bit-packed F₂ matrices on the GPU.
-///
-/// Operands are plain **row-major, K-major** limb arrays — the exact layout `fp::Matrix::to_bytes`
-/// produces (little-endian `u64` limbs, one bit per entry, `columns.div_ceil(64)` limbs per row, no
-/// inter-row padding):
-///
-/// - `a`: the `m`×`k` left operand, `m * k.div_ceil(64)` limbs.
-/// - `b`: the `k`×`n` right operand, `k * n.div_ceil(64)` limbs.
-///
-/// The kernel wants B K-major; `transpose_tile_b1_kernel` rearranges it on the device, so B is
-/// uploaded exactly as it stands and the host does no bit-level work on either operand.
-///
-/// Returns C = A·B as `m * n.div_ceil(64)` limbs in the same layout, ready to hand to
-/// `fp::Matrix::from_data`.
-pub fn matmul_b1_raw(
+/// Multiply `a · b` over F₂ on the GPU, launching the kernel `time_iters` times.
+fn matmul_b1(
     gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
-) -> anyhow::Result<Vec<u64>> {
-    Ok(matmul_b1_inner(gpu, a, m, k, b, n, 1)?.0)
-}
-
-/// Like [`matmul_b1_raw`], but also returns the average **kernel-only** wall time in seconds.
-///
-/// The time is averaged over `time_iters` back-to-back launches, and excludes host
-/// (de)serialization, the TMA-layout pre-arrangement, and the H2D/D2H copies.
-///
-/// The kernel zeroes its SMEM accumulator and writes C with a bulk-tensor *store* (overwrite, not
-/// accumulate), so repeated launches against the same device buffers are idempotent and the
-/// returned limbs are the correct product.
-pub fn matmul_b1_raw_timed(
-    gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
+    a: &Matrix,
+    b: &Matrix,
     time_iters: usize,
-) -> anyhow::Result<(Vec<u64>, f64)> {
-    matmul_b1_inner(gpu, a, m, k, b, n, time_iters.max(1))
-}
+) -> anyhow::Result<(Matrix, f64)> {
+    assert_eq!(a.prime(), TWO);
+    assert_eq!(b.prime(), TWO);
+    assert_eq!(a.columns(), b.rows());
 
-#[allow(clippy::too_many_arguments)]
-fn matmul_b1_inner(
-    gpu: &GpuContext,
-    a: &[u64],
-    m: usize,
-    k: usize,
-    b: &[u64],
-    n: usize,
-    time_iters: usize,
-) -> anyhow::Result<(Vec<u64>, f64)> {
+    let (m, k, n) = (a.rows(), a.columns(), b.columns());
+    let mut c = Matrix::new(TWO, m, n);
+    if m == 0 || k == 0 || n == 0 {
+        return Ok((c, 0.0));
+    }
     let n_lim = n.div_ceil(64);
-    let k_lim = k.div_ceil(64);
-    assert_eq!(a.len(), m * k_lim, "A limb count mismatch");
-    assert_eq!(b.len(), k * n_lim, "B limb count mismatch");
 
     let k_padded = k.next_multiple_of(TILE_K);
     // Pad M to a whole number of M-tiles; the extra padded rows produce zeros
@@ -193,13 +216,13 @@ fn matmul_b1_inner(
 
     let stream = gpu.stream();
 
-    let a_padded = pad_2d(a, m, k_lim, m_padded, k_padded / 64);
-    let a_interleaved = interleave_a(&a_padded, m_padded, k_padded);
+    let a_interleaved = interleave_a(a, m_tiles, k_chunks);
     let a_dev = stream.clone_htod(&a_interleaved)?;
 
-    // B goes up unpadded; the kernel reads rows past `k` as zeros, so the K padding costs no host
-    // copy.
-    let b_dev = stream.clone_htod(b)?;
+    // B goes up as its first `k` rows, row stride and all; the kernel reads rows past `k` as zeros,
+    // so the K padding costs no host copy.
+    let b_stride = b.stride();
+    let b_dev = stream.clone_htod(&b.data()[..k * b_stride])?;
     let bt_dev = stream.alloc_zeros::<u64>(k_chunks * n_groups * (NG as usize * 64) * KL)?;
     {
         let cfg = LaunchConfig {
@@ -208,16 +231,19 @@ fn matmul_b1_inner(
             shared_mem_bytes: 0,
         };
         let mut lb = stream.launch_builder(&gpu.transpose_kernel);
-        let (n_lim_i, k_i, n_groups_i) = (n_lim as i32, k as i32, n_groups as i32);
+        let (n_lim_i, b_stride_i, k_i, n_groups_i) =
+            (n_lim as i32, b_stride as i32, k as i32, n_groups as i32);
         lb.arg(&b_dev)
             .arg(&bt_dev)
             .arg(&n_lim_i)
+            .arg(&b_stride_i)
             .arg(&k_i)
             .arg(&n_groups_i);
-        // SAFETY: the five pushed arguments match `transpose_tile_b1_kernel`'s parameter list in
-        // order and type; `b_dev` holds `k * n_lim` limbs and the kernel indexes it only where
-        // `row < k` and `limb < n_lim`; `bt_dev` is exactly the tile count the grid covers; both
-        // buffers outlive the launch, their guards being held until the final synchronize.
+        // SAFETY: the six pushed arguments match `transpose_tile_b1_kernel`'s parameter list in
+        // order and type; `b_dev` holds `k * b_stride` limbs and the kernel indexes it only where
+        // `row < k` and `limb < n_lim <= b_stride`; `bt_dev` is exactly the tile count the grid
+        // covers; both buffers outlive the launch, their guards being held until the final
+        // synchronize.
         unsafe { lb.launch(cfg) }?;
     }
 
@@ -325,12 +351,16 @@ fn matmul_b1_inner(
     let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
 
     let c_all = stream.clone_dtoh(&c_dev)?;
-    let c_limbs: Vec<u64> = c_all
-        .chunks_exact(n_padded_lim)
+    let c_stride = c.stride();
+    for (dst, src) in c
+        .data_mut()
+        .chunks_exact_mut(c_stride)
+        .zip(c_all.chunks_exact(n_padded_lim))
         .take(m)
-        .flat_map(|row| row[..n_lim].iter().copied())
-        .collect();
-    Ok((c_limbs, kernel_secs))
+    {
+        dst[..n_lim].copy_from_slice(&src[..n_lim]);
+    }
+    Ok((c, kernel_secs))
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.
@@ -370,47 +400,28 @@ fn encode_tma(
 
 /// Gather A into plain row-major K-major tiles for TMA 128B swizzle.
 ///
-/// Output: contiguous tiles, each TILE_M rows × KL u64s, so a row is 128 bytes — the swizzle width.
+/// Output: contiguous tiles, each TILE_M rows × KL u64s, so a row is exactly the swizzle width.
 /// The TMA applies the 128B swizzle on load, so the host layout is the natural row-major sub-block:
 /// tile row `row` holds K bits `kk*TILE_K .. +TILE_K` of global row `bi*TILE_M + row`, zero-padded
 /// out of bounds.
 ///
 /// Tiles are ordered: for K-chunk kk=0..k_chunks-1, then M-tile bi=0..m_tiles-1.
-fn interleave_a(a: &[u64], m: usize, k: usize) -> Vec<u64> {
-    let sa = k / 64;
-    let k_chunks = k / TILE_K;
-    let m_tiles = m / TILE_M;
+fn interleave_a(a: &Matrix, m_tiles: usize, k_chunks: usize) -> Vec<u64> {
+    let (m, k_lim, stride) = (a.rows(), a.columns().div_ceil(64), a.stride());
+    let data = a.data();
     let tile_u64s = TILE_M * KL;
     let mut out = vec![0u64; k_chunks * m_tiles * tile_u64s];
 
     for kk in 0..k_chunks {
+        let (kl_start, kl_end) = (kk * KL, ((kk + 1) * KL).min(k_lim));
         for bi in 0..m_tiles {
             let base = (kk * m_tiles + bi) * tile_u64s;
-            for row in 0..TILE_M {
-                for kl in 0..KL {
-                    let global_row = bi * TILE_M + row;
-                    let global_kl = kk * KL + kl;
-                    let val = if global_row < m && global_kl < sa {
-                        a[global_row * sa + global_kl]
-                    } else {
-                        0
-                    };
-                    out[base + row * KL + kl] = val;
-                }
+            for row in 0..TILE_M.min(m.saturating_sub(bi * TILE_M)) {
+                let src = (bi * TILE_M + row) * stride;
+                out[base + row * KL..][..kl_end - kl_start]
+                    .copy_from_slice(&data[src + kl_start..src + kl_end]);
             }
         }
-    }
-    out
-}
-
-fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<u64> {
-    if rows == nr && stride == ns {
-        return src.to_vec();
-    }
-    let mut out = vec![0u64; nr * ns];
-    for r in 0..rows {
-        let n = stride.min(ns);
-        out[r * ns..r * ns + n].copy_from_slice(&src[r * stride..r * stride + n]);
     }
     out
 }
@@ -419,24 +430,99 @@ fn pad_2d(src: &[u64], rows: usize, stride: usize, nr: usize, ns: usize) -> Vec<
 mod tests {
     use std::sync::OnceLock;
 
-    use super::*;
+    use proptest::prelude::*;
 
-    /// `true` iff a usable CUDA device is present, probed once for the whole test binary.
+    use super::*;
+    use crate::matrix::arbitrary::MatrixArbParams;
+
+    /// A context on device 0 shared by the whole test binary, or `None` if there is no usable GPU.
     ///
     /// `GpuContext::new` initializes the CUDA driver through cudarc, which *panics* (rather than
     /// returning `Err`) when no driver library is present — as on GPU-less CI. We silence the panic
     /// hook and catch the unwind so the probe reports "no GPU" instead of aborting the run. Every
-    /// device-touching test gates on this and returns early when it is `false`, so the whole GPU
-    /// test suite is disabled cleanly (rather than failing) wherever there is no device.
-    fn gpu_available() -> bool {
-        static AVAIL: OnceLock<bool> = OnceLock::new();
-        *AVAIL.get_or_init(|| {
+    /// device-touching test gates on this and returns early on `None`, so the whole GPU test suite
+    /// is disabled cleanly (rather than failing) wherever there is no device.
+    fn gpu() -> Option<&'static GpuContext> {
+        static GPU: OnceLock<Option<GpuContext>> = OnceLock::new();
+        GPU.get_or_init(|| {
             let prev_hook = std::panic::take_hook();
             std::panic::set_hook(Box::new(|_| {}));
-            let ok = std::panic::catch_unwind(|| GpuContext::new(0).is_ok()).unwrap_or(false);
+            let ctx = std::panic::catch_unwind(|| GpuContext::new(0).ok()).unwrap_or(None);
             std::panic::set_hook(prev_hook);
-            ok
+            ctx
         })
+        .as_ref()
+    }
+
+    /// The kernel compiles.
+    #[test]
+    fn kernel_compiles() {
+        // SAFETY: see `compile_kernel`; the probe only tries to `dlopen` the library.
+        if !unsafe { cudarc::nvrtc::sys::is_culib_present() } {
+            return; // no CUDA Toolkit in this environment — nothing to compile with
+        }
+        let ptx = compile_kernel().expect("matmul_b1.cu must compile");
+        let src = ptx.to_src();
+        for kernel in ["matmul_b1_kernel", "transpose_tile_b1_kernel"] {
+            assert!(
+                src.contains(kernel),
+                "{kernel} is missing from the compiled PTX"
+            );
+        }
+    }
+
+    /// `m` copied into a matrix whose row stride has room for `spare` more columns.
+    fn with_spare_columns(m: &Matrix, spare: usize) -> Matrix {
+        let (rows, columns) = (m.rows(), m.columns());
+        let mut out = Matrix::new_with_capacity(TWO, rows, columns, rows, columns + spare);
+        for i in 0..rows {
+            out.row_mut(i).assign(m.row(i));
+        }
+        out
+    }
+
+    /// An arbitrary `rows × columns` matrix over F₂.
+    fn arb_matrix(rows: usize, columns: usize) -> BoxedStrategy<Matrix> {
+        Matrix::arbitrary_with(MatrixArbParams {
+            p: Some(TWO),
+            rows: Just(rows).boxed(),
+            columns: Just(columns).boxed(),
+        })
+    }
+
+    /// Multipliable operands, a number of spare columns to widen their row stride by, and a launch
+    /// count.
+    ///
+    /// The dimensions straddle the kernel's M, N and K tiles, so every axis sees both whole tiles
+    /// and ragged tails.
+    fn arb_operands() -> impl Strategy<Value = (Matrix, Matrix, usize, usize)> {
+        (1..=2 * TILE_M + 1, 1..=TILE_K + 65, 1..=2 * NB + 1).prop_flat_map(|(m, k, n)| {
+            (arb_matrix(m, k), arb_matrix(k, n), 0..=128usize, 1..=3usize)
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        /// The GPU product is the product whatever the operands' row stride, and relaunching the
+        /// kernel against the same buffers does not change it.
+        #[test]
+        fn cuda_mul_is_mul((a, b, spare, iters) in arb_operands()) {
+            let Some(gpu) = gpu() else {
+                return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
+            };
+            // The tiled CPU kernel needs its operands padded to whole blocks, as `Mul` checks.
+            let reference = if a.physical_rows().is_multiple_of(64)
+                && b.physical_rows().is_multiple_of(64)
+            {
+                a.fast_mul_sequential(&b)
+            } else {
+                a.naive_mul(&b)
+            };
+            let (a, b) = (with_spare_columns(&a, spare), with_spare_columns(&b, spare));
+            let (c, _) = a.cuda_mul_timed(gpu, &b, iters).expect("GPU matmul launch failed");
+            prop_assert_eq!(c, reference);
+        }
     }
 
     /// Regression for the per-thread stream cache being scoped to its context.
@@ -447,7 +533,7 @@ mod tests {
     /// 0 twice: distinct instances, so distinct streams, without needing a second GPU.
     #[test]
     fn stream_is_scoped_per_context() {
-        if !gpu_available() {
+        if gpu().is_none() {
             return; // no usable GPU/driver in this environment — nothing to exercise
         }
         let a = GpuContext::new(0).expect("GPU is available");

@@ -12,8 +12,9 @@ the code should do. Trim them as the last step before a PR merges, against the r
 - One fact, one home: put it at the most local site and link from elsewhere if needed. Prefer the
   place where the unusual thing actually happens (e.g. the `unsafe` block, the manifest entry).
 - Experiment logs — what was tried, what it gained, why an alternative was rejected — go in a
-  dedicated document (see `crates/fp-cuda/EXPERIMENTS.md`) or the commit message. Never in comments,
-  and never in a README, which describes the crate as it is rather than how it got there.
+  dedicated document (see `crates/fp/src/blas/cuda/EXPERIMENTS.md`) or the commit message. Never
+  in comments, and never in a README, which describes the crate as it is rather than how it got
+  there.
 - Document every function, including one-line wrappers, for consistency. Every `unsafe` block gets a
   `SAFETY:` comment naming the obligations it discharges.
 
