@@ -170,7 +170,8 @@ pub trait Module<const N: usize = 1>: std::fmt::Display + std::any::Any + Send +
         self.algebra().prime()
     }
 
-    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension_multi(t) = 0`.
+    /// `max_degree` is a degree such that if t > `max_degree`,
+    /// then `self.dimension_multi(t) = 0`.
     fn max_degree(&self) -> Option<i32> {
         None
     }

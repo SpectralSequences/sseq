@@ -25,8 +25,8 @@ use sseq::coordinates::MultiDegree;
 /// The trait is generic over the number of gradings `N`. Degrees are [`MultiDegree<N>`].
 /// Callers in the singly-graded world can keep passing bare `i32`s.
 ///
-/// `Algebra` cannot use `#[enum_dispatch]` because it is generic; `dispatch_steenrod!` does dispatch
-/// by hand.
+/// `Algebra` cannot use `#[enum_dispatch]` because it is generic;
+/// `dispatch_steenrod!` does dispatch by hand.
 pub trait Algebra<const N: usize = 1>: std::fmt::Display + Send + Sync + 'static {
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.
