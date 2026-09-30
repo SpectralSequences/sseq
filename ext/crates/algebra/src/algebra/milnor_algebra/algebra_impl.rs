@@ -13,14 +13,16 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     }
 
     fn magic(&self) -> u32 {
-        // Saved resolutions store coefficients by basis index, so no two shape-and-prime pairs
-        // may share a magic. The bit marks the two pairs the prime alone would have called wrong,
-        // which are exactly the ones that could not already have written a file.
-        let shape = if F::HAS_EXTERIOR == (self.p == 2) {
-            0x4000
-        } else {
-            0
-        };
+        // Saved resolutions store coefficients by basis index, so the header has to pin down whose
+        // basis wrote them. The shape and the prime vary independently, so each gets its own field
+        // rather than the shape being read off the prime.
+        //
+        // Giving the shape a field of its own necessarily moves one of the two classical values:
+        // the classical algebra is `NoExterior` at 2 and `Exterior` at an odd prime, so a bit that
+        // depends on the shape alone cannot be 0 for both. It is the odd-primary value that moves,
+        // and a header mismatch is an error at load rather than a misread, so an existing
+        // odd-primary save fails loudly and has to be recomputed.
+        let shape = if F::HAS_EXTERIOR { 0x4000 } else { 0 };
         (self.p << 16)
             + shape
             + if self.profile.is_trivial() {
@@ -362,5 +364,54 @@ mod tests {
         a2.compute_basis(16);
         assert!(a2.basis_element_from_string("P7").is_some());
         assert_eq!(a2.basis_element_from_string("P8"), None);
+    }
+
+    /// [`Algebra::magic`] pins the shape and the prime in fields of their own.
+    ///
+    /// The value is a wire format: every save file's header carries it and a file whose header
+    /// disagrees is rejected, so two algebras sharing a value would read each other's coefficients
+    /// as their own basis. The table is the encoding rather than an example of it: `0x4000` is the
+    /// shape and the prime sits above `0x10000`.
+    ///
+    /// The classical algebra is the polynomial shape at 2 and the exterior shape at an odd prime,
+    /// so no shape field can leave both classical values where they were. This one keeps `p = 2`
+    /// and moves the odd primes, where a saved resolution now fails to load and has to be redone.
+    #[test]
+    #[cfg(feature = "odd-primes")]
+    fn magic_pins_the_shape_and_the_prime() {
+        use crate::algebra::milnor_algebra::{Exterior, NoExterior};
+
+        let table = [
+            (2, false, 0x0002_8000),
+            (2, true, 0x0002_c000),
+            (3, false, 0x0003_8000),
+            (3, true, 0x0003_c000),
+            (5, false, 0x0005_8000),
+            (5, true, 0x0005_c000),
+        ];
+        for (p, has_exterior, expected) in table {
+            let p = ValidPrime::new(p);
+            let magic = if has_exterior {
+                MilnorAlgebraInner::<Exterior>::new(p, false).magic()
+            } else {
+                MilnorAlgebraInner::<NoExterior>::new(p, false).magic()
+            };
+            assert_eq!(magic, expected, "p = {p}, has_exterior = {has_exterior}");
+        }
+
+        let mut values: Vec<u32> = table.iter().map(|&(_, _, magic)| magic).collect();
+        values.sort_unstable();
+        values.dedup();
+        assert_eq!(values.len(), table.len(), "a magic is shared");
+
+        // The classical algebra, which is what `MilnorAlgebra` exposes.
+        assert_eq!(
+            MilnorAlgebra::new(ValidPrime::new(2), false).magic(),
+            0x0002_8000
+        );
+        assert_eq!(
+            MilnorAlgebra::new(ValidPrime::new(3), false).magic(),
+            0x0003_c000
+        );
     }
 }

@@ -279,16 +279,13 @@ mod tests {
     use fp::vector::FpVector;
 
     use super::*;
-    use crate::algebra::{
-        Bialgebra, GeneratedAlgebra,
-        milnor_algebra::{MilnorAlgebra, MilnorProfile},
-    };
+    use crate::algebra::{Bialgebra, GeneratedAlgebra, milnor_algebra::MilnorProfile};
 
     /// The exterior shape at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
     ///
-    /// That configuration is unreachable through [`MilnorAlgebra`], so these check it against the
-    /// independent Kong–Lin closed form in [`crate::algebra::motivic::milnor`], which shares no
-    /// code with this file.
+    /// That configuration is unreachable through [`MilnorAlgebra`](crate::algebra::MilnorAlgebra),
+    /// so these check it against the independent Kong–Lin closed form in
+    /// [`crate::algebra::motivic::milnor`], which shares no code with this file.
     mod exterior_at_two {
         use fp::prime::TWO;
 
@@ -564,20 +561,6 @@ mod tests {
             assert_eq!(classical.coproduct(2, idx).len(), 3);
         }
 
-        /// The two shapes at `p = 2` must not share a [`Algebra::magic`].
-        ///
-        /// The literal is the classical value, which is a wire format: changing it invalidates
-        /// existing saved resolutions.
-        #[test]
-        fn magic_distinguishes_the_shapes() {
-            let exterior = MilnorAlgebraInner::<Exterior>::new(TWO, false);
-            let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
-            assert_ne!(exterior.magic(), classical.magic());
-
-            assert_eq!(classical.magic(), 0x0002_8000);
-            assert_eq!(MilnorAlgebra::new(TWO, false).magic(), 0x0002_8000);
-        }
-
         /// Every non-generator is the product its decomposition claims it is.
         ///
         /// Multiplying the terms back is what makes this more than a liveness check: a wrong
@@ -844,21 +827,15 @@ mod tests {
             }
         }
 
-        /// The shapes at an odd prime must not share a [`Algebra::magic`] either.
+        /// The shape is recoverable from the magic without knowing the prime.
         ///
-        /// The literals are the classical values, which are a wire format: the polynomial part
-        /// takes the new bit so that existing saved resolutions stay readable.
+        /// The encoding itself is pinned by `magic_pins_the_shape_and_the_prime` in `algebra_impl`.
         #[rstest]
-        #[case(3, 0x0003_8000)]
-        #[case(5, 0x0005_8000)]
-        fn magic_distinguishes_the_shapes(#[case] p: u32, #[case] classical: u32) {
+        #[case(3)]
+        #[case(5)]
+        fn magic_distinguishes_the_shapes(#[case] p: u32) {
             let (polynomial, full) = pair(p);
-            assert_eq!(full.magic(), classical);
-            assert_eq!(
-                MilnorAlgebra::new(ValidPrime::new(p), false).magic(),
-                classical
-            );
-            assert_ne!(polynomial.magic(), classical);
+            assert_eq!(full.magic() - polynomial.magic(), 0x4000);
         }
     }
 }
