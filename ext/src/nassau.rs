@@ -1132,11 +1132,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// to be registered; `Register` is applied by this function, in graph order, so appends to
     /// `modules[s]` and `differentials[s]` stay in increasing degree without any worker ever
     /// blocking on its row predecessor.
-    ///
-    /// `Compute(s, t)` requires `(s - 1, t - 1)` registered rather than `(s - 1, t)` -- the relaxed
-    /// diagonal, see `step_resolution_with_subalgebra` for why that suffices -- which lets `(s, t)`
-    /// run concurrently with `(s - 1, t)`. Rows 0 and 1 keep the strict schedule: `step0` and
-    /// `step1` read their targets through full matrices, so they wait for `(s - 1, t)`.
     #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         use depgraph::{Node, Phase};
@@ -1146,11 +1141,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t());
 
-        let min_degree = self.min_degree();
-        let max_s = max.s();
-        let max_n = max.n();
-
-        // How far back in its own row `(s, t)` actually reads.
+        // How far back in its own row `b` actually reads.
         //
         // The image is built at the ZERO signature, and no operation below the subalgebra's
         // zero-signature floor carries it, so generators within that many degrees contribute
@@ -1160,23 +1151,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         // Rows 0 and 1 keep the strict schedule: `step0` and `step1` read their targets through
         // full matrices rather than the signature-masked image, so this reasoning does not apply to
         // them.
-        //
-        // The floor is per bidegree, via the same subalgebra the computation will use. A single
-        // global value would be wrong in both directions: too small to help `A(3)`, and large
-        // enough to exclude generators that a nearby `A(0)` or `A(1)` bidegree genuinely needs.
-        let same_row_dep = |s: i32, t: i32| -> i32 {
-            if s <= 1 {
-                return t - 1;
+        let same_row_dep = |b: Bidegree| {
+            if b.s() <= 1 {
+                return b - Bidegree::s_t(0, 1);
             }
-            let b = Bidegree::s_t(s, t);
             let subalgebra = MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree));
-            t - subalgebra.zero_signature_floor()
+            b - Bidegree::s_t(0, subalgebra.zero_signature_floor())
         };
 
-        // A predecessor outside the region imposes no edge, which is what makes the base of each
-        // row a source; that replaces seeding a `progress` array to `min_degree - 1` so the
-        // comparison happened to hold.
-        let mut graph = depgraph::Graph::new(min_degree, max_s, max_n, same_row_dep);
+        let mut graph = depgraph::Graph::new(self.min_degree(), max, same_row_dep);
 
         let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
@@ -1212,7 +1195,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 // Dispatch everything the graph has freed. Running a `Register` can free more, so
                 // this drains rather than taking one pass.
                 while let Some(node) = graph.pop_ready() {
-                    let b = node.bidegree();
+                    let b = node.b;
                     match node.phase {
                         Phase::Compute => {
                             in_flight += 1;
@@ -1268,17 +1251,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 mod depgraph {
     use sseq::coordinates::Bidegree;
 
+    /// Which half of a bidegree's work a [`Node`] stands for.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub enum Phase {
         Compute,
         Register,
     }
 
+    /// One half of a bidegree's work.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub struct Node {
         pub phase: Phase,
-        pub s: i32,
-        pub t: i32,
+        pub b: Bidegree,
     }
 
     impl Node {
@@ -1286,14 +1270,41 @@ mod depgraph {
         pub fn compute(b: Bidegree) -> Self {
             Self {
                 phase: Phase::Compute,
-                s: b.s(),
-                t: b.t(),
+                b,
             }
         }
 
-        /// The bidegree this node belongs to, discarding its phase.
-        pub fn bidegree(&self) -> Bidegree {
-            Bidegree::s_t(self.s, self.t)
+        /// The node that appends `b`'s computed generators and differential.
+        pub fn register(b: Bidegree) -> Self {
+            Self {
+                phase: Phase::Register,
+                b,
+            }
+        }
+    }
+
+    /// One degree along a row.
+    const STEP: Bidegree = Bidegree::s_t(0, 1);
+
+    /// The bidegree in the row below whose registration `Compute(b)` reads.
+    ///
+    /// Row 1 reads `(0, t)` because `step1` reads its target through a full matrix; later rows need
+    /// only the relaxed diagonal, see `step_resolution_with_subalgebra`. Row 0 lands outside the
+    /// region, so it has no such edge.
+    fn below(b: Bidegree) -> Bidegree {
+        if b.s() == 1 {
+            b - Bidegree::s_t(1, 0)
+        } else {
+            b - Bidegree::s_t(1, 1)
+        }
+    }
+
+    /// The inverse of [`below`].
+    fn above(b: Bidegree) -> Bidegree {
+        if b.s() == 0 {
+            b + Bidegree::s_t(1, 0)
+        } else {
+            b + Bidegree::s_t(1, 1)
         }
     }
 
@@ -1301,45 +1312,38 @@ mod depgraph {
     ///
     /// Each bidegree is TWO nodes, because its two halves have different dependencies:
     ///
-    /// * `Compute(s, t)` does the expensive work. It reads rows `s-1` and `s-2` only, so it needs
-    ///   those registered -- but of its OWN row it needs only what the image computation reads.
-    /// * `Register(s, t)` appends to `modules[s]` and `differentials[s]`, which are append-only in
-    ///   increasing degree, so it needs `Register(s, t-1)`.
+    /// * `Compute(b)` does the expensive work. It reads the rows below, so it needs those
+    ///   registered -- but of its OWN row it needs only what the image computation reads.
+    /// * `Register(b)` appends to `modules[s]` and `differentials[s]`, which are append-only in
+    ///   increasing degree, so it needs `Register(b - STEP)`.
     ///
     /// Splitting them is what lets a row compute out of order while still registering in order. The
     /// scheduler dispatches `Compute` to workers and runs `Register` itself, so a node is only ever
     /// handed out when it can run immediately -- nothing blocks a worker waiting for its
     /// predecessor.
     ///
-    /// Readiness is an indegree reaching zero rather than a predicate over per-row high-water
-    /// marks. That matters: with a predicate, "each bidegree is dispatched exactly once" was an
-    /// EMERGENT property of needing both predecessors, and any relaxation silently broke it into
-    /// double dispatch. Here a node leaves the blocked set exactly once, by construction.
+    /// A node becomes ready when its count of incomplete predecessors reaches zero, so it leaves
+    /// the blocked set exactly once however many predecessors release it.
     ///
     /// # Representation
     ///
-    /// Nothing is stored that the precedence rules already determine. Every row of the region is
-    /// one contiguous run of `t`, so a node's slot is arithmetic rather than a hash key, and both
-    /// the indegrees and the edges follow from the rules below:
+    /// Every node has at most two predecessors, all in the region:
     ///
     /// ```text
-    /// Register(s, t-1)               -> Register(s, t)      appends are in increasing degree
-    /// Compute(s, t)                  -> Register(s, t)
-    /// Register(s, same_row[(s, t)])  -> Compute(s, t)       the same-row read, relaxed
-    /// Register(0, t)                 -> Compute(1, t)       row 1 reads through a full matrix
-    /// Register(s-1, t-1)             -> Compute(s, t)       the relaxed diagonal, s >= 2
+    /// Compute(b)   <- Register(same_row_dep(b)), Register(below(b))
+    /// Register(b)  <- Compute(b),                Register(b - STEP)
     /// ```
     ///
-    /// So the only per-node state is an indegree and a dispatched flag, both dense arrays. The
-    /// same-row bounds are kept because they are the one input the rules cannot recompute cheaply;
-    /// `max_gap` bounds the inverse lookup that finds a `Register`'s same-row consumers.
+    /// Every row of the region is one contiguous run of `t`, so a node's slot is arithmetic rather
+    /// than a hash key, and the edges are recomputed from these rules rather than stored. The only
+    /// per-node state is a predecessor count and a dispatched flag. `same_row_dep` is kept because
+    /// it is the one input the rules cannot recompute cheaply.
     pub struct Graph {
         min_degree: i32,
-        max_s: i32,
-        max_n: i32,
+        max: Bidegree,
         /// Prefix sums of the row lengths, so `idx` is a single add.
         row_offset: Vec<usize>,
-        /// `Compute(s, t)` waits for `Register(s, same_row[idx(s, t)])`.
+        /// The `t` of `same_row_dep`, indexed by `idx`.
         same_row: Vec<i32>,
         /// The widest `t - same_row[..]`, which bounds the scan in [`Self::successors`].
         max_gap: i32,
@@ -1352,53 +1356,52 @@ mod depgraph {
     }
 
     impl Graph {
-        /// Build the whole graph and prime the ready queue.
+        /// Build the graph for bidegrees with `t >= min_degree` through stem `max.n()` and
+        /// homological degree `max.s()`, and prime the ready queue.
         ///
-        /// `same_row_dep(s, t)` is the earliest degree in row `s` that `Compute(s, t)` reads; a
-        /// value outside the region imposes no edge, which is what makes the base of each row a
-        /// source.
+        /// `same_row_dep(b)` is the earliest bidegree in `b`'s row that `Compute(b)` reads. One
+        /// outside the region imposes no edge, which is what makes the base of each row a source.
         pub fn new(
             min_degree: i32,
-            max_s: i32,
-            max_n: i32,
-            same_row_dep: impl Fn(i32, i32) -> i32,
+            max: Bidegree,
+            same_row_dep: impl Fn(Bidegree) -> Bidegree,
         ) -> Self {
-            let mut row_offset = Vec::with_capacity(max_s as usize + 2);
+            let mut row_offset = Vec::with_capacity(max.s() as usize + 2);
             let mut total = 0usize;
-            for s in 0..=max_s {
+            for s in 0..=max.s() {
                 row_offset.push(total);
-                total += (max_n + s - min_degree + 1).max(0) as usize;
+                total += (max.n() + s - min_degree + 1).max(0) as usize;
             }
             row_offset.push(total);
 
+            let mut same_row = Vec::with_capacity(total);
+            let mut max_gap = 1;
+            for s in 0..=max.s() {
+                for t in min_degree..=(max.n() + s) {
+                    let b = Bidegree::s_t(s, t);
+                    let dep = same_row_dep(b);
+                    assert!(
+                        dep.s() == s && dep.t() < t,
+                        "same-row dependency {dep} of {b} is not earlier in its row"
+                    );
+                    max_gap = max_gap.max(t - dep.t());
+                    same_row.push(dep.t());
+                }
+            }
+
             let mut g = Self {
                 min_degree,
-                max_s,
-                max_n,
+                max,
                 row_offset,
-                same_row: Vec::new(),
-                max_gap: 1,
+                same_row,
+                max_gap,
                 blocked: Vec::new(),
                 ready: Vec::new(),
                 dispatched: vec![false; 2 * total],
                 succ_buf: Vec::new(),
             };
-
-            g.same_row = Vec::with_capacity(total);
-            for s in 0..=max_s {
-                for t in min_degree..=(max_n + s) {
-                    let dep = if g.in_region(s, t) {
-                        same_row_dep(s, t)
-                    } else {
-                        t - 1
-                    };
-                    g.max_gap = g.max_gap.max(t - dep);
-                    g.same_row.push(dep);
-                }
-            }
-
             g.blocked = (0..2 * total)
-                .map(|slot| g.indegree(g.node_at(slot)))
+                .map(|slot| g.predecessors(g.node_at(slot)).count() as u32)
                 .collect();
             // Descending, so `pop` hands out ascending slots and two runs are diffable.
             g.ready = (0..2 * total)
@@ -1409,100 +1412,73 @@ mod depgraph {
             g
         }
 
-        fn in_region(&self, s: i32, t: i32) -> bool {
-            (0..=self.max_s).contains(&s) && t >= self.min_degree && t - s <= self.max_n
+        /// Whether `b` is one of the bidegrees this graph schedules.
+        fn in_region(&self, b: Bidegree) -> bool {
+            (0..=self.max.s()).contains(&b.s()) && b.t() >= self.min_degree && b.n() <= self.max.n()
         }
 
-        fn idx(&self, s: i32, t: i32) -> usize {
-            self.row_offset[s as usize] + (t - self.min_degree) as usize
+        /// The position of `b` in the row-major order of the region.
+        fn idx(&self, b: Bidegree) -> usize {
+            self.row_offset[b.s() as usize] + (b.t() - self.min_degree) as usize
         }
 
+        /// The position of `n` in the per-node arrays, which interleave the two phases.
         fn slot(&self, n: Node) -> usize {
-            2 * self.idx(n.s, n.t) + usize::from(n.phase == Phase::Register)
+            2 * self.idx(n.b) + usize::from(n.phase == Phase::Register)
         }
 
+        /// The inverse of [`Self::slot`].
         fn node_at(&self, slot: usize) -> Node {
-            let phase = if slot.is_multiple_of(2) {
-                Phase::Compute
-            } else {
-                Phase::Register
-            };
             let idx = slot / 2;
             // The row is the last one starting at or before `idx`.
             let s = self.row_offset.partition_point(|&o| o <= idx) - 1;
-            Node {
-                phase,
-                s: s as i32,
-                t: self.min_degree + (idx - self.row_offset[s]) as i32,
+            let b = Bidegree::s_t(
+                s as i32,
+                self.min_degree + (idx - self.row_offset[s]) as i32,
+            );
+            if slot.is_multiple_of(2) {
+                Node::compute(b)
+            } else {
+                Node::register(b)
             }
         }
 
-        fn same_row_dep(&self, s: i32, t: i32) -> i32 {
-            self.same_row[self.idx(s, t)]
+        /// The earliest bidegree in `b`'s row that `Compute(b)` reads.
+        fn same_row_dep(&self, b: Bidegree) -> Bidegree {
+            Bidegree::s_t(b.s(), self.same_row[self.idx(b)])
         }
 
-        fn indegree(&self, n: Node) -> u32 {
-            let (s, t) = (n.s, n.t);
-            match n.phase {
-                // Its own compute, plus the row predecessor whose appends must land first.
-                Phase::Register => 1 + u32::from(self.in_region(s, t - 1)),
-                Phase::Compute => {
-                    let mut k = u32::from(self.in_region(s, self.same_row_dep(s, t)));
-                    if s == 1 {
-                        k += u32::from(self.in_region(0, t));
-                    } else if s >= 2 {
-                        k += u32::from(self.in_region(s - 1, t - 1));
-                    }
-                    k
-                }
-            }
+        /// The nodes that must complete before `n` can run.
+        fn predecessors(&self, n: Node) -> impl Iterator<Item = Node> {
+            let b = n.b;
+            let candidates = match n.phase {
+                Phase::Compute => [
+                    Node::register(self.same_row_dep(b)),
+                    Node::register(below(b)),
+                ],
+                Phase::Register => [Node::compute(b), Node::register(b - STEP)],
+            };
+            candidates.into_iter().filter(|p| self.in_region(p.b))
         }
 
-        /// The nodes `n` blocks, derived from the rules rather than stored.
+        /// The nodes `n` blocks: the inverse of [`Self::predecessors`].
         fn successors(&self, n: Node, out: &mut Vec<Node>) {
             out.clear();
-            let (s, t) = (n.s, n.t);
+            let b = n.b;
             match n.phase {
-                Phase::Compute => out.push(Node {
-                    phase: Phase::Register,
-                    s,
-                    t,
-                }),
+                Phase::Compute => out.push(Node::register(b)),
                 Phase::Register => {
-                    if self.in_region(s, t + 1) {
-                        out.push(Node {
-                            phase: Phase::Register,
-                            s,
-                            t: t + 1,
-                        });
-                    }
-                    // Same-row consumers: every `t'` whose read reaches back exactly to `t`. The
-                    // gap is bounded by the widest zero-signature floor in the region, so this is a
-                    // short scan and not a stored edge list.
-                    for tp in (t + 1)..=(t + self.max_gap) {
-                        if self.in_region(s, tp) && self.same_row_dep(s, tp) == t {
-                            out.push(Node {
-                                phase: Phase::Compute,
-                                s,
-                                t: tp,
-                            });
-                        }
-                    }
-                    if s == 0 {
-                        if self.in_region(1, t) {
-                            out.push(Node {
-                                phase: Phase::Compute,
-                                s: 1,
-                                t,
-                            });
-                        }
-                    } else if self.in_region(s + 1, t + 1) {
-                        out.push(Node {
-                            phase: Phase::Compute,
-                            s: s + 1,
-                            t: t + 1,
-                        });
-                    }
+                    out.push(Node::register(b + STEP));
+                    out.push(Node::compute(above(b)));
+                    // The same-row consumers are within `max_gap`, so this is a short scan rather
+                    // than a stored edge list.
+                    out.extend(
+                        (1..=self.max_gap)
+                            .map(|k| b + Bidegree::s_t(0, k))
+                            .filter(|&c| self.in_region(c) && self.same_row_dep(c) == b)
+                            .map(Node::compute),
+                    );
+                    out.retain(|c| self.in_region(c.b));
                 }
             }
         }
@@ -1523,8 +1499,7 @@ mod depgraph {
         /// Mark `n` complete, moving anything it was blocking into the ready queue.
         ///
         /// This is the ONLY way a node becomes ready, so "reports completion" and "releases
-        /// successors" cannot diverge -- previously that could differ per early return in a
-        /// bidegree's body.
+        /// successors" cannot diverge.
         pub fn complete(&mut self, n: Node) {
             let mut buf = std::mem::take(&mut self.succ_buf);
             self.successors(n, &mut buf);
@@ -1546,6 +1521,59 @@ mod depgraph {
                 .filter(|&slot| !self.dispatched[slot])
                 .map(|slot| self.node_at(slot))
                 .collect()
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        /// A graph whose same-row reads reach back an irregular distance, like the per-subalgebra
+        /// floors do.
+        fn graph() -> Graph {
+            Graph::new(0, Bidegree::n_s(12, 6), |b| {
+                let gap = if b.s() <= 1 { 1 } else { 1 + (b.t() * 7) % 5 };
+                b - Bidegree::s_t(0, gap)
+            })
+        }
+
+        #[test]
+        fn successors_invert_predecessors() {
+            let g = graph();
+            let nodes: Vec<Node> = (0..g.blocked.len()).map(|slot| g.node_at(slot)).collect();
+            let mut succ = Vec::new();
+            for &n in &nodes {
+                assert_eq!(g.node_at(g.slot(n)), n);
+                g.successors(n, &mut succ);
+                for &m in &succ {
+                    assert!(g.predecessors(m).any(|p| p == n), "{n:?} -> {m:?}");
+                }
+                for p in g.predecessors(n) {
+                    g.successors(p, &mut succ);
+                    assert!(succ.contains(&n), "{p:?} -> {n:?} missing");
+                }
+            }
+        }
+
+        #[test]
+        fn drains_registering_rows_in_order() {
+            let mut g = graph();
+            let mut registered = vec![g.min_degree - 1; g.max.s() as usize + 1];
+            // Completing the newest node first stresses the ordering more than a FIFO would.
+            let mut running = Vec::new();
+            loop {
+                while let Some(n) = g.pop_ready() {
+                    running.push(n);
+                }
+                let Some(n) = running.pop() else { break };
+                if n.phase == Phase::Register {
+                    let last = &mut registered[n.b.s() as usize];
+                    assert_eq!(*last + 1, n.b.t(), "{n:?} registered out of order");
+                    *last = n.b.t();
+                }
+                g.complete(n);
+            }
+            assert!(g.undispatched().is_empty());
         }
     }
 }
