@@ -66,6 +66,21 @@ impl<const N: usize> From<[i32; N]> for MultiDegree<N> {
     }
 }
 
+/// A single-graded degree is just an `i32`. This lets every `i32` degree in the singly-graded
+/// (`N == 1`) world coerce into a `MultiDegree<1>`, so callers can keep passing bare `i32`s to the
+/// multigraded trait methods (which take `impl Into<MultiDegree<N>>`).
+impl From<i32> for MultiDegree<1> {
+    fn from(t: i32) -> Self {
+        Self { coords: [t] }
+    }
+}
+
+impl From<MultiDegree<1>> for i32 {
+    fn from(d: MultiDegree<1>) -> Self {
+        d.coords[0]
+    }
+}
+
 impl<const N: usize> From<MultiDegree<N>> for [i32; N] {
     fn from(d: MultiDegree<N>) -> [i32; N] {
         d.coords

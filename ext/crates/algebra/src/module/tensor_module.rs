@@ -6,10 +6,11 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use once::OnceBiVec;
+use sseq::coordinates::MultiDegree;
 
 use crate::{
     algebra::{Algebra, Bialgebra},
-    module::{Module, ZeroModule, block_structure::BlockStructure},
+    module::{Module, ModuleExt, ZeroModule, block_structure::BlockStructure},
 };
 
 // This really only makes sense when the algebra is a bialgebra, but associated type bounds are
@@ -76,14 +77,14 @@ where
             for left_deg in self.left.min_degree()..=(mod_degree - self.right.min_degree()) {
                 let right_deg = mod_degree - left_deg;
 
-                // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+                // Here we use `ModuleExt::dimension(&*m, i)` instead of `m.dimension(i)` because there are
                 // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
                 // explicit enough.
-                let left_source_dim = Module::dimension(&*self.left, left_deg);
-                let right_source_dim = Module::dimension(&*self.right, right_deg);
+                let left_source_dim = ModuleExt::dimension(&*self.left, left_deg);
+                let right_source_dim = ModuleExt::dimension(&*self.right, right_deg);
 
-                let left_target_dim = Module::dimension(&*self.left, left_deg + op_deg_l);
-                let right_target_dim = Module::dimension(&*self.right, right_deg + op_deg_r);
+                let left_target_dim = ModuleExt::dimension(&*self.left, left_deg + op_deg_l);
+                let right_target_dim = ModuleExt::dimension(&*self.right, right_deg + op_deg_r);
 
                 if left_target_dim == 0
                     || right_target_dim == 0
@@ -165,19 +166,21 @@ where
         self.block_structures.len()
     }
 
-    fn compute_basis(&self, degree: i32) {
+    fn compute_basis_multi(&self, degree: MultiDegree<1>) {
+        let degree = i32::from(degree);
         self.left.compute_basis(degree - self.right.min_degree());
         self.right.compute_basis(degree - self.left.min_degree());
         self.block_structures.extend(degree, |i| {
             let mut block_sizes =
                 BiVec::with_capacity(self.left.min_degree(), i - self.right.min_degree() + 1);
             for j in self.left.min_degree()..=i - self.right.min_degree() {
-                // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+                // Here we use `ModuleExt::dimension(&*m, i)` instead of `m.dimension(i)` because there are
                 // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
                 // explicit enough.
-                let mut block_sizes_entry = Vec::with_capacity(Module::dimension(&*self.left, j));
-                for _ in 0..Module::dimension(&*self.left, j) {
-                    block_sizes_entry.push(Module::dimension(&*self.right, i - j))
+                let mut block_sizes_entry =
+                    Vec::with_capacity(ModuleExt::dimension(&*self.left, j));
+                for _ in 0..ModuleExt::dimension(&*self.left, j) {
+                    block_sizes_entry.push(ModuleExt::dimension(&*self.right, i - j))
                 }
                 block_sizes.push(block_sizes_entry);
             }
@@ -186,19 +189,22 @@ where
         });
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         self.block_structures[degree].total_dimension()
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         let mut working_element = FpVector::new(self.prime(), self.dimension(mod_degree));
         working_element.set_entry(mod_index, 1);
 
@@ -212,15 +218,17 @@ where
         );
     }
 
-    fn act(
+    fn act_multi(
         &self,
         mut result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         input: FpSlice,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         if op_degree == 0 {
             result.add(input, coeff);
             return;
@@ -276,15 +284,16 @@ where
         }
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         let left_degree = self.seek_module_num(degree, idx);
         let right_degree = degree - left_degree;
         let inner_index = idx - self.offset(degree, left_degree);
 
-        // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+        // Here we use `ModuleExt::dimension(&*m, i)` instead of `m.dimension(i)` because there are
         // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
         // explicit enough.
-        let right_dim = Module::dimension(&*self.right, right_degree);
+        let right_dim = ModuleExt::dimension(&*self.right, right_degree);
 
         let left_index = inner_index / right_dim;
         let right_index = inner_index % right_dim;

@@ -7,7 +7,7 @@ use fp::{
 use once::OnceBiVec;
 
 use crate::module::{
-    FreeModule, HomModule, Module,
+    FreeModule, HomModule, Module, ModuleExt,
     block_structure::GeneratorBasisEltPair,
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::module::{Module, ZeroModule};
+use sseq::coordinates::MultiDegree;
+
+use crate::module::{Module, ModuleExt, ZeroModule};
 
 pub struct SuspensionModule<M: Module> {
     inner: Arc<M>,
@@ -27,7 +29,8 @@ impl<M: Module> std::fmt::Display for SuspensionModule<M> {
 impl<M: Module> Module for SuspensionModule<M> {
     type Algebra = M::Algebra;
 
-    fn compute_basis(&self, degree: i32) {
+    fn compute_basis_multi(&self, degree: MultiDegree<1>) {
+        let degree = i32::from(degree);
         self.inner.compute_basis(degree - self.shift);
     }
 
@@ -51,15 +54,17 @@ impl<M: Module> Module for SuspensionModule<M> {
         self.inner.total_dimension()
     }
 
-    fn act(
+    fn act_multi(
         &self,
         result: fp::vector::FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        input_degree: i32,
+        input_degree: MultiDegree<1>,
         input: fp::vector::FpSlice,
     ) {
+        let op_degree = i32::from(op_degree);
+        let input_degree = i32::from(input_degree);
         self.inner.act(
             result,
             coeff,
@@ -70,15 +75,17 @@ impl<M: Module> Module for SuspensionModule<M> {
         );
     }
 
-    fn act_by_element(
+    fn act_by_element_multi(
         &self,
         result: fp::vector::FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op: fp::vector::FpSlice,
-        input_degree: i32,
+        input_degree: MultiDegree<1>,
         input: fp::vector::FpSlice,
     ) {
+        let op_degree = i32::from(op_degree);
+        let input_degree = i32::from(input_degree);
         self.inner.act_by_element(
             result,
             coeff,
@@ -89,15 +96,17 @@ impl<M: Module> Module for SuspensionModule<M> {
         );
     }
 
-    fn act_by_element_on_basis(
+    fn act_by_element_on_basis_multi(
         &self,
         result: fp::vector::FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op: fp::vector::FpSlice,
-        input_degree: i32,
+        input_degree: MultiDegree<1>,
         input_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let input_degree = i32::from(input_degree);
         self.inner.act_by_element_on_basis(
             result,
             coeff,
@@ -108,7 +117,12 @@ impl<M: Module> Module for SuspensionModule<M> {
         );
     }
 
-    fn element_to_string(&self, degree: i32, element: fp::vector::FpSlice) -> String {
+    fn element_to_string_multi(
+        &self,
+        degree: MultiDegree<1>,
+        element: fp::vector::FpSlice,
+    ) -> String {
+        let degree = i32::from(degree);
         self.inner.element_to_string(degree - self.shift, element)
     }
 
@@ -124,19 +138,22 @@ impl<M: Module> Module for SuspensionModule<M> {
         self.inner.max_computed_degree() + self.shift
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         self.inner.dimension(degree - self.shift)
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         result: fp::vector::FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         self.inner.act_on_basis(
             result,
             coeff,
@@ -147,7 +164,8 @@ impl<M: Module> Module for SuspensionModule<M> {
         );
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         self.inner.basis_element_to_string(degree - self.shift, idx)
     }
 }

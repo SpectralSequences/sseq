@@ -6,8 +6,9 @@ use fp::{
     matrix::Subspace,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
+use sseq::coordinates::MultiDegree;
 
-use crate::module::{Module, ZeroModule};
+use crate::module::{Module, ModuleExt, ZeroModule};
 
 /// A quotient of a module truncated below a fix degree.
 pub struct QuotientModule<M: Module> {
@@ -173,7 +174,8 @@ impl<M: Module> Module for QuotientModule<M> {
         self.module.max_computed_degree()
     }
 
-    fn dimension(&self, degree: i32) -> usize {
+    fn dimension_multi(&self, degree: MultiDegree<1>) -> usize {
+        let degree = i32::from(degree);
         if degree > self.truncation {
             0
         } else {
@@ -181,15 +183,17 @@ impl<M: Module> Module for QuotientModule<M> {
         }
     }
 
-    fn act_on_basis(
+    fn act_on_basis_multi(
         &self,
         result: FpSliceMut,
         coeff: u32,
-        op_degree: i32,
+        op_degree: MultiDegree<1>,
         op_index: usize,
-        mod_degree: i32,
+        mod_degree: MultiDegree<1>,
         mod_index: usize,
     ) {
+        let op_degree = i32::from(op_degree);
+        let mod_degree = i32::from(mod_degree);
         let target_deg = op_degree + mod_degree;
         if target_deg > self.truncation {
             return;
@@ -208,7 +212,8 @@ impl<M: Module> Module for QuotientModule<M> {
         self.old_basis_to_new(target_deg, result, result_.as_slice());
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+    fn basis_element_to_string_multi(&self, degree: MultiDegree<1>, idx: usize) -> String {
+        let degree = i32::from(degree);
         self.module
             .basis_element_to_string(degree, self.basis_list[degree][idx])
     }

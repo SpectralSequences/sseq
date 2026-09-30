@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fp::vector::{FpSliceMut, FpVector};
 
-use crate::module::{Module, QuotientModule, homomorphism::ModuleHomomorphism};
+use crate::module::{ModuleExt, QuotientModule, homomorphism::ModuleHomomorphism};
 
 pub struct QuotientHomomorphism<F: ModuleHomomorphism> {
     f: Arc<F>,

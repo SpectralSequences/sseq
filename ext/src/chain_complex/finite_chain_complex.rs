@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use algebra::module::{
-    Module, ZeroModule,
+    Module, ModuleExt, ZeroModule,
     homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
 };
 use sseq::coordinates::Bidegree;
