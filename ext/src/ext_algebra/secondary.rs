@@ -360,7 +360,7 @@ mod tests {
     use sseq::coordinates::BidegreeGenerator;
 
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
 
     #[test]
     fn test_sphere_d2() {
@@ -444,6 +444,34 @@ mod tests {
             saw_nontrivial,
             "expected d2 to be nontrivial somewhere in range (e.g. h4 at (15,1) → (14,3))"
         );
+    }
+
+    /// At the top of the computed region the incoming $d_2$ is unknown, so no page is claimed.
+    ///
+    /// $d_2$ shifts $(n, s) \mapsto (n-1, s+2)$, so what lands on `b` comes from $(n+1, s-2)$ —
+    /// past the last computed stem here. Reading that as rank zero would report the $E_2$
+    /// dimension as though nothing could hit `b`, at exactly the bidegree where something might.
+    #[test]
+    fn an_unknown_incoming_d2_is_not_read_as_zero() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(8, 4));
+        let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
+        let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        sec.extend_all();
+        let e2_d2 = ExtModule::intrinsic(Arc::clone(&res)).with_differential(Arc::new(
+            SecondaryCoboundary {
+                res_lift: Arc::clone(&sec.res_lift),
+            },
+        ));
+
+        let b = Bidegree::n_s(8, 2);
+        assert!(res.has_computed_bidegree(b), "b itself must be computed");
+        assert!(
+            !res.has_computed_bidegree(Bidegree::n_s(9, 0)),
+            "the incoming source must be unresolved for this to be the edge case"
+        );
+        assert_eq!(e2_d2.cohomology_dimension(b), None);
+        assert!(e2_d2.cohomology_subquotient(b).is_none());
     }
 
     #[test]
