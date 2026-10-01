@@ -51,11 +51,7 @@ def git(*args: str) -> str:
 
 
 def main() -> int:
-    """Decide whether to let the Bash command through, per the PreToolUse hook protocol.
-
-    CLAUDE.md asks for the trim pass as the last step before a PR merges, which is exactly the
-    step an agent heading for a PR skips.
-    """
+    """Decide whether to let the Bash command through, per the PreToolUse hook protocol."""
     command = json.load(sys.stdin)["tool_input"]["command"]
     if not TRIGGER.search(command) or OPT_OUT.search(command):
         return 0
@@ -65,8 +61,7 @@ def main() -> int:
     head = git("rev-parse", "HEAD")
 
     # The marker lives in .git, so it is per-clone, never committed, and goes with the worktree. It
-    # records the commit it cleared, so a branch that has gained commits since is checked again --
-    # updating an open PR puts new commits in front of a reviewer just as opening one did.
+    # records the commit it cleared, so a branch that has gained commits since is checked again.
     marker = Path(git_dir) / "claude-comment-trim" / quote(branch, safe="")
     if marker.exists() and marker.read_text().strip() == head:
         return 0
