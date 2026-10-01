@@ -158,6 +158,12 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             return Some(self.dimension(b));
         };
         let gens = self.dimension(b);
+        // Nothing can survive in an empty bidegree, so neither differential has to be known.
+        // Without this, an empty bidegree at the edge of the computed region reads as unknown
+        // rather than as the zero it is.
+        if gens == 0 {
+            return Some(0);
+        }
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
         // Each matrix must line up with the generator count, or an undersized one would understate
@@ -201,6 +207,9 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     pub fn cohomology_subquotient(&self, b: Bidegree) -> Option<Subquotient> {
         let p = self.prime();
         let dim = self.dimension(b);
+        if dim == 0 {
+            return Some(Subquotient::new_full(p, 0));
+        }
         let Some(d) = &self.differential else {
             return Some(Subquotient::new_full(p, dim));
         };
