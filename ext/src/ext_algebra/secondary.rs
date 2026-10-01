@@ -472,6 +472,17 @@ mod tests {
         );
         assert_eq!(e2_d2.cohomology_dimension(b), None);
         assert!(e2_d2.cohomology_subquotient(b).is_none());
+
+        // An *empty* bidegree is a different matter: nothing can survive there, so the unknown
+        // incoming differential does not make the answer unknown.
+        let empty = Bidegree::n_s(8, 4);
+        assert_eq!(e2.dimension(empty), 0);
+        assert!(!res.has_computed_bidegree(Bidegree::n_s(9, 2)));
+        assert_eq!(e2_d2.cohomology_dimension(empty), Some(0));
+        assert_eq!(
+            e2_d2.cohomology_subquotient(empty).map(|q| q.dimension()),
+            Some(0)
+        );
     }
 
     #[test]
