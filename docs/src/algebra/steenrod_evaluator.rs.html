@@ -273,7 +273,7 @@
 <a href=#248 id=248 data-nosnippet>248</a>    <span class="comment">// This is currently pretty inefficient... We should memoize results so that we don't repeatedly
 <a href=#249 id=249 data-nosnippet>249</a>    // recompute the same inverse.
 <a href=#250 id=250 data-nosnippet>250</a>    </span><span class="kw">fn </span>milnor_to_adem_on_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span>FpVector, coeff: u32, degree: i32, idx: usize) {
-<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">if </span><span class="self">self</span>.milnor.generic() {
+<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">if </span><span class="self">self</span>.milnor.has_exterior() {
 <a href=#252 id=252 data-nosnippet>252</a>            <span class="self">self</span>.milnor_to_adem_on_basis_generic(result, coeff, degree, idx);
 <a href=#253 id=253 data-nosnippet>253</a>        } <span class="kw">else </span>{
 <a href=#254 id=254 data-nosnippet>254</a>            <span class="self">self</span>.milnor_to_adem_on_basis_2(result, coeff, degree, idx);

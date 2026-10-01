@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["private"],"struct":["Exterior","NoExterior"],"trait":["MilnorShape"]};

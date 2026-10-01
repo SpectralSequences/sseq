@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["next_disjoint"],"struct":["MilnorAlgebra","MilnorBasisElement","MilnorProfile","PPart","PPartAllocation","PPartMultiplier"],"type":["PPartEntry"]};
+window.SIDEBAR_ITEMS = {"enum":["MilnorAlgebra"],"fn":["next_disjoint"],"struct":["Exterior","MilnorAlgebraInner","MilnorBasisElement","MilnorProfile","NoExterior","PPart","PPartAllocation","PPartMultiplier"],"trait":["MilnorShape"],"type":["PPartEntry"]};

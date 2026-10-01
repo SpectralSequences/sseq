@@ -36,7 +36,7 @@ is what makes the packed value a canonical key, and it makes <a href="../../../m
 highest non-zero entry rather than a stored field.</p>
 <h2 id="invariant"><a class="doc-anchor" href="#invariant">§</a>Invariant</h2>
 <p>Every entry fits in its field. This holds for any element of degree at most
-<a href="../../../milnor_algebra/struct.PPart.html#associatedconstant.MAX_DEGREE" title="associated constant algebra::milnor_algebra::PPart::MAX_DEGREE"><code>Self::MAX_DEGREE</code></a>, which <a href="../../../struct.MilnorAlgebra.html" title="struct algebra::MilnorAlgebra"><code>MilnorAlgebra</code></a>’s
+<a href="../../../milnor_algebra/struct.PPart.html#associatedconstant.MAX_DEGREE" title="associated constant algebra::milnor_algebra::PPart::MAX_DEGREE"><code>Self::MAX_DEGREE</code></a>, which <a href="../../../enum.MilnorAlgebra.html" title="enum algebra::MilnorAlgebra"><code>MilnorAlgebra</code></a>’s
 <a href="../../../trait.Algebra.html#tymethod.compute_basis" title="method algebra::Algebra::compute_basis"><code>compute_basis</code></a> enforces up front, so the packing can
 never silently truncate. <a href="../../../milnor_algebra/struct.PPart.html#method.set" title="method algebra::milnor_algebra::PPart::set"><code>Self::set</code></a> asserts it anyway, and <a href="../../../milnor_algebra/struct.PPart.html#method.try_from_slice" title="associated function algebra::milnor_algebra::PPart::try_from_slice"><code>Self::try_from_slice</code></a>
 reports failure instead of panicking for input that has not been through that gate.</p>

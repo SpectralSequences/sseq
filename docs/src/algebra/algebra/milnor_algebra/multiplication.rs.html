@@ -30,11 +30,11 @@
 <a href=#5 id=5 data-nosnippet>5</a>    vector::{FpSlice, FpSliceMut},
 <a href=#6 id=6 data-nosnippet>6</a>};
 <a href=#7 id=7 data-nosnippet>7</a>
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use super</span>::{MilnorAlgebra, MilnorBasisElement, PPart, PPartEntry};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use super</span>::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, UnstableAlgebra};
 <a href=#10 id=10 data-nosnippet>10</a>
 <a href=#11 id=11 data-nosnippet>11</a><span class="comment">// Multiplication logic
-<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">impl </span>MilnorAlgebra {
+<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">impl</span>&lt;F: MilnorShape&gt; MilnorAlgebraInner&lt;F&gt; {
 <a href=#13 id=13 data-nosnippet>13</a>    <span class="doccomment">/// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
 <a href=#14 id=14 data-nosnippet>14</a>    /// (e.g. out of range or excluded by the profile).
 <a href=#15 id=15 data-nosnippet>15</a>    </span><span class="kw">pub fn </span>try_beps_pn(<span class="kw-2">&amp;</span><span class="self">self</span>, e: u32, x: PPartEntry) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt; {
@@ -137,7 +137,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>        <span class="kw-2">mut </span>allocation: PPartAllocation,
 <a href=#113 id=113 data-nosnippet>113</a>    ) -&gt; PPartAllocation {
 <a href=#114 id=114 data-nosnippet>114</a>        <span class="kw">let </span>target_deg = m1.degree + m2.degree;
-<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">if </span><span class="self">self</span>.generic() {
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">if </span>F::HAS_EXTERIOR {
 <a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">let </span>m1f = <span class="self">self</span>.multiply_qpart(m1, m2.q_part);
 <a href=#117 id=117 data-nosnippet>117</a>            <span class="kw">for </span>(cc, basis) <span class="kw">in </span>m1f {
 <a href=#118 id=118 data-nosnippet>118</a>                <span class="kw">let </span><span class="kw-2">mut </span>multiplier = PPartMultiplier::&lt;<span class="bool-val">false</span>&gt;::new_from_allocation(
@@ -612,7 +612,7 @@
 <a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">use </span>expect_test::expect;
 <a href=#588 id=588 data-nosnippet>588</a>
 <a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#590 id=590 data-nosnippet>590</a>    <span class="kw">use </span><span class="kw">crate</span>::algebra::milnor_algebra::MilnorProfile;
+<a href=#590 id=590 data-nosnippet>590</a>    <span class="kw">use </span><span class="kw">crate</span>::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
 <a href=#591 id=591 data-nosnippet>591</a>
 <a href=#592 id=592 data-nosnippet>592</a>    <span class="attr">#[test]
 <a href=#593 id=593 data-nosnippet>593</a>    </span><span class="kw">fn </span>try_beps_pn_milnor() {
