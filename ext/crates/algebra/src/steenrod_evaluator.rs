@@ -248,7 +248,7 @@ impl SteenrodEvaluator {
     // This is currently pretty inefficient... We should memoize results so that we don't repeatedly
     // recompute the same inverse.
     fn milnor_to_adem_on_basis(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
-        if self.milnor.generic() {
+        if self.milnor.has_exterior() {
             self.milnor_to_adem_on_basis_generic(result, coeff, degree, idx);
         } else {
             self.milnor_to_adem_on_basis_2(result, coeff, degree, idx);

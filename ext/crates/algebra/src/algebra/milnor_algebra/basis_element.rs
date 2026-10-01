@@ -1,8 +1,7 @@
-use fp::prime::{Prime, ValidPrime, iter::BitflagIterator};
+use fp::prime::{ValidPrime, iter::BitflagIterator};
 use itertools::Itertools;
 
 use super::{PPart, PPartEntry};
-use crate::algebra::combinatorics;
 
 /// A Milnor basis element.
 #[derive(Debug, Clone, Copy, Default)]
@@ -31,20 +30,6 @@ impl MilnorBasisElement {
 
     pub fn clone_into(&self, other: &mut Self) {
         *other = *self;
-    }
-
-    /// Update the degree component to the correct degree
-    pub fn compute_degree(&mut self, p: ValidPrime) {
-        let q = if p == 2 { 1 } else { 2 * (p.as_i32() - 1) };
-        let xi_degrees = combinatorics::xi_degrees(p);
-        let tau_degrees = combinatorics::tau_degrees(p);
-
-        self.degree = q * std::iter::zip(xi_degrees, self.p_part.iter())
-            .map(|(&a, b)| a * b as i32)
-            .sum::<i32>()
-            + BitflagIterator::set_bit_iterator(self.q_part as u64)
-                .map(|k| tau_degrees[k])
-                .sum::<i32>();
     }
 }
 

@@ -1,7 +1,7 @@
-use super::{MilnorAlgebra, MilnorBasisElement, PPart};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, NoExterior, PPart};
 use crate::algebra::{Algebra, Bialgebra, combinatorics};
 
-impl MilnorAlgebra {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Advance `element` to the next p-part bounded entrywise by `max`, in odometer order.
     ///
     /// Returns `true` once the odometer wraps, i.e. when `element` was already `max`.
@@ -22,7 +22,10 @@ impl MilnorAlgebra {
     }
 }
 
-impl Bialgebra for MilnorAlgebra {
+/// The coproduct is written for the classical algebra at `p = 2`, which needs both the shape bound
+/// and the assert on the prime: [`Exterior`](super::shape::Exterior) at `p = 2` and [`NoExterior`]
+/// at an odd prime each satisfy one of the two on its own.
+impl Bialgebra for MilnorAlgebraInner<NoExterior> {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {
@@ -90,7 +93,7 @@ mod tests {
         let mut cur = PPart::zero();
         loop {
             count += 1;
-            if MilnorAlgebra::increment_p_part(&mut cur, max) {
+            if MilnorAlgebraInner::<NoExterior>::increment_p_part(&mut cur, max) {
                 break;
             }
         }

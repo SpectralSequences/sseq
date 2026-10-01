@@ -1,10 +1,15 @@
-use fp::prime::{Prime, ValidPrime};
+use std::marker::PhantomData;
+
 #[cfg(feature = "cache-multiplication")]
 use fp::vector::FpVector;
+use fp::{
+    prime::{Prime, ValidPrime},
+    vector::{FpSlice, FpSliceMut},
+};
 use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::algebra::{Algebra, combinatorics};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
 mod algebra_impl;
 mod basis_element;
@@ -13,19 +18,21 @@ mod generated_impl;
 mod multiplication;
 mod ppart;
 mod profile;
+mod shape;
 
 pub use basis_element::MilnorBasisElement;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
+pub use shape::{Exterior, MilnorShape, NoExterior};
 
-pub struct MilnorAlgebra {
+pub struct MilnorAlgebraInner<F: MilnorShape> {
     profile: MilnorProfile,
     p: ValidPrime,
-    #[cfg(feature = "odd-primes")]
-    generic: bool,
 
     unstable_enabled: bool,
+
+    shape: PhantomData<F>,
 
     /// This is a list of possible P(R) of each degree, where `ppart_table[i]` contains elements of
     /// degree `q * i`.
@@ -48,13 +55,13 @@ pub struct MilnorAlgebra {
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>,
 }
 
-impl std::fmt::Display for MilnorAlgebra {
+impl<F: MilnorShape> std::fmt::Display for MilnorAlgebraInner<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MilnorAlgebra(p={})", self.prime())
     }
 }
 
-impl MilnorAlgebra {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
         Self::new_with_profile(p, MilnorProfile::default(), unstable_enabled)
     }
@@ -63,9 +70,8 @@ impl MilnorAlgebra {
         assert!(profile.is_valid());
         Self {
             p,
-            #[cfg(feature = "odd-primes")]
-            generic: p != 2,
             unstable_enabled,
+            shape: PhantomData,
             profile,
             ppart_table: OnceVec::new(),
             basis_table: OnceVec::new(),
@@ -76,25 +82,15 @@ impl MilnorAlgebra {
         }
     }
 
+    /// See [`MilnorShape::HAS_EXTERIOR`].
     #[inline]
-    pub fn generic(&self) -> bool {
-        #[cfg(feature = "odd-primes")]
-        {
-            self.generic
-        }
-
-        #[cfg(not(feature = "odd-primes"))]
-        {
-            false
-        }
+    pub fn has_exterior(&self) -> bool {
+        F::HAS_EXTERIOR
     }
 
+    /// The scale of the polynomial grading; see [`MilnorShape::q`].
     pub fn q(&self) -> i32 {
-        if self.generic() {
-            2 * (self.prime().as_i32() - 1)
-        } else {
-            1
-        }
+        F::q(self.p)
     }
 
     pub fn profile(&self) -> &MilnorProfile {
@@ -103,18 +99,18 @@ impl MilnorAlgebra {
 
     /// Whether the basis of each degree has to be stored rather than derived.
     ///
-    /// At odd primes the q-part varies within a degree, and with unstable support enabled the
-    /// basis is re-sorted by excess; in both cases the basis is not a re-wrapping of
+    /// With an exterior part the q-part varies within a degree, and with unstable support enabled
+    /// the basis is re-sorted by excess; in both cases the basis is not a re-wrapping of
     /// [`Self::ppart_table`] and must be kept.
     fn stores_basis_table(&self) -> bool {
-        self.generic() || self.unstable_enabled
+        F::HAS_EXTERIOR || self.unstable_enabled
     }
 
     pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> MilnorBasisElement {
         if self.stores_basis_table() {
             self.basis_table[degree as usize][idx]
         } else {
-            MilnorBasisElement::from_p(self.ppart_table[degree as usize][idx], degree)
+            MilnorBasisElement::from_p(self.ppart_table(degree)[idx], degree)
         }
     }
 
@@ -129,19 +125,25 @@ impl MilnorAlgebra {
             .unwrap_or_else(|| panic!("Didn't find element: {elt:?}"))
     }
 
-    /// Gives a list of PPart's in degree `t`.
+    /// The $P(R)$ of degree `t`.
+    ///
+    /// The table is indexed by `t / q`, so a degree the polynomial part does not occupy has no row
+    /// rather than the wrong one.
     pub fn ppart_table(&self, t: i32) -> &[PPart] {
-        &self.ppart_table[t as usize]
+        let q = self.q();
+        if t < 0 || t % q != 0 {
+            return &[];
+        }
+        &self.ppart_table[(t / q) as usize]
     }
 }
 
 // Compute basis functions
-impl MilnorAlgebra {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn compute_ppart(&self, max_degree: i32) {
         self.ppart_table.extend(0, |_| vec![PPart::zero()]);
 
-        let p = self.prime().as_i32();
-        let q = if p == 2 { 1 } else { 2 * p - 2 };
+        let q = self.q();
         let new_deg = max_degree / q;
 
         let xi_degrees = combinatorics::xi_degrees(self.prime());
@@ -186,8 +188,12 @@ impl MilnorAlgebra {
         });
     }
 
-    fn generate_basis_generic(&self, max_degree: i32) {
-        let q = 2 * self.prime() - 2;
+    /// Pair each exterior part with the p-parts making up the rest of the degree.
+    ///
+    /// Only the exterior parts congruent to the degree mod `q` can occur, since every
+    /// `TAU_DEGREES[k]` is `1` mod `q`.
+    fn generate_basis_exterior(&self, max_degree: i32) {
+        let q = self.q() as u32;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
         self.basis_table.extend(max_degree as usize, |d| {
@@ -234,17 +240,19 @@ impl MilnorAlgebra {
         });
     }
 
-    fn generate_basis_2(&self, max_degree: i32) {
+    /// Re-wrap the p-part table as basis elements.
+    fn generate_basis_polynomial(&self, max_degree: i32) {
         if !self.stores_basis_table() {
             // Derived on demand from `ppart_table`; see the field docs.
             return;
         }
         self.basis_table.extend(max_degree as usize, |d| {
-            let mut table: Vec<_> = self.ppart_table[d]
+            let mut table: Vec<_> = self
+                .ppart_table(d as i32)
                 .iter()
                 .map(|&p| MilnorBasisElement::from_p(p, d as i32))
                 .collect();
-            table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
+            table.sort_by_cached_key(|e| e.excess(self.prime()));
             table
         });
     }
@@ -267,6 +275,93 @@ impl MilnorAlgebra {
             }
             new_entry
         });
+    }
+}
+
+/// Forward an inherent method to whichever shape this algebra has.
+macro_rules! dispatch_milnor {
+    () => {};
+    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                MilnorAlgebra::Polynomial(a) => a.$method($($arg),*),
+                MilnorAlgebra::Exterior(a) => a.$method($($arg),*),
+            }
+        }
+        dispatch_milnor!{$($tail)*}
+    };
+}
+
+/// A dual Steenrod algebra in the Milnor basis, of either [shape](MilnorShape).
+#[allow(clippy::large_enum_variant)]
+#[enum_dispatch::enum_dispatch(Algebra, GeneratedAlgebra, UnstableAlgebra)]
+pub enum MilnorAlgebra {
+    Polynomial(MilnorAlgebraInner<NoExterior>),
+    Exterior(MilnorAlgebraInner<Exterior>),
+}
+
+impl MilnorAlgebra {
+    dispatch_milnor! {
+        pub fn has_exterior(&self) -> bool;
+        pub fn q(&self) -> i32;
+        pub fn profile(&self) -> &MilnorProfile;
+        pub fn compute_degree(&self, elt: &mut MilnorBasisElement);
+        pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> MilnorBasisElement;
+        pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize>;
+        pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize;
+        pub fn ppart_table(&self, t: i32) -> &[PPart];
+        pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)>;
+        pub fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize);
+        pub fn multiply(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement);
+        pub fn multiply_with_allocation(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement, excess: i32, allocation: PPartAllocation) -> PPartAllocation;
+    }
+
+    /// The classical dual Steenrod algebra at `p`.
+    pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
+        Self::new_with_profile(p, MilnorProfile::default(), unstable_enabled)
+    }
+
+    /// The classical dual Steenrod algebra at `p`, restricted to `profile`.
+    pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile, unstable_enabled: bool) -> Self {
+        // The classical algebra has an exterior part exactly at odd primes.
+        if p == 2 {
+            MilnorAlgebraInner::<NoExterior>::new_with_profile(p, profile, unstable_enabled).into()
+        } else {
+            MilnorAlgebraInner::<Exterior>::new_with_profile(p, profile, unstable_enabled).into()
+        }
+    }
+}
+
+#[cfg(test)]
+impl MilnorAlgebra {
+    dispatch_milnor! {
+        fn stores_basis_table(&self) -> bool;
+    }
+}
+
+/// Forwards to the classical shape, which is the only one with a coproduct.
+impl Bialgebra for MilnorAlgebra {
+    /// See [`MilnorAlgebraInner::coproduct`].
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
+        match self {
+            Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
+            Self::Exterior(_) => unimplemented!("Coproduct at odd primes not supported"),
+        }
+    }
+
+    /// The coproduct is computed directly on basis elements, so no decomposition is needed.
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
+        vec![(op_deg, op_idx)]
+    }
+}
+
+impl std::fmt::Display for MilnorAlgebra {
+    /// Forward to the inner algebra.
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Polynomial(a) => a.fmt(f),
+            Self::Exterior(a) => a.fmt(f),
+        }
     }
 }
 
@@ -331,7 +426,7 @@ mod tests {
                 assert_eq!(algebra.basis_element_to_index(&elt), i);
                 // The degree really is recoverable from the entries.
                 let mut recomputed = elt;
-                recomputed.compute_degree(ValidPrime::new(p));
+                algebra.compute_degree(&mut recomputed);
                 assert_eq!(recomputed.degree, t);
             }
         }

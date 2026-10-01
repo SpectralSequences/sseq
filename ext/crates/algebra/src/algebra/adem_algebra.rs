@@ -388,7 +388,8 @@ impl GeneratedAlgebra for AdemAlgebra {
         }
 
         let p = self.prime();
-        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
+        let inadmissible_pairs =
+            combinatorics::inadmissible_pairs(p, self.generic, self.q(), degree);
         let mut result = Vec::new();
 
         for (x, b, y) in inadmissible_pairs {

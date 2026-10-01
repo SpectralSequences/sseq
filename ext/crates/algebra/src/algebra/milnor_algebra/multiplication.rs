@@ -5,11 +5,11 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{MilnorAlgebra, MilnorBasisElement, PPart, PPartEntry};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
-impl MilnorAlgebra {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Return the degree and index of $Q_1^e P(x)$, or `None` if the element is not present
     /// (e.g. out of range or excluded by the profile).
     pub fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
@@ -112,7 +112,7 @@ impl MilnorAlgebra {
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
-        if self.generic() {
+        if F::HAS_EXTERIOR {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
                 let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
@@ -587,7 +587,7 @@ mod tests {
     use expect_test::expect;
 
     use super::*;
-    use crate::algebra::milnor_algebra::MilnorProfile;
+    use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
 
     #[test]
     fn try_beps_pn_milnor() {

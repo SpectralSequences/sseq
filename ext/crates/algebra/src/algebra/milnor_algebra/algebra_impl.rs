@@ -4,16 +4,27 @@ use fp::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{MilnorAlgebra, MilnorBasisElement, PPart, PPartAllocation};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartAllocation};
 use crate::algebra::{Algebra, UnstableAlgebra, combinatorics};
 
-impl Algebra for MilnorAlgebra {
+impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
     fn prefix(&self) -> &str {
         "milnor"
     }
 
     fn magic(&self) -> u32 {
+        // Saved resolutions store coefficients by basis index, so the header has to pin down whose
+        // basis wrote them. The shape and the prime vary independently, so each gets its own field
+        // rather than the shape being read off the prime.
+        //
+        // Giving the shape a field of its own necessarily moves one of the two classical values:
+        // the classical algebra is `NoExterior` at 2 and `Exterior` at an odd prime, so a bit that
+        // depends on the shape alone cannot be 0 for both. It is the odd-primary value that moves,
+        // and a header mismatch is an error at load rather than a misread, so an existing
+        // odd-primary save fails loudly and has to be recomputed.
+        let shape = if F::HAS_EXTERIOR { 0x4000 } else { 0 };
         (self.p << 16)
+            + shape
             + if self.profile.is_trivial() {
                 0x8000
             } else {
@@ -26,51 +37,9 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
-        let mut products = Vec::with_capacity(4);
-        let max_degree = if self.generic() {
-            if self.profile.q_part & 1 != 0 {
-                products.push((
-                    "a_0".to_string(),
-                    MilnorBasisElement {
-                        degree: 1,
-                        q_part: 1,
-                        p_part: PPart::zero(),
-                    },
-                ));
-            }
-            if (self.profile.p_part.is_empty() && !self.profile.truncated)
-                || (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0)
-            {
-                products.push((
-                    "h_0".to_string(),
-                    MilnorBasisElement {
-                        degree: (2 * self.prime() - 2) as i32,
-                        q_part: 0,
-                        p_part: PPart::from_iter([1]),
-                    },
-                ));
-            }
-            (2 * self.prime() - 2) as i32
-        } else {
-            let mut max = 4;
-            if !self.profile.p_part.is_empty() {
-                max = std::cmp::min(4, self.profile.p_part[0]);
-            } else if self.profile.truncated {
-                max = 0;
-            }
-            for i in 0..max {
-                let degree = 1 << i; // degree is 2^hi
-                products.push((
-                    format!("h_{i}"),
-                    MilnorBasisElement {
-                        degree,
-                        q_part: 0,
-                        p_part: PPart::from_iter([1 << i]),
-                    },
-                ));
-            }
-            1 << 3
-        };
+        let products = F::filtration_one_products(self);
+        // Each product is looked up by index, so the table must reach the last of them.
+        let max_degree = products.iter().map(|(_, b)| b.degree).max().unwrap_or(0);
         self.compute_basis(max_degree + 1);
 
         products
@@ -89,11 +58,7 @@ impl Algebra for MilnorAlgebra {
         );
         self.compute_ppart(max_degree);
 
-        if self.generic() {
-            self.generate_basis_generic(max_degree);
-        } else {
-            self.generate_basis_2(max_degree);
-        }
+        F::generate_basis(self, max_degree);
 
         // Populate hash map
         self.basis_element_to_index_map
@@ -151,7 +116,7 @@ impl Algebra for MilnorAlgebra {
         if self.stores_basis_table() {
             self.basis_table[degree as usize].len()
         } else {
-            self.ppart_table[degree as usize].len()
+            self.ppart_table(degree).len()
         }
     }
 
@@ -301,7 +266,7 @@ impl Algebra for MilnorAlgebra {
                         q_part,
                         p_part,
                     };
-                    elt.compute_degree(p);
+                    self.compute_degree(&mut elt);
                     if elt.degree > PPart::MAX_DEGREE {
                         return None;
                     }
@@ -321,7 +286,7 @@ impl Algebra for MilnorAlgebra {
     }
 }
 
-impl UnstableAlgebra for MilnorAlgebra {
+impl<F: MilnorShape> UnstableAlgebra for MilnorAlgebraInner<F> {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
         if degree < 0 || excess < 0 {
             0
@@ -353,7 +318,7 @@ impl UnstableAlgebra for MilnorAlgebra {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::milnor_algebra::MilnorProfile;
+    use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
 
     #[test]
     fn basis_element_from_string_total_milnor() {
@@ -399,5 +364,54 @@ mod tests {
         a2.compute_basis(16);
         assert!(a2.basis_element_from_string("P7").is_some());
         assert_eq!(a2.basis_element_from_string("P8"), None);
+    }
+
+    /// [`Algebra::magic`] pins the shape and the prime in fields of their own.
+    ///
+    /// The value is a wire format: every save file's header carries it and a file whose header
+    /// disagrees is rejected, so two algebras sharing a value would read each other's coefficients
+    /// as their own basis. The table is the encoding rather than an example of it: `0x4000` is the
+    /// shape and the prime sits above `0x10000`.
+    ///
+    /// The classical algebra is the polynomial shape at 2 and the exterior shape at an odd prime,
+    /// so no shape field can leave both classical values where they were. This one keeps `p = 2`
+    /// and moves the odd primes, where a saved resolution now fails to load and has to be redone.
+    #[test]
+    #[cfg(feature = "odd-primes")]
+    fn magic_pins_the_shape_and_the_prime() {
+        use crate::algebra::milnor_algebra::{Exterior, NoExterior};
+
+        let table = [
+            (2, false, 0x0002_8000),
+            (2, true, 0x0002_c000),
+            (3, false, 0x0003_8000),
+            (3, true, 0x0003_c000),
+            (5, false, 0x0005_8000),
+            (5, true, 0x0005_c000),
+        ];
+        for (p, has_exterior, expected) in table {
+            let p = ValidPrime::new(p);
+            let magic = if has_exterior {
+                MilnorAlgebraInner::<Exterior>::new(p, false).magic()
+            } else {
+                MilnorAlgebraInner::<NoExterior>::new(p, false).magic()
+            };
+            assert_eq!(magic, expected, "p = {p}, has_exterior = {has_exterior}");
+        }
+
+        let mut values: Vec<u32> = table.iter().map(|&(_, _, magic)| magic).collect();
+        values.sort_unstable();
+        values.dedup();
+        assert_eq!(values.len(), table.len(), "a magic is shared");
+
+        // The classical algebra, which is what `MilnorAlgebra` exposes.
+        assert_eq!(
+            MilnorAlgebra::new(ValidPrime::new(2), false).magic(),
+            0x0002_8000
+        );
+        assert_eq!(
+            MilnorAlgebra::new(ValidPrime::new(3), false).magic(),
+            0x0003_c000
+        );
     }
 }

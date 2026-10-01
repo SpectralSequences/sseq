@@ -3,113 +3,28 @@ use fp::{
     vector::FpVector,
 };
 
-use super::{MilnorAlgebra, MilnorBasisElement, PPart, PPartEntry};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 use crate::algebra::{Algebra, GeneratedAlgebra, combinatorics};
 
-impl GeneratedAlgebra for MilnorAlgebra {
+impl<F: MilnorShape> GeneratedAlgebra for MilnorAlgebraInner<F> {
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
-        if self.generic() {
-            if degree == 1 {
-                return "b".to_string();
-            }
-            let elt = self.basis_element_from_index(degree, idx);
-            let len = elt.p_part.len();
-            if elt.q_part != 0 {
-                elt.to_string()
-            } else if len == 1 {
-                format!("P{}", degree / self.q())
-            } else {
-                format!(
-                    "P^{}_{}",
-                    degree / (self.q() * combinatorics::xi_degrees(self.prime())[len - 1]),
-                    len
-                )
-            }
-        } else {
-            let elt = self.basis_element_from_index(degree, idx);
-            let len = elt.p_part.len();
-            if len == 1 {
-                format!("Sq{degree}")
-            } else {
-                format!(
-                    "P^{}_{}",
-                    degree / (combinatorics::xi_degrees(self.prime())[len - 1]),
-                    len
-                )
-            }
-        }
+        F::generator_to_string(self, degree, idx)
     }
 
     fn generators(&self, degree: i32) -> Vec<usize> {
         if degree <= 0 {
             return vec![];
         } else if degree == 1 {
-            return vec![0]; // Q_0
-        }
-
-        let p = self.prime();
-
-        // Check for the Q_k
-        if self.generic() && degree % 2 == 1 {
-            if self.profile.is_an(true) {
-                return vec![];
-            }
-
-            // If this is 2p^k - 1, then return Q_k
-            if let (k, 2) = factor_pk(p, degree as u32 + 1) {
-                let q_part = 1 << k;
-                if self.profile.q_part & q_part != 0 {
-                    return vec![self.basis_element_to_index(&MilnorBasisElement {
-                        degree,
-                        q_part,
-                        p_part: PPart::zero(),
-                    })];
-                }
-            }
-            return vec![];
-        }
-
-        if self.profile.is_an(self.generic()) {
-            // Look for P(p^k), which has degree p^k q.
-            let q = self.q() as u32;
-            if !(degree as u32).is_multiple_of(q) {
-                return vec![];
-            }
-            if let (k, 1) = factor_pk(p, degree as u32 / q)
-                && (k) < self.profile.get_p_part(0)
-            {
-                return vec![self.basis_element_to_index(&MilnorBasisElement {
-                    degree,
-                    q_part: 0,
-                    p_part: PPart::from_iter([degree as u32 / q]),
-                })];
-            }
-            vec![]
-        } else {
-            // Look for P(0, ..., 0, p^k), which has degree (2p^j - 2) p^k.
-            let (k, rem) = factor_pk(p, degree as u32);
-
-            let reduced = if self.generic() {
-                // rem must be even because degree is even
-                (rem + 2) / 2
+            // $Q_0$ is a generator under every profile that admits it, an $A(n)$ included, so
+            // degree 1 is answered here rather than left to the shape. It can still be empty: a
+            // profile may exclude $Q_0$, and the polynomial part misses the degree unless `q = 1`.
+            return if self.dimension(1) == 0 {
+                vec![]
             } else {
-                rem + 1
+                vec![0]
             };
-
-            if let (j, 1) = factor_pk(p, reduced) {
-                if self.profile.get_p_part(j as usize - 1) <= k {
-                    return vec![];
-                }
-                let mut p_part = PPart::zero();
-                p_part.set(j as usize - 1, p.pow(k));
-                return vec![self.basis_element_to_index(&MilnorBasisElement {
-                    degree,
-                    q_part: 0,
-                    p_part,
-                })];
-            }
-            vec![]
         }
+        F::generators(self, degree)
     }
 
     fn decompose_basis_element(
@@ -127,12 +42,13 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 
     fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
-        if self.generic() && degree == 2 {
+        if F::HAS_EXTERIOR && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
         let p = self.prime();
-        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic(), degree);
+        let inadmissible_pairs =
+            combinatorics::inadmissible_pairs(p, F::HAS_EXTERIOR, self.q(), degree);
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
@@ -173,7 +89,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 }
 
-impl MilnorAlgebra {
+impl<F: MilnorShape> MilnorAlgebraInner<F> {
     fn decompose_basis_element_qpart(
         &self,
         degree: i32,
@@ -262,7 +178,7 @@ impl MilnorAlgebra {
 
                 // This is a power of p
                 if m == 1 {
-                    if len == 1 || !self.profile.is_an(self.generic()) {
+                    if len == 1 || !self.profile.is_an(F::HAS_EXTERIOR) {
                         buffer.extend([(p - c, (degree, idx), (0, 0))]);
                     } else {
                         // Write this as [P(p^(len + k - 1)), P(0, .., 0, P^k)] plus higher order
@@ -359,7 +275,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::algebra::milnor_algebra::MilnorProfile;
+    use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
 
     #[rstest]
     #[trace]
@@ -415,6 +331,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Degree 1 can be empty, and then it has no generator.
+    ///
+    /// $Q_0$ is a generator under every profile that admits it, so `generators` answers degree 1
+    /// itself rather than leaving it to the shape. A profile excluding $Q_0$ got the index anyway,
+    /// naming a generator the algebra does not have.
+    #[test]
+    #[cfg(feature = "odd-primes")]
+    fn degree_one_without_q0_has_no_generator() {
+        let profile = MilnorProfile {
+            q_part: 0b1110,
+            p_part: vec![2, 1],
+            truncated: true,
+        };
+        assert!(profile.is_valid(), "the test needs a valid profile");
+        let algebra = MilnorAlgebra::new_with_profile(ValidPrime::new(3), profile, false);
+        algebra.compute_basis(20);
+        assert_eq!(algebra.dimension(1), 0);
+        assert!(algebra.generators(1).is_empty());
     }
 
     use crate::module::ModuleFailedRelationError;
