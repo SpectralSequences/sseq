@@ -133,6 +133,124 @@ pub trait FieldInternal:
         }
     }
 
+    // # Group layout (bit-sliced storage)
+    //
+    // Storage is organized into *groups*: a group holds [`entries_per_group`] = 64 consecutive
+    // entries and occupies [`limbs_per_group`] = `k` consecutive limbs, the *bit-planes*. Plane
+    // `j` of a group holds bit `j` of all 64 entries, so entry `i` lives at bit `i` of each of
+    // the `k` planes. Every field uses this layout, with `k = ceil(log2 q)` (the bits needed to
+    // store an encoded value in `0..q`). For `q = 2` this is `k = 1`, which coincides exactly
+    // with the old packed layout — so `F_2` (and its SIMD / matrix machinery) is byte-identical
+    // and unaffected. Entry access goes through [`gather`]/[`scatter`]; the sizing helpers
+    // [`number`]/[`range`] are expressed in terms of groups.
+    //
+    // [`entries_per_group`]: FieldInternal::entries_per_group
+    // [`limbs_per_group`]: FieldInternal::limbs_per_group
+    // [`gather`]: FieldInternal::gather
+    // [`scatter`]: FieldInternal::scatter
+    // [`number`]: FieldInternal::number
+    // [`range`]: FieldInternal::range
+
+    /// The number of entries stored in a single group: one per bit of a [`Limb`].
+    fn entries_per_group(self) -> usize {
+        BITS_PER_LIMB
+    }
+
+    /// The number of bit-planes per group, `k = ceil(log2 q)`. Each field defines this; `q = 2`
+    /// gives `k = 1` (packed-compatible).
+    fn limbs_per_group(self) -> usize;
+
+    /// The index of the group containing entry `idx`.
+    fn group_of(self, idx: usize) -> usize {
+        idx / self.entries_per_group()
+    }
+
+    /// The position of entry `idx` within its group, in `0..entries_per_group()`.
+    fn lane_of(self, idx: usize) -> usize {
+        idx % self.entries_per_group()
+    }
+
+    /// Read entry `lane` (in `0..entries_per_group()`) out of a single group's `k` planes (a
+    /// slice of length [`limbs_per_group`](FieldInternal::limbs_per_group)) by reassembling its
+    /// bit from each plane.
+    fn gather(self, group: &[Limb], lane: usize) -> FieldElement<Self> {
+        let mut value: Limb = 0;
+        for (j, plane) in group.iter().enumerate() {
+            value |= ((plane >> lane) & 1) << j;
+        }
+        self.decode(value)
+    }
+
+    /// Write `value` into entry `lane` of a single group's `k` planes, dispersing the encoded
+    /// value's bits one per plane. Assumes the stored value fits in `k` bits.
+    fn scatter(self, group: &mut [Limb], lane: usize, value: FieldElement<Self>) {
+        let encoded = self.encode(value);
+        let lane_mask: Limb = 1 << lane;
+        for (j, plane) in group.iter_mut().enumerate() {
+            let bit = (encoded >> j) & 1;
+            *plane = (*plane & !lane_mask) | (bit << lane);
+        }
+    }
+
+    /// Whether this field uses a genuinely multi-plane layout (`k > 1`). Only `F_2` has `k = 1`,
+    /// where the bit-sliced layout coincides with the packed one and the `F_2`-specific fast
+    /// paths (`offset`, `limb_masks`, SIMD, m4ri) apply.
+    fn is_bitsliced(self) -> bool {
+        self.limbs_per_group() > 1
+    }
+
+    /// `dst += coeff * src` (mod p) over a span of whole groups (`dst` and `src` have equal,
+    /// group-aligned length). Both are assumed reduced; the result is reduced.
+    ///
+    /// Default: element-wise over lanes via [`Self::gather`]/[`Self::scatter`] and the field's own
+    /// arithmetic — correct for any bit-sliced field (used by [`SmallFq`](super::SmallFq)). The
+    /// prime fields [`Fp`](super::Fp) override this with a branch-free plane circuit.
+    fn add_groups(self, dst: &mut [Limb], src: &[Limb], coeff: FieldElement<Self>) {
+        let lpg = self.limbs_per_group();
+        let epg = self.entries_per_group();
+        for (dgroup, sgroup) in dst.chunks_exact_mut(lpg).zip(src.chunks_exact(lpg)) {
+            for lane in 0..epg {
+                let a = self.gather(dgroup, lane);
+                let b = self.gather(sgroup, lane);
+                let result = self.add(a, self.mul(coeff.clone(), b));
+                self.scatter(dgroup, lane, result);
+            }
+        }
+    }
+
+    /// `dst *= coeff` (mod p) over a span of whole groups. Default: element-wise; overridden by
+    /// [`Fp`](super::Fp).
+    fn scale_groups(self, dst: &mut [Limb], coeff: FieldElement<Self>) {
+        let lpg = self.limbs_per_group();
+        let epg = self.entries_per_group();
+        for dgroup in dst.chunks_exact_mut(lpg) {
+            for lane in 0..epg {
+                let a = self.gather(dgroup, lane);
+                self.scatter(dgroup, lane, self.mul(a, coeff.clone()));
+            }
+        }
+    }
+
+    /// `dst += coeff * src` (mod p) for a single group (each `limbs_per_group()` limbs),
+    /// restricted to the lanes set in `lane_mask`; other lanes are unchanged. Used for the
+    /// partial boundary groups of a slice add. Default: element-wise; overridden by
+    /// [`Fp`](super::Fp) with a masked plane circuit.
+    fn add_group_masked(
+        self,
+        dst: &mut [Limb],
+        src: &[Limb],
+        coeff: FieldElement<Self>,
+        lane_mask: Limb,
+    ) {
+        for lane in 0..self.entries_per_group() {
+            if (lane_mask >> lane) & 1 == 1 {
+                let a = self.gather(dst, lane);
+                let b = self.gather(src, lane);
+                self.scatter(dst, lane, self.add(a, self.mul(coeff.clone(), b)));
+            }
+        }
+    }
+
     /// Check whether or not a limb is reduced. This may potentially not be faster than calling
     /// [`reduce`](FieldInternal::reduce) directly.
     fn is_reduced(self, limb: Limb) -> bool {
@@ -166,17 +284,20 @@ pub trait FieldInternal:
 
     /// Return the number of limbs required to hold `dim` entries.
     fn number(self, dim: usize) -> usize {
-        if dim == 0 {
-            0
-        } else {
-            self.limb_bit_index_pair(dim - 1).limb + 1
-        }
+        // Whole groups needed to hold `dim` entries, times the limbs in each group.
+        self.limbs_per_group() * dim.div_ceil(self.entries_per_group())
     }
 
-    /// Return the `Range<usize>` starting at the index of the limb containing the `start`th entry, and
-    /// ending at the index of the limb containing the `end`th entry (including the latter).
+    /// Return the `Range<usize>` of limbs spanning entries `start..end`: from the first limb of
+    /// the group containing `start` to the last limb of the group containing `end - 1`.
     fn range(self, start: usize, end: usize) -> Range<usize> {
-        let min = self.limb_bit_index_pair(start).limb;
+        debug_assert!(start <= end);
+        let min = self.group_of(start) * self.limbs_per_group();
+        if start == end {
+            // An empty entry range maps to an empty limb range; otherwise callers that guard
+            // on `limb_range.is_empty()` would touch the (unrelated) containing group.
+            return min..min;
+        }
         let max = self.number(end);
         min..max
     }

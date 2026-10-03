@@ -1,7 +1,3 @@
-use std::cmp::Ordering;
-
-use itertools::Itertools;
-
 use super::inner::{FqSlice, FqSliceMut, FqVector};
 use crate::{
     constants,
@@ -30,12 +26,12 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         assert_eq!(self.fq(), value.field());
         assert!(index < self.as_slice().len());
-        let bit_mask = self.fq().bitmask();
-        let limb_index = self.fq().limb_bit_index_pair(index + self.start());
-        let mut result = self.limbs()[limb_index.limb];
-        result &= !(bit_mask << limb_index.bit_index);
-        result |= self.fq().encode(value) << limb_index.bit_index;
-        self.limbs_mut()[limb_index.limb] = result;
+        let fq = self.fq();
+        let idx = index + self.start();
+        let lpg = fq.limbs_per_group();
+        let base = fq.group_of(idx) * lpg;
+        let lane = fq.lane_of(idx);
+        fq.scatter(&mut self.limbs_mut()[base..base + lpg], lane, value);
     }
 
     fn reduce_limbs(&mut self) {
@@ -56,6 +52,20 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         if fq.q() == 2 {
             if c == fq.zero() {
                 self.set_to_zero();
+            }
+            return;
+        }
+
+        if fq.is_bitsliced() {
+            // The packed bit-offset masking does not apply to the bit-sliced layout; scale
+            // each in-range entry through the layout-aware gather/scatter.
+            if c == fq.zero() {
+                self.set_to_zero();
+                return;
+            }
+            for i in 0..self.as_slice().len() {
+                let x = self.as_slice().entry(i) * c.clone();
+                self.set_entry(i, x);
             }
             return;
         }
@@ -85,6 +95,13 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn set_to_zero(&mut self) {
+        if self.fq().is_bitsliced() {
+            let zero = self.fq().zero();
+            for i in 0..self.as_slice().len() {
+                self.set_entry(i, zero.clone());
+            }
+            return;
+        }
         let limb_range = self.as_slice().limb_range();
         if limb_range.is_empty() {
             return;
@@ -102,25 +119,162 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
         assert_eq!(self.fq(), c.field());
         assert_eq!(self.fq(), other.fq());
+        assert_eq!(self.as_slice().len(), other.len());
 
         if self.as_slice().is_empty() {
             return;
         }
 
-        if self.fq().q() == 2 {
-            if c != self.fq().zero() {
-                match self.as_slice().offset().cmp(&other.offset()) {
-                    Ordering::Equal => self.add_shift_none(other, self.fq().one()),
-                    Ordering::Less => self.add_shift_left(other, self.fq().one()),
-                    Ordering::Greater => self.add_shift_right(other, self.fq().one()),
+        // Every field uses the bit-sliced layout (`F_2` is just the `k = 1` case), so a single
+        // code path handles them all.
+        self.add_bitsliced(other, c);
+    }
+
+    /// Add `c * other` to `self` in the bit-sliced layout. Interior full groups are added with
+    /// the fast plane kernel ([`add_groups`](crate::field::field_internal)); the leading/trailing
+    /// partial groups go through the masked plane circuit
+    /// ([`add_group_masked`](crate::field::field_internal::FieldInternal::add_group_masked)). When
+    /// the two slices have different lane offsets within their groups, the planes are realigned
+    /// first via [`add_bitsliced_shifted`](Self::add_bitsliced_shifted).
+    ///
+    /// [`add_groups`]: crate::field::field_internal::FieldInternal::add_groups
+    fn add_bitsliced(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
+        let fq = self.fq();
+        if c == fq.zero() {
+            return;
+        }
+        let epg = fq.entries_per_group();
+        let s_start = self.start();
+        let o_start = other.start();
+        let len = self.as_slice().len();
+        if len == 0 {
+            return;
+        }
+
+        // The fast plane kernel needs the two slices to share a lane offset within their groups
+        // (so group `g` of one lines up with group `g` of the other). This holds for whole
+        // vectors and for matrix-row adds that start at the same pivot column. When the offsets
+        // differ, the planes must be realigned first — see `add_bitsliced_shifted`.
+        if s_start % epg != o_start % epg {
+            self.add_bitsliced_shifted(other, c);
+            return;
+        }
+
+        let k = fq.limbs_per_group();
+        let s_end = s_start + len;
+        let first_g = s_start / epg;
+        let last_g = (s_end - 1) / epg;
+        // Group `g` of `self` lines up with group `g - first_g + o_first_g` of `other`.
+        let o_first_g = o_start / epg;
+        let group_limbs = |self_g: usize| {
+            let s = self_g * k;
+            let o = (o_first_g + (self_g - first_g)) * k;
+            (s, o)
+        };
+        // Lane mask selecting bits `[lo, hi)`.
+        let lane_mask = |lo: usize, hi: usize| -> Limb {
+            let high: Limb = if hi >= epg { !0 } else { (1 << hi) - 1 };
+            let low: Limb = (1 << lo) - 1;
+            high & !low
+        };
+
+        if first_g == last_g {
+            let (s, o) = group_limbs(first_g);
+            let mask = lane_mask(s_start - first_g * epg, s_end - first_g * epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c, mask);
+            return;
+        }
+
+        // Leading partial group: lanes [s_start mod 64, 64).
+        {
+            let (s, o) = group_limbs(first_g);
+            let mask = lane_mask(s_start - first_g * epg, epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c.clone(), mask);
+        }
+        // Interior full groups, via the plane kernel in one contiguous call.
+        if last_g > first_g + 1 {
+            let (s, o) = group_limbs(first_g + 1);
+            let nlimbs = (last_g - first_g - 1) * k;
+            let src = &other.limbs()[o..o + nlimbs];
+            fq.add_groups(&mut self.limbs_mut()[s..s + nlimbs], src, c.clone());
+        }
+        // Trailing partial group: lanes [0, s_end mod 64).
+        {
+            let (s, o) = group_limbs(last_g);
+            let mask = lane_mask(0, s_end - last_g * epg);
+            let src = &other.limbs()[o..o + k];
+            fq.add_group_masked(&mut self.limbs_mut()[s..s + k], src, c, mask);
+        }
+    }
+
+    /// Add `c * other` to `self` when the two slices have different lane offsets within their
+    /// groups, so the planes don't line up. A bit-sliced vector is `k` independent single-bit
+    /// planes; realigning it is a per-plane bit shift (this is exactly what the old F_2-only
+    /// `add_shift_*` did, generalized from one plane to `k`). For each target group we build the
+    /// `k` source planes shifted into alignment, then add them in with the masked group circuit.
+    fn add_bitsliced_shifted(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
+        let fq = self.fq();
+        let k = fq.limbs_per_group();
+        let epg = fq.entries_per_group();
+        let ts = self.start();
+        let len = self.as_slice().len();
+        // Source lane = target lane + shift (`other`'s entry i sits `shift` lanes from `self`'s).
+        let shift = other.start() as isize - ts as isize;
+        let src_limbs = other.limbs();
+
+        // Plane `j` of (absolute) group `g` of the source, or 0 if out of range. The whole-limb
+        // reads can stray outside the valid lane range, but those bits are masked off below.
+        let plane_limb = |g: isize, j: usize| -> Limb {
+            if g < 0 {
+                return 0;
+            }
+            let idx = g as usize * k + j;
+            if idx < src_limbs.len() {
+                src_limbs[idx]
+            } else {
+                0
+            }
+        };
+        let lane_mask = |lo: usize, hi: usize| -> Limb {
+            let high: Limb = if hi >= epg { !0 } else { (1 << hi) - 1 };
+            let low: Limb = (1 << lo) - 1;
+            high & !low
+        };
+
+        debug_assert!(k <= epg);
+        let mut shifted = [0 as Limb; constants::BITS_PER_LIMB];
+
+        let first_g = ts / epg;
+        let last_g = (ts + len - 1) / epg;
+        let epg_i = epg as isize;
+        for g in first_g..=last_g {
+            let lo = if g == first_g { ts - g * epg } else { 0 };
+            let hi = if g == last_g {
+                (ts + len) - g * epg
+            } else {
+                epg
+            };
+            let mask = lane_mask(lo, hi);
+
+            // Source bit `b` of target group `g` lives at absolute source lane `g*epg + b + shift`.
+            let src_base = g as isize * epg_i + shift;
+            let sg = src_base.div_euclid(epg_i);
+            let bs = src_base.rem_euclid(epg_i) as u32;
+            for (j, s) in shifted[..k].iter_mut().enumerate() {
+                *s = if bs == 0 {
+                    plane_limb(sg, j)
+                } else {
+                    (plane_limb(sg, j) >> bs) | (plane_limb(sg + 1, j) << (epg as u32 - bs))
                 };
             }
-        } else {
-            match self.as_slice().offset().cmp(&other.offset()) {
-                Ordering::Equal => self.add_shift_none(other, c),
-                Ordering::Less => self.add_shift_left(other, c),
-                Ordering::Greater => self.add_shift_right(other, c),
-            };
+            fq.add_group_masked(
+                &mut self.limbs_mut()[g * k..g * k + k],
+                &shifted[..k],
+                c.clone(),
+                mask,
+            );
         }
     }
 
@@ -153,7 +307,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: FqSlice<'_, F>) {
         assert_eq!(self.fq(), other.fq());
-        if self.as_slice().offset() != other.offset() {
+        if self.fq().is_bitsliced() || self.as_slice().offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq().one());
             return;
@@ -188,6 +342,23 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         if shift == 0 {
             return;
         }
+        if self.fq().is_bitsliced() {
+            // The packed limb-move trick assumes an entry is a contiguous bitfield, which the
+            // bit-sliced layout breaks. Move entries down one at a time via gather/scatter:
+            // reading `i + shift` strictly ahead of writing `i` keeps it correct in place.
+            let len = self.as_slice().len();
+            if shift >= len {
+                *self.end_mut() = self.start();
+                return;
+            }
+            let new_len = len - shift;
+            for i in 0..new_len {
+                let v = self.as_slice().entry(i + shift);
+                self.set_entry(i, v);
+            }
+            *self.end_mut() -= shift;
+            return;
+        }
         if self.start() == 0 && shift.is_multiple_of(self.fq().entries_per_limb()) {
             let limb_shift = shift / self.fq().entries_per_limb();
             *self.end_mut() -= shift;
@@ -197,299 +368,6 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
             }
         } else {
             unimplemented!()
-        }
-    }
-
-    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
-    pub fn add_shift_none(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
-        assert_eq!(self.fq(), c.field());
-        assert_eq!(self.fq(), other.fq());
-        let fq = self.fq();
-
-        let target_range = self.as_slice().limb_range();
-        let source_range = other.limb_range();
-
-        let (min_mask, max_mask) = other.limb_masks();
-
-        self.limbs_mut()[target_range.start] = fq.fma_limb(
-            self.limbs()[target_range.start],
-            other.limbs()[source_range.start] & min_mask,
-            c.clone(),
-        );
-        self.limbs_mut()[target_range.start] = fq.reduce(self.limbs()[target_range.start]);
-
-        let target_inner_range = self.as_slice().limb_range_inner();
-        let source_inner_range = other.limb_range_inner();
-        if !source_inner_range.is_empty() {
-            for (left, right) in self.limbs_mut()[target_inner_range]
-                .iter_mut()
-                .zip_eq(&other.limbs()[source_inner_range])
-            {
-                *left = fq.fma_limb(*left, *right, c.clone());
-                *left = fq.reduce(*left);
-            }
-        }
-        if source_range.len() > 1 {
-            // The first and last limbs are distinct, so we process the last.
-            self.limbs_mut()[target_range.end - 1] = fq.fma_limb(
-                self.limbs()[target_range.end - 1],
-                other.limbs()[source_range.end - 1] & max_mask,
-                c,
-            );
-            self.limbs_mut()[target_range.end - 1] = fq.reduce(self.limbs()[target_range.end - 1]);
-        }
-    }
-
-    fn add_shift_left(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
-        struct AddShiftLeftData {
-            offset_shift: usize,
-            tail_shift: usize,
-            zero_bits: usize,
-            min_source_limb: usize,
-            min_target_limb: usize,
-            number_of_source_limbs: usize,
-            number_of_target_limbs: usize,
-            min_mask: Limb,
-            max_mask: Limb,
-        }
-
-        impl AddShiftLeftData {
-            fn new<F: Field>(fq: F, target: FqSlice<'_, F>, source: FqSlice<'_, F>) -> Self {
-                debug_assert!(target.prime() == source.prime());
-                debug_assert!(target.offset() <= source.offset());
-                debug_assert!(
-                    target.len() == source.len(),
-                    "self.dim {} not equal to other.dim {}",
-                    target.len(),
-                    source.len()
-                );
-                let offset_shift = source.offset() - target.offset();
-                let bit_length = fq.bit_length();
-                let entries_per_limb = fq.entries_per_limb();
-                let usable_bits_per_limb = bit_length * entries_per_limb;
-                let tail_shift = usable_bits_per_limb - offset_shift;
-                let zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
-                let source_range = source.limb_range();
-                let target_range = target.limb_range();
-                let min_source_limb = source_range.start;
-                let min_target_limb = target_range.start;
-                let number_of_source_limbs = source_range.len();
-                let number_of_target_limbs = target_range.len();
-                let (min_mask, max_mask) = source.limb_masks();
-
-                Self {
-                    offset_shift,
-                    tail_shift,
-                    zero_bits,
-                    min_source_limb,
-                    min_target_limb,
-                    number_of_source_limbs,
-                    number_of_target_limbs,
-                    min_mask,
-                    max_mask,
-                }
-            }
-
-            fn mask_first_limb<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs()[i] & self.min_mask) >> self.offset_shift
-            }
-
-            fn mask_middle_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                other.limbs()[i] >> self.offset_shift
-            }
-
-            fn mask_middle_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs()[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
-            }
-
-            fn mask_last_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.max_mask;
-                source_limb_masked << self.tail_shift
-            }
-
-            fn mask_last_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.max_mask;
-                source_limb_masked >> self.offset_shift
-            }
-        }
-
-        let dat = AddShiftLeftData::new(self.fq(), self.as_slice(), other);
-        let mut i = 0;
-        {
-            self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb],
-                dat.mask_first_limb(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-        }
-        for i in 1..dat.number_of_source_limbs - 1 {
-            self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb],
-                dat.mask_middle_limb_a(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb - 1] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb - 1],
-                dat.mask_middle_limb_b(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb - 1] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb - 1]);
-        }
-        i = dat.number_of_source_limbs - 1;
-        if i > 0 {
-            self.limbs_mut()[i + dat.min_target_limb - 1] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb - 1],
-                dat.mask_last_limb_a(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb - 1] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb - 1]);
-            if dat.number_of_source_limbs == dat.number_of_target_limbs {
-                self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                    self.limbs()[i + dat.min_target_limb],
-                    dat.mask_last_limb_b(other, i + dat.min_source_limb),
-                    c,
-                );
-                self.limbs_mut()[i + dat.min_target_limb] =
-                    self.fq().reduce(self.limbs()[i + dat.min_target_limb]);
-            }
-        } else {
-            self.limbs_mut()[i + dat.min_target_limb] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb]);
-        }
-    }
-
-    fn add_shift_right(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
-        struct AddShiftRightData {
-            offset_shift: usize,
-            tail_shift: usize,
-            zero_bits: usize,
-            min_source_limb: usize,
-            min_target_limb: usize,
-            number_of_source_limbs: usize,
-            number_of_target_limbs: usize,
-            min_mask: Limb,
-            max_mask: Limb,
-        }
-
-        impl AddShiftRightData {
-            fn new<F: Field>(fq: F, target: FqSlice<'_, F>, source: FqSlice<'_, F>) -> Self {
-                debug_assert!(target.prime() == source.prime());
-                debug_assert!(target.offset() >= source.offset());
-                debug_assert!(
-                    target.len() == source.len(),
-                    "self.dim {} not equal to other.dim {}",
-                    target.len(),
-                    source.len()
-                );
-                let offset_shift = target.offset() - source.offset();
-                let bit_length = fq.bit_length();
-                let entries_per_limb = fq.entries_per_limb();
-                let usable_bits_per_limb = bit_length * entries_per_limb;
-                let tail_shift = usable_bits_per_limb - offset_shift;
-                let zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
-                let source_range = source.limb_range();
-                let target_range = target.limb_range();
-                let min_source_limb = source_range.start;
-                let min_target_limb = target_range.start;
-                let number_of_source_limbs = source_range.len();
-                let number_of_target_limbs = target_range.len();
-                let (min_mask, max_mask) = source.limb_masks();
-                Self {
-                    offset_shift,
-                    tail_shift,
-                    zero_bits,
-                    min_source_limb,
-                    min_target_limb,
-                    number_of_source_limbs,
-                    number_of_target_limbs,
-                    min_mask,
-                    max_mask,
-                }
-            }
-
-            fn mask_first_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.min_mask;
-                (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
-            }
-
-            fn mask_first_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.min_mask;
-                source_limb_masked >> self.tail_shift
-            }
-
-            fn mask_middle_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                (other.limbs()[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
-            }
-
-            fn mask_middle_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                other.limbs()[i] >> self.tail_shift
-            }
-
-            fn mask_last_limb_a<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.max_mask;
-                source_limb_masked << self.offset_shift
-            }
-
-            fn mask_last_limb_b<F: Field>(&self, other: FqSlice<'_, F>, i: usize) -> Limb {
-                let source_limb_masked = other.limbs()[i] & self.max_mask;
-                source_limb_masked >> self.tail_shift
-            }
-        }
-
-        let dat = AddShiftRightData::new(self.fq(), self.as_slice(), other);
-        let mut i = 0;
-        {
-            self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb],
-                dat.mask_first_limb_a(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb]);
-            if dat.number_of_target_limbs > 1 {
-                self.limbs_mut()[i + dat.min_target_limb + 1] = self.fq().fma_limb(
-                    self.limbs()[i + dat.min_target_limb + 1],
-                    dat.mask_first_limb_b(other, i + dat.min_source_limb),
-                    c.clone(),
-                );
-            }
-        }
-        for i in 1..dat.number_of_source_limbs - 1 {
-            self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb],
-                dat.mask_middle_limb_a(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb]);
-            self.limbs_mut()[i + dat.min_target_limb + 1] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb + 1],
-                dat.mask_middle_limb_b(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-        }
-        i = dat.number_of_source_limbs - 1;
-        if i > 0 {
-            self.limbs_mut()[i + dat.min_target_limb] = self.fq().fma_limb(
-                self.limbs()[i + dat.min_target_limb],
-                dat.mask_last_limb_a(other, i + dat.min_source_limb),
-                c.clone(),
-            );
-            self.limbs_mut()[i + dat.min_target_limb] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb]);
-            if dat.number_of_target_limbs > dat.number_of_source_limbs {
-                self.limbs_mut()[i + dat.min_target_limb + 1] = self.fq().fma_limb(
-                    self.limbs()[i + dat.min_target_limb + 1],
-                    dat.mask_last_limb_b(other, i + dat.min_source_limb),
-                    c.clone(),
-                );
-            }
-        }
-        if dat.number_of_target_limbs > dat.number_of_source_limbs {
-            self.limbs_mut()[i + dat.min_target_limb + 1] =
-                self.fq().reduce(self.limbs()[i + dat.min_target_limb + 1]);
         }
     }
 
