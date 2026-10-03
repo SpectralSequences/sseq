@@ -30,7 +30,7 @@ use fp::{
     vector::FpVector,
 };
 use itertools::Itertools;
-use sseq::coordinates::{Bidegree, BidegreeElement};
+use sseq::coordinates::Bidegree;
 
 struct HomData {
     name: String,
@@ -386,44 +386,9 @@ fn main() -> anyhow::Result<()> {
         let mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
 
         for g in e3_kernel.iter() {
-            // Print name
-            {
-                print!("<{a_name}, {b_name}, ");
-                let has_ext = {
-                    let ext_part = g.restrict(0, target_num_gens);
-                    if ext_part.iter_nonzero().count() > 0 {
-                        print!(
-                            "[{basis_string}]",
-                            basis_string =
-                                BidegreeElement::new(c, ext_part.to_owned()).to_basis_string()
-                        );
-                        true
-                    } else {
-                        false
-                    }
-                };
-
-                let lambda_part = g.restrict(target_num_gens, target_all_gens);
-                let num_entries = lambda_part.iter_nonzero().count();
-                if num_entries > 0 {
-                    if has_ext {
-                        print!(" + ");
-                    }
-                    print!("λ");
-
-                    let basis_string = BidegreeElement::new(
-                        c + LAMBDA_BIDEGREE,
-                        g.restrict(target_num_gens, target_all_gens).to_owned(),
-                    )
-                    .to_basis_string();
-                    if num_entries == 1 {
-                        print!("{basis_string}",);
-                    } else {
-                        print!("({basis_string})",);
-                    }
-                }
-                print!("> = ±");
-            }
+            // Print name. `g` is the concatenated `[ext | λ]` class of the multiplicand.
+            let elt = SecondaryElement::from_concatenated(c, g, target_num_gens);
+            print!("<{a_name}, {b_name}, {elt}> = ±");
 
             scratch0.clear();
             scratch0.resize(source_num_gens, 0);

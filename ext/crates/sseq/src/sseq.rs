@@ -9,7 +9,9 @@ use fp::{
 use once::MultiIndexed;
 
 use crate::{
-    coordinates::{Bidegree, BidegreeGenerator, degree::MultiDegree, element::MultiDegreeElement},
+    coordinates::{
+        BZE, Bidegree, BidegreeGenerator, degree::MultiDegree, element::MultiDegreeElement,
+    },
     differential::Differential,
 };
 
@@ -36,6 +38,28 @@ impl SseqProfile<2> for Adams {
 
     fn differential_length(offset: Bidegree) -> i32 {
         offset.y()
+    }
+}
+
+/// Trigraded Adams profile for S/λ². Coordinates are `(n, s, b)` = (stem, Adams filtration,
+/// Bockstein degree). The d₂ differential maps `(n, s, b) → (n − 1, s + 2, b + 1)`.
+pub struct AdamsLambda2;
+
+impl SseqProfile<3> for AdamsLambda2 {
+    const MIN_R: i32 = 2;
+
+    fn profile(r: i32, b: MultiDegree<3>) -> MultiDegree<3> {
+        let [n, s, bock] = b.coords();
+        MultiDegree::new([n - 1, s + r, bock + 1])
+    }
+
+    fn profile_inverse(r: i32, b: MultiDegree<3>) -> MultiDegree<3> {
+        let [n, s, bock] = b.coords();
+        MultiDegree::new([n + 1, s - r, bock - 1])
+    }
+
+    fn differential_length(offset: MultiDegree<3>) -> i32 {
+        offset.coords()[1]
     }
 }
 
@@ -366,6 +390,30 @@ impl<const N: usize, P: SseqProfile<N>> Sseq<N, P> {
 
     pub fn page_data(&self, b: MultiDegree<N>) -> &BiVec<Subquotient> {
         &self.data[b].page_data
+    }
+
+    /// Classify generator `i` at degree `b` on page `r` as B (boundary), Z (cycle), or E
+    /// (supports a differential). Panics if the degree or page is not defined.
+    pub fn classify(&self, b: MultiDegree<N>, r: i32, i: usize) -> BZE {
+        let pd = &self.data[b].page_data;
+        let page = &pd[std::cmp::min(r, pd.len() - 1)];
+        BZE::from_page_data(page, i)
+    }
+
+    /// The B, Z, E generator indices at degree `b` on page `r`.
+    pub fn bze_indices(&self, b: MultiDegree<N>, r: i32) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+        let dim = self.data[b].dimension;
+        let mut bs = Vec::new();
+        let mut zs = Vec::new();
+        let mut es = Vec::new();
+        for i in 0..dim {
+            match self.classify(b, r, i) {
+                BZE::B => bs.push(i),
+                BZE::Z => zs.push(i),
+                BZE::E => es.push(i),
+            }
+        }
+        (bs, zs, es)
     }
 
     /// Compute the product between `product` and the class `class`. Returns `None` if

@@ -149,11 +149,14 @@ where
                 self.source.next_homological_degree(),
             ),
             &|selff, s| {
+                // Extending the map at source bidegree `(s, t)` lifts through the target's
+                // quasi-inverse at `(s - shift.s, t - shift.t)`, so we can only go as far in `t` as
+                // that quasi-inverse is available — which, for lazily-computed quasi-inverses (e.g.
+                // Nassau), lags behind how far the target module has been computed.
                 std::cmp::min(
                     selff
                         .target
-                        .module(s - selff.shift.s())
-                        .max_computed_degree()
+                        .max_computed_quasi_inverse_degree(s - selff.shift.s())
                         + selff.shift.t(),
                     selff.source.module(s).max_computed_degree(),
                 ) + 1

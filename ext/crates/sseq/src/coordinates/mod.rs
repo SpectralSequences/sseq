@@ -1,3 +1,4 @@
+pub use bze::BZE;
 pub use degree::MultiDegree;
 pub use element::MultiDegreeElement;
 pub use generator::MultiDegreeGenerator;
@@ -5,6 +6,7 @@ use maybe_rayon::prelude::*;
 use ordered::OrderedMultiDegree;
 pub use range::BidegreeRange;
 
+pub mod bze;
 pub mod degree;
 pub mod element;
 pub mod generator;
