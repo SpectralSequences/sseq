@@ -20,6 +20,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    lift::{LiftPrep, LiftRequest, Liftable},
     save::{SaveDirectory, SaveKind},
 };
 
@@ -207,6 +208,38 @@ where
         input: Bidegree,
         extra_images: Option<Vec<FpVector>>,
     ) -> Range<i32> {
+        match self.prepare_step(input, extra_images) {
+            StepPrep::Done(range) => range,
+            StepPrep::NeedsLift(mut pending) => {
+                let p = self.source.prime();
+                let mut results =
+                    vec![FpVector::new(p, pending.fx_dimension); pending.fdx_vectors.len()];
+                if !pending.fdx_vectors.is_empty() {
+                    assert!(self.target.apply_quasi_inverse(
+                        &mut results,
+                        pending.output,
+                        &pending.fdx_vectors
+                    ));
+                }
+                self.finish_step(&mut pending, &results)
+            }
+        }
+    }
+
+    /// The part of a lift step *before* the quasi-inverse solve: it resolves the cases that need no
+    /// quasi-inverse (already computed, loaded from the save store, zero-dimensional, or an
+    /// augmentation step) itself, returning [`StepPrep::Done`]; otherwise it returns
+    /// [`StepPrep::NeedsLift`] carrying the fdx vectors to lift at `output = input - shift` and the
+    /// partially-filled outputs, to be completed by [`Self::finish_step`].
+    ///
+    /// Splitting the step this way lets [`MultiLift`](crate::lift::MultiLift) gather the fdx
+    /// vectors of many maps at a common output bidegree and issue a single batched
+    /// `apply_quasi_inverse`.
+    pub(crate) fn prepare_step(
+        &self,
+        input: Bidegree,
+        extra_images: Option<Vec<FpVector>>,
+    ) -> StepPrep {
         let output = input - self.shift;
         assert!(self.target.has_computed_bidegree(output));
         assert!(self.source.has_computed_bidegree(input));
@@ -216,7 +249,7 @@ where
         if input.t() < f_cur.next_degree() {
             assert!(extra_images.is_none());
             // We need to signal to compute the dependents of this
-            return input.t()..input.t() + 1;
+            return StepPrep::Done(input.t()..input.t() + 1);
         }
 
         let p = self.source.prime();
@@ -225,45 +258,33 @@ where
         let fx_dimension = f_cur.target().dimension(output.t());
 
         if num_gens == 0 || fx_dimension == 0 {
-            return f_cur.add_generators_from_rows_ooo(
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(
                 input.t(),
                 vec![FpVector::new(p, fx_dimension); num_gens],
-            );
+            ));
         }
 
-        if let Some(dir) = self.save_dir.read() {
-            let mut outputs = Vec::with_capacity(num_gens);
-
-            if let Some(mut f) = self
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self
                 .source
                 .save_file(SaveKind::ChainMap, input)
                 .open_file(dir.to_owned())
-            {
-                let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
-                for _ in 0..num_gens {
-                    outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
-                }
-                return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
+        {
+            let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+            let mut outputs = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
             }
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(input.t(), outputs));
         }
 
         if output.s() == 0 {
             let outputs =
                 extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
-
-            if let Some(dir) = self.save_dir.write() {
-                let mut f = self
-                    .source
-                    .save_file(SaveKind::ChainMap, input)
-                    .create_file(dir.clone(), false);
-                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-                for row in &outputs {
-                    row.to_bytes(&mut f).unwrap();
-                }
-            }
-
-            return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
+            self.save_chain_map(input, fx_dimension, &outputs);
+            return StepPrep::Done(f_cur.add_generators_from_rows_ooo(input.t(), outputs));
         }
+
         let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         let d_source = self.source.differential(input.s());
         let d_target = self.target.differential(output.s());
@@ -284,10 +305,14 @@ where
             }
         }
 
-        // Now do the rest
+        // Now compute the fdx vectors to lift, and remember which output row each fills.
         d_target.compute_auxiliary_data_through_degree(output.t());
 
-        let compute_fdx_vector = |k| {
+        let qi_rows: Vec<usize> = (0..num_gens)
+            .filter(|&k| !d_source.output(input.t(), k).is_zero())
+            .collect();
+
+        let compute_fdx_vector = |k: usize| {
             let dx_vector = d_source.output(input.t(), k);
             if dx_vector.is_zero() {
                 None
@@ -303,41 +328,103 @@ where
             }
         };
 
+        // Same order as `qi_rows` (ascending generator index over non-zero differentials).
         let fdx_vectors: Vec<FpVector> = (0..num_gens)
             .into_maybe_par_iter()
             .filter_map(compute_fdx_vector)
             .collect();
 
-        let mut qi_outputs: Vec<_> = outputs
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(k, v)| {
-                if d_source.output(input.t(), k).is_zero() {
-                    None
-                } else {
-                    Some(v.as_slice_mut())
-                }
-            })
-            .collect();
+        StepPrep::NeedsLift(PendingStep {
+            input,
+            output,
+            outputs,
+            fdx_vectors,
+            qi_rows,
+            fx_dimension,
+        })
+    }
 
-        if !fdx_vectors.is_empty() {
-            assert!(
-                self.target
-                    .apply_quasi_inverse(&mut qi_outputs, output, &fdx_vectors)
-            );
+    /// Complete a lift step: scatter the lifted `results` into the pending outputs, persist the
+    /// chain map, and register the generators. `results[i]` is the lift of `pending.fdx_vectors[i]`
+    /// and fills output row `pending.qi_rows[i]`.
+    pub(crate) fn finish_step(
+        &self,
+        pending: &mut PendingStep,
+        results: &[FpVector],
+    ) -> Range<i32> {
+        assert_eq!(results.len(), pending.qi_rows.len());
+        for (&k, result) in pending.qi_rows.iter().zip(results) {
+            pending.outputs[k].assign(result);
         }
+        self.save_chain_map(pending.input, pending.fx_dimension, &pending.outputs);
+        self.get_map(pending.input.s())
+            .add_generators_from_rows_ooo(pending.input.t(), std::mem::take(&mut pending.outputs))
+    }
 
+    /// Write the chain map's value at `input` to the save store, if there is one to write to.
+    fn save_chain_map(&self, input: Bidegree, fx_dimension: usize, outputs: &[FpVector]) {
         if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .source
                 .save_file(SaveKind::ChainMap, input)
                 .create_file(dir.clone(), false);
             f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-            for row in &outputs {
+            for row in outputs {
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        f_cur.add_generators_from_rows_ooo(input.t(), outputs)
+    }
+}
+
+/// Outcome of [`MuResolutionHomomorphism::prepare_step`]; see [`LiftPrep`].
+pub(crate) type StepPrep = LiftPrep<PendingStep>;
+
+/// A lift step awaiting its quasi-inverse solve; see [`MuResolutionHomomorphism::prepare_step`].
+pub(crate) struct PendingStep {
+    input: Bidegree,
+    output: Bidegree,
+    /// Outputs with the extra-image rows filled and the quasi-inverse rows left zero.
+    outputs: Vec<FpVector>,
+    /// The vectors to lift (`d(f(x))` preimages), one per non-zero-differential generator.
+    fdx_vectors: Vec<FpVector>,
+    /// `qi_rows[i]` is the output row that `fdx_vectors[i]`'s lift fills.
+    qi_rows: Vec<usize>,
+    /// Dimension of each lifted result (the target module dimension at `output`).
+    fx_dimension: usize,
+}
+
+impl<const U: bool, CC1, CC2> Liftable for MuResolutionHomomorphism<U, CC1, CC2>
+where
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
+    CC2: ChainComplex<Algebra = CC1::Algebra> + 'static,
+{
+    fn prepare(&self, b: Bidegree) -> Option<LiftRequest<'_>> {
+        let input = b + self.shift;
+        if input.s() < self.shift.s()
+            || !self.source.has_computed_bidegree(input)
+            || !self.target.has_computed_bidegree(b)
+        {
+            return None;
+        }
+        match self.prepare_step(input, None) {
+            StepPrep::Done(_) => None,
+            StepPrep::NeedsLift(mut pending) => {
+                let inputs = std::mem::take(&mut pending.fdx_vectors);
+                Some(LiftRequest {
+                    inputs,
+                    finish: Box::new(move |results| {
+                        self.finish_step(&mut pending, results);
+                    }),
+                })
+            }
+        }
+    }
+
+    fn lifts_through(&self, target: &dyn std::any::Any) -> bool {
+        target
+            .downcast_ref::<CC2>()
+            .is_some_and(|target| std::ptr::eq(target, &*self.target))
     }
 }
 
