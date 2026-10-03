@@ -6,8 +6,7 @@
 //!
 //! The goal is ergonomics: computing a product of Ext classes is a single [`ExtAlgebra::multiply`]
 //! call instead of the manual [`ResolutionHomomorphism`] + `extend` + `hom_k` plumbing that the
-//! examples currently re-derive. This is the foundational layer; the secondary differential ($d_2$)
-//! and Massey products are planned follow-ups.
+//! examples currently re-derive.
 //!
 //! # Conventions
 //! A product is realised by a [`ResolutionHomomorphism`] built from a fixed multiplier class living
@@ -16,8 +15,18 @@
 //! map per *generator* of $\Ext(M, k)$ (keyed by [`BidegreeGenerator`]); a product by a general
 //! class is assembled at request time as the corresponding linear combination of generator maps.
 //!
-//! The secondary differential ($d_2$) and the $\Mod_{C\lambda^2}$ secondary product live in the
-//! [`secondary`] submodule ([`SecondaryExtAlgebra`]).
+//! # Cohomology
+//! $\Ext(M, k)$ is the cohomology of the cochain complex $\Hom(P_\bullet, k)$. For a **minimal**
+//! resolution its coboundary is identically zero, so $\Ext$ is just the generators and taking
+//! cohomology is a no-op; for a **non-minimal** resolution the coboundary is the canonical dualised
+//! differential $\Hom(d, k)$. Either way this is classical homological algebra — see
+//! [`ExtDifferential`] and [`ExtAlgebra::cohomology_subquotient`].
+//!
+//! The same cochain complex can also host the connecting differential of a *deformation* — the
+//! Adams $d_2$ or the motivic $\delta$ — but that story is deliberately kept out of [`ExtAlgebra`]'s
+//! own interface: the differentials are supplied by their own modules. The $d_2$ and the
+//! $\Mod_{C\lambda^2}$ secondary product live in the [`secondary`] submodule
+//! ([`SecondaryExtAlgebra`]).
 
 pub mod massey;
 pub mod secondary;
@@ -25,7 +34,11 @@ pub mod secondary;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
+use fp::{
+    matrix::{AugmentedMatrix, Matrix, Subquotient, Subspace},
+    prime::ValidPrime,
+    vector::FpVector,
+};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
@@ -34,6 +47,26 @@ use crate::{
     resolution_homomorphism::ResolutionHomomorphism,
     utils::{QueryModuleResolution, get_unit},
 };
+
+/// The coboundary of the Ext cochain complex $\Hom(P_\bullet, k) = k^{\text{gens}}$, whose
+/// cohomology is $\Ext$.
+///
+/// It shifts bidegree by a fixed [`shift`](ExtDifferential::shift) and, at each bidegree, gives its
+/// matrix in the generator bases. For a **minimal** resolution this coboundary is identically zero.
+/// For a **non-minimal** resolution it is the canonical dualised differential $\Hom(d, k)$.
+///
+/// This is also how a deformation encodes the connecting differential in this complex — the Adams
+/// $d_2$ ([`secondary`]) or the motivic $\delta$ — as instances defined in their own modules.
+pub trait ExtDifferential: Send + Sync {
+    /// The fixed bidegree shift the differential applies: $\delta\colon \Ext_b \to
+    /// \Ext_{b + \mathrm{shift}}$.
+    fn shift(&self) -> Bidegree;
+
+    /// The matrix of $\delta$ out of bidegree `b`: rows index the generators at `b`, columns the
+    /// generators at `b + shift`. `None` if the differential out of `b` is out of the computed
+    /// range.
+    fn matrix(&self, b: Bidegree) -> Option<Matrix>;
+}
 
 /// $\Ext(M, k)$ as a bigraded module over the bigraded algebra $\Ext(k, k)$, backed by a
 /// resolution. See the [module-level documentation](self) for conventions.
@@ -45,6 +78,9 @@ pub struct ExtAlgebra<CC: FreeChainComplex> {
     is_unit: bool,
     /// One multiplication map per generator of $\Ext(M, k)$, built and extended on demand.
     products: DashMap<BidegreeGenerator, Arc<ResolutionHomomorphism<CC, CC>>>,
+    /// The DGA differential, if any. `None` is the field/minimal case (zero
+    /// coboundary), where the cohomology is just the generators.
+    differential: Option<Arc<dyn ExtDifferential>>,
 }
 
 impl ExtAlgebra<QueryModuleResolution> {
@@ -75,6 +111,7 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
             resolution,
             unit,
             products: DashMap::new(),
+            differential: None,
         }
     }
 
@@ -88,6 +125,128 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
     /// or [`new`](Self::new) instead.
     pub fn without_unit(resolution: Arc<CC>) -> Self {
         Self::new(Arc::clone(&resolution), resolution)
+    }
+
+    /// Attach a DGA differential, turning this into the Ext DGA whose cohomology
+    /// is the next page (see [`ExtDifferential`] and [`Self::cohomology_dimension`]).
+    /// Without one, the cohomology is the field/minimal case — just the generators.
+    #[must_use]
+    pub fn with_differential(mut self, differential: Arc<dyn ExtDifferential>) -> Self {
+        self.differential = Some(differential);
+        self
+    }
+
+    /// The differential this DGA carries, if any.
+    pub fn differential(&self) -> Option<&Arc<dyn ExtDifferential>> {
+        self.differential.as_ref()
+    }
+
+    /// The dimension of the DGA's cohomology at `b` — the "Ext part":
+    /// $\dim H_b = \dim\ker(\delta \text{ out of } b) - \mathrm{rank}(\delta \text{ into } b)
+    /// = \mathrm{gens}(b) - \mathrm{rank}\,\delta_{\text{out}}(b) - \mathrm{rank}\,\delta_{\text{in}}(b)$.
+    ///
+    /// With no differential (a field/minimal resolution, the zero coboundary) this
+    /// is exactly the generator count — the cohomology *is* $\Ext$, and "taking
+    /// cohomology" degenerates to reading generators. A nonzero differential (a
+    /// non-minimal resolution's $\Hom(d, k)$, or a deformation's connecting map)
+    /// makes it a genuine kernel-mod-image.
+    ///
+    /// `None` if either differential at `b` is out of the computed range. An unknown incoming rank
+    /// is not read as zero: that would overstate the cohomology at the edge of the computed region.
+    pub fn cohomology_dimension(&self, b: Bidegree) -> Option<usize> {
+        let Some(d) = &self.differential else {
+            return Some(self.dimension(b));
+        };
+        let gens = self.dimension(b);
+        // Nothing can survive in an empty bidegree, so neither differential has to be known.
+        // Without this, an empty bidegree at the edge of the computed region reads as unknown
+        // rather than as the zero it is.
+        if gens == 0 {
+            return Some(0);
+        }
+        let shift = d.shift();
+        let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
+        // Each matrix must line up with the generator count, or an undersized one would understate
+        // a rank and overstate the cohomology (matching the shape checks in
+        // `cohomology_subquotient`).
+        let mut out = d.matrix(b)?;
+        assert_eq!(
+            out.rows(),
+            gens,
+            "ExtDifferential::matrix({b:?}) must have gens = {gens} rows, got {}",
+            out.rows()
+        );
+        let rank_out = out.row_reduce();
+        let mut incoming = d.matrix(source)?;
+        assert_eq!(
+            incoming.columns(),
+            gens,
+            "ExtDifferential::matrix({source:?}) into {b:?} must have gens = {gens} columns, got \
+             {}",
+            incoming.columns()
+        );
+        let rank_in = incoming.row_reduce();
+        // ker ⊇ im requires d∘d = 0; a malformed differential could underflow here.
+        debug_assert!(
+            rank_out + rank_in <= gens,
+            "ExtDifferential violates d∘d=0 at {b:?}: rank_out={rank_out}, rank_in={rank_in}, \
+             gens={gens}"
+        );
+        Some(gens - rank_out - rank_in)
+    }
+
+    /// The DGA's cohomology at `b` as a [`Subquotient`] of the generators — the
+    /// actual kernel-mod-image subspace, so callers get *representatives* of the
+    /// surviving classes, not just the [dimension](Self::cohomology_dimension).
+    /// The numerator is $\ker(\delta \text{ out of } b)$, the denominator is
+    /// $\operatorname{im}(\delta \text{ into } b)$. With no differential attached
+    /// every generator survives, so this is the full space.
+    ///
+    /// `None` if either differential at `b` is out of the computed range, as with
+    /// [`cohomology_dimension`](Self::cohomology_dimension).
+    pub fn cohomology_subquotient(&self, b: Bidegree) -> Option<Subquotient> {
+        let p = self.prime();
+        let dim = self.dimension(b);
+        if dim == 0 {
+            return Some(Subquotient::new_full(p, 0));
+        }
+        let Some(d) = &self.differential else {
+            return Some(Subquotient::new_full(p, dim));
+        };
+
+        // Numerator: ker(δ out of b), via the standard augmented-identity kernel.
+        let out = d.matrix(b)?;
+        assert_eq!(
+            out.rows(),
+            dim,
+            "ExtDifferential::matrix({b:?}) must have gens(b) = {dim} rows, got {}",
+            out.rows()
+        );
+        let target_dim = out.columns();
+        let mut aug = AugmentedMatrix::<2>::new(p, dim, [target_dim, dim]);
+        aug.segment(1, 1).add_identity();
+        for i in 0..dim {
+            aug.row_mut(i).slice_mut(0, target_dim).add(out.row(i), 1);
+        }
+        aug.row_reduce();
+        let numerator = aug.compute_kernel();
+
+        // Denominator: im(δ into b) = row space of δ out of the source bidegree. A
+        // well-shaped differential lands in the gens(b)-space (`dim` columns), so its
+        // rows are vectors of the right ambient.
+        let shift = d.shift();
+        let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
+        let m = d.matrix(source)?;
+        assert_eq!(
+            m.columns(),
+            dim,
+            "ExtDifferential::matrix({source:?}) into {b:?} must have gens(b) = {dim} columns, \
+             got {}",
+            m.columns()
+        );
+        let denominator = Subspace::from_matrix(m);
+
+        Some(Subquotient::from_parts(numerator, denominator))
     }
 
     pub fn resolution(&self) -> &Arc<CC> {
@@ -264,8 +423,100 @@ where
 
 #[cfg(test)]
 mod tests {
+    use fp::prime::TWO;
+
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
+
+    #[test]
+    fn test_zero_differential_cohomology_is_generators() {
+        // The field/minimal case: with no differential the DGA cohomology is just
+        // the generators — "taking the Ext" is a no-op.
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(8, 8));
+        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+        for s in 0..=8 {
+            for n in 0..=8 {
+                let b = Bidegree::n_s(n, s);
+                assert_eq!(alg.cohomology_dimension(b), Some(alg.dimension(b)));
+            }
+        }
+    }
+
+    #[test]
+    fn test_differential_cohomology_kills_kernel_and_image() {
+        // A synthetic rank-1 differential (0,2) -> (0,1) must kill both ends in
+        // cohomology: h_0^2 by the outgoing rank, h_0 by the incoming rank. An
+        // untouched bidegree (h_1) is unchanged.
+        // A differential shaped per the `matrix` contract: `gens(b)` rows,
+        // `gens(b + shift)` columns (0 off the first quadrant), with the single
+        // nonzero d2 entry d(h_0^2) = h_0 at (0,2) → (0,1). Sizing from the real
+        // generator counts keeps it a valid reference for `cohomology_subquotient`,
+        // not just the rank-only `cohomology_dimension`.
+        struct MockDiff {
+            dims: Arc<dyn Fn(Bidegree) -> usize + Send + Sync>,
+        }
+        impl ExtDifferential for MockDiff {
+            fn shift(&self) -> Bidegree {
+                Bidegree::n_s(0, -1) // lowers filtration: (0,2) -> (0,1)
+            }
+
+            fn matrix(&self, b: Bidegree) -> Option<Matrix> {
+                let rows = (self.dims)(b);
+                let cols = (self.dims)(b + self.shift());
+                let mut m = Matrix::new(TWO, rows, cols);
+                if b == Bidegree::n_s(0, 2) && rows == 1 && cols == 1 {
+                    m.row_mut(0).set_entry(0, 1);
+                }
+                Some(m)
+            }
+        }
+
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(8, 8));
+        let dims: Arc<dyn Fn(Bidegree) -> usize + Send + Sync> = {
+            let res = Arc::clone(&res);
+            Arc::new(move |b: Bidegree| {
+                if b.n() >= 0 && b.s() >= 0 && res.has_computed_bidegree(b) {
+                    res.number_of_gens_in_bidegree(b)
+                } else {
+                    0
+                }
+            })
+        };
+        let alg = ExtAlgebra::new(Arc::clone(&res), Arc::clone(&res))
+            .with_differential(Arc::new(MockDiff { dims }));
+
+        // Sanity: all three source bidegrees are 1-dimensional on the E-page.
+        assert_eq!(alg.dimension(Bidegree::n_s(0, 1)), 1); // h_0
+        assert_eq!(alg.dimension(Bidegree::n_s(0, 2)), 1); // h_0^2
+        assert_eq!(alg.dimension(Bidegree::n_s(1, 1)), 1); // h_1
+
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 2)), Some(0)); // outgoing rank 1
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 1)), Some(0)); // incoming rank 1
+        assert_eq!(alg.cohomology_dimension(Bidegree::n_s(1, 1)), Some(1)); // untouched
+
+        // The shape-correct mock drives `cohomology_subquotient` too: same answers,
+        // now with representatives.
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(0, 2))
+                .unwrap()
+                .dimension(),
+            0
+        );
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(0, 1))
+                .unwrap()
+                .dimension(),
+            0
+        );
+        assert_eq!(
+            alg.cohomology_subquotient(Bidegree::n_s(1, 1))
+                .unwrap()
+                .dimension(),
+            1
+        );
+    }
 
     #[test]
     fn test_sphere_products() {
