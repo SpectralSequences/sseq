@@ -113,10 +113,9 @@ fn main() -> anyhow::Result<()> {
         // Now the genuinely secondary products with surviving classes.
         for prod in sec_e2.secondary_multiply_into(&x, b) {
             println!(
-                "{disp} [{basis}] = {ext} + λ {lambda}",
+                "{disp} [{basis}] = {value}",
                 basis = prod.source.to_basis_string(),
-                ext = prod.ext_part.as_slice(),
-                lambda = prod.lambda_part.as_slice(),
+                value = prod.value,
             );
         }
     }
