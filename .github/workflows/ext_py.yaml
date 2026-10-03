@@ -1,0 +1,43 @@
+name: Test ext_py
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install rustup
+        id: rustup
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache files
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: ext-py-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Build wheel
+        run: cd ext_py && pip install --group dev && maturin build --out dist
+
+      - name: Install wheel and run tests
+        run: |
+          cd ext_py
+          pip install --force-reinstall dist/*.whl
+          pytest tests
