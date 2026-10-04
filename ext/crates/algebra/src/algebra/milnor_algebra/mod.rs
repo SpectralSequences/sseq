@@ -19,6 +19,7 @@ mod multiplication;
 mod ppart;
 mod profile;
 mod shape;
+mod two_sided;
 
 pub use basis_element::MilnorBasisElement;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
