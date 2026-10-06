@@ -111,51 +111,42 @@ where
     /// The multiply-by-`x` chain self-map of `res(k)` (`res(k) → res(k)`), extended through `max`.
     ///
     /// This is the single home for the ring-side multiplication maps that Massey products need
-    /// (`massey_b_hom`). For a single generator it returns the cached
-    /// [`generator_product_map`](Self::generator_product_map); for a general class it *adds* the
-    /// cached generator maps via [`ResolutionHomomorphism::linear_combination`] (no quasi-inverse
-    /// lift). The degenerate zero class falls back to [`ResolutionHomomorphism::from_class`].
+    /// (`massey_b_hom`). A generator with coefficient one returns the cached
+    /// [`generator_product_map`](Self::generator_product_map) itself; any other nonzero class adds
+    /// the cached generator maps via [`ResolutionHomomorphism::linear_combination`] (no
+    /// quasi-inverse lift).
     pub fn class_product_map(
         &self,
         x: &BidegreeElement,
         max: Bidegree,
     ) -> Arc<ResolutionHomomorphism<CC, CC>> {
-        let nonzero: Vec<(usize, u32)> = x.vec().iter_nonzero().collect();
-        match nonzero.as_slice() {
-            [(idx, 1)] => {
-                let map = self.generator_product_map(BidegreeGenerator::new(x.degree(), *idx));
+        let summands: Vec<(u32, Arc<ResolutionHomomorphism<CC, CC>>)> = x
+            .vec()
+            .iter_nonzero()
+            .map(|(idx, c)| {
+                let map = self.generator_product_map(BidegreeGenerator::new(x.degree(), idx));
                 map.extend_through_stem(max);
-                map
-            }
-            [_, _, ..] => {
-                let summands: Vec<(u32, Arc<ResolutionHomomorphism<CC, CC>>)> = nonzero
-                    .iter()
-                    .map(|&(idx, c)| {
-                        let map =
-                            self.generator_product_map(BidegreeGenerator::new(x.degree(), idx));
-                        map.extend_through_stem(max);
-                        (c, map)
-                    })
-                    .collect();
-                Arc::new(ResolutionHomomorphism::linear_combination(
-                    String::new(),
-                    &summands,
-                    max,
-                ))
-            }
-            _ => {
-                // Zero class, or a single generator with coefficient != 1.
-                let coords: Vec<u32> = x.vec().iter().collect();
-                let hom = Arc::new(ResolutionHomomorphism::from_class(
+                (c, map)
+            })
+            .collect();
+        match summands.as_slice() {
+            [(1, map)] => Arc::clone(map),
+            [] => {
+                // With no initial images, extending lifts zero everywhere.
+                let hom = Arc::new(ResolutionHomomorphism::new(
                     String::new(),
                     Arc::clone(&self.resolution),
                     Arc::clone(&self.resolution),
                     x.degree(),
-                    &coords,
                 ));
                 hom.extend_through_stem(max);
                 hom
             }
+            _ => Arc::new(ResolutionHomomorphism::linear_combination(
+                String::new(),
+                &summands,
+                max,
+            )),
         }
     }
 
