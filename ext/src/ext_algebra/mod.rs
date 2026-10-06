@@ -555,39 +555,24 @@ mod tests {
         );
     }
 
-    /// `class_product_map` on a multi-generator class assembles the multiply-by-a-class map by
-    /// *adding* the cached per-generator maps at the chain level
-    /// ([`ResolutionHomomorphism::linear_combination`]). This must induce the same products as
-    /// [`ExtModule::multiply_into`], which instead sums the per-generator maps at the `hom_k` level.
-    /// The two independent linear-combination strategies agreeing pins `linear_combination`.
-    #[test]
-    fn test_class_product_map_matches_multiply_into() {
-        let max = Bidegree::n_s(20, 9);
-        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
-        res.compute_through_stem(max);
-        let module = ExtModule::intrinsic(res);
+    /// Check that `class_product_map(x)` induces the same products as [`ExtModule::multiply_into`],
+    /// which sums the per-generator maps at the `hom_k` level rather than the chain level.
+    fn check_class_product_map<CC: FreeChainComplex + AugmentedChainComplex>(
+        module: &ExtModule<CC>,
+        x: &BidegreeElement,
+        max: Bidegree,
+    ) {
         let algebra = module.algebra();
-
-        // (n = 15, s = 5) is the first bidegree of Ext(F_2, F_2) with two generators, so this
-        // exercises the genuine multi-generator `linear_combination` path.
-        let x_deg = Bidegree::n_s(15, 5);
-        assert_eq!(
-            algebra.dimension(x_deg),
-            2,
-            "expected a 2-dimensional bidegree"
-        );
-        let x = algebra.element(x_deg, &[1, 1]);
-
-        let map = algebra.class_product_map(&x, max);
+        let map = algebra.class_product_map(x, max);
         map.extend_all();
 
         let mut compared = 0;
         for b in algebra.resolution().iter_nonzero_stem() {
-            // `multiply_into` returns `None` once `b + x_deg` is out of the computed range.
-            let Some(reference) = module.multiply_into(&x, b) else {
+            // `multiply_into` returns `None` once `b + x.degree()` is out of the computed range.
+            let Some(reference) = module.multiply_into(x, b) else {
                 continue;
             };
-            let target = b + x_deg;
+            let target = b + x.degree();
             let hom_k = map.get_map(target.s()).hom_k(b.t());
             assert_eq!(reference.rows(), hom_k.len());
             for (j, row) in hom_k.iter().enumerate() {
@@ -597,5 +582,49 @@ mod tests {
             }
         }
         assert!(compared > 0, "expected at least one product comparison");
+    }
+
+    /// A multi-generator class takes the chain-level
+    /// [`ResolutionHomomorphism::linear_combination`] path; agreeing with
+    /// [`ExtModule::multiply_into`] pins `linear_combination`.
+    #[test]
+    fn test_class_product_map_multi_generator() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        let max = Bidegree::n_s(20, 9);
+        res.compute_through_stem(max);
+        let module = ExtModule::intrinsic(res);
+
+        // (n = 15, s = 5) is the first bidegree of Ext(F_2, F_2) with two generators.
+        let x_deg = Bidegree::n_s(15, 5);
+        assert_eq!(module.algebra().dimension(x_deg), 2);
+        let x = module.algebra().element(x_deg, &[1, 1]);
+        check_class_product_map(&module, &x, max);
+    }
+
+    /// A single generator with a coefficient other than one is a one-summand
+    /// [`ResolutionHomomorphism::linear_combination`].
+    #[test]
+    fn test_class_product_map_scaled_generator() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_3", None).unwrap());
+        let max = Bidegree::n_s(20, 6);
+        res.compute_through_stem(max);
+        let module = ExtModule::intrinsic(res);
+
+        let a0 = Bidegree::n_s(0, 1);
+        assert_eq!(module.algebra().dimension(a0), 1);
+        let x = module.algebra().element(a0, &[2]);
+        check_class_product_map(&module, &x, max);
+    }
+
+    /// The zero class has no summands and yields the zero map.
+    #[test]
+    fn test_class_product_map_zero() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        let max = Bidegree::n_s(20, 9);
+        res.compute_through_stem(max);
+        let module = ExtModule::intrinsic(res);
+
+        let x = module.algebra().element(Bidegree::n_s(15, 5), &[0, 0]);
+        check_class_product_map(&module, &x, max);
     }
 }
