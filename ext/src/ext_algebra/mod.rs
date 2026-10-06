@@ -69,11 +69,6 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
         self.resolution.prime()
     }
 
-    /// Ensure the resolution is computed through the given bidegree.
-    pub fn compute_through_bidegree(&self, b: Bidegree) {
-        self.resolution.compute_through_bidegree(b);
-    }
-
     /// The dimension of $\Ext^{s,t}(k, k)$ at the given bidegree.
     pub fn dimension(&self, b: Bidegree) -> usize {
         self.resolution.number_of_gens_in_bidegree(b)
@@ -291,15 +286,6 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
 
     pub fn prime(&self) -> ValidPrime {
         self.resolution.prime()
-    }
-
-    /// Ensure both the module's resolution and the ring's resolution are computed through the given
-    /// bidegree.
-    pub fn compute_through_bidegree(&self, b: Bidegree) {
-        self.algebra.compute_through_bidegree(b);
-        if !self.is_unit() {
-            self.resolution.compute_through_bidegree(b);
-        }
     }
 
     /// The dimension of $\Ext^{s,t}(M, k)$ at the given bidegree.
