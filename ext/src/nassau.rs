@@ -1,7 +1,7 @@
 //! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 //!
-//! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
-//! using Nassau's algorithm. It aims to provide an API similar to
+//! The main export is the [`Resolution`] object, which resolves a bounded chain complex over a
+//! [`MilnorAlgebra`] using Nassau's algorithm. It aims to provide an API similar to
 //! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 //! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
 //! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
@@ -13,14 +13,15 @@
 //! we find that this the easiest way to make all scripts support both types of resolutions.
 
 use std::{
-    fmt::Display,
     io,
     sync::{Arc, Mutex, mpsc},
 };
 
 use algebra::{
     Algebra, combinatorics,
-    milnor_algebra::{MilnorAlgebra, PPart, PPartEntry},
+    milnor_algebra::{
+        MilnorAlgebra, MilnorBasisElement, MilnorProfile, MilnorSubalgebra, PPart, PPartEntry,
+    },
     module::{
         FreeModule, GeneratorData, Module, ZeroModule,
         homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
@@ -29,8 +30,8 @@ use algebra::{
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
-    matrix::{AugmentedMatrix, Matrix},
-    prime::{TWO, ValidPrime},
+    matrix::{AugmentedMatrix, Matrix, Subspace},
+    prime::{Prime, ValidPrime, iter::BitflagIterator},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::{Either, Itertools};
@@ -38,7 +39,10 @@ use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
-    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
+    chain_complex::{
+        AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
+        FreeChainComplex,
+    },
     save::{SaveDirectory, SaveKind},
     utils::{LogWriter, parallel::ParallelGuard},
 };
@@ -75,111 +79,200 @@ impl SenderData {
 
 const MAX_NEW_GENS: usize = 10;
 
-/// A Milnor subalgebra to be used in [Nassau's algorithm](https://arxiv.org/abs/1910.04063). This
-/// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.
-///
-/// To simplify implementation, we pick the ordering so that the (reverse) lexicographic ordering
-/// in Lemma 2.4 is just the (reverse) lexicographic ordering of the P parts. This corresponds to
-/// the ordering of $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s < s'$).
-#[derive(Clone)]
-struct MilnorSubalgebra {
-    profile: Vec<u8>,
-}
+/// Candidate subalgebras whose top degree exceeds this are never applicable in practice.
+const MAX_TOP_DEGREE: i32 = 10_000;
 
-impl MilnorSubalgebra {
-    /// This should be used when you want an entry of the profile to be infinity
-    #[allow(dead_code)]
-    const INFINITY: u8 = (std::mem::size_of::<PPartEntry>() * 4 - 1) as u8;
-
-    fn new(profile: Vec<u8>) -> Self {
-        Self { profile }
-    }
-
-    /// The algebra with trivial profile, corresponding to the trivial algebra.
-    fn zero_algebra() -> Self {
-        Self { profile: vec![] }
-    }
-
-    /// The test "does this element have this signature" compiled into a `(mask, value)` pair to
-    /// match against the packed p-part.
+/// The parts of Nassau's algorithm that depend only on the subalgebra `B`.
+trait NassauSubalgebra: Sized {
+    /// The candidates for the subalgebra `B` of [Nassau's
+    /// algorithm](https://arxiv.org/abs/1910.04063) that lie in `ambient`, in increasing order of
+    /// size, starting with the trivial subalgebra.
     ///
-    /// The per-entry test is `ppart[i] & ((1 << profile[i]) - 1) == signature[i]`. Because each
-    /// entry occupies a fixed field of the packed word, the low `profile[i]` bits of entry `i` are
-    /// a fixed bit range of that word, so the whole conjunction is a single `&` and `==`. Entries
-    /// past the end of the p-part read as zero, which the packing already gives us for free.
-    ///
-    /// Returns `None` when an entry is too large to be one, since then no element matches.
-    fn packed_signature(&self, signature: &[PPartEntry]) -> Option<(u64, u64)> {
-        let mut mask = 0;
-        let mut value = 0;
-        for (i, (&profile, &entry)) in self.profile.iter().zip(signature).enumerate() {
-            // An entry wider than its field would shift into the next one, so it cannot simply be
-            // packed and compared.
-            if entry > PPart::max_entry(i) {
-                return None;
-            }
-            // A profile wider than the field constrains the whole field.
-            let width = std::cmp::min(profile as u32, PPart::width(i));
-            mask |= ((1u64 << width) - 1) << PPart::shift(i);
-            value |= (entry as u64) << PPart::shift(i);
-        }
-        Some((mask, value))
-    }
+    /// At the polynomial shape at `p = 2` these are the profiles of [`SubalgebraIterator`]. At the
+    /// exterior shape they are the `A(n)` and the $E(Q_0, \dots, Q_n)$, which share the slope of
+    /// $A(n)$ but apply slightly sooner. At the polynomial shape at odd primes there are none
+    /// besides the trivial one, since we know no vanishing line there.
+    fn candidates(ambient: &MilnorAlgebra) -> Vec<Self>;
 
-    fn zero_signature(&self) -> Vec<PPartEntry> {
-        vec![0; self.profile.len()]
-    }
-
-    /// Give a list of basis elements in degree `degree` that has signature `signature`.
+    /// The slope of the vanishing line of `Ext_B`: `Ext_B^{s, t}` vanishes for
+    /// `t >= slope * (s + 1) + top_degree` (Theorem 3.1).
     ///
-    /// Only basis elements coming from generators of degree strictly less than `max_gen_degree`
-    /// are considered; `None` imposes no restriction. Because generators are laid out in
-    /// increasing degree, a restricted result is a prefix of the unrestricted one; see
+    /// This is the slope of the steepest polynomial generator of the May spectral sequence: `v_k`
+    /// for each `Q_k`, and for each `ξ_i^{p^j}` either `h_{i, j}` at `p = 2` or `b_{i, j}` at odd
+    /// primes. The exterior `h_{i, j}` at odd primes are bounded by the top degree.
+    fn vanishing_slope(&self) -> i64;
+
+    /// Whether `b` is in the vanishing region of `self`, where the algorithm applies.
+    fn is_applicable(&self, b: Bidegree) -> bool;
+
+    /// Give a list of basis elements in degree `degree` that has signature `signature`, i.e. whose
+    /// component in `self` is `signature`.
+    ///
+    /// Only basis elements coming from generators of degree strictly less than `max_gen_degree` are
+    /// considered; `None` imposes no restriction. Because generators are laid out in increasing
+    /// degree, a restricted result is a prefix of the unrestricted one; see
     /// [`Resolution::step_resolution_with_subalgebra`] for why we restrict.
-    ///
-    /// This requires passing the algebra for borrow checker reasons.
     fn signature_mask<'a>(
         &'a self,
         algebra: &'a MilnorAlgebra,
         module: &'a FreeModule<MilnorAlgebra>,
         degree: i32,
-        signature: &'a [PPartEntry],
+        signature: &'a MilnorBasisElement,
         max_gen_degree: Option<i32>,
-    ) -> impl Iterator<Item = usize> + 'a {
-        // Every element is tested against the same signature, so compile it once.
-        let Some((mask, value)) = self.packed_signature(signature) else {
-            return Either::Right(std::iter::empty());
-        };
+    ) -> impl Iterator<Item = usize> + 'a;
 
-        let matching = module
-            .iter_gen_offsets([degree])
-            .take_while(move |gen_data| max_gen_degree.is_none_or(|bound| gen_data.gen_deg < bound))
-            .flat_map(move |gen_data| {
-                let GeneratorData {
-                    gen_deg,
-                    start: [offset],
-                    ..
-                } = gen_data;
-                algebra
-                    .ppart_table(degree - gen_deg)
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(n, op)| (op.bits() & mask == value).then_some(offset + n))
-            });
-
-        Either::Left(matching)
-    }
-
-    /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
-    /// the signature.
+    /// Get the matrix of a free module homomorphism when restricted to the subquotient given by the
+    /// signature.
     ///
     /// Only generators of the target of degree strictly less than `target_max_gen_degree` are used
-    /// (see [`Self::signature_mask`]).
+    /// (see [`NassauSubalgebra::signature_mask`]).
     fn signature_matrix(
         &self,
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
-        signature: &[PPartEntry],
+        signature: &MilnorBasisElement,
+        target_max_gen_degree: i32,
+    ) -> Matrix;
+
+    /// The nonzero signatures of `self` with a representative in degree at most `degree`, which are
+    /// its basis elements, in degree order.
+    ///
+    /// Products raise the signature of their right factor, and the degree order is a linear
+    /// extension of that order (Lemma 2.4).
+    fn signatures(&self, degree: i32) -> impl Iterator<Item = MilnorBasisElement> + '_;
+
+    /// Write the profile of `self`, which is all [`NassauSubalgebra::from_bytes`] needs to
+    /// recover it.
+    ///
+    /// The q-part is only written at the exterior shape, so that the format at the polynomial shape
+    /// does not depend on it.
+    fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()>;
+
+    /// Read a subalgebra of `ambient` written by [`NassauSubalgebra::to_bytes`].
+    fn from_bytes(ambient: &MilnorAlgebra, data: &mut impl io::Read) -> io::Result<Self>;
+
+    /// Write a signature of `self`: its p-part, one `u16` per entry of the profile, then at the
+    /// exterior shape its q-part.
+    fn signature_to_bytes(
+        &self,
+        signature: &MilnorBasisElement,
+        buffer: &mut impl io::Write,
+    ) -> io::Result<()>;
+
+    /// Read a signature of `self` written by [`NassauSubalgebra::signature_to_bytes`].
+    fn signature_from_bytes(&self, data: &mut impl io::Read) -> io::Result<MilnorBasisElement>;
+}
+
+impl NassauSubalgebra for MilnorSubalgebra {
+    fn candidates(ambient: &MilnorAlgebra) -> Vec<Self> {
+        let mut profiles = Vec::new();
+        if ambient.has_exterior() {
+            for n in 0..combinatorics::MAX_TAU as u32 {
+                let q_part = u32::MAX >> (u32::BITS - 1 - n);
+                profiles.push((vec![], q_part));
+                if n as usize <= combinatorics::MAX_XI {
+                    profiles.push(((1..=n).rev().collect(), q_part));
+                }
+            }
+        } else if ambient.prime() == 2 {
+            profiles.extend(
+                SubalgebraIterator::new()
+                    .take_while(|profile| profile.len() <= combinatorics::MAX_XI)
+                    .map(|profile| (profile.into_iter().map(PPartEntry::from).collect(), 0)),
+            );
+        }
+
+        let profile = |(p_part, q_part)| MilnorProfile {
+            truncated: true,
+            q_part,
+            p_part,
+        };
+        std::iter::once(Self::trivial(ambient))
+            .chain(
+                profiles
+                    .into_iter()
+                    .map_while(|b| Self::new(ambient, profile(b)))
+                    .take_while(|b| b.top_degree() <= MAX_TOP_DEGREE)
+                    .filter(|b| b.is_subalgebra_of(ambient)),
+            )
+            .collect()
+    }
+
+    fn vanishing_slope(&self) -> i64 {
+        let algebra = self.algebra();
+        let p = algebra.prime().as_i32() as i64;
+        let q = algebra.q() as i64;
+        let profile = self.profile();
+        let tau_degrees = combinatorics::tau_degrees(algebra.prime());
+        let xi_degrees = combinatorics::xi_degrees(algebra.prime());
+
+        let exterior = if algebra.has_exterior() {
+            profile.q_part
+        } else {
+            0
+        };
+        let polynomial = profile.p_part.iter().enumerate().flat_map(|(i, &e)| {
+            (0..e).map(move |j| {
+                let h = q * xi_degrees[i] as i64 * p.pow(j);
+                if p == 2 { h } else { h * p / 2 }
+            })
+        });
+        BitflagIterator::set_bit_iterator(exterior as u64)
+            .map(|k| tau_degrees[k] as i64)
+            .chain(polynomial)
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn is_applicable(&self, b: Bidegree) -> bool {
+        b.t() as i64 >= self.vanishing_slope() * (b.s() as i64 + 1) + self.top_degree() as i64
+    }
+
+    fn signature_mask<'a>(
+        &'a self,
+        algebra: &'a MilnorAlgebra,
+        module: &'a FreeModule<MilnorAlgebra>,
+        degree: i32,
+        signature: &'a MilnorBasisElement,
+        max_gen_degree: Option<i32>,
+    ) -> impl Iterator<Item = usize> + 'a {
+        let gens = module
+            .iter_gen_offsets([degree])
+            .take_while(move |gen_data| max_gen_degree.is_none_or(|bound| gen_data.gen_deg < bound))
+            .map(
+                move |GeneratorData {
+                          gen_deg,
+                          start: [offset],
+                          ..
+                      }| (degree - gen_deg, offset),
+            );
+
+        if let Some(mask) = self.packed_component_mask() {
+            // At this shape the p-part table is the basis.
+            let value = signature.p_part.bits();
+            Either::Left(gens.flat_map(move |(op_deg, offset)| {
+                algebra
+                    .ppart_table(op_deg)
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(n, op)| (op.bits() & mask == value).then_some(offset + n))
+            }))
+        } else {
+            Either::Right(gens.flat_map(move |(op_deg, offset)| {
+                (0..algebra.dimension(op_deg))
+                    .filter(move |&n| {
+                        self.has_component(&algebra.basis_element_from_index(op_deg, n), signature)
+                    })
+                    .map(move |n| offset + n)
+            }))
+        }
+    }
+
+    fn signature_matrix(
+        &self,
+        hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+        degree: i32,
+        signature: &MilnorBasisElement,
         target_max_gen_degree: i32,
     ) -> Matrix {
         let p = hom.prime();
@@ -217,46 +310,36 @@ impl MilnorSubalgebra {
         result
     }
 
-    /// Iterate through all signatures of this algebra that contain elements of degree at most
-    /// `degree` (inclusive). This skips the initial zero signature.
-    fn iter_signatures(&self, degree: i32) -> impl Iterator<Item = Vec<PPartEntry>> + '_ {
-        SignatureIterator::new(self, degree)
-    }
-
-    fn top_degree(&self) -> i32 {
-        self.profile
-            .iter()
-            .map(|&entry| (1 << entry) - 1)
-            .enumerate()
-            .map(|(idx, entry)| ((1 << (idx + 1)) - 1) * entry)
-            .sum()
-    }
-
-    fn optimal_for(b: Bidegree) -> Self {
-        let b_is_in_vanishing_region = |subalgebra: &Self| {
-            let coeff = (1 << subalgebra.profile.len()) - 1;
-            b.t() >= coeff * (b.s() + 1) + subalgebra.top_degree()
-        };
-        SubalgebraIterator::new()
-            .take_while(b_is_in_vanishing_region)
-            .last()
-            .unwrap_or(Self::zero_algebra())
+    fn signatures(&self, degree: i32) -> impl Iterator<Item = MilnorBasisElement> + '_ {
+        let algebra = self.algebra();
+        algebra.compute_basis(std::cmp::min(degree, self.top_degree()));
+        (1..=std::cmp::min(degree, self.top_degree())).flat_map(move |t| {
+            (0..algebra.dimension(t)).map(move |idx| algebra.basis_element_from_index(t, idx))
+        })
     }
 
     fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
-        buffer.write_u64::<LittleEndian>(self.profile.len() as u64)?;
-        buffer.write_all(&self.profile)?;
+        let profile = self.profile();
+        let len = profile.p_part.len();
+        buffer.write_u64::<LittleEndian>(len as u64)?;
+        for &entry in &profile.p_part {
+            buffer.write_u8(entry as u8)?;
+        }
 
-        let len = self.profile.len();
         let zeros = [0; 8];
         let padding = len - ((len / 8) * 8);
-        buffer.write_all(&zeros[0..padding])
+        buffer.write_all(&zeros[0..padding])?;
+
+        if self.algebra().has_exterior() {
+            buffer.write_u64::<LittleEndian>(profile.q_part as u64)?;
+        }
+        Ok(())
     }
 
-    fn from_bytes(data: &mut impl io::Read) -> io::Result<Self> {
+    fn from_bytes(ambient: &MilnorAlgebra, data: &mut impl io::Read) -> io::Result<Self> {
         // The packed p-part has no entry past `PPart::MAX_LEN`, so a longer profile cannot be
-        // matched against one. This is the only place a profile is built from outside data, and
-        // the bound has to hold before narrowing, which truncates where `usize` is 32 bits.
+        // matched against one. This is the only place a profile is built from outside data, and the
+        // bound has to hold before narrowing, which truncates where `usize` is 32 bits.
         let len = data.read_u64::<LittleEndian>()?;
         if len > PPart::MAX_LEN as u64 {
             return Err(io::Error::new(
@@ -265,9 +348,9 @@ impl MilnorSubalgebra {
             ));
         }
         let len = len as usize;
-        let mut profile = vec![0; len];
+        let mut p_part = vec![0; len];
 
-        data.read_exact(&mut profile)?;
+        data.read_exact(&mut p_part)?;
 
         let padding = len - ((len / 8) * 8);
         if padding > 0 {
@@ -275,48 +358,48 @@ impl MilnorSubalgebra {
             data.read_exact(&mut buf[0..padding])?;
             assert_eq!(buf, [0; 8]);
         }
-        Ok(Self { profile })
+
+        let q_part = if ambient.has_exterior() {
+            data.read_u64::<LittleEndian>()? as u32
+        } else {
+            0
+        };
+        let profile = MilnorProfile {
+            truncated: true,
+            q_part,
+            p_part: p_part.into_iter().map(PPartEntry::from).collect(),
+        };
+        Self::new(ambient, profile)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "not a finite subalgebra"))
     }
 
-    fn signature_to_bytes(signature: &[PPartEntry], buffer: &mut impl io::Write) -> io::Result<()> {
-        if cfg!(target_endian = "little") && std::mem::size_of::<PPartEntry>() == 2 {
-            unsafe {
-                let buf: &[u8] = std::slice::from_raw_parts(
-                    signature.as_ptr() as *const u8,
-                    signature.len() * 2,
-                );
-                buffer.write_all(buf).unwrap();
-            }
-        } else {
-            for &entry in signature {
-                buffer.write_u16::<LittleEndian>(entry as u16)?;
-            }
+    fn signature_to_bytes(
+        &self,
+        signature: &MilnorBasisElement,
+        buffer: &mut impl io::Write,
+    ) -> io::Result<()> {
+        let len = self.profile().p_part.len();
+        for i in 0..len {
+            buffer.write_u16::<LittleEndian>(signature.p_part.get(i) as u16)?;
         }
 
-        let len = signature.len();
         let zeros = [0; 8];
         let padding = len - ((len / 4) * 4);
-
         if padding > 0 {
             buffer.write_all(&zeros[0..padding * 2])?;
+        }
+
+        if self.algebra().has_exterior() {
+            buffer.write_u64::<LittleEndian>(signature.q_part as u64)?;
         }
         Ok(())
     }
 
-    fn signature_from_bytes(&self, data: &mut impl io::Read) -> io::Result<Vec<PPartEntry>> {
-        let len = self.profile.len();
-        let mut signature: Vec<PPartEntry> = vec![0; len];
-
-        if cfg!(target_endian = "little") && std::mem::size_of::<PPartEntry>() == 2 {
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(signature.as_mut_ptr() as *mut u8, len * 2);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in &mut signature {
-                *entry = data.read_u16::<LittleEndian>()? as PPartEntry;
-            }
+    fn signature_from_bytes(&self, data: &mut impl io::Read) -> io::Result<MilnorBasisElement> {
+        let len = self.profile().p_part.len();
+        let mut p_part = vec![0; len];
+        for entry in &mut p_part {
+            *entry = data.read_u16::<LittleEndian>()? as PPartEntry;
         }
 
         let padding = len - ((len / 4) * 4);
@@ -325,106 +408,60 @@ impl MilnorSubalgebra {
             data.read_exact(&mut buffer[0..padding * 2])?;
             assert_eq!(buffer, [0; 8]);
         }
+
+        let q_part = if self.algebra().has_exterior() {
+            data.read_u64::<LittleEndian>()? as u32
+        } else {
+            0
+        };
+        let mut signature = MilnorBasisElement {
+            q_part,
+            p_part: PPart::try_from_slice(&p_part).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "signature entry too large")
+            })?,
+            degree: 0,
+        };
+        self.algebra().compute_degree(&mut signature);
         Ok(signature)
     }
 }
 
-impl Display for MilnorSubalgebra {
-    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        if self.profile.is_empty() {
-            write!(out, "F_2")
-        } else if self.profile.len() as u8 == self.profile[0] {
-            write!(out, "A({})", self.profile.len() - 1)
-        } else {
-            write!(out, "B({})", self.profile.iter().join(","))
-        }
-    }
+/// The signature of the elements of `B` itself, which is the unit.
+fn zero_signature() -> MilnorBasisElement {
+    MilnorBasisElement::default()
 }
 
-/// An iterator that iterates through a sequence of [`MilnorSubalgebra`] of increasing size. This
-/// is used by [`MilnorSubalgebra::optimal_for`] to find the largest subalgebra in this sequence
-/// that is applicable to a bidegree.
+/// An iterator through the p-part profiles of an increasing sequence of subalgebras at the
+/// polynomial shape at `p = 2`, from `A(0)` up through each `A(n)`. See
+/// [`NassauSubalgebra::candidates`].
 struct SubalgebraIterator {
-    current: MilnorSubalgebra,
+    current: Vec<u8>,
 }
 
 impl SubalgebraIterator {
     fn new() -> Self {
-        Self {
-            current: MilnorSubalgebra::new(vec![]),
-        }
+        Self { current: vec![] }
     }
 }
 
 impl Iterator for SubalgebraIterator {
-    type Item = MilnorSubalgebra;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current.profile.is_empty()
-            || self.current.profile[0] == self.current.profile.len() as u8
+        if self.current.is_empty() || self.current[0] == self.current.len() as u8 {
+            // We are at F_2 or at A(n) where n = self.current.len() - 1.
+            self.current.push(1);
+        } else if let Some((_, entry)) = self
+            .current
+            .iter_mut()
+            .rev()
+            .enumerate()
+            .find(|(idx, entry)| **entry == *idx as u8)
         {
-            // We are at F_2 or at A(n) where n = self.current.profile.len() - 1.
-            self.current.profile.push(1);
-            Some(self.current.clone())
-        } else {
             // We find the first entry that can be incremented and increment it
-            if let Some((_, entry)) = self
-                .current
-                .profile
-                .iter_mut()
-                .rev()
-                .enumerate()
-                .find(|(idx, entry)| **entry == *idx as u8)
-            {
-                *entry += 1;
-            }
-            Some(self.current.clone())
+            *entry += 1;
         }
-    }
-}
-
-/// See [`MilnorSubalgebra::iter_signatures`].
-struct SignatureIterator<'a> {
-    subalgebra: &'a MilnorSubalgebra,
-    current: Vec<PPartEntry>,
-    signature_degree: i32,
-    degree: i32,
-}
-
-impl<'a> SignatureIterator<'a> {
-    fn new(subalgebra: &'a MilnorSubalgebra, degree: i32) -> Self {
-        Self {
-            current: vec![0; subalgebra.profile.len()],
-            degree,
-            subalgebra,
-            signature_degree: 0,
-        }
-    }
-}
-
-impl Iterator for SignatureIterator<'_> {
-    type Item = Vec<PPartEntry>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let xi_degrees = combinatorics::xi_degrees(TWO);
-        let len = self.current.len();
-        for (i, current) in self.current.iter_mut().enumerate() {
-            *current += 1;
-            self.signature_degree += xi_degrees[i];
-
-            if self.signature_degree > self.degree || *current == 1 << self.subalgebra.profile[i] {
-                self.signature_degree -= xi_degrees[i] * *current as i32;
-                *current = 0;
-                if i + 1 == len {
-                    return None;
-                }
-            } else {
-                return Some(self.current.clone());
-            }
-        }
-        // This only happens when the profile is trivial
-        assert!(self.current.is_empty());
-        None
+        Some(self.current.clone())
     }
 }
 
@@ -435,16 +472,26 @@ enum Magic {
     Fix = -3,
 }
 
-/// A resolution of `S_2` using Nassau's algorithm.
+/// A resolution of a bounded finite chain complex over a [`MilnorAlgebra`] using Nassau's
+/// algorithm.
 ///
 /// This aims to have an API similar to that of
 /// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 /// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
 /// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
+///
+/// The algebra can have either [shape](algebra::milnor_algebra::MilnorShape), any prime and any
+/// profile. The exterior shape at `p = 2` is $A^{\mathbb{C}}/\tau$, and at odd primes the
+/// classical algebra. Both need the `odd-primes` feature, without which basis elements compare by
+/// their p-part alone.
 pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
     name: String,
+    /// The top degree of the target. A subalgebra applies to the target above its own vanishing
+    /// line shifted by this.
     max_degree: i32,
+    /// See [`NassauSubalgebra::candidates`].
+    subalgebras: Vec<MilnorSubalgebra>,
     modules: OnceBiVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
     differentials: OnceBiVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
@@ -470,11 +517,22 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         module: Arc<M>,
         save_dir: impl Into<SaveDirectory>,
     ) -> anyhow::Result<Self> {
+        Self::new_with_complex(Arc::new(FiniteChainComplex::ccdz(module)), save_dir)
+    }
+
+    /// A resolution of the chain complex `target`.
+    ///
+    /// Save files hold the differentials alone, so bidegrees where the target is nonzero are
+    /// recomputed rather than loaded.
+    pub fn new_with_complex(
+        target: Arc<FiniteChainComplex<M>>,
+        save_dir: impl Into<SaveDirectory>,
+    ) -> anyhow::Result<Self> {
         let save_dir = save_dir.into();
-        let max_degree = module
-            .max_degree()
-            .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
-        let target = Arc::new(FiniteChainComplex::ccdz(module));
+        let max_degree = (0..target.max_s())
+            .map(|s| target.module(s).max_degree())
+            .try_fold(0, |acc, d| Some(std::cmp::max(acc, d?)))
+            .ok_or_else(|| anyhow!("Nassau's algorithm requires a bounded target"))?;
 
         if let Some(p) = save_dir.write() {
             for subdir in SaveKind::nassau_data() {
@@ -485,6 +543,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(Self {
             lock: Mutex::new(()),
             zero_module: Arc::new(FreeModule::new(target.algebra(), "F_{-1}".to_string(), 0)),
+            subalgebras: MilnorSubalgebra::candidates(&target.algebra()),
             name: String::new(),
             modules: OnceBiVec::new(0),
             differentials: OnceBiVec::new(0),
@@ -546,7 +605,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     fn write_qi(
         f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
-        signature: &[PPartEntry],
+        subalgebra: &MilnorSubalgebra,
+        signature: &MilnorBasisElement,
         next_mask: &[usize],
         full_matrix: &Matrix,
         masked_matrix: &AugmentedMatrix<2>,
@@ -565,9 +625,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         }
 
         // Write signature if non-zero.
-        if signature.iter().any(|&x| x > 0) {
+        if signature.q_part != 0 || !signature.p_part.is_empty() {
             f.write_u64::<LittleEndian>(Magic::Signature as u64)?;
-            MilnorSubalgebra::signature_to_bytes(signature, f)?;
+            subalgebra.signature_to_bytes(signature, f)?;
         }
 
         // Write quasi-inverses
@@ -582,8 +642,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             scratch.to_bytes(f)?;
 
             scratch.set_scratch_vector_size(full_matrix.columns());
-            for (i, _) in preimage.iter_nonzero() {
-                scratch.as_slice_mut().add(full_matrix.row(i), 1);
+            for (i, c) in preimage.iter_nonzero() {
+                scratch.as_slice_mut().add(full_matrix.row(i), c);
             }
             scratch.to_bytes(f)?;
         }
@@ -619,7 +679,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     fn step_resolution_with_subalgebra(
         &self,
         b: Bidegree,
-        subalgebra: MilnorSubalgebra,
+        subalgebra: &MilnorSubalgebra,
     ) -> anyhow::Result<()> {
         let end = || {
             tracing::Span::current().record("num_new_gens", self.number_of_gens_in_bidegree(b));
@@ -645,7 +705,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target_bound = b.t();
         let next_bound = b.t() - 1;
 
-        let zero_sig = subalgebra.zero_signature();
+        let zero_sig = zero_signature();
         let target_dim = target.dimension_from_gens_below(b.t(), target_bound);
         let target_mask: Vec<usize> = subalgebra
             .signature_mask(&algebra, target, b.t(), &zero_sig, Some(target_bound))
@@ -695,6 +755,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Self::write_qi(
             &mut f,
             &mut scratch,
+            subalgebra,
             &zero_sig,
             &next_mask,
             &full_matrix,
@@ -733,8 +794,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             .zip_eq(&mut dxs)
         {
             x.as_slice_mut().add_unmasked(x_masked, 1, &target_mask);
-            for (i, _) in x_masked.iter_nonzero() {
-                dx.as_slice_mut().add(full_matrix.row(i), 1);
+            for (i, c) in x_masked.iter_nonzero() {
+                dx.as_slice_mut().add(full_matrix.row(i), c);
             }
         }
 
@@ -744,7 +805,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         drop(guard);
 
-        for signature in subalgebra.iter_signatures(b.t()) {
+        for signature in subalgebra.signatures(b.t()) {
             let _guard = tracing::info_span!("step", ?signature).entered();
             target_mask.clear();
             next_mask.clear();
@@ -785,25 +846,28 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let preimage = qi.preimage();
 
             for (x, dx) in xs.iter_mut().zip(&mut dxs) {
+                // Subtract a preimage of this signature's component of `dx`.
                 scratch.set_scratch_vector_size(target_mask.len());
                 let mut row = 0;
                 for (i, &v) in next_mask.iter().enumerate() {
                     if pivots[i] < 0 {
                         continue;
                     }
-                    if dx.entry(v) != 0 {
-                        scratch.as_slice_mut().add(preimage.row(row), 1);
+                    let c = dx.entry(v);
+                    if c != 0 {
+                        scratch.as_slice_mut().add(preimage.row(row), p - c);
                     }
                     row += 1;
                 }
-                for (i, _) in scratch.iter_nonzero() {
-                    x.add_basis_element(target_mask[i], 1);
-                    dx.as_slice_mut().add(full_matrix.row(i), 1);
+                for (i, c) in scratch.iter_nonzero() {
+                    x.add_basis_element(target_mask[i], c);
+                    dx.as_slice_mut().add(full_matrix.row(i), c);
                 }
             }
             Self::write_qi(
                 &mut f,
                 &mut scratch,
+                subalgebra,
                 &signature,
                 &next_mask,
                 &full_matrix,
@@ -825,110 +889,154 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    /// Step resolution for s = 0
-    #[tracing::instrument(skip(self))]
-    fn step0(&self, t: i32) {
-        self.zero_module.extend_by_zero(t);
-
-        let source_module = &self.modules[0];
-        let target_module = self.target.module(0);
-
-        let chain_map = &self.chain_maps[0];
-        let d = &self.differentials[0];
-
-        let source_dim = source_module.dimension(t);
-        let target_dim = target_module.dimension(t);
-
-        source_module.compute_basis(t);
-        target_module.compute_basis(t);
-
-        if target_dim == 0 {
-            source_module.extend_by_zero(t);
-            chain_map.extend_by_zero(t);
-        } else {
-            let mut matrix = AugmentedMatrix::<2>::new_with_capacity(
-                self.prime(),
-                source_dim,
-                &[target_dim, source_dim],
-                source_dim + target_dim,
-                0,
-            );
-            {
-                let _guard = ParallelGuard::new();
-                chain_map.get_matrix(matrix.segment(0, 0), t);
-            }
-            matrix.segment(1, 1).add_identity();
-
-            matrix.row_reduce();
-
-            let num_new_gens = matrix.extend_to_surjection(0, target_dim, 0).len();
-
-            self.add_generators(Bidegree::s_t(0, t), num_new_gens);
-
-            chain_map.add_generators_from_matrix_rows(
-                t,
-                matrix
-                    .segment(0, 0)
-                    .row_slice(source_dim, source_dim + num_new_gens),
-            );
-        }
-        chain_map.compute_auxiliary_data_through_degree(t);
-
-        d.set_kernel(t, None);
-        d.set_image(t, None);
-        d.set_quasi_inverse(t, None);
-        d.extend_by_zero(t);
+    /// Whether `b` needs an ordinary step, which takes the target into account.
+    ///
+    /// The target can only matter where `C_s` or `C_{s - 1}` is nonzero, and `C_s` vanishes from
+    /// `max_s` on. Elsewhere the kernel to hit is that of the differential alone, which Nassau's
+    /// algorithm computes.
+    fn is_ordinary(&self, b: Bidegree) -> bool {
+        b.s() <= 1 || (b.s() <= self.target.max_s() && b.t() <= self.max_degree)
     }
 
-    /// Step resolution for s = 1
-    #[tracing::instrument(skip(self))]
-    fn step1(&self, t: i32) -> anyhow::Result<()> {
+    /// The ordinary minimal resolution step, as in [`crate::resolution::Resolution`], except
+    /// that the kernel of `(s - 1, t)` is recomputed rather than stored.
+    fn step_ordinary(&self, b: Bidegree) -> anyhow::Result<()> {
         let p = self.prime();
-
-        let source_module = &self.modules[1];
-        let target_module = &self.modules[0];
-        let cc_module = self.target.module(0);
-
-        let source_dim = source_module.dimension(t);
-        let target_dim = target_module.dimension(t);
-
-        let mut matrix =
-            AugmentedMatrix::<2>::new(p, target_dim, [cc_module.dimension(t), target_dim]);
-        {
-            let _guard = ParallelGuard::new();
-            self.chain_maps[0].get_matrix(matrix.segment(0, 0), t);
+        let t = b.t();
+        if b.s() == 0 {
+            self.zero_module.extend_by_zero(t);
         }
-        matrix.segment(1, 1).add_identity();
-        matrix.row_reduce();
-        let desired_image = matrix.compute_kernel();
+        self.target.compute_through_bidegree(b);
 
-        let mut matrix = AugmentedMatrix::<2>::new_with_capacity(
+        let source = &self.modules[b.s()];
+        let target_cc = self.target.module(b.s());
+        let differential = &self.differentials[b.s()];
+        let chain_map = &self.chain_maps[b.s()];
+        let target_res = differential.target();
+
+        target_cc.compute_basis(t);
+        target_res.compute_basis(t);
+        let source_dim = source.dimension(t);
+        let target_cc_dim = target_cc.dimension(t);
+        let target_res_dim = target_res.dimension(t);
+
+        let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
             source_dim,
-            &[target_dim, source_dim],
+            &[target_cc_dim, target_res_dim, source_dim],
             source_dim + MAX_NEW_GENS,
             0,
         );
         {
             let _guard = ParallelGuard::new();
-            self.differentials[1].get_matrix(matrix.segment(0, 0), t);
+            chain_map.get_matrix(matrix.segment(0, 0), t);
+            differential.get_matrix(matrix.segment(1, 1), t);
         }
-        matrix.segment(1, 1).add_identity();
+        matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
-        let num_new_gens = matrix.extend_image(0, target_dim, &desired_image, 0).len();
+        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dim, 0);
+        let mut num_new_gens = cc_new_gens.len();
 
-        self.add_generators(Bidegree::s_t(1, t), num_new_gens);
+        if b.s() > 0 {
+            // Make the new generators a chain map: d(x) = f⁻¹(d(f(x))). This only reads the
+            // quasi-inverse of the previous chain map where its target is nonzero, which is where
+            // it is kept.
+            let complex_differential = (!cc_new_gens.is_empty())
+                .then(|| self.target.differential(b.s()))
+                .filter(|d| d.target().dimension(t) > 0);
+            if let Some(complex_differential) = complex_differential {
+                let quasi_inverse = self.chain_maps[b.s() - 1].quasi_inverse(t).unwrap();
+                let mut dfx = FpVector::new(p, complex_differential.target().dimension(t));
+                for (i, &column) in cc_new_gens.iter().enumerate() {
+                    dfx.set_to_zero();
+                    complex_differential.apply_to_basis_element(dfx.as_slice_mut(), 1, t, column);
+                    quasi_inverse.apply(
+                        matrix.row_segment_mut(source_dim + i, 1, 1),
+                        1,
+                        dfx.as_slice(),
+                    );
+                }
+            }
 
-        self.differentials[1].add_generators_from_matrix_rows(
+            let desired_image = self.kernel(b - Bidegree::s_t(1, 0));
+            num_new_gens += matrix
+                .inner
+                .extend_image(matrix.start[1], matrix.end[1], &desired_image, 0)
+                .len();
+        }
+
+        self.add_generators(b, num_new_gens);
+        let new_rows = source_dim..source_dim + num_new_gens;
+        chain_map.add_generators_from_matrix_rows(
             t,
-            matrix
-                .segment(0, 0)
-                .row_slice(source_dim, source_dim + num_new_gens),
+            matrix.segment(0, 0).row_slice(new_rows.start, new_rows.end),
+        );
+        differential.add_generators_from_matrix_rows(
+            t,
+            matrix.segment(1, 1).row_slice(new_rows.start, new_rows.end),
         );
 
-        self.write_differential(Bidegree::s_t(1, t), num_new_gens, target_dim)?;
+        // The chain map's auxiliary data is kept where its target is nonzero, for the step above
+        // and for lifting maps of resolutions, and always at `s = 0` as the augmentation.
+        if b.s() == 0 || target_cc_dim > 0 {
+            chain_map.compute_auxiliary_data_through_degree(t);
+        } else {
+            chain_map.set_kernel(t, None);
+            chain_map.set_image(t, None);
+            chain_map.set_quasi_inverse(t, None);
+        }
+        differential.set_kernel(t, None);
+        differential.set_image(t, None);
+        differential.set_quasi_inverse(t, None);
+
+        if b.s() > 0 && target_cc_dim == 0 {
+            self.write_differential(b, num_new_gens, target_res_dim)?;
+        }
         Ok(())
+    }
+
+    /// The kernel of `(d, f): F_{s, t} → F_{s - 1, t} ⊕ C_{s, t}`.
+    fn kernel(&self, b: Bidegree) -> Subspace {
+        let t = b.t();
+        let source = &self.modules[b.s()];
+        // At the stem boundary, `b` itself may have been skipped. Its degree `t` generators map to
+        // nonzero elements, so they are not in the kernel the step above has to hit.
+        source.compute_basis(t);
+        if b.s() == 0 {
+            self.zero_module.extend_by_zero(t);
+        } else {
+            self.modules[b.s() - 1].compute_basis(t);
+        }
+        self.target.compute_through_bidegree(b);
+
+        let mut matrix = AugmentedMatrix::<3>::new(
+            self.prime(),
+            source.dimension(t),
+            [
+                self.target.module(b.s()).dimension(t),
+                self.differentials[b.s()].target().dimension(t),
+                source.dimension(t),
+            ],
+        );
+        {
+            let _guard = ParallelGuard::new();
+            self.chain_maps[b.s()].get_matrix(matrix.segment(0, 0), t);
+            self.differentials[b.s()].get_matrix(matrix.segment(1, 1), t);
+        }
+        matrix.segment(2, 2).add_identity();
+        matrix.row_reduce();
+        matrix.compute_kernel()
+    }
+
+    /// The largest candidate subalgebra that applies at `b`, which is not ordinary.
+    fn subalgebra_for(&self, b: Bidegree) -> &MilnorSubalgebra {
+        let shifted = b - Bidegree::s_t(0, self.max_degree);
+        self.subalgebras
+            .iter()
+            .filter(|subalgebra| subalgebra.is_applicable(shifted))
+            .max_by_key(|subalgebra| subalgebra.dimension())
+            .unwrap_or(&self.subalgebras[0])
     }
 
     fn step_resolution_with_result(&self, b: Bidegree) -> anyhow::Result<()> {
@@ -949,13 +1057,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         if b.s() > 0 {
             self.modules[b.s() - 1].compute_basis(b.t());
         }
+        self.target.compute_through_bidegree(b);
 
-        if b.s() == 0 {
-            self.step0(b.t());
-            return Ok(());
-        }
-
-        if let Some(dir) = self.save_dir.read()
+        // A save file holds only the differential, which determines the step when the chain map
+        // is zero.
+        if b.s() > 0
+            && self.target.module(b.s()).dimension(b.t()) == 0
+            && let Some(dir) = self.save_dir.read()
             && let Some(mut f) = self
                 .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
@@ -978,22 +1086,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             }
 
             self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
+            self.chain_maps[b.s()].extend_by_zero(b.t());
 
             set_data();
 
             return Ok(());
         }
 
-        if b.s() == 1 {
-            self.step1(b.t())?;
-            set_data();
-            return Ok(());
+        if self.is_ordinary(b) {
+            return self.step_ordinary(b);
         }
 
-        self.step_resolution_with_subalgebra(
-            b,
-            MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree)),
-        )?;
+        self.step_resolution_with_subalgebra(b, self.subalgebra_for(b))?;
         self.chain_maps[b.s()].extend_by_zero(b.t());
 
         set_data();
@@ -1021,18 +1125,23 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             (0..=max_s).contains(&s) && t >= min_degree && t - s <= max_n
         };
 
+        let is_ordinary = |s: i32, t: i32| self.is_ordinary(Bidegree::s_t(s, t));
+
         // `(s, t)` may be computed once its same-row predecessor `(s, t - 1)` and its diagonal
-        // predecessor are committed. For `s >= 2` the diagonal predecessor is `(s - 1, t - 1)` (the
-        // relaxed graph); for `s == 1` it is `(0, t)`; `s == 0` has none. `progress[s]` is the
-        // largest committed `t` in row `s`, so it doubles as a "predecessor committed" test.
+        // predecessor are committed. The diagonal predecessor of an ordinary step is `(s - 1, t)`,
+        // whose kernel it hits, and otherwise `(s - 1, t - 1)` (the relaxed graph); `s == 0` has
+        // none. `progress[s]` is the largest committed `t` in row `s`, so it doubles as a
+        // "predecessor committed" test.
         let ready = |s: i32, t: i32, progress: &[i32]| -> bool {
             in_region(s, t)
                 && progress[s as usize] >= t - 1
                 && match s {
                     0 => true,
-                    // Row 1's diagonal predecessor is (0, t). At the stem edge (t = max_n + 1) that
-                    // bidegree lies outside the computed region, so we treat it as satisfied.
-                    1 => t > max_n || progress[0] >= t,
+                    // At the stem edge `(s - 1, t)` lies outside the computed region, so we treat
+                    // it as satisfied.
+                    _ if is_ordinary(s, t) => {
+                        t - (s - 1) > max_n || progress[(s - 1) as usize] >= t
+                    }
                     _ => progress[(s - 1) as usize] >= t - 1,
                 }
         };
@@ -1062,11 +1171,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 }
             };
 
-            // Seed the base of every row. A bidegree `(s, min_degree)` has no in-region
-            // predecessors, so it is not spawned by the wavefront — except `(1, min_degree)`, whose
-            // diagonal predecessor `(0, min_degree)` is in region, so we let it be spawned instead.
+            // Seed the base of every row that has no in-region predecessor. An ordinary
+            // `(s, min_degree)` with `s > 0` has `(s - 1, min_degree)`, so it is spawned instead.
             for s in 0..=max_s {
-                if s != 1 {
+                if s == 0 || !is_ordinary(s, min_degree) {
                     spawn_bidegree(Bidegree::s_t(s, min_degree), sender.clone());
                 }
             }
@@ -1080,17 +1188,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 assert!(progress[b.s() as usize] == b.t() - 1);
                 progress[b.s() as usize] = b.t();
 
-                // Completing `b` can only make ready its same-row successor `(s, t + 1)` and one
-                // diagonal successor. `ready` requires *both* predecessors, so of the two
-                // completions that could spawn a given bidegree, only the later one does.
+                // Completing `b` can only make ready the bidegrees it is a predecessor of: its
+                // same-row successor `(s, t + 1)`, and `(s + 1, t)` if that is ordinary or
+                // `(s + 1, t + 1)` if that is not. `ready` requires *both* predecessors, so of the
+                // two completions that could spawn a given bidegree, only the later one does.
                 let same_row = b + Bidegree::s_t(0, 1);
-                let diagonal = if b.s() == 0 {
-                    Bidegree::s_t(1, b.t())
-                } else {
-                    b + Bidegree::s_t(1, 1)
-                };
+                let above = b + Bidegree::s_t(1, 0);
+                let diagonal = b + Bidegree::s_t(1, 1);
+                let successors = [
+                    Some(same_row),
+                    is_ordinary(above.s(), above.t()).then_some(above),
+                    (!is_ordinary(diagonal.s(), diagonal.t())).then_some(diagonal),
+                ];
 
-                for cand in [same_row, diagonal] {
+                for cand in successors.into_iter().flatten() {
                     if ready(cand.s(), cand.t(), &progress) {
                         spawn_bidegree(cand, sender.clone());
                     }
@@ -1106,7 +1217,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
     type Module = FreeModule<Self::Algebra>;
 
     fn prime(&self) -> ValidPrime {
-        TWO
+        self.zero_module.prime()
     }
 
     fn algebra(&self) -> Arc<Self::Algebra> {
@@ -1178,20 +1289,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 
         let target_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
         let zero_mask_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-        let subalgebra = MilnorSubalgebra::from_bytes(&mut f).unwrap();
         let source = &self.modules[b.s()];
         let target = &self.modules[b.s() - 1];
         let algebra = target.algebra();
+        let subalgebra = &MilnorSubalgebra::from_bytes(&algebra, &mut f).unwrap();
 
         let mut inputs: Vec<FpVector> = inputs.iter().map(|x| x.into().to_owned()).collect();
         let mut mask: Vec<usize> = Vec::with_capacity(zero_mask_dim + 8);
-        mask.extend(subalgebra.signature_mask(
-            &algebra,
-            source,
-            b.t(),
-            &subalgebra.zero_signature(),
-            None,
-        ));
+        mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &zero_signature(), None));
 
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
         let mut scratch1 = FpVector::new(p, target_dim);
@@ -1219,7 +1324,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature(), None)
+                .signature_mask(&algebra, target, b.t(), &zero_signature(), None)
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -1260,8 +1365,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 // row reduction. We do this manually for borrow checker reasons.
                 for (j, &k) in target_zero_mask.iter().enumerate() {
                     for i in 0..dx_matrix.rows() {
-                        if dx_matrix.row_segment(i, 1, 1).entry(k) != 0 {
-                            dx_matrix.row_segment_mut(i, 0, 0).add_basis_element(j, 1);
+                        let c = dx_matrix.row_segment(i, 1, 1).entry(k);
+                        if c != 0 {
+                            dx_matrix.row_segment_mut(i, 0, 0).add_basis_element(j, c);
                         }
                     }
                 }
@@ -1276,10 +1382,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                     for (input, output) in inputs.iter_mut().zip(results.iter_mut()) {
                         let entry = input.entry(col);
                         if entry != 0 {
-                            output
-                                .into()
-                                .add_unmasked(dx_matrix.row_segment(i, 2, 2), 1, &mask);
-                            input.as_slice_mut().add(dx_matrix.row_segment(i, 1, 1), 1);
+                            output.into().add_unmasked(
+                                dx_matrix.row_segment(i, 2, 2),
+                                entry,
+                                &mask,
+                            );
+                            input
+                                .as_slice_mut()
+                                .add(dx_matrix.row_segment(i, 1, 1), p - entry);
                         }
                     }
                 }
@@ -1293,26 +1403,29 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 for (input, output) in inputs.iter_mut().zip(results.iter_mut()) {
                     let entry = input.entry(col);
                     if entry != 0 {
-                        output.into().add_unmasked(scratch0.as_slice(), 1, &mask);
+                        output
+                            .into()
+                            .add_unmasked(scratch0.as_slice(), entry, &mask);
                         // If we resume a resolve_through_stem, input may be longer than scratch1.
                         input
                             .slice_mut(0, scratch1.len())
-                            .add(scratch1.as_slice(), 1);
+                            .add(scratch1.as_slice(), p - entry);
                     }
                 }
 
                 // Row reduce the differentials
                 if !target_zero_mask.is_empty() {
                     for i in 0..dx_matrix.rows() {
-                        if dx_matrix.row_segment(i, 1, 1).entry(col) != 0 {
+                        let entry = dx_matrix.row_segment(i, 1, 1).entry(col);
+                        if entry != 0 {
                             dx_matrix
                                 .row_segment_mut(i, 2, 2)
                                 .slice_mut(0, zero_mask_dim)
-                                .add(scratch0.as_slice(), 1);
+                                .add(scratch0.as_slice(), p - entry);
                             dx_matrix
                                 .row_segment_mut(i, 1, 1)
                                 .slice_mut(0, target_dim)
-                                .add(scratch1.as_slice(), 1);
+                                .add(scratch1.as_slice(), p - entry);
                         }
                     }
                 }
@@ -1347,6 +1460,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
 
 #[cfg(test)]
 mod tests {
+    use algebra::module::FDModule;
     use expect_test::expect;
 
     use super::*;
@@ -1369,25 +1483,6 @@ mod tests {
             ·                                       
         "#]]
         .assert_eq(&res.graded_dimension_string());
-    }
-
-    /// An entry too wide for its field would shift into the next one, so it must not be packed
-    /// and compared. Nothing has such a signature, so the mask is unsatisfiable.
-    #[test]
-    fn test_packed_signature_rejects_oversized_entry() {
-        let subalgebra = MilnorSubalgebra::new(vec![1, 1]);
-
-        assert!(subalgebra.packed_signature(&[0, 0]).is_some());
-        assert!(
-            subalgebra
-                .packed_signature(&[PPart::max_entry(0), 0])
-                .is_some()
-        );
-        assert!(
-            subalgebra
-                .packed_signature(&[PPart::max_entry(0) + 1, 0])
-                .is_none()
-        );
     }
 
     /// Cross-check the secondary (d2) computation on a *save-backed* Nassau resolution computed
@@ -1455,77 +1550,279 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_signature_iterator() {
-        let subalgebra = MilnorSubalgebra::new(vec![2, 1]);
-        assert_eq!(
-            subalgebra.iter_signatures(6).collect::<Vec<_>>(),
-            vec![
-                vec![1, 0],
-                vec![2, 0],
-                vec![3, 0],
-                vec![0, 1],
-                vec![1, 1],
-                vec![2, 1],
-                vec![3, 1],
-            ]
+    /// The trivial module over `algebra`, as a chain complex.
+    fn sphere(algebra: MilnorAlgebra) -> Arc<FiniteChainComplex<FDModule<MilnorAlgebra>>> {
+        let module = FDModule::new(
+            Arc::new(algebra),
+            "k".to_string(),
+            bivec::BiVec::from_vec(0, vec![1]),
         );
+        Arc::new(FiniteChainComplex::ccdz(Arc::new(module)))
+    }
 
-        assert_eq!(
-            subalgebra.iter_signatures(5).collect::<Vec<_>>(),
-            vec![
-                vec![1, 0],
-                vec![2, 0],
-                vec![3, 0],
-                vec![0, 1],
-                vec![1, 1],
-                vec![2, 1],
-            ]
+    /// The exterior shape at `p = 2`, which is $A^{\mathbb{C}}/\tau$.
+    #[cfg(feature = "odd-primes")]
+    fn c_tau() -> MilnorAlgebra {
+        use algebra::milnor_algebra::{Exterior, MilnorAlgebraInner};
+
+        MilnorAlgebraInner::<Exterior>::new(fp::prime::TWO, false).into()
+    }
+
+    /// Resolve `target` through `max` with this and the standard algorithm, and check that the
+    /// ranks agree everywhere and that a nontrivial subalgebra was used somewhere.
+    fn assert_matches_standard(
+        target: Arc<FiniteChainComplex<FDModule<MilnorAlgebra>>>,
+        save_dir: Option<std::path::PathBuf>,
+        max: Bidegree,
+    ) -> Resolution<FDModule<MilnorAlgebra>> {
+        let standard = crate::resolution::Resolution::new(Arc::clone(&target));
+        standard.compute_through_stem(max);
+
+        let nassau = Resolution::new_with_complex(target, save_dir).unwrap();
+        nassau.compute_through_stem(max);
+
+        for b in standard.iter_stem() {
+            assert_eq!(
+                nassau.number_of_gens_in_bidegree(b),
+                standard.number_of_gens_in_bidegree(b),
+                "rank mismatch at {b}"
+            );
+        }
+        assert!(
+            nassau
+                .iter_stem()
+                .any(|b| !nassau.is_ordinary(b) && nassau.subalgebra_for(b).dimension() > 1),
+            "no subalgebra was used"
         );
-        assert_eq!(
-            subalgebra.iter_signatures(4).collect::<Vec<_>>(),
-            vec![vec![1, 0], vec![2, 0], vec![3, 0], vec![0, 1], vec![1, 1],]
-        );
-        assert_eq!(
-            subalgebra.iter_signatures(3).collect::<Vec<_>>(),
-            vec![vec![1, 0], vec![2, 0], vec![3, 0], vec![0, 1],]
-        );
-        assert_eq!(
-            subalgebra.iter_signatures(2).collect::<Vec<_>>(),
-            vec![vec![1, 0], vec![2, 0],]
-        );
-        assert_eq!(
-            subalgebra.iter_signatures(1).collect::<Vec<_>>(),
-            vec![vec![1, 0],]
-        );
-        assert_eq!(
-            subalgebra.iter_signatures(0).collect::<Vec<_>>(),
-            Vec::<Vec<PPartEntry>>::new()
+        nassau
+    }
+
+    /// The sphere at `p = 2`, through the concurrent scheduler.
+    #[test]
+    fn test_classical() {
+        assert_matches_standard(
+            sphere(MilnorAlgebra::new(fp::prime::TWO, false)),
+            None,
+            Bidegree::n_s(20, 10),
         );
     }
 
+    /// Cη and Cν. The top cell of Cν is high enough that ignoring it picks subalgebras below their
+    /// vanishing line.
     #[test]
-    fn test_signature_iterator_large() {
-        let subalgebra = MilnorSubalgebra::new(vec![
-            0,
-            MilnorSubalgebra::INFINITY,
-            MilnorSubalgebra::INFINITY,
-            MilnorSubalgebra::INFINITY,
+    fn test_finite_modules() {
+        for (top, action) in [(2, "Sq2 x0 = x2"), (4, "Sq4 x0 = x4")] {
+            let spec = serde_json::json!({
+                "type": "finite dimensional module",
+                "p": 2,
+                "gens": { "x0": 0, format!("x{top}"): top },
+                "actions": [action],
+            });
+            let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+            let module = Arc::new(FDModule::from_json(algebra, &spec).unwrap());
+            assert_matches_standard(
+                Arc::new(FiniteChainComplex::ccdz(module)),
+                None,
+                Bidegree::n_s(18, 10),
+            );
+        }
+    }
+
+    /// The cofiber of h₀², a three-term chain complex.
+    fn h0_squared_cofiber() -> Arc<FiniteChainComplex<FDModule<MilnorAlgebra>>> {
+        use algebra::module::homomorphism::FreeModuleHomomorphism;
+
+        use crate::{chain_complex::ChainMap, yoneda::yoneda_representative};
+
+        let k = sphere(MilnorAlgebra::new(fp::prime::TWO, false));
+        let class = BidegreeGenerator::s_t(2, 2, 0);
+        let resolution = crate::resolution::Resolution::new(Arc::clone(&k));
+        resolution.compute_through_stem(class.degree());
+
+        let map = FreeModuleHomomorphism::new(resolution.module(class.s()), k.module(0), class.t());
+        let mut matrix = Matrix::new(fp::prime::TWO, 1, 1);
+        matrix.row_mut(0).set_entry(0, 1);
+        map.add_generators_from_matrix_rows(class.t(), matrix.as_slice_mut());
+        map.extend_by_zero(class.t());
+        let yoneda = yoneda_representative(
+            Arc::new(resolution),
+            ChainMap {
+                s_shift: class.s(),
+                chain_maps: vec![map],
+            },
+        );
+        let mut cofiber = FiniteChainComplex::from(yoneda);
+        cofiber.pop();
+        assert!(cofiber.max_s() >= 2);
+        Arc::new(cofiber)
+    }
+
+    /// The cofiber of h₀², which needs ordinary steps beyond `s = 1`.
+    #[test]
+    fn test_yoneda_cofiber() {
+        assert_matches_standard(h0_squared_cofiber(), None, Bidegree::n_s(16, 12));
+    }
+
+    /// tmf, which is the sphere over the finite ambient $A(2)$.
+    #[test]
+    fn test_tmf() {
+        let a2 = MilnorAlgebra::new_with_profile(
+            fp::prime::TWO,
+            MilnorProfile {
+                truncated: true,
+                q_part: !0,
+                p_part: vec![3, 2, 1],
+            },
+            false,
+        );
+        let res = assert_matches_standard(sphere(a2), None, Bidegree::n_s(30, 14));
+        let gens = |n, s| res.number_of_gens_in_bidegree(Bidegree::n_s(n, s));
+        assert_eq!(gens(3, 1), 1, "h_2");
+        assert_eq!(gens(7, 1), 0, "no h_3 over A(2)");
+    }
+
+    /// $C\tau$, which is the sphere over $A^{\mathbb{C}}/\tau$.
+    #[cfg(feature = "odd-primes")]
+    #[test]
+    fn test_c_tau() {
+        assert_matches_standard(sphere(c_tau()), None, Bidegree::n_s(20, 12));
+    }
+
+    /// The sphere at odd primes, far enough out that `b_{1, 0}` sets the slope of $A(1)$ at 5.
+    #[cfg(feature = "odd-primes")]
+    #[test]
+    fn test_odd_primes() {
+        for (p, n) in [(3, 60), (5, 120)] {
+            let algebra = MilnorAlgebra::new(ValidPrime::new(p), false);
+            assert_matches_standard(sphere(algebra), None, Bidegree::n_s(n, 6));
+        }
+    }
+
+    /// The saved quasi-inverses lift boundaries, and a second resolution loads the saved
+    /// differentials, at every shape and for a chain complex. Lifting `d(x)` for the generators
+    /// `x` exercises the `Magic::Fix` path.
+    #[test]
+    fn test_save_files() {
+        #[cfg_attr(not(feature = "odd-primes"), expect(unused_mut))]
+        let mut targets = vec![
+            (
+                sphere(MilnorAlgebra::new(fp::prime::TWO, false)),
+                Bidegree::n_s(16, 8),
+            ),
+            (h0_squared_cofiber(), Bidegree::n_s(16, 8)),
+        ];
+        #[cfg(feature = "odd-primes")]
+        targets.extend([
+            (sphere(c_tau()), Bidegree::n_s(16, 8)),
+            (
+                sphere(MilnorAlgebra::new(ValidPrime::new(3), false)),
+                Bidegree::n_s(40, 5),
+            ),
         ]);
-        assert_eq!(
-            subalgebra.iter_signatures(7).collect::<Vec<_>>(),
-            vec![vec![0, 1, 0, 0], vec![0, 2, 0, 0], vec![0, 0, 1, 0],]
-        );
+
+        for (target, max) in targets {
+            let dir = tempfile::TempDir::new().unwrap();
+            let res =
+                assert_matches_standard(Arc::clone(&target), Some(dir.path().to_owned()), max);
+            let p = res.prime();
+
+            let mut lifted = 0;
+            for b in res.iter_stem() {
+                let next = b + Bidegree::s_t(1, 0);
+                if b.s() == 0 || !res.has_computed_bidegree(next) || res.is_ordinary(next) {
+                    continue;
+                }
+                let d = res.differential(b.s());
+                let target_dim = res.module(b.s() - 1).dimension(b.t());
+                let inputs: Vec<FpVector> = (0..res.number_of_gens_in_bidegree(b))
+                    .map(|i| {
+                        // Outputs only span the target generators that existed when computed.
+                        let output = d.output(b.t(), i);
+                        let mut v = FpVector::new(p, target_dim);
+                        v.slice_mut(0, output.len()).add(output.as_slice(), 1);
+                        v
+                    })
+                    .collect();
+                let mut results =
+                    vec![FpVector::new(p, res.module(b.s()).dimension(b.t())); inputs.len()];
+                assert!(res.apply_quasi_inverse(&mut results, b, &inputs));
+                for (input, result) in inputs.iter().zip(&results) {
+                    let mut image = FpVector::new(p, target_dim);
+                    d.apply(image.as_slice_mut(), 1, b.t(), result.as_slice());
+                    assert_eq!(&image, input, "lift fails at {b}");
+                }
+                lifted += inputs.len();
+            }
+            assert!(lifted > 0, "nothing was lifted");
+
+            let loaded = Resolution::new_with_complex(target, Some(dir.path().to_owned())).unwrap();
+            loaded.compute_through_stem(max);
+            for b in res.iter_stem() {
+                assert_eq!(
+                    loaded.number_of_gens_in_bidegree(b),
+                    res.number_of_gens_in_bidegree(b),
+                    "loaded rank mismatch at {b}"
+                );
+            }
+        }
     }
 
+    /// The signatures of a subalgebra are its basis elements, by degree.
     #[test]
-    fn test_subalgebra_fmt() {
-        let f2 = MilnorSubalgebra::zero_algebra();
-        let a2 = MilnorSubalgebra::new(vec![3, 2, 1]);
-        let b3321 = MilnorSubalgebra::new(vec![3, 3, 2, 1]);
+    fn test_signatures() {
+        let ambient = MilnorAlgebra::new(fp::prime::TWO, false);
+        let profile = MilnorProfile {
+            truncated: true,
+            q_part: 0,
+            p_part: vec![2, 1],
+        };
+        let subalgebra = MilnorSubalgebra::new(&ambient, profile).unwrap();
+        let signatures: Vec<_> = subalgebra.signatures(6).collect();
+        let mut p_parts: Vec<Vec<PPartEntry>> = signatures
+            .iter()
+            .map(|s| s.p_part.iter().collect())
+            .collect();
+        p_parts.sort();
+        assert_eq!(
+            p_parts,
+            [
+                vec![0, 1],
+                vec![1],
+                vec![1, 1],
+                vec![2],
+                vec![2, 1],
+                vec![3],
+                vec![3, 1]
+            ]
+        );
+        assert!(signatures.is_sorted_by_key(|s| s.degree));
+        assert_eq!(subalgebra.signatures(3).count(), 4);
+        assert_eq!(subalgebra.signatures(0).count(), 0);
+    }
 
-        assert_eq!(f2.to_string(), "F_2");
-        assert_eq!(a2.to_string(), "A(2)");
-        assert_eq!(b3321.to_string(), "B(3,3,2,1)");
+    /// The candidates grow, lie in the ambient, and start with the trivial subalgebra.
+    #[test]
+    fn test_candidates() {
+        let ambient = MilnorAlgebra::new(fp::prime::TWO, false);
+        let candidates = MilnorSubalgebra::candidates(&ambient);
+        assert_eq!(candidates[0].to_string(), "F_2");
+        assert!(
+            candidates
+                .windows(2)
+                .all(|w| w[0].dimension() < w[1].dimension())
+        );
+
+        let a2 = MilnorAlgebra::new_with_profile(
+            fp::prime::TWO,
+            MilnorProfile {
+                truncated: true,
+                q_part: !0,
+                p_part: vec![3, 2, 1],
+            },
+            false,
+        );
+        let capped = MilnorSubalgebra::candidates(&a2);
+        assert_eq!(capped.last().unwrap().to_string(), "A(2)");
+        assert!(capped.iter().all(|b| b.is_subalgebra_of(&a2)));
     }
 }
