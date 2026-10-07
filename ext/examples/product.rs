@@ -8,14 +8,19 @@
 
 use std::sync::Arc;
 
-use ext::{chain_complex::FreeChainComplex, ext_algebra::ExtModule, utils::query_module};
+use algebra::module::Module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    ext_algebra::ExtModule,
+    utils::query_module,
+};
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
     let resolution = Arc::new(query_module(None, true)?);
-    let e2 = ExtModule::from_resolution(resolution)?;
+    let e2 = ExtModule::from_resolution(Arc::clone(&resolution))?;
 
     let shift = Bidegree::n_s(
         query::raw("n of Ext class", str::parse),
@@ -28,6 +33,18 @@ fn main() -> anyhow::Result<()> {
     }
     let v: Vec<u32> = query::vector("Input Ext class", dim);
     let x = e2.element(shift, &v);
+
+    // `query_module` resolves only `M`; a separate unit must be resolved far enough to support
+    // the products.
+    if !e2.is_unit() {
+        let res_max = Bidegree::n_s(
+            resolution.module(0).max_computed_degree(),
+            resolution.next_homological_degree() - 1,
+        );
+        e2.algebra()
+            .resolution()
+            .compute_through_stem(res_max - shift);
+    }
 
     for b in e2.algebra().resolution().iter_nonzero_stem() {
         // `None` means `b + shift` is out of the computed range, so skip it.
