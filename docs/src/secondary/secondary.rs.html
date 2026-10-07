@@ -75,7 +75,7 @@
 <a href=#50 id=50 data-nosnippet>50</a><span class="kw">use </span>algebra::module::Module;
 <a href=#51 id=51 data-nosnippet>51</a><span class="kw">use </span>ext::{
 <a href=#52 id=52 data-nosnippet>52</a>    chain_complex::{ChainComplex, FreeChainComplex},
-<a href=#53 id=53 data-nosnippet>53</a>    ext_algebra::{ExtAlgebra, secondary::SecondaryExtAlgebra},
+<a href=#53 id=53 data-nosnippet>53</a>    ext_algebra::{ExtModule, secondary::SecondaryExtAlgebra},
 <a href=#54 id=54 data-nosnippet>54</a>    utils::query_module,
 <a href=#55 id=55 data-nosnippet>55</a>};
 <a href=#56 id=56 data-nosnippet>56</a><span class="kw">use </span>sseq::coordinates::Bidegree;
@@ -86,8 +86,8 @@
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);
 <a href=#62 id=62 data-nosnippet>62</a>
 <a href=#63 id=63 data-nosnippet>63</a>    <span class="comment">// The d2 differential is intrinsic to the resolution and needs no unit, so we avoid the unit
-<a href=#64 id=64 data-nosnippet>64</a>    // setup with `without_unit`.
-<a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">let </span>sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtAlgebra::without_unit(resolution)));
+<a href=#64 id=64 data-nosnippet>64</a>    // setup with `ExtModule::intrinsic` (the module is its own `k`).
+<a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">let </span>sec_e2 = SecondaryExtAlgebra::new(Arc::new(ExtModule::intrinsic(resolution)));
 <a href=#66 id=66 data-nosnippet>66</a>
 <a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = ext::utils::secondary_job() {
 <a href=#68 id=68 data-nosnippet>68</a>        sec_e2.compute_partial(s);
@@ -96,7 +96,7 @@
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    sec_e2.extend_all();
 <a href=#73 id=73 data-nosnippet>73</a>
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">let </span>e2 = sec_e2.ext_algebra();
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">let </span>e2 = sec_e2.module();
 <a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">let </span>d2_shift = Bidegree::n_s(-<span class="number">1</span>, <span class="number">2</span>);
 <a href=#76 id=76 data-nosnippet>76</a>
 <a href=#77 id=77 data-nosnippet>77</a>    <span class="comment">// Iterate through the target of the d2, in the same order as before.

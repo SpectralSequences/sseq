@@ -50,7 +50,7 @@
 <a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span>algebra::module::Module;
 <a href=#26 id=26 data-nosnippet>26</a><span class="kw">use </span>ext::{
 <a href=#27 id=27 data-nosnippet>27</a>    chain_complex::{ChainComplex, FreeChainComplex},
-<a href=#28 id=28 data-nosnippet>28</a>    ext_algebra::{ExtAlgebra, SecondaryExtAlgebra},
+<a href=#28 id=28 data-nosnippet>28</a>    ext_algebra::{ExtModule, SecondaryExtAlgebra},
 <a href=#29 id=29 data-nosnippet>29</a>    secondary::{LAMBDA_BIDEGREE, SecondaryLift},
 <a href=#30 id=30 data-nosnippet>30</a>    utils::query_module,
 <a href=#31 id=31 data-nosnippet>31</a>};
@@ -60,7 +60,7 @@
 <a href=#35 id=35 data-nosnippet>35</a>    ext::utils::init_logging()<span class="question-mark">?</span>;
 <a href=#36 id=36 data-nosnippet>36</a>
 <a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);
-<a href=#38 id=38 data-nosnippet>38</a>    <span class="kw">let </span>e2 = Arc::new(ExtAlgebra::from_resolution(Arc::clone(<span class="kw-2">&amp;</span>resolution))<span class="question-mark">?</span>);
+<a href=#38 id=38 data-nosnippet>38</a>    <span class="kw">let </span>e2 = Arc::new(ExtModule::from_resolution(Arc::clone(<span class="kw-2">&amp;</span>resolution))<span class="question-mark">?</span>);
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">let </span>name: String = query::raw(<span class="string">"Name of product"</span>, str::parse);
 <a href=#41 id=41 data-nosnippet>41</a>    <span class="kw">let </span>shift = Bidegree::n_s(
@@ -81,71 +81,73 @@
 <a href=#56 id=56 data-nosnippet>56</a>            resolution.module(<span class="number">0</span>).max_computed_degree(),
 <a href=#57 id=57 data-nosnippet>57</a>            resolution.next_homological_degree() - <span class="number">1</span>,
 <a href=#58 id=58 data-nosnippet>58</a>        );
-<a href=#59 id=59 data-nosnippet>59</a>        e2.unit().compute_through_stem(res_max - shift);
-<a href=#60 id=60 data-nosnippet>60</a>    }
-<a href=#61 id=61 data-nosnippet>61</a>
-<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">let </span>sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(<span class="kw-2">&amp;</span>e2)));
-<a href=#63 id=63 data-nosnippet>63</a>    sec_e2.extend_all();
-<a href=#64 id=64 data-nosnippet>64</a>
-<a href=#65 id=65 data-nosnippet>65</a>    <span class="comment">// Check that the class survives to E3 (supports no d2).
-<a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">let </span>x_survives = sec_e2
-<a href=#67 id=67 data-nosnippet>67</a>        .survives(<span class="kw-2">&amp;</span>x)
-<a href=#68 id=68 data-nosnippet>68</a>        .expect(<span class="string">"Class differential is not computed"</span>);
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="macro">assert!</span>(x_survives, <span class="string">"Class supports a non-zero d2"</span>);
-<a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">let </span>lift = sec_e2.secondary_product_lift(<span class="kw-2">&amp;</span>x);
+<a href=#59 id=59 data-nosnippet>59</a>        e2.algebra()
+<a href=#60 id=60 data-nosnippet>60</a>            .resolution()
+<a href=#61 id=61 data-nosnippet>61</a>            .compute_through_stem(res_max - shift);
+<a href=#62 id=62 data-nosnippet>62</a>    }
+<a href=#63 id=63 data-nosnippet>63</a>
+<a href=#64 id=64 data-nosnippet>64</a>    <span class="kw">let </span>sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(<span class="kw-2">&amp;</span>e2)));
+<a href=#65 id=65 data-nosnippet>65</a>    sec_e2.extend_all();
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="comment">// Check that the class survives to E3 (supports no d2).
+<a href=#68 id=68 data-nosnippet>68</a>    </span><span class="kw">let </span>x_survives = sec_e2
+<a href=#69 id=69 data-nosnippet>69</a>        .survives(<span class="kw-2">&amp;</span>x)
+<a href=#70 id=70 data-nosnippet>70</a>        .expect(<span class="string">"Class differential is not computed"</span>);
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="macro">assert!</span>(x_survives, <span class="string">"Class supports a non-zero d2"</span>);
 <a href=#72 id=72 data-nosnippet>72</a>
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = ext::utils::secondary_job() {
-<a href=#74 id=74 data-nosnippet>74</a>        lift.underlying().extend_all();
-<a href=#75 id=75 data-nosnippet>75</a>        lift.compute_partial(s);
-<a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#77 id=77 data-nosnippet>77</a>    }
-<a href=#78 id=78 data-nosnippet>78</a>
-<a href=#79 id=79 data-nosnippet>79</a>    <span class="comment">// `x` multiplies on the left; the printed name is bracketed as in the original output.
-<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">let </span>disp = <span class="macro">format!</span>(<span class="string">"[{name}]"</span>);
-<a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="comment">// Iterate through the multiplicand.
-<a href=#83 id=83 data-nosnippet>83</a>    </span><span class="kw">for </span>b <span class="kw">in </span>e2.unit().iter_nonzero_stem() {
-<a href=#84 id=84 data-nosnippet>84</a>        <span class="comment">// The potential target has to be hit, and we need to have computed (the data needed for)
-<a href=#85 id=85 data-nosnippet>85</a>        // the d2 that hits the potential target.
-<a href=#86 id=86 data-nosnippet>86</a>        </span><span class="kw">if </span>!resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
-<a href=#87 id=87 data-nosnippet>87</a>            <span class="kw">continue</span>;
-<a href=#88 id=88 data-nosnippet>88</a>        }
-<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">if </span>!resolution.has_computed_bidegree(b + shift - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>)) {
-<a href=#90 id=90 data-nosnippet>90</a>            <span class="kw">continue</span>;
-<a href=#91 id=91 data-nosnippet>91</a>        }
-<a href=#92 id=92 data-nosnippet>92</a>
-<a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>target_num_gens = e2.dimension(b + shift);
-<a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">let </span>lambda_num_gens = e2.dimension(b + shift + LAMBDA_BIDEGREE);
-<a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">if </span>target_num_gens == <span class="number">0 </span>&amp;&amp; lambda_num_gens == <span class="number">0 </span>{
-<a href=#96 id=96 data-nosnippet>96</a>            <span class="kw">continue</span>;
-<a href=#97 id=97 data-nosnippet>97</a>        }
-<a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>page = sec_e2.unit_page_data(b);
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">let </span>lift = sec_e2.secondary_product_lift(<span class="kw-2">&amp;</span>x);
+<a href=#74 id=74 data-nosnippet>74</a>
+<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = ext::utils::secondary_job() {
+<a href=#76 id=76 data-nosnippet>76</a>        lift.underlying().extend_all();
+<a href=#77 id=77 data-nosnippet>77</a>        lift.compute_partial(s);
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#79 id=79 data-nosnippet>79</a>    }
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="comment">// `x` multiplies on the left; the printed name is bracketed as in the original output.
+<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">let </span>disp = <span class="macro">format!</span>(<span class="string">"[{name}]"</span>);
+<a href=#83 id=83 data-nosnippet>83</a>
+<a href=#84 id=84 data-nosnippet>84</a>    <span class="comment">// Iterate through the multiplicand.
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">for </span>b <span class="kw">in </span>e2.algebra().resolution().iter_nonzero_stem() {
+<a href=#86 id=86 data-nosnippet>86</a>        <span class="comment">// The potential target has to be hit, and we need to have computed (the data needed for)
+<a href=#87 id=87 data-nosnippet>87</a>        // the d2 that hits the potential target.
+<a href=#88 id=88 data-nosnippet>88</a>        </span><span class="kw">if </span>!resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="kw">continue</span>;
+<a href=#90 id=90 data-nosnippet>90</a>        }
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">if </span>!resolution.has_computed_bidegree(b + shift - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>)) {
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">continue</span>;
+<a href=#93 id=93 data-nosnippet>93</a>        }
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">let </span>target_num_gens = e2.dimension(b + shift);
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">let </span>lambda_num_gens = e2.dimension(b + shift + LAMBDA_BIDEGREE);
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">if </span>target_num_gens == <span class="number">0 </span>&amp;&amp; lambda_num_gens == <span class="number">0 </span>{
+<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">continue</span>;
+<a href=#99 id=99 data-nosnippet>99</a>        }
 <a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="comment">// First the products with non-surviving classes: these are just λ times the (primary)
-<a href=#102 id=102 data-nosnippet>102</a>        // product, read off the multiplication map.
-<a href=#103 id=103 data-nosnippet>103</a>        </span><span class="kw">if </span>target_num_gens &gt; <span class="number">0
-<a href=#104 id=104 data-nosnippet>104</a>            </span>&amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(rows) = e2.multiply_into(<span class="kw-2">&amp;</span>x, b)
-<a href=#105 id=105 data-nosnippet>105</a>        {
-<a href=#106 id=106 data-nosnippet>106</a>            <span class="kw">for </span>i <span class="kw">in </span>page.complement_pivots() {
-<a href=#107 id=107 data-nosnippet>107</a>                <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
-<a href=#108 id=108 data-nosnippet>108</a>                <span class="kw">let </span>entry: Vec&lt;u32&gt; = rows.row(i).iter().collect();
-<a href=#109 id=109 data-nosnippet>109</a>                <span class="macro">println!</span>(<span class="string">"{disp} λ x_{g} = λ {entry:?}"</span>);
-<a href=#110 id=110 data-nosnippet>110</a>            }
-<a href=#111 id=111 data-nosnippet>111</a>        }
-<a href=#112 id=112 data-nosnippet>112</a>
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="comment">// Now the genuinely secondary products with surviving classes.
-<a href=#114 id=114 data-nosnippet>114</a>        </span><span class="kw">for </span>prod <span class="kw">in </span>sec_e2.secondary_multiply_into(<span class="kw-2">&amp;</span>x, b) {
-<a href=#115 id=115 data-nosnippet>115</a>            <span class="macro">println!</span>(
-<a href=#116 id=116 data-nosnippet>116</a>                <span class="string">"{disp} [{basis}] = {ext} + λ {lambda}"</span>,
-<a href=#117 id=117 data-nosnippet>117</a>                basis = prod.source.to_basis_string(),
-<a href=#118 id=118 data-nosnippet>118</a>                ext = prod.ext_part.as_slice(),
-<a href=#119 id=119 data-nosnippet>119</a>                lambda = prod.lambda_part.as_slice(),
-<a href=#120 id=120 data-nosnippet>120</a>            );
-<a href=#121 id=121 data-nosnippet>121</a>        }
-<a href=#122 id=122 data-nosnippet>122</a>    }
-<a href=#123 id=123 data-nosnippet>123</a>
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="prelude-val">Ok</span>(())
-<a href=#125 id=125 data-nosnippet>125</a>}
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>page = sec_e2.unit_page_data(b);
+<a href=#102 id=102 data-nosnippet>102</a>
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="comment">// First the products with non-surviving classes: these are just λ times the (primary)
+<a href=#104 id=104 data-nosnippet>104</a>        // product, read off the multiplication map.
+<a href=#105 id=105 data-nosnippet>105</a>        </span><span class="kw">if </span>target_num_gens &gt; <span class="number">0
+<a href=#106 id=106 data-nosnippet>106</a>            </span>&amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(rows) = e2.multiply_into(<span class="kw-2">&amp;</span>x, b)
+<a href=#107 id=107 data-nosnippet>107</a>        {
+<a href=#108 id=108 data-nosnippet>108</a>            <span class="kw">for </span>i <span class="kw">in </span>page.complement_pivots() {
+<a href=#109 id=109 data-nosnippet>109</a>                <span class="kw">let </span>g = BidegreeGenerator::new(b, i);
+<a href=#110 id=110 data-nosnippet>110</a>                <span class="kw">let </span>entry: Vec&lt;u32&gt; = rows.row(i).iter().collect();
+<a href=#111 id=111 data-nosnippet>111</a>                <span class="macro">println!</span>(<span class="string">"{disp} λ x_{g} = λ {entry:?}"</span>);
+<a href=#112 id=112 data-nosnippet>112</a>            }
+<a href=#113 id=113 data-nosnippet>113</a>        }
+<a href=#114 id=114 data-nosnippet>114</a>
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="comment">// Now the genuinely secondary products with surviving classes.
+<a href=#116 id=116 data-nosnippet>116</a>        </span><span class="kw">for </span>prod <span class="kw">in </span>sec_e2.secondary_multiply_into(<span class="kw-2">&amp;</span>x, b) {
+<a href=#117 id=117 data-nosnippet>117</a>            <span class="macro">println!</span>(
+<a href=#118 id=118 data-nosnippet>118</a>                <span class="string">"{disp} [{basis}] = {ext} + λ {lambda}"</span>,
+<a href=#119 id=119 data-nosnippet>119</a>                basis = prod.source.to_basis_string(),
+<a href=#120 id=120 data-nosnippet>120</a>                ext = prod.ext_part.as_slice(),
+<a href=#121 id=121 data-nosnippet>121</a>                lambda = prod.lambda_part.as_slice(),
+<a href=#122 id=122 data-nosnippet>122</a>            );
+<a href=#123 id=123 data-nosnippet>123</a>        }
+<a href=#124 id=124 data-nosnippet>124</a>    }
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="prelude-val">Ok</span>(())
+<a href=#127 id=127 data-nosnippet>127</a>}
 </code></pre></div></section></main></body></html>
