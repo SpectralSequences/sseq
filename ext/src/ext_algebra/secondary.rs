@@ -110,6 +110,7 @@ where
         &self.module
     }
 
+    /// The prime of the underlying resolution.
     fn prime(&self) -> fp::prime::ValidPrime {
         self.module.prime()
     }
@@ -160,6 +161,7 @@ where
         Self::e3_page_data(g.as_ref().expect("call extend_all() first"), b).clone()
     }
 
+    /// The $E_3$-page subquotient of `sseq` at bidegree `b`.
     fn e3_page_data(sseq: &sseq::Sseq<2, sseq::Adams>, b: Bidegree) -> &Subquotient {
         let d = sseq.page_data(b);
         &d[std::cmp::min(3, d.len() - 1)]

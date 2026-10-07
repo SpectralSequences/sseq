@@ -43,6 +43,7 @@ impl<CC: FreeChainComplex> ExtAlgebra<CC> {
         &self.resolution
     }
 
+    /// The prime of the underlying resolution.
     pub fn prime(&self) -> ValidPrime {
         self.resolution.prime()
     }
@@ -253,6 +254,7 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         Arc::ptr_eq(&self.resolution, self.algebra.resolution())
     }
 
+    /// The prime of the underlying resolution.
     pub fn prime(&self) -> ValidPrime {
         self.resolution.prime()
     }
