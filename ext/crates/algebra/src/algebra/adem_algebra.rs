@@ -17,7 +17,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::algebra::SteenrodAlgebra;
 use crate::algebra::{
     Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
-    combinatorics::{self, MAX_XI_TAU},
+    combinatorics::{self, MAX_TAU},
 };
 
 /// An Adem basis element for the Steenrod algebra.
@@ -587,7 +587,7 @@ impl AdemAlgebra {
             // First we need to know how many bocksteins we'll use so we know how much degree
             // to assign to the Ps. The Ps all have degree divisible by q=2p-2, so num_bs needs to
             // be congruent to degree mod q.
-            let num_bs_bound = std::cmp::min(MAX_XI_TAU, (n + 1) as usize);
+            let num_bs_bound = std::cmp::min(MAX_TAU, (n + 1) as usize);
             for num_bs in (residue as usize..num_bs_bound).step_by(q as usize) {
                 let even_basis = &self.even_basis_table[(n as usize - num_bs) / q as usize];
 
