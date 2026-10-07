@@ -179,6 +179,7 @@ pub struct ExtModule<CC: FreeChainComplex> {
     /// one ring cache.
     algebra: Arc<ExtAlgebra<CC>>,
     /// One multiplication map per generator of $\Ext(M, k)$, `res(M) → res(k)`, built on demand.
+    /// Read through [`product_cache`](Self::product_cache).
     products: DashMap<BidegreeGenerator, Arc<ResolutionHomomorphism<CC, CC>>>,
 }
 
@@ -289,6 +290,17 @@ impl<CC> ExtModule<CC>
 where
     CC: FreeChainComplex + AugmentedChainComplex,
 {
+    /// The per-generator product maps for this module.
+    ///
+    /// When `M == k` these are the ring's maps, so the module and its ring build each one once.
+    fn product_cache(&self) -> &DashMap<BidegreeGenerator, Arc<ResolutionHomomorphism<CC, CC>>> {
+        if self.is_unit() {
+            &self.algebra.products
+        } else {
+            &self.products
+        }
+    }
+
     /// The multiplication map for a single generator `g` of $\Ext(M, k)$ (`res(M) → res(k)`), built
     /// and cached on first use. The returned map is *not* guaranteed to be extended;
     /// [`multiply_into`](Self::multiply_into) extends it as needed.
@@ -297,7 +309,7 @@ where
         g: BidegreeGenerator,
     ) -> Arc<ResolutionHomomorphism<CC, CC>> {
         cached_generator_product_map(
-            &self.products,
+            self.product_cache(),
             &self.resolution,
             self.algebra.resolution(),
             g,
@@ -317,7 +329,7 @@ where
         products_into(
             &self.resolution,
             self.algebra.resolution(),
-            &self.products,
+            self.product_cache(),
             self.prime(),
             x,
             b,
@@ -448,6 +460,20 @@ fn combine_product(
 mod tests {
     use super::*;
     use crate::utils::construct_standard;
+
+    /// A module over itself reads the ring's product cache, so the two share each generator map.
+    #[test]
+    fn test_unit_module_shares_ring_cache() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(4, 4));
+        let module = ExtModule::intrinsic(res);
+
+        let h0 = BidegreeGenerator::new(Bidegree::n_s(0, 1), 0);
+        assert!(Arc::ptr_eq(
+            &module.generator_product_map(h0),
+            &module.algebra().generator_product_map(h0),
+        ));
+    }
 
     #[test]
     fn test_sphere_products() {
