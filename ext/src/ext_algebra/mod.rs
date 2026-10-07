@@ -1,29 +1,4 @@
-//! Ext as a bigraded algebra and its modules.
-//!
-//! This splits the two objects that a resolution computes:
-//!
-//! - [`ExtAlgebra`] is the **ring** $\Ext(k, k)$, backed by a resolution of the base field `k`. It
-//!   owns the ring-product cache (multiplication maps among $\Ext(k, k)$ generators, `res(k) →
-//!   res(k)`), and in particular is the single home for the multiply-by-a-class maps that Massey
-//!   products need (see [`ExtAlgebra::class_product_map`]).
-//! - [`ExtModule`] is a **module** $\Ext(M, k)$ over that ring, backed by a resolution of `M`. It
-//!   holds a shared [`Arc`] to the [`ExtAlgebra`] (so every module over the same `k` shares one ring
-//!   cache) and its own module-action cache (`M`'s Ext-generators acted on by ring elements, `res(M)
-//!   → res(k)`). When `M == k` the module shares its resolution with the ring, so "a module over
-//!   itself" is just an [`ExtModule`] whose resolution is `Arc`-equal to the ring's (see
-//!   [`ExtModule::is_unit`]); there is no `is_unit` special-casing baked into the ring.
-//!
-//! # Conventions
-//! A product is realised by a [`ResolutionHomomorphism`] built from a fixed multiplier class. For a
-//! module product the multiplier lives in $\Ext(M, k)$ (source = resolution of `M`, target =
-//! resolution of `k`); for a ring product it lives in $\Ext(k, k)$ (source = target = resolution of
-//! `k`). That single chain map computes the products of the multiplier with *all* classes of
-//! $\Ext(k, k)$. We cache one such map per *generator* (keyed by [`BidegreeGenerator`]); a product
-//! by a general class is assembled at request time from the generator maps. Products are computed
-//! up to a sign (as `y · x` where convenient), matching the existing example scripts.
-//!
-//! The secondary differential ($d_2$) and the $\Mod_{C\lambda^2}$ secondary product live in the
-//! [`secondary`] submodule ([`SecondaryExtAlgebra`]).
+//! Ext as a bigraded ring and its modules.
 
 pub mod massey;
 pub mod secondary;
@@ -43,7 +18,10 @@ use crate::{
 
 /// The ring $\Ext(k, k)$, backed by a resolution of the base field `k`.
 ///
-/// See the [module-level documentation](self) for how this relates to [`ExtModule`].
+/// A product is realised by a [`ResolutionHomomorphism`] from a fixed multiplier class, which
+/// computes the products of that class with all of $\Ext(k, k)$ at once. One such map is cached per
+/// generator; a product by a general class is assembled from them on request (see
+/// [`class_product_map`](Self::class_product_map)). Products are computed up to a sign.
 pub struct ExtAlgebra<CC: FreeChainComplex> {
     /// Resolution of the base field `k`. Ring products live here.
     resolution: Arc<CC>,
@@ -110,8 +88,7 @@ where
 
     /// The multiply-by-`x` chain self-map of `res(k)` (`res(k) → res(k)`), extended through `max`.
     ///
-    /// This is the single home for the ring-side multiplication maps that Massey products need
-    /// (`massey_b_hom`). A generator with coefficient one returns the cached
+    /// A generator with coefficient one returns the cached
     /// [`generator_product_map`](Self::generator_product_map) itself; any other nonzero class adds
     /// the cached generator maps via [`ResolutionHomomorphism::linear_combination`] (no
     /// quasi-inverse lift).
@@ -191,7 +168,9 @@ where
 /// The module $\Ext(M, k)$ over the ring [`ExtAlgebra`] $\Ext(k, k)$, backed by a resolution of
 /// `M`.
 ///
-/// See the [module-level documentation](self) for conventions.
+/// Products follow the [`ExtAlgebra`] conventions, with the multiplier in $\Ext(M, k)$ and the
+/// chain maps running `res(M) → res(k)`. When `M == k` the module and ring share one resolution
+/// (see [`is_unit`](Self::is_unit)).
 pub struct ExtModule<CC: FreeChainComplex> {
     /// Resolution of `M`; the module's classes and the module-action products land in its Ext.
     resolution: Arc<CC>,
@@ -269,8 +248,7 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         &self.algebra
     }
 
-    /// Whether `M == k`, i.e. the module shares its resolution with its ring. This is the structural
-    /// replacement for the old `is_unit` flag.
+    /// Whether `M == k`, i.e. the module shares its resolution with its ring.
     pub fn is_unit(&self) -> bool {
         Arc::ptr_eq(&self.resolution, self.algebra.resolution())
     }
@@ -503,9 +481,8 @@ mod tests {
         assert_eq!(direct, 0);
     }
 
-    /// Exercise the `M != k` path (the whole point of the split): products of `Ext(M, k)` classes
-    /// use `source = res(M)`, `target = res(k)`, a distinction the `M == k` tests never hit. The
-    /// unit `1 ∈ Ext^{0,0}(k, k)` acts trivially, so `x · 1 = x` for any `x ∈ Ext(M, k)`.
+    /// Products of `Ext(M, k)` classes with `M != k`, where the chain maps run `res(M) → res(k)`.
+    /// The unit `1 ∈ Ext^{0,0}(k, k)` acts trivially, so `x · 1 = x` for any `x ∈ Ext(M, k)`.
     #[test]
     fn test_non_unit_products() {
         let max = Bidegree::n_s(8, 8);

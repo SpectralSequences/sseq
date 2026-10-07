@@ -1,16 +1,4 @@
 //! The secondary ($d_2$) layer of [`ExtModule`].
-//!
-//! [`SecondaryExtAlgebra`] composes an [`ExtModule`] with the secondary resolutions of `M` and
-//! the unit `k`, and exposes:
-//! - the secondary differential [`d2`](SecondaryExtAlgebra::d2) (and the survival check
-//!   [`survives`](SecondaryExtAlgebra::survives)),
-//! - the $E_3$-page data [`page_data`](SecondaryExtAlgebra::page_data), and
-//! - the $\Mod_{C\lambda^2}$ secondary product
-//!   [`secondary_multiply_into`](SecondaryExtAlgebra::secondary_multiply_into).
-//!
-//! These wrap [`SecondaryResolution`] and [`SecondaryResolutionHomomorphism`]; no new linear
-//! algebra is implemented here. The layer is split out from [`ExtModule`] because the secondary
-//! machinery requires `CC::Algebra: PairAlgebra`, a bound the primary layer does not impose.
 
 use std::sync::{Arc, Mutex};
 
@@ -41,7 +29,11 @@ pub struct SecondaryProduct {
 }
 
 /// The secondary layer over an [`ExtModule`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
-/// product. See the [module documentation](self).
+/// product.
+///
+/// This wraps [`SecondaryResolution`] and [`SecondaryResolutionHomomorphism`] for `M` and the unit
+/// `k`. It is a separate type from [`ExtModule`] because it requires `CC::Algebra: PairAlgebra`, a
+/// bound the primary layer does not impose.
 pub struct SecondaryExtAlgebra<CC: FreeChainComplex>
 where
     CC::Algebra: PairAlgebra,
@@ -62,8 +54,10 @@ impl<CC: FreeChainComplex> SecondaryExtAlgebra<CC>
 where
     CC::Algebra: PairAlgebra,
 {
-    /// Build the secondary layer over `module`. Construction is cheap; call [`extend_all`](Self::extend_all)
-    /// to actually compute the secondary resolutions and $E_3$ pages.
+    /// Build the secondary layer over `module`.
+    ///
+    /// Construction is cheap; call [`extend_all`](Self::extend_all) to compute the secondary
+    /// resolutions and $E_3$ pages.
     pub fn new(module: Arc<ExtModule<CC>>) -> Self {
         let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(module.resolution())));
         let unit_lift = if module.is_unit() {

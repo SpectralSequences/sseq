@@ -164,12 +164,9 @@ where
     /// Build the chain map `∑_i coeff_i · summand_i` from chain maps that share a source, target,
     /// and shift.
     ///
-    /// Every summand must already be defined at least as far as `max` (extend it first). The
-    /// combined map's image on each generator is the corresponding linear combination of the
-    /// summands' images, so *no* quasi-inverse lift is performed — assembling a multiply-by-a-class
-    /// map from cached per-generator maps is just adding maps. This is the cheap alternative to
-    /// [`from_class`](Self::from_class) used by
-    /// [`ExtAlgebra::class_product_map`](crate::ext_algebra::ExtAlgebra::class_product_map).
+    /// Every summand must already be defined at least as far as `max`. The combined map's image on
+    /// each generator is the same linear combination of the summands' images, so unlike
+    /// [`from_class`](Self::from_class) no quasi-inverse lift is performed.
     ///
     /// Call with an **empty `name`**: this populates the maps directly (not through
     /// [`extend_step_raw`](Self::extend_step_raw)), so a non-empty name on a save-enabled source

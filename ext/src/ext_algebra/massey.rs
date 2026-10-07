@@ -1,20 +1,4 @@
 //! Primary Massey products in $\Ext$.
-//!
-//! [`ExtModule::massey`] computes a single triple Massey product $\langle a, b, c\rangle$, while
-//! [`ExtModule::massey_iter_c`] and [`ExtModule::massey_iter_a`] sweep a whole family at once:
-//! the former fixes $a, b$ and ranges over every valid third factor $\langle a, b, -\rangle$, the
-//! latter fixes $b, c$ and ranges over every valid first factor $\langle -, b, c\rangle$. The two
-//! directions differ in whether the `b ∘ c` null-homotopy is rebuilt per `c` or reused for fixed
-//! `b, c`.
-//!
-//! All three wrap [`ChainHomotopy`]: we lift the multiplication maps, build the null-homotopy of
-//! the composite `b ∘ c`, and read off the bracket by pairing against the first factor. The valid
-//! choices of `a` and `c` are the kernel of multiplication by `b`.
-//!
-//! The result is an [`AffineSubspace`]: a coset representative (the offset) together with the
-//! indeterminacy $a \cdot \Ext + \Ext \cdot c$ (the linear part). Both terms of the indeterminacy
-//! are the $\Ext(k, k)$-module action on $\Ext(M, k)$, so it is computed for any `M`. This matches
-//! (and reuses the logic of) the `massey` example, which computes the products up to a sign.
 
 use std::sync::Arc;
 
@@ -60,11 +44,9 @@ where
         a.degree() + b.degree() - Bidegree::s_t(1, 0)
     }
 
-    /// The multiplication-by-`b` chain self-map of the unit (`res(k) → res(k)`), extended far enough
-    /// for brackets landing at `shift`. This comes from
-    /// [`ExtAlgebra::class_product_map`](super::ExtAlgebra::class_product_map), which caches and
-    /// shares the per-*generator* product maps; a general (multi-generator) class assembles a fresh
-    /// combined map from them on every call.
+    /// The multiplication-by-`b` chain self-map of the unit (`res(k) → res(k)`), extended far
+    /// enough for brackets landing at `shift`; see
+    /// [`ExtAlgebra::class_product_map`](super::ExtAlgebra::class_product_map).
     fn massey_b_hom(
         &self,
         b: &BidegreeElement,
@@ -293,9 +275,7 @@ where
         let bc_shift = b.degree() + c.degree() - Bidegree::s_t(1, 0);
 
         // `f_c` realises `c` (resolution of `M` → unit); `f_b` is multiplication by `b` (in the
-        // unit), from `class_product_map` (per-generator maps are cached and shared, but a
-        // multi-generator `b` assembles a fresh combined map here). The single null-homotopy `s_bc`
-        // of `b ∘ c` is reused for every first factor.
+        // unit). The single null-homotopy `s_bc` of `b ∘ c` is reused for every first factor.
         let c_coords: Vec<u32> = c.vec().iter().collect();
         let f_c = Arc::new(ResolutionHomomorphism::from_class(
             String::new(),
@@ -363,6 +343,11 @@ where
     }
 
     /// Compute the triple Massey product $\langle a, b, c\rangle$.
+    ///
+    /// The bracket is read off the null-homotopy of `b ∘ c` by pairing against `a`. The result is
+    /// an [`AffineSubspace`]: a coset representative together with the indeterminacy
+    /// $a \cdot \Ext + \Ext \cdot c$, both terms of which are the $\Ext(k, k)$-module action on
+    /// $\Ext(M, k)$.
     ///
     /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if `a · b !=
     /// 0` or `b · c != 0`.
