@@ -1,20 +1,4 @@
 //! Primary Massey products in $\Ext$.
-//!
-//! [`ExtAlgebra::massey`] computes a single triple Massey product $\langle a, b, c\rangle$, while
-//! [`ExtAlgebra::massey_iter_c`] and [`ExtAlgebra::massey_iter_a`] sweep a whole family at once:
-//! the former fixes $a, b$ and ranges over every valid third factor $\langle a, b, -\rangle$, the
-//! latter fixes $b, c$ and ranges over every valid first factor $\langle -, b, c\rangle$. The two
-//! directions differ in whether the `b ∘ c` null-homotopy is rebuilt per `c` or reused for fixed
-//! `b, c`.
-//!
-//! All three wrap [`ChainHomotopy`]: we lift the multiplication maps, build the null-homotopy of
-//! the composite `b ∘ c`, and read off the bracket by pairing against the first factor. The valid
-//! choices of `a` and `c` are the kernel of multiplication by `b`.
-//!
-//! The result is an [`AffineSubspace`]: a coset representative (the offset) together with the
-//! indeterminacy $a \cdot \Ext + \Ext \cdot c$ (the linear part). Both terms of the indeterminacy
-//! are the $\Ext(k, k)$-module action on $\Ext(M, k)$, so it is computed for any `M`. This matches
-//! (and reuses the logic of) the `massey` example, which computes the products up to a sign.
 
 use std::sync::Arc;
 
@@ -24,7 +8,7 @@ use fp::{
 };
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
-use super::ExtAlgebra;
+use super::ExtModule;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -50,7 +34,7 @@ impl MasseyResult {
     }
 }
 
-impl<CC> ExtAlgebra<CC>
+impl<CC> ExtModule<CC>
 where
     CC: FreeChainComplex + AugmentedChainComplex,
 {
@@ -60,23 +44,15 @@ where
         a.degree() + b.degree() - Bidegree::s_t(1, 0)
     }
 
-    /// The multiplication-by-`b` chain self-map of the unit, extended far enough for brackets
-    /// landing at `shift`.
+    /// The multiplication-by-`b` chain self-map of the unit (`res(k) → res(k)`), extended far
+    /// enough for brackets landing at `shift`; see
+    /// [`ExtAlgebra::class_product_map`](super::ExtAlgebra::class_product_map).
     fn massey_b_hom(
         &self,
         b: &BidegreeElement,
         shift: Bidegree,
     ) -> Arc<ResolutionHomomorphism<CC, CC>> {
-        let b_coords: Vec<u32> = b.vec().iter().collect();
-        let hom = Arc::new(ResolutionHomomorphism::from_class(
-            String::new(),
-            Arc::clone(self.unit()),
-            Arc::clone(self.unit()),
-            b.degree(),
-            &b_coords,
-        ));
-        hom.extend_through_stem(shift);
-        hom
+        self.algebra().class_product_map(b, shift)
     }
 
     /// The kernel of multiplication by `b` at bidegree `c_deg`: the valid third factors of
@@ -129,7 +105,7 @@ where
     ) -> Option<MasseyResult> {
         let p = self.prime();
         let resolution = self.resolution();
-        let unit = self.unit();
+        let unit = self.algebra().resolution();
 
         let c_deg = c.degree();
         let tot = c_deg + shift;
@@ -228,8 +204,8 @@ where
             }
         }
         // Ext(k, k)^{tot - c.degree()} · c, computed as c · x (equal up to sign).
-        for x in self.unit_basis(tot - c.degree()) {
-            if let Some(prod) = self.try_multiply(c, &self.unit_generator(x)) {
+        for x in self.algebra().basis(tot - c.degree()) {
+            if let Some(prod) = self.try_multiply(c, &self.algebra().generator(x)) {
                 sub.add_vector(prod.vec());
             }
         }
@@ -293,7 +269,7 @@ where
     ) -> Vec<(BidegreeElement, MasseyResult)> {
         let p = self.prime();
         let resolution = self.resolution();
-        let unit = self.unit();
+        let unit = self.algebra().resolution();
 
         // The bracket of a first factor `a` lands at `tot = a.degree() + bc_shift`.
         let bc_shift = b.degree() + c.degree() - Bidegree::s_t(1, 0);
@@ -308,14 +284,7 @@ where
             c.degree(),
             &c_coords,
         ));
-        let b_coords: Vec<u32> = b.vec().iter().collect();
-        let f_b = Arc::new(ResolutionHomomorphism::from_class(
-            String::new(),
-            Arc::clone(unit),
-            Arc::clone(unit),
-            b.degree(),
-            &b_coords,
-        ));
+        let f_b = self.algebra().class_product_map(b, bc_shift);
         let s_bc = ChainHomotopy::new(Arc::clone(&f_c), Arc::clone(&f_b));
 
         let mut results = Vec::new();
@@ -375,6 +344,11 @@ where
 
     /// Compute the triple Massey product $\langle a, b, c\rangle$.
     ///
+    /// The bracket is read off the null-homotopy of `b ∘ c` by pairing against `a`. The result is
+    /// an [`AffineSubspace`]: a coset representative together with the indeterminacy
+    /// $a \cdot \Ext + \Ext \cdot c$, both terms of which are the $\Ext(k, k)$-module action on
+    /// $\Ext(M, k)$.
+    ///
     /// `a` and `b` are taken in $\Ext(k, k)$ and `c` in $\Ext(M, k)$. Returns `None` if `a · b !=
     /// 0` or `b · c != 0`.
     pub fn massey(
@@ -392,7 +366,12 @@ where
         // `shift`, so `b_hom` must be extended one step further than `massey_b_hom` built it.
         let ab_deg = a.degree() + b.degree();
         b_hom.extend_through_stem(ab_deg);
-        let mut ab = FpVector::new(self.prime(), self.unit().number_of_gens_in_bidegree(ab_deg));
+        let mut ab = FpVector::new(
+            self.prime(),
+            self.algebra()
+                .resolution()
+                .number_of_gens_in_bidegree(ab_deg),
+        );
         for (j, coef) in a.vec().iter_nonzero() {
             b_hom.act(
                 ab.as_slice_mut(),
@@ -427,7 +406,7 @@ mod tests {
     fn test_sphere_massey() {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(6, 5));
-        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+        let alg = ExtModule::intrinsic(res);
 
         let h0 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
         let h1 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(1, 1), 0));
@@ -482,7 +461,7 @@ mod tests {
     fn test_iter_a_matches_iter_c() {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(6, 5));
-        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+        let alg = ExtModule::intrinsic(res);
 
         let h0 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
         let h1 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(1, 1), 0));
@@ -516,7 +495,7 @@ mod tests {
     fn test_iter_c_proper_kernel() {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(6, 5));
-        let alg = ExtAlgebra::new(Arc::clone(&res), res);
+        let alg = ExtModule::intrinsic(res);
 
         let h0 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
         let h1 = alg.generator(BidegreeGenerator::new(Bidegree::n_s(1, 1), 0));
