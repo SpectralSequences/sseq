@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":[["view_type",1]]};

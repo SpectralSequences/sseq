@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A memory allocator that can be registered as the standard library’s default through the `#[global_allocator]` attribute."><title>GlobalAlloc in once::std_or_loom::alloc - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A memory allocator that can be registered as the standard library’s default through the `#[global_allocator]` attribute."><title>GlobalAlloc in once::std_or_loom::alloc - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0 (b940084d7 2026-09-28)" data-channel="1.99.0" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,19 +23,19 @@
     });
 </script>
 
-</head><body class="rustdoc trait"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">GlobalAlloc</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Global<wbr>Alloc</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li><li><a href="#safety" title="Safety">Safety</a></li><li><a href="#re-entrance" title="Re-entrance">Re-entrance</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.alloc" title="alloc">alloc</a></li><li><a href="#tymethod.dealloc" title="dealloc">dealloc</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.alloc_zeroed" title="alloc_zeroed">alloc_zeroed</a></li><li><a href="#method.realloc" title="realloc">realloc</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>alloc</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">alloc</a></div><h1>Trait <span class="trait">Global<wbr>Alloc</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/core/alloc/global.rs.html#144">Source</a> </span></div><pre class="rust item-decl"><code>pub unsafe trait GlobalAlloc {
+</head><body class="rustdoc trait"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">GlobalAlloc</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Global<wbr>Alloc</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li><li><a href="#the-global_allocator-attribute" title="The `#[global_allocator]` attribute">The <code>#[global_allocator]</code> attribute</a></li><li><a href="#safety" title="Safety">Safety</a></li><li><a href="#re-entrance" title="Re-entrance">Re-entrance</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.alloc" title="alloc">alloc</a></li><li><a href="#tymethod.dealloc" title="dealloc">dealloc</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.alloc_zeroed" title="alloc_zeroed">alloc_zeroed</a></li><li><a href="#method.realloc" title="realloc">realloc</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>alloc</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">alloc</a></div><h1>Trait <span class="trait">Global<wbr>Alloc</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#189">Source</a> </span></div><pre class="rust item-decl"><code>pub unsafe trait GlobalAlloc {
     // Required methods
-    unsafe fn <a href="#tymethod.alloc" class="fn">alloc</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a>;
-<span class="item-spacer"></span>    unsafe fn <a href="#tymethod.dealloc" class="fn">dealloc</a>(&amp;self, ptr: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a>, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>);
+    unsafe fn <a href="#tymethod.alloc" class="fn">alloc</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a>;
+<span class="item-spacer"></span>    unsafe fn <a href="#tymethod.dealloc" class="fn">dealloc</a>(&amp;self, ptr: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a>, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>);
 
     // Provided methods
-    unsafe fn <a href="#method.alloc_zeroed" class="fn">alloc_zeroed</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a> { ... }
+    unsafe fn <a href="#method.alloc_zeroed" class="fn">alloc_zeroed</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a> { ... }
 <span class="item-spacer"></span>    unsafe fn <a href="#method.realloc" class="fn">realloc</a>(
         &amp;self,
-        ptr: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a>,
+        ptr: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a>,
         layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>,
-        new_size: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.usize.html">usize</a>,
-    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a> { ... }
+        new_size: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.usize.html">usize</a>,
+    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a> { ... }
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A memory allocator that can be registered as the standard library’s default
 through the <code>#[global_allocator]</code> attribute.</p>
 <p>Some of the methods require that a memory block be <em>currently
@@ -113,38 +113,75 @@ passed to a reallocation method that returns a non-null pointer.</p>
     <span class="kw">let </span>_s = <span class="macro">format!</span>(<span class="string">"allocating a string!"</span>);
     <span class="kw">let </span>currently = ALLOCATOR.remaining.load(Relaxed);
     <span class="macro">println!</span>(<span class="string">"allocated so far: {}"</span>, ARENA_SIZE - currently);
-}</code></pre></div><h2 id="safety"><a class="doc-anchor" href="#safety">§</a>Safety</h2>
-<p>The <code>GlobalAlloc</code> trait is an <code>unsafe</code> trait for a number of reasons, and
-implementors must ensure that they adhere to these contracts:</p>
+}</code></pre></div><h2 id="the-global_allocator-attribute"><a class="doc-anchor" href="#the-global_allocator-attribute">§</a>The <code>#[global_allocator]</code> attribute</h2>
+<p>As the example above demonstrates, the <code>#[global_allocator]</code> attribute can be used to register a
+concrete <code>static</code> of a type that implements this trait to become <em>the</em> global allocator
+for the current program. That global allocator can be invoked via the functions <a href="../../std/alloc/fn.alloc.html"><code>alloc</code></a>,
+<a href="../../std/alloc/fn.alloc_zeroed.html"><code>alloc_zeroed</code></a>, <a href="../../std/alloc/fn.dealloc.html"><code>dealloc</code></a>, <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a>). Note, however, that invoking those functions is
+<em>not</em> equivalent to directly invoking the underlying methods on the declared global allocator!
+Users of the global allocator cannot assume anything about what the allocator does (even if they know which allocator is being used),
+and implementors of the allocator cannot assume anything about what the program does (even if they know how the allocator is being used).
+Both can only assume the documented requirements for the respective other party of this contract.
+This means:</p>
 <ul>
-<li>
-<p>It’s undefined behavior if global allocators unwind. This restriction may
-be lifted in the future, but currently a panic from any of these
-functions may lead to memory unsafety.</p>
-</li>
-<li>
-<p><code>Layout</code> queries and calculations in general must be correct. Callers of
-this trait are allowed to rely on the contracts defined on each method,
-and implementors must ensure such contracts remain true.</p>
-</li>
-<li>
-<p>You must not rely on allocations actually happening, even if there are explicit
-heap allocations in the source. The optimizer may detect unused allocations that it can either
-eliminate entirely or move to the stack and thus never invoke the allocator. The
-optimizer may further assume that allocation is infallible, so code that used to fail due
-to allocator failures may now suddenly work because the optimizer worked around the
-need for an allocation. More concretely, the following code example is unsound, irrespective
+<li>Allocation functions may non-deterministically entirely skip the underlying allocator, e.g. if the
+compiler can show that this allocation can be replaced by a stack variable. The compiler may
+also merge multiple allocation operations into one, as long as it can also adjust all
+corresponding deallocation operations accordingly.</li>
+<li>An allocation created by invoking <a href="../../std/alloc/fn.alloc.html"><code>alloc</code></a>, <a href="../../std/alloc/fn.alloc_zeroed.html"><code>alloc_zeroed</code></a>, or <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a> has exactly the
+size and minimum alignment defined by <code>layout</code>, even if the underlying allocator makes
+stronger promises.</li>
+<li>An allocation created by invoking <a href="../../std/alloc/fn.alloc.html"><code>alloc</code></a>, <a href="../../std/alloc/fn.alloc_zeroed.html"><code>alloc_zeroed</code></a>, or <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a> can only be
+freed by invoking <a href="../../std/alloc/fn.dealloc.html"><code>dealloc</code></a> or <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a>. In particular, passing a pointer to such an
+allocation directly to the underlying method on <a href="trait.GlobalAlloc.html" title="trait once::std_or_loom::alloc::GlobalAlloc"><code>GlobalAlloc</code></a> is not permitted. Until one of
+those functions is called, it is undefined behavior to access the memory that backs this
+allocation with any pointer not derived from the return value of this function (e.g., with
+internal pointers the allocator might keep around).</li>
+<li>The pointer passed to <a href="../../std/alloc/fn.dealloc.html"><code>dealloc</code></a> or <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a> must have been obtained by invoking <a href="../../std/alloc/fn.alloc.html"><code>alloc</code></a>,
+<a href="../../std/alloc/fn.alloc_zeroed.html"><code>alloc_zeroed</code></a>, or <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a>. In particular, passing a pointer returned by the underlying
+methods on <a href="trait.GlobalAlloc.html" title="trait once::std_or_loom::alloc::GlobalAlloc"><code>GlobalAlloc</code></a> is not permitted.</li>
+<li><a href="../../std/alloc/fn.alloc.html"><code>alloc</code></a> de-initializes the contents of the allocation before handing it to the user. So even
+if you control the underlying allocator and know that it explicitly initialized this memory,
+you cannot rely on it being initialized. For a <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a> that grows an allocation, this
+applies to the newly allocated part.</li>
+<li><a href="../../std/alloc/fn.dealloc.html"><code>dealloc</code></a> de-initializes the contents of the allocation before handing it to the allocator.
+So even if you know that the program previously initialized that memory, the allocator cannot
+rely on it being initialized. For a <a href="../../std/alloc/fn.realloc.html"><code>realloc</code></a> that shrinks an allocation, this applies to
+the part being removed.</li>
+</ul>
+<p>The first point means that you cannot rely on global allocations actually happening, even if
+there are explicit global allocations in the source. The optimizer may detect unused global
+allocations that it can either eliminate entirely or move to the stack and thus never invoke the
+global allocator. The optimizer may further assume that allocation is infallible, so code that
+used to fail due to allocator failures may now suddenly work because the optimizer worked around
+the need for an allocation. More concretely, the following code example is unsound, irrespective
 of whether your custom allocator allows counting how many allocations have happened.</p>
 
 <div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code>drop(Box::new(<span class="number">42</span>));
 <span class="kw">let </span>number_of_heap_allocs = <span class="comment">/* call private allocator API */</span>;
 <span class="kw">unsafe </span>{ std::hint::assert_unchecked(number_of_heap_allocs &gt; <span class="number">0</span>); }</code></pre></div>
 <p>Note that the optimizations mentioned above are not the only
-optimization that can be applied. You may generally not rely on heap allocations
+optimization that can be applied. You may generally not rely on global allocations
 happening if they can be removed without changing program behavior.
 Whether allocations happen or not is not part of the program behavior, even if it
 could be detected via an allocator that tracks allocations by printing or otherwise
 having side effects.</p>
+<h2 id="safety"><a class="doc-anchor" href="#safety">§</a>Safety</h2>
+<p>The <code>GlobalAlloc</code> trait is an <code>unsafe</code> trait for a number of reasons, and
+implementors must ensure that they adhere to these contracts:</p>
+<ul>
+<li>
+<p>It is undefined behavior for the allocator to read, write, or deallocate any memory that
+is <em>currently allocated</em>. This memory is owned by the user, the allocator must not touch it.</p>
+</li>
+<li>
+<p>It’s undefined behavior if global allocators unwind. This restriction may
+be lifted in the future, but currently a panic from any of these
+functions may lead to memory unsafety.</p>
+</li>
+<li>
+<p>Callers of this trait are allowed to rely on the contracts defined on each method, and
+implementors must ensure such contracts remain true.</p>
 </li>
 </ul>
 <h2 id="re-entrance"><a class="doc-anchor" href="#re-entrance">§</a>Re-entrance</h2>
@@ -153,7 +190,7 @@ implementation by accident, as many constructs in the Rust standard library may 
 their implementation. For example, on some platforms, <a href="../../std/sync/struct.Mutex.html"><code>std::sync::Mutex</code></a> may allocate, so using
 it is highly problematic in a global allocator.</p>
 <p>For this reason, one should generally stick to library features available through
-<a href="https://doc.rust-lang.org/1.98.1/core/index.html" title="mod core"><code>core</code></a>, and avoid using <a href="../../std/index.html"><code>std</code></a> in a global allocator. A few features from <a href="../../std/index.html"><code>std</code></a> are
+<a href="https://doc.rust-lang.org/1.99.0/core/index.html" title="mod core"><code>core</code></a>, and avoid using <a href="../../std/index.html"><code>std</code></a> in a global allocator. A few features from <a href="../../std/index.html"><code>std</code></a> are
 guaranteed to not use <code>#[global_allocator]</code> to allocate:</p>
 <ul>
 <li><a href="../../std/macro.thread_local.html"><code>std::thread_local</code></a>,</li>
@@ -161,7 +198,7 @@ guaranteed to not use <code>#[global_allocator]</code> to allocate:</p>
 <li><a href="../../std/thread/fn.park.html"><code>std::thread::park</code></a> and <a href="../../std/thread/struct.Thread.html"><code>std::thread::Thread</code></a>’s <a href="../../std/thread/struct.Thread.html#method.unpark"><code>unpark</code></a> method and
 <a href="../clone/trait.Clone.html" title="trait once::std_or_loom::clone::Clone"><code>Clone</code></a> implementation.</li>
 </ul>
-</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.alloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/core/alloc/global.rs.html#178">Source</a></span><h4 class="code-header">unsafe fn <a href="#tymethod.alloc" class="fn">alloc</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Allocates memory as described by the given <code>layout</code>.</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.alloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#223">Source</a></span><h4 class="code-header">unsafe fn <a href="#tymethod.alloc" class="fn">alloc</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Allocates memory as described by the given <code>layout</code>.</p>
 <p>Returns a pointer to newly-allocated memory,
 or null to indicate allocation failure.</p>
 <h5 id="safety-1"><a class="doc-anchor" href="#safety-1">§</a>Safety</h5>
@@ -181,8 +218,8 @@ implement this trait atop an underlying native allocation
 library that aborts on memory exhaustion.)</p>
 <p>Clients wishing to abort computation in response to an
 allocation error are encouraged to call the <a href="../../alloc/alloc/fn.handle_alloc_error.html"><code>handle_alloc_error</code></a> function,
-rather than directly invoking <code>panic!</code> or similar.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.dealloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/core/alloc/global.rs.html#193">Source</a></span><h4 class="code-header">unsafe fn <a href="#tymethod.dealloc" class="fn">dealloc</a>(&amp;self, ptr: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a>, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>)</h4></section></summary><div class="docblock"><p>Deallocates the block of memory at the given <code>ptr</code> pointer with the given <code>layout</code>.</p>
+rather than directly invoking <code>panic!</code> or similar (but note that both may unwind).</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.dealloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#238">Source</a></span><h4 class="code-header">unsafe fn <a href="#tymethod.dealloc" class="fn">dealloc</a>(&amp;self, ptr: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a>, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>)</h4></section></summary><div class="docblock"><p>Deallocates the block of memory at the given <code>ptr</code> pointer with the given <code>layout</code>.</p>
 <h5 id="safety-2"><a class="doc-anchor" href="#safety-2">§</a>Safety</h5>
 <p>The caller must ensure:</p>
 <ul>
@@ -195,7 +232,7 @@ memory.</p>
 </li>
 </ul>
 <p>Otherwise the behavior is undefined.</p>
-</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.alloc_zeroed" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/core/alloc/global.rs.html#216">Source</a></span><h4 class="code-header">unsafe fn <a href="#method.alloc_zeroed" class="fn">alloc_zeroed</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Behaves like <code>alloc</code>, but also ensures that the contents
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.alloc_zeroed" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#261">Source</a></span><h4 class="code-header">unsafe fn <a href="#method.alloc_zeroed" class="fn">alloc_zeroed</a>(&amp;self, layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Behaves like <code>alloc</code>, but also ensures that the contents
 are set to zero before being returned.</p>
 <h5 id="safety-3"><a class="doc-anchor" href="#safety-3">§</a>Safety</h5>
 <p>The caller has to ensure that <code>layout</code> has non-zero size. Like <code>alloc</code>
@@ -208,12 +245,12 @@ just as in <code>alloc</code>.</p>
 <p>Clients wishing to abort computation in response to an
 allocation error are encouraged to call the <a href="../../alloc/alloc/fn.handle_alloc_error.html"><code>handle_alloc_error</code></a> function,
 rather than directly invoking <code>panic!</code> or similar.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.realloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/core/alloc/global.rs.html#286">Source</a></span><h4 class="code-header">unsafe fn <a href="#method.realloc" class="fn">realloc</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.realloc" class="method"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#331">Source</a></span><h4 class="code-header">unsafe fn <a href="#method.realloc" class="fn">realloc</a>(
     &amp;self,
-    ptr: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a>,
+    ptr: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a>,
     layout: <a class="struct" href="struct.Layout.html" title="struct once::std_or_loom::alloc::Layout">Layout</a>,
-    new_size: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.usize.html">usize</a>,
-) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Shrinks or grows a block of memory to the given <code>new_size</code> in bytes.
+    new_size: <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.usize.html">usize</a>,
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.99.0/std/primitive.u8.html">u8</a></h4></section></summary><div class="docblock"><p>Shrinks or grows a block of memory to the given <code>new_size</code> in bytes.
 The block is described by the given <code>ptr</code> pointer and <code>layout</code>.</p>
 <p>If this returns a non-null pointer, then ownership of the memory block
 referenced by <code>ptr</code> has been transferred to this allocator.
@@ -263,4 +300,6 @@ library that aborts on memory exhaustion.)</p>
 <p>Clients wishing to abort computation in response to a
 reallocation error are encouraged to call the <a href="../../alloc/alloc/fn.handle_alloc_error.html"><code>handle_alloc_error</code></a> function,
 rather than directly invoking <code>panic!</code> or similar.</p>
-</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait <b>is</b> <a href="https://doc.rust-lang.org/1.98.1/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety".</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-GlobalAlloc-for-System" class="impl"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.98.1/src/std/sys/alloc/unix.rs.html#6">Source</a></span><a href="#impl-GlobalAlloc-for-System" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.GlobalAlloc.html" title="trait once::std_or_loom::alloc::GlobalAlloc">GlobalAlloc</a> for <a class="struct" href="struct.System.html" title="struct once::std_or_loom::alloc::System">System</a></h3></section></div><script src="../../../trait.impl/core/alloc/global/trait.GlobalAlloc.js" data-ignore-extern-crates="std" async></script></section></div></main></body></html>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait <b>is</b> <a href="https://doc.rust-lang.org/1.99.0/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety".</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-GlobalAlloc-for-A" class="impl"><span class="rightside"><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span> · <a class="src" href="https://doc.rust-lang.org/1.99.0/src/core/alloc/global.rs.html#352-354">Source</a></span><a href="#impl-GlobalAlloc-for-A" class="anchor">§</a><h3 class="code-header">impl&lt;A&gt; <a class="trait" href="trait.GlobalAlloc.html" title="trait once::std_or_loom::alloc::GlobalAlloc">GlobalAlloc</a> for A<div class="where">where
+    A: <a class="trait" href="trait.GlobalAllocator.html" title="trait once::std_or_loom::alloc::GlobalAllocator">GlobalAllocator</a> + ?<a class="trait" href="../marker/trait.Sized.html" title="trait once::std_or_loom::marker::Sized">Sized</a>,</div></h3><div class="docblock"><p>Allows all <a href="trait.GlobalAllocator.html" title="trait once::std_or_loom::alloc::GlobalAllocator"><code>GlobalAllocator</code></a>s to be used with the legacy <a href="trait.GlobalAlloc.html" title="trait once::std_or_loom::alloc::GlobalAlloc"><code>GlobalAlloc</code></a> interface.</p>
+</div></section></div><script src="../../../trait.impl/core/alloc/global/trait.GlobalAlloc.js" async></script></section></div></main></body></html>

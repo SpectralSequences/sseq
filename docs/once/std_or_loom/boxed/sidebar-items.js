@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Box","ThinBox"]};
+window.SIDEBAR_ITEMS = {"struct":["Box","BoxedArrayIntoIter","ThinBox"]};

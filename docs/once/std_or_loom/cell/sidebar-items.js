@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BorrowError","BorrowMutError","Cell","LazyCell","OnceCell","Ref","RefCell","RefMut","SyncUnsafeCell","UnsafeCell"],"trait":["CloneFromCell"]};
+window.SIDEBAR_ITEMS = {"struct":["BorrowError","BorrowMutError","Cell","CovariantUnsafeCell","LazyCell","OnceCell","Ref","RefCell","RefMut","SyncUnsafeCell","UnsafeCell"],"trait":["CloneFromCell"]};
