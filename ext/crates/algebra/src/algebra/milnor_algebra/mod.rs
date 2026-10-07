@@ -19,12 +19,14 @@ mod multiplication;
 mod ppart;
 mod profile;
 mod shape;
+mod subalgebra;
 
 pub use basis_element::MilnorBasisElement;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
 pub use shape::{Exterior, MilnorShape, NoExterior};
+pub use subalgebra::MilnorSubalgebra;
 
 pub struct MilnorAlgebraInner<F: MilnorShape> {
     profile: MilnorProfile,
