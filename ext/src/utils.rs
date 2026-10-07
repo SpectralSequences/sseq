@@ -64,10 +64,10 @@ pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
     Ok(module)
 }
 
-impl TryFrom<&str> for Config {
-    type Error = anyhow::Error;
+impl std::str::FromStr for Config {
+    type Err = anyhow::Error;
 
-    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+    fn from_str(spec: &str) -> Result<Self, Self::Err> {
         let mut args = spec.split('@');
         let module_name = args.next().unwrap();
         let algebra = match args.next() {
@@ -82,6 +82,15 @@ impl TryFrom<&str> for Config {
                 .with_context(|| format!("Failed to load module: {module_name}"))?,
             algebra,
         })
+    }
+}
+
+/// Kept alongside [`FromStr`](std::str::FromStr) so that `&str` satisfies `TryInto<Config>`.
+impl TryFrom<&str> for Config {
+    type Error = anyhow::Error;
+
+    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+        spec.parse()
     }
 }
 
