@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         );
         e2.algebra()
             .resolution()
-            .compute_through_stem(res_max - shift);
+            .compute_through_stem(res_max - shift + Bidegree::n_s(0, 2));
     }
 
     let sec_e2 = Arc::new(SecondaryExtAlgebra::new(Arc::clone(&e2)));
