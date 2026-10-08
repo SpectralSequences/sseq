@@ -44,10 +44,9 @@ where
         let p = res.prime();
         let target = b + self.shift();
 
-        // Off the first quadrant Ext vanishes, a known zero. Inside it, an unresolved source means
-        // the page at `b` is unknown, so there is no differential. An unresolved target means no
-        // d2 has been recorded landing there yet, which `SecondaryResolution::e3_page` also reads
-        // as zero, so the whole source is a provisional cycle (`rows × 0`).
+        // Off the first quadrant Ext vanishes, a known zero. Inside it, an unresolved end means the
+        // page there is unknown, so there is no differential: treating an unresolved target as
+        // zero would make every source generator look like a surviving cycle.
         let gens = |x: Bidegree| -> Option<usize> {
             if x.n() < 0 || x.s() < 0 {
                 Some(0)
@@ -58,7 +57,7 @@ where
             }
         };
         let rows = gens(b)?;
-        let cols = gens(target).unwrap_or(0);
+        let cols = gens(target)?;
 
         let mut mat = Matrix::new(p, rows, cols);
         // `m[i]` is the d2 of the i-th generator of `b`, as a vector at `target`.
