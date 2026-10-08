@@ -60,22 +60,22 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
 
         F::generate_basis(self, max_degree);
 
-        // Populate hash map (unused for seqno-applicable cases, but kept for non-applicable ones)
-        self.basis_element_to_index_map
-            .extend(max_degree as usize, |d| {
-                let mut map = HashMap::default();
-                let dim = self.dimension(d as i32);
-                map.reserve(dim);
-                for i in 0..dim {
-                    let b = self.basis_element_from_index(d as i32, i);
-                    assert!(map.insert(b, i).is_none(), "Duplicate entry for {b}");
-                }
-                map
-            });
-
-        // Build seqno tables if applicable
+        // Build only the index path required by the lookup method
         if self.seqno_applicable() {
             self.compute_seqno_tables(max_degree);
+        } else {
+            // Populate hash map for non-seqno-applicable cases
+            self.basis_element_to_index_map
+                .extend(max_degree as usize, |d| {
+                    let mut map = HashMap::default();
+                    let dim = self.dimension(d as i32);
+                    map.reserve(dim);
+                    for i in 0..dim {
+                        let b = self.basis_element_from_index(d as i32, i);
+                        assert!(map.insert(b, i).is_none(), "Duplicate entry for {b}");
+                    }
+                    map
+                });
         }
 
         #[cfg(feature = "cache-multiplication")]
@@ -236,13 +236,18 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
             map(
                 (tag("P^"), digits, char('_'), digits::<usize>),
                 |(_, s, _, t)| {
-                    let entry = p.pow(s);
-                    let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
-                    // Packing the entry and computing the basis both assert their range, where an
-                    // unpacked p-part simply stored the value.
-                    if degree > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
+                    if t == 0 || t > PPart::MAX_LEN {
                         return None;
                     }
+                    let entry = p.pow(s);
+                    let xi_degree = combinatorics::xi_degrees(p)[t - 1];
+                    let degree = (entry as i32).checked_mul(self.q()).and_then(|q| {
+                        q.checked_mul(xi_degree)
+                    });
+                    if degree.is_none() || degree.unwrap() > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
+                        return None;
+                    }
+                    let degree = degree.unwrap();
                     let mut p_part = PPart::zero();
                     p_part.set(t - 1, entry);
                     let elt = MilnorBasisElement {
@@ -264,7 +269,13 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
                     )),
                 ),
                 |(q_list, p_list)| {
-                    let q_part = q_list.into_iter().fold(0, |acc, q| acc + (1 << q));
+                    let mut q_part = 0u32;
+                    for q in q_list {
+                        if q >= 32 {
+                            return None;
+                        }
+                        q_part = q_part.checked_add(1 << q)?;
+                    }
                     let p_part = PPart::try_from_slice(&p_list.unwrap_or_default())?;
                     let mut elt = MilnorBasisElement {
                         degree: 0,
