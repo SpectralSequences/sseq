@@ -72,7 +72,7 @@ impl MilnorProfile {
         if !self.truncated {
             return false;
         }
-        if self.p_part.len() != self.p_part[0] as usize {
+        if self.p_part.first().copied() != Some(self.p_part.len() as PPartEntry) {
             return false;
         }
         if has_exterior && self.q_part != (1 << (self.p_part.len() + 1)) - 1 {

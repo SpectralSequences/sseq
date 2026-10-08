@@ -27,6 +27,7 @@ pub use profile::MilnorProfile;
 pub use shape::{Exterior, MilnorShape, NoExterior};
 
 /// Flat, contiguous storage for the "seqno" (hash-free index) computation.
+///
 /// Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives at
 /// `g[e * width + h]`; degrees `0..=max_degree` are populated.
 struct SeqnoTables {
@@ -105,9 +106,10 @@ pub struct MilnorAlgebraInner<F: MilnorShape> {
     /// degree -> MilnorBasisElement -> index (for non-seqno-applicable cases only)
     basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>,
 
-    /// Table backing the seqno (hash-free index) computation, populated only when seqno is applicable
-    /// (p = 2, trivial profile, stable). Stored behind an ArcSwapOption so reads are a single guard
-    /// load followed by direct indexing.
+    /// Table backing the seqno (hash-free index) computation, populated when applicable.
+    ///
+    /// Populated only when seqno is applicable (p=2, trivial profile, stable). Stored behind an
+    /// ArcSwapOption so reads are a single guard load followed by direct indexing.
     seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
@@ -342,14 +344,17 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         });
     }
 
-    /// Whether seqno (hash-free index) can be used. Requires p=2, trivial profile, and stable ordering.
+    /// Whether seqno (hash-free index) can be used.
+    ///
+    /// Requires p=2, trivial profile, and stable ordering.
     fn seqno_applicable(&self) -> bool {
         self.p == fp::prime::TWO && !self.unstable_enabled && self.profile.is_trivial()
     }
 
-    /// Build the flat SeqnoTables up to `max_degree`. Idempotent: if the stored tables already
-    /// reach `max_degree` this returns immediately; otherwise it rebuilds the whole table and
-    /// atomically swaps it in.
+    /// Build the flat SeqnoTables up to `max_degree`.
+    ///
+    /// Idempotent: if the stored tables already reach `max_degree` this returns immediately;
+    /// otherwise it rebuilds the whole table and atomically swaps it in.
     pub fn compute_seqno_tables(&self, max_degree: i32) {
         assert!(self.seqno_applicable());
         assert!(
@@ -422,9 +427,10 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         }
     }
 
-    /// The index of `P(p_part)` in the Milnor basis of `degree`. Computed hash-free from
-    /// precomputed tables. Assumes seqno is applicable and that `p_part` is a genuine basis
-    /// element (trimmed, in range) of `degree`.
+    /// The index of `P(p_part)` in the Milnor basis of `degree`.
+    ///
+    /// Computed hash-free from precomputed tables. Assumes seqno is applicable and that
+    /// `p_part` is a genuine basis element (trimmed, in range) of `degree`.
     pub fn seqno(&self, p_part: PPart, degree: i32) -> usize {
         self.seqno_ranker().rank(p_part, degree)
     }
