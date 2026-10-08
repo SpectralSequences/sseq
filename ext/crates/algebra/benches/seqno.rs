@@ -32,8 +32,7 @@ fn seqno(c: &mut Criterion) {
             .collect();
 
         // Build a local hashmap to measure actual hashmap performance, not seqno routing.
-        let map: FxHashMap<_, usize> =
-            basis.iter().enumerate().map(|(i, e)| (*e, i)).collect();
+        let map: FxHashMap<_, usize> = basis.iter().enumerate().map(|(i, e)| (*e, i)).collect();
 
         g.throughput(Throughput::Elements(dim as u64));
 

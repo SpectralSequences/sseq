@@ -179,7 +179,17 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
         if self.seqno_applicable() {
-            Some(self.seqno(elt.p_part, elt.degree))
+            // `seqno` trusts its inputs, so reject anything that is not a polynomial-part element
+            // of the stated degree within the computed range.
+            let xi = combinatorics::xi_degrees(self.p);
+            let degree: i32 = elt.p_part.iter().zip(xi).map(|(r, &x)| r as i32 * x).sum();
+            let in_range = self
+                .seqno_tables
+                .load()
+                .as_ref()
+                .is_some_and(|t| (0..=t.max_degree).contains(&elt.degree));
+            (elt.q_part == 0 && degree == elt.degree && in_range)
+                .then(|| self.seqno(elt.p_part, elt.degree))
         } else {
             self.basis_element_to_index_map[elt.degree as usize]
                 .get(elt)
@@ -346,9 +356,12 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
 
     /// Whether seqno (hash-free index) can be used.
     ///
-    /// Requires p=2, trivial profile, and stable ordering.
+    /// Requires p=2, the polynomial shape (no Q part), trivial profile, and stable ordering.
     fn seqno_applicable(&self) -> bool {
-        self.p == fp::prime::TWO && !self.unstable_enabled && self.profile.is_trivial()
+        !F::HAS_EXTERIOR
+            && self.p == fp::prime::TWO
+            && !self.unstable_enabled
+            && self.profile.is_trivial()
     }
 
     /// Build the flat SeqnoTables up to `max_degree`.

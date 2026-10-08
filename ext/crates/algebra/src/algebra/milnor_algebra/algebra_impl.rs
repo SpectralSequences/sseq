@@ -241,10 +241,13 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
                     }
                     let entry = p.pow(s);
                     let xi_degree = combinatorics::xi_degrees(p)[t - 1];
-                    let degree = (entry as i32).checked_mul(self.q()).and_then(|q| {
-                        q.checked_mul(xi_degree)
-                    });
-                    if degree.is_none() || degree.unwrap() > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
+                    let degree = (entry as i32)
+                        .checked_mul(self.q())
+                        .and_then(|q| q.checked_mul(xi_degree));
+                    if degree.is_none()
+                        || degree.unwrap() > PPart::MAX_DEGREE
+                        || entry > PPart::max_entry(t - 1)
+                    {
                         return None;
                     }
                     let degree = degree.unwrap();
