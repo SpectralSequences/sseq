@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 #[cfg(feature = "cache-multiplication")]
 use fp::vector::FpVector;
@@ -26,6 +26,61 @@ pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
 pub use shape::{Exterior, MilnorShape, NoExterior};
 
+/// Flat, contiguous storage for the "seqno" (hash-free index) computation.
+/// Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives at
+/// `g[e * width + h]`; degrees `0..=max_degree` are populated.
+struct SeqnoTables {
+    max_degree: i32,
+    width: usize,
+    g: Vec<usize>,
+}
+
+/// A borrowed view of the seqno tables, acquired once for a batch of lookups.
+///
+/// Holding this pins the revision of the tables that was current at acquisition, so
+/// the per-lookup cost is the rank itself with no atomic. It is therefore valid only for
+/// the degrees that revision covered: a ranker held across a concurrent grow will not see
+/// the new degrees, and ranking one panics.
+pub struct SeqnoRanker {
+    tables: Arc<SeqnoTables>,
+    xi: &'static [i32],
+}
+
+impl SeqnoRanker {
+    /// The index of `P(p_part)` in the Milnor basis of `degree`.
+    #[inline]
+    pub fn rank(&self, p_part: PPart, degree: i32) -> usize {
+        let t = &*self.tables;
+        let w = t.width;
+        debug_assert_eq!(
+            degree,
+            p_part
+                .iter()
+                .zip(self.xi)
+                .map(|(r, &x)| r as i32 * x)
+                .sum::<i32>(),
+            "degree {degree} does not match the p-part {p_part:?}"
+        );
+        debug_assert!(
+            degree <= t.max_degree,
+            "degree {degree} exceeds seqno tables built to {}",
+            t.max_degree
+        );
+        let mut cur_d = degree;
+        let mut rank = 0;
+        for h in (1..p_part.len()).rev() {
+            let r = p_part.get(h) as i32;
+            if r == 0 {
+                continue;
+            }
+            let below = cur_d - r * self.xi[h];
+            rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
+            cur_d = below;
+        }
+        rank
+    }
+}
+
 pub struct MilnorAlgebraInner<F: MilnorShape> {
     profile: MilnorProfile,
     p: ValidPrime,
@@ -47,8 +102,13 @@ pub struct MilnorAlgebraInner<F: MilnorShape> {
 
     excess_table: OnceVec<Vec<usize>>,
 
-    /// degree -> MilnorBasisElement -> index
+    /// degree -> MilnorBasisElement -> index (for non-seqno-applicable cases only)
     basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>,
+
+    /// Table backing the seqno (hash-free index) computation, populated only when seqno is applicable
+    /// (p = 2, trivial profile, stable). Stored behind an ArcSwapOption so reads are a single guard
+    /// load followed by direct indexing.
+    seqno_tables: arc_swap::ArcSwapOption<SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -77,6 +137,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
+            seqno_tables: arc_swap::ArcSwapOption::empty(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
         }
@@ -115,9 +176,13 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        self.basis_element_to_index_map[elt.degree as usize]
-            .get(elt)
-            .copied()
+        if self.seqno_applicable() {
+            Some(self.seqno(elt.p_part, elt.degree))
+        } else {
+            self.basis_element_to_index_map[elt.degree as usize]
+                .get(elt)
+                .copied()
+        }
     }
 
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
@@ -276,6 +341,93 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             new_entry
         });
     }
+
+    /// Whether seqno (hash-free index) can be used. Requires p=2, trivial profile, and stable ordering.
+    fn seqno_applicable(&self) -> bool {
+        self.p == fp::prime::TWO && !self.unstable_enabled && self.profile.is_trivial()
+    }
+
+    /// Build the flat SeqnoTables up to `max_degree`. Idempotent: if the stored tables already
+    /// reach `max_degree` this returns immediately; otherwise it rebuilds the whole table and
+    /// atomically swaps it in.
+    pub fn compute_seqno_tables(&self, max_degree: i32) {
+        assert!(self.seqno_applicable());
+        assert!(
+            (0..=PPart::MAX_DEGREE).contains(&max_degree),
+            "seqno tables only supported for degrees 0..={}, got {max_degree}",
+            PPart::MAX_DEGREE,
+        );
+        if let Some(t) = &*self.seqno_tables.load()
+            && t.max_degree >= max_degree
+        {
+            return;
+        }
+
+        let xi = combinatorics::xi_degrees(self.prime());
+        let width = xi.len();
+        let rows = max_degree as usize + 1;
+
+        let mut n = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for m in 0..width {
+                let without = if m == 0 {
+                    (e == 0) as usize
+                } else {
+                    n[base + m - 1]
+                };
+                let with = if xi[m] <= e {
+                    n[(e - xi[m]) as usize * width + m]
+                } else {
+                    0
+                };
+                n[base + m] = without + with;
+            }
+        }
+
+        let mut g = vec![0usize; rows * width];
+        for e in 0..=max_degree {
+            let base = e as usize * width;
+            for h in 1..width {
+                let head = n[base + h - 1];
+                let tail = if xi[h] <= e {
+                    g[(e - xi[h]) as usize * width + h]
+                } else {
+                    0
+                };
+                g[base + h] = head + tail;
+            }
+        }
+
+        let new_tables = Arc::new(SeqnoTables {
+            max_degree,
+            width,
+            g,
+        });
+        self.seqno_tables.rcu(|current| match current.as_deref() {
+            Some(t) if t.max_degree >= max_degree => current.clone(),
+            _ => Some(new_tables.clone()),
+        });
+    }
+
+    /// A handle to acquire seqno tables once for a batch of lookups.
+    pub fn seqno_ranker(&self) -> SeqnoRanker {
+        debug_assert!(self.seqno_applicable());
+        SeqnoRanker {
+            tables: self
+                .seqno_tables
+                .load_full()
+                .expect("seqno tables not built; call compute_seqno_tables first"),
+            xi: combinatorics::xi_degrees(self.prime()),
+        }
+    }
+
+    /// The index of `P(p_part)` in the Milnor basis of `degree`. Computed hash-free from
+    /// precomputed tables. Assumes seqno is applicable and that `p_part` is a genuine basis
+    /// element (trimmed, in range) of `degree`.
+    pub fn seqno(&self, p_part: PPart, degree: i32) -> usize {
+        self.seqno_ranker().rank(p_part, degree)
+    }
 }
 
 /// Forward an inherent method to whichever shape this algebra has.
@@ -314,6 +466,18 @@ impl MilnorAlgebra {
         pub fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize);
         pub fn multiply(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement);
         pub fn multiply_with_allocation(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement, excess: i32, allocation: PPartAllocation) -> PPartAllocation;
+        pub fn seqno_applicable(&self) -> bool;
+        pub fn seqno_ranker(&self) -> SeqnoRanker;
+        pub fn seqno(&self, p_part: PPart, degree: i32) -> usize;
+        pub fn compute_seqno_tables(&self, max_degree: i32);
+    }
+
+    /// Whether this algebra is generic (odd primes).
+    pub fn generic(&self) -> bool {
+        match self {
+            MilnorAlgebra::Polynomial(a) => a.p != fp::prime::TWO,
+            MilnorAlgebra::Exterior(a) => a.p != fp::prime::TWO,
+        }
     }
 
     /// The classical dual Steenrod algebra at `p`.
@@ -511,6 +675,26 @@ mod tests {
             for i in 0..algebra.dimension(t) {
                 let elt = algebra.basis_element_from_index(t, i);
                 assert_eq!(algebra.basis_element_to_index(&elt), i);
+            }
+        }
+    }
+
+    /// At `p = 2` with stable ordering and trivial profile, seqno is the index method.
+    /// Verify it produces the correct indices for all basis elements.
+    #[test]
+    fn seqno_matches_enumeration_order() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        let max_degree = 100;
+        algebra.compute_basis(max_degree);
+        for d in 0..=max_degree {
+            let dim = algebra.dimension(d);
+            for i in 0..dim {
+                let elt = algebra.basis_element_from_index(d, i);
+                assert_eq!(
+                    algebra.basis_element_to_index(&elt),
+                    i,
+                    "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                );
             }
         }
     }

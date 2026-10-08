@@ -60,7 +60,7 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
 
         F::generate_basis(self, max_degree);
 
-        // Populate hash map
+        // Populate hash map (unused for seqno-applicable cases, but kept for non-applicable ones)
         self.basis_element_to_index_map
             .extend(max_degree as usize, |d| {
                 let mut map = HashMap::default();
@@ -72,6 +72,11 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
                 }
                 map
             });
+
+        // Build seqno tables if applicable
+        if self.seqno_applicable() {
+            self.compute_seqno_tables(max_degree);
+        }
 
         #[cfg(feature = "cache-multiplication")]
         {
