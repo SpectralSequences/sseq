@@ -833,7 +833,7 @@ pub(crate) mod secondary {
             };
             let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
-            // The E3 page at the λ-part's source; its quotient (the image of d₂)
+            // The quotient of the E3 page at the λ-part's source (the image of d₂)
             // reduces the λ part of each output.
             let lambda_page = e3_page.and_then(|f| f(lambda_source));
 

@@ -20,12 +20,10 @@ use crate::{
     },
 };
 
-/// The Adams $d_2$ presented as an [`ExtDifferential`] on the primary
-/// [`ExtModule`]: the same coboundary shape as the motivic $\delta$, only with the
-/// Adams shift $(n, s) \mapsto (n-1, s+2)$. Its matrix out of a bidegree is exactly
-/// the $d_2$ the secondary resolution's homotopies record. Attaching it makes
-/// [`ExtModule::cohomology_subquotient`] compute the $E_3$ page on the shared
-/// kernel-mod-image path — the same object the spectral-sequence bookkeeping gives.
+/// The Adams $d_2$ as an [`ExtDifferential`], with shift $(n, s) \mapsto (n-1, s+2)$.
+///
+/// Its matrix out of a bidegree is the $d_2$ recorded by the secondary resolution's homotopies, so
+/// attaching it to an [`ExtModule`] makes [`ExtModule::cohomology_subquotient`] the $E_3$ page.
 pub(crate) struct SecondaryCoboundary<CC: FreeChainComplex>
 where
     CC::Algebra: PairAlgebra,
@@ -46,27 +44,10 @@ where
         let p = res.prime();
         let target = b + self.shift();
 
-        // The shape must be exactly `gens(b) × gens(target)`: an `a × 0` (empty
-        // target — the whole source is a d2-cycle) and a `0 × b` (off-axis source,
-        // in-quadrant target — contributes to the ambient-`b` image) are genuinely
-        // different and both matter to `cohomology_subquotient`, so size each end at
-        // its own bidegree. Off the first quadrant Ext vanishes (0 generators, a
-        // *known* zero).
-        //
-        // The source and target ends differ when the bidegree is in the first
-        // quadrant but unresolved:
-        //   * Source `b` (rows): the page at `b` is then unknown, so the whole
-        //     differential is unavailable — `None`.
-        //   * Target (cols): the secondary resolution simply records no d2 landing
-        //     there yet. The E3-page convention (`SecondaryResolution::e3_page`)
-        //     treats an uncomputed outgoing differential as zero, so we give a
-        //     `rows × 0` matrix — the whole source is a *provisional* d2-cycle —
-        //     rather than `None`. (This `rows × 0` matrix is never consumed as an
-        //     incoming differential: the target bidegree's own subquotient short-
-        //     circuits to `None` at its numerator, since its rows are unresolved.)
-        //
-        // `gens` gives the generator count at an end, or `None` when the bidegree is
-        // in the first quadrant but unresolved (a known zero off the quadrant).
+        // Off the first quadrant Ext vanishes, a known zero. Inside it, an unresolved source means
+        // the page at `b` is unknown, so there is no differential. An unresolved target means no
+        // d2 has been recorded landing there yet, which `SecondaryResolution::e3_page` also reads
+        // as zero, so the whole source is a provisional cycle (`rows × 0`).
         let gens = |x: Bidegree| -> Option<usize> {
             if x.n() < 0 || x.s() < 0 {
                 Some(0)
@@ -76,15 +57,11 @@ where
                 None
             }
         };
-        // Source unresolved ⇒ unknown page ⇒ no differential; target unresolved ⇒ no
-        // d2 recorded yet ⇒ provisional cycle (`rows × 0`).
         let rows = gens(b)?;
         let cols = gens(target).unwrap_or(0);
 
         let mut mat = Matrix::new(p, rows, cols);
-        // Fill only when both ends carry generators; `m[i]` is the d2 of the i-th
-        // generator of `b`, as a vector at `target` — the same matrix
-        // `SecondaryResolution::e3_page` reads to install d2.
+        // `m[i]` is the d2 of the i-th generator of `b`, as a vector at `target`.
         if rows > 0 && cols > 0 {
             let m = self.res_lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
             if !m.is_empty() && !m[0].is_empty() {
@@ -127,10 +104,8 @@ where
     res_lift: Arc<SecondaryResolution<CC>>,
     /// `Arc`-shared with `res_lift` when `M == k`.
     unit_lift: Arc<SecondaryResolution<CC>>,
-    /// The primary Ext with the Adams $d_2$ ([`SecondaryCoboundary`]) attached: its
-    /// [`cohomology_subquotient`](ExtModule::cohomology_subquotient) is the $E_3$
-    /// page of $\Ext(M, k)$. The page is computed on demand from the extended
-    /// secondary homotopies — no separate spectral-sequence object.
+    /// The module with [`SecondaryCoboundary`] attached, so that its
+    /// [`cohomology_subquotient`](ExtModule::cohomology_subquotient) is the $E_3$ page.
     alg_d2: ExtModule<CC>,
     /// The unit Ext with $d_2$ attached: the $E_3$ page of $\Ext(k, k)$.
     unit_d2: ExtModule<CC>,
@@ -155,9 +130,7 @@ where
                 module.algebra().resolution(),
             )))
         };
-        // Ext-with-d2 objects whose `cohomology_subquotient` is the E3 page. The
-        // coboundary reads the secondary homotopies lazily, so building these before
-        // `extend_all` is cheap.
+        // The coboundary reads the secondary homotopies lazily, so this is cheap before `extend_all`.
         let alg_d2 = ExtModule::intrinsic(Arc::clone(module.resolution())).with_differential(
             Arc::new(SecondaryCoboundary {
                 res_lift: Arc::clone(&res_lift),
@@ -311,10 +284,7 @@ where
     ) -> Vec<SecondaryProduct> {
         let p = self.prime();
         let shift = x.degree();
-        // `hom_k` reduces the λ-part of the product by the image of d2 at the λ-part's
-        // source. Rather than reconstruct that bidegree here, hand it the E3 page as a
-        // function of bidegree (from the shared cohomology path on the primary Ext,
-        // where the product lands) and let `hom_k` query it at the right place.
+        // `hom_k` queries the page at the λ-part's source, which only it knows.
         let lambda_page = |bd: Bidegree| self.alg_d2.cohomology_subquotient(bd);
 
         let ext_dim = self
@@ -399,10 +369,8 @@ mod tests {
 
     #[test]
     fn d2_as_ext_differential_reproduces_the_e3_page() {
-        // The Adams d2 is an `ExtDifferential`: attaching `SecondaryCoboundary` to the
-        // primary ExtModule makes the shared `cohomology_subquotient` path compute the
-        // exact E3 page the spectral-sequence bookkeeping (`page_data`) gives — same
-        // dimension at every bidegree, and the same d2-image quotient.
+        // `cohomology_subquotient` under `SecondaryCoboundary` must match `page_data`: same
+        // dimension at every bidegree and the same d2-image quotient.
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(16, 6));
         let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
@@ -487,10 +455,7 @@ mod tests {
 
     #[test]
     fn secondary_product_runs_and_ext_part_is_the_primary_product() {
-        // End-to-end check of the product path after routing the E3 page onto the
-        // shared `cohomology_subquotient` (the λ-part reduce now reads it, not a
-        // separate Sseq): `secondary_multiply_into` runs, and every product's Ext part
-        // equals the primary Ext product x · source.
+        // Every product's Ext part equals the primary Ext product x · source.
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(10, 8));
         let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));

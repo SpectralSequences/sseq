@@ -268,9 +268,9 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         Self::new(resolution, algebra)
     }
 
-    /// Attach a DGA differential, turning this into the Ext DGA whose cohomology
-    /// is the next page (see [`ExtDifferential`] and [`Self::cohomology_dimension`]).
-    /// Without one, the cohomology is the field/minimal case — just the generators.
+    /// Attach a differential, so that the cohomology queries compute kernel mod image under it.
+    ///
+    /// Without one the coboundary is zero and the cohomology is the generators.
     #[must_use]
     pub fn with_differential(mut self, differential: Arc<dyn ExtDifferential>) -> Self {
         self.differential = Some(differential);
@@ -282,15 +282,8 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         self.differential.as_ref()
     }
 
-    /// The dimension of the DGA's cohomology at `b` — the "Ext part":
-    /// $\dim H_b = \dim\ker(\delta \text{ out of } b) - \mathrm{rank}(\delta \text{ into } b)
-    /// = \mathrm{gens}(b) - \mathrm{rank}\,\delta_{\text{out}}(b) - \mathrm{rank}\,\delta_{\text{in}}(b)$.
-    ///
-    /// With no differential (a field/minimal resolution, the zero coboundary) this
-    /// is exactly the generator count — the cohomology *is* $\Ext$, and "taking
-    /// cohomology" degenerates to reading generators. A nonzero differential (a
-    /// non-minimal resolution's $\Hom(d, k)$, or a deformation's connecting map)
-    /// makes it a genuine kernel-mod-image.
+    /// The dimension of the cohomology at `b`:
+    /// $\mathrm{gens}(b) - \mathrm{rank}\,\delta_{\text{out}}(b) - \mathrm{rank}\,\delta_{\text{in}}(b)$.
     ///
     /// `None` if either differential at `b` is out of the computed range. An unknown incoming rank
     /// is not read as zero: that would overstate the cohomology at the edge of the computed region.
@@ -299,17 +292,13 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
             return Some(self.dimension(b));
         };
         let gens = self.dimension(b);
-        // Nothing can survive in an empty bidegree, so neither differential has to be known.
-        // Without this, an empty bidegree at the edge of the computed region reads as unknown
-        // rather than as the zero it is.
+        // Nothing survives in an empty bidegree, so neither differential has to be known.
         if gens == 0 {
             return Some(0);
         }
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
-        // Each matrix must line up with the generator count, or an undersized one would understate
-        // a rank and overstate the cohomology (matching the shape checks in
-        // `cohomology_subquotient`).
+        // An undersized matrix would understate a rank and overstate the cohomology.
         let mut out = d.matrix(b)?;
         assert_eq!(
             out.rows(),
@@ -336,12 +325,11 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         Some(gens - rank_out - rank_in)
     }
 
-    /// The DGA's cohomology at `b` as a [`Subquotient`] of the generators — the
-    /// actual kernel-mod-image subspace, so callers get *representatives* of the
-    /// surviving classes, not just the [dimension](Self::cohomology_dimension).
-    /// The numerator is $\ker(\delta \text{ out of } b)$, the denominator is
-    /// $\operatorname{im}(\delta \text{ into } b)$. With no differential attached
-    /// every generator survives, so this is the full space.
+    /// The cohomology at `b` as a [`Subquotient`] of the generators, giving representatives of the
+    /// surviving classes.
+    ///
+    /// The numerator is $\ker(\delta \text{ out of } b)$ and the denominator is
+    /// $\operatorname{im}(\delta \text{ into } b)$.
     ///
     /// `None` if either differential at `b` is out of the computed range, as with
     /// [`cohomology_dimension`](Self::cohomology_dimension).
@@ -372,9 +360,7 @@ impl<CC: FreeChainComplex> ExtModule<CC> {
         aug.row_reduce();
         let numerator = aug.compute_kernel();
 
-        // Denominator: im(δ into b) = row space of δ out of the source bidegree. A
-        // well-shaped differential lands in the gens(b)-space (`dim` columns), so its
-        // rows are vectors of the right ambient.
+        // Denominator: im(δ into b) = row space of δ out of the source bidegree.
         let shift = d.shift();
         let source = Bidegree::n_s(b.n() - shift.n(), b.s() - shift.s());
         let m = d.matrix(source)?;
@@ -647,11 +633,7 @@ mod tests {
         // A synthetic rank-1 differential (0,2) -> (0,1) must kill both ends in
         // cohomology: h_0^2 by the outgoing rank, h_0 by the incoming rank. An
         // untouched bidegree (h_1) is unchanged.
-        // A differential shaped per the `matrix` contract: `gens(b)` rows,
-        // `gens(b + shift)` columns (0 off the first quadrant), with the single
-        // nonzero d2 entry d(h_0^2) = h_0 at (0,2) → (0,1). Sizing from the real
-        // generator counts keeps it a valid reference for `cohomology_subquotient`,
-        // not just the rank-only `cohomology_dimension`.
+        // Shaped per the `matrix` contract, with the single nonzero entry d(h_0^2) = h_0.
         struct MockDiff {
             dims: Arc<dyn Fn(Bidegree) -> usize + Send + Sync>,
         }
@@ -695,8 +677,6 @@ mod tests {
         assert_eq!(alg.cohomology_dimension(Bidegree::n_s(0, 1)), Some(0)); // incoming rank 1
         assert_eq!(alg.cohomology_dimension(Bidegree::n_s(1, 1)), Some(1)); // untouched
 
-        // The shape-correct mock drives `cohomology_subquotient` too: same answers,
-        // now with representatives.
         assert_eq!(
             alg.cohomology_subquotient(Bidegree::n_s(0, 2))
                 .unwrap()
