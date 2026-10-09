@@ -62,8 +62,7 @@ impl SeqnoRanker {
 }
 
 impl<F: MilnorShape> MilnorAlgebraInner<F> {
-    /// Whether seqno (hash-free index) can be used
-
+    /// Whether seqno (hash-free index) can be used.
     pub(super) fn seqno_applicable(&self) -> bool {
         !F::HAS_EXTERIOR
             && self.p == fp::prime::TWO
