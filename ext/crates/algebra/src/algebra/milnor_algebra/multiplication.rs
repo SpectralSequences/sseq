@@ -253,7 +253,8 @@ thread_local! {
 }
 
 impl PPartAllocation {
-    /// Create a `PPartAllocation` sized for products of total degree < 2^n - ε at p = 2.
+    /// This creates a PPartAllocation with enough capacity to handle mulitiply elements with
+    /// of total degree < 2^n - ε at p = 2.
     pub fn with_capacity(n: usize) -> Self {
         Self {
             m: Matrix2D::with_capacity(n + 1, n),
@@ -370,9 +371,8 @@ impl<const MOD4: bool> PPartMultiplier<MOD4> {
         }
     }
 
-    /// Compute the first `l > k` with `(sum + l) choose l != 0 mod p`, capped at `max + 1`.
-    ///
-    /// This is used to increment the matrix.
+    /// This compute the first l > k such that (sum + l) choose l != 0 mod p, stopping if we reach
+    /// max + 1. This is useful for incrementing the matrix.
     ///
     /// TODO: Improve odd prime performance
     fn next_val(&self, sum: PPartEntry, k: PPartEntry, max: PPartEntry) -> PPartEntry {

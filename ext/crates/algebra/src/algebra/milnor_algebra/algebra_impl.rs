@@ -236,21 +236,13 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
             map(
                 (tag("P^"), digits, char('_'), digits::<usize>),
                 |(_, s, _, t)| {
-                    if t == 0 || t > PPart::MAX_LEN {
-                        return None;
-                    }
                     let entry = p.pow(s);
-                    let xi_degree = combinatorics::xi_degrees(p)[t - 1];
-                    let degree = (entry as i32)
-                        .checked_mul(self.q())
-                        .and_then(|q| q.checked_mul(xi_degree));
-                    if degree.is_none()
-                        || degree.unwrap() > PPart::MAX_DEGREE
-                        || entry > PPart::max_entry(t - 1)
-                    {
+                    let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
+                    // Packing the entry and computing the basis both assert their range, where an
+                    // unpacked p-part simply stored the value.
+                    if degree > PPart::MAX_DEGREE || entry > PPart::max_entry(t - 1) {
                         return None;
                     }
-                    let degree = degree.unwrap();
                     let mut p_part = PPart::zero();
                     p_part.set(t - 1, entry);
                     let elt = MilnorBasisElement {
@@ -272,13 +264,7 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
                     )),
                 ),
                 |(q_list, p_list)| {
-                    let mut q_part = 0u32;
-                    for q in q_list {
-                        if q >= 32 {
-                            return None;
-                        }
-                        q_part = q_part.checked_add(1 << q)?;
-                    }
+                    let q_part = q_list.into_iter().fold(0, |acc, q| acc + (1 << q));
                     let p_part = PPart::try_from_slice(&p_list.unwrap_or_default())?;
                     let mut elt = MilnorBasisElement {
                         degree: 0,
