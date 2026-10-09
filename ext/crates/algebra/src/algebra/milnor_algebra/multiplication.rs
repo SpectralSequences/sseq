@@ -5,7 +5,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, two_sided};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
@@ -115,42 +115,73 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         if F::HAS_EXTERIOR {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
-                    self.prime(),
+                allocation = self.multiply_ppart(
+                    res.copy(),
+                    cc * coef,
                     basis.p_part,
                     m2.p_part,
-                    allocation,
                     basis.q_part,
                     target_deg,
+                    excess,
+                    allocation,
                 );
-
-                while let Some(c) = multiplier.next() {
-                    let idx = self.basis_element_to_index(&multiplier.ans);
-                    if idx < self.dimension_unstable(target_deg, excess) {
-                        res.add_basis_element(idx, c * cc * coef);
-                    }
-                }
-                allocation = multiplier.into_allocation()
             }
         } else {
-            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
-                self.prime(),
-                m1.p_part,
-                m2.p_part,
-                allocation,
-                0,
-                target_deg,
+            allocation = self.multiply_ppart(
+                res, coef, m1.p_part, m2.p_part, 0, target_deg, excess, allocation,
             );
-
-            while let Some(c) = multiplier.next() {
-                let idx = self.basis_element_to_index(&multiplier.ans);
-                if idx < self.dimension_unstable(target_deg, excess) {
-                    res.add_basis_element(idx, c * coef);
-                }
-            }
-            allocation = multiplier.into_allocation()
         }
         allocation
+    }
+
+    /// Add `coef` times $P(r) P(s)$ to `res`, giving every term the exterior part `q_part`. The
+    /// result lies in degree `target_deg`, and terms of excess larger than `excess` are dropped.
+    ///
+    /// At the prime 2 the terms are enumerated by [`two_sided::for_each_term`], which only visits
+    /// matrices that contribute. Otherwise we use [`PPartMultiplier`].
+    fn multiply_ppart(
+        &self,
+        mut res: FpSliceMut,
+        coef: u32,
+        r: PPart,
+        s: PPart,
+        q_part: u32,
+        target_deg: i32,
+        excess: i32,
+        allocation: PPartAllocation,
+    ) -> PPartAllocation {
+        let dim = self.dimension_unstable(target_deg, excess);
+        if self.prime() == 2 {
+            // The polynomial degree of the product is at most `target_deg / q`, with equality when
+            // there is no exterior part.
+            two_sided::for_each_term(target_deg / self.q(), r, s, |p_part| {
+                let idx = self.basis_element_to_index(&MilnorBasisElement {
+                    q_part,
+                    p_part,
+                    degree: target_deg,
+                });
+                if idx < dim {
+                    res.add_basis_element(idx, coef);
+                }
+            });
+            return allocation;
+        }
+
+        let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+            self.prime(),
+            r,
+            s,
+            allocation,
+            q_part,
+            target_deg,
+        );
+        while let Some(c) = multiplier.next() {
+            let idx = self.basis_element_to_index(&multiplier.ans);
+            if idx < dim {
+                res.add_basis_element(idx, c * coef);
+            }
+        }
+        multiplier.into_allocation()
     }
 
     pub fn multiply_basis_by_element(
@@ -585,9 +616,128 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<MOD4> {
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
+    use fp::vector::FpVector;
 
     use super::*;
-    use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
+    use crate::algebra::milnor_algebra::{Exterior, MilnorAlgebra, MilnorProfile, NoExterior};
+
+    /// The product the way it was computed before two-sided enumeration: walk every matrix with
+    /// [`PPartMultiplier`], at every prime.
+    fn reference_multiply<F: MilnorShape>(
+        algebra: &MilnorAlgebraInner<F>,
+        mut res: FpSliceMut,
+        m1: MilnorBasisElement,
+        m2: MilnorBasisElement,
+        excess: i32,
+    ) {
+        let target_deg = m1.degree + m2.degree;
+        let factors = if F::HAS_EXTERIOR {
+            algebra.multiply_qpart(m1, m2.q_part)
+        } else {
+            vec![(1, m1)]
+        };
+        for (cc, basis) in factors {
+            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+                algebra.prime(),
+                basis.p_part,
+                m2.p_part,
+                PPartAllocation::default(),
+                basis.q_part,
+                target_deg,
+            );
+            while let Some(c) = multiplier.next() {
+                let idx = algebra.basis_element_to_index(&multiplier.ans);
+                if idx < algebra.dimension_unstable(target_deg, excess) {
+                    res.add_basis_element(idx, c * cc);
+                }
+            }
+        }
+    }
+
+    /// Check every product of basis elements of total degree at most `max_degree` against
+    /// [`reference_multiply`], stably and, if the algebra supports it, at every excess. Returns the
+    /// number of non-zero products, so that callers can check the comparison was not vacuous.
+    fn check_against_reference<F: MilnorShape>(
+        algebra: &MilnorAlgebraInner<F>,
+        max_degree: i32,
+    ) -> usize {
+        algebra.compute_basis(max_degree);
+        let mut nonzero = 0;
+        for r_deg in 0..=max_degree {
+            for s_deg in 0..=max_degree - r_deg {
+                let out_deg = r_deg + s_deg;
+                let excesses: Vec<i32> = if algebra.unstable_enabled {
+                    (0..=out_deg).collect()
+                } else {
+                    vec![i32::MAX]
+                };
+                for r_idx in 0..algebra.dimension(r_deg) {
+                    for s_idx in 0..algebra.dimension(s_deg) {
+                        let m1 = algebra.basis_element_from_index(r_deg, r_idx);
+                        let m2 = algebra.basis_element_from_index(s_deg, s_idx);
+                        for &excess in &excesses {
+                            let mut want =
+                                FpVector::new(algebra.prime(), algebra.dimension(out_deg));
+                            let mut got = want.clone();
+                            reference_multiply(algebra, want.as_slice_mut(), m1, m2, excess);
+                            if excess == i32::MAX {
+                                algebra.multiply_basis_elements(
+                                    got.as_slice_mut(),
+                                    1,
+                                    r_deg,
+                                    r_idx,
+                                    s_deg,
+                                    s_idx,
+                                );
+                            } else {
+                                algebra.multiply_basis_elements_unstable(
+                                    got.as_slice_mut(),
+                                    1,
+                                    r_deg,
+                                    r_idx,
+                                    s_deg,
+                                    s_idx,
+                                    excess,
+                                );
+                            }
+                            assert_eq!(got, want, "{m1} * {m2} at excess {excess}");
+                            nonzero += usize::from(!want.is_zero());
+                        }
+                    }
+                }
+            }
+        }
+        nonzero
+    }
+
+    /// Two-sided enumeration agrees with the matrix walk on every product in low degrees, for the
+    /// full algebra, sub-Hopf algebras given by profiles (both truncated and not, and both of the
+    /// form $A(n)$ and not), and the unstable algebra.
+    #[rstest::rstest]
+    #[case::full(MilnorProfile::default(), false, 56)]
+    #[case::unstable(MilnorProfile::default(), true, 32)]
+    #[case::a2(MilnorProfile { q_part: !0, p_part: vec![3, 2, 1], truncated: true }, false, 46)]
+    #[case::truncated(MilnorProfile { q_part: !0, p_part: vec![2, 2, 1], truncated: true }, false, 50)]
+    #[case::untruncated(MilnorProfile { q_part: !0, p_part: vec![1, 2], truncated: false }, false, 50)]
+    fn two_sided_matches_matrix_walk(
+        #[case] profile: MilnorProfile,
+        #[case] unstable: bool,
+        #[case] max_degree: i32,
+    ) {
+        let algebra =
+            MilnorAlgebraInner::<NoExterior>::new_with_profile(fp::prime::TWO, profile, unstable);
+        assert!(check_against_reference(&algebra, max_degree) > 0);
+    }
+
+    /// Two-sided enumeration also handles the polynomial part of the exterior shape at the prime 2,
+    /// and odd primes still go through the matrix walk.
+    #[rstest::rstest]
+    #[case(2, 40)]
+    #[case(3, 80)]
+    fn exterior_matches_matrix_walk(#[case] p: u32, #[case] max_degree: i32) {
+        let algebra = MilnorAlgebraInner::<Exterior>::new(ValidPrime::new(p), false);
+        assert!(check_against_reference(&algebra, max_degree) > 0);
+    }
 
     #[test]
     fn try_beps_pn_milnor() {
