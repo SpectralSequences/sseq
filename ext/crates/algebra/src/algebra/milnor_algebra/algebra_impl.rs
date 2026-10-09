@@ -60,18 +60,23 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
 
         F::generate_basis(self, max_degree);
 
-        // Populate hash map
-        self.basis_element_to_index_map
-            .extend(max_degree as usize, |d| {
-                let mut map = HashMap::default();
-                let dim = self.dimension(d as i32);
-                map.reserve(dim);
-                for i in 0..dim {
-                    let b = self.basis_element_from_index(d as i32, i);
-                    assert!(map.insert(b, i).is_none(), "Duplicate entry for {b}");
-                }
-                map
-            });
+        // Build only the index path required by the lookup method
+        if self.seqno_applicable() {
+            self.compute_seqno_tables(max_degree);
+        } else {
+            // Populate hash map for non-seqno-applicable cases
+            self.basis_element_to_index_map
+                .extend(max_degree as usize, |d| {
+                    let mut map = HashMap::default();
+                    let dim = self.dimension(d as i32);
+                    map.reserve(dim);
+                    for i in 0..dim {
+                        let b = self.basis_element_from_index(d as i32, i);
+                        assert!(map.insert(b, i).is_none(), "Duplicate entry for {b}");
+                    }
+                    map
+                });
+        }
 
         #[cfg(feature = "cache-multiplication")]
         {

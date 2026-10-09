@@ -18,12 +18,14 @@ mod generated_impl;
 mod multiplication;
 mod ppart;
 mod profile;
+mod seqno;
 mod shape;
 
 pub use basis_element::MilnorBasisElement;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
+pub use seqno::SeqnoRanker;
 pub use shape::{Exterior, MilnorShape, NoExterior};
 
 pub struct MilnorAlgebraInner<F: MilnorShape> {
@@ -49,6 +51,9 @@ pub struct MilnorAlgebraInner<F: MilnorShape> {
 
     /// degree -> MilnorBasisElement -> index
     basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>,
+
+    /// Populated only when seqno is applicable (p=2, trivial profile, stable)
+    seqno_tables: arc_swap::ArcSwapOption<seqno::SeqnoTables>,
 
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
@@ -77,6 +82,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
+            seqno_tables: arc_swap::ArcSwapOption::empty(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
         }
@@ -115,9 +121,13 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     }
 
     pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        self.basis_element_to_index_map[elt.degree as usize]
-            .get(elt)
-            .copied()
+        if self.seqno_applicable() {
+            self.try_seqno(elt)
+        } else {
+            self.basis_element_to_index_map[elt.degree as usize]
+                .get(elt)
+                .copied()
+        }
     }
 
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
@@ -314,6 +324,10 @@ impl MilnorAlgebra {
         pub fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize);
         pub fn multiply(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement);
         pub fn multiply_with_allocation(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement, excess: i32, allocation: PPartAllocation) -> PPartAllocation;
+        pub fn seqno_applicable(&self) -> bool;
+        pub fn seqno_ranker(&self) -> SeqnoRanker;
+        pub fn seqno(&self, p_part: PPart, degree: i32) -> usize;
+        pub fn compute_seqno_tables(&self, max_degree: i32);
     }
 
     /// The classical dual Steenrod algebra at `p`.
@@ -511,6 +525,26 @@ mod tests {
             for i in 0..algebra.dimension(t) {
                 let elt = algebra.basis_element_from_index(t, i);
                 assert_eq!(algebra.basis_element_to_index(&elt), i);
+            }
+        }
+    }
+
+    /// At `p = 2` with stable ordering and trivial profile, seqno is the index method.
+    /// Verify it produces the correct indices for all basis elements.
+    #[test]
+    fn seqno_matches_enumeration_order() {
+        let algebra = MilnorAlgebra::new(ValidPrime::new(2), false);
+        let max_degree = 100;
+        algebra.compute_basis(max_degree);
+        for d in 0..=max_degree {
+            let dim = algebra.dimension(d);
+            for i in 0..dim {
+                let elt = algebra.basis_element_from_index(d, i);
+                assert_eq!(
+                    algebra.basis_element_to_index(&elt),
+                    i,
+                    "seqno mismatch at degree {d}, index {i}: {elt:?}"
+                );
             }
         }
     }
