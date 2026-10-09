@@ -138,8 +138,7 @@ macro_rules! dispatch_pair_milnor {
             match self {
                 MilnorAlgebra::Polynomial(a) => a.$method($($arg),*),
                 MilnorAlgebra::Exterior(_) => unimplemented!(
-                    "{}: the secondary Steenrod algebra is only defined for the classical algebra at p = 2",
-                    stringify!($method)
+                    "the secondary Steenrod algebra is only defined for the classical algebra at p = 2"
                 ),
             }
         }
