@@ -5,7 +5,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, seqno};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
@@ -135,7 +135,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         } else if self.seqno_applicable() {
             // Index the terms under one guard on the seqno tables rather than one per term.
             let dim = self.dimension_unstable(target_deg, excess);
-            allocation = self.with_seqno_tables(|tables, xi| {
+            allocation = self.with_seqno_tables(|tables| {
                 let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
                     self.prime(),
                     m1.p_part,
@@ -145,7 +145,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
                     target_deg,
                 );
                 while let Some(c) = multiplier.next() {
-                    let idx = seqno::rank(tables, xi, multiplier.ans.p_part, target_deg);
+                    let idx = tables.rank(multiplier.ans.p_part, target_deg);
                     if idx < dim {
                         res.add_basis_element(idx, c * coef);
                     }
