@@ -30,35 +30,41 @@ impl SeqnoRanker {
     /// The index of `P(p_part)` in the Milnor basis of `degree`.
     #[inline]
     pub fn rank(&self, p_part: PPart, degree: i32) -> usize {
-        let t = &*self.tables;
-        let w = t.width;
-        debug_assert_eq!(
-            degree,
-            p_part
-                .iter()
-                .zip(self.xi)
-                .map(|(r, &x)| r as i32 * x)
-                .sum::<i32>(),
-            "degree {degree} does not match the p-part {p_part:?}"
-        );
-        debug_assert!(
-            degree <= t.max_degree,
-            "degree {degree} exceeds seqno tables built to {}",
-            t.max_degree
-        );
-        let mut cur_d = degree;
-        let mut rank = 0;
-        for h in (1..p_part.len()).rev() {
-            let r = p_part.get(h) as i32;
-            if r == 0 {
-                continue;
-            }
-            let below = cur_d - r * self.xi[h];
-            rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
-            cur_d = below;
-        }
-        rank
+        rank(&self.tables, self.xi, p_part, degree)
     }
+}
+
+/// The index of `P(p_part)` in the Milnor basis of `degree`, read from `t`. `xi` holds the degrees
+/// of the $\xi_i$.
+#[inline]
+pub(super) fn rank(t: &SeqnoTables, xi: &[i32], p_part: PPart, degree: i32) -> usize {
+    let w = t.width;
+    debug_assert_eq!(
+        degree,
+        p_part
+            .iter()
+            .zip(xi)
+            .map(|(r, &x)| r as i32 * x)
+            .sum::<i32>(),
+        "degree {degree} does not match the p-part {p_part:?}"
+    );
+    debug_assert!(
+        degree <= t.max_degree,
+        "degree {degree} exceeds seqno tables built to {}",
+        t.max_degree
+    );
+    let mut cur_d = degree;
+    let mut rank = 0;
+    for h in (1..p_part.len()).rev() {
+        let r = p_part.get(h) as i32;
+        if r == 0 {
+            continue;
+        }
+        let below = cur_d - r * xi[h];
+        rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
+        cur_d = below;
+    }
+    rank
 }
 
 impl<F: MilnorShape> MilnorAlgebraInner<F> {
@@ -77,13 +83,26 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     pub(super) fn try_seqno(&self, elt: &MilnorBasisElement) -> Option<usize> {
         let xi = combinatorics::xi_degrees(self.p);
         let degree: i32 = elt.p_part.iter().zip(xi).map(|(r, &x)| r as i32 * x).sum();
-        let in_range = self
-            .seqno_tables
-            .load()
-            .as_ref()
-            .is_some_and(|t| (0..=t.max_degree).contains(&elt.degree));
-        (elt.q_part == 0 && degree == elt.degree && in_range)
-            .then(|| self.seqno(elt.p_part, elt.degree))
+        // A guard rather than a `SeqnoRanker`: cloning the `Arc` would make every lookup an atomic
+        // read-modify-write on a reference count shared by all threads.
+        let guard = self.seqno_tables.load();
+        let t = guard.as_deref()?;
+        (elt.q_part == 0 && degree == elt.degree && (0..=t.max_degree).contains(&elt.degree))
+            .then(|| rank(t, xi, elt.p_part, elt.degree))
+    }
+
+    /// Call `f` with the seqno tables and the degrees of the $\xi_i$, holding a single guard for
+    /// all of its lookups.
+    ///
+    /// # Panics
+    ///
+    /// If the tables have not been built.
+    pub(super) fn with_seqno_tables<R>(&self, f: impl FnOnce(&SeqnoTables, &[i32]) -> R) -> R {
+        let guard = self.seqno_tables.load();
+        let t = guard
+            .as_deref()
+            .expect("seqno tables not built; call compute_seqno_tables first");
+        f(t, combinatorics::xi_degrees(self.p))
     }
 
     /// Build the flat SeqnoTables up to `max_degree`.
@@ -167,6 +186,6 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Computed hash-free from precomputed tables. Assumes seqno is applicable and that
     /// `p_part` is a genuine basis element (trimmed, in range) of `degree`.
     pub fn seqno(&self, p_part: PPart, degree: i32) -> usize {
-        self.seqno_ranker().rank(p_part, degree)
+        self.with_seqno_tables(|t, xi| rank(t, xi, p_part, degree))
     }
 }
