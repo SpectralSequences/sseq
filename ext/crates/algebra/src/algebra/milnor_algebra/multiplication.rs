@@ -132,6 +132,26 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
                 }
                 allocation = multiplier.into_allocation()
             }
+        } else if self.seqno_applicable() {
+            // Index the terms under one guard on the seqno tables rather than one per term.
+            let dim = self.dimension_unstable(target_deg, excess);
+            allocation = self.with_seqno_tables(|tables| {
+                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+                    self.prime(),
+                    m1.p_part,
+                    m2.p_part,
+                    allocation,
+                    0,
+                    target_deg,
+                );
+                while let Some(c) = multiplier.next() {
+                    let idx = tables.rank(multiplier.ans.p_part, target_deg);
+                    if idx < dim {
+                        res.add_basis_element(idx, c * coef);
+                    }
+                }
+                multiplier.into_allocation()
+            });
         } else {
             let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
                 self.prime(),

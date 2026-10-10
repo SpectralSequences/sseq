@@ -45,10 +45,10 @@ fn seqno(c: &mut Criterion) {
         });
 
         g.bench_function(format!("seqno/deg{degree}"), |b| {
-            let ranker = algebra.seqno_ranker();
+            let tables = algebra.seqno_tables();
             b.iter(|| {
                 for elt in &basis {
-                    black_box(ranker.rank(elt.p_part, degree));
+                    black_box(tables.rank(elt.p_part, degree));
                 }
             });
         });
