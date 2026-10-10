@@ -9,62 +9,49 @@ use crate::algebra::{Algebra, combinatorics};
 ///
 /// Row-major with a fixed `width` (the number of ξ-degrees), so entry `(e, h)` lives at
 /// `g[e * width + h]`; degrees `0..=max_degree` are populated.
-pub(super) struct SeqnoTables {
+pub struct SeqnoTables {
     max_degree: i32,
     width: usize,
     g: Vec<usize>,
-}
-
-/// A borrowed view of the seqno tables, acquired once for a batch of lookups.
-///
-/// Holding this pins the revision of the tables that was current at acquisition, so
-/// the per-lookup cost is the rank itself with no atomic. It is therefore valid only for
-/// the degrees that revision covered: a ranker held across a concurrent grow will not see
-/// the new degrees, and ranking one panics.
-pub struct SeqnoRanker {
-    tables: Arc<SeqnoTables>,
+    /// The degrees of the $\xi_i$ the tables were built from.
     xi: &'static [i32],
 }
 
-impl SeqnoRanker {
+impl SeqnoTables {
     /// The index of `P(p_part)` in the Milnor basis of `degree`.
+    ///
+    /// `p_part` must be a basis element of `degree`, and `degree` at most the degree the tables
+    /// were built to.
     #[inline]
     pub fn rank(&self, p_part: PPart, degree: i32) -> usize {
-        rank(&self.tables, self.xi, p_part, degree)
-    }
-}
-
-/// The index of `P(p_part)` in the Milnor basis of `degree`, read from `t`. `xi` holds the degrees
-/// of the $\xi_i$.
-#[inline]
-pub(super) fn rank(t: &SeqnoTables, xi: &[i32], p_part: PPart, degree: i32) -> usize {
-    let w = t.width;
-    debug_assert_eq!(
-        degree,
-        p_part
-            .iter()
-            .zip(xi)
-            .map(|(r, &x)| r as i32 * x)
-            .sum::<i32>(),
-        "degree {degree} does not match the p-part {p_part:?}"
-    );
-    debug_assert!(
-        degree <= t.max_degree,
-        "degree {degree} exceeds seqno tables built to {}",
-        t.max_degree
-    );
-    let mut cur_d = degree;
-    let mut rank = 0;
-    for h in (1..p_part.len()).rev() {
-        let r = p_part.get(h) as i32;
-        if r == 0 {
-            continue;
+        let w = self.width;
+        debug_assert_eq!(
+            degree,
+            p_part
+                .iter()
+                .zip(self.xi)
+                .map(|(r, &x)| r as i32 * x)
+                .sum::<i32>(),
+            "degree {degree} does not match the p-part {p_part:?}"
+        );
+        debug_assert!(
+            degree <= self.max_degree,
+            "degree {degree} exceeds seqno tables built to {}",
+            self.max_degree
+        );
+        let mut cur_d = degree;
+        let mut rank = 0;
+        for h in (1..p_part.len()).rev() {
+            let r = p_part.get(h) as i32;
+            if r == 0 {
+                continue;
+            }
+            let below = cur_d - r * self.xi[h];
+            rank += self.g[cur_d as usize * w + h] - self.g[below as usize * w + h];
+            cur_d = below;
         }
-        let below = cur_d - r * xi[h];
-        rank += t.g[cur_d as usize * w + h] - t.g[below as usize * w + h];
-        cur_d = below;
+        rank
     }
-    rank
 }
 
 impl<F: MilnorShape> MilnorAlgebraInner<F> {
@@ -81,28 +68,30 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// [`Self::seqno`] trusts its input, so this rejects an element with a Q part, a degree that
     /// does not match its p-part, or a degree beyond the tables.
     pub(super) fn try_seqno(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        let xi = combinatorics::xi_degrees(self.p);
-        let degree: i32 = elt.p_part.iter().zip(xi).map(|(r, &x)| r as i32 * x).sum();
-        // A guard rather than a `SeqnoRanker`: cloning the `Arc` would make every lookup an atomic
-        // read-modify-write on a reference count shared by all threads.
+        // A guard rather than `Self::seqno_tables`: cloning the `Arc` would make every lookup an
+        // atomic read-modify-write on a reference count shared by all threads.
         let guard = self.seqno_tables.load();
         let t = guard.as_deref()?;
+        let degree: i32 = elt
+            .p_part
+            .iter()
+            .zip(t.xi)
+            .map(|(r, &x)| r as i32 * x)
+            .sum();
         (elt.q_part == 0 && degree == elt.degree && (0..=t.max_degree).contains(&elt.degree))
-            .then(|| rank(t, xi, elt.p_part, elt.degree))
+            .then(|| t.rank(elt.p_part, elt.degree))
     }
 
-    /// Call `f` with the seqno tables and the degrees of the $\xi_i$, holding a single guard for
-    /// all of its lookups.
+    /// Call `f` with the seqno tables, holding a single guard for all of its lookups.
     ///
     /// # Panics
     ///
     /// If the tables have not been built.
-    pub(super) fn with_seqno_tables<R>(&self, f: impl FnOnce(&SeqnoTables, &[i32]) -> R) -> R {
+    pub(super) fn with_seqno_tables<R>(&self, f: impl FnOnce(&SeqnoTables) -> R) -> R {
         let guard = self.seqno_tables.load();
-        let t = guard
+        f(guard
             .as_deref()
-            .expect("seqno tables not built; call compute_seqno_tables first");
-        f(t, combinatorics::xi_degrees(self.p))
+            .expect("seqno tables not built; call compute_seqno_tables first"))
     }
 
     /// Build the flat SeqnoTables up to `max_degree`.
@@ -162,6 +151,7 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             max_degree,
             width,
             g,
+            xi,
         });
         self.seqno_tables.rcu(|current| match current.as_deref() {
             Some(t) if t.max_degree >= max_degree => current.clone(),
@@ -169,16 +159,20 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
         });
     }
 
-    /// A handle to acquire seqno tables once for a batch of lookups.
-    pub fn seqno_ranker(&self) -> SeqnoRanker {
+    /// The current seqno tables, to rank a batch of elements with [`SeqnoTables::rank`].
+    ///
+    /// Cloning the `Arc` touches a reference count shared by all threads, so acquire the tables
+    /// once per batch rather than once per lookup. They cover only the degrees computed when they
+    /// were acquired: tables held across a concurrent grow will not see the new degrees.
+    ///
+    /// # Panics
+    ///
+    /// If the tables have not been built.
+    pub fn seqno_tables(&self) -> Arc<SeqnoTables> {
         debug_assert!(self.seqno_applicable());
-        SeqnoRanker {
-            tables: self
-                .seqno_tables
-                .load_full()
-                .expect("seqno tables not built; call compute_seqno_tables first"),
-            xi: combinatorics::xi_degrees(self.prime()),
-        }
+        self.seqno_tables
+            .load_full()
+            .expect("seqno tables not built; call compute_seqno_tables first")
     }
 
     /// The index of `P(p_part)` in the Milnor basis of `degree`.
@@ -186,6 +180,6 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// Computed hash-free from precomputed tables. Assumes seqno is applicable and that
     /// `p_part` is a genuine basis element (trimmed, in range) of `degree`.
     pub fn seqno(&self, p_part: PPart, degree: i32) -> usize {
-        self.with_seqno_tables(|t, xi| rank(t, xi, p_part, degree))
+        self.with_seqno_tables(|t| t.rank(p_part, degree))
     }
 }

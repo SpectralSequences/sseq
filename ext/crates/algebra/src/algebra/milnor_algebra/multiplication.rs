@@ -5,9 +5,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{
-    MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, antidiagonal, seqno,
-};
+use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, antidiagonal};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
@@ -157,9 +155,9 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
             if self.seqno_applicable() {
                 // Index the terms under one guard on the seqno tables rather than one per term.
                 // There is no exterior part, so the polynomial degree is `target_deg`.
-                self.with_seqno_tables(|tables, xi| {
+                self.with_seqno_tables(|tables| {
                     antidiagonal::for_each_term(target_deg, r, s, |p_part| {
-                        let idx = seqno::rank(tables, xi, p_part, target_deg);
+                        let idx = tables.rank(p_part, target_deg);
                         if idx < dim {
                             res.add_basis_element(idx, coef);
                         }
