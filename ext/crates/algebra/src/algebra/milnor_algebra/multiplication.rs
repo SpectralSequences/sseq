@@ -5,7 +5,9 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 
-use super::{MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, antidiagonal};
+use super::{
+    MilnorAlgebraInner, MilnorBasisElement, MilnorShape, PPart, PPartEntry, antidiagonal, seqno,
+};
 use crate::algebra::{Algebra, UnstableAlgebra};
 
 // Multiplication logic
@@ -152,6 +154,19 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     ) -> PPartAllocation {
         let dim = self.dimension_unstable(target_deg, excess);
         if self.prime() == 2 {
+            if self.seqno_applicable() {
+                // Index the terms under one guard on the seqno tables rather than one per term.
+                // There is no exterior part, so the polynomial degree is `target_deg`.
+                self.with_seqno_tables(|tables, xi| {
+                    antidiagonal::for_each_term(target_deg, r, s, |p_part| {
+                        let idx = seqno::rank(tables, xi, p_part, target_deg);
+                        if idx < dim {
+                            res.add_basis_element(idx, coef);
+                        }
+                    })
+                });
+                return allocation;
+            }
             // The polynomial degree of the product is at most `target_deg / q`, with equality when
             // there is no exterior part.
             antidiagonal::for_each_term(target_deg / self.q(), r, s, |p_part| {

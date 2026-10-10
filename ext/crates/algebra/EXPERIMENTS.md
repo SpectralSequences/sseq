@@ -38,3 +38,12 @@ pay. It survives as a `debug_assert!`.
 **Kept.** `seqno` acquires the guard on every call, which is one atomic per lookup and pure overhead
 in a loop that ranks many elements. `seqno_ranker` hoists the acquisition out of the loop; the
 `seqno` vs `seqno_naive` gap in `benches/seqno.rs` is what that is worth.
+
+### Per-lookup `Arc` clones
+
+**Rejected.** Lookups originally went through `seqno_ranker`, whose `load_full` clones the `Arc` on
+the tables: an atomic increment and decrement on a reference count that every thread shares. A
+single thread does not notice, but it made the concurrent Nassau resolver of `S_2` through n=110,
+s=40 on 4 cores take 259-311 s instead of 116 s. Single lookups now rank through an `arc_swap`
+guard, which touches only thread-local state, and `multiply_with_allocation` takes one guard per
+product rather than one per term; the same run takes 125-137 s.
