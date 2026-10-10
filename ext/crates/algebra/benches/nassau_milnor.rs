@@ -15,8 +15,8 @@
 //! — a fixed *operation* basis element times a general algebra *element*. Because the free module
 //! is `U = false`, the `MuAlgebra<false>` shim discards `excess` and routes to the plain **stable**
 //! multiply; every basis-by-basis product funnels through `MilnorAlgebra::multiply_with_allocation`
-//! (`excess = i32::MAX`, no instability truncation) into the `PPartMultiplier::<false>` sweep — the
-//! innermost kernel. The `*_unstable` entry points are never taken.
+//! (`excess = i32::MAX`, no instability truncation) into the anti-diagonal enumeration — the
+//! innermost kernel at p = 2. The `*_unstable` entry points are never taken.
 //!
 //! ## Where the regime comes from
 //!
