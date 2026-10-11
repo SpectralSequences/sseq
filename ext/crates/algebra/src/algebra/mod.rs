@@ -16,7 +16,7 @@ pub mod field;
 pub use field::Field;
 
 pub mod milnor_algebra;
-pub use milnor_algebra::MilnorAlgebra;
+pub use milnor_algebra::{MilnorAlgebra, SteenrodKind};
 
 pub mod motivic;
 pub use motivic::MotivicMilnorAlgebra;
