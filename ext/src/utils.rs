@@ -20,10 +20,12 @@ use crate::{
 #[cfg(not(feature = "nassau"))]
 pub type QueryModuleResolution = Resolution<CCC>;
 
-/// The type returned by [`query_module`]. The value of this type depends on whether
-/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
-/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`] and supports the `compute_through_stem`
-/// function.
+/// The type returned by [`query_module`], which depends on whether the `nassau` feature is enabled.
+///
+/// Either way it is an augmented free chain complex over [`SteenrodAlgebra`] or [`MilnorAlgebra`]
+/// that supports `compute_through_stem`. Switching the type with a feature rather than through
+/// polymorphism is not what features are for, but it is the easiest way to let every example
+/// script use either resolution; with `nassau` enabled they all use [`crate::nassau::Resolution`].
 #[cfg(feature = "nassau")]
 pub type QueryModuleResolution = crate::nassau::Resolution<FDModule<MilnorAlgebra>>;
 
@@ -187,21 +189,18 @@ where
     if spec.basis(algebra)? == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
     }
-    if !spec.is_full_classical() {
-        return Err(anyhow!(
-            "Nassau's algorithm only supports the classical Steenrod algebra with no profile"
-        ));
-    }
-    if spec.p != 2 {
-        return Err(anyhow!("Nassau's algorithm does not support odd primes"));
-    }
     if json["type"].as_str() != Some("finite dimensional module") {
         return Err(anyhow!(
             "Nassau's algorithm only supports finite dimensional modules"
         ));
     }
 
-    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+    let SteenrodAlgebra::MilnorAlgebra(algebra) =
+        SteenrodAlgebra::from_json(&json, AlgebraType::Milnor, false)?
+    else {
+        return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
+    };
+    let algebra = Arc::new(algebra);
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
     if !json["cofiber"].is_null() {
