@@ -282,6 +282,13 @@ impl<P: Prime> FieldInternal for SmallFq<P> {
         BITS_PER_LIMB - (self.q() - 1).leading_zeros() as usize + 1
     }
 
+    fn limbs_per_group(self) -> usize {
+        // Bit-sliced layout: one plane per bit of the encoded value. `encode` maps a^n to the
+        // odd number `2n + 1` (and zero to `0`), which occupies exactly `bit_length()` bits.
+        // The default element-wise `add_groups`/`scale_groups` use Zech-log field arithmetic.
+        self.bit_length()
+    }
+
     fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: FieldElement<Self>) -> Limb {
         let bit_length = self.bit_length();
         let mut result: Limb = 0;
