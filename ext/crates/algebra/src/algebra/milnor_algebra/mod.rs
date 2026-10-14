@@ -12,6 +12,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
 mod algebra_impl;
+mod antidiagonal;
 mod basis_element;
 mod bialgebra_impl;
 mod generated_impl;
