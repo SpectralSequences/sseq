@@ -357,7 +357,9 @@ impl Bialgebra for MilnorAlgebra {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         match self {
             Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
-            Self::Exterior(_) => unimplemented!("Coproduct at odd primes not supported"),
+            Self::Exterior(_) => {
+                unimplemented!("Coproduct is only supported for the classical algebra at p = 2")
+            }
         }
     }
 
