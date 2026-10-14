@@ -102,7 +102,9 @@ impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
 #[derive(Debug)]
 pub struct AlgebraSpec {
     pub p: ValidPrime,
-    /// The bases the module lists, if any. [`Self::bases`] fills in the default.
+    /// The bases the module lists, if any.
+    ///
+    /// [`Self::bases`] fills in the default.
     pub bases: Option<Vec<AlgebraType>>,
     pub profile: Option<MilnorProfile>,
 }
@@ -161,6 +163,9 @@ impl SteenrodAlgebra {
         let spec = AlgebraSpec::from_json(json)?;
 
         let bases = spec.bases();
+        if spec.profile.is_some() && bases.contains(&AlgebraType::Adem) {
+            return Err(anyhow!("The Adem basis does not support a profile"));
+        }
         if !bases.contains(&algebra_type) {
             println!("Module does not support algebra {algebra_type}");
             println!("Using {} instead", bases[0]);
@@ -299,6 +304,15 @@ mod tests {
         let json = json!({ "p": 2, "algebra": { "profile": profile } });
         let algebra = SteenrodAlgebra::from_json(&json, AlgebraType::Adem, false).unwrap();
         assert!(matches!(algebra, SteenrodAlgebra::MilnorAlgebra(_)));
+    }
+
+    /// The Adem basis would silently drop the profile.
+    #[test]
+    fn profile_rejects_adem() {
+        let profile = json!({ "truncated": true, "p_part": [1] });
+        let json =
+            json!({ "p": 2, "algebra": { "bases": ["milnor", "adem"], "profile": profile } });
+        assert!(milnor(json).is_err());
     }
 
     /// The fields of the old flat format are refused rather than ignored.

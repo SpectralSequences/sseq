@@ -304,8 +304,9 @@ pub fn requires_ext_machinery(json: &Value) -> bool {
     !json["cofiber"].is_null()
 }
 
-/// Whether the module's algebra has the given basis. An invalid spec counts as supported, so that
-/// loading it reports the error.
+/// Whether the module's algebra has the given basis.
+///
+/// An invalid spec counts as supported, so that loading it reports the error.
 pub fn module_supports(json: &Value, ty: AlgebraType) -> bool {
     AlgebraSpec::from_json(json).map_or(true, |spec| spec.bases().contains(&ty))
 }

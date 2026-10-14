@@ -104,9 +104,9 @@ is perfectly acceptable to interleave the algebra and module parts.
 
   * `bases`: There are two standard bases for the Steenrod algebra --- the
     Milnor basis and the Adem basis. The Adem basis is faster than the Milnor
-    basis, but does not support a profile. This lists the bases the module
-    supports, in order of preference, and a resolution asked for in another
-    basis uses the first one instead.
+    basis, but does not support a profile, so listing it alongside one is an
+    error. This lists the bases the module supports, in order of preference,
+    and a resolution asked for in another basis uses the first one instead.
 
     The default is `["milnor", "adem"]` with no profile and `["milnor"]`
     otherwise, so this is rarely needed.
