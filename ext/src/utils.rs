@@ -183,12 +183,13 @@ where
     if algebra == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
     }
-    if !json["profile"].is_null() {
+    let spec = algebra::AlgebraSpec::from_json(&json)?;
+    if spec.profile.is_some() {
         return Err(anyhow!(
             "Nassau's algorithm does not support non-trivial profile"
         ));
     }
-    if json["p"].as_i64() != Some(2) {
+    if spec.p != 2 {
         return Err(anyhow!("Nassau's algorithm does not support odd primes"));
     }
     if json["type"].as_str() != Some("finite dimensional module") {

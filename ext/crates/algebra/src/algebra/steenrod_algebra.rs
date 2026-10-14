@@ -9,11 +9,15 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra},
+    algebra::{
+        AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra,
+        milnor_algebra::MilnorProfile,
+    },
     pair_algebra::PairAlgebra,
 };
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AlgebraType {
     Adem,
     Milnor,
@@ -94,11 +98,59 @@ impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
     }
 }
 
-#[derive(Deserialize, Debug)]
-struct AlgebraSpec {
-    p: ValidPrime,
-    algebra: Option<Vec<String>>,
-    profile: Option<crate::algebra::milnor_algebra::MilnorProfile>,
+/// The algebra a module spec is over: its `p`, and the `algebra` object holding the rest.
+#[derive(Debug)]
+pub struct AlgebraSpec {
+    pub p: ValidPrime,
+    /// The bases the module supports, in order of preference. `None` means
+    /// [`Self::default_bases`].
+    pub bases: Option<Vec<AlgebraType>>,
+    pub profile: Option<MilnorProfile>,
+}
+
+/// The `algebra` object of a module spec.
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct AlgebraFields {
+    bases: Option<Vec<AlgebraType>>,
+    profile: Option<MilnorProfile>,
+}
+
+impl AlgebraSpec {
+    /// Read the algebra off a module spec.
+    pub fn from_json(json: &Value) -> anyhow::Result<Self> {
+        if !json["profile"].is_null() {
+            return Err(anyhow!("`profile` belongs in the `algebra` object"));
+        }
+        let p = ValidPrime::deserialize(&json["p"])?;
+        let fields = match &json["algebra"] {
+            Value::Null => AlgebraFields::default(),
+            algebra => AlgebraFields::deserialize(algebra)
+                .map_err(|e| anyhow!("Invalid `algebra` object: {e}"))?,
+        };
+        if fields.bases.as_ref().is_some_and(|b| b.is_empty()) {
+            return Err(anyhow!("`bases` must not be empty"));
+        }
+        Ok(Self {
+            p,
+            bases: fields.bases,
+            profile: fields.profile,
+        })
+    }
+
+    /// The Adem basis has no profiles.
+    fn default_bases(&self) -> &'static [AlgebraType] {
+        if self.profile.is_none() {
+            &[AlgebraType::Milnor, AlgebraType::Adem]
+        } else {
+            &[AlgebraType::Milnor]
+        }
+    }
+
+    /// The bases the module supports, in order of preference.
+    pub fn bases(&self) -> &[AlgebraType] {
+        self.bases.as_deref().unwrap_or(self.default_bases())
+    }
 }
 
 impl SteenrodAlgebra {
@@ -107,15 +159,13 @@ impl SteenrodAlgebra {
         mut algebra_type: AlgebraType,
         unstable: bool,
     ) -> anyhow::Result<Self> {
-        let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
+        let spec = AlgebraSpec::from_json(json)?;
 
-        if let Some(list) = spec.algebra {
-            let algebra_name = &algebra_type.to_string();
-            if !list.iter().any(|x| x == algebra_name) {
-                println!("Module does not support algebra {algebra_name}");
-                println!("Using {} instead", list[0]);
-                algebra_type = list[0].parse()?;
-            }
+        let bases = spec.bases();
+        if !bases.contains(&algebra_type) {
+            println!("Module does not support algebra {algebra_type}");
+            println!("Using {} instead", bases[0]);
+            algebra_type = bases[0];
         }
 
         Ok(match algebra_type {
@@ -221,5 +271,43 @@ impl PairAlgebra for SteenrodAlgebra {
 
     fn finalize_element(elt: &mut Self::Element) {
         MilnorAlgebra::finalize_element(elt);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    /// Build the algebra of `json` in the Milnor basis.
+    fn milnor(json: Value) -> anyhow::Result<SteenrodAlgebra> {
+        SteenrodAlgebra::from_json(&json, AlgebraType::Milnor, false)
+    }
+
+    #[test]
+    fn bases_fall_back_in_order() {
+        let json = json!({ "p": 2, "algebra": { "bases": ["milnor"] } });
+        let algebra = SteenrodAlgebra::from_json(&json, AlgebraType::Adem, false).unwrap();
+        assert!(matches!(algebra, SteenrodAlgebra::MilnorAlgebra(_)));
+        assert!(milnor(json!({ "p": 2, "algebra": { "bases": [] } })).is_err());
+        assert!(milnor(json!({ "p": 2, "algebra": { "bases": ["serre"] } })).is_err());
+    }
+
+    #[test]
+    fn profile_defaults_to_milnor() {
+        let profile = json!({ "truncated": true, "p_part": [1] });
+        let json = json!({ "p": 2, "algebra": { "profile": profile } });
+        let algebra = SteenrodAlgebra::from_json(&json, AlgebraType::Adem, false).unwrap();
+        assert!(matches!(algebra, SteenrodAlgebra::MilnorAlgebra(_)));
+    }
+
+    /// The fields of the old flat format are refused rather than ignored.
+    #[test]
+    fn algebra_fields_at_top_level() {
+        assert!(milnor(json!({ "p": 2, "algebra": ["milnor"] })).is_err());
+        let profile = json!({ "truncated": true, "p_part": [1] });
+        assert!(milnor(json!({ "p": 2, "profile": profile })).is_err());
+        assert!(milnor(json!({ "p": 2, "algebra": { "kind": "classical" } })).is_err());
     }
 }
