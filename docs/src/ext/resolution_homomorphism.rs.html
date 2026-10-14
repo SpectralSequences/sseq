@@ -610,7 +610,7 @@
 <a href=#585 id=585 data-nosnippet>585</a>    };
 <a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">use </span>dashmap::DashMap;
 <a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">use </span>fp::{
-<a href=#588 id=588 data-nosnippet>588</a>        matrix::Matrix,
+<a href=#588 id=588 data-nosnippet>588</a>        matrix::{Matrix, Subquotient},
 <a href=#589 id=589 data-nosnippet>589</a>        vector::{FpSlice, FpSliceMut, FpVector},
 <a href=#590 id=590 data-nosnippet>590</a>    };
 <a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">use </span>itertools::Itertools;
@@ -821,7 +821,7 @@
 <a href=#796 id=796 data-nosnippet>796</a>        </span><span class="kw">pub fn </span>hom_k_with&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#797 id=797 data-nosnippet>797</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#798 id=798 data-nosnippet>798</a>            lambda_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
-<a href=#799 id=799 data-nosnippet>799</a>            sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt;&gt;,
+<a href=#799 id=799 data-nosnippet>799</a>            e3_page: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="kw">dyn </span>Fn(Bidegree) -&gt; <span class="prelude-ty">Option</span>&lt;Subquotient&gt;&gt;,
 <a href=#800 id=800 data-nosnippet>800</a>            b: Bidegree,
 <a href=#801 id=801 data-nosnippet>801</a>            inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
 <a href=#802 id=802 data-nosnippet>802</a>            outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
@@ -858,57 +858,57 @@
 <a href=#833 id=833 data-nosnippet>833</a>            </span>};
 <a href=#834 id=834 data-nosnippet>834</a>            <span class="kw">let </span>filtration_one_sign = <span class="kw">if </span>(b.t() % <span class="number">2</span>) == <span class="number">1 </span>{ p - <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
 <a href=#835 id=835 data-nosnippet>835</a>
-<a href=#836 id=836 data-nosnippet>836</a>            <span class="kw">let </span>page_data = sseq.map(|sseq| {
-<a href=#837 id=837 data-nosnippet>837</a>                <span class="kw">let </span>d = sseq.page_data(lambda_source);
-<a href=#838 id=838 data-nosnippet>838</a>                <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
-<a href=#839 id=839 data-nosnippet>839</a>            });
-<a href=#840 id=840 data-nosnippet>840</a>
-<a href=#841 id=841 data-nosnippet>841</a>            <span class="kw">let </span><span class="kw-2">mut </span>scratch0: Vec&lt;u32&gt; = Vec::new();
-<a href=#842 id=842 data-nosnippet>842</a>            <span class="kw">for </span>(input, <span class="kw-2">mut </span>out) <span class="kw">in </span>inputs.zip_eq(outputs) {
-<a href=#843 id=843 data-nosnippet>843</a>                scratch0.clear();
-<a href=#844 id=844 data-nosnippet>844</a>                scratch0.resize(source_num_gens, <span class="number">0</span>);
-<a href=#845 id=845 data-nosnippet>845</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
-<a href=#846 id=846 data-nosnippet>846</a>                    scratch0
-<a href=#847 id=847 data-nosnippet>847</a>                        .iter_mut()
-<a href=#848 id=848 data-nosnippet>848</a>                        .zip_eq(<span class="kw-2">&amp;</span>m0[i])
-<a href=#849 id=849 data-nosnippet>849</a>                        .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
-<a href=#850 id=850 data-nosnippet>850</a>                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
-<a href=#851 id=851 data-nosnippet>851</a>                        .add(m1.row(i), (v * sign) % p);
-<a href=#852 id=852 data-nosnippet>852</a>                }
-<a href=#853 id=853 data-nosnippet>853</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-<a href=#854 id=854 data-nosnippet>854</a>                    out.add_basis_element(i, <span class="kw-2">*</span>v % p);
-<a href=#855 id=855 data-nosnippet>855</a>
-<a href=#856 id=856 data-nosnippet>856</a>                    <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
-<a href=#857 id=857 data-nosnippet>857</a>                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
-<a href=#858 id=858 data-nosnippet>858</a>                        .add(mp.row(i), (extra * filtration_one_sign) % p);
-<a href=#859 id=859 data-nosnippet>859</a>                }
-<a href=#860 id=860 data-nosnippet>860</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(page_data) = page_data {
-<a href=#861 id=861 data-nosnippet>861</a>                    page_data.reduce_by_quotient(
-<a href=#862 id=862 data-nosnippet>862</a>                        out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
-<a href=#863 id=863 data-nosnippet>863</a>                    );
-<a href=#864 id=864 data-nosnippet>864</a>                }
-<a href=#865 id=865 data-nosnippet>865</a>            }
-<a href=#866 id=866 data-nosnippet>866</a>        }
-<a href=#867 id=867 data-nosnippet>867</a>
-<a href=#868 id=868 data-nosnippet>868</a>        <span class="doccomment">/// Compute the induced map on Mod_{C\lambda^2} homotopy groups. This only computes it on
-<a href=#869 id=869 data-nosnippet>869</a>        /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
-<a href=#870 id=870 data-nosnippet>870</a>        /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
-<a href=#871 id=871 data-nosnippet>871</a>        /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
-<a href=#872 id=872 data-nosnippet>872</a>        /// records the λ part of the result.
-<a href=#873 id=873 data-nosnippet>873</a>        ///
-<a href=#874 id=874 data-nosnippet>874</a>        /// This reduces the λ part of the result by the image of d₂.
-<a href=#875 id=875 data-nosnippet>875</a>        ///
-<a href=#876 id=876 data-nosnippet>876</a>        /// # Arguments
-<a href=#877 id=877 data-nosnippet>877</a>        /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
-<a href=#878 id=878 data-nosnippet>878</a>        ///   of the map by the image of $d_2$.
+<a href=#836 id=836 data-nosnippet>836</a>            <span class="comment">// The quotient of the E3 page at the λ-part's source (the image of d₂)
+<a href=#837 id=837 data-nosnippet>837</a>            // reduces the λ part of each output.
+<a href=#838 id=838 data-nosnippet>838</a>            </span><span class="kw">let </span>lambda_page = e3_page.and_then(|f| f(lambda_source));
+<a href=#839 id=839 data-nosnippet>839</a>
+<a href=#840 id=840 data-nosnippet>840</a>            <span class="kw">let </span><span class="kw-2">mut </span>scratch0: Vec&lt;u32&gt; = Vec::new();
+<a href=#841 id=841 data-nosnippet>841</a>            <span class="kw">for </span>(input, <span class="kw-2">mut </span>out) <span class="kw">in </span>inputs.zip_eq(outputs) {
+<a href=#842 id=842 data-nosnippet>842</a>                scratch0.clear();
+<a href=#843 id=843 data-nosnippet>843</a>                scratch0.resize(source_num_gens, <span class="number">0</span>);
+<a href=#844 id=844 data-nosnippet>844</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
+<a href=#845 id=845 data-nosnippet>845</a>                    scratch0
+<a href=#846 id=846 data-nosnippet>846</a>                        .iter_mut()
+<a href=#847 id=847 data-nosnippet>847</a>                        .zip_eq(<span class="kw-2">&amp;</span>m0[i])
+<a href=#848 id=848 data-nosnippet>848</a>                        .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
+<a href=#849 id=849 data-nosnippet>849</a>                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
+<a href=#850 id=850 data-nosnippet>850</a>                        .add(m1.row(i), (v * sign) % p);
+<a href=#851 id=851 data-nosnippet>851</a>                }
+<a href=#852 id=852 data-nosnippet>852</a>                <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
+<a href=#853 id=853 data-nosnippet>853</a>                    out.add_basis_element(i, <span class="kw-2">*</span>v % p);
+<a href=#854 id=854 data-nosnippet>854</a>
+<a href=#855 id=855 data-nosnippet>855</a>                    <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
+<a href=#856 id=856 data-nosnippet>856</a>                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
+<a href=#857 id=857 data-nosnippet>857</a>                        .add(mp.row(i), (extra * filtration_one_sign) % p);
+<a href=#858 id=858 data-nosnippet>858</a>                }
+<a href=#859 id=859 data-nosnippet>859</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(lambda_page) = <span class="kw-2">&amp;</span>lambda_page {
+<a href=#860 id=860 data-nosnippet>860</a>                    lambda_page.reduce_by_quotient(
+<a href=#861 id=861 data-nosnippet>861</a>                        out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
+<a href=#862 id=862 data-nosnippet>862</a>                    );
+<a href=#863 id=863 data-nosnippet>863</a>                }
+<a href=#864 id=864 data-nosnippet>864</a>            }
+<a href=#865 id=865 data-nosnippet>865</a>        }
+<a href=#866 id=866 data-nosnippet>866</a>
+<a href=#867 id=867 data-nosnippet>867</a>        <span class="doccomment">/// Compute the induced map on Mod_{C\lambda^2} homotopy groups. This only computes it on
+<a href=#868 id=868 data-nosnippet>868</a>        /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
+<a href=#869 id=869 data-nosnippet>869</a>        /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
+<a href=#870 id=870 data-nosnippet>870</a>        /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
+<a href=#871 id=871 data-nosnippet>871</a>        /// records the λ part of the result.
+<a href=#872 id=872 data-nosnippet>872</a>        ///
+<a href=#873 id=873 data-nosnippet>873</a>        /// This reduces the λ part of the result by the image of d₂.
+<a href=#874 id=874 data-nosnippet>874</a>        ///
+<a href=#875 id=875 data-nosnippet>875</a>        /// # Arguments
+<a href=#876 id=876 data-nosnippet>876</a>        /// - `e3_page`: the $E_3$ subquotient as a function of bidegree. If present, the
+<a href=#877 id=877 data-nosnippet>877</a>        ///   quotient (image of $d_2$) at the λ-part's source reduces the λ part of the
+<a href=#878 id=878 data-nosnippet>878</a>        ///   result. Passed as a function so the caller need not reconstruct that bidegree.
 <a href=#879 id=879 data-nosnippet>879</a>        </span><span class="kw">pub fn </span>hom_k&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#880 id=880 data-nosnippet>880</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#881 id=881 data-nosnippet>881</a>            sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&lt;<span class="number">2</span>, sseq::Adams&gt;&gt;,
+<a href=#881 id=881 data-nosnippet>881</a>            e3_page: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="kw">dyn </span>Fn(Bidegree) -&gt; <span class="prelude-ty">Option</span>&lt;Subquotient&gt;&gt;,
 <a href=#882 id=882 data-nosnippet>882</a>            b: Bidegree,
 <a href=#883 id=883 data-nosnippet>883</a>            inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
 <a href=#884 id=884 data-nosnippet>884</a>            outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
 <a href=#885 id=885 data-nosnippet>885</a>        ) {
-<a href=#886 id=886 data-nosnippet>886</a>            <span class="self">self</span>.hom_k_with(<span class="prelude-val">None</span>, sseq, b, inputs, outputs);
+<a href=#886 id=886 data-nosnippet>886</a>            <span class="self">self</span>.hom_k_with(<span class="prelude-val">None</span>, e3_page, b, inputs, outputs);
 <a href=#887 id=887 data-nosnippet>887</a>        }
 <a href=#888 id=888 data-nosnippet>888</a>
 <a href=#889 id=889 data-nosnippet>889</a>        <span class="doccomment">/// Given an element b whose product with this is null, find the element whose $d_2$ hits the

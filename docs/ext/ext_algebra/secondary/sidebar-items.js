@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SecondaryExtAlgebra","SecondaryProduct"]};
+window.SIDEBAR_ITEMS = {"struct":["SecondaryCoboundary","SecondaryExtAlgebra","SecondaryProduct"]};

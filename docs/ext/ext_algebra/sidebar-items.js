@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["cached_generator_product_map","combine_product","products_into"],"mod":["massey","secondary"],"struct":["ExtAlgebra","ExtModule"]};
+window.SIDEBAR_ITEMS = {"fn":["cached_generator_product_map","combine_product","products_into"],"mod":["massey","secondary"],"struct":["ExtAlgebra","ExtModule"],"trait":["ExtDifferential"]};
