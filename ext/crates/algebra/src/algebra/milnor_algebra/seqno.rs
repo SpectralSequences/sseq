@@ -68,8 +68,6 @@ impl<F: MilnorShape> MilnorAlgebraInner<F> {
     /// [`Self::seqno`] trusts its input, so this rejects an element with a Q part, a degree that
     /// does not match its p-part, or a degree beyond the tables.
     pub(super) fn try_seqno(&self, elt: &MilnorBasisElement) -> Option<usize> {
-        // A guard rather than `Self::seqno_tables`: cloning the `Arc` would make every lookup an
-        // atomic read-modify-write on a reference count shared by all threads.
         let guard = self.seqno_tables.load();
         let t = guard.as_deref()?;
         let degree: i32 = elt
