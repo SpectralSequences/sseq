@@ -74,8 +74,7 @@ y(2) is a spectrum whose homology is `F_p[ξ₁, ξ₂][τ₁, τ₂]`.
 ## Algebra
 
 In each of the above examples, `p` and the `algebra` object specify the
-algebra. Note that the entries can be ordered in any way, and in particular, it
-is perfectly acceptable to interleave the algebra and module parts.
+algebra.
 
 ### Required parameters
 
