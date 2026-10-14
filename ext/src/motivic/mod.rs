@@ -561,9 +561,9 @@ trait TauLift {
                 self.accumulate(g, idx, &mut parity);
             }
         }
-        tracing::debug!(
-            "motivic lift did not converge at (s={}, t={}, idx={}); leaving partial (outside \
-             report cone)",
+        // Each pass cancels the lowest τ-order, so reaching the cap means an invariant failed.
+        tracing::warn!(
+            "motivic lift did not converge at (s={}, t={}, idx={}); leaving a partial lift",
             g.s,
             g.t,
             g.idx
