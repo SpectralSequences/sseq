@@ -102,8 +102,7 @@ impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
 #[derive(Debug)]
 pub struct AlgebraSpec {
     pub p: ValidPrime,
-    /// The bases the module supports, in order of preference. `None` means
-    /// [`Self::default_bases`].
+    /// The bases the module lists, if any. [`Self::bases`] fills in the default.
     pub bases: Option<Vec<AlgebraType>>,
     pub profile: Option<MilnorProfile>,
 }
