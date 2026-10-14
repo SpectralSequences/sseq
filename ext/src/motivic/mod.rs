@@ -1,58 +1,4 @@
-//! The C-motivic Adams $E_2$ by deformation: lift the $A_C/\tau$ resolution to
-//! $A_C$ over $\mathbb{F}_2[\tau]$.
-//!
-//! Phase 1 ([`crate`]'s `resolve_motivic_ctau` example) resolves the trivial
-//! module over $A_C/\tau$ with the ordinary engine. That resolution is *minimal
-//! mod $\tau$*: its differentials $\bar d_s$ have entries in the augmentation
-//! ideal (positive-degree operations). This module performs Phase 2 of
-//! `MOTIVIC_PLAN.md`: it lifts $\bar d_s$ to honest differentials $d_s$ over
-//! $A_C$ (coefficients in $\mathbb{F}_2[\tau]$) with $d_{s-1} d_s = 0$, reducing
-//! to $\bar d_s$ mod $\tau$.
-//!
-//! # Weights and the valuation representation
-//!
-//! $A_C/\tau$ is bigraded by (stem $t$, motivic weight $w$), but we present it to
-//! the engine graded by $t$ alone (it is connected and finite-type there). The
-//! minimal resolution nonetheless comes out **weight-homogeneous**: every
-//! generator has a well-defined weight, computed here by descending the
-//! differential ([`MotivicResolution::generator_weight`]). Homogeneity forces the
-//! $\tau$-power of every differential entry — a term $m \otimes g_j$ (operation
-//! $m$, target generator $g_j$) in $d_s(g_k)$ carries exactly
-//! $\tau^{\,w(g_k) - w(m) - w(g_j)}$ — so a lifted differential is an
-//! $\mathbb{F}_2$ support (which basis elements occur) plus the weights, with the
-//! $\tau$-powers reconstructed on demand. This is the one-integer-per-entry
-//! valuation representation of the plan.
-//!
-//! # The lift
-//!
-//! Initialize $d_s = \bar d_s$ (each mod-$\tau$ operation at $\tau^0$). Over
-//! $A_C$ the composite $d_{s-1} d_s$ is $\equiv 0 \bmod \tau$ (its $\tau^0$ part
-//! is $\bar d_{s-1}\bar d_s = 0$) but not exactly $0$: the $A_C$ products
-//! $m \cdot m'$ generate $\tau$-divisible terms. That remainder is a
-//! $\bar d_{s-2}$-cycle, so the quasi-inverse of $\bar d_{s-1}$ (already computed
-//! by the engine) yields a $\tau$-power correction to $d_s$ that cancels the
-//! lowest-order remainder; iterating to bounded $\tau$-order gives $d_{s-1}d_s=0$.
-//! (Guozhen Wang's Adams–Novikov lift, module side; see `MOTIVIC_PLAN.md` §5.)
-//!
-//! # The cohomology $H(\delta)$ — the motivic Adams $E_2$
-//!
-//! The lift creates $\delta$, the identity-operation (augmentation) part of the
-//! differential ([`MotivicResolution::delta`]): a differential on the free
-//! $\mathbb{F}_2[\tau]$-modules of generators at fixed internal degree $t$. The
-//! motivic Adams $E_2$ is `Ext_{A_C} = H(δ)`, a graded $\mathbb{F}_2[\tau]$-module
-//! — free $\oplus\ \mathbb{F}_2[\tau]/\tau^k$, since $\tau$ is the only homogeneous
-//! prime. Because $\delta$ raises the weight, `{weight ≤ cap}` is a subcomplex and
-//! the whole computation is pure $\mathbb{F}_2$ linear algebra. The three anchors
-//! fall out:
-//!
-//! - **invert $\tau$** — the free rank (all generators): the classical Adams $E_2$
-//!   (`classical_ext_rank`, regressed against `Ext_A`; lands with the deformation
-//!   spectral sequence).
-//! - **$\tau = 0$** — the generator counts: the algebraic Novikov $E_2$ (Phase 1).
-//! - **keep $\tau$** — free plus $\tau$-torsion: the motivic $E_2$ as a full
-//!   $\mathbb{F}_2[\tau]$-module (`tau_module`, structure
-//!   theorem), including the $h_1$-tower classes ($h_1^n$, which are
-//!   $\mathbb{F}_2[\tau]/\tau$-torsion for $n \ge 4$) that the classical page kills.
+//! The C-motivic resolution: resolve over $A_C/\tau$, then lift the differentials to $A_C$.
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -79,26 +25,29 @@ pub struct Gen {
     pub idx: usize,
 }
 
-/// The C-motivic resolution: the mod-$\tau$ model plus the weight assignment and
-/// (Phase 2) the lifted $A_C$ differentials.
+/// The C-motivic resolution: a minimal resolution over $A_C/\tau$, lifted to $A_C$.
+///
+/// $A_C/\tau$ is bigraded by stem and motivic weight but resolved by the ordinary engine, which
+/// sees the stem alone. The minimal resolution still comes out weight-homogeneous, with each
+/// generator's weight found by descending the differential
+/// ([`MotivicResolution::generator_weight`]). Homogeneity forces the $\tau$-power of every entry:
+/// a term $m \otimes g_j$ of $d_s(g_k)$ carries $\tau^{\,w(g_k) - w(m) - w(g_j)}$. So a lifted
+/// differential is stored as an $\mathbb{F}_2$ support plus the weights, and its $\tau$-powers are
+/// reconstructed on demand.
 pub struct MotivicResolution {
     /// The $A_C$ product engine, which recovers the $\tau$-powers the resolution discards. It
     /// indexes each degree as $A_C/\tau$ does, so the resolution's operation indices are its own.
     engine: MotivicMilnorAlgebra,
     resolution: Arc<Resolution<CCC>>,
-    /// Motivic weight of each generator. `Arc`-shared with the Ext DGA's
-    /// the Ext DGA's coboundary (which slices by it) rather than copied.
+    /// Motivic weight of each generator.
     weights: Arc<HashMap<Gen, i32>>,
-    /// The lifted $A_C$ differential of each generator: the set of $F_{s-1}$ basis
-    /// elements in its image. The coefficient of each is $1 \in \mathbb{F}_2$ and
-    /// its $\tau$-power is forced by the weights, so the support is the whole
-    /// datum (see the module docs).
+    /// The lifted $A_C$ differential of each generator, as its support in $F_{s-1}$. Each
+    /// coefficient is 1 and its $\tau$-power is forced by the weights.
     lifted: HashMap<Gen, BTreeSet<usize>>,
-    /// The box the results are trusted/reported in.
+    /// The box results are reported in.
     max: Bidegree,
-    /// The (padded) square actually resolved: `{stem ≤ compute.n(), filt ≤
-    /// compute.s()}`. It is the report box `max` with a small stem margin for the
-    /// lift's δ-reach (see [`Self::new`]).
+    /// The box actually resolved: `max` with a stem margin for the reach of δ (see
+    /// [`Self::new`]).
     compute: Bidegree,
 }
 
@@ -125,21 +74,9 @@ impl MotivicResolution {
             full_ctau,
             "the motivic lift needs a resolution over all of A_C/τ, not {algebra}"
         );
-        // Resolve the report box **plus exactly one stem** with
-        // `compute_through_stem`. Ext at `(s, t)` is `H(δ)`, and δ maps `(s, t) →
-        // (s-1, t)` — same internal degree, one lower Novikov filtration, hence
-        // stem `n → n+1`. So computing Ext at stem `n` needs the δ *out of* stem
-        // `n`, whose targets are the generators at stem `n+1`; those must exist
-        // (`delta_star_rank` reads `num_gens` there). That is the whole margin: a
-        // hard, structural `+1`, not a fudge.
-        //
-        // Nothing at stem `n+2` is needed, and `compute_through_stem` gives the
-        // `n+1` strip cheaply: at its edge it records only *kernels* one stem out
-        // (`resolution.rs`), never resolving generators there. The lift of the
-        // stem-`(n+1)` boundary generators therefore can't emit δ-terms into
-        // stem `n+2` (those generators don't exist), and such a term would land in
-        // internal degree `> n+s` anyway — invisible to every stem-`n` composite.
-        // So `+1` is provably sufficient; `MOT_MARGIN` is only an escape hatch.
+        // δ maps `(s, t)` to `(s - 1, t)`, one stem up, so Ext at stem `n` reads the generators at
+        // stem `n + 1` and nothing beyond. A margin of one stem is therefore exact; `MOT_MARGIN`
+        // only widens it.
         let margin: i32 = std::env::var("MOT_MARGIN")
             .ok()
             .and_then(|v| v.parse::<i32>().ok())
@@ -177,18 +114,18 @@ impl MotivicResolution {
         Ok(this)
     }
 
-    /// The mod-$\tau$ resolution (the Phase 1 model).
+    /// The resolution over $A_C/\tau$.
     pub fn resolution(&self) -> &Resolution<CCC> {
         &self.resolution
     }
 
-    /// The box results are reported/trusted in.
+    /// The box results are reported in.
     pub fn max(&self) -> Bidegree {
         self.max
     }
 
-    /// The algebraic Novikov $E_2$ rank at `(s, t)` — set $\tau = 0$: the number
-    /// of generators (with $\delta \equiv 0 \bmod \tau$, `Ext = generators`).
+    /// The algebraic Novikov $E_2$ rank at `(s, t)`: the number of generators, since δ vanishes
+    /// mod $\tau$.
     pub fn algebraic_novikov_rank(&self, s: i32, t: i32) -> usize {
         self.num_gens(s, t)
     }
@@ -249,19 +186,17 @@ impl MotivicResolution {
         op_w + gen_w
     }
 
-    /// Lift every differential to $A_C$. Processed with `s` ascending so that
-    /// `d_{s-1}` is finalized before `d_s` is corrected against it.
+    /// Lift every differential to $A_C$, with `s` ascending so that `d_{s-1}` is final before
+    /// `d_s` is corrected against it.
     ///
-    /// `d_1` needs no correction: `d_0 d_1 = 0` already, since `d_0` is the
-    /// augmentation into the trivial module and `d_1`'s entries lie in the
-    /// augmentation ideal. For `s ≥ 2` we start from the mod-$\tau$ support and
-    /// cancel the $\tau$-divisible remainder of `d_{s-1} d_s`.
+    /// Each $d_s$ starts as its mod-$\tau$ reduction. Over $A_C$ the composite $d_{s-1} d_s$ is
+    /// zero mod $\tau$ but not exactly zero, and the remainder is cancelled one $\tau$-order at a
+    /// time by [`TauLift::lift_cell`]. `d_1` needs no correction: `d_0` is the augmentation and
+    /// `d_1` lands in the augmentation ideal.
     #[tracing::instrument(skip(self), fields(max = %self.max, num_lifted = tracing::field::Empty))]
     fn lift(&mut self) {
-        // Wavefront over `s`: correcting a generator reads only its `s-1`
-        // neighbors (the mod-τ targets at stem ≤ n and the δ-targets at stem
-        // n+1), and runs its own weight-loop locally. So `s` is a sequential
-        // barrier, but at each `s` every generator is independent — fan them out.
+        // Correcting a generator reads only `s - 1` data, so the generators at one `s` are
+        // independent.
         for s in 1..=self.max_s() {
             let t_max = self.compute.n() + s;
             let gens: Vec<Gen> = (0..=t_max)
@@ -277,18 +212,11 @@ impl MotivicResolution {
         tracing::Span::current().record("num_lifted", self.lifted.len());
     }
 
-    /// Lift a single generator's differential to `A_C`. Parallel-safe: it reads
-    /// only already-finalized `s-1` data (and the shared, thread-safe product
-    /// cache), writing nothing.
+    /// Lift one generator's differential to $A_C$.
     ///
-    /// The correction is the [`TauLift`] driver applied to the differential cell
-    /// (via [`DifferentialCells`]); it runs only for generators whose δ-correction
-    /// cone stays inside the padded box. The cone of a generator at stem `n` reaches
-    /// up to stem `n + s` (each augmentation correction pushes one stem out), so a
-    /// generator with stem `> report.n + report.s` cannot converge — and it is never
-    /// referenced by the report cohomology (differentials go to stem ≤ n, δ-terms to
-    /// n+1, and the report cone is bounded by report.n + report.s). Leaving those as
-    /// their mod-τ support is correct.
+    /// The corrections of a generator at stem `n` reach up to stem `n + s`, so one past the
+    /// report box's `n + s` cannot converge. Nothing in the report box reads it, so it keeps its
+    /// mod-$\tau$ support.
     fn lift_generator(&self, g: Gen) -> BTreeSet<usize> {
         let cells = DifferentialCells(self);
         let stem = g.t - g.s;
@@ -300,15 +228,11 @@ impl MotivicResolution {
         }
     }
 
-    /// XOR the contribution of a single `d_s(g_k)` support element `bidx` (a basis
-    /// element of $F_{s-1}$ in degree `t`) into a running `d_{s-1} d_s` parity
-    /// vector over the $F_{s-2}$ basis in degree `t`.
+    /// XOR the contribution of the $F_{s-1}$ basis element `bidx` of `d_s(g_k)` into a running
+    /// `d_{s-1} d_s` parity vector over $F_{s-2}$ in degree `t`.
     ///
-    /// `composite` is mod-2 linear in the support and each output basis element's
-    /// $\tau$-power is a function of that element alone (weight-homogeneity), so
-    /// this per-term atom is all both [`Self::composite`] and the incremental
-    /// the correction step needs: toggling a term in or out of the support is exactly
-    /// one call here (XOR is its own inverse).
+    /// The composite is linear in the support and each output element's $\tau$-power depends on
+    /// that element alone, so toggling a support term in or out is one call here.
     #[allow(clippy::too_many_arguments)]
     fn accumulate_term(
         &self,
@@ -320,21 +244,17 @@ impl MotivicResolution {
         bidx: usize,
         parity: &mut FpVector,
     ) {
-        // The differential's own composite: compose with `d = self.lifted`
-        // (degree-preserving, so inner_shift_t = 0).
+        // The differential preserves degree, hence an inner shift of 0.
         self.compose_into(f_sm1, t, s - 1, &self.lifted, 0, f_sm2, bidx, parity);
     }
 
-    /// The shared atom of every τ-adic lift: compose the outer basis element `bidx`
-    /// of `outer_mod` (internal degree `outer_t`, generators at homological degree
-    /// `outer_s`) with the lifted map `inner` (whose value on a generator lives in
-    /// `inner_out_mod`), XORing the resulting $A_C$ products into `parity`.
+    /// Compose the basis element `bidx` of `outer_mod` with the lifted map `inner`, XORing the
+    /// resulting $A_C$ products into `parity`.
     ///
-    /// `bidx` decodes to `m ⊗ gⱼ`; `inner[gⱼ]` to `m′ ⊗ gₗ`; the term contributed is
-    /// `(m·m′) ⊗ gₗ` (all $\tau$-powers of the $A_C$ product `m·m′`, since the
-    /// forced power of each output basis element is fixed by weight-homogeneity and
-    /// recovered later). For the differential `inner = d` (`self.lifted`); for a
-    /// product chain map `inner = φₐ`. A generator absent from `inner` contributes 0.
+    /// `bidx` is `m ⊗ gⱼ` in internal degree `outer_t`, with `gⱼ` in homological degree
+    /// `outer_s`. Each `m′ ⊗ gₗ` of `inner[gⱼ]`, which lives in `inner_out_mod`, contributes
+    /// every term of `(m·m′) ⊗ gₗ`; their $\tau$-powers are recovered later from the weights. A
+    /// generator absent from `inner` contributes nothing.
     #[allow(clippy::too_many_arguments)]
     fn compose_into(
         &self,
@@ -355,10 +275,8 @@ impl MotivicResolution {
             idx: og.generator_index,
         };
         let Some(gj_inner) = inner.get(&gj) else {
-            return; // inner map is zero on gⱼ (e.g. outside φₐ's range) ⇒ no term
+            return;
         };
-        // `inner[gⱼ]` lives at degree `gⱼ.t − inner_shift_t` (0 for the
-        // degree-preserving differential, aₜ for the chain map φₐ).
         let inner_t = gj.t - inner_shift_t;
         for &bidx2 in gj_inner {
             let og2 = inner_out_mod.index_to_op_gen(inner_t, bidx2);
@@ -375,10 +293,8 @@ impl MotivicResolution {
         }
     }
 
-    /// The composite `d_{s-1} d_s(g_k)` over `A_C`, as a map from $F_{s-2}$ basis
-    /// element (in degree `g_k.t`) to its forced $\tau$-power. Only odd-parity
-    /// (surviving) terms are returned. The `A_C` products `m · m'` are where the
-    /// $\tau$-divisible terms are generated.
+    /// The composite `d_{s-1} d_s(g_k)` over $A_C$, as its surviving $F_{s-2}$ basis elements in
+    /// degree `g_k.t`, each with its forced $\tau$-power.
     fn composite(&self, g_k: Gen, support: &BTreeSet<usize>) -> BTreeMap<usize, i32> {
         let s = g_k.s;
         let t = g_k.t;
@@ -395,27 +311,31 @@ impl MotivicResolution {
         parity
             .iter_nonzero()
             .map(|(fidx, _)| {
-                // Every path to `fidx` has the same τ-power = W(fidx) − W(g_k)
-                // (weight-homogeneity), so the parity above is well-defined.
+                // Weight-homogeneity gives every path to `fidx` this same τ-power, so the
+                // parity is well defined.
                 let power = self.entry_weight(s - 2, t, fidx) - w_k;
                 (fidx, power)
             })
             .collect()
     }
 
-    /// Assign a motivic weight to every generator by descending its differential:
-    /// weight-homogeneity forces `w(g) = w(m) + w(g')` for every term `m ⊗ g'` of
-    /// `d(g)`. The unit generator has weight 0; higher weights propagate. Panics
-    /// if any generator turns out weight-inhomogeneous (which would violate the
-    /// bigraded structure and break the valuation representation).
+    /// Assign a motivic weight to every generator by descending its differential.
+    ///
+    /// Weight-homogeneity forces `w(g) = w(m) + w(g')` for every term `m ⊗ g'` of `d(g)`,
+    /// starting from weight 0 on the degree-0 generator.
+    ///
+    /// # Errors
+    ///
+    /// If the module is not cyclic on a single degree-0 class.
+    ///
+    /// # Panics
+    ///
+    /// If a generator is not weight-homogeneous.
     #[tracing::instrument(skip(self), fields(num_weights = tracing::field::Empty))]
     fn compute_weights(&mut self) -> anyhow::Result<()> {
-        // Built locally, then `Arc`-shared into `self.weights` (and the Ext DGA) — no copy.
         let mut weights: HashMap<Gen, i32> = HashMap::new();
-        // s = 0: the single generator is the unit, weight 0. Only the generator at
-        // `t = 0` is seeded, so a module needing another one — anything not cyclic on a
-        // degree-0 class — has no weight to propagate from. Reject it here rather than
-        // let an unseeded generator surface as a `HashMap` index panic much later.
+        // Only the degree-0 generator is seeded, so any other `s = 0` generator would have no
+        // weight to propagate from.
         for t in 0..=self.compute.n() {
             let expected = usize::from(t == 0);
             let actual = self.num_gens(0, t);
@@ -470,22 +390,19 @@ impl MotivicResolution {
         Ok(())
     }
 
-    /// The $\delta$-entries out of generator `g`: the identity-operation
-    /// (augmentation) part of the lifted differential `d_s(g)`. Each entry is a
-    /// target generator `g'` (at the same internal degree `t`, homological degree
-    /// `s-1`) together with the $\tau$-power on the unit operation.
+    /// The δ-entries out of generator `g`: the unit-operation part of the lifted `d_s(g)`.
     ///
-    /// This is the datum Phase 3 takes cohomology of: `δ` is a differential on the
-    /// free $\mathbb{F}_2[\tau]$-modules of generators, and `Ext_{A_C} = H(δ)`
-    /// (the motivic Adams $E_2$). Over a field the augmentation part of a minimal
-    /// differential vanishes; here the $\tau$-power corrections create it.
+    /// Each entry is a generator `g'` in `(s - 1, t)` with the $\tau$-power on the unit. δ is a
+    /// differential on the free $\mathbb{F}_2[\tau]$-modules of generators, and
+    /// $\mathrm{Ext}_{A_C} = H(\delta)$ is the motivic Adams $E_2$. A minimal resolution has no
+    /// unit-operation part mod $\tau$; the lift's $\tau$-power corrections create it.
     pub fn delta(&self, g: Gen) -> Vec<(Gen, u32)> {
         let module = self.module(g.s - 1);
         let w_k = self.weights[&g];
         let mut out = Vec::new();
         for &bidx in &self.lifted[&g] {
             let og = module.index_to_op_gen(g.t, bidx);
-            // The identity operation is the unit: degree 0, index 0.
+            // The unit is the only operation in degree 0.
             if og.operation_degree == 0 {
                 let gj = Gen {
                     s: g.s - 1,
@@ -505,18 +422,7 @@ impl MotivicResolution {
         out
     }
 
-    // ---- Phase 3: the cohomology H(δ) = the motivic Adams E₂ ----
-    //
-    // δ is a differential on the free F₂[τ]-modules of generators (fixed internal
-    // degree `t`), with δ↓: gens(s,t) → gens(s−1,t) given by [`delta`]. Because
-    // everything is weight-graded and τ is the only homogeneous prime, `Ext = H(δ)`
-    // is a graded F₂[τ]-module: free ⊕ F₂[τ]/τᵏ. δ↓ raises the weight, so
-    // `{weight ≤ cap}` is a subcomplex — and taking that cohomology (free rank at
-    // cap = ∞, torsion exposed at lower caps) is now the job of the [`ExtAlgebra`]
-    // built by [`Self::build_ext`], via [`MotivicCoboundary`] as its differential.
-
-    /// The mod-$\tau$ support of `d_s(g)`: the lifted terms whose forced
-    /// $\tau$-power is $0$. These should reproduce the engine's $\bar d_s$ exactly.
+    /// The mod-$\tau$ support of the lifted `d_s(g)`: its terms with $\tau$-power 0.
     fn mod_tau_support(&self, g: Gen) -> BTreeSet<usize> {
         let w = self.weights[&g];
         self.lifted[&g]
@@ -526,8 +432,7 @@ impl MotivicResolution {
             .collect()
     }
 
-    /// Verify `d_{s-1} d_s = 0` over `A_C` for every generator in range: the
-    /// defining property of the lifted resolution.
+    /// Assert `d_{s-1} d_s = 0` over $A_C$ for every generator in the report box.
     pub fn verify_d_squared_zero(&self) {
         for s in 2..=self.max_s() {
             for t in 0..=(self.max.n() + s) {
@@ -544,8 +449,7 @@ impl MotivicResolution {
         }
     }
 
-    /// Verify that reducing every lifted differential mod $\tau$ recovers the
-    /// original mod-$\tau$ resolution the engine computed.
+    /// Assert that every lifted differential reduces mod $\tau$ to the resolution's.
     pub fn verify_mod_tau_reduction(&self) {
         for s in 1..=self.max_s() {
             for t in 0..=(self.max.n() + s) {
@@ -570,60 +474,47 @@ impl MotivicResolution {
     }
 }
 
-/// The shared τ-adic lifting problem, in the style of [`crate::secondary::SecondaryLift`].
+/// Lifting a map over $A_C/\tau$ to one over $A_C$, in the style of
+/// [`crate::secondary::SecondaryLift`].
 ///
-/// Every "make it motivic" step in this module has the same shape: a map given over
-/// the mod-τ algebra $A_C/\tau$ must be lifted to an honest map over $A_C$
-/// (coefficients in $\mathbb{F}_2[\tau]$). The lift starts from the mod-τ datum (the
-/// $\tau^0$ part) and cancels the τ-divisible *defect* — the amount by which the
-/// defining equation fails over $A_C$ — one weight-order at a time, solving each
-/// order with the quasi-inverse of the target complex's mod-τ differential.
-/// Weight-homogeneity forces every correction to a single τ-power, so the
-/// order-by-order cancellation converges.
-///
-/// The differential lift ($d^2 = 0$, [`DifferentialCells`]) is the first instance;
-/// the product lift ($d\varphi = \varphi d$) and — eventually — the chain-homotopy
-/// lift (Massey products) are the same driver with a different *defect*. An
-/// implementor supplies the object-specific hooks and inherits [`Self::lift_cell`].
+/// The lift starts from the $\tau^0$ part and cancels the *defect*, the amount by which the
+/// defining equation fails over $A_C$, one weight-order at a time, solving each order with the
+/// quasi-inverse of the target's mod-$\tau$ differential. Weight-homogeneity forces each
+/// correction to a single $\tau$-power. An implementor supplies the defect and inherits
+/// [`Self::lift_cell`].
 trait TauLift {
-    /// The weight the defect is graded against — the source generator's weight.
+    /// The weight the defect is graded against: the source generator's.
     fn source_weight(&self, g: Gen) -> i32;
 
-    /// The mod-τ ($\tau^0$) support to start from, as basis-element indices of the
-    /// output module (where the lifted support and the corrections live).
+    /// The mod-$\tau$ support to start from, in the output module.
     fn seed(&self, g: Gen) -> BTreeSet<usize>;
 
-    /// The defect module `(module, t)` — where the error `e` lives — used to size
-    /// the running parity vector.
+    /// The module and degree the defect lives in.
     fn defect_module(&self, g: Gen) -> (Arc<FreeModule<SteenrodAlgebra>>, i32);
 
     /// The weight of defect-module basis element `bidx`.
     fn defect_weight(&self, g: Gen, bidx: usize) -> i32;
 
-    /// Seed the running defect with the part that does not depend on the output
-    /// support (e.g. the `φ(dg)` term of a chain map). Default: none — the
-    /// differential's `d²` is entirely a function of its support.
+    /// Seed the running defect with the part that does not depend on the output support.
     fn seed_constant(&self, _g: Gen, _parity: &mut FpVector) {}
 
     /// XOR into `parity` the defect contribution of output-support element `bidx`.
     fn accumulate(&self, g: Gen, bidx: usize, parity: &mut FpVector);
 
-    /// Solve `d̄(c) = e` for a correction `c` in the output module, via the target's
-    /// mod-τ quasi-inverse. `None` when the quasi-inverse is unavailable (a cell just
-    /// past the padded box) — the driver then leaves the mod-τ seed uncorrected.
+    /// Solve `d̄(c) = e` for a correction `c` in the output module, or `None` past the resolved
+    /// box, where there is no quasi-inverse.
     fn solve(&self, g: Gen, e: &FpVector) -> Option<FpVector>;
 
-    /// The shared driver: cancel the τ-divisible defect one weight-order at a time.
-    /// Returns the lifted support — the seed if there is nothing to correct, or a
-    /// partial lift if a cell outside the report cone does not converge (those are
-    /// never read by the report cohomology).
+    /// Cancel the defect one weight-order at a time and return the lifted support.
+    ///
+    /// A cell whose corrections leave the resolved box keeps a partial lift; nothing in the
+    /// report box reads it.
     fn lift_cell(&self, g: Gen) -> BTreeSet<usize> {
         let (def_mod, def_t) = self.defect_module(g);
         let def_dim = def_mod.dimension(def_t);
         let w_k = self.source_weight(g);
 
-        // Maintain the defect incrementally: it is mod-2 linear in the support, so we
-        // keep a running parity vector and XOR in only each term we toggle.
+        // The defect is linear in the support, so it is kept as a running parity vector.
         let mut support = self.seed(g);
         let mut parity = FpVector::new(TWO, def_dim);
         self.seed_constant(g, &mut parity);
@@ -638,7 +529,7 @@ trait TauLift {
                 .map(|(fidx, _)| self.defect_weight(g, fidx) - w_k)
                 .min()
             else {
-                return support; // defect fully cancelled
+                return support;
             };
             assert!(
                 min_power >= 1,
@@ -656,11 +547,9 @@ trait TauLift {
                 }
             }
 
-            // Solve d̄(c) = e and toggle c into the support, updating the running
-            // parity in lockstep. Each correction term is forced (by weight) to
-            // τ-power min_power, cancelling this order.
+            // Each term of `c` is forced by weight to τ-power `min_power`, cancelling this order.
             let Some(c) = self.solve(g, &e) else {
-                return support; // out of range: leave the partial lift
+                return support;
             };
             for (idx, v) in c.iter_nonzero() {
                 if v == 0 {
@@ -672,8 +561,6 @@ trait TauLift {
                 self.accumulate(g, idx, &mut parity);
             }
         }
-        // Non-convergence within the cap: only outside the report cone (report-cone
-        // cells converge). Never read by the report cohomology, so leave the partial.
         tracing::debug!(
             "motivic lift did not converge at (s={}, t={}, idx={}); leaving partial (outside \
              report cone)",
@@ -685,11 +572,9 @@ trait TauLift {
     }
 }
 
-/// The differential-lift instance of [`TauLift`]: lift `d_s(g)` so that
-/// `d_{s-1} d_s(g) = 0` over `A_C`. Output module `F_{s-1}`, defect module
-/// `F_{s-2}`, defect the composite `d_{s-1} d_s(g)` (accumulated by
-/// [`MotivicResolution::accumulate_term`]); `d̄_{s-1}`'s quasi-inverse solves the
-/// corrections.
+/// [`TauLift`] for the differential: lift `d_s(g)` so that `d_{s-1} d_s(g) = 0` over $A_C$.
+///
+/// The output module is $F_{s-1}$ and the defect is the composite in $F_{s-2}$.
 struct DifferentialCells<'a>(&'a MotivicResolution);
 
 impl TauLift for DifferentialCells<'_> {
@@ -796,9 +681,7 @@ mod tests {
         res.verify_mod_tau_reduction();
         res.verify_d_squared_zero();
 
-        // The lift must create a nontrivial augmentation part δ (the τ-power
-        // corrections on the unit operation) — this is what Phase 3 takes
-        // cohomology of. Every δ-entry carries a positive τ-power.
+        // The lift must create some δ, and every δ-entry carries a positive τ-power.
         let mut delta_entries = 0;
         for s in 1..=res.max_s() {
             for t in 0..=(max.n() + s) {
