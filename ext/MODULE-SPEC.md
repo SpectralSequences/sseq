@@ -101,14 +101,19 @@ algebra.
       that one should interpret in binary. The nth bit is `0` if we want to
       quotient out by `τ_n`, and `1` otherwise.
 
-  * `bases`: There are two standard bases for the Steenrod algebra --- the
-    Milnor basis and the Adem basis. The Adem basis is faster than the Milnor
-    basis, but does not support a profile, so listing it alongside one is an
-    error. This lists the bases the module supports, in order of preference,
-    and a resolution asked for in another basis uses the first one instead.
+  * `notation`: There are two standard bases for the Steenrod algebra --- the
+    Milnor basis and the Adem basis --- and the actions or relations of a
+    module may be written in the notation of either. Set this to `"milnor"`
+    or `"adem"` if the module's actions are written in that basis, e.g. as
+    `P(1,1) x0 = x4`, and leave it out if they parse in both, as `Sq2 x0 = x2`
+    does. A finitely presented module lists `adem_relations` and
+    `milnor_relations` separately and does not need it.
 
-    The default is `["milnor", "adem"]` with no profile and `["milnor"]`
-    otherwise, so this is rarely needed.
+    The basis a resolution uses is the one asked for on the command line, e.g.
+    `tmf2@milnor`, otherwise the module's `notation`, otherwise Milnor. Asking
+    for a basis the module is not written in is an error. The Adem basis is
+    faster than the Milnor basis, but does not support a profile, so it is
+    also an error to ask for it, or set it as the notation, alongside one.
 
     Note that picking a different basis will result in different bases for
     the Ext groups.

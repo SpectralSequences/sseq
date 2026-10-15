@@ -308,7 +308,7 @@ pub fn requires_ext_machinery(json: &Value) -> bool {
 ///
 /// An invalid spec counts as supported, so that loading it reports the error.
 pub fn module_supports(json: &Value, ty: AlgebraType) -> bool {
-    AlgebraSpec::from_json(json).map_or(true, |spec| spec.bases().contains(&ty))
+    AlgebraSpec::from_json(json).map_or(true, |spec| spec.supports(ty))
 }
 
 /// Build the algebra and module for a given spec and basis, using only the `algebra` crate's JSON

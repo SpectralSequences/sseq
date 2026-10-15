@@ -34,8 +34,9 @@ const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/s
 pub struct Config {
     /// The json specification of the module
     module: Value,
-    /// The basis for the Steenrod algebra
-    algebra: AlgebraType,
+    /// The basis for the Steenrod algebra, if one was asked for. Otherwise the module's notation
+    /// decides.
+    algebra: Option<AlgebraType>,
 }
 
 /// Given a module specification string, load a json description of the module as described
@@ -70,12 +71,13 @@ impl std::str::FromStr for Config {
     fn from_str(spec: &str) -> Result<Self, Self::Err> {
         let mut args = spec.split('@');
         let module_name = args.next().unwrap();
-        let algebra = match args.next() {
-            Some(x) => x
-                .parse()
-                .with_context(|| format!("Invalid algebra type: {x}"))?,
-            None => AlgebraType::Milnor,
-        };
+        let algebra = args
+            .next()
+            .map(|x| {
+                x.parse()
+                    .with_context(|| format!("Invalid algebra type: {x}"))
+            })
+            .transpose()?;
 
         Ok(Self {
             module: parse_module_name(module_name)
@@ -112,7 +114,7 @@ where
         }
         Ok(Self {
             module: parse_module_name(spec.0)?,
-            algebra,
+            algebra: Some(algebra),
         })
     }
 }
@@ -123,7 +125,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
     fn try_from(spec: (Value, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             module: spec.0,
-            algebra: spec.1.try_into()?,
+            algebra: Some(spec.1.try_into()?),
         })
     }
 }
@@ -180,10 +182,10 @@ where
         algebra,
     } = module_spec.try_into()?;
 
-    if algebra == AlgebraType::Adem {
+    let spec = algebra::AlgebraSpec::from_json(&json)?;
+    if spec.basis(algebra)? == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
     }
-    let spec = algebra::AlgebraSpec::from_json(&json)?;
     if spec.profile.is_some() {
         return Err(anyhow!(
             "Nassau's algorithm does not support non-trivial profile"
