@@ -243,10 +243,37 @@ impl MilnorShape for Exterior {
     }
 
     /// $a_0$, dual to the Bockstein, and $h_0$, dual to $P(1)$.
+    ///
+    /// At `p = 2` these are named as for the classical algebra, whose $Sq^1$ and $Sq^{2^{i + 1}}$
+    /// are $Q_0$ and $P(2^i)$ in $A^{\mathbb{C}}/\tau$: $h_0$ is dual to $Q_0$ and $h_{i + 1}$ to
+    /// $P(2^i)$, as far as the profile allows.
     fn filtration_one_products(
         algebra: &MilnorAlgebraInner<Self>,
     ) -> Vec<(String, MilnorBasisElement)> {
         let profile = &algebra.profile;
+        if algebra.prime() == 2 {
+            let q = Self::q(algebra.prime());
+            let h0 = (profile.q_part & 1 != 0).then(|| {
+                let elt = MilnorBasisElement {
+                    degree: 1,
+                    q_part: 1,
+                    p_part: PPart::zero(),
+                };
+                ("h_0".to_string(), elt)
+            });
+            // As many as the polynomial shape names at the classical algebra.
+            let max = std::cmp::min(3, profile.get_p_part(0));
+            let hs = (0..max).map(|i| {
+                let entry: PPartEntry = 1 << i;
+                let elt = MilnorBasisElement {
+                    degree: q * entry as i32,
+                    q_part: 0,
+                    p_part: PPart::from_iter([entry]),
+                };
+                (format!("h_{}", i + 1), elt)
+            });
+            return h0.into_iter().chain(hs).collect();
+        }
         let mut products = Vec::with_capacity(2);
         if profile.q_part & 1 != 0 {
             products.push((
@@ -480,6 +507,19 @@ mod tests {
         }
 
         /// The polynomial generators are the $P(2^k)$, in degree `q * 2^k`.
+        /// $h_0$ and the $h_{i + 1}$ have the classical algebra's names and degrees.
+        #[test]
+        fn filtration_one_products_are_named_classically() {
+            let named = |products: Vec<(String, i32, usize)>| -> Vec<(String, i32)> {
+                products.into_iter().map(|(name, t, _)| (name, t)).collect()
+            };
+            let classical = MilnorAlgebraInner::<NoExterior>::new(TWO, false);
+            assert_eq!(
+                named(ctau().default_filtration_one_products()),
+                named(classical.default_filtration_one_products())
+            );
+        }
+
         #[test]
         fn polynomial_generators_are_found() {
             let algebra = ctau();

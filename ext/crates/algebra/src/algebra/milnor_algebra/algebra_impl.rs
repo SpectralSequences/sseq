@@ -231,7 +231,11 @@ impl<F: MilnorShape> Algebra for MilnorAlgebraInner<F> {
 
         let mut parser = alt((
             map(char('1'), |_| Some((0, 0))),
-            map(char('b'), |_| Some((1, 0))),
+            map(char('b'), |_| {
+                // The reduced powers and profiles without $Q_0$ have nothing in degree 1.
+                self.compute_basis(1);
+                (self.dimension(1) > 0).then_some((1, 0))
+            }),
             map(preceded(p_or_sq, digits), |i| self.try_beps_pn(0, i)),
             map(
                 (tag("P^"), digits, char('_'), digits::<usize>),
@@ -324,6 +328,19 @@ impl<F: MilnorShape> UnstableAlgebra for MilnorAlgebraInner<F> {
 mod tests {
     use super::*;
     use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorProfile};
+
+    /// `b` names the class in degree 1, so it parses only where there is one.
+    #[test]
+    fn b_parses_only_where_there_is_a_degree_one_class() {
+        let ctau = MilnorAlgebra::motivic_mod_tau(MilnorProfile::default(), false);
+        assert_eq!(ctau.basis_element_from_string("b"), Some((1, 0)));
+        #[cfg(feature = "odd-primes")]
+        {
+            let p = ValidPrime::new(3);
+            let reduced = MilnorAlgebra::reduced_powers(p, MilnorProfile::default(), false);
+            assert_eq!(reduced.basis_element_from_string("b"), None);
+        }
+    }
 
     #[test]
     fn basis_element_from_string_total_milnor() {

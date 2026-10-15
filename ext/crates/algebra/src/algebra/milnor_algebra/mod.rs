@@ -16,13 +16,16 @@ mod antidiagonal;
 mod basis_element;
 mod bialgebra_impl;
 mod generated_impl;
+mod kind;
 mod multiplication;
 mod ppart;
 mod profile;
 mod seqno;
 mod shape;
+mod subalgebra;
 
 pub use basis_element::MilnorBasisElement;
+pub use kind::SteenrodKind;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
@@ -59,12 +62,6 @@ pub struct MilnorAlgebraInner<F: MilnorShape> {
     #[cfg(feature = "cache-multiplication")]
     /// source_deg -> target_deg -> source_op -> target_op
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>,
-}
-
-impl<F: MilnorShape> std::fmt::Display for MilnorAlgebraInner<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "MilnorAlgebra(p={})", self.prime())
-    }
 }
 
 impl<F: MilnorShape> MilnorAlgebraInner<F> {
@@ -360,7 +357,9 @@ impl Bialgebra for MilnorAlgebra {
     fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         match self {
             Self::Polynomial(a) => a.coproduct(op_deg, op_idx),
-            Self::Exterior(_) => unimplemented!("Coproduct at odd primes not supported"),
+            Self::Exterior(_) => {
+                unimplemented!("Coproduct is only supported for the classical algebra at p = 2")
+            }
         }
     }
 
