@@ -27,6 +27,10 @@ fn main() -> anyhow::Result<()> {
     if resolution.target().max_s() != 1 || !module.is_unit() || p != 2 {
         panic!("Can only run Steenrod on the sphere");
     }
+    // The tensor square of the resolution needs the coproduct.
+    if resolution.algebra().kind() != algebra::SteenrodKind::Classical {
+        panic!("Can only run Steenrod over the classical Steenrod algebra");
+    }
 
     let b = Bidegree::n_s(
         query::raw("n of Ext class", str::parse),
