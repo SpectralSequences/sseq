@@ -1,7 +1,6 @@
 {
     "p": 2,
-    "algebra": ["milnor"],
-    "profile": { "truncated": true, "p_part": [3, 2, 1] },
+    "algebra": { "profile": { "truncated": true, "p_part": [3, 2, 1] } },
     "type": "real projective space",
     "min": -16,
     "max": -1,

@@ -1,7 +1,6 @@
 {
     "p": 2,
-    "algebra": ["milnor"],
-    "profile": { "truncated": true, "p_part": [3, 2, 1] },
+    "algebra": { "profile": { "truncated": true, "p_part": [3, 2, 1] } },
     "type": "finite dimensional module",
     "gens": { "x0": 0, "x2": 2, "x4": 4, "x6": 6 },
     "actions": ["Sq2 x0 = x2", "Sq4 x0 = x4", "Sq4 x2 = x6", "Sq2 x4 = x6"],
