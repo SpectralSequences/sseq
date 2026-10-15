@@ -39,10 +39,11 @@ describing the simplest version here.
 ```json
 {
     "p": 2,
-    "algebra": ["milnor"],
-    "profile": {
-        "truncated": true,
-        "p_part": [3, 2, 1]
+    "algebra": {
+        "profile": {
+            "truncated": true,
+            "p_part": [3, 2, 1]
+        }
     },
     "type": "finite dimensional module",
     "gens": {"x0": 0},
@@ -57,11 +58,12 @@ y(2) is a spectrum whose homology is `F_p[ξ₁, ξ₂][τ₁, τ₂]`.
 ```json
 {
     "p": 3,
-    "algebra": ["milnor"],
-    "profile": {
-        "q_part": 4294967292,
-        "p_part": [0, 0],
-        "truncated": false
+    "algebra": {
+        "profile": {
+            "q_part": 4294967292,
+            "p_part": [0, 0],
+            "truncated": false
+        }
     },
     "type" : "finite dimensional module",
     "gens": {"x0": 0},
@@ -71,9 +73,8 @@ y(2) is a spectrum whose homology is `F_p[ξ₁, ξ₂][τ₁, τ₂]`.
 
 ## Algebra
 
-In each of the above examples, the first "block" in the json file specifies the
-algebra. Note that the entries can be ordered in any way, and in particular, it
-is perfectly acceptable to interleave the algebra and module parts.
+In each of the above examples, `p` and the `algebra` object specify the
+algebra.
 
 ### Required parameters
 
@@ -82,31 +83,40 @@ is perfectly acceptable to interleave the algebra and module parts.
 
 ### Optional parameters
 
-* `algebra`: There are two standard bases for the Steenrod algebra --- the
-  Milnor basis and the Adem basis. The Adem basis is faster than the Milnor
-  basis, but only the Milnor basis supports a non-trivial profile (see next
-  entry). This parameter specifies which bases the module supports. Usually,
-  you will want to set it to `["milnor"]` if you have a non-trivial profile,
-  or `["milnor", "adem"]` otherwise.
+* `algebra`: An object with the following optional fields. Leaving it out
+  gives the whole Steenrod algebra.
 
-  The default option is `["milnor", "adem"]`.
+  * `profile`: This specifies a profile function for the Steenrod algebra.
+    If specified, Ext is computed against the specified quotient of the dual
+    Steenrod algebra (or rather, the dual of the quotient of the dual
+    Steenrod algebra, since we work with algebras instead of coalgebras).
+    There are three possible sub-parameters:
 
-  Note that picking a different basis will result in different bases for the
-  Ext groups.
+    * `truncated`: If `true`, the unspecified `p_part` entries will be 0.
+      Otherwise, they will be infinity.
+    * `p_part`: The profile function. If this is set to `[r_1, r_2, ...]`,
+      then we quotient out by `ξ_i^{p^{r_i}}` for all i in the Steenrod
+      algebra.
+    * `q_part`: This is only relevant at odd primes. This is a single integer
+      that one should interpret in binary. The nth bit is `0` if we want to
+      quotient out by `τ_n`, and `1` otherwise.
 
-* `profile`: This specifies a profile function for the Steenrod algebra. If
-  specified, Ext is computed against the specified quotient of the dual
-  Steenrod algebra (or rather, the dual of the quotient of the dual Steenrod
-  algebra, since we work with algebras instead of coalgebras). There are three
-  possible sub-parameters:
+  * `notation`: There are two standard bases for the Steenrod algebra --- the
+    Milnor basis and the Adem basis --- and the actions or relations of a
+    module may be written in the notation of either. Set this to `"milnor"`
+    or `"adem"` if the module's actions are written in that basis, e.g. as
+    `P(1,1) x0 = x4`, and leave it out if they parse in both, as `Sq2 x0 = x2`
+    does. A finitely presented module lists `adem_relations` and
+    `milnor_relations` separately and does not need it.
 
-  * `truncated`: If `true`, the unspecified `p_part` entries will be 0.
-    Otherwise, they will be infinity.
-  * `p_part`: The profile function. If this is set to `[r_1, r_2, ...]`,
-    then we quotient out by `ξ_i^{p^{r_i}}` for all i in the Steenrod algebra.
-  * `q_part`: This is only relevant at odd primes. This is a single integer
-    that one should interpret in binary. The nth bit is `0` if we want to
-    quotient out by `τ_n`, and `1` otherwise.
+    The basis a resolution uses is the one asked for on the command line, e.g.
+    `tmf2@milnor`, otherwise the module's `notation`, otherwise Milnor. Asking
+    for a basis the module is not written in is an error. The Adem basis is
+    faster than the Milnor basis, but does not support a profile, so it is
+    also an error to ask for it, or set it as the notation, alongside one.
+
+    Note that picking a different basis will result in different bases for
+    the Ext groups.
 
 ## Module
 

@@ -14,7 +14,7 @@
 use std::{hint::black_box, path::PathBuf, sync::Arc};
 
 use algebra::{
-    Algebra, AlgebraType, SteenrodAlgebra,
+    Algebra, AlgebraSpec, AlgebraType, SteenrodAlgebra,
     module::{Module, SteenrodModule, steenrod_module},
 };
 use criterion::{BenchmarkGroup, Throughput, measurement::WallTime};
@@ -304,16 +304,11 @@ pub fn requires_ext_machinery(json: &Value) -> bool {
     !json["cofiber"].is_null()
 }
 
-/// Whether the module's optional `"algebra"` restriction permits the given basis. Modules without an
-/// `"algebra"` field support both bases.
+/// Whether the module's algebra has the given basis.
+///
+/// An invalid spec counts as supported, so that loading it reports the error.
 pub fn module_supports(json: &Value, ty: AlgebraType) -> bool {
-    match json["algebra"].as_array() {
-        None => true,
-        Some(list) => {
-            let wanted = ty.to_string();
-            list.iter().any(|x| x.as_str() == Some(&wanted))
-        }
-    }
+    AlgebraSpec::from_json(json).map_or(true, |spec| spec.supports(ty))
 }
 
 /// Build the algebra and module for a given spec and basis, using only the `algebra` crate's JSON

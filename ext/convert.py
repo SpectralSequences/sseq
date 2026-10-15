@@ -21,7 +21,7 @@ obj = {
         "p": 2,
         "generic": False,
         "file_name": os.path.basename(sys.argv[1]),
-        "algebra": ["milnor"],
+        "algebra": {"notation": "milnor"},
         "gens": {},
         "actions": []
     }

@@ -22,6 +22,6 @@ pub mod motivic;
 pub use motivic::MotivicMilnorAlgebra;
 
 mod steenrod_algebra;
-pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra};
+pub use steenrod_algebra::{AlgebraSpec, AlgebraType, SteenrodAlgebra};
 
 pub mod pair_algebra;

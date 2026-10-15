@@ -1,7 +1,6 @@
 {
     "p": 2,
-    "algebra": ["milnor"],
-    "profile": { "truncated": true, "p_part": [3, 2, 1] },
+    "algebra": { "profile": { "truncated": true, "p_part": [3, 2, 1] } },
     "type": "finite dimensional module",
     "gens": { "x0": 0 },
     "actions": []
