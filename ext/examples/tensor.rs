@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use algebra::{
-    AdemAlgebra, AlgebraSpec, SteenrodAlgebra, SteenrodKind,
+    AdemAlgebra, AlgebraSpec, SteenrodAlgebra,
     module::{FDModule, TensorModule, steenrod_module},
 };
 use anyhow::anyhow;
@@ -26,9 +26,10 @@ fn main() -> anyhow::Result<()> {
 
     // The action on a tensor product is through the coproduct of the Adem basis.
     for module in [&left, &right] {
-        if AlgebraSpec::from_json(module)?.kind != SteenrodKind::Classical {
+        if !AlgebraSpec::from_json(module)?.is_full_classical() {
             return Err(anyhow!(
-                "Tensor products are only supported over the classical Steenrod algebra"
+                "Tensor products are only supported over the classical Steenrod algebra with no \
+                 profile"
             ));
         }
     }
