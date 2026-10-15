@@ -72,13 +72,13 @@ impl std::str::FromStr for Config {
     fn from_str(spec: &str) -> Result<Self, Self::Err> {
         let mut args = spec.split('@');
         let module_name = args.next().unwrap();
-        let algebra = args
-            .next()
-            .map(|x| {
+        let algebra = match args.next() {
+            Some(x) => Some(
                 x.parse()
-                    .with_context(|| format!("Invalid algebra type: {x}"))
-            })
-            .transpose()?;
+                    .with_context(|| format!("Invalid algebra type: {x}"))?,
+            ),
+            None => None,
+        };
 
         Ok(Self {
             module: parse_module_name(module_name)
