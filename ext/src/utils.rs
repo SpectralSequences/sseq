@@ -34,8 +34,9 @@ const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/s
 pub struct Config {
     /// The json specification of the module
     module: Value,
-    /// The basis for the Steenrod algebra, if one was asked for. Otherwise the module's notation
-    /// decides.
+    /// The basis for the Steenrod algebra, if one was asked for.
+    ///
+    /// Otherwise the module's notation decides.
     algebra: Option<AlgebraType>,
 }
 

@@ -151,8 +151,9 @@ impl AlgebraSpec {
         self.basis(Some(basis)).is_ok()
     }
 
-    /// The basis to build the module in: `requested` if given, else the module's notation, else
-    /// Milnor.
+    /// The basis to build the module in.
+    ///
+    /// This is `requested` if given, else the module's notation, else Milnor.
     pub fn basis(&self, requested: Option<AlgebraType>) -> anyhow::Result<AlgebraType> {
         let basis = requested.or(self.notation).unwrap_or(AlgebraType::Milnor);
         if let Some(notation) = self.notation
