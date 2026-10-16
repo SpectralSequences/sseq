@@ -29,7 +29,7 @@ pub use kind::SteenrodKind;
 pub use multiplication::{PPartAllocation, PPartMultiplier, next_disjoint};
 pub use ppart::{PPart, PPartEntry};
 pub use profile::MilnorProfile;
-pub use seqno::SeqnoRanker;
+pub use seqno::SeqnoTables;
 pub use shape::{Exterior, MilnorShape, NoExterior};
 
 pub struct MilnorAlgebraInner<F: MilnorShape> {
@@ -323,7 +323,7 @@ impl MilnorAlgebra {
         pub fn multiply(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement);
         pub fn multiply_with_allocation(&self, res: FpSliceMut, coef: u32, m1: MilnorBasisElement, m2: MilnorBasisElement, excess: i32, allocation: PPartAllocation) -> PPartAllocation;
         pub fn seqno_applicable(&self) -> bool;
-        pub fn seqno_ranker(&self) -> SeqnoRanker;
+        pub fn seqno_tables(&self) -> std::sync::Arc<SeqnoTables>;
         pub fn seqno(&self, p_part: PPart, degree: i32) -> usize;
         pub fn compute_seqno_tables(&self, max_degree: i32);
     }
