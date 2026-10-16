@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SeqnoRanker","SeqnoTables"]};
+window.SIDEBAR_ITEMS = {"struct":["SeqnoTables"]};
