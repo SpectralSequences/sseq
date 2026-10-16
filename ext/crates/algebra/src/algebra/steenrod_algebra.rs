@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::{
     algebra::{
         AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, UnstableAlgebra,
-        milnor_algebra::MilnorProfile,
+        milnor_algebra::{MilnorProfile, SteenrodKind},
     },
     pair_algebra::PairAlgebra,
 };
@@ -171,6 +171,15 @@ impl AlgebraSpec {
 }
 
 impl SteenrodAlgebra {
+    /// The Hopf algebra this is a sub-Hopf-algebra of. The Adem basis only exists for the
+    /// classical one.
+    pub fn kind(&self) -> SteenrodKind {
+        match self {
+            Self::AdemAlgebra(_) => SteenrodKind::Classical,
+            Self::MilnorAlgebra(a) => a.kind(),
+        }
+    }
+
     /// Build the algebra of a module spec, in the basis given by [`AlgebraSpec::basis`].
     pub fn from_json(
         json: &Value,
@@ -334,5 +343,16 @@ mod tests {
         let profile = json!({ "truncated": true, "p_part": [1] });
         assert!(milnor(json!({ "p": 2, "profile": profile })).is_err());
         assert!(milnor(json!({ "p": 2, "algebra": { "kind": "classical" } })).is_err());
+    }
+
+    #[test]
+    fn kind_is_reported_in_both_bases() {
+        let adem = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(fp::prime::TWO, false));
+        assert_eq!(adem.kind(), SteenrodKind::Classical);
+        let ctau = MilnorAlgebra::motivic_mod_tau(MilnorProfile::default(), false);
+        assert_eq!(
+            SteenrodAlgebra::MilnorAlgebra(ctau).kind(),
+            SteenrodKind::MotivicModTau
+        );
     }
 }

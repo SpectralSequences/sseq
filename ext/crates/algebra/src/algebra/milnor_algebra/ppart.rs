@@ -103,7 +103,7 @@ impl PPart {
     ///
     /// Two exponent sequences are equal exactly when their bits are, so this is a complete hash
     /// key, and it can be compared against a packed mask in one operation (see
-    /// `MilnorSubalgebra::packed_signature` in `ext`).
+    /// [`MilnorAlgebra::packed_component_mask`](super::MilnorAlgebra::packed_component_mask)).
     pub const fn bits(self) -> u64 {
         self.0
     }

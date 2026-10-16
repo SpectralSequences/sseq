@@ -72,7 +72,13 @@ impl MilnorProfile {
         if !self.truncated {
             return false;
         }
-        if self.p_part.len() != self.p_part[0] as usize {
+        // An empty p-part is F_p at the polynomial shape, and A(0) = E(Q_0) at the exterior one if
+        // the q-part says so.
+        if self
+            .p_part
+            .first()
+            .is_some_and(|&e| e as usize != self.p_part.len())
+        {
             return false;
         }
         if has_exterior && self.q_part != (1 << (self.p_part.len() + 1)) - 1 {
