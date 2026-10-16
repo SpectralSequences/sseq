@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["MilnorAlgebra"],"macro":[["dispatch_milnor",1]],"mod":["algebra_impl","antidiagonal","basis_element","bialgebra_impl","generated_impl","multiplication","ppart","profile","seqno","shape"],"struct":["MilnorAlgebraInner"]};
+window.SIDEBAR_ITEMS = {"enum":["MilnorAlgebra"],"macro":[["dispatch_milnor",1]],"mod":["algebra_impl","antidiagonal","basis_element","bialgebra_impl","generated_impl","kind","multiplication","ppart","profile","seqno","shape","subalgebra"],"struct":["MilnorAlgebraInner"]};
