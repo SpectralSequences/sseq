@@ -18,8 +18,10 @@ use ext::{
 ///   [`ExtModule::extend_all_products`], for a side-by-side timing.
 /// - `EXT_NASSAU_RECOMPUTE_QI=1` forces recompute-on-demand even when quasi-inverses were saved
 ///   (`EXT_NASSAU_NO_SAVE_QI=1` on the *resolve* stores only the differentials in the first place).
-/// - `EXT_DUMP_PRODUCTS=1` prints the full multiplication table, sorted, instead of a timing line,
-///   so the batched and per-map paths can be diffed.
+/// - `EXT_DUMP_PRODUCTS=1` prints the full multiplication table, sorted, instead of the number of
+///   maps, so the batched and per-map paths can be diffed.
+///
+/// The timing goes to stderr, so stdout is deterministic.
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
@@ -78,7 +80,7 @@ fn main() -> anyhow::Result<()> {
             println!("{l}");
         }
     } else {
-        println!("{num_maps} {}", elapsed.as_secs_f64());
+        println!("{num_maps}");
     }
     Ok(())
 }
