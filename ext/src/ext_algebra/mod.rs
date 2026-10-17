@@ -884,4 +884,49 @@ mod tests {
         let x = module.algebra().element(Bidegree::n_s(15, 5), &[0, 0]);
         check_class_product_map(&module, &x, max);
     }
+
+    /// Every product of generators, as `(x, y degree, rows of x · basis(y degree))`.
+    fn product_table<CC>(
+        module: &ExtModule<CC>,
+    ) -> Vec<(BidegreeGenerator, Bidegree, Vec<Vec<u32>>)>
+    where
+        CC: FreeChainComplex + AugmentedChainComplex,
+    {
+        let mut table = Vec::new();
+        for x_deg in module.resolution().iter_stem() {
+            for g in module.basis(x_deg) {
+                let x = module.generator(g);
+                for b in module.algebra().resolution().iter_nonzero_stem() {
+                    if let Some(matrix) = module.multiply_into(&x, b) {
+                        let rows = matrix.iter().map(|row| row.iter().collect()).collect();
+                        table.push((g, b, rows));
+                    }
+                }
+            }
+        }
+        table
+    }
+
+    /// Without a save directory, Nassau's resolution recomputes each quasi-inverse on demand, so
+    /// [`ExtModule::extend_all_products`] works and gives exactly the products read from saved
+    /// quasi-inverses.
+    #[test]
+    fn test_nassau_products_without_save_dir() {
+        let max = Bidegree::n_s(14, 6);
+        let products = |save_dir: Option<std::path::PathBuf>| {
+            let res = Arc::new(crate::utils::construct_nassau("S_2", save_dir).unwrap());
+            res.compute_through_stem(max);
+            let module = ExtModule::intrinsic(res);
+            module.extend_all_products().unwrap();
+            product_table(&module)
+        };
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let unsaved = products(None);
+        assert!(
+            unsaved
+                .iter()
+                .any(|(_, _, rows)| rows.iter().flatten().any(|&c| c != 0))
+        );
+        assert_eq!(unsaved, products(Some(tempdir.path().to_owned())));
+    }
 }
