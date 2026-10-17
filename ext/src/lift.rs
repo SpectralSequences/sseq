@@ -5,15 +5,16 @@ use std::{
     sync::{
         Arc, OnceLock,
         atomic::{AtomicBool, Ordering},
+        mpsc,
     },
 };
 
 use algebra::module::Module;
 use fp::vector::FpVector;
 use once::OnceVec;
-use sseq::coordinates::{Bidegree, BidegreeRange, iter_s_t};
+use sseq::coordinates::Bidegree;
 
-use crate::chain_complex::ChainComplex;
+use crate::{chain_complex::ChainComplex, utils::parallel};
 
 /// Outcome of the `prepare` half of a lift step, generic over the pending state each implementor
 /// carries between `prepare` and `finish`.
@@ -63,8 +64,9 @@ pub struct LiftRequest<'a> {
     /// Vectors to lift, i.e. the `inputs` passed to `apply_quasi_inverse` at this bidegree.
     pub inputs: Vec<FpVector>,
     /// Called exactly once with the lifted `results` (`results[i]` lifts `inputs[i]`) to complete
-    /// the step (scatter the results, record generators).
-    pub finish: Box<dyn FnOnce(&[FpVector]) + 'a>,
+    /// the step (scatter the results, record generators). `Send` because [`MultiLift`] prepares the
+    /// liftables of a bidegree in parallel.
+    pub finish: Box<dyn FnOnce(&[FpVector]) + Send + 'a>,
 }
 
 /// A [`MultiLift`] sweep stopped because the shared target could not lift at a bidegree.
@@ -98,8 +100,14 @@ impl std::error::Error for LiftError {}
 ///
 /// At each output bidegree the inputs of every participating liftable are gathered and lifted with
 /// a single [`ChainComplex::apply_quasi_inverse`], so the target's quasi-inverse there is solved
-/// once and shared across all of them rather than recomputed once per liftable. Concurrency across
-/// the plane is provided by [`iter_s_t`], exactly as for a single map.
+/// once and shared across all of them rather than recomputed once per liftable.
+///
+/// Each output bidegree is a rayon task, started once the bidegrees it depends on are done, and its
+/// liftables are prepared in parallel. This follows the resolution's own scheduler: every fan-out
+/// inside a bidegree is a `ParallelGuard`ed region, and a bidegree task that starts on a thread
+/// waiting inside one (i.e. stolen by it) hands itself back to be spawned again instead of running
+/// there. Otherwise a cheap bidegree's fan-out could wait
+/// for a whole unrelated, expensive bidegree that one of its threads stole.
 ///
 /// Single-map callers do not need this — one map hits each bidegree once, so it already recomputes
 /// each quasi-inverse once. Those should use
@@ -169,34 +177,25 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         if max_s <= 0 {
             return Ok(());
         }
-        let min_t = self.target.min_degree();
-        let min = Bidegree::s_t(0, min_t);
 
-        // Per-output-row completion frontier, so `iter_s_t` can tell how far each row is done. Cell
-        // (s, t) is recorded at index `t - min_t` of row `s`; `push_ooo` returns the contiguous
-        // frontier that `iter_s_t` expects.
+        // Per-output-row completion frontier, so a finished cell can tell which cells of the next
+        // row it unblocks. Cell (s, t) is recorded at index `t - min_t` of row `s`.
         let completion: OnceVec<OnceVec<()>> = OnceVec::new();
         for _ in 0..max_s {
             completion.push(OnceVec::new());
         }
 
-        let max_t = move |slf: &Self, s: i32| {
-            let mut t = slf.target.module(s).max_computed_degree() + 1;
-            if let Some(bound) = bound {
-                // Stem profile `n <= bound.n()`, i.e. `t <= bound.n() + s`, exclusive upper bound.
-                t = std::cmp::min(t, bound.n() + s + 1);
-            }
-            t
+        let sweep = Sweep {
+            lift: self,
+            completion,
+            min_t: self.target.min_degree(),
+            max_s,
+            bound,
+            failure: Failure::default(),
+            span: tracing::Span::current(),
         };
-        let max = BidegreeRange::new(self, max_s, &max_t);
-
-        let failure = Failure::default();
-        iter_s_t(
-            &|b| self.step_cell(b, &completion, min_t, &failure),
-            min,
-            max,
-        );
-        failure.into_result()
+        sweep.run();
+        sweep.failure.into_result()
     }
 
     /// Process one output bidegree: gather every participating liftable's inputs, do one batched
@@ -218,14 +217,17 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         let p = self.target.prime();
 
         let mut inputs: Vec<FpVector> = Vec::new();
-        let mut finishers: Vec<(Box<dyn FnOnce(&[FpVector]) + '_>, Range<usize>)> = Vec::new();
+        let mut finishers: Vec<(Box<dyn FnOnce(&[FpVector]) + Send + '_>, Range<usize>)> =
+            Vec::new();
 
-        for liftable in &self.liftables {
-            if let Some(mut req) = liftable.prepare(b) {
-                let start = inputs.len();
-                inputs.append(&mut req.inputs);
-                finishers.push((req.finish, start..inputs.len()));
-            }
+        // Each `prepare` reads only shared data and returns its own pending state, so the
+        // liftables are independent; collecting them in order keeps the batch deterministic.
+        let requests =
+            parallel::guarded_map(self.liftables.len(), |i| self.liftables[i].prepare(b));
+        for mut req in requests.into_iter().flatten() {
+            let start = inputs.len();
+            inputs.append(&mut req.inputs);
+            finishers.push((req.finish, start..inputs.len()));
         }
 
         // Every liftable at output `b` lifts through the same quasi-inverse, so all results have
@@ -246,12 +248,103 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         }
 
         // `completion` tracks the contiguous frontier of finished degrees per output row (s-value).
-        // `push_ooo()` marks position `(b.t() - min_t)` as done and returns the maximal contiguous
-        // range from 0 up through this position (out-of-order inserts are allowed earlier). Convert
-        // from relative (0-indexed, relative to min_t) to absolute coordinates and return it so
-        // `iter_s_t` knows how far this row has progressed.
+        // `push_ooo()` marks position `(b.t() - min_t)` as done and returns the range of positions
+        // that this made newly contiguous from 0 (empty if a gap remains below). Convert from
+        // relative (0-indexed, relative to min_t) to absolute coordinates.
         let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
         (frontier.start as i32 + min_t)..(frontier.end as i32 + min_t)
+    }
+}
+
+/// One [`MultiLift`] sweep over the output plane, with every cell a rayon task.
+///
+/// Cell `(s, t)` depends on cells `(s - 1, t')` for all `t' < t` (a lift at `(s, t)` reads the
+/// liftables' values one row down, in lower degrees). So the cells of row 0 and the first cell of
+/// every row start at once, and a finished cell starts the cells of the next row that its row's
+/// newly contiguous frontier unblocks.
+struct Sweep<'a, CC> {
+    lift: &'a MultiLift<CC>,
+    completion: OnceVec<OnceVec<()>>,
+    min_t: i32,
+    /// Rows `0..max_s` are swept.
+    max_s: i32,
+    bound: Option<Bidegree>,
+    failure: Failure,
+    span: tracing::Span,
+}
+
+/// A cell that started on a thread inside a guarded fan-out, sent back to the sweep's own thread to
+/// be spawned again, with the sender it should keep using.
+struct Retry {
+    b: Bidegree,
+    sender: mpsc::Sender<Self>,
+}
+
+impl<CC: ChainComplex + Sync> Sweep<'_, CC> {
+    /// One past the last `t` swept in row `s`.
+    fn max_t(&self, s: i32) -> i32 {
+        let mut t = self.lift.target.module(s).max_computed_degree() + 1;
+        if let Some(bound) = self.bound {
+            // Stem profile `n <= bound.n()`, i.e. `t <= bound.n() + s`, exclusive upper bound.
+            t = std::cmp::min(t, bound.n() + s + 1);
+        }
+        t
+    }
+
+    fn run(&self) {
+        maybe_rayon::in_place_scope(|scope| {
+            let (sender, receiver) = mpsc::channel();
+            for t in (self.min_t..self.max_t(0)).rev() {
+                self.spawn(scope, Bidegree::s_t(0, t), sender.clone());
+            }
+            for s in 1..self.max_s {
+                if self.min_t < self.max_t(s) {
+                    self.spawn(scope, Bidegree::s_t(s, self.min_t), sender.clone());
+                }
+            }
+            // Every cell task holds a sender, so this loop ends once no cell is left to run.
+            drop(sender);
+            while let Ok(Retry { b, sender }) = receiver.recv() {
+                self.spawn(scope, b, sender);
+            }
+        });
+    }
+
+    fn spawn<'s>(
+        &'s self,
+        scope: &maybe_rayon::Scope<'s>,
+        b: Bidegree,
+        sender: mpsc::Sender<Retry>,
+    ) {
+        scope.spawn(move |scope| {
+            let _span = self.span.enter();
+            // This thread stole the cell while waiting inside a fan-out of another cell. Running it
+            // here would hold that fan-out up until this whole cell is done, so hand it back to be
+            // spawned again from outside: an idle thread will pick it up.
+            if cfg!(feature = "concurrent") && parallel::is_in_parallel() {
+                sender
+                    .send(Retry {
+                        b,
+                        sender: sender.clone(),
+                    })
+                    .unwrap();
+                return;
+            }
+            let frontier = self
+                .lift
+                .step_cell(b, &self.completion, self.min_t, &self.failure);
+
+            // Cells `(s + 1, t')` need row `s` done below `t'`; the newly contiguous frontier
+            // `[start, end)` of row `s` unblocks `t'` in `start + 1..=end`. Spawn them highest
+            // first, so the lowest (most depended-on) runs first on this thread.
+            let next_s = b.s() + 1;
+            if next_s < self.max_s {
+                let end = std::cmp::min(frontier.end + 1, self.max_t(next_s));
+                for t in (frontier.start + 1..end).rev() {
+                    self.spawn(scope, Bidegree::s_t(next_s, t), sender.clone());
+                }
+            }
+        });
     }
 }
 
