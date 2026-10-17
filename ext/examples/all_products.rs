@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
             .iter_stem()
             .map(|b| e2.resolution().number_of_gens_in_bidegree(b))
             .sum();
-        e2.extend_all_products();
+        e2.extend_all_products()?;
     }
     let elapsed = start.elapsed();
 

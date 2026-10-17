@@ -1,5 +1,12 @@
 //! Batched lifting of many maps through one target complex, one bidegree at a time.
-use std::{any::Any, ops::Range, sync::Arc};
+use std::{
+    any::Any,
+    ops::Range,
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use algebra::module::Module;
 use fp::vector::FpVector;
@@ -60,6 +67,33 @@ pub struct LiftRequest<'a> {
     pub finish: Box<dyn FnOnce(&[FpVector]) + 'a>,
 }
 
+/// A [`MultiLift`] sweep stopped because the shared target could not lift at a bidegree.
+///
+/// [`ChainComplex::apply_quasi_inverse`] returns `false` when the quasi-inverse it needs is not
+/// available, e.g. a save directory that is missing quasi-inverses. The sweep then stops scheduling
+/// new bidegrees, lets the ones already running finish, and reports the first failure here. The
+/// liftables are left extended up to (not including) the failed bidegree and whatever else had
+/// already finished.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LiftError {
+    /// The output (target) bidegree at which the quasi-inverse was unavailable.
+    pub b: Bidegree,
+}
+
+impl std::fmt::Display for LiftError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "failed to lift at target bidegree (n, s) = ({}, {}): the target's quasi-inverse is \
+             unavailable there",
+            self.b.n(),
+            self.b.s()
+        )
+    }
+}
+
+impl std::error::Error for LiftError {}
+
 /// Extends several [`Liftable`]s that share one target complex, together, in bidegree-major order.
 ///
 /// At each output bidegree the inputs of every participating liftable are gathered and lifted with
@@ -97,8 +131,12 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
 
     /// Extend every liftable as far as the shared target is resolved, batching the quasi-inverse
     /// solve at each output bidegree.
-    pub fn extend_all(&self) {
-        self.extend_bounded(None);
+    ///
+    /// # Errors
+    ///
+    /// If the target cannot lift at some bidegree; see [`LiftError`].
+    pub fn extend_all(&self) -> Result<(), LiftError> {
+        self.extend_bounded(None)
     }
 
     /// Like [`extend_all`](Self::extend_all), but sweeping only the *output* bidegrees `(s, t)`
@@ -109,23 +147,27 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
     /// [`MuResolutionHomomorphism`](crate::resolution_homomorphism::MuResolutionHomomorphism)`::extend_through_stem`
     /// bounds the map's *source*. A liftable of shift `d` swept to output `bound` is therefore
     /// defined up to source `bound + d`.
-    pub fn extend_through_stem(&self, bound: Bidegree) {
-        self.extend_bounded(Some(bound));
+    ///
+    /// # Errors
+    ///
+    /// If the target cannot lift at some bidegree; see [`LiftError`].
+    pub fn extend_through_stem(&self, bound: Bidegree) -> Result<(), LiftError> {
+        self.extend_bounded(Some(bound))
     }
 
     /// Shared driver for [`extend_all`](Self::extend_all) and
     /// [`extend_through_stem`](Self::extend_through_stem). `bound`, when present, caps the swept
     /// output bidegrees to its stem profile (intersected with the target's computed range).
-    fn extend_bounded(&self, bound: Option<Bidegree>) {
+    fn extend_bounded(&self, bound: Option<Bidegree>) -> Result<(), LiftError> {
         if self.liftables.is_empty() {
-            return;
+            return Ok(());
         }
         let mut max_s = self.target.next_homological_degree();
         if let Some(bound) = bound {
             max_s = std::cmp::min(max_s, bound.s() + 1);
         }
         if max_s <= 0 {
-            return;
+            return Ok(());
         }
         let min_t = self.target.min_degree();
         let min = Bidegree::s_t(0, min_t);
@@ -148,12 +190,31 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         };
         let max = BidegreeRange::new(self, max_s, &max_t);
 
-        iter_s_t(&|b| self.step_cell(b, &completion, min_t), min, max);
+        let failure = Failure::default();
+        iter_s_t(
+            &|b| self.step_cell(b, &completion, min_t, &failure),
+            min,
+            max,
+        );
+        failure.into_result()
     }
 
     /// Process one output bidegree: gather every participating liftable's inputs, do one batched
     /// lift, then finish each. Returns the newly-contiguous frontier of this output row.
-    fn step_cell(&self, b: Bidegree, completion: &OnceVec<OnceVec<()>>, min_t: i32) -> Range<i32> {
+    ///
+    /// If the batched lift fails, or another cell has already failed, the cell records the failure
+    /// and returns an empty frontier, so nothing that depends on it is scheduled and the sweep
+    /// drains instead of waiting on a cell that will never finish.
+    fn step_cell(
+        &self,
+        b: Bidegree,
+        completion: &OnceVec<OnceVec<()>>,
+        min_t: i32,
+        failure: &Failure,
+    ) -> Range<i32> {
+        if failure.is_set() {
+            return b.t()..b.t();
+        }
         let p = self.target.prime();
 
         let mut inputs: Vec<FpVector> = Vec::new();
@@ -171,8 +232,11 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         // the target's module dimension at `b`.
         let fx_dim = self.target.module(b.s()).dimension(b.t());
         let mut results = vec![FpVector::new(p, fx_dim); inputs.len()];
-        if !inputs.is_empty() {
-            assert!(self.target.apply_quasi_inverse(&mut results, b, &inputs));
+        if !inputs.is_empty() && !self.target.apply_quasi_inverse(&mut results, b, &inputs) {
+            // Drop the finishers unrun: finishing with unlifted (zero) results would record wrong
+            // values as if they were computed.
+            failure.set(LiftError { b });
+            return b.t()..b.t();
         }
         // Run every finisher, even when a liftable contributed no inputs (a zero-dimensional step):
         // its finish still has to register/extend the step so later reads of that bidegree see it.
@@ -188,6 +252,32 @@ impl<CC: ChainComplex + Sync> MultiLift<CC> {
         // `iter_s_t` knows how far this row has progressed.
         let frontier = completion[b.s() as usize].push_ooo((), (b.t() - min_t) as usize);
         (frontier.start as i32 + min_t)..(frontier.end as i32 + min_t)
+    }
+}
+
+/// The first [`LiftError`] of a sweep, plus a flag that tells the remaining cells to stop.
+#[derive(Default)]
+struct Failure {
+    stop: AtomicBool,
+    first: OnceLock<LiftError>,
+}
+
+impl Failure {
+    fn is_set(&self) -> bool {
+        self.stop.load(Ordering::Relaxed)
+    }
+
+    fn set(&self, error: LiftError) {
+        // Concurrent failures race for `first`; any of them is a correct report.
+        let _ = self.first.set(error);
+        self.stop.store(true, Ordering::Relaxed);
+    }
+
+    fn into_result(self) -> Result<(), LiftError> {
+        match self.first.into_inner() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }
 
@@ -215,5 +305,50 @@ mod tests {
             &[1],
         ));
         MultiLift::new(other, vec![hom as Arc<dyn Liftable>]);
+    }
+
+    /// A target that cannot lift at some bidegree (here, a Nassau save with quasi-inverses deleted)
+    /// makes the sweep return an error naming that bidegree, instead of panicking on a worker and
+    /// leaving the caller waiting.
+    #[test]
+    fn missing_quasi_inverse_is_an_error() {
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let res = Arc::new(
+            crate::utils::construct_nassau("S_2", Some(tempdir.path().to_owned())).unwrap(),
+        );
+        res.compute_through_stem(Bidegree::n_s(12, 6));
+
+        // Delete every saved quasi-inverse at `s = 2`.
+        let qi_dir = tempdir
+            .path()
+            .join(format!("{}s", crate::save::SaveKind::NassauQi.name()));
+        let mut deleted = 0;
+        for entry in std::fs::read_dir(&qi_dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("2_")
+            {
+                std::fs::remove_file(path).unwrap();
+                deleted += 1;
+            }
+        }
+        assert!(deleted > 0);
+
+        let h0 = Arc::new(ResolutionHomomorphism::from_class(
+            String::new(),
+            Arc::clone(&res),
+            Arc::clone(&res),
+            Bidegree::n_s(0, 1),
+            &[1],
+        ));
+        let error = MultiLift::new(res, vec![h0 as Arc<dyn Liftable>])
+            .extend_all()
+            .unwrap_err();
+        assert_eq!(error.b.s(), 2, "{error}");
+        assert!(error.to_string().contains("failed to lift"));
     }
 }

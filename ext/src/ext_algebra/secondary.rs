@@ -14,6 +14,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use super::{ExtDifferential, ExtModule};
 use crate::{
     chain_complex::FreeChainComplex,
+    lift::LiftError,
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::{
         LAMBDA_BIDEGREE, SecondaryLift, SecondaryResolution, SecondaryResolutionHomomorphism,
@@ -285,7 +286,11 @@ where
     /// Every lift shares the unit resolution as target — for both the underlying primary maps and
     /// the secondary homotopies — so lifting them together means the unit's quasi-inverse at each
     /// bidegree is solved once and reused across every product rather than once per product.
-    pub fn extend_all_secondary_products(&self)
+    ///
+    /// # Errors
+    ///
+    /// If the unit resolution cannot lift at some bidegree; see [`LiftError`].
+    pub fn extend_all_secondary_products(&self) -> Result<(), LiftError>
     where
         CC: Send + Sync + 'static,
     {
@@ -303,7 +308,7 @@ where
             .map(|g| self.secondary_product_lift(&self.module.generator(g)))
             .collect();
         if lifts.is_empty() {
-            return;
+            return Ok(());
         }
 
         // Extend the underlying primary maps first (the secondary composites read them), each to
@@ -314,7 +319,7 @@ where
             lift.underlying().extend_all();
         }
 
-        batch_extend_secondary(Arc::clone(self.module.algebra().resolution()), lifts);
+        batch_extend_secondary(Arc::clone(self.module.algebra().resolution()), lifts)
     }
 
     /// The secondary product of `x` with every $E_3$-surviving class of the unit at bidegree `b`,
@@ -545,7 +550,7 @@ mod tests {
         let (e2_bat, sec_bat) = build();
 
         // Extend every secondary product together, in one batched pass.
-        sec_bat.extend_all_secondary_products();
+        sec_bat.extend_all_secondary_products().unwrap();
 
         let mut compared = 0;
         for (n, s) in [(0, 1), (1, 1), (3, 1)] {

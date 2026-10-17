@@ -318,7 +318,9 @@ where
         let mut map_liftables: Vec<Arc<dyn Liftable>> = Vec::with_capacity(f_cs.len() + 1);
         map_liftables.push(Arc::clone(&b_hom) as Arc<dyn Liftable>);
         map_liftables.extend(f_cs.iter().map(|f| Arc::clone(f) as Arc<dyn Liftable>));
-        MultiLift::new(Arc::clone(unit), map_liftables).extend_through_stem(shift);
+        MultiLift::new(Arc::clone(unit), map_liftables)
+            .extend_through_stem(shift)
+            .unwrap_or_else(|e| panic!("massey_iter_c: {e}"));
 
         // Second batch: every null-homotopy against the unit. Each bracket is read at `tot`, i.e.
         // the homotopy's top lands at output bidegree `a.degree()`, so bound the sweep there.
@@ -326,7 +328,9 @@ where
             .iter()
             .map(|(_, _, h)| Arc::clone(h) as Arc<dyn Liftable>)
             .collect();
-        MultiLift::new(Arc::clone(unit), homotopy_liftables).extend_through_stem(a.degree());
+        MultiLift::new(Arc::clone(unit), homotopy_liftables)
+            .extend_through_stem(a.degree())
+            .unwrap_or_else(|e| panic!("massey_iter_c: {e}"));
 
         // Read off each bracket from its extended homotopy.
         let mut results = Vec::new();

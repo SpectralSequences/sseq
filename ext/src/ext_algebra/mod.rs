@@ -16,7 +16,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
-    lift::{Liftable, MultiLift},
+    lift::{LiftError, Liftable, MultiLift},
     resolution_homomorphism::ResolutionHomomorphism,
     utils::{QueryModuleResolution, get_unit},
 };
@@ -459,7 +459,11 @@ where
     /// All the product maps share the unit resolution as target, so lifting them together means the
     /// unit's quasi-inverse at each output bidegree is solved once and reused across every product,
     /// rather than once per product.
-    pub fn extend_all_products(&self)
+    ///
+    /// # Errors
+    ///
+    /// If the unit resolution cannot lift at some bidegree; see [`LiftError`].
+    pub fn extend_all_products(&self) -> Result<(), LiftError>
     where
         CC: Sync + 'static,
     {
@@ -473,9 +477,9 @@ where
             .map(|g| self.generator_product_map(g) as Arc<dyn Liftable>)
             .collect();
         if liftables.is_empty() {
-            return;
+            return Ok(());
         }
-        MultiLift::new(Arc::clone(self.algebra.resolution()), liftables).extend_all();
+        MultiLift::new(Arc::clone(self.algebra.resolution()), liftables).extend_all()
     }
 
     /// Left-multiplication by the class `x` (in $\Ext(M, k)$), applied to every basis generator of

@@ -34,7 +34,7 @@ pub use crate::{
 };
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    lift::{LiftPrep, LiftRequest, Liftable, MultiLift},
+    lift::{LiftError, LiftPrep, LiftRequest, Liftable, MultiLift},
     save::{SaveDirectory, SaveFile, SaveKind},
 };
 
@@ -830,12 +830,19 @@ where
 /// once and shared across all the lifts rather than once per lift.
 ///
 /// All `lifts` must lift through `target` (i.e. `lift.target()` is `target` for each).
-pub fn batch_extend_secondary<T>(target: Arc<T::Target>, lifts: Vec<Arc<T>>)
+///
+/// # Errors
+///
+/// If the target cannot lift at some bidegree; see [`LiftError`].
+pub fn batch_extend_secondary<T>(
+    target: Arc<T::Target>,
+    lifts: Vec<Arc<T>>,
+) -> Result<(), LiftError>
 where
     T: SecondaryLift + Send + Sync + 'static,
 {
     if lifts.is_empty() {
-        return;
+        return Ok(());
     }
     // `MultiLift::new` enforces the shared-target contract, but only after `prepare_homotopies`
     // would have run its side effects, so check it up front here.
@@ -852,7 +859,7 @@ where
         .into_iter()
         .map(|l| Arc::new(SecondaryLiftable(l)) as Arc<dyn Liftable>)
         .collect();
-    MultiLift::new(target, liftables).extend_all();
+    MultiLift::new(target, liftables).extend_all()
 }
 
 #[cfg(test)]
@@ -949,7 +956,7 @@ mod tests {
         native.extend_all();
 
         let batched = Arc::new(SecondaryResolution::new(Arc::clone(&res)));
-        batch_extend_secondary(Arc::clone(&res), vec![Arc::clone(&batched)]);
+        batch_extend_secondary(Arc::clone(&res), vec![Arc::clone(&batched)]).unwrap();
 
         // Compare the d2-defining matrix `homotopy(s + 2).hom_k(t)` at every stem where it is
         // defined; equality across the plane means the two homotopies agree.
