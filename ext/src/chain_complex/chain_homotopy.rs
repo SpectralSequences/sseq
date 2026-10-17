@@ -5,7 +5,6 @@ use algebra::module::{
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use fp::{prime::ValidPrime, vector::FpVector};
-use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeRange};
 
@@ -282,7 +281,7 @@ impl<
             scratch
         };
 
-        let scratches: Vec<FpVector> = (0..num_gens).into_maybe_par_iter().map(f).collect();
+        let scratches: Vec<FpVector> = crate::utils::parallel::guarded_map(num_gens, f);
 
         HomotopyPrep::NeedsLift(PendingHomotopy {
             source,

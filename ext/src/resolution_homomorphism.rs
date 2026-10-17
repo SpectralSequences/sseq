@@ -14,7 +14,6 @@ use fp::{
     matrix::Matrix,
     vector::{FpSliceMut, FpVector},
 };
-use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
@@ -408,10 +407,11 @@ where
         };
 
         // Same order as `qi_rows` (ascending generator index over non-zero differentials).
-        let fdx_vectors: Vec<FpVector> = (0..num_gens)
-            .into_maybe_par_iter()
-            .filter_map(compute_fdx_vector)
-            .collect();
+        let fdx_vectors: Vec<FpVector> =
+            crate::utils::parallel::guarded_map(qi_rows.len(), |i| compute_fdx_vector(qi_rows[i]))
+                .into_iter()
+                .flatten()
+                .collect();
 
         StepPrep::NeedsLift(PendingStep {
             input,

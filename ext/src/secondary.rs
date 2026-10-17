@@ -619,10 +619,8 @@ pub trait SecondaryLift: Sync + Sized {
             v
         };
 
-        let intermediates: Vec<FpVector> = (0..num_gens)
-            .into_maybe_par_iter()
-            .map(get_intermediate)
-            .collect();
+        let intermediates: Vec<FpVector> =
+            crate::utils::parallel::guarded_map(num_gens, get_intermediate);
 
         // The lift-validity check consumes the intermediates as they are *before* the solve, but
         // the batched driver moves them out to lift, so keep a copy where that check runs.

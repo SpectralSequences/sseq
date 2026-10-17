@@ -662,6 +662,32 @@ pub(crate) mod parallel {
     pub(crate) fn is_in_parallel() -> bool {
         PARALLEL_DEPTH.with(|depth| depth.get()) > 0
     }
+
+    /// `(0..n).map(f).collect()`, computed in parallel, as a guarded fan-out.
+    ///
+    /// The calling thread is marked [in parallel](is_in_parallel) until every item is done, and so
+    /// is each thread while it runs an item. Every item is a task of its own (rather than a leaf of
+    /// a `join` tree), so a thread only ever waits for this fan-out inside a marked region: a
+    /// bidegree task it steals while waiting sees [`is_in_parallel`] and is retried instead of
+    /// holding the fan-out up. With fewer than two items, `f` simply runs on the calling thread.
+    pub(crate) fn guarded_map<R: Send>(n: usize, f: impl Fn(usize) -> R + Sync) -> Vec<R> {
+        if n < 2 {
+            return (0..n).map(f).collect();
+        }
+        let _guard = ParallelGuard::new();
+        let mut results: Vec<Option<R>> = Vec::with_capacity(n);
+        results.resize_with(n, || None);
+        let f = &f;
+        maybe_rayon::in_place_scope(|scope| {
+            for (i, slot) in results.iter_mut().enumerate() {
+                scope.spawn(move |_| {
+                    let _guard = ParallelGuard::new();
+                    *slot = Some(f(i));
+                });
+            }
+        });
+        results.into_iter().map(Option::unwrap).collect()
+    }
 }
 
 /// The value of the SECONDARY_JOB environment variable.
