@@ -377,7 +377,10 @@ impl Failure {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{resolution_homomorphism::ResolutionHomomorphism, utils::construct_standard};
+    use crate::{
+        chain_complex::FreeChainComplex, resolution_homomorphism::ResolutionHomomorphism,
+        utils::construct_standard,
+    };
 
     /// Batching lifts through a target other than the one they were built against would solve them
     /// with the wrong quasi-inverse, so [`MultiLift::new`] rejects it up front.
@@ -443,5 +446,60 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.b.s(), 2, "{error}");
         assert!(error.to_string().contains("failed to lift"));
+    }
+
+    /// The point of [`MultiLift`]: with quasi-inverses recomputed on demand, a batch of maps
+    /// recomputes each quasi-inverse once, not once per map.
+    #[test]
+    fn quasi_inverse_recomputed_once_per_bidegree() {
+        let max = Bidegree::n_s(20, 8);
+        // A Nassau resolution with no save directory recomputes every quasi-inverse it applies.
+        let product_maps = || {
+            let res = Arc::new(crate::utils::construct_nassau("S_2", None).unwrap());
+            res.compute_through_stem(max);
+            let maps: Vec<_> = res
+                .iter_nonzero_stem()
+                .flat_map(|b| (0..res.number_of_gens_in_bidegree(b)).map(move |i| (b, i)))
+                .map(|(b, i)| {
+                    let mut class = vec![0; res.number_of_gens_in_bidegree(b)];
+                    class[i] = 1;
+                    Arc::new(ResolutionHomomorphism::from_class(
+                        String::new(),
+                        Arc::clone(&res),
+                        Arc::clone(&res),
+                        b,
+                        &class,
+                    ))
+                })
+                .collect();
+            res.qi_recomputes.clear();
+            (res, maps)
+        };
+
+        let (res, maps) = product_maps();
+        let liftables = maps
+            .iter()
+            .map(|m| Arc::clone(m) as Arc<dyn Liftable>)
+            .collect();
+        MultiLift::new(Arc::clone(&res), liftables)
+            .extend_all()
+            .unwrap();
+        assert!(res.qi_recomputes.len() > 10);
+        for entry in res.qi_recomputes.iter() {
+            assert_eq!(
+                *entry.value(),
+                1,
+                "quasi-inverse at {} recomputed",
+                entry.key()
+            );
+        }
+
+        // Extending the same maps one at a time recomputes the shared quasi-inverses repeatedly, so
+        // the count above is a real check.
+        let (res, maps) = product_maps();
+        for map in &maps {
+            map.extend_all();
+        }
+        assert!(res.qi_recomputes.iter().any(|entry| *entry.value() > 1));
     }
 }
