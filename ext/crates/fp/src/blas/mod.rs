@@ -48,7 +48,7 @@ impl std::ops::Mul for &Matrix {
             // Can use optimized BLAS operations (matrix rows are padded to multiple of 64)
             // TODO: Use different block sizes and loop orders based on the size of the matrices
             #[cfg(feature = "gpu")]
-            if let Some(result) = cuda::try_mul(self, rhs) {
+            if let Some(result) = cuda::gemm::try_mul(self, rhs) {
                 return result;
             }
             self.fast_mul_concurrent(rhs)
