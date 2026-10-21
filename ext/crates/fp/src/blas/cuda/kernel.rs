@@ -12,8 +12,8 @@ use std::{
 use anyhow::{anyhow, bail};
 use cudarc::{
     driver::{
-        CudaContext, CudaFunction, CudaModule, CudaStream, DevicePtr, DeviceRepr, LaunchConfig,
-        PushKernelArg, sys,
+        CudaContext, CudaFunction, CudaModule, CudaSlice, CudaStream, CudaView, DevicePtr,
+        DevicePtrMut, DeviceRepr, LaunchConfig, PushKernelArg, sys,
     },
     nvrtc::{CompileError, CompileOptions, Ptx, compile_ptx_with_opts},
 };
@@ -99,10 +99,16 @@ pub struct GpuContext {
     /// per context. The mutex is held only for the map lookup, never across a GPU submission, so it
     /// does not serialize device work.
     streams: Mutex<HashMap<ThreadId, Arc<CudaStream>>>,
+    /// Held so the loaded module outlives the [`CudaFunction`]s taken from it; never read.
     #[allow(dead_code)]
     module: Arc<CudaModule>,
     kernel: CudaFunction,
+    /// The GEMM with the reduce-store epilogue, XORing its product into a matrix (`EPI_TMA_XOR`).
+    kernel_xor: CudaFunction,
     transpose_kernel: CudaFunction,
+    pack_a: CudaFunction,
+    pack_b: CudaFunction,
+    xor_into: CudaFunction,
 }
 
 impl GpuContext {
@@ -112,13 +118,21 @@ impl GpuContext {
         let ctx = CudaContext::new(device_id)?;
         let module = ctx.load_module(ptx)?;
         let kernel = module.load_function("matmul_b1_kernel")?;
+        let kernel_xor = module.load_function("matmul_b1_kernel_xor")?;
         let transpose_kernel = module.load_function("transpose_tile_b1_kernel")?;
+        let pack_a = module.load_function("pack_a")?;
+        let pack_b = module.load_function("pack_b")?;
+        let xor_into = module.load_function("xor_into")?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
             module,
             kernel,
+            kernel_xor,
             transpose_kernel,
+            pack_a,
+            pack_b,
+            xor_into,
         })
     }
 
@@ -248,12 +262,88 @@ fn matmul_b1(
     }
 
     let c_dev = stream.alloc_zeros::<u64>(m_padded * n_padded_lim)?;
+    let kernel_secs = {
+        let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+        run_gemm_kernel(
+            gpu,
+            &stream,
+            &a_dev,
+            &bt_dev,
+            GemmTarget::Store {
+                c: c_ptr,
+                n_padded_lim,
+            },
+            m_padded,
+            k_padded,
+            n_groups,
+            time_iters,
+        )?
+    };
+
+    let c_all = stream.clone_dtoh(&c_dev)?;
+    let c_stride = c.stride();
+    for (dst, src) in c
+        .data_mut()
+        .chunks_exact_mut(c_stride)
+        .zip(c_all.chunks_exact(n_padded_lim))
+        .take(m)
+    {
+        dst[..n_lim].copy_from_slice(&src[..n_lim]);
+    }
+    Ok((c, kernel_secs))
+}
+
+/// Where a GEMM's product goes ([`run_gemm_kernel`]).
+///
+/// Raw device addresses: the caller holds the buffers' stream guards across the launch.
+#[derive(Clone, Copy, Debug)]
+enum GemmTarget {
+    /// Store the padded product `C` (`m_padded × n_padded_lim` limbs).
+    Store {
+        c: sys::CUdeviceptr,
+        n_padded_lim: usize,
+    },
+    /// XOR the product into the matrix `dst` (`dst_rows × dst_stride` limbs), product limb 0
+    /// landing on limb `x_limb` of each row (`EPI_TMA_XOR`). Rows past `dst_rows` are dropped.
+    TmaXor {
+        dst: sys::CUdeviceptr,
+        dst_rows: usize,
+        dst_stride: usize,
+        x_limb: usize,
+    },
+}
+
+/// Whether the reduce-store epilogue can address a matrix of row stride `stride` limbs.
+///
+/// It needs 16-byte rows, i.e. an even limb count, and a width in u32s that fits the kernel's
+/// signed 32-bit coordinates.
+pub fn tma_xor_supported(stride: usize) -> bool {
+    stride > 0 && stride.is_multiple_of(2) && stride * 2 < i32::MAX as usize
+}
+
+/// Launch the GEMM over operands already packed into its tiles and resident on the device.
+///
+/// `target` says where the product goes. Returns the average kernel-only wall time over
+/// `time_iters` launches.
+#[allow(clippy::too_many_arguments)]
+fn run_gemm_kernel(
+    gpu: &GpuContext,
+    stream: &Arc<CudaStream>,
+    a_dev: &CudaSlice<u64>,
+    bt_dev: &CudaSlice<u64>,
+    target: GemmTarget,
+    m_padded: usize,
+    k_padded: usize,
+    n_groups: usize,
+    time_iters: usize,
+) -> anyhow::Result<f64> {
+    let m_tiles = m_padded / TILE_M;
+    let k_chunks = k_padded / TILE_K;
 
     // Raw device addresses for the TMA descriptors. The returned guards keep the
     // reads ordered on the stream; hold them until after the launch.
-    let (a_ptr, _ga) = a_dev.device_ptr(&stream);
-    let (b_ptr, _gb) = bt_dev.device_ptr(&stream);
-    let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+    let (a_ptr, _ga) = a_dev.device_ptr(stream);
+    let (b_ptr, _gb) = bt_dev.device_ptr(stream);
 
     let tma_a = encode_tma(
         a_ptr,
@@ -269,13 +359,54 @@ fn matmul_b1(
         128,
         sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_128B,
     )?;
-    let tma_c = encode_tma(
-        c_ptr,
-        [(n_padded_lim * 2) as u64, m_padded as u64],
-        [(NG as usize * 2) as u32, TILE_M as u32],
-        (n_padded_lim * 8) as u64,
-        sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
-    )?;
+    // The third map is the epilogue's: C for a store, the destination matrix itself for the reduce.
+    // The latter spans the matrix's whole row stride, so that box starts and the tensor width are
+    // the even limb counts `EPI_TMA_XOR` needs.
+    let (tma_c, x_off, kernel) = match target {
+        GemmTarget::Store { c, n_padded_lim } => {
+            debug_assert_eq!(n_padded_lim, n_groups * NG as usize);
+            let map = encode_tma(
+                c,
+                [(n_padded_lim * 2) as u64, m_padded as u64],
+                [(NG as usize * 2) as u32, TILE_M as u32],
+                (n_padded_lim * 8) as u64,
+                sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
+            )?;
+            (map, 0i32, &gpu.kernel)
+        }
+        GemmTarget::TmaXor {
+            dst,
+            dst_rows,
+            dst_stride,
+            x_limb,
+        } => {
+            // Violating any of these is an encode failure, an illegal instruction, or a silent XOR
+            // past the end of a row, so none of them may reach the launch.
+            assert!(
+                tma_xor_supported(dst_stride),
+                "the reduce-store epilogue needs an even row stride, got {dst_stride}"
+            );
+            assert!(
+                x_limb.is_multiple_of(2),
+                "the reduce-store epilogue needs an even first limb, got {x_limb}"
+            );
+            assert!(
+                x_limb + n_groups * NG as usize <= dst_stride,
+                "the reduce-store epilogue would write limbs {x_limb}..{} of a {dst_stride}-limb \
+                 row",
+                x_limb + n_groups * NG as usize
+            );
+            assert!(dst_rows > 0 && dst_rows <= u32::MAX as usize);
+            let map = encode_tma(
+                dst,
+                [(dst_stride * 2) as u64, dst_rows as u64],
+                [(NG as usize * 2) as u32, TILE_M as u32],
+                (dst_stride * 8) as u64,
+                sys::CUtensorMapSwizzle_enum::CU_TENSOR_MAP_SWIZZLE_NONE,
+            )?;
+            (map, (x_limb * 2) as i32, &gpu.kernel_xor)
+        }
+    };
 
     // Dynamic SMEM per CTA: sA + sB + 2*sC (double-buffered) + 2*STAGES mbarriers.
     let tile_a = TILE_M * KL; // TILE_M-row A block
@@ -284,7 +415,7 @@ fn matmul_b1(
     let smem_bytes = (smem_u64 * std::mem::size_of::<u64>()) as u32;
 
     // Opt in to >48 KB shared memory (Hopper static default cap).
-    gpu.kernel.set_attribute(
+    kernel.set_attribute(
         sys::CUfunction_attribute_enum::CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
         smem_bytes as i32,
     )?;
@@ -297,8 +428,7 @@ fn matmul_b1(
         .ctx
         .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
         as u32;
-    let occ = gpu
-        .kernel
+    let occ = kernel
         .occupancy_max_active_blocks_per_multiprocessor(THREADS, smem_bytes as usize, None)?
         .max(1);
     let num_ctas = (occ * sms).max(1);
@@ -320,22 +450,25 @@ fn matmul_b1(
             block_dim: (THREADS, 1, 1),
             shared_mem_bytes: smem_bytes,
         };
-        let mut lb = stream.launch_builder(&gpu.kernel);
+        let mut lb = stream.launch_builder(kernel);
         lb.arg(&ta)
             .arg(&tb)
             .arg(&tc)
             .arg(&mt)
             .arg(&ng)
             .arg(&m_val)
-            .arg(&k_val);
-        // SAFETY: the seven pushed arguments match `matmul_b1_kernel`'s parameter list in order and
-        // type, `smem_bytes` is the size the kernel was granted above via
+            .arg(&k_val)
+            .arg(&x_off);
+        // SAFETY: the eight pushed arguments match the parameter list both GEMM entry points share,
+        // in order and type; `smem_bytes` is the size the kernel was granted above via
         // MAX_DYNAMIC_SHARED_SIZE_BYTES, and the device buffers behind the tensor maps outlive this
         // closure (their guards are held until after the final synchronize).
         unsafe { lb.launch(cfg) }?;
         Ok(())
     };
 
+    // Relaunching is idempotent only for the store; the reduce accumulates.
+    debug_assert!(time_iters == 1 || matches!(target, GemmTarget::Store { .. }));
     // Warm up once (untimed) when measuring, so the timed loop excludes any first-launch
     // JIT/allocation costs.
     if time_iters > 1 {
@@ -348,19 +481,419 @@ fn matmul_b1(
         launch()?;
     }
     stream.synchronize()?;
-    let kernel_secs = start.elapsed().as_secs_f64() / time_iters as f64;
+    Ok(start.elapsed().as_secs_f64() / time_iters as f64)
+}
 
-    let c_all = stream.clone_dtoh(&c_dev)?;
-    let c_stride = c.stride();
-    for (dst, src) in c
-        .data_mut()
-        .chunks_exact_mut(c_stride)
-        .zip(c_all.chunks_exact(n_padded_lim))
-        .take(m)
-    {
-        dst[..n_lim].copy_from_slice(&src[..n_lim]);
+/// A bit-packed F₂ matrix resident in device memory.
+///
+/// Rows are `stride` limbs apart and hold one bit per entry, bits past `cols` zero: the layout
+/// [`Matrix`] uses, as raw limbs. The point of it is persistence: uploaded once, mutated in place by
+/// device kernels and downloaded once, so an algorithm made of many dependent launches pays for the
+/// transfers only at its ends.
+pub struct DeviceMatrix {
+    pub buf: CudaSlice<u64>,
+    pub rows: usize,
+    pub cols: usize,
+    pub stride: usize,
+}
+
+impl DeviceMatrix {
+    /// Row stride in 64-bit limbs.
+    pub fn stride(&self) -> usize {
+        self.stride
     }
-    Ok((c, kernel_secs))
+}
+
+/// The GEMM's right operand, packed into its tiles ([`GpuContext::pack_b_dev`]).
+struct PackedB {
+    bt: CudaSlice<u64>,
+    k_padded: usize,
+    n_groups: usize,
+    n_padded_lim: usize,
+}
+
+/// A 1-D launch config: `ceil(total / 256)` blocks of 256 threads.
+///
+/// # The launch contract
+///
+/// Every kernel launch below is `unsafe` for the same two reasons, so the per-site `SAFETY:` notes
+/// cite this contract and name only what that site adds:
+///
+/// 1. the arguments pushed through the `LaunchBuilder` must match the kernel's parameter list in
+///    order and by type — the driver reinterprets them blind;
+/// 2. every device buffer they reference must outlive the launch, which here means holding its
+///    guard to the end of the enclosing method.
+fn cfg_1d(total: usize) -> LaunchConfig {
+    const T: u32 = 256;
+    let blocks = total.div_ceil(T as usize).max(1) as u32;
+    LaunchConfig {
+        grid_dim: (blocks, 1, 1),
+        block_dim: (T, 1, 1),
+        shared_mem_bytes: 0,
+    }
+}
+
+impl GpuContext {
+    /// Device-resident F₂ GEMM over operands in the natural limb layout.
+    ///
+    /// `a_dev` is `m × k.div_ceil(64)` limbs and `b_dev` is `k × n.div_ceil(64)`. Both are packed
+    /// into the wgmma tiles on the device, so nothing crosses to the host.
+    ///
+    /// Returns `C = A·B` as a **padded** buffer of `m_padded × n_padded_lim` limbs — valid data in
+    /// the first `m` rows and first `n.div_ceil(64)` limbs of each — plus its row stride. The
+    /// padding is what [`Self::xor_into_region`] consumes; a standalone caller trims it on readback.
+    pub fn matmul_b1_dev(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> anyhow::Result<(CudaSlice<u64>, usize)> {
+        self.matmul_b1_dev_strided(a_dev, m, k, k.div_ceil(64), b_dev, n)
+    }
+
+    /// Like [`Self::matmul_b1_dev`], but A may be a column block of a wider device buffer.
+    ///
+    /// `a_row_stride` is A's actual per-row limb stride (≥ `k.div_ceil(64)`); only the first
+    /// `k.div_ceil(64)` limbs of each row are the operand. This lets a caller holding one large
+    /// persistent matrix multiply a column block of it in place, without first copying the block
+    /// out to a tightly packed buffer.
+    pub fn matmul_b1_dev_strided(
+        &self,
+        a_dev: &CudaSlice<u64>,
+        m: usize,
+        k: usize,
+        a_row_stride: usize,
+        b_dev: &CudaSlice<u64>,
+        n: usize,
+    ) -> anyhow::Result<(CudaSlice<u64>, usize)> {
+        assert!(
+            a_row_stride >= k.div_ceil(64),
+            "a_row_stride must cover k limbs"
+        );
+        assert_eq!(a_dev.len(), m * a_row_stride, "A limb count mismatch");
+        assert_eq!(b_dev.len(), k * n.div_ceil(64), "B limb count mismatch");
+
+        let stream = self.stream();
+        let (a_int, m_padded) = self.pack_a_dev(&stream, &a_dev.slice(..), m, k, a_row_stride)?;
+        let pb = self.pack_b_dev(&stream, b_dev, k, n)?;
+
+        // SAFETY: uninitialized is sound because the GEMM's bulk-tensor store overwrites every
+        // output tile, padding included, before anything reads the buffer.
+        let c_dev = unsafe { stream.alloc::<u64>(m_padded * pb.n_padded_lim) }?;
+        {
+            let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+            self.gemm_packed(
+                &stream,
+                &a_int,
+                m_padded,
+                &pb,
+                GemmTarget::Store {
+                    c: c_ptr,
+                    n_padded_lim: pb.n_padded_lim,
+                },
+            )?;
+        }
+        Ok((c_dev, pb.n_padded_lim))
+    }
+
+    /// Pack the `m × k` left operand into the GEMM's interleaved K-major tiles.
+    ///
+    /// Rows of `a` are `a_row_stride` limbs apart, the first `k.div_ceil(64)` of them the operand.
+    /// Returns the packed buffer and `m_padded`, the row count padded to whole M-tiles.
+    fn pack_a_dev(
+        &self,
+        stream: &Arc<CudaStream>,
+        a: &CudaView<'_, u64>,
+        m: usize,
+        k: usize,
+        a_row_stride: usize,
+    ) -> anyhow::Result<(CudaSlice<u64>, usize)> {
+        let k_padded = k.next_multiple_of(TILE_K);
+        let m_padded = m.next_multiple_of(TILE_M);
+        let a_int_len = m_padded * (k_padded / 64);
+        assert!(a_int_len <= u32::MAX as usize, "pack_a: packed A too large");
+        // SAFETY: uninitialized is sound because `pack_a` writes all `a_int_len` elements, the
+        // padding as explicit zeros, before anything reads the buffer.
+        let a_int = unsafe { stream.alloc::<u64>(a_int_len) }?;
+        let (m_orig, sa_orig, a_str, mt, total) = (
+            m as u32,
+            k.div_ceil(64) as u32,
+            a_row_stride as u32,
+            (m_padded / TILE_M) as u32,
+            a_int_len as u32,
+        );
+        let mut lb = stream.launch_builder(&self.pack_a);
+        lb.arg(&a_int)
+            .arg(a)
+            .arg(&m_orig)
+            .arg(&sa_orig)
+            .arg(&a_str)
+            .arg(&mt)
+            .arg(&total);
+        // SAFETY: launch contract for `pack_a`.
+        unsafe { lb.launch(cfg_1d(a_int_len)) }?;
+        Ok((a_int, m_padded))
+    }
+
+    /// Pack the `k × n` right operand (tight rows of `n.div_ceil(64)` limbs) into the GEMM's
+    /// bit-transposed K-major tiles.
+    ///
+    /// Packed once, it can feed several GEMMs.
+    fn pack_b_dev(
+        &self,
+        stream: &Arc<CudaStream>,
+        b_dev: &CudaSlice<u64>,
+        k: usize,
+        n: usize,
+    ) -> anyhow::Result<PackedB> {
+        let n_lim = n.div_ceil(64);
+        debug_assert!(b_dev.len() >= k * n_lim, "B limb count mismatch");
+        let k_padded = k.next_multiple_of(TILE_K);
+        let n_groups = n_lim.div_ceil(NG as usize);
+        let n_padded_lim = n_groups * NG as usize;
+        let bt_len = (k_padded / TILE_K) * n_groups * (NG as usize * 64 * KL);
+        assert!(bt_len <= u32::MAX as usize, "pack_b: packed B too large");
+        // SAFETY: as for `pack_a_dev`: `pack_b` writes all `bt_len` elements before any read.
+        let bt = unsafe { stream.alloc::<u64>(bt_len) }?;
+        let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
+        let mut lb = stream.launch_builder(&self.pack_b);
+        lb.arg(&bt)
+            .arg(b_dev)
+            .arg(&k_orig)
+            .arg(&nl)
+            .arg(&ng)
+            .arg(&total);
+        // SAFETY: launch contract for `pack_b`.
+        unsafe { lb.launch(cfg_1d(bt_len)) }?;
+        Ok(PackedB {
+            bt,
+            k_padded,
+            n_groups,
+            n_padded_lim,
+        })
+    }
+
+    /// One GEMM over operands packed by [`Self::pack_a_dev`] and [`Self::pack_b_dev`].
+    fn gemm_packed(
+        &self,
+        stream: &Arc<CudaStream>,
+        a_int: &CudaSlice<u64>,
+        m_padded: usize,
+        pb: &PackedB,
+        target: GemmTarget,
+    ) -> anyhow::Result<()> {
+        run_gemm_kernel(
+            self,
+            stream,
+            a_int,
+            &pb.bt,
+            target,
+            m_padded,
+            pb.k_padded,
+            pb.n_groups,
+            1,
+        )?;
+        Ok(())
+    }
+
+    /// XOR a padded GEMM output into a region of a persistent device matrix.
+    ///
+    /// `c_dev` is `m × c_stride` limbs, as [`Self::matmul_b1_dev`] returns it, and the update is
+    /// `dst[j][dst_limb + col] ^= c_dev[j][col]` for `j < m`, `col < width`.
+    ///
+    /// Panics unless the region lies inside both buffers.
+    #[allow(clippy::too_many_arguments)]
+    pub fn xor_into_region(
+        &self,
+        stream: &Arc<CudaStream>,
+        dst: &mut CudaSlice<u64>,
+        c_dev: &CudaSlice<u64>,
+        m: usize,
+        width: usize,
+        dst_stride: usize,
+        dst_limb: usize,
+        c_stride: usize,
+    ) -> anyhow::Result<()> {
+        // `xor_into` bounds its thread index and nothing else, so an index in range still
+        // dereferences `j * stride + dst_limb + col`, which only these checks constrain. Getting
+        // it wrong is an illegal device access, which kills the context for the whole process
+        // rather than failing this call.
+        let dst_end = dst_limb
+            .checked_add(width)
+            .expect("xor_into_region: destination region overflows");
+        assert!(
+            dst_end <= dst_stride,
+            "xor_into_region: region ends at limb {dst_end}, past the {dst_stride}-limb row"
+        );
+        assert!(
+            c_stride >= width,
+            "xor_into_region: source stride {c_stride} is narrower than the {width}-limb update"
+        );
+        let need_dst = m
+            .checked_mul(dst_stride)
+            .expect("xor_into_region: destination extent overflows");
+        let need_c = m
+            .checked_mul(c_stride)
+            .expect("xor_into_region: source extent overflows");
+        let total = m
+            .checked_mul(width)
+            .expect("xor_into_region: launch size overflows");
+        assert!(
+            dst.len() >= need_dst,
+            "xor_into_region: destination is {} limbs, region needs {need_dst}",
+            dst.len()
+        );
+        assert!(
+            c_dev.len() >= need_c,
+            "xor_into_region: source is {} limbs, region needs {need_c}",
+            c_dev.len()
+        );
+        let (mm, w, ds, dl, cs) = (
+            m as u32,
+            width as u32,
+            dst_stride as u32,
+            dst_limb as u32,
+            c_stride as u32,
+        );
+        let mut lb = stream.launch_builder(&self.xor_into);
+        lb.arg(dst)
+            .arg(c_dev)
+            .arg(&mm)
+            .arg(&w)
+            .arg(&ds)
+            .arg(&dl)
+            .arg(&cs);
+        // SAFETY: launch contract for `xor_into`; the checks above keep every dereference inside
+        // both buffers.
+        unsafe { lb.launch(cfg_1d(total)) }?;
+        Ok(())
+    }
+
+    /// Upload `rows × cols` bits, `rows` tight rows of `cols.div_ceil(64)` limbs, to the device.
+    pub fn upload(&self, data: &[u64], rows: usize, cols: usize) -> anyhow::Result<DeviceMatrix> {
+        let stride = cols.div_ceil(64);
+        assert_eq!(data.len(), rows * stride, "limb count mismatch");
+        let buf = self.stream().clone_htod(data)?;
+        Ok(DeviceMatrix {
+            buf,
+            rows,
+            cols,
+            stride,
+        })
+    }
+
+    /// Wait for this thread's stream to drain.
+    ///
+    /// `cudarc`'s `memcpy_dtoh` is `cuMemcpyDtoHAsync`: a download appears synchronous only
+    /// because a device-to-host copy into pageable memory blocks until it completes, which a
+    /// page-locked destination would silently stop doing. Every download ends here instead.
+    fn sync(&self) -> anyhow::Result<()> {
+        Ok(self.stream().synchronize()?)
+    }
+
+    /// Download a [`DeviceMatrix`]'s limbs, `rows × stride` of them.
+    pub fn download(&self, dm: &DeviceMatrix) -> anyhow::Result<Vec<u64>> {
+        let out = self.stream().clone_dtoh(&dm.buf)?;
+        self.sync()?;
+        Ok(out)
+    }
+
+    /// Download into an existing host buffer, allocating nothing.
+    ///
+    /// [`Self::download`] allocates a fresh `Vec<u64>` per call, which at large sizes is a
+    /// multi-GiB allocation every time. Callers in a loop should hold one buffer and reuse it.
+    pub fn download_into(&self, dm: &DeviceMatrix, out: &mut [u64]) -> anyhow::Result<()> {
+        assert_eq!(
+            out.len(),
+            dm.rows * dm.stride,
+            "download_into: buffer is {} limbs, matrix needs {}",
+            out.len(),
+            dm.rows * dm.stride
+        );
+        self.stream().memcpy_dtoh(&dm.buf, out)?;
+        self.sync()
+    }
+
+    /// Download a device `u32` buffer (e.g. a `perm` vector).
+    pub fn download_u32(&self, s: &CudaSlice<u32>) -> anyhow::Result<Vec<u32>> {
+        let out = self.stream().clone_dtoh(s)?;
+        self.sync()?;
+        Ok(out)
+    }
+
+    /// Accumulate a product into a region of a persistent device matrix: `dst[:, col_off:] ^= l·u`.
+    ///
+    /// `l` is `dst.rows × k` and `u` is `k × t`, with `k = l.cols = u.rows` and `t = u.cols`, both
+    /// tight. `col_off` must be a limb boundary, and the trailing region `[col_off, dst.cols)` must
+    /// be exactly `t` columns wide, so that the XOR lands on whole limbs.
+    ///
+    /// When `dst`'s rows and the region meet the reduce-store epilogue's alignment
+    /// ([`tma_xor_supported`], an even first limb, and room for the padded product), the GEMM XORs
+    /// its product straight into `dst`. Otherwise the product goes to a scratch buffer, which
+    /// [`Self::xor_into_region`] applies. Either way it never reaches the host.
+    pub fn gemm_xor_into(
+        &self,
+        dst: &mut DeviceMatrix,
+        l: &DeviceMatrix,
+        u: &DeviceMatrix,
+        col_off: usize,
+    ) -> anyhow::Result<()> {
+        assert_eq!(col_off % 64, 0, "col_off must be a limb boundary");
+        assert_eq!(l.rows, dst.rows, "L rows must match dst rows");
+        assert_eq!(
+            l.cols, u.rows,
+            "inner dimension mismatch (L.cols != U.rows)"
+        );
+        assert_eq!(
+            col_off + u.cols,
+            dst.cols,
+            "trailing region must be U.cols wide"
+        );
+        assert_eq!(l.stride, l.cols.div_ceil(64), "L must be tight");
+        assert_eq!(u.stride, u.cols.div_ceil(64), "U must be tight");
+        let (m, k, t) = (dst.rows, l.cols, u.cols);
+        if m == 0 || k == 0 || t == 0 {
+            return Ok(());
+        }
+        let x_limb = col_off / 64;
+        let stream = self.stream();
+        // The product is padded to whole NG-limb column groups, and the reduce store writes the
+        // padding too (as zeros), so it needs that much room in the row.
+        if tma_xor_supported(dst.stride)
+            && x_limb.is_multiple_of(2)
+            && x_limb + t.div_ceil(64).next_multiple_of(NG as usize) <= dst.stride
+        {
+            let (a_int, m_padded) = self.pack_a_dev(&stream, &l.buf.slice(..), m, k, l.stride)?;
+            let pb = self.pack_b_dev(&stream, &u.buf, k, t)?;
+            let (dst_ptr, _gd) = dst.buf.device_ptr_mut(&stream);
+            return self.gemm_packed(
+                &stream,
+                &a_int,
+                m_padded,
+                &pb,
+                GemmTarget::TmaXor {
+                    dst: dst_ptr,
+                    dst_rows: m,
+                    dst_stride: dst.stride,
+                    x_limb,
+                },
+            );
+        }
+        let (c_dev, c_stride) = self.matmul_b1_dev(&l.buf, m, k, &u.buf, t)?;
+        self.xor_into_region(
+            &stream,
+            &mut dst.buf,
+            &c_dev,
+            m,
+            t.div_ceil(64),
+            dst.stride,
+            x_limb,
+            c_stride,
+        )?;
+        Ok(stream.synchronize()?)
+    }
 }
 
 /// Encode a 2D row-major TMA tensor map of UINT32 elements.
@@ -463,7 +996,14 @@ mod tests {
         }
         let ptx = compile_kernel().expect("matmul_b1.cu must compile");
         let src = ptx.to_src();
-        for kernel in ["matmul_b1_kernel", "transpose_tile_b1_kernel"] {
+        for kernel in [
+            "matmul_b1_kernel",
+            "matmul_b1_kernel_xor",
+            "transpose_tile_b1_kernel",
+            "pack_a",
+            "pack_b",
+            "xor_into",
+        ] {
             assert!(
                 src.contains(kernel),
                 "{kernel} is missing from the compiled PTX"
@@ -522,6 +1062,98 @@ mod tests {
             let (a, b) = (with_spare_columns(&a, spare), with_spare_columns(&b, spare));
             let (c, _) = a.cuda_mul_timed(gpu, &b, iters).expect("GPU matmul launch failed");
             prop_assert_eq!(c, reference);
+        }
+    }
+
+    /// `m`'s rows as tight limbs, `m.columns().div_ceil(64)` per row.
+    fn tight_limbs(m: &Matrix) -> Vec<u64> {
+        let limbs = m.columns().div_ceil(64);
+        (0..m.rows())
+            .flat_map(|i| m.data()[i * m.stride()..][..limbs].iter().copied())
+            .collect()
+    }
+
+    /// `a · b` on the CPU.
+    fn cpu_mul(a: &Matrix, b: &Matrix) -> Matrix {
+        if a.physical_rows().is_multiple_of(64) && b.physical_rows().is_multiple_of(64) {
+            a.fast_mul_sequential(b)
+        } else {
+            a.naive_mul(b)
+        }
+    }
+
+    /// Operands for `dst[:, x_limb*64:] ^= l·u`: `dst` (`m × (x_limb*64 + t)`), `l` (`m × k`) and
+    /// `u` (`k × t`).
+    ///
+    /// `x_limb` and `t` together make the destination's stride and first limb either parity, so
+    /// both the reduce-store epilogue and the product-buffer fallback are drawn.
+    fn arb_xor_operands() -> impl Strategy<Value = (Matrix, Matrix, Matrix, usize)> {
+        (
+            1..=2 * TILE_M + 1,
+            1..=TILE_K + 65,
+            1..=2 * NB + 1,
+            0..=3usize,
+        )
+            .prop_flat_map(|(m, k, t, x_limb)| {
+                (
+                    arb_matrix(m, x_limb * 64 + t),
+                    arb_matrix(m, k),
+                    arb_matrix(k, t),
+                    Just(x_limb),
+                )
+            })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        /// The device-resident GEMM is the product, with A read through a row stride wider than
+        /// the operand.
+        #[test]
+        fn matmul_b1_dev_is_mul((a, b, spare, _iters) in arb_operands()) {
+            let Some(gpu) = gpu() else {
+                return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
+            };
+            let reference = cpu_mul(&a, &b);
+            let (m, k, n) = (a.rows(), a.columns(), b.columns());
+            let wide = with_spare_columns(&a, spare);
+            let stream = gpu.stream();
+            let a_dev = stream.clone_htod(&wide.data()[..m * wide.stride()]).unwrap();
+            let b_dev = stream.clone_htod(&tight_limbs(&b)).unwrap();
+            let (c_dev, c_stride) =
+                gpu.matmul_b1_dev_strided(&a_dev, m, k, wide.stride(), &b_dev, n).unwrap();
+            let c_all = stream.clone_dtoh(&c_dev).unwrap();
+            stream.synchronize().unwrap();
+            let n_lim = n.div_ceil(64);
+            let c: Vec<u64> = c_all
+                .chunks_exact(c_stride)
+                .take(m)
+                .flat_map(|row| row[..n_lim].iter().copied())
+                .collect();
+            prop_assert_eq!(Matrix::from_data(TWO, m, n, c), reference);
+        }
+
+        /// `gemm_xor_into` XORs exactly the product into the trailing region and leaves the
+        /// leading columns alone, whichever epilogue the alignment selects.
+        #[test]
+        fn gemm_xor_into_xors_the_product((dst, l, u, x_limb) in arb_xor_operands()) {
+            let Some(gpu) = gpu() else {
+                return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
+            };
+            let product = tight_limbs(&cpu_mul(&l, &u));
+            let mut expected = tight_limbs(&dst);
+            let (stride, t_lim) = (dst.columns().div_ceil(64), u.columns().div_ceil(64));
+            for (row, prow) in expected.chunks_exact_mut(stride).zip(product.chunks_exact(t_lim)) {
+                for (d, p) in row[x_limb..].iter_mut().zip(prow) {
+                    *d ^= p;
+                }
+            }
+
+            let mut d = gpu.upload(&tight_limbs(&dst), dst.rows(), dst.columns()).unwrap();
+            let l_dev = gpu.upload(&tight_limbs(&l), l.rows(), l.columns()).unwrap();
+            let u_dev = gpu.upload(&tight_limbs(&u), u.rows(), u.columns()).unwrap();
+            gpu.gemm_xor_into(&mut d, &l_dev, &u_dev, x_limb * 64).unwrap();
+            prop_assert_eq!(gpu.download(&d).unwrap(), expected);
         }
     }
 
