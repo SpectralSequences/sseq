@@ -16,8 +16,9 @@ accumulators.
 
 For algorithms built from many dependent products over the same data, `blas::cuda::DeviceMatrix`
 keeps a matrix in device memory between calls: `GpuContext::upload` once, `matmul_b1_dev` and
-`gemm_xor_into` (`dst[:, c:] ^= l·u`, XORed into `dst` without a product buffer where its alignment
-allows) as often as needed, `download` once.
+`gemm_xor_into` (`dst[:, c:] ^= l·u`, XORed into `dst` without a product buffer) as often as
+needed, `download` once. A device matrix's rows are padded to an even number of limbs, which is what
+lets the product go straight into it.
 
 Every submission goes through one driver thread, so the process has a single owner of the device:
 a persistent grid fills the machine, and concurrent callers would only queue on it.

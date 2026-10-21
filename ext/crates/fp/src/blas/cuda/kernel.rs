@@ -4,7 +4,10 @@ use std::{
     collections::HashMap,
     ffi::c_void,
     mem::MaybeUninit,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        Arc, Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
     thread::ThreadId,
     time::Instant,
 };
@@ -112,6 +115,7 @@ pub struct GpuContext {
     pack_a: CudaFunction,
     pack_b: CudaFunction,
     xor_into: CudaFunction,
+    restride_rows: CudaFunction,
     /// The row reduction, a program of its own (`row_reduce.cu`).
     pub(super) rr: RrKernels,
 }
@@ -128,6 +132,7 @@ impl GpuContext {
         let pack_a = module.load_function("pack_a")?;
         let pack_b = module.load_function("pack_b")?;
         let xor_into = module.load_function("xor_into")?;
+        let restride_rows = module.load_function("restride_rows")?;
         let rr = RrKernels::load(&ctx)?;
         Ok(Self {
             ctx,
@@ -139,6 +144,7 @@ impl GpuContext {
             pack_a,
             pack_b,
             xor_into,
+            restride_rows,
             rr,
         })
     }
@@ -505,18 +511,98 @@ fn run_gemm_kernel(
 /// [`Matrix`] uses, as raw limbs. The point of it is persistence: uploaded once, mutated in place by
 /// device kernels and downloaded once, so an algorithm made of many dependent launches pays for the
 /// transfers only at its ends.
+///
+/// The row stride is always [`device_stride`]`(cols)`, a multiple of [`DEVICE_LIMB_MULTIPLE`]
+/// limbs, whatever the column count: every constructor pads to it, and the limbs past `cols` are
+/// zero. That invariant is what lets a GEMM always XOR its product straight into the matrix (see
+/// [`tma_xor_supported`]), so the fields are private and [`Self::from_parts`] checks it.
 pub struct DeviceMatrix {
-    pub buf: CudaSlice<u64>,
-    pub rows: usize,
-    pub cols: usize,
-    pub stride: usize,
+    pub(super) buf: CudaSlice<u64>,
+    pub(super) rows: usize,
+    pub(super) cols: usize,
+    pub(super) stride: usize,
 }
 
 impl DeviceMatrix {
-    /// Row stride in 64-bit limbs.
+    /// Assemble a matrix from a device buffer of at least `rows * stride` limbs, checking the
+    /// stride invariant.
+    pub(super) fn from_parts(buf: CudaSlice<u64>, rows: usize, cols: usize, stride: usize) -> Self {
+        assert!(
+            stride.is_multiple_of(DEVICE_LIMB_MULTIPLE) && stride >= cols.div_ceil(64),
+            "DeviceMatrix: a {cols}-column matrix cannot have row stride {stride}"
+        );
+        assert!(buf.len() >= rows * stride, "DeviceMatrix: buffer too small");
+        Self {
+            buf,
+            rows,
+            cols,
+            stride,
+        }
+    }
+
+    /// Rows.
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    /// Columns, not counting the zero padding up to the stride.
+    pub fn cols(&self) -> usize {
+        self.cols
+    }
+
+    /// Row stride in 64-bit limbs; see the type's documentation.
     pub fn stride(&self) -> usize {
         self.stride
     }
+
+    /// The device buffer, `rows * stride` limbs (at least).
+    pub fn buf(&self) -> &CudaSlice<u64> {
+        &self.buf
+    }
+}
+
+/// Row stride multiple, in limbs, of every [`DeviceMatrix`].
+///
+/// Two limbs make every row 16 bytes, what the GEMM's reduce-store epilogue needs to XOR into it.
+pub const DEVICE_LIMB_MULTIPLE: usize = 2;
+
+/// The row stride of a `cols`-column [`DeviceMatrix`]: `cols.div_ceil(64)` rounded up to
+/// [`DEVICE_LIMB_MULTIPLE`], and never zero.
+pub fn device_stride(cols: usize) -> usize {
+    cols.div_ceil(64)
+        .max(1)
+        .next_multiple_of(DEVICE_LIMB_MULTIPLE)
+}
+
+/// Device staging per [`GpuContext::upload_rows`] chunk.
+pub const UPLOAD_CHUNK_BYTES: usize = 256 << 20;
+
+/// GEMMs whose product could not be XORed into its destination and went through a buffer instead.
+static PRODUCT_FALLBACKS: AtomicU64 = AtomicU64::new(0);
+
+/// How many GEMM-XOR updates have taken the product-buffer path in this process.
+///
+/// Every [`DeviceMatrix`] meets the reduce-store epilogue's alignment, so this stays zero; a
+/// nonzero count means that invariant was broken somewhere.
+pub fn product_fallbacks() -> u64 {
+    PRODUCT_FALLBACKS.load(Ordering::Relaxed)
+}
+
+/// Count a product-buffer fallback, say so once per process, and fail a debug build: it cannot
+/// happen while every destination is a [`DeviceMatrix`].
+pub(super) fn note_product_fallback(rows: usize, stride: usize) {
+    PRODUCT_FALLBACKS.fetch_add(1, Ordering::Relaxed);
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        eprintln!(
+            "[fp-cuda] a {rows}-row matrix of row stride {stride} limbs cannot take a GEMM's \
+             product into itself, so the product goes through a buffer of up to one more matrix"
+        );
+    });
+    debug_assert!(
+        false,
+        "a {rows}-row matrix of row stride {stride} limbs broke the DeviceMatrix stride invariant"
+    );
 }
 
 /// The GEMM's right operand, packed into its tiles ([`GpuContext::pack_b_dev`]).
@@ -592,7 +678,8 @@ impl GpuContext {
 
         let stream = self.stream();
         let (a_int, m_padded) = self.pack_a_dev(&stream, &a_dev.slice(..), m, k, a_row_stride)?;
-        let pb = self.pack_b_dev(&stream, b_dev, k, n)?;
+        let n_lim = n.div_ceil(64);
+        let pb = self.pack_b_dev(&stream, &b_dev.slice(..), k, n_lim, n_lim, 0)?;
 
         // SAFETY: uninitialized is sound because the GEMM's bulk-tensor store overwrites every
         // output tile, padding included, before anything reads the buffer.
@@ -652,19 +739,29 @@ impl GpuContext {
         Ok((a_int, m_padded))
     }
 
-    /// Pack the `k × n` right operand (tight rows of `n.div_ceil(64)` limbs) into the GEMM's
-    /// bit-transposed K-major tiles.
+    /// Pack the `k`-row right operand into the GEMM's bit-transposed K-major tiles.
     ///
-    /// Packed once, it can feed several GEMMs.
+    /// The operand is `lead` zero limbs followed by the first `src_limbs` limbs of each row of
+    /// `b`, whose rows are `b_stride` limbs apart; its product limb `j` is product column limb
+    /// `j - lead` of `b`'s. Packed once, it can feed several GEMMs.
     pub(super) fn pack_b_dev(
         &self,
         stream: &Arc<CudaStream>,
-        b_dev: &CudaSlice<u64>,
+        b: &CudaView<'_, u64>,
         k: usize,
-        n: usize,
+        src_limbs: usize,
+        b_stride: usize,
+        lead: usize,
     ) -> anyhow::Result<PackedB> {
-        let n_lim = n.div_ceil(64);
-        debug_assert!(b_dev.len() >= k * n_lim, "B limb count mismatch");
+        assert!(
+            b_stride >= src_limbs,
+            "pack_b: stride narrower than the operand"
+        );
+        assert!(
+            k == 0 || b.len() >= (k - 1) * b_stride + src_limbs,
+            "pack_b: B limb count mismatch"
+        );
+        let n_lim = lead + src_limbs;
         let k_padded = k.next_multiple_of(TILE_K);
         let n_groups = n_lim.div_ceil(NG as usize);
         let n_padded_lim = n_groups * NG as usize;
@@ -672,15 +769,25 @@ impl GpuContext {
         assert!(bt_len <= u32::MAX as usize, "pack_b: packed B too large");
         // SAFETY: as for `pack_a_dev`: `pack_b` writes all `bt_len` elements before any read.
         let bt = unsafe { stream.alloc::<u64>(bt_len) }?;
-        let (k_orig, nl, ng, total) = (k as u32, n_lim as u32, n_groups as u32, bt_len as u32);
+        let (k_orig, nl, bs, ld, ng, total) = (
+            k as u32,
+            n_lim as u32,
+            b_stride as u32,
+            lead as u32,
+            n_groups as u32,
+            bt_len as u32,
+        );
         let mut lb = stream.launch_builder(&self.pack_b);
         lb.arg(&bt)
-            .arg(b_dev)
+            .arg(b)
             .arg(&k_orig)
             .arg(&nl)
+            .arg(&bs)
+            .arg(&ld)
             .arg(&ng)
             .arg(&total);
-        // SAFETY: launch contract for `pack_b`.
+        // SAFETY: launch contract for `pack_b`; the checks above keep its reads, at limbs below
+        // `src_limbs` of rows below `k`, inside `b`.
         unsafe { lb.launch(cfg_1d(bt_len)) }?;
         Ok(PackedB {
             bt,
@@ -787,16 +894,85 @@ impl GpuContext {
     }
 
     /// Upload `rows × cols` bits, `rows` tight rows of `cols.div_ceil(64)` limbs, to the device.
+    ///
+    /// The device copy's rows are padded to [`device_stride`]; the device peak is the matrix plus
+    /// one staging chunk ([`Self::upload_rows`]).
     pub fn upload(&self, data: &[u64], rows: usize, cols: usize) -> anyhow::Result<DeviceMatrix> {
-        let stride = cols.div_ceil(64);
-        assert_eq!(data.len(), rows * stride, "limb count mismatch");
-        let buf = self.stream().clone_htod(data)?;
-        Ok(DeviceMatrix {
-            buf,
-            rows,
-            cols,
-            stride,
-        })
+        let tight = cols.div_ceil(64);
+        assert_eq!(data.len(), rows * tight, "limb count mismatch");
+        let mut dm = self.alloc_matrix(rows, cols)?;
+        if tight > 0 {
+            self.upload_rows(&mut dm, 0, data, tight)?;
+        } else {
+            self.stream().memset_zeros(&mut dm.buf)?;
+        }
+        Ok(dm)
+    }
+
+    /// Allocate an uninitialized `rows × cols` [`DeviceMatrix`], for the caller to fill.
+    pub fn alloc_matrix(&self, rows: usize, cols: usize) -> anyhow::Result<DeviceMatrix> {
+        let stride = device_stride(cols);
+        // SAFETY: uninitialized is sound because the matrix is handed out only to be filled, by
+        // `upload_rows` or by the caller, before anything reads it.
+        let buf = unsafe { self.stream().alloc::<u64>((rows * stride).max(1)) }?;
+        Ok(DeviceMatrix::from_parts(buf, rows, cols, stride))
+    }
+
+    /// Write rows `[row0, row0 + n)` of `dm` from `data`, `n` rows of `src_stride` limbs,
+    /// zero-filling each row past `src_stride` limbs.
+    ///
+    /// When the strides differ the rows go through one device staging buffer of at most
+    /// [`UPLOAD_CHUNK_BYTES`], so the device never holds a second copy of the matrix; equal strides
+    /// copy straight in. The limbs of `data` past `dm.cols()` must be zero, as a [`Matrix`]'s are.
+    pub fn upload_rows(
+        &self,
+        dm: &mut DeviceMatrix,
+        row0: usize,
+        data: &[u64],
+        src_stride: usize,
+    ) -> anyhow::Result<()> {
+        assert!(
+            src_stride >= 1 && src_stride <= dm.stride,
+            "upload_rows: source stride {src_stride} does not fit a {}-limb row",
+            dm.stride
+        );
+        assert!(
+            data.len().is_multiple_of(src_stride),
+            "upload_rows: partial row"
+        );
+        let n = data.len() / src_stride;
+        assert!(row0 + n <= dm.rows, "upload_rows: rows out of range");
+        if n == 0 {
+            return Ok(());
+        }
+        let stream = self.stream();
+        let ds = dm.stride;
+        if src_stride == ds {
+            let mut view = dm.buf.slice_mut(row0 * ds..(row0 + n) * ds);
+            stream.memcpy_htod(data, &mut view)?;
+            return Ok(stream.synchronize()?);
+        }
+        let chunk = (UPLOAD_CHUNK_BYTES / (8 * src_stride)).clamp(1, n);
+        // SAFETY: uninitialized is sound because each chunk's rows are copied in before
+        // `restride_rows` reads them, and it reads no further.
+        let mut staging = unsafe { stream.alloc::<u64>(chunk * src_stride) }?;
+        let mut a = 0;
+        while a < n {
+            let k = chunk.min(n - a);
+            {
+                let mut sv = staging.slice_mut(..k * src_stride);
+                stream.memcpy_htod(&data[a * src_stride..(a + k) * src_stride], &mut sv)?;
+            }
+            let mut dv = dm.buf.slice_mut((row0 + a) * ds..(row0 + a + k) * ds);
+            let (nr, ss, dst_s) = (k as u32, src_stride as u32, ds as u32);
+            let mut lb = stream.launch_builder(&self.restride_rows);
+            lb.arg(&mut dv).arg(&staging).arg(&nr).arg(&ss).arg(&dst_s);
+            // SAFETY: launch contract for `restride_rows`; `dv` is exactly `k` rows of `ds` limbs
+            // and the staging buffer holds `k` rows of `src_stride`.
+            unsafe { lb.launch(cfg_1d(k * ds)) }?;
+            a += k;
+        }
+        Ok(stream.synchronize()?)
     }
 
     /// Wait for this thread's stream to drain.
@@ -840,14 +1016,13 @@ impl GpuContext {
 
     /// Accumulate a product into a region of a persistent device matrix: `dst[:, col_off:] ^= l·u`.
     ///
-    /// `l` is `dst.rows × k` and `u` is `k × t`, with `k = l.cols = u.rows` and `t = u.cols`, both
-    /// tight. `col_off` must be a limb boundary, and the trailing region `[col_off, dst.cols)` must
-    /// be exactly `t` columns wide, so that the XOR lands on whole limbs.
+    /// `l` is `dst.rows × k` and `u` is `k × t`, with `k = l.cols = u.rows` and `t = u.cols`.
+    /// `col_off` must be a limb boundary, and the trailing region `[col_off, dst.cols)` must be
+    /// exactly `t` columns wide, so that the XOR lands on whole limbs.
     ///
-    /// When `dst`'s rows and the region meet the reduce-store epilogue's alignment
-    /// ([`tma_xor_supported`], an even first limb, and room for the padded product), the GEMM XORs
-    /// its product straight into `dst`. Otherwise the product goes to a scratch buffer, which
-    /// [`Self::xor_into_region`] applies. Either way it never reaches the host.
+    /// The GEMM XORs its product straight into `dst`, which its stride invariant makes possible,
+    /// starting one limb early against a zero leading limb of `u` when `col_off` is an odd limb.
+    /// The product never exists as a buffer, nor reaches the host.
     pub fn gemm_xor_into(
         &self,
         dst: &mut DeviceMatrix,
@@ -866,22 +1041,19 @@ impl GpuContext {
             dst.cols,
             "trailing region must be U.cols wide"
         );
-        assert_eq!(l.stride, l.cols.div_ceil(64), "L must be tight");
-        assert_eq!(u.stride, u.cols.div_ceil(64), "U must be tight");
         let (m, k, t) = (dst.rows, l.cols, u.cols);
         if m == 0 || k == 0 || t == 0 {
             return Ok(());
         }
         let x_limb = col_off / 64;
+        let t_lim = t.div_ceil(64);
         let stream = self.stream();
-        // The product is padded to whole NG-limb column groups, and the reduce store writes the
-        // padding too (as zeros), so it needs that much room in the row.
-        if tma_xor_supported(dst.stride)
-            && x_limb.is_multiple_of(2)
-            && x_limb + t.div_ceil(64).next_multiple_of(NG as usize) <= dst.stride
-        {
-            let (a_int, m_padded) = self.pack_a_dev(&stream, &l.buf.slice(..), m, k, l.stride)?;
-            let pb = self.pack_b_dev(&stream, &u.buf, k, t)?;
+        let (a_int, m_padded) = self.pack_a_dev(&stream, &l.buf.slice(..), m, k, l.stride)?;
+        // The reduce store needs every box to start on an even limb, and writes the product's
+        // padding to whole NG-limb column groups too (as zeros): `dst`'s even stride leaves room.
+        if tma_xor_supported(dst.stride) {
+            let lead = x_limb % 2;
+            let pb = self.pack_b_dev(&stream, &u.buf.slice(..), k, t_lim, u.stride, lead)?;
             let (dst_ptr, _gd) = dst.buf.device_ptr_mut(&stream);
             return self.gemm_packed(
                 &stream,
@@ -892,20 +1064,37 @@ impl GpuContext {
                     dst: dst_ptr,
                     dst_rows: m,
                     dst_stride: dst.stride,
-                    x_limb,
+                    x_limb: x_limb - lead,
                 },
             );
         }
-        let (c_dev, c_stride) = self.matmul_b1_dev(&l.buf, m, k, &u.buf, t)?;
+        note_product_fallback(m, dst.stride);
+        let pb = self.pack_b_dev(&stream, &u.buf.slice(..), k, t_lim, u.stride, 0)?;
+        // SAFETY: uninitialized is sound because the GEMM's bulk-tensor store overwrites every
+        // output tile before `xor_into` reads it.
+        let c_dev = unsafe { stream.alloc::<u64>(m_padded * pb.n_padded_lim) }?;
+        {
+            let (c_ptr, _gc) = c_dev.device_ptr(&stream);
+            self.gemm_packed(
+                &stream,
+                &a_int,
+                m_padded,
+                &pb,
+                GemmTarget::Store {
+                    c: c_ptr,
+                    n_padded_lim: pb.n_padded_lim,
+                },
+            )?;
+        }
         self.xor_into_region(
             &stream,
             &mut dst.buf,
             &c_dev,
             m,
-            t.div_ceil(64),
+            t_lim,
             dst.stride,
             x_limb,
-            c_stride,
+            pb.n_padded_lim,
         )?;
         Ok(stream.synchronize()?)
     }
@@ -1018,6 +1207,7 @@ mod tests {
             "pack_a",
             "pack_b",
             "xor_into",
+            "restride_rows",
         ] {
             assert!(
                 src.contains(kernel),
@@ -1100,8 +1290,8 @@ mod tests {
     /// Operands for `dst[:, x_limb*64:] ^= l·u`: `dst` (`m × (x_limb*64 + t)`), `l` (`m × k`) and
     /// `u` (`k × t`).
     ///
-    /// `x_limb` and `t` together make the destination's stride and first limb either parity, so
-    /// both the reduce-store epilogue and the product-buffer fallback are drawn.
+    /// `x_limb` and `t` together give the logical width and first limb either parity, so both an
+    /// even and an odd first limb (the zero lead limb) are drawn, over a padded stride.
     fn arb_xor_operands() -> impl Strategy<Value = (Matrix, Matrix, Matrix, usize)> {
         (
             1..=2 * TILE_M + 1,
@@ -1149,7 +1339,7 @@ mod tests {
         }
 
         /// `gemm_xor_into` XORs exactly the product into the trailing region and leaves the
-        /// leading columns alone, whichever epilogue the alignment selects.
+        /// leading columns alone, without ever taking the product-buffer fallback.
         #[test]
         fn gemm_xor_into_xors_the_product((dst, l, u, x_limb) in arb_xor_operands()) {
             let Some(gpu) = gpu() else {
@@ -1167,8 +1357,16 @@ mod tests {
             let mut d = gpu.upload(&tight_limbs(&dst), dst.rows(), dst.columns()).unwrap();
             let l_dev = gpu.upload(&tight_limbs(&l), l.rows(), l.columns()).unwrap();
             let u_dev = gpu.upload(&tight_limbs(&u), u.rows(), u.columns()).unwrap();
+            prop_assert_eq!(d.stride(), device_stride(dst.columns()));
             gpu.gemm_xor_into(&mut d, &l_dev, &u_dev, x_limb * 64).unwrap();
-            prop_assert_eq!(gpu.download(&d).unwrap(), expected);
+            let got: Vec<u64> = gpu
+                .download(&d)
+                .unwrap()
+                .chunks_exact(d.stride())
+                .flat_map(|row| row[..stride].iter().copied())
+                .collect();
+            prop_assert_eq!(got, expected);
+            prop_assert_eq!(product_fallbacks(), 0, "an update went through a product buffer");
         }
     }
 

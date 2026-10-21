@@ -8,8 +8,11 @@ mod params;
 mod row_reduce;
 pub(crate) mod rref;
 
-pub use kernel::{DeviceMatrix, GpuContext, compile_kernel, tma_xor_supported};
-pub use row_reduce::{RrOptions, UPLOAD_CHUNK_BYTES, bs_slab_rows, compile_row_reduce};
+pub use kernel::{
+    DEVICE_LIMB_MULTIPLE, DeviceMatrix, GpuContext, UPLOAD_CHUNK_BYTES, compile_kernel,
+    device_stride, product_fallbacks, tma_xor_supported,
+};
+pub use row_reduce::{RrOptions, bs_slab_rows, compile_row_reduce};
 
 /// The process-wide GPU context, created lazily on first use.
 ///

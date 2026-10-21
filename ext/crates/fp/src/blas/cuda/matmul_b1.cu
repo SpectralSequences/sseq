@@ -548,12 +548,16 @@ extern "C" __global__ void pack_a(
 }
 
 // Build B's K-major bit-transposed tiles (NG*64 operand rows × KL limbs), ordered K-chunk-major
-// then column-group-major, from a tight (k_orig × n_lim)-limb operand. Column groups past n_lim and
-// K rows past k_orig are zero. It computes what transpose_tile_b1_kernel does; its 1-D grid is what
-// lets B be wider than that kernel's column-group grid dimension allows.
+// then column-group-major, from a k_orig-row operand whose rows sit b_stride limbs apart. The
+// operand is `lead` zero limbs followed by the source's limbs, n_lim limbs in all: the leading
+// zeros let a product start one limb early, on the even limb the reduce store needs, at the cost
+// of a product limb L·0 = 0. Column groups past n_lim and K rows past k_orig are zero. It computes
+// what transpose_tile_b1_kernel does; its 1-D grid is what lets B be wider than that kernel's
+// column-group grid dimension allows.
 extern "C" __global__ void pack_b(
     uint64_t* __restrict__ out, const uint64_t* __restrict__ b,
-    unsigned k_orig, unsigned n_lim, unsigned n_groups, unsigned total)
+    unsigned k_orig, unsigned n_lim, unsigned b_stride, unsigned lead, unsigned n_groups,
+    unsigned total)
 {
     unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= total) return;
@@ -567,15 +571,28 @@ extern "C" __global__ void pack_b(
     unsigned lg = j / 64;
     unsigned jj = j % 64;
     unsigned limb = cg * NG + lg;
-    if (limb >= n_lim) { out[idx] = 0; return; }
+    if (limb >= n_lim || limb < lead) { out[idx] = 0; return; }
+    const unsigned src = limb - lead;
     uint64_t val = 0;
     #pragma unroll
     for (unsigned bit = 0; bit < 64; ++bit) {
         unsigned br = kk * TK + kl * 64 + bit;
-        uint64_t word = (br < k_orig) ? b[(uint64_t)br * n_lim + limb] : 0;
+        uint64_t word = (br < k_orig) ? b[(uint64_t)br * b_stride + src] : 0;
         val |= ((word >> jj) & 1ULL) << bit;
     }
     out[idx] = val;
+}
+
+// Copy `nrows` rows of src_stride limbs into rows of dst_stride >= src_stride limbs, zeroing the
+// extra limbs: the device side of a chunked, re-strided upload.
+extern "C" __global__ void restride_rows(
+    uint64_t* __restrict__ dst, const uint64_t* __restrict__ src,
+    unsigned nrows, unsigned src_stride, unsigned dst_stride)
+{
+    uint64_t idx = (uint64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (uint64_t)nrows * dst_stride) return;
+    unsigned i = (unsigned)(idx / dst_stride), j = (unsigned)(idx % dst_stride);
+    dst[idx] = (j < src_stride) ? src[(uint64_t)i * src_stride + j] : 0ULL;
 }
 
 // XOR the padded product C (m rows of c_stride limbs) into a region of a persistent matrix (rows of
