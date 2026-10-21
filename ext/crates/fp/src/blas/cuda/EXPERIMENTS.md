@@ -194,8 +194,10 @@ H2D/D2H and device allocation, which is where the time actually is.
 ## The XOR epilogue reduces into the matrix (2026-10-19, H200)
 
 **Chosen:** `gemm_xor_into` has the GEMM XOR each output tile straight into the destination with a
-TMA bulk tensor reduce store (`matmul_b1_kernel_xor`) wherever the destination's alignment allows
-it, and stores a product buffer for `xor_into` to apply only where it does not.
+TMA bulk tensor reduce store (`matmul_b1_kernel_xor`), always. Every `DeviceMatrix` has an even row
+stride, padded at construction, and an odd first limb starts the product one limb early against a
+zero leading limb of the right operand, so the alignment below holds by construction. The
+product-buffer path survives only as a counted, loud fallback for a broken invariant.
 
 The product buffer is as large as the region it updates, so for a trailing update it is up to one
 more matrix: what put a device row reduction's peak at about two matrices. Writing the tile out by

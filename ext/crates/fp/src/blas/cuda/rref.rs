@@ -57,13 +57,6 @@ pub(crate) fn rr_worth_gpu(rows: usize, cols: usize) -> bool {
     rank.saturating_mul(rank).saturating_mul(cols as u64) >= rr_min_work()
 }
 
-/// Row stride multiple, in limbs, of the device copy of a matrix being reduced.
-///
-/// Two limbs make every row 16 bytes, which is what lets the forward pass XOR its trailing updates
-/// straight into the matrix rather than through a product buffer (`tma_xor_supported`). The
-/// padding is zero columns, never pivots.
-const DEVICE_LIMB_MULTIPLE: usize = 2;
-
 /// Bytes one [`download_rows`] chunk may take, on the device and, for a padded destination, on
 /// the host.
 const DOWNLOAD_CHUNK_BYTES: usize = 256 << 20;
@@ -110,17 +103,21 @@ enum Outcome {
 }
 
 /// The reduction's device job, on the driver thread: upload `m` (a packed copy only when its row
-/// stride is padded), reduce, and download the pivot rows, in pivot order, into `m`'s first rows.
+/// stride is padded for column capacity), reduce, and download the pivot rows, in pivot order, into
+/// `m`'s first rows.
+///
+/// The device copy's rows are padded to an even number of limbs, as every `DeviceMatrix`'s are,
+/// which is what lets the forward pass XOR its trailing updates straight into it.
 fn device_job(gpu: &GpuContext, m: &mut Matrix) -> Outcome {
     let (rows, cols) = (m.rows(), m.columns());
     let (stride, ms) = (cols.div_ceil(64), m.stride());
     let uploaded = if ms == stride {
-        gpu.upload_padded(&m.data()[..rows * stride], rows, cols, DEVICE_LIMB_MULTIPLE)
+        gpu.upload(&m.data()[..rows * stride], rows, cols)
     } else {
         let packed: Vec<u64> = (0..rows)
             .flat_map(|i| m.data()[i * ms..][..stride].iter().copied())
             .collect();
-        gpu.upload_padded(&packed, rows, cols, DEVICE_LIMB_MULTIPLE)
+        gpu.upload(&packed, rows, cols)
     };
     let Ok(mut dm) = uploaded else {
         return Outcome::Declined;

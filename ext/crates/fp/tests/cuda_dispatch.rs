@@ -226,3 +226,51 @@ fn gpu_row_reduce_concurrent() {
         "no reduction reported path=\"gpu\"; the comparisons above would pass on the CPU alone."
     );
 }
+
+/// Matrices of an odd number of limbs reduce on the device, bit-identical to the CPU, with every
+/// trailing update XORed straight into the matrix.
+///
+/// The device copy pads each row to an even number of limbs, so this is the shape where padding
+/// columns exist and must stay pivot-free and zero. Like the tests above it requires the device:
+/// without one there is no `path="gpu"` event and it fails.
+#[test]
+fn gpu_row_reduce_odd_limbs() {
+    let (paths, dispatch) = watch_paths();
+    tracing::dispatcher::with_default(&dispatch, || {
+        for (i, &(rows, cols, rank)) in [
+            (8192, 8256usize, 0), // 129 limbs
+            (8193, 10_241, 0),    // 161 limbs, the last one holding a single column
+            (8192, 8256, 700),    // rank-deficient
+            (1131, 611_461, 0),   // 9555 limbs, wide
+        ]
+        .iter()
+        .enumerate()
+        {
+            assert!(
+                cols.div_ceil(64) % 2 == 1,
+                "{cols} columns is an even number of limbs"
+            );
+            let base = rank_matrix(rows, cols, rank, 2000 + i as u64);
+            let mut gpu = base.clone();
+            let rank_gpu = gpu.row_reduce();
+            let mut cpu = base.clone();
+            let rank_cpu = cpu.row_reduce_cpu();
+            assert_eq!(rank_gpu, rank_cpu, "rank mismatch at {rows}x{cols}");
+            assert_eq!(
+                gpu.pivots(),
+                cpu.pivots(),
+                "pivot mismatch at {rows}x{cols}"
+            );
+            assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
+        }
+    });
+    assert!(
+        paths.saw_gpu(),
+        "no reduction reported path=\"gpu\"; the comparisons above would pass on the CPU alone."
+    );
+    assert_eq!(
+        fp::blas::cuda::product_fallbacks(),
+        0,
+        "a trailing update went through a product buffer: the DeviceMatrix stride invariant broke"
+    );
+}

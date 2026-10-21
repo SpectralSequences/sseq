@@ -12,7 +12,10 @@ use cudarc::{
 };
 
 use super::{
-    kernel::{ARCH, DeviceMatrix, GemmTarget, GpuContext, NG, TILE_M, cfg_1d, tma_xor_supported},
+    kernel::{
+        ARCH, DeviceMatrix, GemmTarget, GpuContext, NG, TILE_M, cfg_1d, device_stride,
+        note_product_fallback, tma_xor_supported,
+    },
     params::GROUP_M,
 };
 
@@ -69,8 +72,6 @@ pub(super) struct RrKernels {
     promote_coop: CudaFunction,
     zero_pivot_l: CudaFunction,
     gather_rows: CudaFunction,
-    gather_rows_lead: CudaFunction,
-    restride_rows: CudaFunction,
     block_reduce_rref: CudaFunction,
     block_reduce_coop: CudaFunction,
     br_cond: CudaFunction,
@@ -95,8 +96,6 @@ impl RrKernels {
             promote_coop: f("promote_coop")?,
             zero_pivot_l: f("zero_pivot_l")?,
             gather_rows: f("gather_rows")?,
-            gather_rows_lead: f("gather_rows_lead")?,
-            restride_rows: f("restride_rows")?,
             block_reduce_rref: f("block_reduce_rref")?,
             block_reduce_coop: f("block_reduce_coop")?,
             br_cond: f("br_cond")?,
@@ -629,12 +628,11 @@ impl GpuContext {
         pc_ctas: u32,
     ) -> anyhow::Result<()> {
         let stream = self.stream();
-        let (rows, stride, n) = (m.rows, m.stride, m.cols);
+        let (rows, stride) = (m.rows, m.stride);
         let trailing_limbs = end_limb - first_limb;
         if pr == 0 || trailing_limbs == 0 {
             return Ok(());
         }
-        let t = (end_limb * 64).min(n) - first_limb * 64;
 
         // (1) promote pivot rows' trailing, then (2) zero their L rows.
         {
@@ -681,28 +679,19 @@ impl GpuContext {
             unsafe { lb.launch(cfg_1d(pr)) }?;
         }
 
-        // The GEMM XORs its product straight into M when M's rows are 16-byte aligned (see
-        // `tma_xor_supported`). Every box of that reduce store must start on an even limb, so an odd
-        // first limb starts the GEMM one limb early, against a zero leading limb of U: that product
-        // limb is L·0 = 0. Otherwise the product goes through a buffer up to one more matrix.
-        let fused = tma_xor_supported(stride);
-        let lead = usize::from(fused && first_limb % 2 == 1);
-        let u_limbs = lead + trailing_limbs;
-
-        // (3) gather U = pivot rows' trailing (pr × trailing_limbs), behind `lead` zero limbs.
-        // SAFETY: uninitialized is sound because the gather below writes all `pr * u_limbs`
-        // elements before the GEMM reads them.
-        let u_buf = unsafe { stream.alloc::<u64>(pr * u_limbs) }?;
+        // (3) gather U = pivot rows' trailing (pr × trailing_limbs), the padding limbs included:
+        // they are zero columns. SAFETY: uninitialized is sound because `gather_rows` below writes
+        // all `pr * trailing_limbs` elements before the GEMM reads them.
+        let u_buf = unsafe { stream.alloc::<u64>(pr * trailing_limbs) }?;
         {
-            let (r_u, fl, pr_u, nc, st, ld) = (
+            let (r_u, fl, pr_u, nc, st) = (
                 r_piv as u32,
                 first_limb as u32,
                 pr as u32,
                 trailing_limbs as u32,
                 stride as u32,
-                lead as u32,
             );
-            let mut lb = stream.launch_builder(&self.rr.gather_rows_lead);
+            let mut lb = stream.launch_builder(&self.rr.gather_rows);
             lb.arg(&u_buf)
                 .arg(&m.buf)
                 .arg(perm)
@@ -710,18 +699,27 @@ impl GpuContext {
                 .arg(&fl)
                 .arg(&pr_u)
                 .arg(&nc)
-                .arg(&st)
-                .arg(&ld);
-            // SAFETY: launch contract for `gather_rows_lead`.
-            unsafe { lb.launch(cfg_1d(pr * u_limbs)) }?;
+                .arg(&st);
+            // SAFETY: launch contract for `gather_rows`.
+            unsafe { lb.launch(cfg_1d(pr * trailing_limbs)) }?;
         }
 
-        // (4) GEMM L(m×pr)·U(pr×t); M[:, first_limb:] ^= the product.
-        if fused {
-            // The bits of U past `n` are zero in M, so U can be taken whole limbs wide.
+        // (4) GEMM L(m×pr)·U(pr×trailing); M[:, first_limb:] ^= the product, XORed into M by the
+        // GEMM itself, which M's stride invariant allows. Every box of that reduce store must start
+        // on an even limb, so an odd first limb starts the product one limb early, against a zero
+        // leading limb of U: that product limb is L·0 = 0.
+        if tma_xor_supported(stride) {
+            let lead = first_limb % 2;
             let (a_int, m_padded) =
                 self.pack_a_dev(&stream, &l.buf.slice(..), rows, pr, l.stride)?;
-            let pb = self.pack_b_dev(&stream, &u_buf, pr, u_limbs * 64)?;
+            let pb = self.pack_b_dev(
+                &stream,
+                &u_buf.slice(..),
+                pr,
+                trailing_limbs,
+                trailing_limbs,
+                lead,
+            )?;
             drop(u_buf);
             let (dst, _gd) = m.buf.device_ptr_mut(&stream);
             self.gemm_packed(
@@ -738,8 +736,14 @@ impl GpuContext {
             )?;
         } else {
             note_product_fallback(rows, stride);
-            let (c_dev, n_padded_lim) =
-                self.matmul_b1_dev_strided(&l.buf, rows, pr, l.stride, &u_buf, t)?;
+            let (c_dev, n_padded_lim) = self.matmul_b1_dev_strided(
+                &l.buf,
+                rows,
+                pr,
+                l.stride,
+                &u_buf,
+                trailing_limbs * 64,
+            )?;
             self.xor_into_region(
                 &stream,
                 &mut m.buf,
@@ -830,10 +834,13 @@ impl GpuContext {
             }?)
         };
 
+        // Panels cover the real columns only: the stride's padding limbs are zero columns, which
+        // can hold no pivot, though the trailing updates carry them along.
+        let width = m.cols.div_ceil(64);
         let mut ppanel = 0usize;
         let mut panel_idx = 0usize;
-        while ppanel < stride {
-            let bl_eff = bl.min(stride - ppanel);
+        while ppanel < width {
+            let bl_eff = bl.min(width - ppanel);
             if panel_idx.is_multiple_of(COMPACT_PERIOD) {
                 m_active = self.compact_perm(m, &mut perm, r, m_active, ppanel)?;
                 // No live below rows left ⇒ no column past here can have a pivot;
@@ -844,12 +851,13 @@ impl GpuContext {
                 }
             }
             // Single wide panel: elementwise cooperative factor + far GEMM.
-            let mut l = DeviceMatrix {
-                buf: stream.alloc_zeros::<u64>(rows * bl_eff)?,
+            let l_stride = device_stride(bl_eff * 64);
+            let mut l = DeviceMatrix::from_parts(
+                stream.alloc_zeros::<u64>(rows * l_stride)?,
                 rows,
-                cols: bl_eff * 64,
-                stride: bl_eff,
-            };
+                bl_eff * 64,
+                l_stride,
+            );
             let (pr, pivcols) = if coop {
                 self.panel_factor_coop(m, &mut perm, &mut l, ppanel, bl_eff, r, m_active)?
             } else {
@@ -862,14 +870,16 @@ impl GpuContext {
                     pivot_cols.push(q as usize);
                 }
                 r += pr;
+                // Past the last real limb the trailing region is padding alone: nothing to update.
+                let first = ppanel + bl_eff;
                 self.trailing_update(
                     m,
                     &perm,
                     &mut l,
                     r - pr,
                     pr,
-                    ppanel + bl_eff,
-                    stride,
+                    first,
+                    if first < width { stride } else { first },
                     use_promote_coop,
                     &mut pc_barrier,
                     &pc_cond,
@@ -913,11 +923,10 @@ impl GpuContext {
             return Ok(());
         }
         let stream = self.stream();
-        let (stride, n) = (m.stride, m.cols);
+        let stride = m.stride;
         let bp_eff = block_e - block_s;
         let start_limb = pivot_cols[block_s] / 64;
         let trailing_limbs = stride - start_limb;
-        let width_cols = n - start_limb * 64;
         let x_stride = bp_eff.div_ceil(64);
         // View of the target rows so gather_cols/xor_into_perm read perm at the
         // right offset (they index perm[jpos] for jpos < above_count).
@@ -974,10 +983,17 @@ impl GpuContext {
             unsafe { lb.launch(cfg_1d(bp_eff * trailing_limbs)) }?;
         }
 
-        // G = X · U (above_count × width_cols), XORed into the above rows. Those rows are permuted,
+        // G = X · U (above_count × trailing limbs), XORed into the above rows. Those rows are permuted,
         // which a TMA tile cannot address, so G goes through a product buffer: one row slab of it
         // at a time ([`bs_slab_rows`]), with U packed once for all of them.
-        let pb = self.pack_b_dev(&stream, &u_buf, bp_eff, width_cols)?;
+        let pb = self.pack_b_dev(
+            &stream,
+            &u_buf.slice(..),
+            bp_eff,
+            trailing_limbs,
+            trailing_limbs,
+            0,
+        )?;
         drop(u_buf);
         let slab = slab.min(above_count);
         // SAFETY: uninitialized is sound because each slab's GEMM stores every tile of the rows
@@ -1361,113 +1377,6 @@ impl GpuContext {
         Ok((perm, r, pivot_cols))
     }
 
-    /// Allocate an uninitialized `rows × cols` [`DeviceMatrix`] whose row stride is
-    /// `cols.div_ceil(64)` rounded up to a multiple of `limb_multiple` limbs.
-    ///
-    /// When that pads the stride, `cols` is widened to cover it (`cols = stride * 64`): once
-    /// written ([`Self::upload_rows`] zeroes them) the padding limbs are zero columns, never
-    /// pivots, so the reduction on the real columns is the unpadded one's, bit for bit.
-    pub fn alloc_matrix(
-        &self,
-        rows: usize,
-        cols: usize,
-        limb_multiple: usize,
-    ) -> anyhow::Result<DeviceMatrix> {
-        let tight = cols.div_ceil(64);
-        let stride = tight.max(1).next_multiple_of(limb_multiple.max(1));
-        let cols = if stride == tight { cols } else { stride * 64 };
-        // SAFETY: uninitialized is sound because the matrix is handed out only to be filled, by
-        // `upload_rows` or by the caller, before anything reads it.
-        let buf = unsafe { self.stream().alloc::<u64>((rows * stride).max(1)) }?;
-        Ok(DeviceMatrix {
-            buf,
-            rows,
-            cols,
-            stride,
-        })
-    }
-
-    /// Write rows `[row0, row0 + n)` of `dm` from `data`, `n` rows of `src_stride` limbs,
-    /// zero-filling each row past `src_stride` limbs.
-    ///
-    /// When the strides differ the rows go through one device staging buffer of at most
-    /// [`UPLOAD_CHUNK_BYTES`], so the device never holds a second copy of the matrix; equal strides
-    /// copy straight in.
-    pub fn upload_rows(
-        &self,
-        dm: &mut DeviceMatrix,
-        row0: usize,
-        data: &[u64],
-        src_stride: usize,
-    ) -> anyhow::Result<()> {
-        assert!(
-            src_stride >= 1 && src_stride <= dm.stride,
-            "upload_rows: source stride {src_stride} does not fit a {}-limb row",
-            dm.stride
-        );
-        assert!(
-            data.len().is_multiple_of(src_stride),
-            "upload_rows: partial row"
-        );
-        let n = data.len() / src_stride;
-        assert!(row0 + n <= dm.rows, "upload_rows: rows out of range");
-        if n == 0 {
-            return Ok(());
-        }
-        let stream = self.stream();
-        let ds = dm.stride;
-        if src_stride == ds {
-            let mut view = dm.buf.slice_mut(row0 * ds..(row0 + n) * ds);
-            stream.memcpy_htod(data, &mut view)?;
-            return Ok(stream.synchronize()?);
-        }
-        let chunk = (UPLOAD_CHUNK_BYTES / (8 * src_stride)).clamp(1, n);
-        // SAFETY: uninitialized is sound because each chunk's rows are copied in before
-        // `restride_rows` reads them, and it reads no further.
-        let mut staging = unsafe { stream.alloc::<u64>(chunk * src_stride) }?;
-        let mut a = 0;
-        while a < n {
-            let k = chunk.min(n - a);
-            {
-                let mut sv = staging.slice_mut(..k * src_stride);
-                stream.memcpy_htod(&data[a * src_stride..(a + k) * src_stride], &mut sv)?;
-            }
-            let mut dv = dm.buf.slice_mut((row0 + a) * ds..(row0 + a + k) * ds);
-            let (nr, ss, dst_s) = (k as u32, src_stride as u32, ds as u32);
-            let mut lb = stream.launch_builder(&self.rr.restride_rows);
-            lb.arg(&mut dv).arg(&staging).arg(&nr).arg(&ss).arg(&dst_s);
-            // SAFETY: launch contract for `restride_rows`; `dv` is exactly `k` rows of `ds` limbs
-            // and the staging buffer holds `k` rows of `src_stride`.
-            unsafe { lb.launch(cfg_1d(k * ds)) }?;
-            a += k;
-        }
-        Ok(stream.synchronize()?)
-    }
-
-    /// [`Self::upload`] with the row stride rounded up to a multiple of `limb_multiple` limbs
-    /// ([`Self::alloc_matrix`]).
-    ///
-    /// With 2, every row is 16-byte aligned, so the forward pass XORs its trailing updates
-    /// straight into the matrix (see `tma_xor_supported`). `data` is the tight `rows ×
-    /// cols.div_ceil(64)` layout. The device peak is the matrix plus one staging chunk.
-    pub fn upload_padded(
-        &self,
-        data: &[u64],
-        rows: usize,
-        cols: usize,
-        limb_multiple: usize,
-    ) -> anyhow::Result<DeviceMatrix> {
-        let tight = cols.div_ceil(64);
-        assert_eq!(data.len(), rows * tight, "limb count mismatch");
-        let mut dm = self.alloc_matrix(rows, cols, limb_multiple)?;
-        if rows > 0 && tight > 0 {
-            self.upload_rows(&mut dm, 0, data, tight)?;
-        } else if rows > 0 {
-            self.stream().memset_zeros(&mut dm.buf)?;
-        }
-        Ok(dm)
-    }
-
     /// Download limbs `[first_limb, first_limb + ncols)` of the rows at `perm` positions
     /// `[k0, k1)` of a reduced matrix, packed tight, into `out`.
     ///
@@ -1528,9 +1437,6 @@ impl GpuContext {
     }
 }
 
-/// Device staging per [`GpuContext::upload_rows`] chunk.
-pub const UPLOAD_CHUNK_BYTES: usize = 256 << 20;
-
 /// Knobs of one device row reduction ([`GpuContext::row_reduce_dev_with`]).
 ///
 /// Every setting gives the same result; they differ in time and device memory.
@@ -1552,18 +1458,6 @@ pub fn bs_slab_rows(rows: usize, stride: usize, budget: Option<usize>) -> usize 
     let n_padded = stride.max(1).next_multiple_of(NG as usize);
     let budget = budget.unwrap_or_else(|| (rows * stride * 8 / 16).max(256 << 20));
     ((budget / (n_padded * 8)) / band * band).max(band)
-}
-
-/// Say once per process that a forward pass is XORing through a product buffer.
-fn note_product_fallback(rows: usize, stride: usize) {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        eprintln!(
-            "[fp-cuda] a {rows}-row matrix of odd row stride {stride} limbs cannot take the \
-             trailing update into itself (it needs 16-byte rows), so it goes through a product \
-             buffer of up to one more matrix; upload it with `upload_padded` to avoid this"
-        );
-    });
 }
 
 #[cfg(test)]
@@ -1611,8 +1505,6 @@ mod tests {
             "promote_coop",
             "zero_pivot_l",
             "gather_rows",
-            "gather_rows_lead",
-            "restride_rows",
             "block_reduce_rref",
             "block_reduce_coop",
             "br_cond",
@@ -1636,20 +1528,17 @@ mod tests {
     }
 
     /// Reduce `base` on the device and check the pivot rows, rank and pivot columns against the
-    /// CPU M4RI reduction, bit for bit.
-    ///
-    /// `limb_multiple` pads the device copy's rows (2 = 16-byte rows, the fused forward update; 1
-    /// leaves an odd stride on the product-buffer path).
-    fn check(gpu: &GpuContext, base: &Matrix, limb_multiple: usize, opts: &RrOptions) {
+    /// CPU M4RI reduction, bit for bit, and that no trailing update went through a product
+    /// buffer.
+    fn check(gpu: &GpuContext, base: &Matrix, opts: &RrOptions) {
         let (rows, cols) = (base.rows(), base.columns());
         let stride = cols.div_ceil(64);
         let mut cpu = base.clone();
         let rank = cpu.row_reduce_cpu();
         let expected: Vec<usize> = (0..cols).filter(|&c| cpu.pivots()[c] >= 0).collect();
 
-        let mut dm = gpu
-            .upload_padded(&tight_limbs(base), rows, cols, limb_multiple)
-            .unwrap();
+        let mut dm = gpu.upload(&tight_limbs(base), rows, cols).unwrap();
+        assert_eq!(dm.stride(), device_stride(cols));
         let (perm, r, pivot_cols) = gpu.row_reduce_dev_with(&mut dm, opts).unwrap();
         assert_eq!(r, rank, "rank of {rows}x{cols}");
         assert_eq!(pivot_cols, expected, "pivot columns of {rows}x{cols}");
@@ -1660,6 +1549,11 @@ mod tests {
             got,
             tight_limbs(&cpu)[..r * stride],
             "pivot rows of {rows}x{cols}"
+        );
+        assert_eq!(
+            super::super::product_fallbacks(),
+            0,
+            "a trailing update went through a product buffer"
         );
     }
 
@@ -1675,17 +1569,16 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(48))]
 
-        /// Small shapes, both stride parities, padded and tight: the reduction is the CPU's.
+        /// Small shapes, an odd or even number of limbs: the reduction is the CPU's.
         #[test]
         fn row_reduce_dev_is_row_reduce(
             m in (1..=3 * TILE_M + 1, 1..=40 * 64 + 1usize)
                 .prop_flat_map(|(rows, cols)| arb_matrix(rows, cols)),
-            limb_multiple in 1..=2usize,
         ) {
             let Some(gpu) = gpu() else {
                 return Ok(()); // no usable GPU/driver in this environment — nothing to exercise
             };
-            check(gpu, &m, limb_multiple, &RrOptions::default());
+            check(gpu, &m, &RrOptions::default());
         }
     }
 
@@ -1707,7 +1600,7 @@ mod tests {
     }
 
     /// Shapes wide enough for the grid-parallel back-substitution, its blocked TRSM and the
-    /// multi-slab product, on both forward-update paths.
+    /// multi-slab product, with odd and even limb counts.
     #[test]
     fn row_reduce_dev_wide() {
         let Some(gpu) = gpu() else {
@@ -1724,10 +1617,8 @@ mod tests {
             (6000, 1200 * 64, 900, 4),
         ] {
             let m = random_matrix(rows, cols, rank, seed);
-            for limb_multiple in [1, 2] {
-                check(gpu, &m, limb_multiple, &RrOptions::default());
-                check(gpu, &m, limb_multiple, &slabbed);
-            }
+            check(gpu, &m, &RrOptions::default());
+            check(gpu, &m, &slabbed);
         }
     }
 }

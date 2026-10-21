@@ -571,34 +571,6 @@ extern "C" __global__ void gather_rows(
     dst[idx] = m_buf[(u64_t)perm[r + k] * stride + first_limb + c];
 }
 
-// gather_rows with `lead` zero limbs in front: dst is pr x (lead + ncols), row k =
-// [0 x lead | M[perm[r+k]][first_limb .. first_limb+ncols)]. The fused (TMA reduce) trailing update
-// uses lead = 1 when the trailing region starts on an ODD limb: the GEMM then starts one limb
-// earlier, on an even limb as the tensor reduce requires, and the extra product limb is L * 0 = 0.
-extern "C" __global__ void gather_rows_lead(
-    u64_t* __restrict__ dst, const u64_t* __restrict__ m_buf,
-    const unsigned* __restrict__ perm,
-    unsigned r, unsigned first_limb, unsigned pr, unsigned ncols, unsigned stride, unsigned lead)
-{
-    const unsigned w = lead + ncols;
-    u64_t idx = (u64_t)blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= (u64_t)pr * w) return;
-    unsigned k = (unsigned)(idx / w), c = (unsigned)(idx % w);
-    dst[idx] = (c < lead) ? 0ULL : m_buf[(u64_t)perm[r + k] * stride + first_limb + (c - lead)];
-}
-
-// Copy `nrows` rows of src_stride limbs into rows of dst_stride >= src_stride limbs, zeroing the
-// extra limbs: the device side of a chunked, re-strided upload (`upload_padded`).
-extern "C" __global__ void restride_rows(
-    u64_t* __restrict__ dst, const u64_t* __restrict__ src,
-    unsigned nrows, unsigned src_stride, unsigned dst_stride)
-{
-    u64_t idx = (u64_t)blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= (u64_t)nrows * dst_stride) return;
-    unsigned i = (unsigned)(idx / dst_stride), j = (unsigned)(idx % dst_stride);
-    dst[idx] = (j < src_stride) ? src[(u64_t)i * src_stride + j] : 0ULL;
-}
-
 // ── Back-substitution kernels (BLAS3 GPU row-reduction port) ─────────────────
 //
 // Echelon → RREF, blocked right-to-left over pivot blocks. For a block of pivots
