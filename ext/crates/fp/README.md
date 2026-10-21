@@ -14,6 +14,15 @@ and CUTLASS supports `b1` only through Ampere's warp-level `mma`, not SM90's `wg
 also reduces mod 2 and packs the bits on the device, so the product never exists as s32
 accumulators.
 
+For algorithms built from many dependent products over the same data, `blas::cuda::DeviceMatrix`
+keeps a matrix in device memory between calls: `GpuContext::upload` once, `matmul_b1_dev` and
+`gemm_xor_into` (`dst[:, c:] ^= l·u`, XORed into `dst` without a product buffer where its alignment
+allows) as often as needed, `download` once.
+
+Every submission goes through one driver thread, so the process has a single owner of the device:
+a persistent grid fills the machine, and concurrent callers would only queue on it.
+`FP_CUDA_DEVICE` picks which GPU that is.
+
 **Requirements.** libnvrtc (CUDA 12+) on the loader path, since the kernel is compiled at runtime
 (`nix develop ./ext#gpu` provides it), and a Hopper GPU, since the kernel targets `compute_90a`.
 Without them `fp` still builds, and the GPU tests pass vacuously.
