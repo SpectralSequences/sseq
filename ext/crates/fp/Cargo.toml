@@ -34,6 +34,8 @@ cudarc = { version = "0.19", optional = true, default-features = false, features
     "cuda-12080",
     "dynamic-loading",
 ] }
+# Records which path a row reduction took (`fp::rr`), so a fallback to the CPU is visible.
+tracing = { version = "0.1.41", optional = true }
 
 [dev-dependencies]
 # We use the proptest harness for our own tests
@@ -44,6 +46,8 @@ pprof = { version = "0.15.0", features = ["criterion", "flamegraph"] }
 proptest = "1.7"
 rand = "0.9.2"
 rstest = "0.26.0"
+# The GPU dispatch tests assert on the `fp::rr` path event, which needs a subscriber to observe.
+tracing-subscriber = "0.3.19"
 
 [build-dependencies]
 build_const = "0.2.2"
@@ -53,7 +57,7 @@ default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
 # Dispatch large p=2 matrix products to the Hopper GPU backend in `blas::cuda`.
-gpu = ["dep:anyhow", "dep:cudarc"]
+gpu = ["dep:anyhow", "dep:cudarc", "dep:tracing"]
 
 [[bench]]
 name = "mul"

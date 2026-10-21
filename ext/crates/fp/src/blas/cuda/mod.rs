@@ -5,8 +5,11 @@ use std::sync::OnceLock;
 pub(crate) mod gemm;
 mod kernel;
 mod params;
+mod row_reduce;
+pub(crate) mod rref;
 
 pub use kernel::{DeviceMatrix, GpuContext, compile_kernel, tma_xor_supported};
+pub use row_reduce::{RrOptions, UPLOAD_CHUNK_BYTES, bs_slab_rows, compile_row_reduce};
 
 /// The process-wide GPU context, created lazily on first use.
 ///

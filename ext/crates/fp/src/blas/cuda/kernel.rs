@@ -18,7 +18,10 @@ use cudarc::{
     nvrtc::{CompileError, CompileOptions, Ptx, compile_ptx_with_opts},
 };
 
-use super::params::{self, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK};
+use super::{
+    params::{self, MSTRIPS, MW, NB, STAGES, THREADS_PER_WG, TK},
+    row_reduce::RrKernels,
+};
 use crate::{matrix::Matrix, prime::TWO};
 
 /// The CUDA C++ kernel, compiled to PTX at runtime by NVRTC — see [`compile_kernel`].
@@ -28,7 +31,7 @@ static KERNEL_SRC: &str = include_str!("matmul_b1.cu");
 ///
 /// `90a` is architecture-*specific* and deliberately not forward-compatible: the kernel emits
 /// `wgmma.*` and `cp.async.bulk.tensor.*`, which exist on Hopper and nowhere else.
-const ARCH: &str = "compute_90a";
+pub(super) const ARCH: &str = "compute_90a";
 
 /// Compile the kernel to PTX with NVRTC, passing the knobs from [`params::defines`].
 ///
@@ -73,11 +76,11 @@ fn kernel_ptx() -> anyhow::Result<Ptx> {
     Ok(PTX.get_or_init(|| ptx).clone())
 }
 
-const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
+pub(super) const TILE_M: usize = MW * MSTRIPS; // output rows per CTA
 const TILE_K: usize = TK;
 const KL: usize = TILE_K / 64;
 const THREADS: u32 = (2 * THREADS_PER_WG) as u32; // producer warpgroup + consumer warpgroup
-const NG: u32 = (NB / 64) as u32; // output column-limbs per CTA
+pub(super) const NG: u32 = (NB / 64) as u32; // output column-limbs per CTA
 
 /// A `CUtensorMap` passed by value as a (grid-constant) kernel argument.
 ///
@@ -109,6 +112,8 @@ pub struct GpuContext {
     pack_a: CudaFunction,
     pack_b: CudaFunction,
     xor_into: CudaFunction,
+    /// The row reduction, a program of its own (`row_reduce.cu`).
+    pub(super) rr: RrKernels,
 }
 
 impl GpuContext {
@@ -123,6 +128,7 @@ impl GpuContext {
         let pack_a = module.load_function("pack_a")?;
         let pack_b = module.load_function("pack_b")?;
         let xor_into = module.load_function("xor_into")?;
+        let rr = RrKernels::load(&ctx)?;
         Ok(Self {
             ctx,
             streams: Mutex::new(HashMap::new()),
@@ -133,7 +139,16 @@ impl GpuContext {
             pack_a,
             pack_b,
             xor_into,
+            rr,
         })
+    }
+
+    /// The device's SM count, which persistent and cooperative grids are sized from.
+    pub(super) fn sm_count(&self) -> anyhow::Result<u32> {
+        Ok(self
+            .ctx
+            .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)?
+            as u32)
     }
 
     /// The device's compute capability as `(major, minor)`. The kernel requires 9.0 (Hopper).
@@ -297,7 +312,7 @@ fn matmul_b1(
 ///
 /// Raw device addresses: the caller holds the buffers' stream guards across the launch.
 #[derive(Clone, Copy, Debug)]
-enum GemmTarget {
+pub(super) enum GemmTarget {
     /// Store the padded product `C` (`m_padded × n_padded_lim` limbs).
     Store {
         c: sys::CUdeviceptr,
@@ -505,11 +520,11 @@ impl DeviceMatrix {
 }
 
 /// The GEMM's right operand, packed into its tiles ([`GpuContext::pack_b_dev`]).
-struct PackedB {
+pub(super) struct PackedB {
     bt: CudaSlice<u64>,
     k_padded: usize,
     n_groups: usize,
-    n_padded_lim: usize,
+    pub(super) n_padded_lim: usize,
 }
 
 /// A 1-D launch config: `ceil(total / 256)` blocks of 256 threads.
@@ -523,7 +538,7 @@ struct PackedB {
 ///    order and by type — the driver reinterprets them blind;
 /// 2. every device buffer they reference must outlive the launch, which here means holding its
 ///    guard to the end of the enclosing method.
-fn cfg_1d(total: usize) -> LaunchConfig {
+pub(super) fn cfg_1d(total: usize) -> LaunchConfig {
     const T: u32 = 256;
     let blocks = total.div_ceil(T as usize).max(1) as u32;
     LaunchConfig {
@@ -602,7 +617,7 @@ impl GpuContext {
     ///
     /// Rows of `a` are `a_row_stride` limbs apart, the first `k.div_ceil(64)` of them the operand.
     /// Returns the packed buffer and `m_padded`, the row count padded to whole M-tiles.
-    fn pack_a_dev(
+    pub(super) fn pack_a_dev(
         &self,
         stream: &Arc<CudaStream>,
         a: &CudaView<'_, u64>,
@@ -641,7 +656,7 @@ impl GpuContext {
     /// bit-transposed K-major tiles.
     ///
     /// Packed once, it can feed several GEMMs.
-    fn pack_b_dev(
+    pub(super) fn pack_b_dev(
         &self,
         stream: &Arc<CudaStream>,
         b_dev: &CudaSlice<u64>,
@@ -676,7 +691,7 @@ impl GpuContext {
     }
 
     /// One GEMM over operands packed by [`Self::pack_a_dev`] and [`Self::pack_b_dev`].
-    fn gemm_packed(
+    pub(super) fn gemm_packed(
         &self,
         stream: &Arc<CudaStream>,
         a_int: &CudaSlice<u64>,
