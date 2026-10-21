@@ -6,7 +6,10 @@ pub(crate) mod gemm;
 mod kernel;
 mod params;
 
-pub use kernel::{DeviceMatrix, GpuContext, compile_kernel, tma_xor_supported};
+pub use kernel::{
+    DEVICE_LIMB_MULTIPLE, DeviceMatrix, GpuContext, UPLOAD_CHUNK_BYTES, compile_kernel,
+    device_stride, product_fallbacks, tma_xor_supported,
+};
 
 /// The process-wide GPU context, created lazily on first use.
 ///
