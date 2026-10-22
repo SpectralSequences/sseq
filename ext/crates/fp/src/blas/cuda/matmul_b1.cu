@@ -144,6 +144,16 @@ __device__ __forceinline__ void tma_store_2d(
         :: "l"((uint64_t)tm), "r"(x), "r"(y),
            "r"((uint32_t)__cvta_generic_to_shared(src)) : "memory");
 }
+// TMA bulk tensor reduce store (SMEM → global, dst ^= src elementwise) of the tile at `src` to
+// tensor coords (x, y). Atomic per element. Its preconditions are the tensor map's; see
+// EPI_TMA_XOR.
+__device__ __forceinline__ void tma_reduce_xor_2d(
+    const CUtensorMap* tm, int x, int y, const void* src) {
+    asm volatile(
+        "cp.reduce.async.bulk.tensor.2d.global.shared::cta.xor.tile.bulk_group [%0, {%1, %2}], [%3];\n"
+        :: "l"((uint64_t)tm), "r"(x), "r"(y),
+           "r"((uint32_t)__cvta_generic_to_shared(src)) : "memory");
+}
 // Close the current group of issued bulk stores so it can be waited on.
 __device__ __forceinline__ void tma_store_commit() { asm volatile("cp.async.bulk.commit_group;\n" ::: "memory"); }
 // Wait until every committed store group is globally visible.
@@ -214,16 +224,31 @@ constexpr uint32_t DESC_SWIZ = 1;
 // CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES. The resulting footprint is what holds the
 // kernel to 1 CTA/SM; STAGES is the K-pipeline-depth knob.
 //
-// The output block (TM rows × NG limbs) is packed row-major into sC and written
-// back with a single TMA bulk store (S2G). C is padded to whole NG-limb column
-// groups on the host so every stored tile is complete.
-extern "C" __global__ void matmul_b1_kernel(
-    const __grid_constant__ CUtensorMap tma_a,
-    const __grid_constant__ CUtensorMap tma_b,
-    const __grid_constant__ CUtensorMap tma_c,
+// The output block (TM rows × NG limbs) is packed row-major into sC and leaves with a single TMA
+// bulk operation, chosen by EPI:
+//
+//   EPI_STORE   stored into the product buffer C (`tma_c` encodes C), which the host pads to whole
+//               NG-limb column groups so every stored tile is complete.
+//   EPI_TMA_XOR XOR-reduced straight into a persistent matrix M, so there is no C: `tma_c` encodes
+//               M itself (UINT32 elements, width M's row stride in u32s, height M's rows), and the
+//               block lands at u32 column `x_off + col0*2`, row `row0`. The hardware preconditions,
+//               all enforced on the host: M's row stride is an even number of limbs (16-byte rows;
+//               the encode rejects anything else); every box starts on an even limb (an odd start is
+//               an illegal instruction); no coordinate is negative (likewise); and the tensor width
+//               is even (with an odd one, the 16-byte granule straddling the right edge is still
+//               XORed, silently corrupting the limb past it). Rows past M's height are clipped.
+constexpr int EPI_STORE = 0;
+constexpr int EPI_TMA_XOR = 1;
+
+template <int EPI>
+__device__ __forceinline__ void matmul_b1_body(
+    const CUtensorMap& tma_a,
+    const CUtensorMap& tma_b,
+    const CUtensorMap& tma_c,
     uint32_t m_tiles,
     uint32_t n_groups,
-    uint32_t M, uint32_t K)
+    uint32_t M, uint32_t K,
+    int x_off)
 {
     // TMA faults on a destination that is not 128-byte aligned.
     extern __shared__ __align__(128) uint64_t smem[];
@@ -415,15 +440,38 @@ extern "C" __global__ void matmul_b1_kernel(
         fence_async_shared();
         __syncthreads();        // sC[cbuf] fully packed, and every consumer's fence retired
         if (t == 0) {
-            tma_store_2d(&tma_c, col0 * 2, row0, sCb); // x in UINT32 units (2 per limb)
+            // x in UINT32 units (2 per limb).
+            if constexpr (EPI == EPI_TMA_XOR) tma_reduce_xor_2d(&tma_c, x_off + col0 * 2, row0, sCb);
+            else                              tma_store_2d(&tma_c, col0 * 2, row0, sCb);
             tma_store_commit();
             tma_store_wait_read1();
         }
         __syncthreads();        // order the deferred wait before the next tile
                                 // reuses (zeroes) an sC buffer
     }
-    // Drain the last outstanding output store before the CTA exits.
+    // Drain the last outstanding output store before the CTA exits. For the reduce store this is
+    // also what completes the XORs into M before the kernel is.
     if (t == 0) tma_store_wait();
+}
+
+// The product into C (EPI_STORE).
+extern "C" __global__ void matmul_b1_kernel(
+    const __grid_constant__ CUtensorMap tma_a,
+    const __grid_constant__ CUtensorMap tma_b,
+    const __grid_constant__ CUtensorMap tma_c,
+    uint32_t m_tiles, uint32_t n_groups, uint32_t M, uint32_t K, int x_off)
+{
+    matmul_b1_body<EPI_STORE>(tma_a, tma_b, tma_c, m_tiles, n_groups, M, K, x_off);
+}
+
+// The product XORed into the matrix `tma_c` encodes (EPI_TMA_XOR).
+extern "C" __global__ void matmul_b1_kernel_xor(
+    const __grid_constant__ CUtensorMap tma_a,
+    const __grid_constant__ CUtensorMap tma_b,
+    const __grid_constant__ CUtensorMap tma_c,
+    uint32_t m_tiles, uint32_t n_groups, uint32_t M, uint32_t K, int x_off)
+{
+    matmul_b1_body<EPI_TMA_XOR>(tma_a, tma_b, tma_c, m_tiles, n_groups, M, K, x_off);
 }
 
 // Build the K-major tiles the matmul consumes, reading B in its natural row-major layout.
@@ -466,4 +514,100 @@ extern "C" __global__ void transpose_tile_b1_kernel(
     const long long tile = (long long)NB * KL;
     const long long base = ((long long)kk * n_groups + cg) * tile;
     out[base + (long long)(lg * 64 + t) * KL + kl] = val;
+}
+
+// ── Device-resident operands ────────────────────────────────────────────────
+//
+// These build the GEMM's operand tiles from matrices already in device memory, so a GEMM over
+// persistent buffers needs no host round trip. One thread per output limb: packing is lower-order
+// work, so they favor clarity over peak bandwidth.
+
+// Gather A, a natural row-major (m_orig × sa_orig)-limb operand whose rows sit `a_stride` limbs
+// apart, into row-major K-major tiles (TM rows × KL limbs), ordered K-chunk-major then
+// M-tile-major. Rows and limbs past the operand (the M and K padding) read as zero. `a_stride`
+// exceeds `sa_orig` when A is a column block of a wider buffer.
+extern "C" __global__ void pack_a(
+    uint64_t* __restrict__ out, const uint64_t* __restrict__ a,
+    unsigned m_orig, unsigned sa_orig, unsigned a_stride, unsigned m_tiles, unsigned total)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+    const unsigned tile_u64s = TM * KL;
+    unsigned tile_idx = idx / tile_u64s;
+    unsigned within   = idx % tile_u64s;
+    unsigned row = within / KL;
+    unsigned kl  = within % KL;
+    unsigned bi = tile_idx % m_tiles;
+    unsigned kk = tile_idx / m_tiles;
+    unsigned global_row = bi * TM + row;
+    unsigned global_kl  = kk * KL + kl;
+    uint64_t val = 0;
+    if (global_row < m_orig && global_kl < sa_orig)
+        val = a[(uint64_t)global_row * a_stride + global_kl];
+    out[idx] = val;
+}
+
+// Build B's K-major bit-transposed tiles (NG*64 operand rows × KL limbs), ordered K-chunk-major
+// then column-group-major, from a k_orig-row operand whose rows sit b_stride limbs apart. The
+// operand is `lead` zero limbs followed by the source's limbs, n_lim limbs in all: the leading
+// zeros let a product start one limb early, on the even limb the reduce store needs, at the cost
+// of a product limb L·0 = 0. Column groups past n_lim and K rows past k_orig are zero. It computes
+// what transpose_tile_b1_kernel does; its 1-D grid is what lets B be wider than that kernel's
+// column-group grid dimension allows.
+extern "C" __global__ void pack_b(
+    uint64_t* __restrict__ out, const uint64_t* __restrict__ b,
+    unsigned k_orig, unsigned n_lim, unsigned b_stride, unsigned lead, unsigned n_groups,
+    unsigned total)
+{
+    unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+    const unsigned tile = NG * 64 * KL;
+    unsigned tile_idx = idx / tile;
+    unsigned within   = idx % tile;
+    unsigned j  = within / KL;   // operand row within the NG*64-row tile
+    unsigned kl = within % KL;
+    unsigned cg = tile_idx % n_groups;
+    unsigned kk = tile_idx / n_groups;
+    unsigned lg = j / 64;
+    unsigned jj = j % 64;
+    unsigned limb = cg * NG + lg;
+    if (limb >= n_lim || limb < lead) { out[idx] = 0; return; }
+    const unsigned src = limb - lead;
+    uint64_t val = 0;
+    #pragma unroll
+    for (unsigned bit = 0; bit < 64; ++bit) {
+        unsigned br = kk * TK + kl * 64 + bit;
+        uint64_t word = (br < k_orig) ? b[(uint64_t)br * b_stride + src] : 0;
+        val |= ((word >> jj) & 1ULL) << bit;
+    }
+    out[idx] = val;
+}
+
+// Copy `nrows` rows of src_stride limbs into rows of dst_stride >= src_stride limbs, zeroing the
+// extra limbs: the device side of a chunked, re-strided upload.
+extern "C" __global__ void restride_rows(
+    uint64_t* __restrict__ dst, const uint64_t* __restrict__ src,
+    unsigned nrows, unsigned src_stride, unsigned dst_stride)
+{
+    uint64_t idx = (uint64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (uint64_t)nrows * dst_stride) return;
+    unsigned i = (unsigned)(idx / dst_stride), j = (unsigned)(idx % dst_stride);
+    dst[idx] = (j < src_stride) ? src[(uint64_t)i * src_stride + j] : 0ULL;
+}
+
+// XOR the padded product C (m rows of c_stride limbs) into a region of a persistent matrix (rows of
+// dst_stride limbs) starting at limb dst_limb: dst[j][dst_limb + col] ^= C[j][col], for j < m and
+// col < width.
+extern "C" __global__ void xor_into(
+    uint64_t* __restrict__ dst, const uint64_t* __restrict__ c,
+    unsigned m, unsigned width, unsigned dst_stride, unsigned dst_limb,
+    unsigned c_stride)
+{
+    // 64-bit, because m * width passes 2^32 on a large enough matrix, and a 32-bit index then
+    // wraps: limbs XORed twice (undone) or skipped, a silently wrong result.
+    uint64_t idx = (uint64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= (uint64_t)m * width) return;
+    unsigned j   = (unsigned)(idx / width);
+    unsigned col = (unsigned)(idx % width);
+    dst[(uint64_t)j * dst_stride + dst_limb + col] ^= c[(uint64_t)j * c_stride + col];
 }
