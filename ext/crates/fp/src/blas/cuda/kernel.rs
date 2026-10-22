@@ -508,9 +508,9 @@ fn run_gemm_kernel(
 /// A bit-packed F₂ matrix resident in device memory.
 ///
 /// Rows are `stride` limbs apart and hold one bit per entry, bits past `cols` zero: the layout
-/// [`Matrix`] uses, as raw limbs. The point of it is persistence: uploaded once, mutated in place by
-/// device kernels and downloaded once, so an algorithm made of many dependent launches pays for the
-/// transfers only at its ends.
+/// [`Matrix`] uses, as raw limbs. The point of it is persistence: uploaded once, mutated in place
+/// by device kernels and downloaded once, so an algorithm made of many dependent launches pays for
+/// the transfers only at its ends.
 ///
 /// The row stride is always [`device_stride`]`(cols)`, a multiple of [`DEVICE_LIMB_MULTIPLE`]
 /// limbs, whatever the column count: every constructor pads to it, and the limbs past `cols` are
@@ -563,7 +563,8 @@ impl DeviceMatrix {
 
 /// Row stride multiple, in limbs, of every [`DeviceMatrix`].
 ///
-/// Two limbs make every row 16 bytes, what the GEMM's reduce-store epilogue needs to XOR into it.
+/// Chosen to make every row a multiple of 16 bytes, which the GEMM's reduce-store epilogue needs
+/// to XOR into it.
 pub const DEVICE_LIMB_MULTIPLE: usize = 2;
 
 /// The row stride of a `cols`-column [`DeviceMatrix`]: `cols.div_ceil(64)` rounded up to
@@ -642,7 +643,8 @@ impl GpuContext {
     ///
     /// Returns `C = A·B` as a **padded** buffer of `m_padded × n_padded_lim` limbs — valid data in
     /// the first `m` rows and first `n.div_ceil(64)` limbs of each — plus its row stride. The
-    /// padding is what [`Self::xor_into_region`] consumes; a standalone caller trims it on readback.
+    /// padding is what [`Self::xor_into_region`] consumes; a standalone caller trims it on
+    /// readback.
     pub fn matmul_b1_dev(
         &self,
         a_dev: &CudaSlice<u64>,
