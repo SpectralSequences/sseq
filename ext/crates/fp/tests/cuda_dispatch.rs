@@ -120,12 +120,14 @@ impl PathLog {
 }
 
 impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for PathLog {
+    /// Record the `path` of an `fp::rr` event.
     fn on_event(&self, ev: &tracing::Event<'_>, _: tracing_subscriber::layer::Context<'_, S>) {
         if ev.metadata().target() != "fp::rr" {
             return;
         }
         struct Grab(Option<String>);
         impl tracing::field::Visit for Grab {
+            /// Keep the `path` field's value.
             fn record_debug(&mut self, f: &tracing::field::Field, v: &dyn std::fmt::Debug) {
                 if f.name() == "path" {
                     self.0 = Some(format!("{v:?}").trim_matches('"').to_string());

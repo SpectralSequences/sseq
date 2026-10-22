@@ -163,6 +163,9 @@ fn rr_coop() -> bool {
 }
 
 impl GpuContext {
+    /// Allocate the identity virtual-row permutation `perm = [0, 1, …, m-1]` on device. Kernels
+    /// dereference rows as `M[perm[i]]`; row swaps are `perm` swaps, so the matrix bytes never
+    /// move.
     pub fn identity_perm(&self, m: usize) -> anyhow::Result<CudaSlice<u32>> {
         let host: Vec<u32> = (0..m as u32).collect();
         Ok(self.stream().clone_htod(&host)?)
@@ -1447,16 +1450,22 @@ pub struct RrOptions {
     pub bs_slab_bytes: Option<usize>,
 }
 
+/// The default slab budget is the matrix's size divided by this.
+const SLAB_DIVISOR: usize = 16;
+
+/// The least default slab budget, in bytes, so that small matrices do not slice their clears.
+const SLAB_MIN_BYTES: usize = 256 << 20;
+
 /// Rows of one back-substitution product slab for a matrix of `rows × stride` limbs.
 ///
-/// `budget` bytes of product rows (by default a sixteenth of the matrix, but at least 256 MiB),
-/// rounded down to a whole GROUP_M rasterization band of M-tiles so that each slab keeps the GEMM's
-/// B-panel reuse, and at least one band. A smaller slab bounds the product buffer tighter and
-/// launches more, smaller GEMMs.
+/// `budget` bytes of product rows (by default the matrix over [`SLAB_DIVISOR`], but at least
+/// [`SLAB_MIN_BYTES`]), rounded down to a whole GROUP_M rasterization band of M-tiles so that each
+/// slab keeps the GEMM's B-panel reuse, and at least one band. A smaller slab bounds the product
+/// buffer tighter and launches more, smaller GEMMs.
 pub fn bs_slab_rows(rows: usize, stride: usize, budget: Option<usize>) -> usize {
     let band = TILE_M * GROUP_M;
     let n_padded = stride.max(1).next_multiple_of(NG as usize);
-    let budget = budget.unwrap_or_else(|| (rows * stride * 8 / 16).max(256 << 20));
+    let budget = budget.unwrap_or_else(|| (rows * stride * 8 / SLAB_DIVISOR).max(SLAB_MIN_BYTES));
     ((budget / (n_padded * 8)) / band * band).max(band)
 }
 
