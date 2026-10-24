@@ -475,7 +475,7 @@ where
         if liftables.is_empty() {
             return;
         }
-        MultiLift::new(Arc::clone(&self.unit), liftables).extend_all();
+        MultiLift::new(Arc::clone(self.algebra.resolution()), liftables).extend_all();
     }
 
     /// Left-multiplication by the class `x` (in $\Ext(M, k)$), applied to every basis generator of
