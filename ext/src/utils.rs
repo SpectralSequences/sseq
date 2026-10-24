@@ -383,7 +383,9 @@ pub fn unicode_num(n: usize) -> char {
 ///   basis.
 /// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.
 ///   Note that if there is a save directory, then quasi-inverses will never be stored in memory;
-///   they must be accessed via `apply_quasi_inverse`.
+///   they must be accessed via `apply_quasi_inverse`. With the `nassau` feature this has no effect:
+///   Nassau's resolution never holds quasi-inverses in memory, and `apply_quasi_inverse` reads them
+///   from the save directory or, without one, recomputes them on demand.
 ///
 /// # Returns
 /// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is
@@ -417,11 +419,10 @@ pub fn query_module_only(
         resolution.load_quasi_inverse = load_quasi_inverse;
     }
 
+    // Nassau's `apply_quasi_inverse` recomputes a quasi-inverse on demand when there is no save
+    // directory to read it from, so a caller that will lift needs nothing from us here.
     #[cfg(feature = "nassau")]
-    assert!(
-        !load_quasi_inverse,
-        "Quasi inverse loading not support with Nassau. Please use a save directory instead"
-    );
+    let _ = load_quasi_inverse;
 
     resolution.set_name(name);
 
@@ -660,6 +661,32 @@ pub(crate) mod parallel {
 
     pub(crate) fn is_in_parallel() -> bool {
         PARALLEL_DEPTH.with(|depth| depth.get()) > 0
+    }
+
+    /// `(0..n).map(f).collect()`, computed in parallel, as a guarded fan-out.
+    ///
+    /// The calling thread is marked [in parallel](is_in_parallel) until every item is done, and so
+    /// is each thread while it runs an item. Every item is a task of its own (rather than a leaf of
+    /// a `join` tree), so a thread only ever waits for this fan-out inside a marked region: a
+    /// bidegree task it steals while waiting sees [`is_in_parallel`] and is retried instead of
+    /// holding the fan-out up. With fewer than two items, `f` simply runs on the calling thread.
+    pub(crate) fn guarded_map<R: Send>(n: usize, f: impl Fn(usize) -> R + Sync) -> Vec<R> {
+        if n < 2 {
+            return (0..n).map(f).collect();
+        }
+        let _guard = ParallelGuard::new();
+        let mut results: Vec<Option<R>> = Vec::with_capacity(n);
+        results.resize_with(n, || None);
+        let f = &f;
+        maybe_rayon::in_place_scope(|scope| {
+            for (i, slot) in results.iter_mut().enumerate() {
+                scope.spawn(move |_| {
+                    let _guard = ParallelGuard::new();
+                    *slot = Some(f(i));
+                });
+            }
+        });
+        results.into_iter().map(Option::unwrap).collect()
     }
 }
 
