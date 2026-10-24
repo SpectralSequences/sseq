@@ -274,12 +274,12 @@ where
     /// Build the secondary product lift for every generator of $\Ext(M, k)$ of positive filtration
     /// in the computed range and extend them all together, in bidegree-major order, via
     /// [`MultiLift`](crate::lift::MultiLift) — the secondary analogue of
-    /// [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products). Must be called after
+    /// [`ExtModule::extend_all_products`](ExtModule::extend_all_products). Must be called after
     /// [`extend_all`](Self::extend_all).
     ///
     /// Filtration-zero generators are excluded: multiplying by such a class is degenerate for the
     /// secondary machinery (see the filter below), so unlike the primary
-    /// [`ExtAlgebra::extend_all_products`](ExtAlgebra::extend_all_products) this does not cover
+    /// [`ExtModule::extend_all_products`](ExtModule::extend_all_products) this does not cover
     /// every generator.
     ///
     /// Every lift shares the unit resolution as target — for both the underlying primary maps and
@@ -289,7 +289,7 @@ where
     where
         CC: Send + Sync + 'static,
     {
-        let resolution = self.alg.resolution();
+        let resolution = self.module.resolution();
         let lifts: Vec<Arc<SecondaryResolutionHomomorphism<CC, CC>>> = resolution
             .iter_stem()
             // Skip filtration-zero classes (e.g. the unit): the secondary product lift there has
@@ -300,7 +300,7 @@ where
                 (0..resolution.number_of_gens_in_bidegree(b))
                     .map(move |i| BidegreeGenerator::new(b, i))
             })
-            .map(|g| self.secondary_product_lift(&self.alg.generator(g)))
+            .map(|g| self.secondary_product_lift(&self.module.generator(g)))
             .collect();
         if lifts.is_empty() {
             return;
@@ -314,7 +314,7 @@ where
             lift.underlying().extend_all();
         }
 
-        batch_extend_secondary(Arc::clone(self.alg.unit()), lifts);
+        batch_extend_secondary(Arc::clone(self.module.algebra().resolution()), lifts);
     }
 
     /// The secondary product of `x` with every $E_3$-surviving class of the unit at bidegree `b`,
@@ -524,10 +524,7 @@ mod tests {
                 "secondary product Ext part must equal the primary product"
             );
         }
-
-    /// Batching every secondary product together through [`MultiLift`]
-
-    /// Batching every secondary product together through [`MultiLift`](crate::resolution_homomorphism::MultiLift)
+    }
 
     /// Batching every secondary product together through [`MultiLift`](crate::lift::MultiLift)
     /// ([`extend_all_secondary_products`](SecondaryExtAlgebra::extend_all_secondary_products)) must
@@ -539,7 +536,7 @@ mod tests {
         let build = || {
             let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
             res.compute_through_stem(Bidegree::n_s(14, 6));
-            let e2 = Arc::new(ExtAlgebra::new(Arc::clone(&res), res));
+            let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
             let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
             sec.extend_all();
             (e2, sec)

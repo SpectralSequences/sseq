@@ -1439,6 +1439,7 @@ impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
                 &self.res.modules[s],
                 t,
                 &self.subalgebra.zero_signature(),
+                None,
             )
             .count();
         self.buf.write_u64::<LittleEndian>(target_dim as u64)?;
@@ -1454,11 +1455,11 @@ impl<'a, M: ZeroModule<Algebra = MilnorAlgebra>> RecomputeReader<'a, M> {
 
         let src_mask: Vec<usize> = self
             .subalgebra
-            .signature_mask(&self.algebra, &self.res.modules[s], t, signature)
+            .signature_mask(&self.algebra, &self.res.modules[s], t, signature, None)
             .collect();
         let tgt_mask: Vec<usize> = self
             .subalgebra
-            .signature_mask(&self.algebra, &self.res.modules[s - 1], t, signature)
+            .signature_mask(&self.algebra, &self.res.modules[s - 1], t, signature, None)
             .collect();
 
         let full_matrix = {

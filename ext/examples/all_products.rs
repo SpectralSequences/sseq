@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Instant};
 
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    ext_algebra::ExtAlgebra,
+    ext_algebra::ExtModule,
     utils::query_module,
 };
 
@@ -15,7 +15,7 @@ use ext::{
 /// plane. The environment configures which path is timed:
 ///
 /// - `EXT_PER_MAP=1` extends each map on its own instead of batching them through
-///   [`ExtAlgebra::extend_all_products`], for a side-by-side timing.
+///   [`ExtModule::extend_all_products`], for a side-by-side timing.
 /// - `EXT_NASSAU_RECOMPUTE_QI=1` forces recompute-on-demand even when quasi-inverses were saved
 ///   (`EXT_NASSAU_NO_SAVE_QI=1` on the *resolve* stores only the differentials in the first place).
 /// - `EXT_DUMP_PRODUCTS=1` prints the full multiplication table, sorted, instead of a timing line,
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
 
     // Loading (from the save dir) is untimed; only the product-map extension is timed.
     let resolution = Arc::new(query_module(None, true)?);
-    let e2 = ExtAlgebra::from_resolution(resolution)?;
+    let e2 = ExtModule::from_resolution(resolution)?;
 
     let per_map = std::env::var_os("EXT_PER_MAP").is_some();
 
@@ -60,11 +60,11 @@ fn main() -> anyhow::Result<()> {
         for mb in e2.resolution().iter_stem() {
             for mg in e2.basis(mb) {
                 let x = e2.generator(mg);
-                for b in e2.unit().iter_nonzero_stem() {
+                for b in e2.algebra().resolution().iter_nonzero_stem() {
                     let Some(rows) = e2.multiply_into(&x, b) else {
                         continue;
                     };
-                    for (g, row) in e2.unit_basis(b).into_iter().zip(rows.iter()) {
+                    for (g, row) in e2.algebra().basis(b).into_iter().zip(rows.iter()) {
                         let coords: Vec<u32> = row.iter().collect();
                         if coords.iter().any(|&c| c != 0) {
                             lines.push(format!("x_{mg} · x_{g} = {coords:?}"));

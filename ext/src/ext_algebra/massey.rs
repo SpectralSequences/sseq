@@ -161,10 +161,11 @@ where
         let p = self.prime();
         let target_num_gens = self.resolution().number_of_gens_in_bidegree(tot);
         // Where `a`'s generators sit in the homotopy output, so we can pair against them.
-        let offset_a =
-            self.unit()
-                .module(a.degree().s())
-                .generator_offset(a.degree().t(), a.degree().t(), 0);
+        let offset_a = self
+            .algebra()
+            .resolution()
+            .module(a.degree().s())
+            .generator_offset(a.degree().t(), a.degree().t(), 0);
         let a_coords: Vec<u32> = a.vec().iter().collect();
         let last = homotopy.homotopy(tot.s());
         let mut representative = FpVector::new(p, target_num_gens);
@@ -255,7 +256,7 @@ where
         CC: 'static,
     {
         let resolution = self.resolution();
-        let unit = self.unit();
+        let unit = self.algebra().resolution();
         let shift = Self::massey_shift(a, b);
 
         // Multiplication-by-`b` self-map of the unit. Built unextended so it can ride along in the

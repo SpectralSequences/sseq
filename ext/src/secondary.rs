@@ -822,7 +822,7 @@ where
 
 /// Extend several secondary lifts that share one target complex together, batching the target's
 /// quasi-inverse solve at each bidegree via [`MultiLift`] — the secondary analogue of
-/// [`ExtAlgebra::extend_all_products`](crate::ext_algebra::ExtAlgebra::extend_all_products).
+/// [`ExtModule::extend_all_products`](crate::ext_algebra::ExtModule::extend_all_products).
 ///
 /// Each lift's composites and intermediates (which do not touch the shared quasi-inverse) are
 /// computed first via [`SecondaryLift::prepare_homotopies`]; only the homotopy solve is batched, so
