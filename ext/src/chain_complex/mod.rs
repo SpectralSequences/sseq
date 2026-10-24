@@ -152,7 +152,12 @@ where
 
             for (j, row) in products.iter_mut().enumerate() {
                 let idx = source_mod.operation_generator_to_index(op_deg, op_idx, source.t(), j);
-                row.push(dx.entry(idx));
+                // A differential row may omit the trailing generator block of its own degree: a
+                // minimal resolution sends generators into the radical, so that block is zero, and
+                // Nassau sizes its rows to exclude it rather than storing the zeros. `op_deg == 0`
+                // is the only case that indexes into it, and `entry` checks the bound under
+                // `debug_assert!` alone, so read the omitted block as the zero it represents.
+                row.push(if idx < dx.len() { dx.entry(idx) } else { 0 });
             }
         }
 
