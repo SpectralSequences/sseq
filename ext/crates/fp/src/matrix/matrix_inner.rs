@@ -1558,6 +1558,10 @@ impl<'a> MatrixSliceMut<'a> {
             l.add_masked(r, 1, mask);
         }
     }
+
+    pub fn to_vec(&self) -> Vec<Vec<u32>> {
+        self.iter().map(|row| row.iter().collect()).collect()
+    }
 }
 
 #[cfg(test)]
