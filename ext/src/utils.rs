@@ -187,21 +187,18 @@ where
     if spec.basis(algebra)? == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
     }
-    if spec.profile.is_some() {
-        return Err(anyhow!(
-            "Nassau's algorithm does not support non-trivial profile"
-        ));
-    }
-    if spec.p != 2 {
-        return Err(anyhow!("Nassau's algorithm does not support odd primes"));
-    }
     if json["type"].as_str() != Some("finite dimensional module") {
         return Err(anyhow!(
             "Nassau's algorithm only supports finite dimensional modules"
         ));
     }
 
-    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+    let SteenrodAlgebra::MilnorAlgebra(algebra) =
+        SteenrodAlgebra::from_json(&json, AlgebraType::Milnor, false)?
+    else {
+        return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
+    };
+    let algebra = Arc::new(algebra);
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
     if !json["cofiber"].is_null() {
