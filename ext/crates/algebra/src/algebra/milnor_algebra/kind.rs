@@ -1,6 +1,7 @@
 //! The dual Steenrod algebras that a [`MilnorAlgebra`] can be a sub-Hopf-algebra of.
 
 use fp::prime::{TWO, ValidPrime};
+use serde::{Deserialize, Serialize};
 
 use super::{Exterior, MilnorAlgebra, MilnorAlgebraInner, MilnorProfile, NoExterior};
 use crate::algebra::Algebra;
@@ -13,9 +14,13 @@ use crate::algebra::Algebra;
 /// [`MilnorAlgebra::new`] builds the classical kind, and [`MilnorAlgebra::motivic_mod_tau`] and
 /// [`MilnorAlgebra::reduced_powers`] the others. Every pair of a prime and a
 /// [shape](super::MilnorShape) is exactly one kind, so the kind names what the shape encodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// A module spec names it in its `kind` field, in snake case, e.g. `"motivic_mod_tau"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SteenrodKind {
     /// The Steenrod algebra $A$, at any prime.
+    #[default]
     Classical,
     /// The mod-$\tau$ $\mathbb{C}$-motivic Steenrod algebra $A^{\mathbb{C}}/\tau$, at `p = 2`.
     MotivicModTau,

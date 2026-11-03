@@ -19,6 +19,11 @@ fn main() -> anyhow::Result<()> {
         res.prime() == 2 && res.target().max_s() == 1 && res.target().module(0).is_unit(),
         "Sq^0 can only be computed for the sphere at the prime 2"
     );
+    assert_eq!(
+        res.algebra().kind(),
+        algebra::SteenrodKind::Classical,
+        "Sq^0 can only be computed over the classical Steenrod algebra"
+    );
 
     let res = Arc::new(res);
     let doubled = Arc::new(DoubleChainComplex::new(Arc::clone(&res)));

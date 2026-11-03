@@ -117,14 +117,17 @@
 //! | --- | --- |
 //! | [algebra_dim](../algebra_dim/index.html) | Print the dimension of the Steenrod algebra in each degree. |
 //! | [bruner](../bruner/index.html) | Compare our basis with Bruner's. |
+//! | [chart_motivic](../chart_motivic/index.html) | Chart the C-motivic deformation spectral sequence. |
 //! | [define_module](../define_module/index.html) | Interactively define a Steenrod module. |
 //! | [differentials](../differentials/index.html) | Print all differentials in the minimal resolution. |
 //! | [filtration_one](../filtration_one/index.html) | Print all filtration one products. |
 //! | [lift_hom](../lift_hom/index.html) | Compute the map $\Ext(N, k) \to \Ext(M, k)$ induced by an element in $\Ext(M, N)$. |
 //! | [mahowald_invariant](../mahowald_invariant/index.html) | Compute (algebraic) Mahowald invariants. |
 //! | [massey](../massey/index.html) | Compute Massey products. |
+//! | [motivic_ring](../motivic_ring/index.html) | Print the C-motivic Adams $E_2$ of the sphere as an $\mathbb{F}_2[\tau]$-algebra. |
 //! | [num_gens](../num_gens/index.html) | Compute the dimension of Ext in each bidegree. |
 //! | [resolution_size](../resolution_size/index.html) | Compute the size of the minimal resolution in each bidegree |
+//! | [resolve_motivic](../resolve_motivic/index.html) | Print the C-motivic Adams $E_2$ of a module over $A_C/\tau$. |
 //! | [resolve](../resolve/index.html) | Resolve a module to a fixed $(s, t)$ and potentially save the resolution. |
 //! | [resolve_through_stem](../resolve_through_stem/index.html) | Resolve a module to a fixed $(s, n)$ and potentially save the resolution. |
 //! | [save_bruner](../save_bruner/index.html) | Save the resolution in the format used by Bruner's [ext](http://www.rrb.wayne.edu/papers/index.html). |
@@ -180,6 +183,7 @@ use algebra::module::SteenrodModule;
 use crate::chain_complex::FiniteChainComplex;
 pub type CCC = FiniteChainComplex<SteenrodModule>;
 
+pub mod motivic;
 pub mod nassau;
 pub mod secondary;
 pub mod utils;
