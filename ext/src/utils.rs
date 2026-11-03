@@ -187,9 +187,9 @@ where
     if spec.basis(algebra)? == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
     }
-    if spec.profile.is_some() {
+    if !spec.is_full_classical() {
         return Err(anyhow!(
-            "Nassau's algorithm does not support non-trivial profile"
+            "Nassau's algorithm only supports the classical Steenrod algebra with no profile"
         ));
     }
     if spec.p != 2 {

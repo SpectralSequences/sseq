@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use algebra::{
-    AdemAlgebra, SteenrodAlgebra,
+    AdemAlgebra, AlgebraSpec, SteenrodAlgebra,
     module::{FDModule, TensorModule, steenrod_module},
 };
 use anyhow::anyhow;
@@ -23,6 +23,16 @@ fn main() -> anyhow::Result<()> {
             Err(anyhow!("Two modules must be over the same prime"))
         }
     });
+
+    // The action on a tensor product is through the coproduct of the Adem basis.
+    for module in [&left, &right] {
+        if !AlgebraSpec::from_json(module)?.is_full_classical() {
+            return Err(anyhow!(
+                "Tensor products are only supported over the classical Steenrod algebra with no \
+                 profile"
+            ));
+        }
+    }
 
     let p = ValidPrime::new(p as u32);
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, false)));
