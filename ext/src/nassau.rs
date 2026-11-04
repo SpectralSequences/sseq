@@ -1285,7 +1285,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 }
 
                 // Drop these objects to save a bit of memory
-                target_zero_mask = Vec::new();
+                target_zero_mask.clear();
+                target_zero_mask.shrink_to_fit();
                 dx_matrix = AugmentedMatrix::<3>::new(p, 0, [0, 0, 0]);
             } else {
                 scratch0.update_from_bytes(&mut f).unwrap();
