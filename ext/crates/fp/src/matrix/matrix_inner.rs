@@ -1,8 +1,7 @@
 use std::{fmt, io, ops::Range};
 
 use aligned_vec::AVec;
-use either::Either;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use maybe_rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
 
