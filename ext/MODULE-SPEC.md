@@ -71,6 +71,21 @@ y(2) is a spectrum whose homology is `F_p[ξ₁, ξ₂][τ₁, τ₂]`.
 }
 ```
 
+### Cτ
+
+The C-motivic cofiber of τ, whose Ext is that of the mod τ C-motivic Steenrod
+algebra.
+
+```json
+{
+    "p": 2,
+    "algebra": { "kind": "motivic_mod_tau" },
+    "type": "finite dimensional module",
+    "gens": {"x0": 0},
+    "actions": []
+}
+```
+
 ## Algebra
 
 In each of the above examples, `p` and the `algebra` object specify the
@@ -84,10 +99,30 @@ algebra.
 ### Optional parameters
 
 * `algebra`: An object with the following optional fields. Leaving it out
-  gives the whole Steenrod algebra.
+  gives the whole classical Steenrod algebra.
 
-  * `profile`: This specifies a profile function for the Steenrod algebra.
-    If specified, Ext is computed against the specified quotient of the dual
+  * `kind`: The Hopf algebra we compute Ext over, or rather the one whose
+    sub-Hopf-algebra the `profile` picks out. The possible values are
+
+    * `classical`: The Steenrod algebra `A`, at any prime. This is the
+      default.
+    * `motivic_mod_tau`: The mod τ C-motivic Steenrod algebra `A^C/τ`, at the
+      prime 2. Its dual is `F_2[ξ₁, ξ₂, ...] ⊗ E[τ₀, τ₁, ...]`, graded so
+      that `ξ_i` and `τ_i` sit in the same degrees as `ξ_i²` and `ξ_{i+1}` do
+      classically. Its generators are written as at odd primes: `b` for
+      `Q_0`, which is `Sq1`, and `P1`, `P2`, `P4`, ... for `Sq2`, `Sq4`,
+      `Sq8`, ....
+    * `reduced_powers`: The algebra of reduced powers
+      `P = A//E(Q_0, Q_1, ...)`, at odd primes. Its dual is
+      `F_p[ξ₁, ξ₂, ...]`. There is no Bockstein, so actions only involve the
+      `P^n`.
+
+    Tensor products and the commands that need them (`steenrod`, `sq0`), the
+    secondary commands, and Nassau's algorithm are only supported for the
+    classical algebra.
+
+  * `profile`: This specifies a profile function for the algebra. If
+    specified, Ext is computed against the specified quotient of the dual
     Steenrod algebra (or rather, the dual of the quotient of the dual
     Steenrod algebra, since we work with algebras instead of coalgebras).
     There are three possible sub-parameters:
@@ -97,9 +132,10 @@ algebra.
     * `p_part`: The profile function. If this is set to `[r_1, r_2, ...]`,
       then we quotient out by `ξ_i^{p^{r_i}}` for all i in the Steenrod
       algebra.
-    * `q_part`: This is only relevant at odd primes. This is a single integer
-      that one should interpret in binary. The nth bit is `0` if we want to
-      quotient out by `τ_n`, and `1` otherwise.
+    * `q_part`: This is only relevant when the dual algebra has `τ`s, i.e.
+      for the classical algebra at odd primes and for `motivic_mod_tau`. This
+      is a single integer that one should interpret in binary. The nth bit is
+      `0` if we want to quotient out by `τ_n`, and `1` otherwise.
 
   * `notation`: There are two standard bases for the Steenrod algebra --- the
     Milnor basis and the Adem basis --- and the actions or relations of a
@@ -112,8 +148,9 @@ algebra.
     The basis a resolution uses is the one asked for on the command line, e.g.
     `tmf2@milnor`, otherwise the module's `notation`, otherwise Milnor. Asking
     for a basis the module is not written in is an error. The Adem basis is
-    faster than the Milnor basis, but does not support a profile, so it is
-    also an error to ask for it, or set it as the notation, alongside one.
+    faster than the Milnor basis, but only exists for the classical algebra
+    with no profile, so it is also an error to ask for it, or set it as the
+    notation, for any other algebra.
 
     Note that picking a different basis will result in different bases for
     the Ext groups.
@@ -131,7 +168,8 @@ There are two required parameters
 
 * `actions`: This is a list of actions by the generators of the Steenrod
   algebra, which are `Sq^{2^n}` for even primes and `β, P^{p^n}` for odd
-  primes. For example, we can have
+  primes. Over `motivic_mod_tau` they are `β` and `P^{2^n}`, and over
+  `reduced_powers` just `P^{p^n}`. For example, we can have
   * `P3 x0 = 2 x2 + x3`
   * `b x0 = x1`
   * `Sq1 x0 = x1`
