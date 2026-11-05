@@ -114,24 +114,24 @@ let wasm_bindgen = (function(exports) {
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,
-            __wbg___wbindgen_debug_string_4687d8d8c2017d52: function(arg0, arg1) {
+            __wbg___wbindgen_debug_string_f249a2a76caa9a55: function(arg0, arg1) {
                 const ret = debugString(arg1);
                 const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
                 const len1 = WASM_VECTOR_LEN;
-                getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-                getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+                getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 1, len1, true);
+                getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 0, ptr1, true);
             },
-            __wbg___wbindgen_panic_error_1da2bf9da04e868c: function(arg0) {
+            __wbg___wbindgen_panic_error_0057a448c5707437: function(arg0) {
                 const ret = new PanicError(arg0);
                 return ret;
             },
-            __wbg___wbindgen_rethrow_cb2e88c6b2a16733: function(arg0) {
+            __wbg___wbindgen_rethrow_d953c34c2e20677f: function(arg0) {
                 throw new WebAssembly.Exception(__wbindgen_wrapped_jstag, [arg0]);
             },
-            __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
+            __wbg___wbindgen_throw_4c88d8bf264fd984: function(arg0, arg1) {
                 throw new WebAssembly.Exception(__wbindgen_wrapped_jstag, [new Error(getStringFromWasm0(arg0, arg1))]);
             },
-            __wbg_call_187d372bd5fdd4aa: function(arg0, arg1, arg2) {
+            __wbg_call_a410eb4b59ed5965: function(arg0, arg1, arg2) {
                 const ret = arg0.call(arg1, arg2);
                 return ret;
             },
@@ -142,12 +142,11 @@ let wasm_bindgen = (function(exports) {
             },
             __wbindgen_init_externref_table: function() {
                 const table = wasm.__wbindgen_externrefs;
-                const offset = table.grow(4);
                 table.set(0, undefined);
-                table.set(offset + 0, undefined);
-                table.set(offset + 1, null);
-                table.set(offset + 2, true);
-                table.set(offset + 3, false);
+                table.set(1024, undefined);
+                table.set(1025, null);
+                table.set(1026, true);
+                table.set(1027, false);
             },
             __wbindgen_jstag: WebAssembly.JSTag,
             __wbindgen_wrapped_jstag: __wbindgen_wrapped_jstag,
@@ -198,68 +197,61 @@ let wasm_bindgen = (function(exports) {
         : new FinalizationRegistry(ptr => wasm.__wbg_sseq_free(ptr, 1));
 
     function debugString(val) {
-        // primitive types
-        const type = typeof val;
-        if (type == 'number' || type == 'boolean' || val == null) {
-            return  `${val}`;
-        }
-        if (type == 'string') {
-            return `"${val}"`;
-        }
-        if (type == 'symbol') {
-            const description = val.description;
-            if (description == null) {
-                return 'Symbol';
-            } else {
-                return `Symbol(${description})`;
+        switch (typeof val) {
+            // primitive types
+            case 'number':
+            case 'boolean':
+            case 'undefined':
+            return `${val}`;
+            case 'string':
+            return JSON.stringify(val);
+            case 'bigint':
+            return `${val}n`;
+            case 'symbol':
+            return val.description !== undefined
+                ? `Symbol(${val.description})`
+                : 'Symbol';
+            case 'function':
+            return typeof val.name === 'string' && val.name !== ''
+                ? `Function(${val.name})`
+                : 'Function';
+            case 'object': {
+                if (val === null) {
+                    return 'null';
+                }
+                // objects
+                if (Array.isArray(val)) {
+                    return '[' + Array.from(val, debugString).join(', ') + ']';
+                }
+                // errors
+                if (val instanceof Error) {
+                    return `${val.name}: ${val.message}\n${val.stack}`;
+                }
+
+                const toStringOutput = toString.call(val);
+                // Test for built-in
+                const className = /\[object ([^\]]+)\]/.exec(toStringOutput)?.[1];
+
+                // Failed to match the standard '[object ClassName]'
+                if (className === undefined) {
+                    return toStringOutput;
+                }
+                if (className === 'Object') {
+                    // we're a user defined class or Object
+                    // JSON.stringify avoids problems with cycles, and is generally much
+                    // easier than looping through ownProperties of `val`.
+                    try {
+                        return 'Object(' + JSON.stringify(val) + ')';
+                    } catch (_) {
+                        return 'Object';
+                    }
+                }
+                // TODO we could test for more things here, like `Set`s and `Map`s.
+                return className;
             }
+            // Per MDN: 'This list of values is exhaustive.'
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof#description
         }
-        if (type == 'function') {
-            const name = val.name;
-            if (typeof name == 'string' && name.length > 0) {
-                return `Function(${name})`;
-            } else {
-                return 'Function';
-            }
-        }
-        // objects
-        if (Array.isArray(val)) {
-            const length = val.length;
-            let debug = '[';
-            if (length > 0) {
-                debug += debugString(val[0]);
-            }
-            for(let i = 1; i < length; i++) {
-                debug += ', ' + debugString(val[i]);
-            }
-            debug += ']';
-            return debug;
-        }
-        // Test for built-in
-        const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
-        let className;
-        if (builtInMatches && builtInMatches.length > 1) {
-            className = builtInMatches[1];
-        } else {
-            // Failed to match the standard '[object ClassName]'
-            return toString.call(val);
-        }
-        if (className == 'Object') {
-            // we're a user defined class or Object
-            // JSON.stringify avoids problems with cycles, and is generally much
-            // easier than looping through ownProperties of `val`.
-            try {
-                return 'Object(' + JSON.stringify(val) + ')';
-            } catch (_) {
-                return 'Object';
-            }
-        }
-        // errors
-        if (val instanceof Error) {
-            return `${val.name}: ${val.message}\n${val.stack}`;
-        }
-        // TODO we could test for more things here, like `Set`s and `Map`s.
-        return className;
     }
 
     let cachedDataViewMemory0 = null;
@@ -279,7 +271,8 @@ let wasm_bindgen = (function(exports) {
     }
 
     function getStringFromWasm0(ptr, len) {
-        return decodeText(ptr >>> 0, len);
+        ptr = ptr >>> 0;
+        return decodeText(getUint8ArrayMemory0().subarray(ptr, ptr + len));
     }
 
     let cachedUint8ArrayMemory0 = null;
@@ -332,10 +325,10 @@ let wasm_bindgen = (function(exports) {
         return ptr;
     }
 
-    let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+    let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true });
     cachedTextDecoder.decode();
-    function decodeText(ptr, len) {
-        return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
+    function decodeText(bytes) {
+        return cachedTextDecoder.decode(bytes);
     }
 
     const cachedTextEncoder = new TextEncoder();
@@ -424,9 +417,17 @@ let wasm_bindgen = (function(exports) {
         return __wbg_finalize_init(instance, module);
     }
 
+    let __wbg_init_promise;
     async function __wbg_init(module_or_path) {
         if (wasm !== undefined) return wasm;
+        if (__wbg_init_promise === undefined) {
+            __wbg_init_promise = __wbg_init_once(module_or_path);
+            __wbg_init_promise.catch(() => { __wbg_init_promise = undefined; });
+        }
+        return __wbg_init_promise;
+    }
 
+    async function __wbg_init_once(module_or_path) {
 
         if (module_or_path !== undefined) {
             if (Object.getPrototypeOf(module_or_path) === Object.prototype) {
