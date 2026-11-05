@@ -1,0 +1,7 @@
+{
+    "p": 3,
+    "algebra": { "kind": "reduced_powers" },
+    "type": "finite dimensional module",
+    "gens": { "x0": 0 },
+    "actions": []
+}
