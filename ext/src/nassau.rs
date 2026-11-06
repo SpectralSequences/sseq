@@ -872,8 +872,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                     .row_slice(source_dim, source_dim + num_new_gens),
             );
         }
-        chain_map.compute_auxiliary_data_through_degree(t);
-
+        // The chain map's kernel, image and quasi-inverse are left uncomputed: nothing in the
+        // Nassau flow reads them, and `ResolutionHomomorphism` computes them on demand before use.
+        // Above the target module's top degree the kernel is the whole source, so computing it
+        // would row-reduce a `source_dim` square identity matrix for nothing.
         d.set_kernel(t, None);
         d.set_image(t, None);
         d.set_quasi_inverse(t, None);
