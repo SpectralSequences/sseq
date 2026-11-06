@@ -561,8 +561,11 @@ impl<T> IndexMut<u32> for OnceVec<T> {
     }
 }
 
+// SAFETY: the vector owns its values, so sending the vector sends the values.
 unsafe impl<T: Send> Send for OnceVec<T> {}
-unsafe impl<T: Sync> Sync for OnceVec<T> {}
+// SAFETY: a shared vector hands out `&T` to every thread, and a value pushed from one thread can
+// be dropped from another.
+unsafe impl<T: Send + Sync> Sync for OnceVec<T> {}
 
 impl<T> FromIterator<T> for OnceVec<T> {
     /// ```
