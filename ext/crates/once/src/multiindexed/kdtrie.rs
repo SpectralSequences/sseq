@@ -101,11 +101,9 @@ impl<V> KdTrie<V> {
 
         let mut node = &self.root;
 
-        for &coord in coords.iter().take(self.dimensions.saturating_sub(2)) {
-            node = unsafe { node.ensure_child(coord, Node::new_inner()) };
-        }
-        if self.dimensions > 1 {
-            node = unsafe { node.ensure_child(coords[self.dimensions - 2], Node::new_leaf()) };
+        for &coord in &coords[..self.dimensions - 1] {
+            // SAFETY: every node above the last level is an inner node.
+            node = unsafe { node.ensure_child(coord) };
         }
 
         unsafe { node.set_value(coords[self.dimensions - 1], value) };
@@ -149,11 +147,9 @@ impl<V> KdTrie<V> {
 
         let mut node = &self.root;
 
-        for &coord in coords.iter().take(self.dimensions.saturating_sub(2)) {
-            node = unsafe { node.ensure_child(coord, Node::new_inner()) };
-        }
-        if self.dimensions > 1 {
-            node = unsafe { node.ensure_child(coords[self.dimensions - 2], Node::new_leaf()) };
+        for &coord in &coords[..self.dimensions - 1] {
+            // SAFETY: every node above the last level is an inner node.
+            node = unsafe { node.ensure_child(coord) };
         }
 
         unsafe { node.try_set_value(coords[self.dimensions - 1], value) }

@@ -4,8 +4,22 @@
 #[cfg(not(loom))]
 pub(crate) use std::*;
 
+#[cfg(not(loom))]
+pub use bytemuck::Zeroable;
 #[cfg(loom)]
 pub(crate) use loom::*;
+
+/// A stand-in for [`bytemuck::Zeroable`] under loom, whose atomics are not valid as zero bytes.
+///
+/// # Safety
+///
+/// Outside loom, the implementing type is `bytemuck::Zeroable`, and `zeroed` must return the value
+/// whose bytes are all zero.
+#[cfg(loom)]
+pub unsafe trait Zeroable: Sized {
+    /// The value whose bytes are all zero outside loom.
+    fn zeroed() -> Self;
+}
 
 /// A trait for getting the inner value of an atomic type when we hold a mutable reference.
 ///

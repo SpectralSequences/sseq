@@ -24,6 +24,9 @@ rand = "0.9"
 default = []
 concurrent = ["maybe-rayon/concurrent"]
 
+[target.'cfg(not(loom))'.dependencies]
+bytemuck = { version = "1.25", features = ["derive", "extern_crate_alloc", "zeroable_atomics", "zeroable_maybe_uninit"] }
+
 [target.'cfg(loom)'.dependencies]
 loom = { version = "0.7", features = ["checkpoint"] }
 
