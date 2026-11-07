@@ -522,6 +522,7 @@ where
         let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dimension, MAX_NEW_GENS);
 
         let mut res_new_gens = Vec::new();
+        let mut renormalize = false;
 
         if b.s() > 0 {
             if !cc_new_gens.is_empty() {
@@ -562,6 +563,20 @@ where
                 &self.get_kernel(b - Bidegree::s_t(1, 0)),
                 MAX_NEW_GENS,
             );
+            if let Some(order) = term_order()
+                && !res_new_gens.is_empty()
+            {
+                normalize_new_rows(
+                    &mut matrix,
+                    &*target_res,
+                    b.t(),
+                    source_dimension,
+                    source_dimension + cc_new_gens.len(),
+                    res_new_gens.len(),
+                    order,
+                );
+                renormalize = true;
+            }
         }
         let num_new_gens = cc_new_gens.len() + res_new_gens.len();
         self.add_generators(b, num_new_gens);
@@ -586,66 +601,72 @@ where
                 matrix.inner.row_mut(i).set_entry(matrix.start[2] + i, 1);
             }
 
-            // We are now supposed to row reduce the matrix. However, running the full row
-            // reduction algorithm is wasteful, since we have only added a few rows and the rest is
-            // intact.
-            //
-            // The new resolution rows are all zero in the existing pivot columns. Indeed,
-            // the resolution generators are mapped to generators of the kernel, which are zero in
-            // pivot columns of the kernel matrix. But the old image is a subspace of the kernel,
-            // so its pivot columns are a subset of the pivot columns of the kernel matrix.
-            //
-            // So we clear the new cc rows using the old rows.
-            for k in source_dimension..source_dimension + cc_new_gens.len() {
-                for column in matrix.start[1]..matrix.end[1] {
-                    let row = matrix.pivots()[column];
-                    if row < 0 {
-                        continue;
-                    }
-                    let row = row as usize;
-                    unsafe {
-                        matrix.row_op(k, row, column, p);
-                    }
-                }
-            }
-
-            // Now use the new resolution rows to reduce the old rows and the cc rows.
-            let first_res_row = source_dimension + cc_new_gens.len();
-            for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
-                for target_row in 0..first_res_row {
-                    unsafe {
-                        matrix.row_op(target_row, source_row + first_res_row, pivot_col, p);
-                    }
-                }
-            }
-
-            // We are now almost in RREF, except we need to permute the rows.
-            let mut new_gens = cc_new_gens.into_iter().chain(res_new_gens).enumerate();
-            let (mut next_new_row, mut next_new_col) = new_gens.next().unwrap();
-            let mut next_old_row = 0;
-
-            for old_col in 0..matrix.columns() {
-                if old_col == next_new_col {
-                    matrix.rotate_down(next_old_row..source_dimension + next_new_row + 1, 1);
-                    matrix.pivots_mut()[old_col] = next_old_row as isize;
-                    match new_gens.next() {
-                        Some((x, y)) => {
-                            next_new_row = x;
-                            next_new_col = y;
+            if renormalize {
+                // The new rows are no longer zero in the old pivot columns, so redo the row
+                // reduction from scratch.
+                matrix.row_reduce();
+            } else {
+                // We are now supposed to row reduce the matrix. However, running the full row
+                // reduction algorithm is wasteful, since we have only added a few rows and the rest is
+                // intact.
+                //
+                // The new resolution rows are all zero in the existing pivot columns. Indeed,
+                // the resolution generators are mapped to generators of the kernel, which are zero in
+                // pivot columns of the kernel matrix. But the old image is a subspace of the kernel,
+                // so its pivot columns are a subset of the pivot columns of the kernel matrix.
+                //
+                // So we clear the new cc rows using the old rows.
+                for k in source_dimension..source_dimension + cc_new_gens.len() {
+                    for column in matrix.start[1]..matrix.end[1] {
+                        let row = matrix.pivots()[column];
+                        if row < 0 {
+                            continue;
                         }
-                        None => {
-                            for entry in &mut matrix.pivots_mut()[old_col + 1..] {
-                                if *entry >= 0 {
-                                    *entry += next_new_row as isize + 1;
-                                }
+                        let row = row as usize;
+                        unsafe {
+                            matrix.row_op(k, row, column, p);
+                        }
+                    }
+                }
+
+                // Now use the new resolution rows to reduce the old rows and the cc rows.
+                let first_res_row = source_dimension + cc_new_gens.len();
+                for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
+                    for target_row in 0..first_res_row {
+                        unsafe {
+                            matrix.row_op(target_row, source_row + first_res_row, pivot_col, p);
+                        }
+                    }
+                }
+
+                // We are now almost in RREF, except we need to permute the rows.
+                let mut new_gens = cc_new_gens.into_iter().chain(res_new_gens).enumerate();
+                let (mut next_new_row, mut next_new_col) = new_gens.next().unwrap();
+                let mut next_old_row = 0;
+
+                for old_col in 0..matrix.columns() {
+                    if old_col == next_new_col {
+                        matrix.rotate_down(next_old_row..source_dimension + next_new_row + 1, 1);
+                        matrix.pivots_mut()[old_col] = next_old_row as isize;
+                        match new_gens.next() {
+                            Some((x, y)) => {
+                                next_new_row = x;
+                                next_new_col = y;
                             }
-                            break;
+                            None => {
+                                for entry in &mut matrix.pivots_mut()[old_col + 1..] {
+                                    if *entry >= 0 {
+                                        *entry += next_new_row as isize + 1;
+                                    }
+                                }
+                                break;
+                            }
                         }
+                        next_old_row += 1;
+                    } else if matrix.pivots()[old_col] >= 0 {
+                        matrix.pivots_mut()[old_col] += next_new_row as isize;
+                        next_old_row += 1;
                     }
-                    next_old_row += 1;
-                } else if matrix.pivots()[old_col] >= 0 {
-                    matrix.pivots_mut()[old_col] += next_new_row as isize;
-                    next_old_row += 1;
                 }
             }
         }
@@ -1195,5 +1216,114 @@ mod tests {
 
         assert!(res.apply_quasi_inverse(&mut [w.as_slice_mut()], b, &[v.as_slice()]));
         assert!(w.is_zero());
+    }
+}
+
+/// Experimental: the term order used to put new differentials in normal form modulo boundaries,
+/// read from the `SSEQ_TERM_ORDER` environment variable. `None` keeps the default behaviour.
+fn term_order() -> Option<&'static str> {
+    static ORDER: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    ORDER
+        .get_or_init(|| {
+            std::env::var("SSEQ_TERM_ORDER")
+                .ok()
+                .filter(|x| x != "none")
+        })
+        .as_deref()
+}
+
+/// Sort key of a basis element `Sq(R) g` of a free module under the experimental term order.
+/// Columns with smaller keys come first, so they are the ones that get eliminated.
+fn term_key(order: &str, op: &str, gen_degree: i32, idx: usize) -> (i64, i64, usize) {
+    let r: Vec<u64> = op
+        .trim_start_matches("P(")
+        .trim_end_matches(')')
+        .split(',')
+        .filter_map(|x| x.trim().parse().ok())
+        .collect();
+    // May weight: P^i_j has weight j, and Sq(R) is the product of P^i_j over the binary digits
+    // 2^i of r_j.
+    let may: i64 = r
+        .iter()
+        .enumerate()
+        .map(|(j, x)| (j as i64 + 1) * x.count_ones() as i64)
+        .sum();
+    let len = r.iter().filter(|&&x| x != 0).count() as i64;
+    let g = gen_degree as i64;
+    match order {
+        "id" => (0, 0, idx),
+        "rev" => (0, 0, usize::MAX - idx),
+        "may_hi" => (-may, 0, idx),
+        "may_lo" => (may, 0, idx),
+        "gen_hi" => (-g, 0, idx),
+        "gen_lo" => (g, 0, idx),
+        "may_hi_gen_lo" => (-may, g, idx),
+        "may_hi_gen_hi" => (-may, -g, idx),
+        "len_hi" => (-len, -may, idx),
+        "len_lo" => (len, may, idx),
+        "may_lo_gen_hi" => (may, -g, idx),
+        "may_lo_gen_lo" => (may, g, idx),
+        "may_lo_len_hi" => (may, -len, idx),
+        "may_lo_len_lo" => (may, len, idx),
+        _ => panic!("Unknown term order {order}"),
+    }
+}
+
+/// Replace the segment 1 part of rows `first_row..first_row + num_rows` by its normal form,
+/// with respect to the term order, modulo the boundaries spanned by the old rows whose pivot
+/// lies in segment 1.
+fn normalize_new_rows<const U: bool, A: MuAlgebra<U>>(
+    matrix: &mut AugmentedMatrix<3>,
+    target: &MuFreeModule<U, A>,
+    t: i32,
+    source_dimension: usize,
+    first_row: usize,
+    num_rows: usize,
+    order: &str,
+) {
+    let p = matrix.prime();
+    let (start, end) = (matrix.start[1], matrix.end[1]);
+    let dim = end - start;
+    let algebra = target.algebra();
+    let mut perm: Vec<usize> = (0..dim).collect();
+    let keys: Vec<_> = (0..dim)
+        .map(|i| {
+            let opgen = target.index_to_op_gen(t, i);
+            let op = algebra.basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+            term_key(order, &op, opgen.generator_degree, i)
+        })
+        .collect();
+    perm.sort_by_key(|&i| keys[i]);
+
+    let boundary_rows: Vec<usize> = (start..end)
+        .filter_map(|c| {
+            let r = matrix.pivots()[c];
+            (r >= 0 && (r as usize) < source_dimension).then_some(r as usize)
+        })
+        .collect();
+    let mut bm = fp::matrix::Matrix::new(p, boundary_rows.len(), dim);
+    for (k, &r) in boundary_rows.iter().enumerate() {
+        let row = matrix.row_segment(r, 1, 1);
+        let mut out = bm.row_mut(k);
+        for (j, &c) in perm.iter().enumerate() {
+            out.set_entry(j, row.entry(c));
+        }
+    }
+    let boundaries = Subspace::from_matrix(bm);
+
+    let mut v = FpVector::new(p, dim);
+    for r in first_row..first_row + num_rows {
+        {
+            let row = matrix.row_segment(r, 1, 1);
+            for (j, &c) in perm.iter().enumerate() {
+                v.set_entry(j, row.entry(c));
+            }
+        }
+        boundaries.reduce(v.as_slice_mut());
+        let mut row = matrix.row_segment_mut(r, 1, 1);
+        for (j, &c) in perm.iter().enumerate() {
+            row.set_entry(c, v.entry(j));
+        }
+        v.set_to_zero();
     }
 }
