@@ -1221,7 +1221,7 @@ mod tests {
 
 /// Experimental: the term order used to put new differentials in normal form modulo boundaries,
 /// read from the `SSEQ_TERM_ORDER` environment variable. `None` keeps the default behaviour.
-fn term_order() -> Option<&'static str> {
+pub(crate) fn term_order() -> Option<&'static str> {
     static ORDER: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     ORDER
         .get_or_init(|| {
@@ -1234,8 +1234,8 @@ fn term_order() -> Option<&'static str> {
 
 /// Sort key of a basis element `Sq(R) g` of a free module under the experimental term order.
 /// Columns with smaller keys come first, so they are the ones that get eliminated.
-fn term_key(order: &str, op: &str, gen_degree: i32, idx: usize) -> (i64, i64, usize) {
-    let r: Vec<u64> = op
+fn term_key(order: &str, op: &str, gen_degree: i32, gen_index: usize, idx: usize) -> Vec<i64> {
+    let r: Vec<i64> = op
         .trim_start_matches("P(")
         .trim_end_matches(')')
         .split(',')
@@ -1250,22 +1250,94 @@ fn term_key(order: &str, op: &str, gen_degree: i32, idx: usize) -> (i64, i64, us
         .sum();
     let len = r.iter().filter(|&&x| x != 0).count() as i64;
     let g = gen_degree as i64;
-    match order {
-        "id" => (0, 0, idx),
-        "rev" => (0, 0, usize::MAX - idx),
-        "may_hi" => (-may, 0, idx),
-        "may_lo" => (may, 0, idx),
-        "gen_hi" => (-g, 0, idx),
-        "gen_lo" => (g, 0, idx),
-        "may_hi_gen_lo" => (-may, g, idx),
-        "may_hi_gen_hi" => (-may, -g, idx),
-        "len_hi" => (-len, -may, idx),
-        "len_lo" => (len, may, idx),
-        "may_lo_gen_hi" => (may, -g, idx),
-        "may_lo_gen_lo" => (may, g, idx),
-        "may_lo_len_hi" => (may, -len, idx),
-        "may_lo_len_lo" => (may, len, idx),
+    let gi = gen_index as i64;
+    let idx = idx as i64;
+    // Reverse lexicographic order on R, as in Bruner--Rognes section 7.
+    let mut revlex = r.clone();
+    revlex.resize(16, 0);
+    revlex.reverse();
+    let mut key = match order {
+        "id" => vec![idx],
+        "rev" => vec![-idx],
+        "may_hi" => vec![-may],
+        "may_lo" => vec![may],
+        "gen_hi" => vec![-g],
+        "gen_lo" => vec![g],
+        "may_hi_gen_lo" => vec![-may, g],
+        "may_hi_gen_hi" => vec![-may, -g],
+        "len_hi" => vec![-len, -may],
+        "len_lo" => vec![len, may],
+        "may_lo_gen_hi" => vec![may, -g],
+        "may_lo_gen_lo" => vec![may, g],
+        "may_lo_len_hi" => vec![may, -len],
+        "may_lo_len_lo" => vec![may, len],
+        // Bruner's order: generators ascending, then Sq(R) in reverse lexicographic order.
+        "bruner" => [vec![g, gi], revlex].concat(),
+        "bruner_rev" => [vec![-g, -gi], revlex.iter().map(|x| -x).collect()].concat(),
         _ => panic!("Unknown term order {order}"),
+    };
+    key.push(idx);
+    key
+}
+
+/// The permutation of the basis of `target` in degree `t` (restricted to the first `dim`
+/// elements) that sorts it according to the term order.
+fn term_order_permutation<const U: bool, A: MuAlgebra<U>>(
+    target: &MuFreeModule<U, A>,
+    t: i32,
+    dim: usize,
+    order: &str,
+) -> Vec<usize> {
+    let algebra = target.algebra();
+    let keys: Vec<_> = (0..dim)
+        .map(|i| {
+            let opgen = target.index_to_op_gen(t, i);
+            let op = algebra.basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+            term_key(order, &op, opgen.generator_degree, opgen.generator_index, i)
+        })
+        .collect();
+    let mut perm: Vec<usize> = (0..dim).collect();
+    perm.sort_by(|&a, &b| keys[a].cmp(&keys[b]));
+    perm
+}
+
+/// Replace each vector by its normal form modulo the span of `boundaries`, with respect to the
+/// term order. The vectors and boundaries are elements of `target` in degree `t`.
+pub(crate) fn term_order_normal_forms<'a, const U: bool, A: MuAlgebra<U>>(
+    target: &MuFreeModule<U, A>,
+    t: i32,
+    boundaries: impl Iterator<Item = FpSlice<'a>>,
+    vectors: impl Iterator<Item = FpSliceMut<'a>>,
+    order: &str,
+) {
+    let mut boundaries = boundaries.peekable();
+    let Some(first) = boundaries.peek() else {
+        return;
+    };
+    let p = first.prime();
+    let dim = first.len();
+    let perm = term_order_permutation(target, t, dim, order);
+
+    let rows: Vec<FpSlice> = boundaries.collect();
+    let mut bm = fp::matrix::Matrix::new(p, rows.len(), dim);
+    for (k, row) in rows.iter().enumerate() {
+        let mut out = bm.row_mut(k);
+        for (j, &c) in perm.iter().enumerate() {
+            out.set_entry(j, row.entry(c));
+        }
+    }
+    let boundaries = Subspace::from_matrix(bm);
+
+    let mut v = FpVector::new(p, dim);
+    for mut row in vectors {
+        for (j, &c) in perm.iter().enumerate() {
+            v.set_entry(j, row.as_slice().entry(c));
+        }
+        boundaries.reduce(v.as_slice_mut());
+        for (j, &c) in perm.iter().enumerate() {
+            row.set_entry(c, v.entry(j));
+        }
+        v.set_to_zero();
     }
 }
 
@@ -1281,49 +1353,28 @@ fn normalize_new_rows<const U: bool, A: MuAlgebra<U>>(
     num_rows: usize,
     order: &str,
 ) {
-    let p = matrix.prime();
     let (start, end) = (matrix.start[1], matrix.end[1]);
-    let dim = end - start;
-    let algebra = target.algebra();
-    let mut perm: Vec<usize> = (0..dim).collect();
-    let keys: Vec<_> = (0..dim)
-        .map(|i| {
-            let opgen = target.index_to_op_gen(t, i);
-            let op = algebra.basis_element_to_string(opgen.operation_degree, opgen.operation_index);
-            term_key(order, &op, opgen.generator_degree, i)
-        })
-        .collect();
-    perm.sort_by_key(|&i| keys[i]);
-
     let boundary_rows: Vec<usize> = (start..end)
         .filter_map(|c| {
             let r = matrix.pivots()[c];
             (r >= 0 && (r as usize) < source_dimension).then_some(r as usize)
         })
         .collect();
-    let mut bm = fp::matrix::Matrix::new(p, boundary_rows.len(), dim);
-    for (k, &r) in boundary_rows.iter().enumerate() {
-        let row = matrix.row_segment(r, 1, 1);
-        let mut out = bm.row_mut(k);
-        for (j, &c) in perm.iter().enumerate() {
-            out.set_entry(j, row.entry(c));
-        }
-    }
-    let boundaries = Subspace::from_matrix(bm);
-
-    let mut v = FpVector::new(p, dim);
-    for r in first_row..first_row + num_rows {
-        {
-            let row = matrix.row_segment(r, 1, 1);
-            for (j, &c) in perm.iter().enumerate() {
-                v.set_entry(j, row.entry(c));
-            }
-        }
-        boundaries.reduce(v.as_slice_mut());
-        let mut row = matrix.row_segment_mut(r, 1, 1);
-        for (j, &c) in perm.iter().enumerate() {
-            row.set_entry(c, v.entry(j));
-        }
-        v.set_to_zero();
+    let boundaries: Vec<FpVector> = boundary_rows
+        .iter()
+        .map(|&r| matrix.row_segment(r, 1, 1).to_owned())
+        .collect();
+    let mut vectors: Vec<FpVector> = (first_row..first_row + num_rows)
+        .map(|r| matrix.row_segment(r, 1, 1).to_owned())
+        .collect();
+    term_order_normal_forms(
+        target,
+        t,
+        boundaries.iter().map(|x| x.as_slice()),
+        vectors.iter_mut().map(|x| x.as_slice_mut()),
+        order,
+    );
+    for (r, v) in (first_row..).zip(&vectors) {
+        matrix.row_segment_mut(r, 1, 1).assign(v.as_slice());
     }
 }

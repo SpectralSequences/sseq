@@ -28,7 +28,10 @@ fn main() {
             let img = Subspace::from_matrix(d.get_partial_matrix(t, &old));
             let basis: Vec<FpVector> = img.basis().map(|x| x.to_owned()).collect();
             for i in 0..ng {
-                let mut v = d.output(t, i).clone();
+                // Nassau stores outputs that omit target generators in degree t, so pad.
+                let out = d.output(t, i);
+                let mut v = FpVector::new(fp::prime::TWO, img.ambient_dimension());
+                v.slice_mut(0, out.len()).add(out.as_slice(), 1);
                 // d∘d = 0
                 if s > 1 {
                     let dd = res.differential(s - 1);

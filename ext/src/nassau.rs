@@ -813,6 +813,25 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         for dx in &dxs {
             assert!(dx.is_zero(), "dx non-zero at {b}");
         }
+
+        if let Some(order) = crate::resolution::term_order()
+            && num_new_gens > 0
+        {
+            // Experimental: put the new differentials in normal form modulo boundaries.
+            let source = &*self.modules[b.s()];
+            let old: Vec<usize> = (0..source.dimension(b.t()) - num_new_gens).collect();
+            let boundaries = {
+                let _guard = ParallelGuard::new();
+                self.differentials[b.s()].get_partial_matrix_restricted(b.t(), &old, target_dim)
+            };
+            crate::resolution::term_order_normal_forms(
+                target,
+                b.t(),
+                boundaries.iter(),
+                xs.iter_mut().map(|x| x.as_slice_mut()),
+                order,
+            );
+        }
         self.differential(b.s()).add_generators_from_rows(b.t(), xs);
 
         end();
