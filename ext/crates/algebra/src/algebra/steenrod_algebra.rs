@@ -156,11 +156,6 @@ impl AlgebraSpec {
         Ok(())
     }
 
-    /// Whether this is the classical Steenrod algebra with no profile.
-    pub fn is_full_classical(&self) -> bool {
-        self.kind == SteenrodKind::Classical && self.profile.is_none()
-    }
-
     /// Whether the module can be built in `basis`.
     pub fn supports(&self, basis: AlgebraType) -> bool {
         self.basis(Some(basis)).is_ok()
