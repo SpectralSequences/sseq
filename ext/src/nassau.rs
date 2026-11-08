@@ -1378,6 +1378,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
 mod tests {
     use algebra::module::FDModule;
     use expect_test::expect;
+    use fp::prime::Prime;
 
     use super::*;
 
@@ -1596,8 +1597,11 @@ mod tests {
     }
 
     /// The saved quasi-inverses lift boundaries, and a second resolution loads the saved
-    /// differentials, at every shape. Lifting `d(x)` for the generators `x` exercises the
-    /// `Magic::Fix` path.
+    /// differentials, at every shape.
+    ///
+    /// The boundaries lifted are `c d(e)` for every basis element `e` and a coefficient `c` that is
+    /// not 1 at odd primes. Those of the new generators are lifted through the `Magic::Fix` path,
+    /// and the rest through the records of their signatures.
     #[test]
     fn test_save_files() {
         #[cfg_attr(not(feature = "odd-primes"), expect(unused_mut))]
@@ -1619,35 +1623,47 @@ mod tests {
             let res =
                 assert_matches_standard(Arc::clone(&module), Some(dir.path().to_owned()), max);
             let p = res.prime();
+            let c = p.as_u32() - 1;
+            let algebra = res.algebra();
 
-            let mut lifted = 0;
+            let mut lifted_nonzero_signature = 0;
             for b in res.iter_stem() {
                 let next = b + Bidegree::s_t(1, 0);
                 if b.s() == 0 || !res.has_computed_bidegree(next) || res.is_ordinary(next) {
                     continue;
                 }
                 let d = res.differential(b.s());
+                let source = res.module(b.s());
+                let source_dim = source.dimension(b.t());
                 let target_dim = res.module(b.s() - 1).dimension(b.t());
-                let inputs: Vec<FpVector> = (0..res.number_of_gens_in_bidegree(b))
+                let inputs: Vec<FpVector> = (0..source_dim)
                     .map(|i| {
-                        // Outputs only span the target generators that existed when computed.
-                        let output = d.output(b.t(), i);
+                        let mut e = FpVector::new(p, source_dim);
+                        e.set_entry(i, 1);
                         let mut v = FpVector::new(p, target_dim);
-                        v.slice_mut(0, output.len()).add(output.as_slice(), 1);
+                        d.apply(v.as_slice_mut(), c, b.t(), e.as_slice());
                         v
                     })
                     .collect();
-                let mut results =
-                    vec![FpVector::new(p, res.module(b.s()).dimension(b.t())); inputs.len()];
+                let mut results = vec![FpVector::new(p, source_dim); inputs.len()];
                 assert!(res.apply_quasi_inverse(&mut results, b, &inputs));
                 for (input, result) in inputs.iter().zip(&results) {
                     let mut image = FpVector::new(p, target_dim);
                     d.apply(image.as_slice_mut(), 1, b.t(), result.as_slice());
                     assert_eq!(&image, input, "lift fails at {b}");
                 }
-                lifted += inputs.len();
+
+                // The quasi-inverse at `b` is written by the step at `next`, over its subalgebra.
+                let zero_signature_dim = res
+                    .subalgebra_for(next)
+                    .signature_mask(&algebra, &source, b.t(), &zero_signature(), None)
+                    .count();
+                lifted_nonzero_signature += source_dim - zero_signature_dim;
             }
-            assert!(lifted > 0, "nothing was lifted");
+            assert!(
+                lifted_nonzero_signature > 0,
+                "no boundary of nonzero signature was lifted"
+            );
 
             let loaded = Resolution::new_with_save(module, Some(dir.path().to_owned())).unwrap();
             loaded.compute_through_stem(max);
