@@ -1668,11 +1668,32 @@ mod tests {
             let loaded = Resolution::new_with_save(module, Some(dir.path().to_owned())).unwrap();
             loaded.compute_through_stem(max);
             for b in res.iter_stem() {
+                let num_gens = res.number_of_gens_in_bidegree(b);
                 assert_eq!(
                     loaded.number_of_gens_in_bidegree(b),
-                    res.number_of_gens_in_bidegree(b),
+                    num_gens,
                     "loaded rank mismatch at {b}"
                 );
+                if b.s() == 0 {
+                    continue;
+                }
+                // An output only spans the target generators that existed when it was computed or
+                // saved.
+                let target_dim = res.module(b.s() - 1).dimension(b.t());
+                let padded = |res: &Resolution<_>, i| {
+                    let d = res.differential(b.s());
+                    let output = d.output(b.t(), i);
+                    let mut v = FpVector::new(p, target_dim);
+                    v.slice_mut(0, output.len()).add(output.as_slice(), 1);
+                    v
+                };
+                for i in 0..num_gens {
+                    assert_eq!(
+                        padded(&loaded, i),
+                        padded(&res, i),
+                        "loaded d mismatch at {b}"
+                    );
+                }
             }
         }
     }
