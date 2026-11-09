@@ -1,36 +1,41 @@
-use std::{mem::ManuallyDrop, num::NonZero, sync::atomic::Ordering};
+use std::{marker::PhantomData, mem::ManuallyDrop, num::NonZero, sync::atomic::Ordering};
 
-use crate::{
-    std_or_loom::{
-        GetMut,
-        sync::atomic::{AtomicPtr, AtomicUsize},
-    },
-    write_once::WriteOnce,
+use crate::std_or_loom::{
+    GetMut, Zeroable,
+    sync::atomic::{AtomicPtr, AtomicUsize},
 };
 
 /// An allocation that can store a fixed number of elements.
 #[derive(Debug)]
-pub struct Block<T> {
+// `repr(C)` so that an empty trie node reads as either variant under loom; see `Node`'s `Zeroable`
+// impl.
+#[cfg_attr(loom, repr(C))]
+#[cfg_attr(not(loom), derive(Zeroable), zeroable(bound = ""))]
+pub struct Block<E> {
     /// The number of elements in the block.
     len: AtomicUsize,
 
     /// A pointer to the data buffer.
     ///
-    /// If `size` is nonzero, this points to a slice of `WriteOnce<T>` of that size. If `size` is
+    /// If `size` is nonzero, this points to a slice of `E` of that size. If `size` is
     /// zero, this is a null pointer.
     ///
-    /// It would be more convenient to use `AtomicPtr<[WriteOnce<T>]` here. However, `AtomicPtr<T>`
+    /// It would be more convenient to use `AtomicPtr<[E]>` here. However, `AtomicPtr<T>`
     /// requires `T: Sized`. This is because pointers to DSTs are fat, and take two words in memory.
     /// Most architectures can operate atomically on at most one word.
-    data: AtomicPtr<WriteOnce<T>>,
+    data: AtomicPtr<E>,
+
+    /// The block owns the elements `data` points to.
+    _owns: PhantomData<E>,
 }
 
-impl<T> Block<T> {
+impl<E: Zeroable> Block<E> {
     /// Create a new block.
     pub(super) fn new() -> Self {
         Self {
             len: AtomicUsize::new(0),
             data: AtomicPtr::new(std::ptr::null_mut()),
+            _owns: PhantomData,
         }
     }
 
@@ -38,7 +43,7 @@ impl<T> Block<T> {
         !self.data.load(Ordering::Acquire).is_null()
     }
 
-    pub(super) fn data(&self) -> &AtomicPtr<WriteOnce<T>> {
+    pub(super) fn data(&self) -> &AtomicPtr<E> {
         &self.data
     }
 
@@ -51,12 +56,7 @@ impl<T> Block<T> {
         if self.data.load(Ordering::Relaxed).is_null() {
             // We need to initialize the block
 
-            // NB: Benchmarking shows that using `alloc_zeroed` is somehow significantly slower than
-            // just pushing repeatedly to a Vec.
-            let mut data_buffer = ManuallyDrop::new(Vec::with_capacity(size.get()));
-            for _ in 0..size.get() {
-                data_buffer.push(WriteOnce::none());
-            }
+            let mut data_buffer = ManuallyDrop::new(zeroed_vec::<E>(size.get()));
             let data_ptr = data_buffer.as_mut_ptr();
 
             // We can use `Relaxed` here because we will release-store the data pointer, and so any
@@ -97,53 +97,20 @@ impl<T> Block<T> {
     // The performance hit seems to be negligible, and the correctness checks that loom offer are
     // more important, so we stick with `Acquire` for now.
 
-    /// Insert a value at the given index.
+    /// Return the element at the given index.
     ///
     /// # Safety
     ///
-    /// The block must be initialized.
-    pub(super) unsafe fn insert(&self, index: usize, value: T) {
+    /// The block must be initialized, and `index` within it.
+    pub(super) unsafe fn entry(&self, index: usize) -> &E {
         let data_ptr = self.data.load(Ordering::Acquire);
-        let len = self.len.load(Ordering::Relaxed);
-        // Safety: the block has been initialized
-        let data = unsafe { std::slice::from_raw_parts(data_ptr, len) };
-        data[index].set(value);
+        // SAFETY: the block is initialized, so `data_ptr` points to its elements, and `index` is in
+        // bounds by assumption.
+        unsafe { &*data_ptr.add(index) }
     }
 
-    /// Attempt to insert a value at the given index.
-    ///
-    /// # Safety
-    ///
-    /// The block must be initialized.
-    pub(super) unsafe fn try_insert(&self, index: usize, value: T) -> Result<(), T> {
-        // We can use Relaxed operations here because the initialization of the block has a
-        // happens-before relationship with this operation, by assumption.
-        let data_ptr = self.data.load(Ordering::Acquire);
-        let len = self.len.load(Ordering::Relaxed);
-        // Safety: the block has been initialized
-        let data = unsafe { std::slice::from_raw_parts(data_ptr, len) };
-        data[index].try_set(value)
-    }
-
-    /// Return the value at the given index.
-    ///
-    /// # Safety
-    ///
-    /// The block must be initialized.
-    pub(super) unsafe fn get(&self, index: usize) -> Option<&T> {
-        // We can use Relaxed operations here because the initialization of the block has a
-        // happens-before relationship with this operation, by assumption.
-        let data_ptr = self.data.load(Ordering::Acquire);
-        let len = self.len.load(Ordering::Relaxed);
-        // Safety: the block has been initialized
-        let data = unsafe { std::slice::from_raw_parts(data_ptr, len) };
-        data.get(index).and_then(|w| w.get())
-    }
-
-    /// Return a mutable reference to the value at the given index if it exists.
-    ///
-    /// This method is safe to call even if the block is uninitialized.
-    pub(super) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+    /// Return a mutable reference to the element at the given index, if the block is initialized.
+    pub(super) fn get_mut(&mut self, index: usize) -> Option<&mut E> {
         let len = self.len.get_by_mut();
         if index >= len {
             return None;
@@ -152,27 +119,15 @@ impl<T> Block<T> {
         // Safety: index < len, so the pointer is in bounds. We reference a single element
         // rather than creating a slice over the entire block, so that the resulting `&mut`
         // does not alias other elements in the same allocation.
-        let elem = unsafe { &mut *data_ptr.add(index) };
-        elem.get_mut()
-    }
-
-    /// Return the value at the given index.
-    ///
-    /// # Safety
-    ///
-    /// The block must be initialized.
-    pub(super) unsafe fn is_set(&self, index: usize) -> bool {
-        // We can use Relaxed operations here because the initialization of the block has a
-        // happens-before relationship with this operation, by assumption.
-        let data_ptr = self.data.load(Ordering::Acquire);
-        let len = self.len.load(Ordering::Relaxed);
-        // Safety: the block has been initialized
-        let data = unsafe { std::slice::from_raw_parts(data_ptr, len) };
-        data.get(index).is_some_and(|w| w.is_set())
+        Some(unsafe { &mut *data_ptr.add(index) })
     }
 }
 
-impl<T> Drop for Block<T> {
+// SAFETY: a shared block hands out `&E` to every thread, and an element filled through it on one
+// thread can be dropped on another. `Send` follows from `PhantomData<E>` without help.
+unsafe impl<E: Send + Sync> Sync for Block<E> {}
+
+impl<E> Drop for Block<E> {
     fn drop(&mut self) {
         let len = self.len.get_by_mut();
         let data_ptr = self.data.get_by_mut();
@@ -182,4 +137,15 @@ impl<T> Drop for Block<T> {
             // vector is dropped here
         }
     }
+}
+
+// The allocator zeroes the allocation, so pages it fetches fresh from the OS are not written until
+// an element in them is.
+#[cfg(not(loom))]
+use bytemuck::allocation::zeroed_vec;
+
+/// `n` zeroed elements, built one by one since loom's atomics are not valid as zero bytes.
+#[cfg(loom)]
+fn zeroed_vec<E: Zeroable>(n: usize) -> Vec<E> {
+    std::iter::repeat_with(E::zeroed).take(n).collect()
 }

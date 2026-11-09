@@ -46,10 +46,12 @@ pub use once::{OnceBiVec, OnceBiVecIter, OnceVec, OnceVecIter};
 
 #[cfg(test)]
 mod test_utils {
+    /// The number of threads a concurrency test spawns: at least two, so that they race even on
+    /// a single core.
     pub fn num_threads() -> usize {
         std::thread::available_parallelism()
-            .map(std::num::NonZero::get)
-            .unwrap_or(2)
+            .map_or(2, std::num::NonZero::get)
+            .max(2)
     }
 
     pub fn values_per_thread() -> usize {
