@@ -118,12 +118,12 @@ impl<F: Field> FqVector<F> {
 
         if c == fq.zero() {
             self.set_to_zero();
+            return;
         }
-        if fq.q() != 2 {
-            for limb in self.limbs_mut() {
-                *limb = fq.reduce(fq.fma_limb(0, *limb, c.clone()));
-            }
+        if fq.q() == 2 {
+            return;
         }
+        fq.scale_groups(self.limbs_mut(), c);
     }
 
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
@@ -134,24 +134,21 @@ impl<F: Field> FqVector<F> {
         assert_eq!(self.len(), other.len());
 
         let fq = self.fq();
-        let min_limb = offset / fq.entries_per_limb();
+        // The first limb of the group containing `offset`. Since `other`'s entries below
+        // `offset` are zero, starting at the group boundary and adding whole groups is safe.
+        let min_limb = fq.group_of(offset) * fq.limbs_per_group();
 
         if fq.q() == 2 {
             if c != fq.zero() {
                 crate::simd::add_simd(self.limbs_mut(), other.limbs(), min_limb);
             }
         } else {
-            for (left, right) in self
-                .limbs_mut()
-                .iter_mut()
-                .zip_eq(other.limbs())
-                .skip(min_limb)
-            {
-                *left = fq.fma_limb(*left, *right, c.clone());
-            }
-            for limb in self.limbs_mut()[min_limb..].iter_mut() {
-                *limb = fq.reduce(*limb);
-            }
+            let end = self.limbs().len();
+            fq.add_groups(
+                &mut self.limbs_mut()[min_limb..end],
+                &other.limbs()[min_limb..end],
+                c,
+            );
         }
     }
 
@@ -207,6 +204,20 @@ impl<F: Field> FqVector<F> {
         assert_eq!(self.len(), slice.len());
 
         let fq = self.fq();
+        if fq.is_bitsliced() {
+            // The bit-sliced layout interleaves an entry's bits across planes, so we cannot
+            // `pack` contiguous chunks; scatter each entry into its group.
+            let num_limbs = fq.number(self.len());
+            {
+                let v = self.vec_mut();
+                v.clear();
+                v.resize(num_limbs, 0);
+            }
+            for (i, x) in slice.iter().enumerate() {
+                self.set_entry(i, x.clone());
+            }
+            return;
+        }
         self.vec_mut().clear();
         self.vec_mut().extend(
             slice
@@ -237,6 +248,14 @@ impl<F: Field> FqVector<F> {
     pub fn add_truncate(&mut self, other: &Self, c: FieldElement<F>) -> Option<()> {
         assert_eq!(self.fq(), other.fq());
         let fq = self.fq();
+        if fq.is_bitsliced() {
+            // `truncate` guards against an entry's packed sum carrying into the next entry's
+            // bits. The bit-sliced layout reduces each lane independently (every plane is a
+            // separate limb), so no such carry can occur and the addition never fails. The
+            // packed `fma_limb`/`truncate` loop below would instead corrupt the bit-planes.
+            self.add(other, c);
+            return Some(());
+        }
         for (left, right) in self.limbs_mut().iter_mut().zip_eq(other.limbs()) {
             *left = fq.fma_limb(*left, *right, c.clone());
             *left = fq.truncate(*left)?;
@@ -297,6 +316,9 @@ impl<F: Field> FqVector<F> {
 
     /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
     pub fn first_nonzero(&self) -> Option<(usize, FieldElement<F>)> {
+        if self.fq().is_bitsliced() {
+            return self.as_slice().first_nonzero();
+        }
         let entries_per_limb = self.fq().entries_per_limb();
         let bit_length = self.fq().bit_length();
         let bitmask = self.fq().bitmask();
