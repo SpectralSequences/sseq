@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_NEW_GENS"],"enum":["Magic"],"struct":["MilnorSubalgebra","Resolution","SenderData","SignatureIterator","SubalgebraIterator"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_NEW_GENS","MAX_TOP_DEGREE"],"enum":["Magic"],"fn":["zero_signature"],"struct":["Resolution","SenderData","Subalgebra","SubalgebraIterator"]};
