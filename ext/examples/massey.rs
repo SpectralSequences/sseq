@@ -5,14 +5,14 @@
 
 use std::sync::Arc;
 
-use ext::{chain_complex::ChainComplex, ext_algebra::ExtAlgebra};
+use ext::{chain_complex::ChainComplex, ext_algebra::ExtModule};
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
 
     let resolution = Arc::new(ext::utils::query_module(None, true)?);
-    let e2 = ExtAlgebra::from_resolution(Arc::clone(&resolution))?;
+    let e2 = ExtModule::from_resolution(Arc::clone(&resolution))?;
 
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
@@ -21,9 +21,9 @@ fn main() -> anyhow::Result<()> {
         query::raw("n of Ext class a", str::parse),
         query::raw("s of Ext class a", str::parse::<std::num::NonZeroI32>).get(),
     );
-    e2.unit().compute_through_stem(a_deg);
-    let a_class = query::vector("Input Ext class a", e2.unit_dimension(a_deg));
-    let a = e2.unit_element(a_deg, &a_class);
+    e2.algebra().resolution().compute_through_stem(a_deg);
+    let a_class = query::vector("Input Ext class a", e2.algebra().dimension(a_deg));
+    let a = e2.algebra().element(a_deg, &a_class);
 
     eprintln!("\nEnter b:");
 
@@ -31,15 +31,15 @@ fn main() -> anyhow::Result<()> {
         query::raw("n of Ext class b", str::parse),
         query::raw("s of Ext class b", str::parse::<std::num::NonZeroI32>).get(),
     );
-    e2.unit().compute_through_stem(b_deg);
-    let b_class = query::vector("Input Ext class b", e2.unit_dimension(b_deg));
-    let b = e2.unit_element(b_deg, &b_class);
+    e2.algebra().resolution().compute_through_stem(b_deg);
+    let b_class = query::vector("Input Ext class b", e2.algebra().dimension(b_deg));
+    let b = e2.algebra().element(b_deg, &b_class);
 
     // The Massey product shifts the bidegree by this amount.
     let shift = a_deg + b_deg - Bidegree::s_t(1, 0);
 
     if !e2.is_unit() {
-        e2.unit().compute_through_stem(shift);
+        e2.algebra().resolution().compute_through_stem(shift);
     }
 
     if !resolution.has_computed_bidegree(shift + Bidegree::s_t(0, resolution.min_degree())) {

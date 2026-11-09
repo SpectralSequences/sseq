@@ -357,6 +357,7 @@ pub unsafe fn gather_simd(slice: MatrixBlockSlice) -> MatrixBlock {
     let stride = x86_64::_mm512_set1_epi64(slice.stride().get() as i64);
     let offsets = unsafe { x86_64::_mm512_mullo_epi64(offsets, stride) };
 
+    #[allow(clippy::needless_range_loop)] // We're low-level enough for that
     for i in 0..8 {
         let ptr = unsafe { slice.limbs().add(8 * i * slice.stride().get()) as *const i64 };
         result.0[i] = unsafe { x86_64::_mm512_i64gather_epi64::<8>(offsets, ptr) };

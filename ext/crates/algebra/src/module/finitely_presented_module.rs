@@ -118,9 +118,10 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         }
 
         // A list of relations, specified by the degree then the element to be killed
-        let mut relations: Vec<(i32, FpVector)> = json[algebra.prefix().to_string() + "_relations"]
+        let key = format!("{}_relations", algebra.prefix());
+        let mut relations: Vec<(i32, FpVector)> = json[&key]
             .as_array()
-            .unwrap()
+            .ok_or_else(|| anyhow!("Module has no `{key}`"))?
             .iter()
             .map(|reln| {
                 let mut deg = 0;
@@ -251,5 +252,27 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
 
     fn max_generator_degree(&self) -> Option<i32> {
         self.generators.max_generator_degree()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::algebra::AdemAlgebra;
+
+    /// A module whose relations are only written in another basis is an error, not a panic.
+    #[test]
+    fn missing_relations() {
+        let algebra = Arc::new(AdemAlgebra::new(fp::prime::TWO, false));
+        let json = json!({
+            "gens": { "x0": 0 },
+            "milnor_relations": ["P(1) x0"],
+        });
+        let Err(err) = FinitelyPresentedModule::from_json(algebra, &json) else {
+            panic!("a module with no `adem_relations` was built in the Adem basis");
+        };
+        assert!(err.to_string().contains("adem_relations"), "{err}");
     }
 }

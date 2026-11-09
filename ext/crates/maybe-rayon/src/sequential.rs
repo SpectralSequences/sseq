@@ -1,5 +1,19 @@
 pub mod prelude {
-    pub trait MaybeParallelIterator: Iterator {}
+    pub trait MaybeParallelIterator: Iterator {
+        /// Run `op` over every item, threading a value made by `init` through the walk.
+        ///
+        /// Mirrors `rayon::iter::ParallelIterator::for_each_init`, which calls `init` once per
+        /// worker. There is one worker here, so `init` is called once.
+        fn for_each_init<T, INIT, OP>(self, init: INIT, op: OP)
+        where
+            OP: Fn(&mut T, Self::Item) + Sync + Send,
+            INIT: Fn() -> T + Sync + Send,
+            Self: Sized,
+        {
+            let mut state = init();
+            self.for_each(|item| op(&mut state, item));
+        }
+    }
 
     pub trait MaybeIndexedParallelIterator: Iterator {}
 

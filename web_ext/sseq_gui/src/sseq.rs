@@ -253,12 +253,12 @@ impl<P: SseqProfile<2>> SseqWrapper<P> {
             let prod_origin_b = b - prod_b;
 
             if let Some(matrix) = prod.inner.matrices.get(prod_origin_b) {
-                for i in 0..matrix.rows() {
-                    if matrix.row(i).is_zero() {
+                for (i, row) in matrix.iter().enumerate() {
+                    if row.is_zero() {
                         continue;
                     }
                     decompositions.push((
-                        matrix.row(i).iter().collect(),
+                        row.iter().collect(),
                         format!("{name} {}", self.class_names[prod_origin_b][i]),
                         prod_b,
                     ));

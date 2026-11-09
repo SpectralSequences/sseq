@@ -18,7 +18,8 @@ pub mod homomorphism;
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
 pub use free_module::{
-    FreeModule, GeneratorData, MuFreeModule, OperationGeneratorPair, UnstableFreeModule,
+    FreeModule, GeneratorData, MuFreeModule, OpGenCursor, OperationGeneratorPair,
+    UnstableFreeModule,
 };
 pub use hom_module::HomModule;
 pub use module_trait::{ActError, Module, ModuleFailedRelationError};

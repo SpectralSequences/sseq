@@ -11,7 +11,6 @@ build_const = "0.2.2"
 byteorder = "1.5.0"
 cfg-if = "1.0.1"
 dashmap = "6"
-either = "1.15.0"
 itertools = { version = "0.14.0" }
 paste = "1.0.15"
 proptest = { version = "1.7", optional = true }
@@ -20,6 +19,20 @@ serde_json = "1.0.141"
 
 maybe-rayon = { path = "../maybe-rayon" }
 query = { path = "../query" }
+
+# GPU backend (Hopper wgmma.b1), gated behind the `gpu` feature and off by default.
+anyhow = { version = "1.0.98", optional = true }
+# Driver API + NVRTC (the kernel is compiled at runtime). `cuda-12080` selects which pre-generated
+# bindings to compile; it does not pin the driver or the toolkit, since `dynamic-loading` dlopen's
+# the real libcuda/libnvrtc at runtime, so newer ones (12.8+/13.x) still work and the crate builds
+# with no CUDA present.
+cudarc = { version = "0.19", optional = true, default-features = false, features = [
+    "std",
+    "driver",
+    "nvrtc",
+    "cuda-12080",
+    "dynamic-loading",
+] }
 
 [dev-dependencies]
 # We use the proptest harness for our own tests
@@ -38,6 +51,8 @@ build_const = "0.2.2"
 default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
+# Dispatch large p=2 matrix products to the Hopper GPU backend in `blas::cuda`.
+gpu = ["dep:anyhow", "dep:cudarc"]
 
 [[bench]]
 name = "mul"
@@ -50,3 +65,22 @@ harness = false
 [[bench]]
 name = "smallfq"
 harness = false
+required-features = ["odd-primes"]
+
+[[bench]]
+name = "matmul_b1"
+harness = false
+required-features = ["gpu"]
+
+# The GPU examples. The kernel runs only on Hopper; see README.md.
+[[example]]
+name = "bench_kernel_only"
+required-features = ["gpu"]
+
+[[example]]
+name = "bench_shapes"
+required-features = ["gpu"]
+
+[[example]]
+name = "kernel_ptx"
+required-features = ["gpu"]

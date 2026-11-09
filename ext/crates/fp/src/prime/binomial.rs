@@ -82,6 +82,11 @@ macro_rules! impl_binomial {
                 let mut bit_or: Self = 0;
                 let mut sum: Self = 0;
                 for &e in l {
+                    // Checked before the addition, which could otherwise overflow.
+                    #[allow(unused_comparisons)] // unused when ty is unsigned
+                    if e < 0 {
+                        return 0;
+                    }
                     sum += e;
                     bit_or |= e;
                 }
@@ -90,13 +95,12 @@ macro_rules! impl_binomial {
 
             #[inline]
             fn binomial2(n: Self, k: Self) -> Self {
-                if n < k {
-                    0
-                } else if (n - k) & k == 0 {
-                    1
-                } else {
-                    0
-                }
+                // The wrapped difference is only meaningful when `0 <= k <= n`, which the other two
+                // conditions check. Combining with `&` rather than `&&` keeps this branchless.
+                let d = n.wrapping_sub(k);
+                #[allow(unused_comparisons)] // `k >= 0` is unused when ty is unsigned
+                let ans = (k <= n) & (k >= 0) & (d & k == 0);
+                ans as Self
             }
 
             #[inline]

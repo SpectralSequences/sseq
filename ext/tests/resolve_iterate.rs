@@ -1,4 +1,4 @@
-use algebra::AlgebraType;
+use algebra::{AlgebraSpec, AlgebraType};
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     utils::{construct, load_module_json},
@@ -13,6 +13,12 @@ fn test_iterate(
     #[values(AlgebraType::Adem, AlgebraType::Milnor)] algebra: AlgebraType,
 ) {
     let json = load_module_json(module_name).unwrap();
+
+    // Asking for a basis the module cannot be built in is an error, not a silent switch.
+    if !AlgebraSpec::from_json(&json).unwrap().supports(algebra) {
+        assert!(construct((json, algebra), None).is_err());
+        return;
+    }
 
     let first = construct((json.clone(), algebra), None).unwrap();
     let second = construct((json, algebra), None).unwrap();

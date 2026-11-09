@@ -75,6 +75,8 @@ concurrent = [
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
 nassau = []
+# Dispatch large p=2 matrix products to the Hopper GPU backend via `fp`.
+gpu = ["fp/gpu"]
 
 [workspace]
 members = [

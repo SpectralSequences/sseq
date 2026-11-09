@@ -218,6 +218,35 @@ impl<T> OnceVec<T> {
         }
     }
 
+    /// The number of leading elements for which `pred` is true, as [`slice::partition_point`].
+    ///
+    /// `pred` must be monotone: true for a prefix of the vector and false thereafter. Otherwise the
+    /// return value is unspecified (but the call is still safe and terminates).
+    ///
+    /// A [`OnceVec`] is not contiguous, so it cannot be turned into a slice and handed to the
+    /// standard library's version.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v = OnceVec::from_vec(vec![0, 0, 2, 2, 5]);
+    /// assert_eq!(v.partition_point(|&x| x <= 2), 4);
+    /// assert_eq!(v.partition_point(|&x| x < 0), 0);
+    /// ```
+    pub fn partition_point(&self, mut pred: impl FnMut(&T) -> bool) -> usize {
+        let (mut lo, mut hi) = (0, self.len());
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            // Safety: `mid < hi <= self.len()`, and data below `len` is fully written.
+            if pred(unsafe { self.data.get_unchecked(mid) }) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        lo
+    }
+
     pub fn last(&self) -> Option<&T> {
         if !self.is_empty() {
             Some(&self[self.len() - 1])
@@ -709,6 +738,22 @@ impl<T> OnceBiVec<T> {
     pub fn get_or_insert(&self, index: i32, to_insert: impl FnOnce() -> T) -> &T {
         self.data
             .get_or_insert((index - self.min_degree).try_into().unwrap(), to_insert)
+    }
+
+    /// The first degree for which `pred` is false, as [`slice::partition_point`].
+    ///
+    /// Returns [`Self::len`] when `pred` holds throughout. See [`OnceVec::partition_point`] for the
+    /// monotonicity `pred` must satisfy.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceBiVec;
+    /// let v = OnceBiVec::from_vec(-2, vec![0, 0, 2, 2, 5]);
+    /// assert_eq!(v.partition_point(|&x| x <= 2), 2);
+    /// assert_eq!(v.partition_point(|&x| x < 0), -2);
+    /// ```
+    pub fn partition_point(&self, pred: impl FnMut(&T) -> bool) -> i32 {
+        self.data.partition_point(pred) as i32 + self.min_degree
     }
 
     pub fn range(&self) -> std::ops::Range<i32> {

@@ -157,7 +157,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
         return false;
     }
 
-    let elt: &MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
+    let elt: MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
 
     let sum: PPartEntry = elt.p_part.iter().sum();
     if mod_degree < 0 {
@@ -170,7 +170,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
 
     let mut list = Vec::with_capacity(elt.p_part.len() + 1);
     list.push(mod_degree - sum);
-    list.extend_from_slice(&elt.p_part);
+    list.extend(elt.p_part.iter());
 
     PPartEntry::multinomial2(&list) == 1
 }

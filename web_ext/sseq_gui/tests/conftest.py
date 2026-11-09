@@ -140,8 +140,7 @@ class DriverWrapper:
         raise ValueError(f"Button {text} not found")
 
     def zoom_out(self, sseq="main"):
-        self.driver.execute_script(
-            f"""
+        self.driver.execute_script(f"""
 window.{sseq}Sseq.chart.svg.dispatchEvent(
     new WheelEvent("wheel", {{
         view: window,
@@ -151,8 +150,7 @@ window.{sseq}Sseq.chart.svg.dispatchEvent(
         clientY: 300,
         deltaY: 10000,
     }})
-);"""
-        )
+);""")
 
 
 def pytest_addoption(parser):

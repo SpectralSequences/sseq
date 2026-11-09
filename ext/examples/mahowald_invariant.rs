@@ -208,15 +208,15 @@ impl PKData {
                         row[p_k_gen] = output.entry(index);
                     }
                 }
-                let (padded_columns, mut matrix) = Matrix::augmented_from_vec(TWO, &matrix);
+                let mut matrix = Matrix::augmented_from_vec(TWO, &matrix);
                 let rank = matrix.row_reduce();
 
                 if rank > 0 {
-                    let kernel_subspace = matrix.compute_kernel(padded_columns);
+                    let kernel_subspace = matrix.compute_kernel();
                     let indeterminacy_basis: Vec<FpVector> =
                         kernel_subspace.basis().map(FpSlice::to_owned).collect();
-                    let image_subspace = matrix.compute_image(p_k_gens, padded_columns);
-                    let quasi_inverse = matrix.compute_quasi_inverse(p_k_gens, padded_columns);
+                    let image_subspace = matrix.compute_image();
+                    let quasi_inverse = matrix.compute_quasi_inverse();
 
                     let it = (0..minus_one_s_2_gens).filter_map(move |i| {
                         let mut image = FpVector::new(TWO, p_k_gens);

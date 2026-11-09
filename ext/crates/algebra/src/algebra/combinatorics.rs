@@ -5,35 +5,48 @@ use fp::{
 };
 use once::OnceVec;
 
-pub const MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
+/// The number of $\xi_i$ with a degree in [`xi_degrees`], which is as many as a
+/// [`PPart`](super::milnor_algebra::PPart) holds.
+pub const MAX_XI: usize = MAX_MULTINOMIAL_LEN;
+
+/// The number of $\tau_i$ with a degree in [`tau_degrees`], which is as many as a `q_part` bitmask
+/// holds.
+pub const MAX_TAU: usize = u32::BITS as usize;
+
+/// `min(n, i32::MAX)`, for degrees too large to reach.
+const fn saturate(n: u64) -> i32 {
+    if n > i32::MAX as u64 {
+        i32::MAX
+    } else {
+        n as i32
+    }
+}
 
 /// If p is the nth prime, then `XI_DEGREES[n][i - 1]` is the degree of $ξ_i$ at the prime p divided by
-/// q, where q = 2p - 2 if p != 2 and 1 if p = 2.
-const XI_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
-    let mut res = [[0; MAX_XI_TAU]; NUM_PRIMES];
+/// q, where q = 2p - 2 if p != 2 and 1 if p = 2. Degrees too large for an `i32` saturate.
+const XI_DEGREES: [[i32; MAX_XI]; NUM_PRIMES] = {
+    let mut res = [[0; MAX_XI]; NUM_PRIMES];
     const_for! { p_idx in 0 .. NUM_PRIMES {
-        let p = PRIMES[p_idx];
+        let p = PRIMES[p_idx] as u64;
         let mut p_to_the_i = p;
-        const_for! { x in 0 .. MAX_XI_TAU {
-            res[p_idx][x] = ((p_to_the_i - 1) / (p - 1)) as i32;
-            // At some point the powers overflow. The values are not going to be useful, so use
-            // something replacement that is suitable for const evaluation.
-            p_to_the_i = p_to_the_i.overflowing_mul(p).0;
+        const_for! { x in 0 .. MAX_XI {
+            res[p_idx][x] = saturate((p_to_the_i - 1) / (p - 1));
+            p_to_the_i = p_to_the_i.saturating_mul(p);
         }}
     }}
     res
 };
 
-/// If p is the nth prime, then `TAU_DEGREES[n][i]` is the degree of $τ_i$ at the prime p. Its value is
-/// nonsense at the prime 2
-const TAU_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
-    let mut res = [[0; MAX_XI_TAU]; NUM_PRIMES];
+/// If p is the nth prime, then `TAU_DEGREES[n][i]` is the degree $2p^i - 1$ of $τ_i$ at the prime
+/// p. Degrees too large for an `i32` saturate.
+const TAU_DEGREES: [[i32; MAX_TAU]; NUM_PRIMES] = {
+    let mut res = [[0; MAX_TAU]; NUM_PRIMES];
     const_for! { p_idx in 0 .. NUM_PRIMES {
-        let p = PRIMES[p_idx];
-        let mut p_to_the_i: u32 = 1;
-        const_for! { x in 0 .. MAX_XI_TAU {
-            res[p_idx][x] = (2_u32.overflowing_mul(p_to_the_i).0 - 1) as i32;
-            p_to_the_i = p_to_the_i.overflowing_mul(p).0;
+        let p = PRIMES[p_idx] as u64;
+        let mut p_to_the_i: u64 = 1;
+        const_for! { x in 0 .. MAX_TAU {
+            res[p_idx][x] = saturate(p_to_the_i.saturating_mul(2) - 1);
+            p_to_the_i = p_to_the_i.saturating_mul(p);
         }}
     }}
     res
@@ -54,9 +67,19 @@ pub fn adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32,
     c % p
 }
 
-pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32, u32, u32)> {
+/// The inadmissible pairs in `degree`.
+///
+/// `q` is the scale of the polynomial grading and `has_bockstein` says whether the algebra has a
+/// Bockstein. The two are independent: the polynomial part of an odd-primary algebra is scaled like
+/// the algebra but has no Bockstein.
+pub fn inadmissible_pairs(
+    p: ValidPrime,
+    has_bockstein: bool,
+    q: i32,
+    degree: i32,
+) -> Vec<(u32, u32, u32)> {
     let degree = degree as u32;
-    let q = if generic { 2 * p - 2 } else { 1 };
+    let q = q as u32;
     // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
     let mut inadmissible_pairs = Vec::new();
 
@@ -70,7 +93,7 @@ pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32
         for i in 1..(p * degq + p) / (p + 1) {
             inadmissible_pairs.push((i, 0, degq - i));
         }
-    } else if degree % q == 1 {
+    } else if has_bockstein && degree % q == 1 {
         let degq = degree / q; // Since we round down, this is actually (degree - 1)/q
         // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
         // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round

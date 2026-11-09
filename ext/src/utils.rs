@@ -23,10 +23,12 @@ use crate::{
 #[cfg(not(feature = "nassau"))]
 pub type QueryModuleResolution = Resolution<CCC>;
 
-/// The type returned by [`query_module`]. The value of this type depends on whether
-/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
-/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`] and supports the `compute_through_stem`
-/// function.
+/// The type returned by [`query_module`], which depends on whether the `nassau` feature is enabled.
+///
+/// Either way it is an augmented free chain complex over [`SteenrodAlgebra`] or [`MilnorAlgebra`]
+/// that supports `compute_through_stem`. Switching the type with a feature rather than through
+/// polymorphism is not what features are for, but it is the easiest way to let every example
+/// script use either resolution; with `nassau` enabled they all use [`crate::nassau::Resolution`].
 #[cfg(feature = "nassau")]
 pub type QueryModuleResolution = crate::nassau::Resolution<FDModule<MilnorAlgebra>>;
 
@@ -37,8 +39,10 @@ const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/s
 pub struct Config {
     /// The json specification of the module
     module: Value,
-    /// The basis for the Steenrod algebra
-    algebra: AlgebraType,
+    /// The basis for the Steenrod algebra, if one was asked for.
+    ///
+    /// Otherwise the module's notation decides.
+    algebra: Option<AlgebraType>,
 }
 
 /// Given a module specification string, load a json description of the module as described
@@ -67,17 +71,18 @@ pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
     Ok(module)
 }
 
-impl TryFrom<&str> for Config {
-    type Error = anyhow::Error;
+impl std::str::FromStr for Config {
+    type Err = anyhow::Error;
 
-    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+    fn from_str(spec: &str) -> Result<Self, Self::Err> {
         let mut args = spec.split('@');
         let module_name = args.next().unwrap();
         let algebra = match args.next() {
-            Some(x) => x
-                .parse()
-                .with_context(|| format!("Invalid algebra type: {x}"))?,
-            None => AlgebraType::Milnor,
+            Some(x) => Some(
+                x.parse()
+                    .with_context(|| format!("Invalid algebra type: {x}"))?,
+            ),
+            None => None,
         };
 
         Ok(Self {
@@ -85,6 +90,15 @@ impl TryFrom<&str> for Config {
                 .with_context(|| format!("Failed to load module: {module_name}"))?,
             algebra,
         })
+    }
+}
+
+/// Kept alongside [`FromStr`](std::str::FromStr) so that `&str` satisfies `TryInto<Config>`.
+impl TryFrom<&str> for Config {
+    type Error = anyhow::Error;
+
+    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+        spec.parse()
     }
 }
 
@@ -106,7 +120,7 @@ where
         }
         Ok(Self {
             module: parse_module_name(spec.0)?,
-            algebra,
+            algebra: Some(algebra),
         })
     }
 }
@@ -117,7 +131,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
     fn try_from(spec: (Value, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             module: spec.0,
-            algebra: spec.1.try_into()?,
+            algebra: Some(spec.1.try_into()?),
         })
     }
 }
@@ -174,16 +188,9 @@ where
         algebra,
     } = module_spec.try_into()?;
 
-    if algebra == AlgebraType::Adem {
+    let spec = algebra::AlgebraSpec::from_json(&json)?;
+    if spec.basis(algebra)? == AlgebraType::Adem {
         return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
-    }
-    if !json["profile"].is_null() {
-        return Err(anyhow!(
-            "Nassau's algorithm does not support non-trivial profile"
-        ));
-    }
-    if json["p"].as_i64() != Some(2) {
-        return Err(anyhow!("Nassau's algorithm does not support odd primes"));
     }
     if json["type"].as_str() != Some("finite dimensional module") {
         return Err(anyhow!(
@@ -191,7 +198,12 @@ where
         ));
     }
 
-    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
+    let SteenrodAlgebra::MilnorAlgebra(algebra) =
+        SteenrodAlgebra::from_json(&json, AlgebraType::Milnor, false)?
+    else {
+        return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
+    };
+    let algebra = Arc::new(algebra);
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
     if !json["cofiber"].is_null() {
@@ -640,13 +652,22 @@ pub use logging::{LogWriter, ext_tracing_subscriber, init_logging};
 
 pub(crate) mod parallel {
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::cell::Cell;
 
-    static PARALLEL_DEPTH: AtomicUsize = AtomicUsize::new(0);
+    thread_local! {
+        static PARALLEL_DEPTH: Cell<usize> = const { Cell::new(0) };
+    }
 
     /// RAII guard that increments [`PARALLEL_DEPTH`] on creation and decrements on drop. Used to mark
     /// regions where `par_iter_mut` work is active, so that `step_resolution` jobs can detect priority
     /// inversion and retry.
+    ///
+    /// The depth is thread-local because the priority inversion we are guarding against only happens
+    /// when the guarded thread itself steals a long job: while it is blocked inside a `par_iter_mut`,
+    /// rayon may hand it another job from the pool, and if that job is a `step_resolution` the parent
+    /// cannot resume until the long job finishes. A stolen job always runs on the OS thread that
+    /// stole it, so checking this thread's depth is exactly the condition we need. Other threads are
+    /// free to pick up long jobs in the meantime.
     pub(crate) struct ParallelGuard {
         #[allow(dead_code)]
         span: tracing::span::EnteredSpan,
@@ -654,8 +675,11 @@ pub(crate) mod parallel {
 
     impl ParallelGuard {
         pub(crate) fn new() -> Self {
-            // We use Release to synchronize with `is_in_parallel`
-            let counter_start = PARALLEL_DEPTH.fetch_add(1, Ordering::Release);
+            let counter_start = PARALLEL_DEPTH.with(|depth| {
+                let old = depth.get();
+                depth.set(old + 1);
+                old
+            });
             Self {
                 span: tracing::info_span!(
                     "parallel_guard",
@@ -669,14 +693,17 @@ pub(crate) mod parallel {
 
     impl Drop for ParallelGuard {
         fn drop(&mut self) {
-            // We use Release to synchronize with `is_in_parallel`
-            let counter_end = PARALLEL_DEPTH.fetch_sub(1, Ordering::Release);
-            self.span.record("counter_end", counter_end - 1);
+            let counter_end = PARALLEL_DEPTH.with(|depth| {
+                let new = depth.get() - 1;
+                depth.set(new);
+                new
+            });
+            self.span.record("counter_end", counter_end);
         }
     }
 
     pub(crate) fn is_in_parallel() -> bool {
-        PARALLEL_DEPTH.load(Ordering::Acquire) > 0
+        PARALLEL_DEPTH.with(|depth| depth.get()) > 0
     }
 }
 
