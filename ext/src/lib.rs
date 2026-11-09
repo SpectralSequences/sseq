@@ -167,6 +167,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
+pub mod algebraic_novikov;
 pub mod chain_complex;
 pub mod ext_algebra;
 pub mod resolution;
