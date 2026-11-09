@@ -42,12 +42,26 @@ impl Subspace {
         // one more vector, which will then be reduced to zero by the row reduction.
         let mut matrix = Matrix::new(p, dim + 1, dim);
         matrix.initialize_pivots();
-        Self::from_matrix(matrix)
+        // A zero matrix with no pivots is already in reduced row echelon form.
+        Self::from_rref(matrix)
     }
 
     /// Create a new subspace from a matrix. The matrix does not have to be in row echelon form.
     pub fn from_matrix(mut matrix: Matrix) -> Self {
         matrix.row_reduce();
+        Self { matrix }
+    }
+
+    /// Wrap a matrix that is already in reduced row echelon form, with its pivots set.
+    ///
+    /// Unlike [`Self::from_matrix`], this does not row-reduce, which matters for the large zero and
+    /// identity matrices built by [`Self::new`] and [`Self::entire_space`]. Private because the
+    /// caller is asserting the invariant.
+    fn from_rref(matrix: Matrix) -> Self {
+        debug_assert!(
+            matrix.pivots().iter().filter(|&&p| p >= 0).count() <= matrix.rows(),
+            "from_rref: pivot count exceeds row count, matrix is not in rref"
+        );
         Self { matrix }
     }
 

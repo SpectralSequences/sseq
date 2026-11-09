@@ -16,7 +16,7 @@ use algebra::{
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
-    matrix::{AugmentedMatrix, Matrix, Subspace},
+    matrix::{AugmentedMatrix, Matrix, QuasiInverse, Subspace},
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
@@ -873,7 +873,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
-        let mut num_new_gens = matrix.extend_to_surjection(0, target_cc_dim, 0).len();
+        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dim, 0);
+        let mut num_new_gens = cc_new_gens.len();
 
         if b.s() > 0 {
             let desired_image = self.kernel(b - Bidegree::s_t(1, 0));
@@ -894,14 +895,19 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             matrix.segment(1, 1).row_slice(new_rows.start, new_rows.end),
         );
 
-        // The augmentation's auxiliary data is kept for lifting maps of resolutions.
-        if b.s() == 0 {
-            chain_map.compute_auxiliary_data_through_degree(t);
-        } else {
-            chain_map.set_kernel(t, None);
-            chain_map.set_image(t, None);
-            chain_map.set_quasi_inverse(t, None);
-        }
+        // Only the chain map's quasi-inverse is kept, for lifting maps of resolutions. Its kernel is
+        // all of the source above the module's top degree, too large to store.
+        chain_map.set_kernel(t, None);
+        chain_map.set_image(t, None);
+        chain_map.set_quasi_inverse(
+            t,
+            Some(chain_map_quasi_inverse(
+                &matrix,
+                source_dim,
+                num_new_gens,
+                &cc_new_gens,
+            )),
+        );
         differential.set_kernel(t, None);
         differential.set_image(t, None);
         differential.set_quasi_inverse(t, None);
@@ -1374,6 +1380,43 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
     }
 }
 
+/// The quasi-inverse of the chain map `f` of an ordinary step, read off the step's matrix.
+///
+/// `matrix` is `[f | d | I]` in reduced row echelon form, with the rows that
+/// `extend_to_surjection` added for the columns `cc_new_gens` of `f` appended. Those rows are the
+/// first of the `num_new_gens` new generators, each mapping to its column. The other columns of `f`
+/// are pivots, and a pivot row is its column plus entries in the new generators' columns only, so
+/// the preimage of a pivot column is its row's `I` part minus those new generators.
+fn chain_map_quasi_inverse(
+    matrix: &AugmentedMatrix<3>,
+    source_dim: usize,
+    num_new_gens: usize,
+    cc_new_gens: &[usize],
+) -> QuasiInverse {
+    let p = matrix.prime();
+    let target_dim = matrix.end[0] - matrix.start[0];
+    let mut preimage = Matrix::new(p, target_dim, source_dim + num_new_gens);
+    for (k, &column) in cc_new_gens.iter().enumerate() {
+        preimage.row_mut(column).set_entry(source_dim + k, 1);
+    }
+    for column in 0..target_dim {
+        let Ok(row) = usize::try_from(matrix.pivots()[matrix.start[0] + column]) else {
+            continue;
+        };
+        let mut out = preimage.row_mut(column);
+        out.slice_mut(0, source_dim)
+            .assign(matrix.row_segment(row, 2, 2));
+        let image = matrix.row_segment(row, 0, 0);
+        for (k, &new_column) in cc_new_gens.iter().enumerate() {
+            let c = image.entry(new_column);
+            if c != 0 {
+                out.add_basis_element(source_dim + k, p - c);
+            }
+        }
+    }
+    QuasiInverse::new(None, preimage)
+}
+
 #[cfg(test)]
 mod tests {
     use algebra::module::FDModule;
@@ -1503,6 +1546,26 @@ mod tests {
         }
     }
 
+    /// Check that the augmentation's quasi-inverse lifts every basis element of the module.
+    fn assert_augmentation_lifts(res: &Resolution<FDModule<MilnorAlgebra>>) {
+        let p = res.prime();
+        let augmentation = res.chain_map(0);
+        let module = res.target().module(0);
+        for t in res.min_degree()..res.module(0).max_computed_degree() + 1 {
+            let qi = augmentation.quasi_inverse(t).unwrap();
+            let source_dim = res.module(0).dimension(t);
+            for j in 0..module.dimension(t) {
+                let mut e = FpVector::new(p, module.dimension(t));
+                e.set_entry(j, 1);
+                let mut lift = FpVector::new(p, source_dim);
+                qi.apply(lift.as_slice_mut(), 1, e.as_slice());
+                let mut image = FpVector::new(p, module.dimension(t));
+                augmentation.apply(image.as_slice_mut(), 1, t, lift.as_slice());
+                assert_eq!(image, e, "augmentation lift fails at t = {t}");
+            }
+        }
+    }
+
     /// Resolve `module` through `max` with this and the standard algorithm, and check that the
     /// ranks agree everywhere, that `d^2 = 0`, and that a nontrivial subalgebra was used somewhere.
     fn assert_matches_standard(
@@ -1525,6 +1588,7 @@ mod tests {
             );
         }
         assert_d_squared_zero(&nassau);
+        assert_augmentation_lifts(&nassau);
         assert!(
             nassau
                 .iter_stem()
@@ -1544,24 +1608,34 @@ mod tests {
         );
     }
 
-    /// Cη and Cν. The top cell of Cν is high enough that ignoring it picks subalgebras below their
-    /// vanishing line.
+    /// Cη, Cν, and Cη ∨ S² in a basis where `Sq2 x0` hits a sum. The top cell of Cν is high enough
+    /// that ignoring it picks subalgebras below their vanishing line. In the last, the
+    /// augmentation's quasi-inverse needs a new generator to correct a lift.
     #[test]
     fn test_finite_modules() {
-        for (top, action) in [(2, "Sq2 x0 = x2"), (4, "Sq4 x0 = x4")] {
-            let spec = serde_json::json!({
+        let fd = |gens: serde_json::Value, action: &str| {
+            serde_json::json!({
                 "type": "finite dimensional module",
                 "p": 2,
-                "gens": { "x0": 0, format!("x{top}"): top },
+                "gens": gens,
                 "actions": [action],
-            });
+            })
+        };
+        let specs = [
+            fd(serde_json::json!({ "x0": 0, "x2": 2 }), "Sq2 x0 = x2"),
+            fd(serde_json::json!({ "x0": 0, "x4": 4 }), "Sq4 x0 = x4"),
+            fd(
+                serde_json::json!({ "x0": 0, "a": 2, "b": 2 }),
+                "Sq2 x0 = a + b",
+            ),
+        ];
+        for spec in specs {
             let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
             let module = Arc::new(FDModule::from_json(algebra, &spec).unwrap());
             assert_matches_standard(module, None, Bidegree::n_s(18, 10));
         }
     }
 
-    /// tmf, which is the sphere over the finite ambient $A(2)$.
     #[test]
     fn test_tmf() {
         let a2 = MilnorAlgebra::new_with_profile(
