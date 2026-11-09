@@ -355,21 +355,19 @@ pub fn ctau_e2(max_n: i32, max_s: i32, convention: Convention) -> TrigradedDims 
     })
 }
 
-/// $\mathrm{Ext}_{A/\tau}(\mathbb{F}_2)$ by a direct minimal resolution over $A/\tau$, keyed by
+/// $\mathrm{Ext}_{A/\tau}(\mathbb{F}_2)$ by resolving over $A/\tau$ with Nassau's algorithm, keyed by
 /// (stem, s). This is the reference [`ctau_e2`] is checked against.
 pub fn ctau_e2_direct(max_n: i32, max_s: i32) -> BTreeMap<(i32, i32), usize> {
-    use algebra::{SteenrodAlgebra, milnor_algebra::MilnorProfile, module::steenrod_module};
+    use algebra::milnor_algebra::MilnorProfile;
 
-    use crate::{chain_complex::FiniteChainComplex, resolution::Resolution};
-
-    let algebra = Arc::new(SteenrodAlgebra::MilnorAlgebra(
-        MilnorAlgebra::motivic_mod_tau(MilnorProfile::default(), false),
+    let algebra = Arc::new(MilnorAlgebra::motivic_mod_tau(
+        MilnorProfile::default(),
+        false,
     ));
     let mut graded = BiVec::new(0);
     graded.push(1);
-    let module: FDModule<SteenrodAlgebra> = FDModule::new(algebra, "F2".into(), graded);
-    let cc: crate::CCC = FiniteChainComplex::ccdz(Arc::new(steenrod_module::erase(module)));
-    let res = Resolution::new(Arc::new(cc));
+    let module = FDModule::new(algebra, "F2".into(), graded);
+    let res = crate::nassau::Resolution::new(Arc::new(module));
     res.compute_through_stem(Bidegree::n_s(max_n, max_s));
     let mut out = BTreeMap::new();
     for b in res.iter_stem() {
