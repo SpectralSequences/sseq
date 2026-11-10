@@ -413,9 +413,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     pub fn set_name(&mut self, name: String) {
-        // Record the label in the save store (if any) so the on-disk `zarr.json` is
-        // self-describing. Best-effort and purely informational — the module spec written by
-        // `bind_module_spec` is what actually guards loading.
+        // The label never gates loading; the module spec from `bind_module_spec` does.
         if !name.is_empty()
             && let Some(store) = self.save_dir.store()
             && let Err(e) = store.set_complex_name(&name)
@@ -1157,9 +1155,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// The fallible core of [`ChainComplex::apply_quasi_inverse`].
     ///
-    /// Returns `Ok(false)` when no quasi-inverse is available (no save store or no saved qi for
-    /// this bidegree), `Ok(true)` when the qi was successfully applied, and propagates
-    /// `anyhow::Error` from the structured zarr reader or `FpVector::update_from_bytes`.
+    /// `Ok(false)` means there is no quasi-inverse to apply: no save store, or none saved for `b`.
     fn apply_quasi_inverse_fallible<T, S>(
         &self,
         results: &mut [T],

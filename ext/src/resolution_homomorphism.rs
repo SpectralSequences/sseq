@@ -314,12 +314,18 @@ where
         }
 
         if let Some(store) = self.save_dir.store()
-            && let Some(data) = store.read(SaveKind::ChainMap, input).unwrap()
+            && let Some(data) = store
+                .read(SaveKind::ChainMap, input)
+                .unwrap_or_else(|e| panic!("reading chain map {:?} at {input}: {e:#}", self.name))
         {
             let mut cursor = &data[..];
             let mut outputs = Vec::with_capacity(num_gens);
             for _ in 0..num_gens {
-                outputs.push(FpVector::from_bytes(p, fx_dimension, &mut cursor).unwrap());
+                outputs.push(
+                    FpVector::from_bytes(p, fx_dimension, &mut cursor).unwrap_or_else(|e| {
+                        panic!("decoding chain map {:?} at {input}: {e}", self.name)
+                    }),
+                );
             }
             return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
         }
@@ -333,7 +339,11 @@ where
                 for row in &outputs {
                     row.to_bytes(&mut buf).unwrap();
                 }
-                store.write(SaveKind::ChainMap, input, &buf).unwrap();
+                store
+                    .write(SaveKind::ChainMap, input, &buf)
+                    .unwrap_or_else(|e| {
+                        panic!("writing chain map {:?} at {input}: {e:#}", self.name)
+                    });
             }
 
             return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
@@ -406,7 +416,9 @@ where
             for row in &outputs {
                 row.to_bytes(&mut buf).unwrap();
             }
-            store.write(SaveKind::ChainMap, input, &buf).unwrap();
+            store
+                .write(SaveKind::ChainMap, input, &buf)
+                .unwrap_or_else(|e| panic!("writing chain map {:?} at {input}: {e:#}", self.name));
         }
         f_cur.add_generators_from_rows_ooo(input.t(), outputs)
     }

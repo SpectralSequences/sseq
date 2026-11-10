@@ -303,8 +303,9 @@ where
     Ok(resolution)
 }
 
-/// Pin the save store (if any) to this module spec and record it, so the directory both rejects
-/// reuse for a different complex and is self-describing. Propagates the identity-mismatch error.
+/// Pin the save store (if any) to `spec` and record it in the store.
+///
+/// The directory then rejects reuse for a different complex and describes itself.
 fn bind_module_spec(save_dir: &SaveDirectory, spec: &Value) -> anyhow::Result<()> {
     if let Some(store) = save_dir.store() {
         store.bind_module_spec(spec)?;

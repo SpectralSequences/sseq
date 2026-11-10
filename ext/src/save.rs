@@ -1,72 +1,4 @@
-//! Two-tier zarr save system for resolutions, chain maps, and chain homotopies.
-//!
-//! On native targets the store is backed by a real zarr v3 store on the local filesystem via
-//! [`zarrs::filesystem::FilesystemStore`]. On `wasm32-unknown-unknown` we swap in
-//! [`zarrs::storage::store::MemoryStore`] instead — `zarrs_filesystem` transitively pulls in
-//! `positioned-io::RandomAccessFile`, which is gated to `cfg(any(windows, unix))` and so doesn't
-//! compile for `wasm32-unknown-unknown` (which is neither — note `wasm32-unknown-emscripten` *is*
-//! `unix`, so this only concerns the `unknown` OS). That target is the only wasm consumer (the web
-//! frontend), and it has no filesystem to persist to anyway, so the memory store just acts as a
-//! no-op sink that's dropped at session end; the same code paths exercise it on both targets.
-//!
-//! # Layout
-//!
-//! One zarr v3 store with per-namespace subgroups for named homomorphisms and chain homotopies:
-//!
-//! ```text
-//! save_dir.zarr/
-//!   zarr.json                              # root group
-//!
-//!   # Main resolution — shard + stream tier at root
-//!   {kind}/zarr.json + c/...               # 2D or 3D vlen-bytes shard
-//!   qi/n{n}_s{s}/{kind}/                   # per-bidegree group, kind-specific sub-arrays
-//!
-//!   # Named ResolutionHomomorphism — one subgroup per name
-//!   products/{name}/
-//!     chain_map/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
-//!
-//!   # Named ChainHomotopy — one subgroup per (left_name, right_name)
-//!   homotopies/{left}__{right}/
-//!     chain_homotopy/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
-//! ```
-//!
-//! # Two tiers
-//!
-//! **Shard tier.** Small payloads (differentials, kernels, chain maps, secondary data) use a
-//! `vlen-bytes` sharded array per kind, with shard shape `[SHARD_N, SHARD_S(, SHARD_IDX)]`,
-//! inner chunk shape `[1, 1(, 1)]`, and CRC32C over each shard (no zstd — the payloads are too
-//! small to benefit).
-//!
-//! **Stream tier.** Large payloads ([`SaveKind::ResQi`], [`SaveKind::NassauQi`]) use
-//! per-bidegree zarr *groups* with kind-specific sub-arrays:
-//!
-//! - `res_qi/` — group attributes hold the scalar dimensions; `pivots/` is a 1D `i64` array,
-//!   `rows/` is a 2D `u8` array shaped `[image_dim, num_limbs * 8]`, chunked over rows.
-//! - `nassau_qi/` — group attributes hold `target_dim`, `zero_mask_dim`, `subalgebra_profile`,
-//!   `num_commands`, `finished`. `commands/` is a 1D vlen-bytes array with one element per
-//!   [`NassauCommand`].
-//!
-//! Group attributes include a `finished` flag, which is the source of truth — readers treat the
-//! data as missing if the writer was dropped before calling `finish()`.
-//!
-//! Stream-tier arrays are zstd-compressed. The level defaults to `3` (zstd's own default: most of
-//! the ratio at a fraction of the write cost of the maximum level) and can be overridden with the
-//! `EXT_SAVE_ZSTD_LEVEL` environment variable for very large runs where the on-disk footprint
-//! matters more than save time.
-//!
-//! Subgroups share the same underlying `FilesystemStore` via `Arc` clone; only the `group`
-//! prefix differs. Shard arrays are created lazily on first write so that subgroups don't
-//! populate kinds they never use.
-//!
-//! # Coordinate system
-//!
-//! Shard arrays are indexed by `(n, s)`, matching `MultiDegree<2>::coords()` and generalizing to
-//! `MultiDegree<N>` for `N > 2`. Stems can be negative (e.g. `RP^\infty_{-k}`, A-module shifts),
-//! and zarr v3 has no native support for negative chunk indices, so we apply a fixed internal
-//! offset: every caller-supplied `n` is shifted to `n - N_MIN` before becoming a zarr index.
-//! `N_MIN` is intentionally generous (-1024) and never exposed in the public API; sparse zarr
-//! arrays cost essentially nothing for the empty negative regions, so the overhead is purely in
-//! `zarr.json` metadata.
+//! Zarr v3 save store for resolutions, chain maps, and chain homotopies.
 
 use std::{
     path::{Path, PathBuf},
@@ -207,8 +139,9 @@ mod platform {
 
 /// Most-negative stem the on-disk layout can store.
 ///
-/// Hidden from callers; used internally to shift caller-supplied `n` values into the unsigned
-/// zarr index space. See the module docs.
+/// Stems can be negative (e.g. `RP^\infty_{-k}`, A-module shifts) and zarr v3 has no negative
+/// chunk indices, so every caller-supplied `n` is stored at `n - N_MIN`. Callers never see the
+/// offset. Sparse arrays cost nothing for the empty negative region beyond `zarr.json` metadata.
 const N_MIN: i32 = -1024;
 
 /// Number of slots in the n dimension.
@@ -259,6 +192,32 @@ const CHUNK_NASSAU_COMMANDS: u64 = 1024;
 /// group attribute on `finish()`.
 const NASSAU_QI_MAX_COMMANDS: u64 = 1 << 24;
 
+/// One zarr v3 store, with a subgroup per named homomorphism and chain homotopy:
+///
+/// ```text
+/// save_dir/
+///   zarr.json                              # root group
+///   {kind}/zarr.json + c/...               # 2D or 3D vlen-bytes shard array
+///   qi/n{n}_s{s}/{kind}/                   # per-bidegree group, kind-specific sub-arrays
+///   products/{name}/                       # named ResolutionHomomorphism
+///     chain_map/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
+///   homotopies/{left}__{right}/            # named ChainHomotopy
+///     chain_homotopy/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
+/// ```
+///
+/// Small payloads (differentials, kernels, chain maps, secondary data) go in the shard tier: one
+/// `vlen-bytes` array per kind indexed by `(n, s)` (and an index for 3D kinds), shard shape
+/// `[SHARD_N, SHARD_S(, SHARD_IDX)]`, one-element inner chunks, CRC32C per shard and no zstd, since
+/// the payloads are too small to gain from it. Shard arrays are created on first write, so a
+/// subgroup holds only the kinds it uses.
+///
+/// Large payloads ([`SaveKind::ResQi`], [`SaveKind::NassauQi`]) go in the stream tier: a zstd
+/// compressed group per bidegree. `res_qi` keeps its scalar dimensions in group attributes, a 1D
+/// `i64` `pivots` array and a `[image_dim, num_limbs * 8]` `u8` `rows` array chunked over rows.
+/// `nassau_qi` keeps `target_dim`, `zero_mask_dim`, `subalgebra_profile` and `num_commands` in
+/// group attributes and a 1D vlen-bytes `commands` array with one element per [`NassauCommand`].
+///
+/// Subgroups share the underlying store through an `Arc` and differ only in their path prefix.
 pub struct ZarrSaveStore {
     /// Filesystem root of the underlying store. Same for all subgroups.
     path: PathBuf,
@@ -346,15 +305,14 @@ impl ZarrSaveStore {
     /// verify them. On an already-bound store the stored magic is compared against
     /// `algebra_magic` and a mismatch returns an error citing both values.
     ///
-    /// This guards only the *algebra*; the *module* is pinned separately by
-    /// [`Self::bind_module_spec`] (e.g. `S_2` vs `C2` share this algebra but are distinct
-    /// complexes). `algebra_prefix` is also what [`construct_from_save`](crate::utils::construct_from_save)
-    /// reads back to pick the algebra when reconstructing.
+    /// This guards only the *algebra*; [`Self::bind_module_spec`] pins the module (`S_2` and `C2`
+    /// share this algebra but are distinct complexes). [`construct_from_save`] reads
+    /// `algebra_prefix` back to pick the algebra when reconstructing.
     ///
-    /// Callers should invoke this once per resolution setup — typically from
-    /// `Resolution::new_with_save` — before any data is read or written. Subgroups
-    /// (`products/…`, `homotopies/…`) share the same underlying store and therefore the same
-    /// root attributes, so they inherit the check without a second call.
+    /// Call this once per resolution setup, before any data is read or written. Subgroups
+    /// (`products/…`, `homotopies/…`) share the root attributes, so they need no second call.
+    ///
+    /// [`construct_from_save`]: crate::utils::construct_from_save
     pub fn bind_to_algebra(
         &self,
         algebra_magic: u32,
@@ -399,13 +357,11 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Record a human-readable label for the complex this store resolves, as a `complex_name`
-    /// attribute on the root group.
+    /// Record `name` as the root group's `complex_name` attribute, replacing any previous one.
     ///
-    /// Purely informational: unlike [`Self::bind_module_spec`], this is never used to gate loading —
-    /// names are free-form and often empty. It's a concise companion to the full `module_spec`, so
-    /// someone inspecting `zarr.json` sees what the save is a resolution of at a glance. Overwrites
-    /// any previous label.
+    /// Unlike [`Self::bind_module_spec`], the name never gates loading: names are free-form and
+    /// often empty. It labels the save for someone reading `zarr.json`, next to the full
+    /// `module_spec`.
     pub fn set_complex_name(&self, name: &str) -> anyhow::Result<()> {
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let mut new_attrs = root.attributes().clone();
@@ -418,19 +374,17 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Bind this store to a specific module, and record the spec so the directory is
-    /// self-describing.
+    /// Bind this store to the module `spec` and record it in the root group.
     ///
-    /// This is the complex-identity gate that complements [`Self::bind_to_algebra`]: reusing a save
-    /// directory for a *different* module over the same algebra — resolve `S_2`, then point the
-    /// same dir at `C2` — is rejected here rather than silently loading the first module's cached
-    /// data for the second. On a fresh store the spec is written; on an already-bound store it must
-    /// match the stored one exactly, otherwise an error is returned.
+    /// This complements [`Self::bind_to_algebra`]: reusing a save directory for a *different*
+    /// module over the same algebra (resolve `S_2`, then point the same directory at `C2`) is an
+    /// error, not a silent load of the first module's data. A fresh store records the spec; a bound
+    /// store must hold exactly the same one.
     ///
-    /// The recorded `module_spec` is the same JSON that
-    /// [`construct_from_save`](crate::utils::construct_from_save) reads to rebuild the complex from
-    /// the directory alone — one readable, inspectable artifact serving identity, reconstruction,
-    /// and documentation, in place of an opaque content hash.
+    /// The recorded `module_spec` is the JSON that [`construct_from_save`] reads to rebuild the
+    /// complex from the directory alone.
+    ///
+    /// [`construct_from_save`]: crate::utils::construct_from_save
     pub fn bind_module_spec(&self, spec: &serde_json::Value) -> anyhow::Result<()> {
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let attrs = root.attributes();
@@ -459,8 +413,8 @@ impl ZarrSaveStore {
 
     /// Read the root-group attributes of an existing store at `path` without binding to a complex.
     ///
-    /// Lets a caller inspect what a save is (its `module_spec`, `algebra_prefix`, `complex_name`,
-    /// …) before reconstructing it. Returns the raw attribute map.
+    /// Lets a caller see what a save holds (its `module_spec`, `algebra_prefix`, `complex_name`, …)
+    /// before reconstructing it.
     pub fn read_root_attributes(
         path: impl AsRef<Path>,
     ) -> anyhow::Result<serde_json::Map<String, serde_json::Value>> {
