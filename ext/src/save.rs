@@ -2,7 +2,7 @@
 
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use anyhow::Context;
@@ -183,11 +183,12 @@ pub struct ZarrSaveStore {
     /// An `Array` holds no chunk data and its methods take `&self`, so one handle serves
     /// concurrent reads and shard-serialized writes.
     arrays: DashMap<SaveKind, Arc<ShardArray>>,
-    /// One write lock per shard.
+    /// One lock per shard: shared by reads, exclusive for writes.
     ///
     /// The sharding codec rewrites the whole shard on every store, so concurrent writes to one
-    /// shard lose data; writes to different shards are independent.
-    write_locks: DashMap<(SaveKind, [u64; 3]), Arc<Mutex<()>>>,
+    /// shard lose data, and a read, which fetches the shard index and then the element separately,
+    /// can see the index of one version and the bytes of another. Shards are independent.
+    shard_locks: DashMap<(SaveKind, [u64; 3]), Arc<RwLock<()>>>,
 }
 
 /// Alias for the concrete opened-array type shared across the store and its streaming readers.
@@ -221,7 +222,7 @@ impl ZarrSaveStore {
             group: String::new(),
             created: DashSet::new(),
             arrays: DashMap::new(),
-            write_locks: DashMap::new(),
+            shard_locks: DashMap::new(),
         })
     }
 
@@ -346,7 +347,7 @@ impl ZarrSaveStore {
             group,
             created: DashSet::new(),
             arrays: DashMap::new(),
-            write_locks: DashMap::new(),
+            shard_locks: DashMap::new(),
         })
     }
 
@@ -398,7 +399,7 @@ impl ZarrSaveStore {
 
     /// The shard holding `zarr_coords`, with `0` in the third slot for 2D kinds.
     ///
-    /// A one-element store touches only this shard, so writes serialize on it.
+    /// A one-element store or retrieve touches only this shard, so it is what the lock covers.
     fn shard_coords(zarr_coords: &[u64]) -> [u64; 3] {
         let mut out = [0u64; 3];
         out[0] = zarr_coords[0] / SHARD_N;
@@ -409,15 +410,10 @@ impl ZarrSaveStore {
         out
     }
 
-    /// The write lock of the shard holding `zarr_coords` for `kind`.
-    fn write_lock(&self, kind: SaveKind, zarr_coords: &[u64]) -> Arc<Mutex<()>> {
+    /// The lock of the shard holding `zarr_coords` for `kind`.
+    fn shard_lock(&self, kind: SaveKind, zarr_coords: &[u64]) -> Arc<RwLock<()>> {
         let key = (kind, Self::shard_coords(zarr_coords));
-        Arc::clone(
-            self.write_locks
-                .entry(key)
-                .or_insert_with(|| Arc::new(Mutex::new(())))
-                .value(),
-        )
+        Arc::clone(self.shard_locks.entry(key).or_default().value())
     }
 
     /// Lazily create the shard-tier array for `kind` under this group.
@@ -513,10 +509,10 @@ impl ZarrSaveStore {
             .shard_array(kind, true)?
             .expect("shard_array(create=true) never returns None");
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
-        let lock = self.write_lock(kind, &zarr_coords);
-        let _guard = lock.lock().unwrap();
+        let lock = self.shard_lock(kind, &zarr_coords);
+        let _guard = lock.write().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
-        // Sequential codecs: the sharding codec runs on rayon, and a worker holding the mutex could
+        // Sequential codecs: the sharding codec runs on rayon, and a worker holding the lock could
         // pick up another task that needs it and deadlock.
         arr.store_array_subset_opt(
             &subset,
@@ -543,8 +539,13 @@ impl ZarrSaveStore {
             None => return Ok(None),
         };
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let lock = self.shard_lock(kind, &zarr_coords);
+        let _guard = lock.read().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
-        let data: Vec<Vec<u8>> = arr.retrieve_array_subset(&subset).map_err(zarr_err)?;
+        // Sequential codecs, as in `write`.
+        let data: Vec<Vec<u8>> = arr
+            .retrieve_array_subset_opt(&subset, &CodecOptions::default().with_concurrent_target(1))
+            .map_err(zarr_err)?;
         match data.into_iter().next() {
             Some(element) if !element.is_empty() => Ok(Some(element)),
             _ => Ok(None),
@@ -578,8 +579,8 @@ impl ZarrSaveStore {
             None => return Ok(()),
         };
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
-        let lock = self.write_lock(kind, &zarr_coords);
-        let _guard = lock.lock().unwrap();
+        let lock = self.shard_lock(kind, &zarr_coords);
+        let _guard = lock.write().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
         arr.store_array_subset_opt(
             &subset,
