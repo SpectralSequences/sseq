@@ -160,9 +160,7 @@ where
     }
 
     pub fn set_name(&mut self, name: String) {
-        // Record the label in the save store (if any) so the on-disk `zarr.json` is
-        // self-describing. Best-effort and purely informational — the module spec written by
-        // `bind_module_spec` is what actually guards loading.
+        // The label never gates loading; the module spec from `bind_module_spec` does.
         if !name.is_empty()
             && let Some(store) = self.save_dir.store()
             && let Err(e) = store.set_complex_name(&name)

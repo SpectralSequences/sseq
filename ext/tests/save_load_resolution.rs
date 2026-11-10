@@ -35,9 +35,7 @@ fn test_save_load() {
     );
 }
 
-/// Resolving once with the Adem algebra and then attempting to reuse the same save dir with the
-/// Milnor algebra must fail loudly via the `bind_to_algebra` check, not silently mix data from
-/// the two bases. Resurrected from the pre-zarr `wrong_algebra` test in master.
+/// Reusing an Adem-basis save directory with the Milnor basis must fail at `bind_to_algebra`.
 #[test]
 #[should_panic(expected = "different algebra")]
 fn test_wrong_algebra() {
@@ -49,9 +47,8 @@ fn test_wrong_algebra() {
     construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
 }
 
-/// Resolving one module and then reusing the same save dir for a *different* module over the same
-/// algebra must fail loudly via the recorded module-spec check, rather than silently loading the
-/// first module's cached differentials for the second.
+/// Reusing a save directory for a different module over the same algebra must fail at the recorded
+/// module spec.
 #[test]
 #[should_panic(expected = "different complex")]
 fn test_wrong_complex() {
@@ -170,8 +167,7 @@ fn test_zarr_store_exists() {
 
     let mut resolution =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    // Naming the resolution records a human-readable label on the store, mirroring how the CLI
-    // labels its resolutions.
+    // The name is recorded on the store as its label.
     resolution.set_name("S_2".into());
     resolution.compute_through_bidegree(Bidegree::s_t(3, 3));
 
@@ -186,9 +182,7 @@ fn test_zarr_store_exists() {
         "shard-tier differential array missing"
     );
 
-    // The store is self-describing: the module spec (the identity gate + reconstruction source)
-    // and the human-readable label are both recorded on the root group, alongside the algebra
-    // binding.
+    // The root group records the module spec and the label next to the algebra binding.
     let root_meta = std::fs::read_to_string(store_path.join("zarr.json")).unwrap();
     assert!(
         root_meta.contains("module_spec"),
@@ -204,9 +198,8 @@ fn test_zarr_store_exists() {
     );
 }
 
-/// A save created through `construct` is self-describing: `construct_from_save` can rebuild the
-/// complex from the directory alone, without the caller re-supplying the `"S_2"` spec, and the
-/// reconstructed resolution resumes the cached data.
+/// `construct_from_save` rebuilds a `construct`ed complex from its directory alone and resumes the
+/// saved data.
 #[test]
 fn test_construct_from_save() {
     use ext::utils::{construct_from_save, construct_standard};

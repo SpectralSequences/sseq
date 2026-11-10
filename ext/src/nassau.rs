@@ -251,11 +251,9 @@ impl Subalgebra {
         })
     }
 
-    /// Encode the profile of `self` for the save store, which is all
-    /// [`Subalgebra::from_store_profile`] needs to recover it.
+    /// Encode the profile of `self` for [`Subalgebra::from_store_profile`].
     ///
-    /// This is one byte per p-part entry, followed at the exterior shape by the little-endian
-    /// bytes of the q-part, so that the encoding at the polynomial shape does not depend on it.
+    /// One byte per p-part entry, then the q-part's little-endian bytes at the exterior shape only.
     fn to_store_profile(&self) -> Vec<u8> {
         let profile = self.algebra.profile();
         let mut bytes: Vec<u8> = profile.p_part.iter().map(|&entry| entry as u8).collect();
@@ -522,12 +520,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             return Ok(());
         }
 
-        // Emit a signature command if non-zero.
         if signature.q_part != 0 || !signature.p_part.is_empty() {
             w.write_signature(&subalgebra.signature_to_store(signature))?;
         }
 
-        // Emit one pivot command per non-trivial pivot row.
         for (col, &row) in pivots.iter().enumerate() {
             if row < 0 {
                 continue;
@@ -535,8 +531,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let preimage = masked_matrix.row_segment(row as usize, 1, 1);
             scratch.set_scratch_vector_size(preimage.len());
             scratch.as_slice_mut().assign(preimage);
-            // The lift slice we want to write is `scratch.as_slice()` here;
-            // we have to capture it before reusing `scratch` for the image.
+            // Capture the lift before `scratch` is reused for the image.
             let lift_vec = scratch.clone();
 
             scratch.set_scratch_vector_size(full_matrix.columns());

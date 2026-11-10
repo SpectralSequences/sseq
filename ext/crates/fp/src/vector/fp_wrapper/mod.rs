@@ -112,10 +112,7 @@ impl FpVector {
         v
     }
 
-    /// The number of `Limb`s required to store an [`FpVector`] of length
-    /// `len` over `F_p`. Useful for sizing a buffer that holds the
-    /// little-endian byte serialization of an `FpVector` (each limb is 8
-    /// bytes).
+    /// The number of `Limb`s in an [`FpVector`] of length `len` over `F_p`.
     pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
         Fp::new(p).number(len)
     }

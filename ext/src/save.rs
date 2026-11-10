@@ -19,16 +19,10 @@ use zarrs::{
     storage::{ReadableWritableListableStorage, ReadableWritableListableStorageTraits},
 };
 
-// --- Platform backing-store selection ---
-//
-// The zarr `filesystem` and `zstd` features (which pull in `positioned-io::RandomAccessFile` and
-// `zstd-sys`) only build where there is a real OS: `cfg(any(windows, unix))`. That — not
-// `target_arch = "wasm32"` — is the authoritative condition, because it's exactly the `cfg` that
-// gates `positioned-io::RandomAccessFile`. `wasm32-unknown-emscripten` *is* `unix` and would use
-// the filesystem store; `wasm32-unknown-unknown` (the web frontend) and `wasm32-wasi` are neither
-// `windows` nor `unix`, so they fall back to an in-memory store with CRC32C-only codecs. The
-// Cargo.toml feature selection uses the same predicate, and all the target `cfg` lives in the two
-// `platform` modules below so the rest of this file is platform-agnostic.
+// zarr's `filesystem` and `zstd` features build only under `cfg(any(windows, unix))`, the condition
+// that gates `positioned-io::RandomAccessFile`; other targets, such as the web frontend, get an
+// in-memory store. Cargo.toml selects features by the same predicate, and the two `platform`
+// modules hold every target `cfg`.
 
 #[cfg(any(windows, unix))]
 mod platform {
@@ -43,8 +37,7 @@ mod platform {
         Ok(Arc::new(FilesystemStore::new(path)?))
     }
 
-    /// Whether the root group's `zarr.json` still needs to be written — i.e. it doesn't already
-    /// exist on disk.
+    /// Whether the root group's `zarr.json` is not on disk yet.
     pub fn root_group_missing(path: &Path) -> bool {
         !path.join("zarr.json").exists()
     }
@@ -57,21 +50,16 @@ mod platform {
         ]
     }
 
-    /// Default stream-tier zstd level when [`ZSTD_LEVEL_ENV`] is unset.
+    /// Stream-tier zstd level when [`ZSTD_LEVEL_ENV`] is unset.
     ///
-    /// Level 3 is zstd's own default and sits at the knee of the ratio/speed curve. The stream
-    /// tier (`res_qi`, `nassau_qi`) is on the hot write path — every differential quasi-inverse is
-    /// compressed here — so a high level makes saving several times slower for a small extra ratio
-    /// on this already-dense data. Large runs that want to trade write time for maximum on-disk
-    /// compression can raise the level via the environment variable below.
+    /// Every quasi-inverse is compressed on the write path, and higher levels buy little ratio on
+    /// this dense data for much more write time.
     const DEFAULT_ZSTD_LEVEL: i32 = 3;
 
-    /// Environment variable that overrides the stream-tier zstd level.
+    /// Overrides the stream-tier zstd level, for runs where disk use matters more than save time.
     ///
-    /// For very large resolutions (where the on-disk footprint, not save time, is the binding
-    /// constraint) set e.g. `EXT_SAVE_ZSTD_LEVEL=19` for near-maximum compression. The value is
-    /// read once, parsed as an integer, and clamped to zstd's valid `[1, 22]` range; anything
-    /// unparseable falls back to [`DEFAULT_ZSTD_LEVEL`] with a warning.
+    /// Clamped to zstd's valid range; an unparseable value falls back to [`DEFAULT_ZSTD_LEVEL`]
+    /// with a warning.
     const ZSTD_LEVEL_ENV: &str = "EXT_SAVE_ZSTD_LEVEL";
 
     /// Resolve the stream-tier zstd level, reading [`ZSTD_LEVEL_ENV`] at most once.
@@ -107,32 +95,24 @@ mod platform {
 
     use super::*;
 
-    /// Open an in-memory store. This target has no filesystem; the web frontend uses it as a
-    /// no-op sink that's dropped at session end.
+    /// Open an in-memory store, dropped at the end of the session.
     pub fn open_store(_path: &Path) -> anyhow::Result<ReadableWritableListableStorage> {
         Ok(Arc::new(MemoryStore::new()))
     }
 
-    /// The in-memory store has no on-disk `zarr.json`, so the root group is always (re)built (the
-    /// memory store silently overwrites any existing entry).
+    /// Always true: an in-memory store starts empty.
     pub fn root_group_missing(_path: &Path) -> bool {
         true
     }
 
-    /// Stream-tier codec chain: CRC32C only. The `zstd` feature isn't built on this target (its
-    /// `zstd-sys` C build expects POSIX symbols the wasm libc shim doesn't expose), and the
-    /// memory-backed store is ephemeral, so skipping compression is fine.
+    /// Stream-tier codec chain: CRC32C only, since `zstd-sys` does not build for this target.
     pub fn stream_tier_codecs() -> Vec<Arc<dyn zarrs::array::BytesToBytesCodecTraits>> {
         vec![Arc::new(Crc32cCodec::new())]
     }
 
-    // The in-memory store wraps a trait object bounded only by `MaybeSend + MaybeSync` (no-ops on
-    // wasm), so the `Arc` isn't `Send`/`Sync` in Rust's eyes. The rest of `ext` requires chain
-    // complexes to be `Send + Sync`, and rippling that relaxation through the whole crate to
-    // accommodate the wasm frontend isn't worth it. We force `Send + Sync` here — sound because
-    // this target is single-threaded, so the absent cross-thread guarantees are vacuously
-    // satisfied. On `any(windows, unix)` the filesystem store is already `Send + Sync`, so no impl
-    // is needed there.
+    // SAFETY: this target is single-threaded, so `Send` and `Sync` hold vacuously. They are
+    // missing only because the store's trait object is bounded by the no-op `MaybeSend +
+    // MaybeSync`, and the rest of `ext` needs chain complexes to be `Send + Sync`.
     unsafe impl Send for super::ZarrSaveStore {}
     unsafe impl Sync for super::ZarrSaveStore {}
 }
@@ -144,10 +124,7 @@ mod platform {
 /// offset. Sparse arrays cost nothing for the empty negative region beyond `zarr.json` metadata.
 const N_MIN: i32 = -1024;
 
-/// Number of slots in the n dimension.
-///
-/// Effective `n` range is `[N_MIN, N_MIN + N_SPAN)` = `[-1024, 3072)` — well beyond any
-/// conceivable production stem.
+/// Number of slots in the n dimension, starting at [`N_MIN`].
 const N_SPAN: u64 = 4096;
 
 /// Number of slots in the s dimension. `s` is unsigned: `[0, S_SPAN)`.
@@ -165,13 +142,9 @@ const SHARD_S: u64 = 8;
 /// Shard shape in the idx dimension.
 const SHARD_IDX: u64 = 8;
 
-/// Convert a zarrs error into `anyhow::Error`.
+/// Convert a zarrs error into `anyhow::Error` through its `Display`.
 ///
-/// On `wasm32-unknown-unknown` some zarrs error types contain `Arc<dyn TraitObj>` with only
-/// `MaybeSend + MaybeSync` bounds (no-ops on wasm), so `anyhow::Error`'s `Send + Sync`
-/// requirement rejects them via the blanket `From` impl. Formatting the error as a string
-/// sidesteps the bound and works on both targets; the tradeoff is that the original error's
-/// source chain is collapsed into its `Display` output.
+/// Some zarrs errors are not `Send + Sync` on wasm, so the blanket `From` does not apply there.
 fn zarr_err<E: std::fmt::Display>(e: E) -> anyhow::Error {
     anyhow::anyhow!("{e}")
 }
@@ -192,72 +165,28 @@ const CHUNK_NASSAU_COMMANDS: u64 = 1024;
 /// group attribute on `finish()`.
 const NASSAU_QI_MAX_COMMANDS: u64 = 1 << 24;
 
-/// One zarr v3 store, with a subgroup per named homomorphism and chain homotopy:
+/// A zarr v3 save store, or one of its subgroups; `ext/SAVE-FORMAT.md` specifies the layout.
 ///
-/// ```text
-/// save_dir/
-///   zarr.json                              # root group
-///   {kind}/zarr.json + c/...               # 2D or 3D vlen-bytes shard array
-///   qi/n{n}_s{s}/{kind}/                   # per-bidegree group, kind-specific sub-arrays
-///   products/{name}/                       # named ResolutionHomomorphism
-///     chain_map/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
-///   homotopies/{left}__{right}/            # named ChainHomotopy
-///     chain_homotopy/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
-/// ```
-///
-/// Small payloads (differentials, kernels, chain maps, secondary data) go in the shard tier: one
-/// `vlen-bytes` array per kind indexed by `(n, s)` (and an index for 3D kinds), shard shape
-/// `[SHARD_N, SHARD_S(, SHARD_IDX)]`, one-element inner chunks, CRC32C per shard and no zstd, since
-/// the payloads are too small to gain from it. Shard arrays are created on first write, so a
-/// subgroup holds only the kinds it uses.
-///
-/// Large payloads ([`SaveKind::ResQi`], [`SaveKind::NassauQi`]) go in the stream tier: a zstd
-/// compressed group per bidegree. `res_qi` keeps its scalar dimensions in group attributes, a 1D
-/// `i64` `pivots` array and a `[image_dim, num_limbs * 8]` `u8` `rows` array chunked over rows.
-/// `nassau_qi` keeps `target_dim`, `zero_mask_dim`, `subalgebra_profile` and `num_commands` in
-/// group attributes and a 1D vlen-bytes `commands` array with one element per [`NassauCommand`].
-///
-/// Subgroups share the underlying store through an `Arc` and differ only in their path prefix.
+/// Shard-tier arrays are created on first write, so a subgroup holds only the kinds it uses. Their
+/// payloads are too small for zstd to pay, unlike the stream tier's quasi-inverses.
 pub struct ZarrSaveStore {
-    /// Filesystem root of the underlying store. Same for all subgroups.
+    /// Filesystem root of the underlying store, shared by all subgroups.
     path: PathBuf,
-    /// Underlying zarr storage. Cheap to clone via `Arc`.
-    ///
-    /// On `wasm32-unknown-unknown` this wraps a trait object bounded only by
-    /// `MaybeSend + MaybeSync` (no-ops on wasm), so the `Arc` isn't `Send`/`Sync` in Rust's
-    /// eyes. The rest of `ext` requires chain complexes to be `Send + Sync`, and rippling
-    /// that relaxation through the whole crate to accommodate the WASM frontend isn't worth
-    /// it. Instead we force `Send + Sync` via the `unsafe impl`s below — sound because
-    /// wasm32 is single-threaded, so the absent cross-thread guarantees are vacuously
-    /// satisfied.
+    /// Underlying zarr storage, shared by all subgroups.
     store: ReadableWritableListableStorage,
-    /// Group prefix applied to every operation.
-    ///
-    /// Empty for the root store; e.g. `"/products/foo"` or `"/homotopies/foo__bar"` for
-    /// subgroups.
+    /// Group prefix of every operation: empty for the root store, e.g. `/products/foo` otherwise.
     group: String,
-    /// Tracks shard-tier arrays already known to exist on disk for this `(store, group)`.
-    ///
-    /// Used to skip the `meta_path` check on subsequent writes.
+    /// Shard-tier arrays known to exist, so later writes skip the metadata check.
     created: DashSet<SaveKind>,
-    /// Cache of opened shard-tier [`zarrs::array::Array`] handles, one per [`SaveKind`].
+    /// Opened shard-tier arrays, so each kind's `zarr.json` is parsed once.
     ///
-    /// Opening an array parses its `zarr.json` metadata through the storage backend (a file read
-    /// and a `serde_json` parse on the filesystem store). Every `read`/`write`/`delete` targets
-    /// the same handful of per-kind arrays, so we open each at most once and reuse the handle. The
-    /// `Array` holds no chunk data — chunks are fetched/stored through the shared store on each
-    /// call — and its methods take `&self`, so a cached `Arc<Array>` is safe to share across
-    /// threads for concurrent reads and (shard-serialized) writes.
+    /// An `Array` holds no chunk data and its methods take `&self`, so one handle serves
+    /// concurrent reads and shard-serialized writes.
     arrays: DashMap<SaveKind, Arc<ShardArray>>,
-    /// Per-shard write lock.
+    /// One write lock per shard.
     ///
-    /// Since zarrs 0.14, `Array::store_array_subset` is documented as requiring caller-side
-    /// synchronization for "regions sharing any chunks" — the sharding codec does a
-    /// read-modify-write on the entire shard internally, so concurrent calls touching different
-    /// inner chunks of the *same shard* race and lose writes. Writes to *different* shards touch
-    /// disjoint chunk files and are independent, so we key the lock by `(kind, shard coords)`
-    /// rather than by kind alone. This preserves the cross-shard write parallelism a parallel
-    /// resolution relies on while still honouring the zarrs contract.
+    /// The sharding codec rewrites the whole shard on every store, so concurrent writes to one
+    /// shard lose data; writes to different shards are independent.
     write_locks: DashMap<(SaveKind, [u64; 3]), Arc<Mutex<()>>>,
 }
 
@@ -280,8 +209,6 @@ impl ZarrSaveStore {
 
         let store: ReadableWritableListableStorage = platform::open_store(&path)?;
 
-        // Build the root group's `zarr.json` unless it's already on disk. (On the in-memory
-        // target it never persists, so `platform::root_group_missing` is always true there.)
         if platform::root_group_missing(&path) {
             GroupBuilder::new()
                 .build(store.clone(), "/")?
@@ -298,19 +225,10 @@ impl ZarrSaveStore {
         })
     }
 
-    /// Bind this store to a specific algebra, catching accidental algebra / prime mismatches.
+    /// Bind this store to the algebra `algebra_magic`, recording it with `prime` and the prefix.
     ///
-    /// On a fresh store (the root group's `algebra_magic` attribute is unset) this writes
-    /// `algebra_magic`, `prime`, and `algebra_prefix` to the root group so a later load can
-    /// verify them. On an already-bound store the stored magic is compared against
-    /// `algebra_magic` and a mismatch returns an error citing both values.
-    ///
-    /// This guards only the *algebra*; [`Self::bind_module_spec`] pins the module (`S_2` and `C2`
-    /// share this algebra but are distinct complexes). [`construct_from_save`] reads
-    /// `algebra_prefix` back to pick the algebra when reconstructing.
-    ///
-    /// Call this once per resolution setup, before any data is read or written. Subgroups
-    /// (`products/…`, `homotopies/…`) share the root attributes, so they need no second call.
+    /// A store bound to another algebra is an error. [`Self::bind_module_spec`] pins the module,
+    /// and [`construct_from_save`] reads `algebra_prefix` back. Subgroups share these attributes.
     ///
     /// [`construct_from_save`]: crate::utils::construct_from_save
     pub fn bind_to_algebra(
@@ -343,8 +261,6 @@ impl ZarrSaveStore {
             return Ok(());
         }
 
-        // Unbound store: write the magic and related fields now. We rebuild the root group's
-        // attributes map with the new entries merged in.
         let mut new_attrs = attrs.clone();
         new_attrs.insert("algebra_magic".into(), (u64::from(algebra_magic)).into());
         new_attrs.insert("prime".into(), (u64::from(prime)).into());
@@ -357,11 +273,7 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Record `name` as the root group's `complex_name` attribute, replacing any previous one.
-    ///
-    /// Unlike [`Self::bind_module_spec`], the name never gates loading: names are free-form and
-    /// often empty. It labels the save for someone reading `zarr.json`, next to the full
-    /// `module_spec`.
+    /// Record `name` as the root group's `complex_name`, a label that never gates loading.
     pub fn set_complex_name(&self, name: &str) -> anyhow::Result<()> {
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let mut new_attrs = root.attributes().clone();
@@ -374,15 +286,10 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Bind this store to the module `spec` and record it in the root group.
+    /// Bind this store to the module `spec`, recording it in the root group.
     ///
-    /// This complements [`Self::bind_to_algebra`]: reusing a save directory for a *different*
-    /// module over the same algebra (resolve `S_2`, then point the same directory at `C2`) is an
-    /// error, not a silent load of the first module's data. A fresh store records the spec; a bound
-    /// store must hold exactly the same one.
-    ///
-    /// The recorded `module_spec` is the JSON that [`construct_from_save`] reads to rebuild the
-    /// complex from the directory alone.
+    /// A store bound to a different module over the same algebra is an error. The recorded spec is
+    /// what [`construct_from_save`] rebuilds the complex from.
     ///
     /// [`construct_from_save`]: crate::utils::construct_from_save
     pub fn bind_module_spec(&self, spec: &serde_json::Value) -> anyhow::Result<()> {
@@ -412,9 +319,6 @@ impl ZarrSaveStore {
     }
 
     /// Read the root-group attributes of an existing store at `path` without binding to a complex.
-    ///
-    /// Lets a caller see what a save holds (its `module_spec`, `algebra_prefix`, `complex_name`, …)
-    /// before reconstructing it.
     pub fn read_root_attributes(
         path: impl AsRef<Path>,
     ) -> anyhow::Result<serde_json::Map<String, serde_json::Value>> {
@@ -425,16 +329,12 @@ impl ZarrSaveStore {
         Ok(root.attributes().clone())
     }
 
-    /// Open a subgroup at `{self.group}/{name}`.
-    ///
-    /// Shares the same underlying store as `self`. The subgroup's `zarr.json` is created if
-    /// missing.
+    /// Open the subgroup `name` of this group, creating it if missing.
     pub fn subgroup(&self, name: &str) -> anyhow::Result<Self> {
         let group = format!("{}/{}", self.group, name);
         let group_path = self.path.join(group.trim_start_matches('/'));
         if !group_path.join("zarr.json").exists() {
-            // Ensure each path component exists as a group so that intermediate
-            // levels (e.g. `products/`) are valid zarr groups, not just dirs.
+            // Intermediate levels such as `products/` must be groups, not bare directories.
             self.ensure_intermediate_groups(&group)?;
             GroupBuilder::new()
                 .build(self.store.clone(), &group)?
@@ -453,7 +353,6 @@ impl ZarrSaveStore {
     /// Walk every prefix of `group` and create a zarr group for any prefix that doesn't already
     /// have one (e.g. `/products/` before `/products/foo`).
     fn ensure_intermediate_groups(&self, group: &str) -> anyhow::Result<()> {
-        // Split on '/', skipping the leading empty segment.
         let segments: Vec<&str> = group.split('/').filter(|s| !s.is_empty()).collect();
         for i in 1..segments.len() {
             let prefix = format!("/{}", segments[..i].join("/"));
@@ -474,9 +373,7 @@ impl ZarrSaveStore {
         &self.path
     }
 
-    /// Filesystem path corresponding to this store's group prefix.
-    ///
-    /// Returns `self.path` for the root store.
+    /// Filesystem path of this store's group.
     fn group_fs_path(&self) -> PathBuf {
         if self.group.is_empty() {
             self.path.clone()
@@ -489,11 +386,7 @@ impl ZarrSaveStore {
         format!("{}/{}", self.group, kind.name())
     }
 
-    /// Translate signed `(n, s, [idx])` coordinates into the unsigned zarr indices used for
-    /// shard arrays.
-    ///
-    /// The first coordinate (`n`) is offset by `-N_MIN`; later coordinates are passed through
-    /// as-is.
+    /// The zarr indices of `(n, s, [idx])`: `n` offset by [`N_MIN`], the rest unchanged.
     fn shard_zarr_coords<const N: usize>(coords: [i32; N]) -> Vec<u64> {
         let mut out = Vec::with_capacity(N);
         out.push((coords[0] - N_MIN) as u64);
@@ -503,12 +396,9 @@ impl ZarrSaveStore {
         out
     }
 
-    /// Shard-tier chunk coordinates (== shard coordinates, since the chunk shape *is* the shard
-    /// shape) covering `zarr_coords`. 2D kinds get a `0` in the third slot.
+    /// The shard holding `zarr_coords`, with `0` in the third slot for 2D kinds.
     ///
-    /// A single-element `store_array_subset` at `zarr_coords` touches exactly this one shard, so
-    /// serializing on it is both necessary and sufficient for the zarrs read-modify-write
-    /// contract.
+    /// A one-element store touches only this shard, so writes serialize on it.
     fn shard_coords(zarr_coords: &[u64]) -> [u64; 3] {
         let mut out = [0u64; 3];
         out[0] = zarr_coords[0] / SHARD_N;
@@ -519,9 +409,7 @@ impl ZarrSaveStore {
         out
     }
 
-    /// Get-or-create the write lock guarding the shard that holds `zarr_coords` for `kind`.
-    ///
-    /// See the comment on the `write_locks` field for why this exists.
+    /// The write lock of the shard holding `zarr_coords` for `kind`.
     fn write_lock(&self, kind: SaveKind, zarr_coords: &[u64]) -> Arc<Mutex<()>> {
         let key = (kind, Self::shard_coords(zarr_coords));
         Arc::clone(
@@ -564,12 +452,7 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Return the cached (or freshly opened) shard-tier array handle for `kind`.
-    ///
-    /// With `create`, the array is created if absent (used by writes). Without, a missing array
-    /// yields `None` (used by reads, before anything of that kind has been written). The opened
-    /// handle is memoized in `self.arrays`, so the `zarr.json` metadata is parsed at most once
-    /// per kind per store.
+    /// The shard-tier array for `kind`, created if absent with `create`, otherwise `None`.
     fn shard_array(&self, kind: SaveKind, create: bool) -> anyhow::Result<Option<Arc<ShardArray>>> {
         if let Some(arr) = self.arrays.get(&kind) {
             return Ok(Some(Arc::clone(arr.value())));
@@ -611,15 +494,10 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Write a sharded byte payload.
+    /// Write the `kind` payload at `location`.
     ///
-    /// Streamed kinds ([`SaveKind::ResQi`], [`SaveKind::NassauQi`]) are not supported here — use
-    /// [`Self::nassau_qi_writer`] / [`Self::write_res_qi`] instead, since they may be multi-GB
-    /// and would OOM the in-memory `Vec`.
-    ///
-    /// `location` is anything that implements [`SaveCoords`] — [`Bidegree`] for 2D kinds and
-    /// [`BidegreeGenerator`] for 3D kinds. Negative `n` is fine; the offset is handled
-    /// internally.
+    /// Quasi-inverses can be too large to buffer; they go through [`Self::write_res_qi`] and
+    /// [`Self::nassau_qi_writer`].
     pub fn write<const N: usize>(
         &self,
         kind: SaveKind,
@@ -638,11 +516,8 @@ impl ZarrSaveStore {
         let lock = self.write_lock(kind, &zarr_coords);
         let _guard = lock.lock().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
-        // Force sequential codec execution. Holding our std::sync::Mutex across
-        // `store_array_subset` is unsafe with rayon, because zarrs's sharding codec uses rayon
-        // internally — the worker that holds the mutex would join on inner tasks and could be
-        // assigned a new task that also needs the mutex, deadlocking. Sequential execution
-        // avoids the join entirely.
+        // Sequential codecs: the sharding codec runs on rayon, and a worker holding the mutex could
+        // pick up another task that needs it and deadlock.
         arr.store_array_subset_opt(
             &subset,
             vec![data.to_vec()],
@@ -652,10 +527,7 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Read a sharded byte payload.
-    ///
-    /// Returns `None` if no data has been written. [`SaveKind::ResQi`] / [`SaveKind::NassauQi`]
-    /// are not supported here; use the dedicated per-kind APIs.
+    /// Read the `kind` payload at `location`, or `None` if none was written.
     pub fn read<const N: usize>(
         &self,
         kind: SaveKind,
@@ -700,8 +572,7 @@ impl ZarrSaveStore {
             "delete() is only for sharded kinds, got {:?}",
             kind
         );
-        // Overwrite with fill value (empty vec). A missing array means there is nothing to
-        // delete, so treat that as success. Same locking + sequential codec story as `write`.
+        // A missing array has nothing to delete; otherwise lock and store as in `write`.
         let arr = match self.shard_array(kind, false)? {
             Some(arr) => arr,
             None => return Ok(()),
@@ -726,16 +597,9 @@ impl ZarrSaveStore {
         format!("{}/qi/n{}_s{}/res_qi", self.group, b.n(), b.s())
     }
 
-    /// Write a [`QuasiInverse`] as a structured zarr group at `qi/n{n}_s{s}/res_qi`.
+    /// Write `qi` as the group `qi/n{n}_s{s}/res_qi`, laid out as in `ext/SAVE-FORMAT.md`.
     ///
-    /// Layout:
-    ///
-    /// - group attributes: `source_dim`, `target_dim`, `image_dim`, `finished`
-    /// - `pivots`: 1D `i64`, shape `[target_dim]`
-    /// - `rows`: 2D `u8`, shape `[image_dim, num_limbs * 8]`, chunked over rows
-    ///
-    /// `finished` is set to `true` only on success, so a writer that crashes mid-write leaves
-    /// the group in a state the matching reader treats as missing.
+    /// `finished` is set last, so readers treat an interrupted write as missing.
     pub fn write_res_qi(&self, b: Bidegree, qi: &QuasiInverse) -> anyhow::Result<()> {
         self.ensure_qi_bidegree(b)?;
         let group_path = self.res_qi_group_path(b);
@@ -748,7 +612,6 @@ impl ZarrSaveStore {
         let num_limbs = FpVector::num_limbs(p, source_dim);
         let row_bytes = num_limbs * 8;
 
-        // Group with attributes (finished = false until we're done)
         let mut group_attrs = serde_json::Map::new();
         group_attrs.insert("source_dim".into(), (source_dim as u64).into());
         group_attrs.insert("target_dim".into(), (target_dim as u64).into());
@@ -759,7 +622,6 @@ impl ZarrSaveStore {
             .build(self.store.clone(), &group_path)?;
         group.store_metadata()?;
 
-        // pivots array: 1D i64, single chunk.
         let pivots_shape = std::cmp::max(target_dim as u64, 1);
         let pivots_array = ArrayBuilder::new(
             vec![pivots_shape],
@@ -781,7 +643,6 @@ impl ZarrSaveStore {
             .store_chunk(&[0], pivots_data)
             .map_err(zarr_err)?;
 
-        // rows array: 2D u8 [image_dim, row_bytes], chunked over rows.
         let rows_shape_0 = std::cmp::max(image_dim as u64, 1);
         let rows_shape_1 = std::cmp::max(row_bytes as u64, 1);
         let chunk_rows = std::cmp::min(CHUNK_RES_QI_ROWS, rows_shape_0);
@@ -796,9 +657,7 @@ impl ZarrSaveStore {
         rows_array.store_metadata()?;
 
         if image_dim > 0 && row_bytes > 0 {
-            // Write rows in chunks of `chunk_rows` rows. Pad the last chunk with zeros so the
-            // chunk-shape constraint is satisfied; the reader knows `image_dim` and ignores the
-            // padded rows.
+            // Pad the last chunk to the chunk shape; the reader stops at `image_dim`.
             let chunk_byte_len = (chunk_rows as usize) * row_bytes;
             let mut chunk_buf: Vec<u8> = Vec::with_capacity(chunk_byte_len);
             let mut chunk_idx: u64 = 0;
@@ -823,7 +682,6 @@ impl ZarrSaveStore {
             }
         }
 
-        // Mark the group finished.
         group_attrs.insert("finished".into(), true.into());
         let finished_group = GroupBuilder::new()
             .attributes(group_attrs)
@@ -832,10 +690,7 @@ impl ZarrSaveStore {
         Ok(())
     }
 
-    /// Open a streaming reader for the ResQi at bidegree `b`.
-    ///
-    /// Returns `None` if no finished group exists. The reader fetches one chunk of rows at a
-    /// time so peak memory is bounded by `CHUNK_RES_QI_ROWS * row_bytes`.
+    /// Stream the ResQi at `b`, one chunk of rows at a time, or `None` unless it was finished.
     pub fn stream_res_qi(&self, b: Bidegree, p: ValidPrime) -> anyhow::Result<Option<ResQiReader>> {
         let group_path = self.res_qi_group_path(b);
         let group = match zarrs::group::Group::open(self.store.clone(), &group_path) {
@@ -894,11 +749,7 @@ impl ZarrSaveStore {
         format!("{}/qi/n{}_s{}/nassau_qi", self.group, b.n(), b.s())
     }
 
-    /// Open a writer for a NassauQi at bidegree `b`.
-    ///
-    /// The header (target/zero mask dimensions and the subalgebra profile bytes) goes into group
-    /// attributes; the body of the bytecode becomes a 1D vlen-bytes `commands` array, with each
-    /// element holding one command.
+    /// Open a writer for the NassauQi group at `b`, laid out as in `ext/SAVE-FORMAT.md`.
     pub fn nassau_qi_writer(
         &self,
         b: Bidegree,
@@ -948,11 +799,8 @@ impl ZarrSaveStore {
         })
     }
 
-    /// Open a streaming reader for the NassauQi at bidegree `b`.
-    ///
-    /// Returns `None` if no finished group exists. The reader yields one [`NassauCommand`] at a
-    /// time and fetches one chunk of commands at a time, so peak memory is bounded by
-    /// `CHUNK_NASSAU_COMMANDS * avg_command_bytes`.
+    /// Stream the NassauQi at `b`, one chunk of commands at a time, or `None` unless it was
+    /// finished.
     pub fn nassau_qi_reader(&self, b: Bidegree) -> anyhow::Result<Option<NassauQiReader>> {
         let group_path = self.nassau_qi_group_path(b);
         let group = match zarrs::group::Group::open(self.store.clone(), &group_path) {
@@ -1008,9 +856,7 @@ impl ZarrSaveStore {
 
 // --- ResQi reader ---
 
-/// Streaming reader for a structured ResQi.
-///
-/// Reads matrix rows from the underlying chunked 2D `rows` array on demand.
+/// Streaming reader for a ResQi's `rows`, one chunk at a time.
 pub struct ResQiReader {
     p: ValidPrime,
     source_dim: usize,
@@ -1047,10 +893,7 @@ impl ResQiReader {
         &self.pivots
     }
 
-    /// Read the next matrix row into `dest`.
-    ///
-    /// Returns whether a row was read. Rows are returned in the order they were written (one per
-    /// non-trivial pivot column).
+    /// Read the next row into `dest`; `false` once every row has been read.
     pub fn next_row(&mut self, dest: &mut FpVector) -> anyhow::Result<bool> {
         if self.image_dim == 0 || self.row_bytes == 0 {
             return Ok(false);
@@ -1061,12 +904,10 @@ impl ResQiReader {
             return Ok(false);
         }
         if self.chunk_buf.is_empty() || self.pos_in_chunk * self.row_bytes >= self.chunk_buf.len() {
-            // Refill from the next chunk.
             let chunk: Vec<u8> = self
                 .rows_array
                 .retrieve_chunk(&[self.chunk_idx, 0])
                 .map_err(zarr_err)?;
-            // Cache rows-per-chunk on first fetch.
             if self.chunk_rows == 0 && self.row_bytes > 0 {
                 self.chunk_rows = chunk.len() / self.row_bytes;
             }
@@ -1081,11 +922,7 @@ impl ResQiReader {
         Ok(true)
     }
 
-    /// Apply this quasi-inverse to all the vectors in `inputs`, accumulating the results into
-    /// `results`.
-    ///
-    /// Mirrors the semantics of the legacy `QuasiInverse::stream_quasi_inverse` but reads from
-    /// the structured zarr layout.
+    /// Apply this quasi-inverse to `inputs`, adding the results into `results`.
     pub fn apply<T, S>(mut self, results: &mut [T], inputs: &[S]) -> anyhow::Result<()>
     where
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
@@ -1108,9 +945,7 @@ impl ResQiReader {
         Ok(())
     }
 
-    /// Materialize the full [`QuasiInverse`] in memory.
-    ///
-    /// Used by the load-on-resume path; for streaming application, prefer [`Self::apply`].
+    /// Read the whole [`QuasiInverse`] into memory; [`Self::apply`] streams it instead.
     pub fn into_quasi_inverse(mut self) -> anyhow::Result<QuasiInverse> {
         let mut rows: Vec<FpVector> = Vec::with_capacity(self.image_dim);
         for _ in 0..self.image_dim {
@@ -1126,25 +961,15 @@ impl ResQiReader {
 
 // --- NassauQi writer/reader ---
 
-/// One command in a NassauQi command stream.
-///
-/// Mirrors the original bytecode but as discrete typed values instead of an inline `i64` magic
-/// number stream.
+/// One command of a NassauQi command stream.
 #[derive(Debug, Clone)]
 pub enum NassauCommand {
-    /// Switch to a new subalgebra signature.
-    ///
-    /// Subsequent pivot lifts are expressed in the masked basis under this signature.
+    /// Switch to a subalgebra signature; later lifts are in its masked basis.
     Signature(Vec<u16>),
-    /// "Differential fix" — emitted (at most once) at the end of the zero-signature section
-    /// when the bidegree was resolved through stem rather than through `t`.
-    ///
-    /// Carries no payload.
+    /// Ends the zero-signature section of a bidegree resolved through a stem rather than `t`.
     Fix,
-    /// A pivot column with its lift and image.
-    ///
-    /// `lift_bytes` and `image_bytes` are raw `FpVector` limb serialisations; the caller knows
-    /// the dimensions from the current signature state and `target_dim`.
+    /// A pivot column with its lift and image, as raw `FpVector` limbs; their dimensions come from
+    /// the current signature and `target_dim`.
     Pivot {
         col: u64,
         lift_bytes: Vec<u8>,
@@ -1155,12 +980,7 @@ pub enum NassauCommand {
 const NASSAU_CODE_SIGNATURE: i64 = -2;
 const NASSAU_CODE_FIX: i64 = -3;
 
-/// Writer for a structured NassauQi.
-///
-/// Each call to a `write_*` method appends one command to the in-memory buffer; the buffer is
-/// flushed to the underlying zarr `commands` array when `CHUNK_NASSAU_COMMANDS` commands have
-/// accumulated. `finish()` flushes any remaining commands and commits the `num_commands` and
-/// `finished` group attributes.
+/// Writer for a NassauQi, flushing every `CHUNK_NASSAU_COMMANDS` commands.
 pub struct NassauQiWriter {
     store: ReadableWritableListableStorage,
     group_path: String,
@@ -1187,8 +1007,7 @@ impl NassauQiWriter {
         }
         let mut chunk = std::mem::take(&mut self.command_buf);
         if pad {
-            // Pad to chunk shape with empty elements; the reader knows num_commands and ignores
-            // them.
+            // Pad to the chunk shape; the reader stops at `num_commands`.
             chunk.resize_with(CHUNK_NASSAU_COMMANDS as usize, Vec::new);
         }
         self.commands_array
@@ -1229,8 +1048,7 @@ impl NassauQiWriter {
         self.add_command(bytes)
     }
 
-    /// Finalize: flush the partial last chunk and commit the `num_commands` and
-    /// `finished = true` attributes.
+    /// Flush the last chunk and commit `num_commands` and `finished`.
     pub fn finish(mut self) -> anyhow::Result<()> {
         let total = self.commands_written;
         self.flush_chunk(true)?;
@@ -1244,10 +1062,7 @@ impl NassauQiWriter {
     }
 }
 
-/// Streaming reader for a structured NassauQi.
-///
-/// Yields one [`NassauCommand`] at a time, fetching chunks from the underlying `commands` array
-/// on demand.
+/// Streaming reader for a NassauQi's commands, one chunk at a time.
 pub struct NassauQiReader {
     target_dim: u64,
     zero_mask_dim: u64,
@@ -1286,9 +1101,7 @@ impl NassauQiReader {
                     "NassauQi signature payload has odd length {}",
                     payload.len()
                 );
-                // Even length checked above, so `as_chunks` leaves no remainder. (Using
-                // `as_chunks` rather than `chunks_exact(2)` also satisfies clippy's
-                // `chunks_exact_to_as_chunks` lint on nightly.)
+                // The length was checked to be even, so `as_chunks` leaves no remainder.
                 let sig: Vec<u16> = payload
                     .as_chunks::<2>()
                     .0
@@ -1352,15 +1165,10 @@ impl Iterator for NassauQiReader {
 
 // --- SaveCoords, SaveKind, SaveDirectory ---
 
-/// Anything that names a save location, parameterised by its dimension `N`.
+/// A save location with `N` coordinates `(n, s, [idx])`.
 ///
-/// [`Bidegree`] is `SaveCoords<2>` and [`BidegreeGenerator`] is `SaveCoords<3>`, so methods that
-/// only make sense in one of those dimensions (e.g. the stream-tier writer / reader, which are
-/// per-bidegree) can take `impl SaveCoords<2>` and refuse the other type at compile time. The
-/// store reads `(n, s, [idx])` from this, shifts `n` by the internal `N_MIN` offset, and uses
-/// the result as a zarr index. Implementing this trait for `MultiDegree<N>` /
-/// `MultiDegreeGenerator<N>` would extend the same API to higher-`N` gradings without further
-/// changes here.
+/// [`Bidegree`] is `SaveCoords<2>` and [`BidegreeGenerator`] is `SaveCoords<3>`, so a
+/// per-bidegree method takes `impl SaveCoords<2>` and rejects a generator at compile time.
 pub trait SaveCoords<const N: usize> {
     fn save_coords(&self) -> [i32; N];
 }
@@ -1410,12 +1218,9 @@ impl SaveKind {
         }
     }
 
-    /// Whether this kind uses 3D indexing `(n, s, idx)`.
+    /// Whether this kind is indexed by `(n, s, idx)`, with `idx` enumerating basis elements.
     ///
-    /// The third coordinate is an intra-lift enumeration over basis elements; multi-hom
-    /// disambiguation is handled by the store's group prefix, not by an extra coordinate.
-    /// `SecondaryHomotopy` is per-bidegree (data for all generators is concatenated), so it
-    /// stays 2D.
+    /// `SecondaryHomotopy` concatenates every generator of a bidegree, so it is 2D.
     fn is_indexed(self) -> bool {
         matches!(self, Self::SecondaryComposite | Self::SecondaryIntermediate)
     }
@@ -1466,10 +1271,7 @@ impl SaveDirectory {
 impl TryFrom<Option<PathBuf>> for SaveDirectory {
     type Error = anyhow::Error;
 
-    /// `None` yields [`SaveDirectory::None`]; `Some(path)` opens (or creates) the zarr store at
-    /// that path. Store creation is fallible (bad path, permissions, corrupt existing metadata),
-    /// so this is a `TryFrom` rather than a panicking `From` — the error propagates through the
-    /// `new_with_save` / `construct*` call chain instead of aborting.
+    /// `None` is [`SaveDirectory::None`]; `Some(path)` opens or creates the store there.
     fn try_from(x: Option<PathBuf>) -> anyhow::Result<Self> {
         match x {
             None => Ok(Self::None),
