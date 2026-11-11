@@ -51,6 +51,30 @@ fn read_prefix_matches_read() {
     assert!(store.read_prefix(SaveKind::ChainMap, b, 17).is_err());
 }
 
+/// `read` decodes elements itself and checks their CRC: a flipped payload byte is reported as a
+/// corrupt element, while `read_prefix`, which does not read that byte, still succeeds.
+#[test]
+fn read_checks_the_element_crc() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let store = ZarrSaveStore::create(tempdir.path()).unwrap();
+    let b = Bidegree::n_s(0, 3);
+    let data: Vec<u8> = (0..100u8).collect();
+    store.write(SaveKind::ChainMap, b, &data).unwrap();
+    assert_eq!(store.read(SaveKind::ChainMap, b).unwrap().unwrap(), data);
+
+    // The only element of its shard starts the file: 8 bytes of framing, then the payload.
+    let shard = tempdir.path().join("chain_map/c/128/0");
+    let mut bytes = std::fs::read(&shard).unwrap();
+    bytes[8 + 50] ^= 1;
+    std::fs::write(&shard, bytes).unwrap();
+
+    let reopened = ZarrSaveStore::create(tempdir.path()).unwrap();
+    let err = reopened.read(SaveKind::ChainMap, b).unwrap_err();
+    assert!(err.to_string().contains("corrupt element"), "{err:#}");
+    let prefix = reopened.read_prefix(SaveKind::ChainMap, b, 16).unwrap();
+    assert_eq!(prefix.as_deref(), Some(&data[..16]));
+}
+
 #[cfg(feature = "nassau")]
 mod nassau {
     use ext::{

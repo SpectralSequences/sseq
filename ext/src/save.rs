@@ -186,6 +186,8 @@ pub struct ZarrSaveStore {
     /// An `Array` holds no chunk data and its methods take `&self`, so one handle serves
     /// concurrent reads and shard-serialized writes.
     arrays: DashMap<SaveKind, Arc<ShardArray>>,
+    /// Whether each opened array has the layout [`Self::read_raw`] decodes.
+    raw_layout: DashMap<SaveKind, bool>,
     /// One lock per shard: shared by reads, exclusive for writes.
     ///
     /// The sharding codec rewrites the whole shard on every store, so concurrent writes to one
@@ -225,6 +227,7 @@ impl ZarrSaveStore {
             group: String::new(),
             created: DashSet::new(),
             arrays: DashMap::new(),
+            raw_layout: DashMap::new(),
             shard_locks: DashMap::new(),
         })
     }
@@ -350,6 +353,7 @@ impl ZarrSaveStore {
             group,
             created: DashSet::new(),
             arrays: DashMap::new(),
+            raw_layout: DashMap::new(),
             shard_locks: DashMap::new(),
         })
     }
@@ -544,6 +548,9 @@ impl ZarrSaveStore {
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
         let lock = self.shard_lock(kind, &zarr_coords);
         let _guard = lock.read().unwrap();
+        if self.has_raw_layout(kind, &arr) {
+            return self.read_raw(&arr, &zarr_coords, None);
+        }
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
         // Sequential codecs, as in `write`.
         let data: Vec<Vec<u8>> = arr
@@ -558,10 +565,8 @@ impl ZarrSaveStore {
     /// The first `len` bytes of the `kind` payload at `location`, or `None` if none was written.
     ///
     /// Reads the shard index and those bytes, not the whole element, so it can read a header
-    /// without its payload. It decodes the shard layout that [`Self::ensure_shard_array`] creates
-    /// by hand: an index of `(offset, nbytes)` pairs at the end of the shard, under a CRC32C, and
-    /// each element encoded as one-item `vlen-bytes` (a `u32` count and a `u32` length) followed by
-    /// its own CRC32C. That element CRC covers bytes this does not read, so it goes unchecked.
+    /// without its payload. The element's CRC covers bytes this does not read, so it goes
+    /// unchecked. Errors for an array without the layout [`Self::read_raw`] decodes.
     pub fn read_prefix<const N: usize>(
         &self,
         kind: SaveKind,
@@ -577,17 +582,58 @@ impl ZarrSaveStore {
             Some(arr) => arr,
             None => return Ok(None),
         };
+        anyhow::ensure!(
+            self.has_raw_layout(kind, &arr),
+            "{kind:?} does not have the shard layout read_prefix decodes"
+        );
         let zarr_coords = Self::shard_zarr_coords(location.save_coords());
-        let shard = &Self::shard_coords(&zarr_coords)[..N];
+        let lock = self.shard_lock(kind, &zarr_coords);
+        let _guard = lock.read().unwrap();
+        self.read_raw(&arr, &zarr_coords, Some(len))
+    }
+
+    /// Whether `kind`'s array has the layout [`Self::ensure_shard_array`] creates, which
+    /// [`Self::read_raw`] decodes by hand. Checked once per array.
+    fn has_raw_layout(&self, kind: SaveKind, arr: &ShardArray) -> bool {
+        *self.raw_layout.entry(kind).or_insert_with(|| {
+            let ones = vec![1; arr.shape().len()];
+            let expected = serde_json::json!([{
+                "name": "sharding_indexed",
+                "configuration": {
+                    "chunk_shape": ones,
+                    "codecs": [{ "name": "vlen-bytes" }, { "name": "crc32c" }],
+                    "index_codecs": [
+                        { "name": "bytes", "configuration": { "endian": "little" } },
+                        { "name": "crc32c" }
+                    ],
+                    "index_location": "end"
+                }
+            }]);
+            serde_json::to_value(arr.metadata())
+                .is_ok_and(|meta| meta.get("codecs") == Some(&expected))
+        })
+    }
+
+    /// The element at `zarr_coords`, or its first `prefix` bytes, decoded by hand; `None` if none
+    /// was written. The caller holds the shard's lock.
+    ///
+    /// The shard ends in an index of `(offset, nbytes)` pairs, one per element, under a CRC32C.
+    /// Each element is one-item `vlen-bytes` (a `u32` count and a `u32` length, then the bytes)
+    /// followed by a CRC32C of all that. Reading it in one range copies it once, where the codec
+    /// pipeline copies it at each stage.
+    fn read_raw(
+        &self,
+        arr: &ShardArray,
+        zarr_coords: &[u64],
+        prefix: Option<usize>,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
         let shape = [SHARD_N, SHARD_S, SHARD_IDX];
         let (mut inner, mut cells) = (0, 1);
         for (c, s) in zarr_coords.iter().zip(shape) {
             inner = inner * s + c % s;
             cells *= s;
         }
-        let key = arr.chunk_key(shard);
-        let lock = self.shard_lock(kind, &zarr_coords);
-        let _guard = lock.read().unwrap();
+        let key = arr.chunk_key(&Self::shard_coords(zarr_coords)[..zarr_coords.len()]);
 
         let index_len = 16 * cells;
         let Some(index) = self
@@ -608,14 +654,16 @@ impl ZarrSaveStore {
         if offset == u64::MAX {
             return Ok(None);
         }
+        anyhow::ensure!(nbytes >= 12, "element of {nbytes} bytes in {key}");
 
-        let head = self
+        let read_len = prefix.map_or(nbytes, |len| (8 + len as u64).min(nbytes));
+        let bytes = self
             .store
-            .get_partial(&key, ByteRange::FromStart(offset, Some(8 + len as u64)))
+            .get_partial(&key, ByteRange::FromStart(offset, Some(read_len)))
             .map_err(zarr_err)?
             .with_context(|| format!("shard {key} vanished during a read"))?;
-        let count = u32::from_le_bytes(head[..4].try_into().unwrap());
-        let length = u32::from_le_bytes(head[4..8].try_into().unwrap()) as u64;
+        let count = u32::from_le_bytes(bytes[..4].try_into().unwrap());
+        let length = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as u64;
         anyhow::ensure!(
             count == 1 && 8 + length + 4 == nbytes,
             "unexpected element framing in {key}"
@@ -623,11 +671,23 @@ impl ZarrSaveStore {
         if length == 0 {
             return Ok(None);
         }
-        anyhow::ensure!(
-            len as u64 <= length,
-            "prefix of {len} bytes from a {length}-byte element in {key}"
-        );
-        Ok(Some(head[8..].to_vec()))
+        match prefix {
+            Some(len) => {
+                anyhow::ensure!(
+                    len as u64 <= length,
+                    "prefix of {len} bytes from a {length}-byte element in {key}"
+                );
+                Ok(Some(bytes[8..].to_vec()))
+            }
+            None => {
+                let (body, crc) = bytes.split_at(bytes.len() - 4);
+                anyhow::ensure!(
+                    crc32c::crc32c(body) == u32::from_le_bytes(crc.try_into().unwrap()),
+                    "corrupt element in {key}"
+                );
+                Ok(Some(body[8..].to_vec()))
+            }
+        }
     }
 
     /// Check if a sharded payload exists.
