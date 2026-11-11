@@ -26,6 +26,7 @@ anyhow = "1.0.98"
 bitcode = { version = "0.6", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 byteorder = "1.5.0"
+crc32c = "0.6"
 dashmap = "6.1.0"
 itertools = { version = "0.14.0", default-features = false, features = [
     "use_alloc",

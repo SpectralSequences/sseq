@@ -51,11 +51,11 @@ impl<
             && !right.name().is_empty()
             && let Some(parent) = left.source.save_dir().store()
         {
-            SaveDirectory::Store(
+            SaveDirectory::Store(Arc::new(
                 parent
                     .subgroup(&format!("homotopies/{}__{}", left.name(), right.name()))
                     .expect("Failed to create homotopies subgroup"),
-            )
+            ))
         } else {
             SaveDirectory::None
         };

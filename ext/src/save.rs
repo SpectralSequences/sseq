@@ -16,7 +16,10 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use zarrs::{
     array::{ArrayBuilder, ArraySubset, CodecOptions, codec::Crc32cCodec, data_type},
     group::GroupBuilder,
-    storage::{ReadableWritableListableStorage, ReadableWritableListableStorageTraits},
+    storage::{
+        ReadableWritableListableStorage, ReadableWritableListableStorageTraits,
+        byte_range::ByteRange,
+    },
 };
 
 // zarr's `filesystem` and `zstd` features build only under `cfg(any(windows, unix))`, the condition
@@ -550,6 +553,81 @@ impl ZarrSaveStore {
             Some(element) if !element.is_empty() => Ok(Some(element)),
             _ => Ok(None),
         }
+    }
+
+    /// The first `len` bytes of the `kind` payload at `location`, or `None` if none was written.
+    ///
+    /// Reads the shard index and those bytes, not the whole element, so it can read a header
+    /// without its payload. It decodes the shard layout that [`Self::ensure_shard_array`] creates
+    /// by hand: an index of `(offset, nbytes)` pairs at the end of the shard, under a CRC32C, and
+    /// each element encoded as one-item `vlen-bytes` (a `u32` count and a `u32` length) followed by
+    /// its own CRC32C. That element CRC covers bytes this does not read, so it goes unchecked.
+    pub fn read_prefix<const N: usize>(
+        &self,
+        kind: SaveKind,
+        location: impl SaveCoords<N>,
+        len: usize,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
+        assert!(
+            !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
+            "read_prefix() is only for sharded kinds, got {:?}",
+            kind
+        );
+        let arr = match self.shard_array(kind, false)? {
+            Some(arr) => arr,
+            None => return Ok(None),
+        };
+        let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let shard = &Self::shard_coords(&zarr_coords)[..N];
+        let shape = [SHARD_N, SHARD_S, SHARD_IDX];
+        let (mut inner, mut cells) = (0, 1);
+        for (c, s) in zarr_coords.iter().zip(shape) {
+            inner = inner * s + c % s;
+            cells *= s;
+        }
+        let key = arr.chunk_key(shard);
+        let lock = self.shard_lock(kind, &zarr_coords);
+        let _guard = lock.read().unwrap();
+
+        let index_len = 16 * cells;
+        let Some(index) = self
+            .store
+            .get_partial(&key, ByteRange::Suffix(index_len + 4))
+            .map_err(zarr_err)?
+        else {
+            return Ok(None);
+        };
+        let (index, crc) = index.split_at(index_len as usize);
+        anyhow::ensure!(
+            crc32c::crc32c(index) == u32::from_le_bytes(crc.try_into().unwrap()),
+            "corrupt shard index in {key}"
+        );
+        let entry = &index[16 * inner as usize..][..16];
+        let offset = u64::from_le_bytes(entry[..8].try_into().unwrap());
+        let nbytes = u64::from_le_bytes(entry[8..].try_into().unwrap());
+        if offset == u64::MAX {
+            return Ok(None);
+        }
+
+        let head = self
+            .store
+            .get_partial(&key, ByteRange::FromStart(offset, Some(8 + len as u64)))
+            .map_err(zarr_err)?
+            .with_context(|| format!("shard {key} vanished during a read"))?;
+        let count = u32::from_le_bytes(head[..4].try_into().unwrap());
+        let length = u32::from_le_bytes(head[4..8].try_into().unwrap()) as u64;
+        anyhow::ensure!(
+            count == 1 && 8 + length + 4 == nbytes,
+            "unexpected element framing in {key}"
+        );
+        if length == 0 {
+            return Ok(None);
+        }
+        anyhow::ensure!(
+            len as u64 <= length,
+            "prefix of {len} bytes from a {length}-byte element in {key}"
+        );
+        Ok(Some(head[8..].to_vec()))
     }
 
     /// Check if a sharded payload exists.
@@ -1249,7 +1327,9 @@ impl SaveKind {
 #[derive(Debug)]
 pub enum SaveDirectory {
     None,
-    Store(ZarrSaveStore),
+    /// Shared, so that what reads the store later (such as a lazily loaded homomorphism) uses the
+    /// same shard locks as its writers.
+    Store(Arc<ZarrSaveStore>),
 }
 
 impl SaveDirectory {
@@ -1267,6 +1347,14 @@ impl SaveDirectory {
             Self::Store(s) => Some(s),
         }
     }
+
+    /// The store, as a handle that can outlive this borrow.
+    pub fn store_arc(&self) -> Option<Arc<ZarrSaveStore>> {
+        match self {
+            Self::None => None,
+            Self::Store(s) => Some(Arc::clone(s)),
+        }
+    }
 }
 
 impl TryFrom<Option<PathBuf>> for SaveDirectory {
@@ -1276,7 +1364,7 @@ impl TryFrom<Option<PathBuf>> for SaveDirectory {
     fn try_from(x: Option<PathBuf>) -> anyhow::Result<Self> {
         match x {
             None => Ok(Self::None),
-            Some(p) => Ok(Self::Store(ZarrSaveStore::create(p)?)),
+            Some(p) => Ok(Self::Store(Arc::new(ZarrSaveStore::create(p)?))),
         }
     }
 }

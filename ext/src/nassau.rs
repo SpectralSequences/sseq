@@ -7,7 +7,9 @@ use algebra::{
     milnor_algebra::{MilnorAlgebra, MilnorBasisElement, MilnorProfile, PPart, PPartEntry},
     module::{
         FreeModule, GeneratorData, Module, ZeroModule,
-        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
+        homomorphism::{
+            FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism, OutputLoader,
+        },
     },
 };
 use anyhow::anyhow;
@@ -389,6 +391,21 @@ impl Iterator for SubalgebraIterator {
 /// profile. The exterior shape at `p = 2` is $A^{\mathbb{C}}/\tau$, and at odd primes the
 /// classical algebra. Both need the `odd-primes` feature, without which basis elements compare by
 /// their p-part alone.
+/// Decode a saved differential into its number of new generators and the value on each.
+///
+/// The saved target dimension need not be the current one. If a big resolution was saved and only
+/// a small stem is loaded now, the current one is smaller; if a small one was saved and is now
+/// resolved further, it is bigger.
+fn read_differential(p: ValidPrime, data: &[u8]) -> anyhow::Result<(usize, Vec<FpVector>)> {
+    let mut f = std::io::Cursor::new(data);
+    let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
+    let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
+    let d_targets = (0..num_new_gens)
+        .map(|_| FpVector::from_bytes(p, saved_target_res_dimension, &mut f))
+        .collect::<std::io::Result<_>>()?;
+    Ok((num_new_gens, d_targets))
+}
+
 pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
     name: String,
@@ -403,6 +420,9 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     target: Arc<FiniteChainComplex<M>>,
     chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: SaveDirectory,
+    /// Whether a saved differential is read when its bidegree is loaded, rather than on first use.
+    /// See [`Self::set_load_eagerly`].
+    load_eagerly: bool,
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
@@ -450,7 +470,35 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             target,
             max_degree,
             save_dir,
+            load_eagerly: std::env::var_os("EXT_LOAD_EAGERLY").is_some_and(|v| v != "0"),
         })
+    }
+
+    /// Read each saved differential when its bidegree is loaded, instead of on first use.
+    ///
+    /// By default, loading a bidegree from the save reads only its generator count, and the
+    /// differential's values are read the first time something needs them. That keeps in memory
+    /// only what a computation touches, at the cost of a store read on that first use. Eager
+    /// loading holds the whole differential from the start, which suits a resolution that fits in
+    /// memory and will be read throughout. `EXT_LOAD_EAGERLY=1` sets it from the environment.
+    pub fn set_load_eagerly(&mut self, eager: bool) {
+        self.load_eagerly = eager;
+    }
+
+    /// The loader for the differential out of filtration `s`: it reads the saved bidegree.
+    fn differential_loader(&self, s: i32) -> Option<OutputLoader> {
+        let store = self.save_dir.store_arc()?;
+        let p = self.prime();
+        Some(Arc::new(move |t| {
+            let b = Bidegree::s_t(s, t);
+            let data = store
+                .read(SaveKind::NassauDifferential, b)
+                .and_then(|d| d.ok_or_else(|| anyhow!("missing from the store")))
+                .unwrap_or_else(|e| panic!("reading the differential at {b}: {e:#}"));
+            read_differential(p, &data)
+                .unwrap_or_else(|e| panic!("decoding the differential at {b}: {e:#}"))
+                .1
+        }))
     }
 
     fn add_generators(&self, b: Bidegree, num_new_gens: usize) {
@@ -484,11 +532,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
 
         self.differentials.extend(max_s, |i| {
-            Arc::new(FreeModuleHomomorphism::new(
+            let d = FreeModuleHomomorphism::new(
                 Arc::clone(&self.modules[i]),
                 Arc::clone(&self.modules[i - 1]),
                 0,
-            ))
+            );
+            if let Some(loader) = self.differential_loader(i) {
+                d.set_loader(loader);
+            }
+            Arc::new(d)
         });
 
         self.chain_maps.extend(max_s, |i| {
@@ -931,27 +983,27 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         // A save file holds only the differential, which determines the step above `s = 0`, where
         // the chain map is zero.
         if b.s() > 0
+            && !self.load_eagerly
+            && let Some(store) = self.save_dir.store()
+            && let Some(header) = store.read_prefix(SaveKind::NassauDifferential, b, 16)?
+        {
+            tracing::debug!(%b, "Registering saved differential");
+            let num_new_gens = u64::from_le_bytes(header[..8].try_into().unwrap()) as usize;
+            self.add_generators(b, num_new_gens);
+            self.differentials[b.s()].add_generators_lazily(b.t());
+            self.chain_maps[b.s()].extend_by_zero(b.t());
+            set_data();
+            return Ok(());
+        }
+
+        if b.s() > 0
             && let Some(store) = self.save_dir.store()
             && let Some(data) = store.read(SaveKind::NassauDifferential, b)?
         {
             tracing::info!(%b, "Loading differential");
 
-            let mut f = std::io::Cursor::new(data);
-            let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
-            // This need not be equal to `target_res_dimension`. If we saved a big resolution
-            // and now only want to load up to a small stem, then `target_res_dimension` will
-            // be smaller. If we have previously saved a small resolution up to a stem and now
-            // want to resolve further, it will be bigger.
-            let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
-
+            let (num_new_gens, d_targets) = read_differential(p, &data)?;
             self.add_generators(b, num_new_gens);
-
-            let mut d_targets = Vec::with_capacity(num_new_gens);
-
-            for _ in 0..num_new_gens {
-                d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
-            }
-
             self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
             self.chain_maps[b.s()].extend_by_zero(b.t());
 

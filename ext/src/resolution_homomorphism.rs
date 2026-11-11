@@ -53,11 +53,11 @@ where
         let save_dir = if !name.is_empty()
             && let Some(parent) = source.save_dir().store()
         {
-            SaveDirectory::Store(
+            SaveDirectory::Store(Arc::new(
                 parent
                     .subgroup(&format!("products/{name}"))
                     .expect("Failed to create products subgroup"),
-            )
+            ))
         } else {
             SaveDirectory::None
         };
