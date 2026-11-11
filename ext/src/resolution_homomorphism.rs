@@ -9,7 +9,6 @@ use algebra::{
         homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
 };
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::Matrix,
     vector::{FpSliceMut, FpVector},
@@ -39,6 +38,9 @@ where
     pub target: Arc<CC2>,
     maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC2::Module>>>,
     pub shift: Bidegree,
+    /// The `products/{name}` subgroup of the source's save directory.
+    ///
+    /// It holds this chain map and its secondary lifts, and is `None` for an unnamed homomorphism.
     save_dir: SaveDirectory,
 }
 
@@ -49,17 +51,17 @@ where
     CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn new(name: String, source: Arc<CC1>, target: Arc<CC2>, shift: Bidegree) -> Self {
-        let save_dir = if source.save_dir().is_some() && !name.is_empty() {
-            let mut save_dir = source.save_dir().clone();
-            save_dir.push(format!("products/{name}"));
-            SaveKind::ChainMap
-                .create_dir(save_dir.write().unwrap())
-                .unwrap();
-            save_dir
+        let save_dir = if !name.is_empty()
+            && let Some(parent) = source.save_dir().store()
+        {
+            SaveDirectory::Store(
+                parent
+                    .subgroup(&format!("products/{name}"))
+                    .expect("Failed to create products subgroup"),
+            )
         } else {
             SaveDirectory::None
         };
-
         Self {
             name,
             source,
@@ -310,35 +312,37 @@ where
             );
         }
 
-        if let Some(dir) = self.save_dir.read() {
+        if let Some(store) = self.save_dir.store()
+            && let Some(data) = store
+                .read(SaveKind::ChainMap, input)
+                .unwrap_or_else(|e| panic!("reading chain map {:?} at {input}: {e:#}", self.name))
+        {
+            let mut cursor = &data[..];
             let mut outputs = Vec::with_capacity(num_gens);
-
-            if let Some(mut f) = self
-                .source
-                .save_file(SaveKind::ChainMap, input)
-                .open_file(dir.to_owned())
-            {
-                let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
-                for _ in 0..num_gens {
-                    outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
-                }
-                return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
+            for _ in 0..num_gens {
+                outputs.push(
+                    FpVector::from_bytes(p, fx_dimension, &mut cursor).unwrap_or_else(|e| {
+                        panic!("decoding chain map {:?} at {input}: {e}", self.name)
+                    }),
+                );
             }
+            return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
         }
 
         if output.s() == 0 {
             let outputs =
                 extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
 
-            if let Some(dir) = self.save_dir.write() {
-                let mut f = self
-                    .source
-                    .save_file(SaveKind::ChainMap, input)
-                    .create_file(dir.clone(), false);
-                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+            if let Some(store) = self.save_dir.store() {
+                let mut buf = Vec::new();
                 for row in &outputs {
-                    row.to_bytes(&mut f).unwrap();
+                    row.to_bytes(&mut buf).unwrap();
                 }
+                store
+                    .write(SaveKind::ChainMap, input, &buf)
+                    .unwrap_or_else(|e| {
+                        panic!("writing chain map {:?} at {input}: {e:#}", self.name)
+                    });
             }
 
             return f_cur.add_generators_from_rows_ooo(input.t(), outputs);
@@ -406,15 +410,14 @@ where
             );
         }
 
-        if let Some(dir) = self.save_dir.write() {
-            let mut f = self
-                .source
-                .save_file(SaveKind::ChainMap, input)
-                .create_file(dir.clone(), false);
-            f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+        if let Some(store) = self.save_dir.store() {
+            let mut buf = Vec::new();
             for row in &outputs {
-                row.to_bytes(&mut f).unwrap();
+                row.to_bytes(&mut buf).unwrap();
             }
+            store
+                .write(SaveKind::ChainMap, input, &buf)
+                .unwrap_or_else(|e| panic!("writing chain map {:?} at {input}: {e:#}", self.name));
         }
         f_cur.add_generators_from_rows_ooo(input.t(), outputs)
     }
@@ -595,7 +598,7 @@ pub(crate) mod secondary {
     use super::ResolutionHomomorphism;
     use crate::{
         chain_complex::FreeChainComplex,
-        save::{SaveDirectory, SaveKind},
+        save::SaveDirectory,
         secondary::{
             CompositeData, LAMBDA_BIDEGREE, SecondaryHomotopy, SecondaryLift, SecondaryResolution,
         },
@@ -755,12 +758,6 @@ pub(crate) mod secondary {
         ) -> Self {
             assert!(Arc::ptr_eq(&underlying.source, &source.underlying()));
             assert!(Arc::ptr_eq(&underlying.target, &target.underlying()));
-
-            if let Some(p) = underlying.save_dir().write() {
-                for subdir in SaveKind::secondary_data() {
-                    subdir.create_dir(p).unwrap();
-                }
-            }
 
             Self {
                 source,
