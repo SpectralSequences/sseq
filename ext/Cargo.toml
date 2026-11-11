@@ -21,7 +21,6 @@ once = { path = "crates/once" }
 query = { path = "crates/query" }
 sseq = { path = "crates/sseq", default-features = false }
 
-adler = "1"
 anyhow = "1.0.98"
 bitcode = { version = "0.6", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -41,6 +40,9 @@ zstd = { version = "0.13.3", optional = true }
 # in-memory store of the `platform` modules in `src/save.rs`.
 [target.'cfg(any(windows, unix))'.dependencies]
 zarrs = { version = "0.23", default-features = false, features = ["filesystem", "sharding", "crc32c", "zstd"] }
+# Not used directly: the floor brings in `FilesystemStore::rename` and the sync after `set`, which
+# the atomic writes in `src/save.rs` rely on.
+zarrs_filesystem = "0.3.13"
 
 [target.'cfg(not(any(windows, unix)))'.dependencies]
 zarrs = { version = "0.23", default-features = false, features = ["sharding", "crc32c"] }

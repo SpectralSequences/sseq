@@ -20,17 +20,21 @@ The root group's attributes identify the complex: `algebra_magic`, `prime` and `
 bind the algebra, `module_spec` binds the module (the JSON it was built from), and `complex_name`
 is a label. Opening a store for a different algebra or module is an error.
 
+Each file is written to a temporary `{key}.{pid}.{n}.tmp` beside it and renamed into place, so an
+interrupted write leaves the old file intact. Nothing reads the temporary files, and one left by a
+crash can be deleted.
+
 ## Shard tier
 
 Each kind is one `vlen-bytes` array with one element per bidegree, indexed `[n - N_MIN, s]`
 (`N_MIN` is the most negative stem; stems can be negative), or per generator, indexed
-`[n - N_MIN, s, idx]`. Elements are grouped into shards with a CRC32C each. An empty element
-means nothing is saved there.
+`[n - N_MIN, s, idx]`. The shape grows as needed to cover every element. Elements are grouped
+into shards with a CRC32C each. An empty element means nothing is saved there.
 
 | kind | per | payload |
 |---|---|---|
 | `differential` | bidegree | `bitcode` of `{num_gens, target_res_dimension, target_cc_dimension, differentials, chain_maps}` |
-| `kernel` | bidegree | `rows: u64, ambient: u64`, the rows, the pivots: a subspace in reduced row echelon form |
+| `kernel` | bidegree | `bitcode` of the `Subspace`, in reduced row echelon form |
 | `augmentation_qi` | bidegree | `bitcode` of the quasi-inverse of the augmentation |
 | `nassau_differential` | bidegree | `num_new_gens: u64, target_dim: u64`, then `d` of each new generator |
 | `chain_map`, `chain_homotopy` | bidegree | the value on each generator of the source |
@@ -44,6 +48,8 @@ A `kernel` is deleted once the next filtration is computed.
 
 Quasi-inverses are too large to hold whole, so each is a zstd-compressed group read and written a
 chunk at a time. Its `finished` attribute is set last; a group without it is treated as missing.
+Every chunk is stored, even one equal to the fill value, so a finished group missing a chunk is
+corrupt.
 
 `res_qi` (the quasi-inverse of a standard resolution's differential): attributes `source_dim`,
 `target_dim` and `image_dim`; `pivots`, an `i64` array of length `target_dim`; and `rows`, a `u8`

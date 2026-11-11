@@ -161,6 +161,7 @@ fn test_load_secondary() {
     lift3.compute_homotopies();
 }
 
+/// A save records its data as zarr arrays and identifies its complex in the root group.
 #[test]
 fn test_zarr_store_exists() {
     let tempdir = tempfile::TempDir::new().unwrap();
@@ -232,4 +233,148 @@ fn test_construct_from_save_missing_spec() {
 
     let tempdir = tempfile::TempDir::new().unwrap();
     assert!(construct_from_save(tempdir.path()).is_err());
+}
+
+/// A write past an array's shape grows the shape before storing, so the array's metadata covers
+/// every element in it.
+#[test]
+fn test_shard_array_grows() {
+    use ext::save::{SaveKind, ZarrSaveStore};
+    use sseq::coordinates::BidegreeGenerator;
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let store = ZarrSaveStore::create(tempdir.path()).unwrap();
+    let shape = || -> Vec<u64> {
+        let meta =
+            std::fs::read_to_string(tempdir.path().join("secondary_composite/zarr.json")).unwrap();
+        let meta: serde_json::Value = serde_json::from_str(&meta).unwrap();
+        serde_json::from_value(meta["shape"].clone()).unwrap()
+    };
+
+    let near = BidegreeGenerator::n_s(3, 2, 0);
+    store
+        .write(SaveKind::SecondaryComposite, near, b"near")
+        .unwrap();
+    let initial = shape();
+
+    let far = BidegreeGenerator::n_s(3, 2, initial[2] as usize + 5);
+    store
+        .write(SaveKind::SecondaryComposite, far, b"far")
+        .unwrap();
+    let grown = shape();
+    assert!(grown[2] > initial[2] + 5, "{initial:?} -> {grown:?}");
+    assert_eq!(grown[..2], initial[..2]);
+
+    // A second handle, opened from disk, reads both elements.
+    let reopened = ZarrSaveStore::create(tempdir.path()).unwrap();
+    for (g, data) in [(near, &b"near"[..]), (far, &b"far"[..])] {
+        assert_eq!(
+            reopened
+                .read(SaveKind::SecondaryComposite, g)
+                .unwrap()
+                .as_deref(),
+            Some(data)
+        );
+    }
+}
+
+/// Two handles on one subgroup share its shard locks, so writes through both to elements of one
+/// shard are all kept, and every write leaves no temporary file behind.
+#[test]
+fn test_subgroup_handles_share_locks() {
+    use ext::save::{SaveKind, ZarrSaveStore};
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let root = ZarrSaveStore::create(tempdir.path()).unwrap();
+    let handles = [
+        root.subgroup("products/f").unwrap(),
+        root.subgroup("products/f").unwrap(),
+    ];
+    // Stems 0..8 and filtrations 0..8 fall in one shard.
+    let cells: Vec<Bidegree> = (0..8)
+        .flat_map(|n| (0..8).map(move |s| Bidegree::n_s(n, s)))
+        .collect();
+
+    std::thread::scope(|scope| {
+        for (i, handle) in handles.iter().enumerate() {
+            let cells = &cells;
+            scope.spawn(move || {
+                for (j, &b) in cells.iter().enumerate() {
+                    if j % 2 == i {
+                        handle
+                            .write(SaveKind::ChainMap, b, format!("{b}").as_bytes())
+                            .unwrap();
+                    }
+                }
+            });
+        }
+    });
+
+    for &b in &cells {
+        assert_eq!(
+            handles[0].read(SaveKind::ChainMap, b).unwrap(),
+            Some(format!("{b}").into_bytes()),
+            "lost the write at {b}"
+        );
+    }
+
+    let mut stack = vec![tempdir.path().to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            assert!(
+                !path.to_string_lossy().ends_with(".tmp"),
+                "left a temporary file: {path:?}"
+            );
+            if path.is_dir() {
+                stack.push(path);
+            }
+        }
+    }
+}
+
+/// A finished quasi-inverse missing one of its chunks is an error, not rows of zeros.
+#[test]
+fn test_res_qi_missing_chunk() {
+    use ext::save::ZarrSaveStore;
+    use fp::prime::ValidPrime;
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let resolution = construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
+    resolution.compute_through_stem(Bidegree::n_s(6, 4));
+    drop(resolution);
+
+    // Pick a saved quasi-inverse with at least one row.
+    let qi_dir = tempdir.path().join("qi");
+    let (b, chunk) = std::fs::read_dir(&qi_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .find_map(|name| {
+            let chunk = qi_dir.join(&name).join("res_qi/rows/c/0/0");
+            let (n, s) = name.strip_prefix('n')?.split_once("_s")?;
+            chunk
+                .exists()
+                .then(|| (Bidegree::n_s(n.parse().unwrap(), s.parse().unwrap()), chunk))
+        })
+        .expect("no saved quasi-inverse has rows");
+
+    let store = ZarrSaveStore::create(tempdir.path()).unwrap();
+    let p = ValidPrime::new(2);
+    assert!(
+        store
+            .stream_res_qi(b, p)
+            .unwrap()
+            .unwrap()
+            .into_quasi_inverse()
+            .is_ok()
+    );
+
+    std::fs::remove_file(chunk).unwrap();
+    let err = store
+        .stream_res_qi(b, p)
+        .unwrap()
+        .unwrap()
+        .into_quasi_inverse()
+        .unwrap_err();
+    assert!(err.to_string().contains("missing"), "{err:#}");
 }

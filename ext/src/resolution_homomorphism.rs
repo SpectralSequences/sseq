@@ -38,8 +38,9 @@ where
     pub target: Arc<CC2>,
     maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC2::Module>>>,
     pub shift: Bidegree,
-    /// The `products/{name}` subgroup of the source's save directory, for this chain map and its
-    /// secondary lifts; `None` for an unnamed homomorphism.
+    /// The `products/{name}` subgroup of the source's save directory.
+    ///
+    /// It holds this chain map and its secondary lifts, and is `None` for an unnamed homomorphism.
     save_dir: SaveDirectory,
 }
 

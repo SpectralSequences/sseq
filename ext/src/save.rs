@@ -2,7 +2,7 @@
 
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 
 use anyhow::Context;
@@ -26,15 +26,120 @@ use zarrs::{
 
 #[cfg(any(windows, unix))]
 mod platform {
-    use std::sync::LazyLock;
+    use std::sync::{
+        LazyLock,
+        atomic::{AtomicU64, Ordering},
+    };
 
-    use zarrs::{array::codec::ZstdCodec, filesystem::FilesystemStore};
+    use zarrs::{
+        array::codec::ZstdCodec,
+        filesystem::FilesystemStore,
+        storage::{
+            AtomicRenameStorageTraits, Bytes, ListableStorageTraits, MaybeBytesIterator,
+            OffsetBytesIterator, ReadableStorageTraits, StorageError, StoreKey, StoreKeys,
+            StoreKeysPrefixes, StorePrefix, WritableStorageTraits, byte_range::ByteRangeIterator,
+        },
+    };
 
     use super::*;
 
     /// Open the on-disk zarr store rooted at `path`.
     pub fn open_store(path: &Path) -> anyhow::Result<ReadableWritableListableStorage> {
-        Ok(Arc::new(FilesystemStore::new(path)?))
+        Ok(Arc::new(AtomicWrites {
+            inner: FilesystemStore::new(path)?,
+            next_temporary: AtomicU64::new(0),
+        }))
+    }
+
+    /// A [`FilesystemStore`] whose writes replace each file atomically.
+    ///
+    /// `FilesystemStore::set` truncates the file before writing it, and the sharding codec rewrites
+    /// a whole shard on every store, so a crash mid-write would lose every element already in the
+    /// shard. Here each value goes to a temporary key that is then renamed over the destination.
+    /// Temporary keys are unique, so writers of one key, such as threads creating the same group,
+    /// never collide; a crash leaves at most an orphaned temporary file, which nothing reads.
+    struct AtomicWrites {
+        /// The store every operation goes to.
+        inner: FilesystemStore,
+        /// Counter that makes each temporary key unique within the process.
+        next_temporary: AtomicU64,
+    }
+
+    impl AtomicWrites {
+        /// A fresh temporary key beside `key`, unique across processes and threads.
+        fn temporary_key(&self, key: &StoreKey) -> Result<StoreKey, StorageError> {
+            let n = self.next_temporary.fetch_add(1, Ordering::Relaxed);
+            StoreKey::new(format!("{key}.{}.{n}.tmp", std::process::id()))
+                .map_err(|e| StorageError::Other(e.to_string()))
+        }
+    }
+
+    impl ReadableStorageTraits for AtomicWrites {
+        fn get_partial_many<'a>(
+            &'a self,
+            key: &StoreKey,
+            byte_ranges: ByteRangeIterator<'a>,
+        ) -> Result<MaybeBytesIterator<'a>, StorageError> {
+            self.inner.get_partial_many(key, byte_ranges)
+        }
+
+        fn size_key(&self, key: &StoreKey) -> Result<Option<u64>, StorageError> {
+            self.inner.size_key(key)
+        }
+
+        fn supports_get_partial(&self) -> bool {
+            self.inner.supports_get_partial()
+        }
+    }
+
+    impl ListableStorageTraits for AtomicWrites {
+        fn list(&self) -> Result<StoreKeys, StorageError> {
+            self.inner.list()
+        }
+
+        fn list_prefix(&self, prefix: &StorePrefix) -> Result<StoreKeys, StorageError> {
+            self.inner.list_prefix(prefix)
+        }
+
+        fn list_dir(&self, prefix: &StorePrefix) -> Result<StoreKeysPrefixes, StorageError> {
+            self.inner.list_dir(prefix)
+        }
+
+        fn size_prefix(&self, prefix: &StorePrefix) -> Result<u64, StorageError> {
+            self.inner.size_prefix(prefix)
+        }
+    }
+
+    impl WritableStorageTraits for AtomicWrites {
+        fn set(&self, key: &StoreKey, value: Bytes) -> Result<(), StorageError> {
+            let temporary = self.temporary_key(key)?;
+            // `set` syncs the file, so the rename never exposes unwritten data.
+            self.inner.set(&temporary, value)?;
+            self.inner.rename(&temporary, key).inspect_err(|_| {
+                let _ = self.inner.erase(&temporary);
+            })
+        }
+
+        /// Rewrite the whole value through [`Self::set`], so partial writes are atomic too.
+        fn set_partial_many(
+            &self,
+            key: &StoreKey,
+            offset_values: OffsetBytesIterator,
+        ) -> Result<(), StorageError> {
+            zarrs::storage::store_set_partial_many(self, key, offset_values)
+        }
+
+        fn erase(&self, key: &StoreKey) -> Result<(), StorageError> {
+            self.inner.erase(key)
+        }
+
+        fn erase_prefix(&self, prefix: &StorePrefix) -> Result<(), StorageError> {
+            self.inner.erase_prefix(prefix)
+        }
+
+        fn supports_set_partial(&self) -> bool {
+            false
+        }
     }
 
     /// Whether the root group's `zarr.json` is not on disk yet.
@@ -124,13 +229,16 @@ mod platform {
 /// offset. Sparse arrays cost nothing for the empty negative region beyond `zarr.json` metadata.
 const N_MIN: i32 = -1024;
 
-/// Number of slots in the n dimension, starting at [`N_MIN`].
+/// Initial number of slots in the n dimension, starting at [`N_MIN`].
+///
+/// This and the other spans are only the shape a shard-tier array is created with; a write past
+/// the end grows it (see [`ZarrSaveStore::shard_array_covering`]).
 const N_SPAN: u64 = 4096;
 
-/// Number of slots in the s dimension. `s` is unsigned: `[0, S_SPAN)`.
+/// Initial number of slots in the s dimension. `s` is unsigned, so slots start at 0.
 const S_SPAN: u64 = 1024;
 
-/// Number of slots reserved for the intra-bidegree index of indexed kinds.
+/// Initial number of slots for the intra-bidegree index of indexed kinds.
 const IDX_SPAN: u64 = 256;
 
 /// Shard shape in the n dimension.
@@ -147,6 +255,15 @@ const SHARD_IDX: u64 = 8;
 /// Some zarrs errors are not `Send + Sync` on wasm, so the blanket `From` does not apply there.
 fn zarr_err<E: std::fmt::Display>(e: E) -> anyhow::Error {
     anyhow::anyhow!("{e}")
+}
+
+/// Options that store a chunk even when it equals the fill value.
+///
+/// By default zarrs skips such a chunk, and a reader cannot tell it from one lost in a crash. The
+/// stream tier treats a missing chunk of a finished quasi-inverse as corruption, so it must
+/// store every chunk.
+fn store_every_chunk() -> CodecOptions {
+    CodecOptions::default().with_store_empty_chunks(true)
 }
 
 /// Number of matrix rows per chunk in the ResQi `rows` array.
@@ -183,12 +300,37 @@ pub struct ZarrSaveStore {
     /// An `Array` holds no chunk data and its methods take `&self`, so one handle serves
     /// concurrent reads and shard-serialized writes.
     arrays: DashMap<SaveKind, Arc<ShardArray>>,
+    /// The locks of this group, shared by every handle on it; see [`GroupLocks`].
+    locks: Arc<GroupLocks>,
+}
+
+/// The locks of one group, shared by every [`ZarrSaveStore`] handle on it in the process.
+#[derive(Default)]
+struct GroupLocks {
     /// One lock per shard: shared by reads, exclusive for writes.
     ///
     /// The sharding codec rewrites the whole shard on every store, so concurrent writes to one
     /// shard lose data, and a read, which fetches the shard index and then the element separately,
     /// can see the index of one version and the bytes of another. Shards are independent.
-    shard_locks: DashMap<(SaveKind, [u64; 3]), Arc<RwLock<()>>>,
+    shards: DashMap<(SaveKind, [u64; 3]), Arc<RwLock<()>>>,
+    /// Serializes rewriting an array's `zarr.json` to grow its shape, so no handle shrinks it.
+    grow: std::sync::Mutex<()>,
+}
+
+impl GroupLocks {
+    /// The locks of the group stored at `group_path`, shared with every other handle on it.
+    ///
+    /// Two handles on one group, from two `subgroup` calls or two `create` calls, write the same
+    /// shard files, so they must share locks.
+    fn for_group(group_path: &Path) -> Arc<Self> {
+        static REGISTRY: LazyLock<DashMap<PathBuf, Arc<GroupLocks>>> = LazyLock::new(DashMap::new);
+        Arc::clone(
+            REGISTRY
+                .entry(group_path.to_path_buf())
+                .or_default()
+                .value(),
+        )
+    }
 }
 
 /// Alias for the concrete opened-array type shared across the store and its streaming readers.
@@ -204,6 +346,11 @@ impl std::fmt::Debug for ZarrSaveStore {
 }
 
 impl ZarrSaveStore {
+    /// Open the store at `path`, creating its root group if absent.
+    ///
+    /// An existing store is opened as is; [`Self::bind_to_algebra`] and [`Self::bind_module_spec`]
+    /// check that it holds the expected complex. Fails if the path cannot be resolved or the store
+    /// cannot be opened or initialized.
     pub fn create(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = std::path::absolute(path.as_ref())
             .with_context(|| format!("Failed to resolve path: {:?}", path.as_ref()))?;
@@ -217,12 +364,12 @@ impl ZarrSaveStore {
         }
 
         Ok(Self {
-            path,
             store,
             group: String::new(),
             created: DashSet::new(),
             arrays: DashMap::new(),
-            shard_locks: DashMap::new(),
+            locks: GroupLocks::for_group(&path),
+            path,
         })
     }
 
@@ -344,10 +491,10 @@ impl ZarrSaveStore {
         Ok(Self {
             path: self.path.clone(),
             store: self.store.clone(),
+            locks: GroupLocks::for_group(&group_path),
             group,
             created: DashSet::new(),
             arrays: DashMap::new(),
-            shard_locks: DashMap::new(),
         })
     }
 
@@ -370,6 +517,7 @@ impl ZarrSaveStore {
         Ok(())
     }
 
+    /// Filesystem root of the store, shared by all its subgroups.
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -383,18 +531,21 @@ impl ZarrSaveStore {
         }
     }
 
+    /// Zarr path of the shard-tier array for `kind` in this group.
     fn shard_array_path(&self, kind: SaveKind) -> String {
         format!("{}/{}", self.group, kind.name())
     }
 
     /// The zarr indices of `(n, s, [idx])`: `n` offset by [`N_MIN`], the rest unchanged.
-    fn shard_zarr_coords<const N: usize>(coords: [i32; N]) -> Vec<u64> {
+    ///
+    /// `None` for a stem below [`N_MIN`], which the layout cannot hold.
+    fn shard_zarr_coords<const N: usize>(coords: [i32; N]) -> Option<Vec<u64>> {
         let mut out = Vec::with_capacity(N);
-        out.push((coords[0] - N_MIN) as u64);
+        out.push(u64::try_from(coords[0] - N_MIN).ok()?);
         for &c in &coords[1..] {
-            out.push(c as u64);
+            out.push(u64::try_from(c).ok()?);
         }
-        out
+        Some(out)
     }
 
     /// The shard holding `zarr_coords`, with `0` in the third slot for 2D kinds.
@@ -413,7 +564,7 @@ impl ZarrSaveStore {
     /// The lock of the shard holding `zarr_coords` for `kind`.
     fn shard_lock(&self, kind: SaveKind, zarr_coords: &[u64]) -> Arc<RwLock<()>> {
         let key = (kind, Self::shard_coords(zarr_coords));
-        Arc::clone(self.shard_locks.entry(key).or_default().value())
+        Arc::clone(self.locks.shards.entry(key).or_default().value())
     }
 
     /// Lazily create the shard-tier array for `kind` under this group.
@@ -421,6 +572,8 @@ impl ZarrSaveStore {
         if self.created.contains(&kind) {
             return Ok(());
         }
+        // Under the grow lock, so a creation racing a growth cannot write back the initial shape.
+        let _guard = self.locks.grow.lock().unwrap();
         let meta_path = self.group_fs_path().join(kind.name()).join("zarr.json");
         if !meta_path.exists() {
             let array_path = self.shard_array_path(kind);
@@ -468,6 +621,48 @@ impl ZarrSaveStore {
         }
     }
 
+    /// The shard-tier array for `kind`, created if absent and grown to cover `zarr_coords`.
+    ///
+    /// zarrs stores an element outside an array's shape without complaint, but a reader that
+    /// follows the zarr spec cannot see it, so the shape must grow first. Each axis that is too
+    /// short at least doubles, which keeps every axis a multiple of its shard length.
+    fn shard_array_covering(
+        &self,
+        kind: SaveKind,
+        zarr_coords: &[u64],
+    ) -> anyhow::Result<Arc<ShardArray>> {
+        let covers = |shape: &[u64]| zarr_coords.iter().zip(shape).all(|(&c, &len)| c < len);
+        let arr = self
+            .shard_array(kind, true)?
+            .expect("shard_array(create=true) never returns None");
+        if covers(arr.shape()) {
+            return Ok(arr);
+        }
+        let _guard = self.locks.grow.lock().unwrap();
+        // Another handle may have grown the array since this one cached it, so start from disk.
+        let mut arr = zarrs::array::Array::open(self.store.clone(), &self.shard_array_path(kind))
+            .map_err(zarr_err)?;
+        if !covers(arr.shape()) {
+            let shape = arr
+                .shape()
+                .iter()
+                .zip(zarr_coords)
+                .map(|(&len, &c)| {
+                    if c < len {
+                        len
+                    } else {
+                        (c + 1).next_power_of_two().max(2 * len)
+                    }
+                })
+                .collect();
+            arr.set_shape(shape).map_err(zarr_err)?;
+            arr.store_metadata().map_err(zarr_err)?;
+        }
+        let arr = Arc::new(arr);
+        self.arrays.insert(kind, Arc::clone(&arr));
+        Ok(arr)
+    }
+
     /// Lazily create `qi/` and `qi/n{n}_s{s}/` groups under this group prefix.
     fn ensure_qi_bidegree(&self, b: Bidegree) -> anyhow::Result<()> {
         let qi_root = self.group_fs_path().join("qi");
@@ -505,10 +700,11 @@ impl ZarrSaveStore {
             "write() is only for sharded kinds, got {:?}",
             kind
         );
-        let arr = self
-            .shard_array(kind, true)?
-            .expect("shard_array(create=true) never returns None");
-        let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let coords = location.save_coords();
+        let zarr_coords = Self::shard_zarr_coords(coords).with_context(|| {
+            format!("Cannot save {kind:?} at {coords:?}: stems below {N_MIN} are not supported")
+        })?;
+        let arr = self.shard_array_covering(kind, &zarr_coords)?;
         let lock = self.shard_lock(kind, &zarr_coords);
         let _guard = lock.write().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
@@ -538,7 +734,9 @@ impl ZarrSaveStore {
             Some(arr) => arr,
             None => return Ok(None),
         };
-        let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let Some(zarr_coords) = Self::shard_zarr_coords(location.save_coords()) else {
+            return Ok(None);
+        };
         let lock = self.shard_lock(kind, &zarr_coords);
         let _guard = lock.read().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
@@ -578,7 +776,9 @@ impl ZarrSaveStore {
             Some(arr) => arr,
             None => return Ok(()),
         };
-        let zarr_coords = Self::shard_zarr_coords(location.save_coords());
+        let Some(zarr_coords) = Self::shard_zarr_coords(location.save_coords()) else {
+            return Ok(());
+        };
         let lock = self.shard_lock(kind, &zarr_coords);
         let _guard = lock.write().unwrap();
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
@@ -641,7 +841,7 @@ impl ZarrSaveStore {
             pivots_data.push(0);
         }
         pivots_array
-            .store_chunk(&[0], pivots_data)
+            .store_chunk_opt(&[0], pivots_data, &store_every_chunk())
             .map_err(zarr_err)?;
 
         let rows_shape_0 = std::cmp::max(image_dim as u64, 1);
@@ -669,7 +869,11 @@ impl ZarrSaveStore {
                 debug_assert_eq!(chunk_buf.len() - buf_before, row_bytes);
                 if chunk_buf.len() == chunk_byte_len {
                     rows_array
-                        .store_chunk(&[chunk_idx, 0], std::mem::take(&mut chunk_buf))
+                        .store_chunk_opt(
+                            &[chunk_idx, 0],
+                            std::mem::take(&mut chunk_buf),
+                            &store_every_chunk(),
+                        )
                         .map_err(zarr_err)?;
                     chunk_idx += 1;
                     chunk_buf.reserve(chunk_byte_len);
@@ -678,7 +882,7 @@ impl ZarrSaveStore {
             if !chunk_buf.is_empty() {
                 chunk_buf.resize(chunk_byte_len, 0);
                 rows_array
-                    .store_chunk(&[chunk_idx, 0], chunk_buf)
+                    .store_chunk_opt(&[chunk_idx, 0], chunk_buf, &store_every_chunk())
                     .map_err(zarr_err)?;
             }
         }
@@ -718,7 +922,16 @@ impl ZarrSaveStore {
 
         let pivots_array =
             zarrs::array::Array::open(self.store.clone(), &format!("{}/pivots", group_path))?;
-        let pivots_chunk: Vec<i64> = pivots_array.retrieve_chunk(&[0]).map_err(zarr_err)?;
+        // All-zero pivots, the fill value, are valid only when `target_dim <= 1`, and a store
+        // written without `store_every_chunk` omits them.
+        let pivots_chunk: Vec<i64> = match pivots_array
+            .retrieve_chunk_if_exists(&[0])
+            .map_err(zarr_err)?
+        {
+            Some(chunk) => chunk,
+            None if target_dim <= 1 => vec![0; target_dim],
+            None => anyhow::bail!("ResQi at {b} is finished but its pivots are missing"),
+        };
         let pivots: Vec<isize> = pivots_chunk
             .into_iter()
             .take(target_dim)
@@ -878,18 +1091,22 @@ pub struct ResQiReader {
 }
 
 impl ResQiReader {
+    /// Dimension of the source of the inverted map, the length of each row.
     pub fn source_dimension(&self) -> usize {
         self.source_dim
     }
 
+    /// Dimension of the target of the inverted map, the number of pivots.
     pub fn target_dimension(&self) -> usize {
         self.target_dim
     }
 
+    /// Dimension of the image, the number of rows: one per column with a pivot.
     pub fn image_dimension(&self) -> usize {
         self.image_dim
     }
 
+    /// The row of each target column, or a negative value for a column without a pivot.
     pub fn pivots(&self) -> &[isize] {
         &self.pivots
     }
@@ -905,10 +1122,12 @@ impl ResQiReader {
             return Ok(false);
         }
         if self.chunk_buf.is_empty() || self.pos_in_chunk * self.row_bytes >= self.chunk_buf.len() {
+            // A missing chunk would otherwise read as the fill value: rows of zeros.
             let chunk: Vec<u8> = self
                 .rows_array
-                .retrieve_chunk(&[self.chunk_idx, 0])
-                .map_err(zarr_err)?;
+                .retrieve_chunk_if_exists(&[self.chunk_idx, 0])
+                .map_err(zarr_err)?
+                .with_context(|| format!("ResQi rows chunk {} is missing", self.chunk_idx))?;
             if self.chunk_rows == 0 && self.row_bytes > 0 {
                 self.chunk_rows = chunk.len() / self.row_bytes;
             }
@@ -993,6 +1212,7 @@ pub struct NassauQiWriter {
 }
 
 impl NassauQiWriter {
+    /// Buffer one encoded command, flushing once a chunk is full.
     fn add_command(&mut self, bytes: Vec<u8>) -> anyhow::Result<()> {
         self.command_buf.push(bytes);
         self.commands_written += 1;
@@ -1002,6 +1222,7 @@ impl NassauQiWriter {
         Ok(())
     }
 
+    /// Store the buffered commands as the next chunk, padded to the chunk shape if `pad`.
     fn flush_chunk(&mut self, pad: bool) -> anyhow::Result<()> {
         if self.command_buf.is_empty() {
             return Ok(());
@@ -1012,13 +1233,14 @@ impl NassauQiWriter {
             chunk.resize_with(CHUNK_NASSAU_COMMANDS as usize, Vec::new);
         }
         self.commands_array
-            .store_chunk(&[self.chunk_idx], chunk)
+            .store_chunk_opt(&[self.chunk_idx], chunk, &store_every_chunk())
             .map_err(zarr_err)?;
         self.chunk_idx += 1;
         self.command_buf.reserve(CHUNK_NASSAU_COMMANDS as usize);
         Ok(())
     }
 
+    /// Append a [`NassauCommand::Signature`].
     pub fn write_signature(&mut self, signature: &[u16]) -> anyhow::Result<()> {
         let mut bytes = Vec::with_capacity(8 + signature.len() * 2);
         bytes.extend_from_slice(&NASSAU_CODE_SIGNATURE.to_le_bytes());
@@ -1028,11 +1250,13 @@ impl NassauQiWriter {
         self.add_command(bytes)
     }
 
+    /// Append a [`NassauCommand::Fix`].
     pub fn write_fix(&mut self) -> anyhow::Result<()> {
         let bytes = NASSAU_CODE_FIX.to_le_bytes().to_vec();
         self.add_command(bytes)
     }
 
+    /// Append a [`NassauCommand::Pivot`] for column `col`.
     pub fn write_pivot(&mut self, col: u64, lift: FpSlice, image: FpSlice) -> anyhow::Result<()> {
         let lift_vec: FpVector = lift.to_owned();
         let mut lift_bytes = Vec::new();
@@ -1077,18 +1301,22 @@ pub struct NassauQiReader {
 }
 
 impl NassauQiReader {
+    /// Dimension of the target, in the original basis.
     pub fn target_dim(&self) -> u64 {
         self.target_dim
     }
 
+    /// Dimension of the target masked under the zero signature.
     pub fn zero_mask_dim(&self) -> u64 {
         self.zero_mask_dim
     }
 
+    /// Profile of the subalgebra the signatures are taken over.
     pub fn subalgebra_profile(&self) -> &[u8] {
         &self.subalgebra_profile
     }
 
+    /// Decode one command, encoded as in `ext/SAVE-FORMAT.md`.
     fn parse(bytes: Vec<u8>) -> anyhow::Result<NassauCommand> {
         if bytes.len() < 8 {
             anyhow::bail!("NassauQi command too short: {} bytes", bytes.len());
@@ -1145,8 +1373,17 @@ impl Iterator for NassauQiReader {
             return None;
         }
         if self.pos_in_chunk >= self.chunk_buf.len() {
-            match self.commands_array.retrieve_chunk(&[self.chunk_idx]) {
-                Ok(buf) => self.chunk_buf = buf,
+            match self
+                .commands_array
+                .retrieve_chunk_if_exists(&[self.chunk_idx])
+            {
+                Ok(Some(buf)) => self.chunk_buf = buf,
+                Ok(None) => {
+                    return Some(Err(anyhow::anyhow!(
+                        "NassauQi commands chunk {} is missing",
+                        self.chunk_idx
+                    )));
+                }
                 Err(e) => return Some(Err(zarr_err(e))),
             }
             self.chunk_idx += 1;
@@ -1171,6 +1408,7 @@ impl Iterator for NassauQiReader {
 /// [`Bidegree`] is `SaveCoords<2>` and [`BidegreeGenerator`] is `SaveCoords<3>`, so a
 /// per-bidegree method takes `impl SaveCoords<2>` and rejects a generator at compile time.
 pub trait SaveCoords<const N: usize> {
+    /// The coordinates `(n, s, [idx])` of this location.
     fn save_coords(&self) -> [i32; N];
 }
 
@@ -1203,6 +1441,7 @@ pub enum SaveKind {
 }
 
 impl SaveKind {
+    /// Name of this kind's array or group in the store.
     pub fn name(self) -> &'static str {
         match self {
             Self::Kernel => "kernel",
@@ -1225,25 +1464,6 @@ impl SaveKind {
     fn is_indexed(self) -> bool {
         matches!(self, Self::SecondaryComposite | Self::SecondaryIntermediate)
     }
-
-    pub fn resolution_data() -> impl Iterator<Item = Self> {
-        use SaveKind::*;
-        static KINDS: [SaveKind; 4] = [Kernel, Differential, ResQi, AugmentationQi];
-        KINDS.iter().copied()
-    }
-
-    pub fn nassau_data() -> impl Iterator<Item = Self> {
-        use SaveKind::*;
-        static KINDS: [SaveKind; 2] = [NassauDifferential, NassauQi];
-        KINDS.iter().copied()
-    }
-
-    pub fn secondary_data() -> impl Iterator<Item = Self> {
-        use SaveKind::*;
-        static KINDS: [SaveKind; 3] =
-            [SecondaryComposite, SecondaryIntermediate, SecondaryHomotopy];
-        KINDS.iter().copied()
-    }
 }
 
 #[derive(Debug)]
@@ -1253,14 +1473,17 @@ pub enum SaveDirectory {
 }
 
 impl SaveDirectory {
+    /// Whether nothing is saved.
     pub fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
 
+    /// Whether there is a store to save to.
     pub fn is_some(&self) -> bool {
         !self.is_none()
     }
 
+    /// The store, if there is one.
     pub fn store(&self) -> Option<&ZarrSaveStore> {
         match self {
             Self::None => None,
