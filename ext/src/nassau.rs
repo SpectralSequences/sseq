@@ -812,6 +812,27 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let target_cc_dim = target_cc.dimension(t);
         let target_res_dim = target_res.dimension(t);
 
+        // Both targets are zero, as at `s = 0` above the module's top degree: there is nothing to
+        // hit, so the step adds no generators and both maps are zero on all of the source.
+        if target_cc_dim == 0 && target_res_dim == 0 {
+            self.add_generators(b, 0);
+            chain_map.extend_by_zero(t);
+            differential.extend_by_zero(t);
+            chain_map.set_kernel(t, None);
+            chain_map.set_image(t, None);
+            chain_map.set_quasi_inverse(
+                t,
+                Some(QuasiInverse::new(None, Matrix::new(p, 0, source_dim))),
+            );
+            differential.set_kernel(t, None);
+            differential.set_image(t, None);
+            differential.set_quasi_inverse(t, None);
+            if b.s() > 0 {
+                self.write_differential(b, 0, target_res_dim)?;
+            }
+            return Ok(());
+        }
+
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
             source_dim,
