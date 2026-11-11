@@ -232,7 +232,7 @@ where
                 let mut rows = vec![FpVector::new(p, dim); num_gens];
                 for (c, m) in &summand_maps {
                     for (k, row) in rows.iter_mut().enumerate() {
-                        row.add(m.output(t, k), *c);
+                        row.add(&m.output(t, k), *c);
                     }
                 }
                 out_map.add_generators_from_rows(t, rows);

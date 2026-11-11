@@ -12,19 +12,15 @@ use crate::{
     module::{
         Module, MuFreeModule,
         free_module::{OpGenCursor, OperationGeneratorPair},
-        homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+        homomorphism::{
+            ModuleHomomorphism, ZeroHomomorphism,
+            output_cache::{Output, OutputCache, OutputLoader, Outputs, Slot},
+        },
     },
 };
 
 pub type FreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<false, M>;
 pub type UnstableFreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<true, M>;
-
-/// Reads a homomorphism's values on the generators of one degree, for a degree added with
-/// [`MuFreeModuleHomomorphism::add_generators_lazily`].
-///
-/// It must return one vector per generator of the degree. It runs at most once per degree, on the
-/// first read, so it can only fail by panicking.
-pub type OutputLoader = Arc<dyn Fn(i32) -> Vec<FpVector> + Send + Sync>;
 
 pub struct MuFreeModuleHomomorphism<const U: bool, M: Module>
 where
@@ -33,8 +29,9 @@ where
     source: Arc<MuFreeModule<U, M::Algebra>>,
     target: Arc<M>,
     /// degree --> input_idx --> output. A degree added lazily stays empty until its first read.
-    outputs: OnceBiVec<OnceLock<Vec<FpVector>>>,
-    loader: OnceLock<OutputLoader>,
+    outputs: OnceBiVec<Slot>,
+    /// Supplies the degrees added lazily, under the cache if there is one.
+    loader: OnceLock<(OutputLoader, Option<Arc<OutputCache>>)>,
     pub images: OnceBiVec<Option<Subspace>>,
     pub kernels: OnceBiVec<Option<Subspace>>,
     pub quasi_inverses: OnceBiVec<Option<QuasiInverse>>,
@@ -222,7 +219,8 @@ where
         self.outputs.len()
     }
 
-    pub fn output(&self, generator_degree: i32, generator_index: usize) -> &FpVector {
+    /// The value on one generator. See [`Outputs`] for why this is a guard and not a reference.
+    pub fn output(&self, generator_degree: i32, generator_index: usize) -> Output<'_> {
         assert!(
             generator_degree >= self.min_degree(),
             "generator_degree {} less than min degree {}",
@@ -235,16 +233,14 @@ where
             generator_index,
             self.source.number_of_gens_in_degree(generator_degree)
         );
-        &self.outputs_in_degree(generator_degree)[generator_index]
+        Output::new(self.outputs_in_degree(generator_degree), generator_index)
     }
 
-    /// The values on all the generators of `degree`, read through the loader on first use.
-    pub fn outputs_in_degree(&self, degree: i32) -> &[FpVector] {
-        self.outputs[degree].get_or_init(|| {
-            let load = self
-                .loader
-                .get()
-                .expect("degree added lazily to a homomorphism without a loader");
+    /// The values on all the generators of `degree`, read through the loader if not in memory.
+    pub fn outputs_in_degree(&self, degree: i32) -> Outputs<'_> {
+        let loader = self.loader.get();
+        self.outputs[degree].get(loader.and_then(|(_, cache)| cache.as_deref()), || {
+            let (load, _) = loader.expect("degree added lazily to a homomorphism without a loader");
             let rows = load(degree);
             assert_eq!(
                 rows.len(),
@@ -257,15 +253,15 @@ where
 
     /// Whether the values in `degree` are in memory: added eagerly, or added lazily and read.
     pub fn is_loaded(&self, degree: i32) -> bool {
-        self.outputs
-            .get(degree)
-            .is_some_and(|slot| slot.get().is_some())
+        self.outputs.get(degree).is_some_and(Slot::is_loaded)
     }
 
-    /// Set the loader that [`Self::add_generators_lazily`] defers to. It can be set only once.
-    pub fn set_loader(&self, loader: OutputLoader) {
+    /// Set the loader that [`Self::add_generators_lazily`] defers to, and the cache whose budget
+    /// the lazily read degrees count against. Without a cache, a degree stays once read. These can
+    /// be set only once.
+    pub fn set_loader(&self, loader: OutputLoader, cache: Option<Arc<OutputCache>>) {
         assert!(
-            self.loader.set(loader).is_ok(),
+            self.loader.set((loader, cache)).is_ok(),
             "homomorphism loader set twice"
         );
     }
@@ -273,7 +269,8 @@ where
     /// Add `degree` without its values, which the loader supplies on first read.
     pub fn add_generators_lazily(&self, degree: i32) {
         assert!(self.loader.get().is_some(), "lazy degree without a loader");
-        self.outputs.push_checked(OnceLock::new(), degree);
+        let cache = self.loader.get().and_then(|(_, cache)| cache.as_ref());
+        self.outputs.push_checked(Slot::lazy(cache), degree);
     }
 
     /// A truncating variant of [`ModuleHomomorphism::apply_to_basis_element`] that allows `result`
@@ -348,7 +345,7 @@ where
             for _ in 0..num_gens {
                 new_outputs.push(FpVector::new(p, dimension));
             }
-            OnceLock::from(new_outputs)
+            Slot::resident(new_outputs)
         });
     }
 
@@ -362,7 +359,7 @@ where
         }
         if target_dimension == 0 {
             self.outputs
-                .push_checked(OnceLock::from(new_outputs), degree);
+                .push_checked(Slot::resident(new_outputs), degree);
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
@@ -371,7 +368,7 @@ where
                 .assign(outputs_vectors.restrict(target_dimension * i, target_dimension * (i + 1)));
         }
         self.outputs
-            .push_checked(OnceLock::from(new_outputs), degree);
+            .push_checked(Slot::resident(new_outputs), degree);
     }
 
     /// A MatrixSlice will do but there is no application of this struct, so it doesn't exist yet...
@@ -386,18 +383,18 @@ where
         }
         if target_dimension == 0 {
             self.outputs
-                .push_checked(OnceLock::from(new_outputs), degree);
+                .push_checked(Slot::resident(new_outputs), degree);
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
             new_output.as_slice_mut().assign(matrix.row(i));
         }
         self.outputs
-            .push_checked(OnceLock::from(new_outputs), degree);
+            .push_checked(Slot::resident(new_outputs), degree);
     }
 
     pub fn add_generators_from_rows(&self, degree: i32, rows: Vec<FpVector>) {
-        self.outputs.push_checked(OnceLock::from(rows), degree);
+        self.outputs.push_checked(Slot::resident(rows), degree);
     }
 
     /// Add the image of a bidegree out of order. See
@@ -407,7 +404,7 @@ where
         degree: i32,
         rows: Vec<FpVector>,
     ) -> std::ops::Range<i32> {
-        self.outputs.push_ooo(OnceLock::from(rows), degree)
+        self.outputs.push_ooo(Slot::resident(rows), degree)
     }
 
     /// List of outputs that have been added out of order
@@ -417,7 +414,7 @@ where
 
     pub fn apply_to_generator(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         let output_on_gen = self.output(degree, idx);
-        result.add(output_on_gen, coeff);
+        result.add(&output_on_gen, coeff);
     }
 
     pub fn set_image(&self, degree: i32, image: Option<Subspace>) {

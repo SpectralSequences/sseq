@@ -100,8 +100,8 @@ mod nassau {
         }
         for &(s, t) in &degrees {
             let want = saved.differential(s).outputs_in_degree(t).to_vec();
-            assert_eq!(lazy.differential(s).outputs_in_degree(t), &want[..]);
-            assert_eq!(eager.differential(s).outputs_in_degree(t), &want[..]);
+            assert_eq!(&*lazy.differential(s).outputs_in_degree(t), &want[..]);
+            assert_eq!(&*eager.differential(s).outputs_in_degree(t), &want[..]);
             assert_eq!(
                 lazy.module(s).number_of_gens_in_degree(t),
                 saved.module(s).number_of_gens_in_degree(t)
@@ -117,6 +117,73 @@ mod nassau {
         assert_eq!(
             fresh.graded_dimension_string(),
             resumed.graded_dimension_string()
+        );
+    }
+
+    /// Under a budget far below the save, concurrent reads evict and read degrees again, always
+    /// see the saved values, and keep the cache within its budget; a guard outlives its eviction;
+    /// and resolving further gives what a fresh resolution does.
+    #[test]
+    fn budget_evicts_and_rereads() {
+        const BUDGET: u64 = 256;
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let saved = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        saved.compute_through_stem(SAVED);
+        let degrees = saved_degrees(&saved);
+        let want = |s: i32, t: i32| saved.differential(s).outputs_in_degree(t).to_vec();
+
+        let mut lazy = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        lazy.set_load_budget(Some(BUDGET));
+        lazy.compute_through_stem(SAVED);
+        let cache = std::sync::Arc::clone(lazy.load_cache().unwrap());
+
+        // Held from the start, while every other degree is read past it.
+        let &(held_s, held_t) = degrees
+            .iter()
+            .max_by_key(|&&(s, t)| want(s, t).len())
+            .unwrap();
+        let held_d = lazy.differential(held_s);
+        let held = held_d.outputs_in_degree(held_t);
+
+        let largest = degrees
+            .iter()
+            .map(|&(s, t)| {
+                want(s, t)
+                    .iter()
+                    .map(|v| 8 * fp::vector::FpVector::num_limbs(v.prime(), v.len()) as u64)
+                    .sum::<u64>()
+            })
+            .max()
+            .unwrap();
+        std::thread::scope(|scope| {
+            for offset in 0..4 {
+                let (lazy, degrees, want, cache) = (&lazy, &degrees, &want, &cache);
+                scope.spawn(move || {
+                    for round in 0..3 {
+                        for k in 0..degrees.len() {
+                            let (s, t) = degrees[(k * (offset + 1) + round) % degrees.len()];
+                            let d = lazy.differential(s);
+                            let got = d.outputs_in_degree(t);
+                            assert_eq!(&*got, &want(s, t)[..], "({s}, {t})");
+                            drop(got);
+                            assert!(cache.resident_bytes() <= BUDGET.max(4 * largest));
+                        }
+                    }
+                });
+            }
+        });
+        assert!(cache.evictions() > 0, "{cache:?}");
+        assert!(cache.loads() > degrees.len() as u64, "{cache:?}");
+        assert_eq!(&*held, &want(held_s, held_t)[..]);
+        drop(held);
+
+        let further = Bidegree::n_s(40, 16);
+        let fresh = construct_nassau("S_2", None).unwrap();
+        fresh.compute_through_stem(further);
+        lazy.compute_through_stem(further);
+        assert_eq!(
+            fresh.graded_dimension_string(),
+            lazy.graded_dimension_string()
         );
     }
 }

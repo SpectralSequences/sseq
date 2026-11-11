@@ -8,7 +8,8 @@ use algebra::{
     module::{
         FreeModule, GeneratorData, Module, ZeroModule,
         homomorphism::{
-            FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism, OutputLoader,
+            FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism, OutputCache,
+            OutputLoader,
         },
     },
 };
@@ -423,6 +424,8 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     /// Whether a saved differential is read when its bidegree is loaded, rather than on first use.
     /// See [`Self::set_load_eagerly`].
     load_eagerly: bool,
+    /// The budget that lazily read differentials count against. See [`Self::set_load_budget`].
+    load_cache: Option<Arc<OutputCache>>,
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
@@ -471,6 +474,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             max_degree,
             save_dir,
             load_eagerly: std::env::var_os("EXT_LOAD_EAGERLY").is_some_and(|v| v != "0"),
+            load_cache: std::env::var("EXT_LOAD_BUDGET_GIB").ok().map(|gib| {
+                let gib: f64 = gib.parse().expect("EXT_LOAD_BUDGET_GIB is not a number");
+                OutputCache::new((gib * (1u64 << 30) as f64) as u64)
+            }),
         })
     }
 
@@ -483,6 +490,22 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// memory and will be read throughout. `EXT_LOAD_EAGERLY=1` sets it from the environment.
     pub fn set_load_eagerly(&mut self, eager: bool) {
         self.load_eagerly = eager;
+    }
+
+    /// Bound the memory held by lazily read differentials to `budget` bytes, or lift the bound.
+    ///
+    /// Without a budget, a differential read lazily stays in memory, so a computation that reads
+    /// all of a save ends up holding all of it. With one, the least recently read degrees are
+    /// evicted and read again from the store when next needed, which trades store reads for memory.
+    /// Differentials computed rather than read, and those read eagerly, are never evicted.
+    /// `EXT_LOAD_BUDGET_GIB` sets it from the environment.
+    pub fn set_load_budget(&mut self, budget: Option<u64>) {
+        self.load_cache = budget.map(OutputCache::new);
+    }
+
+    /// The cache that lazily read differentials count against, if there is a budget.
+    pub fn load_cache(&self) -> Option<&Arc<OutputCache>> {
+        self.load_cache.as_ref()
     }
 
     /// The loader for the differential out of filtration `s`: it reads the saved bidegree.
@@ -538,7 +561,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 0,
             );
             if let Some(loader) = self.differential_loader(i) {
-                d.set_loader(loader);
+                d.set_loader(loader, self.load_cache.clone());
             }
             Arc::new(d)
         });
