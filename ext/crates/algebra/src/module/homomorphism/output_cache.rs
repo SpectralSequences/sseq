@@ -101,6 +101,7 @@ impl OutputCache {
 }
 
 impl fmt::Debug for OutputCache {
+    /// The budget and the counters, not the degrees held.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("OutputCache")
             .field("budget", &self.budget)
@@ -123,6 +124,7 @@ pub(super) struct CachedDegree {
 }
 
 impl CachedDegree {
+    /// An empty degree, read on first use.
     fn new() -> Self {
         Self {
             values: RwLock::new(None),
@@ -132,6 +134,7 @@ impl CachedDegree {
         }
     }
 
+    /// Whether the values are in memory: read, and not evicted since.
     fn is_loaded(&self) -> bool {
         self.values.read().unwrap().is_some()
     }
@@ -192,6 +195,7 @@ impl Slot {
         }
     }
 
+    /// Whether the values are in memory.
     pub(super) fn is_loaded(&self) -> bool {
         match self {
             Self::Resident(values) => values.get().is_some(),
@@ -226,6 +230,7 @@ pub enum Outputs<'a> {
 impl Deref for Outputs<'_> {
     type Target = [FpVector];
 
+    /// The values, wherever they are held.
     fn deref(&self) -> &[FpVector] {
         match self {
             Self::Borrowed(values) => values,
@@ -235,6 +240,7 @@ impl Deref for Outputs<'_> {
 }
 
 impl fmt::Debug for Outputs<'_> {
+    /// As the values, not saying whether they are borrowed or shared.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
@@ -247,6 +253,7 @@ pub struct Output<'a> {
 }
 
 impl<'a> Output<'a> {
+    /// The value on generator `index` of the degree `outputs` holds.
     pub(super) fn new(outputs: Outputs<'a>, index: usize) -> Self {
         Self { outputs, index }
     }
@@ -255,12 +262,14 @@ impl<'a> Output<'a> {
 impl Deref for Output<'_> {
     type Target = FpVector;
 
+    /// The value on the generator.
     fn deref(&self) -> &FpVector {
         &self.outputs[self.index]
     }
 }
 
 impl fmt::Debug for Output<'_> {
+    /// As the value.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }

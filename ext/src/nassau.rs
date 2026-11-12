@@ -381,17 +381,21 @@ impl Iterator for SubalgebraIterator {
     }
 }
 
-/// A resolution of a bounded module over a [`MilnorAlgebra`] using Nassau's algorithm.
-///
-/// This aims to have an API similar to that of
-/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
-/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-///
-/// The algebra can have either [shape](algebra::milnor_algebra::MilnorShape), any prime and any
-/// profile. The exterior shape at `p = 2` is $A^{\mathbb{C}}/\tau$, and at odd primes the
-/// classical algebra. Both need the `odd-primes` feature, without which basis elements compare by
-/// their p-part alone.
+/// The budget `EXT_LOAD_BUDGET_GIB` sets, in bytes, if it is set.
+fn load_budget_from_env() -> anyhow::Result<Option<u64>> {
+    let Ok(value) = std::env::var("EXT_LOAD_BUDGET_GIB") else {
+        return Ok(None);
+    };
+    let gib: f64 = value
+        .parse()
+        .map_err(|e| anyhow!("EXT_LOAD_BUDGET_GIB={value:?} is not a number: {e}"))?;
+    anyhow::ensure!(
+        gib.is_finite() && gib > 0.0,
+        "EXT_LOAD_BUDGET_GIB={value:?} must be a positive number of GiB"
+    );
+    Ok(Some((gib * (1u64 << 30) as f64) as u64))
+}
+
 /// Decode a saved differential into its number of new generators and the value on each.
 ///
 /// The saved target dimension need not be the current one. If a big resolution was saved and only
@@ -407,6 +411,17 @@ fn read_differential(p: ValidPrime, data: &[u8]) -> anyhow::Result<(usize, Vec<F
     Ok((num_new_gens, d_targets))
 }
 
+/// A resolution of a bounded module over a [`MilnorAlgebra`] using Nassau's algorithm.
+///
+/// This aims to have an API similar to that of
+/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
+/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
+/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
+///
+/// The algebra can have either [shape](algebra::milnor_algebra::MilnorShape), any prime and any
+/// profile. The exterior shape at `p = 2` is $A^{\mathbb{C}}/\tau$, and at odd primes the
+/// classical algebra. Both need the `odd-primes` feature, without which basis elements compare by
+/// their p-part alone.
 pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
     name: String,
@@ -474,10 +489,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             max_degree,
             save_dir,
             load_eagerly: std::env::var_os("EXT_LOAD_EAGERLY").is_some_and(|v| v != "0"),
-            load_cache: std::env::var("EXT_LOAD_BUDGET_GIB").ok().map(|gib| {
-                let gib: f64 = gib.parse().expect("EXT_LOAD_BUDGET_GIB is not a number");
-                OutputCache::new((gib * (1u64 << 30) as f64) as u64)
-            }),
+            load_cache: load_budget_from_env()?.map(OutputCache::new),
         })
     }
 
@@ -1008,10 +1020,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         if b.s() > 0
             && !self.load_eagerly
             && let Some(store) = self.save_dir.store()
-            && let Some(header) = store.read_prefix(SaveKind::NassauDifferential, b, 16)?
+            && let Some((header, len)) = store.read_prefix(SaveKind::NassauDifferential, b, 16)?
         {
             tracing::debug!(%b, "Registering saved differential");
             let num_new_gens = u64::from_le_bytes(header[..8].try_into().unwrap()) as usize;
+            let target_dim = u64::from_le_bytes(header[8..].try_into().unwrap()) as usize;
+            // The element's CRC covers the header but is not read here. Its length is covered by
+            // the shard index's CRC, and fixes the header up to coincidence.
+            anyhow::ensure!(
+                len == 16 + 8 * (num_new_gens * FpVector::num_limbs(p, target_dim)) as u64,
+                "the saved differential at {b} claims {num_new_gens} generators into dimension \
+                 {target_dim}, which does not fit its {len} bytes"
+            );
             self.add_generators(b, num_new_gens);
             self.differentials[b.s()].add_generators_lazily(b.t());
             self.chain_maps[b.s()].extend_by_zero(b.t());

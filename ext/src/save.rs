@@ -747,7 +747,9 @@ impl ZarrSaveStore {
         let lock = self.shard_lock(kind, &zarr_coords);
         let _guard = lock.read().unwrap();
         if self.has_raw_layout(kind, &arr) {
-            return self.read_raw(&arr, &zarr_coords, None);
+            return Ok(self
+                .read_raw(&arr, &zarr_coords, None)?
+                .map(|(data, _)| data));
         }
         let subset = ArraySubset::new_with_start_shape(zarr_coords, vec![1; N])?;
         // Sequential codecs, as in `write`.
@@ -760,7 +762,8 @@ impl ZarrSaveStore {
         }
     }
 
-    /// The first `len` bytes of the `kind` payload at `location`, or `None` if none was written.
+    /// The first `len` bytes of the `kind` payload at `location` and the payload's full length, or
+    /// `None` if none was written.
     ///
     /// Reads the shard index and those bytes, not the whole element, so it can read a header
     /// without its payload. The element's CRC covers bytes this does not read, so it goes
@@ -770,7 +773,7 @@ impl ZarrSaveStore {
         kind: SaveKind,
         location: impl SaveCoords<N>,
         len: usize,
-    ) -> anyhow::Result<Option<Vec<u8>>> {
+    ) -> anyhow::Result<Option<(Vec<u8>, u64)>> {
         assert!(
             !matches!(kind, SaveKind::ResQi | SaveKind::NassauQi),
             "read_prefix() is only for sharded kinds, got {:?}",
@@ -792,8 +795,8 @@ impl ZarrSaveStore {
         self.read_raw(&arr, &zarr_coords, Some(len))
     }
 
-    /// Whether `kind`'s array has the layout [`Self::ensure_shard_array`] creates, which
-    /// [`Self::read_raw`] decodes by hand. Checked once per array.
+    /// Whether `kind`'s array has the layout [`Self::ensure_shard_array`] creates, shard shape
+    /// included, which [`Self::read_raw`] decodes by hand. Checked once per array.
     fn has_raw_layout(&self, kind: SaveKind, arr: &ShardArray) -> bool {
         *self.raw_layout.entry(kind).or_insert_with(|| {
             let ones = vec![1; arr.shape().len()];
@@ -809,13 +812,20 @@ impl ZarrSaveStore {
                     "index_location": "end"
                 }
             }]);
-            serde_json::to_value(arr.metadata())
-                .is_ok_and(|meta| meta.get("codecs") == Some(&expected))
+            let shard: Vec<u64> = [SHARD_N, SHARD_S, SHARD_IDX][..ones.len()].to_vec();
+            let expected_grid = serde_json::json!({
+                "name": "regular",
+                "configuration": { "chunk_shape": shard }
+            });
+            serde_json::to_value(arr.metadata()).is_ok_and(|meta| {
+                meta.get("codecs") == Some(&expected)
+                    && meta.get("chunk_grid") == Some(&expected_grid)
+            })
         })
     }
 
-    /// The element at `zarr_coords`, or its first `prefix` bytes, decoded by hand; `None` if none
-    /// was written. The caller holds the shard's lock.
+    /// The element at `zarr_coords`, or its first `prefix` bytes, decoded by hand, with the
+    /// element's full length; `None` if none was written. The caller holds the shard's lock.
     ///
     /// The shard ends in an index of `(offset, nbytes)` pairs, one per element, under a CRC32C.
     /// Each element is one-item `vlen-bytes` (a `u32` count and a `u32` length, then the bytes)
@@ -826,7 +836,7 @@ impl ZarrSaveStore {
         arr: &ShardArray,
         zarr_coords: &[u64],
         prefix: Option<usize>,
-    ) -> anyhow::Result<Option<Vec<u8>>> {
+    ) -> anyhow::Result<Option<(Vec<u8>, u64)>> {
         let shape = [SHARD_N, SHARD_S, SHARD_IDX];
         let (mut inner, mut cells) = (0, 1);
         for (c, s) in zarr_coords.iter().zip(shape) {
@@ -877,7 +887,7 @@ impl ZarrSaveStore {
                     len as u64 <= length,
                     "prefix of {len} bytes from a {length}-byte element in {key}"
                 );
-                Ok(Some(bytes[8..].to_vec()))
+                Ok(Some((bytes[8..].to_vec(), length)))
             }
             None => {
                 let (body, crc) = bytes.split_at(bytes.len() - 4);
@@ -885,7 +895,7 @@ impl ZarrSaveStore {
                     crc32c::crc32c(body) == u32::from_le_bytes(crc.try_into().unwrap()),
                     "corrupt element in {key}"
                 );
-                Ok(Some(body[8..].to_vec()))
+                Ok(Some((body[8..].to_vec(), length)))
             }
         }
     }

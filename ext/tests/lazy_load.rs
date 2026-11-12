@@ -27,13 +27,13 @@ fn read_prefix_matches_read() {
         assert_eq!(full.len(), size);
         for len in [0, 1, 16, size] {
             let prefix = store.read_prefix(SaveKind::ChainMap, b, len).unwrap();
-            assert_eq!(prefix.as_deref(), Some(&full[..len]));
+            assert_eq!(prefix, Some((full[..len].to_vec(), size as u64)));
         }
         let g = BidegreeGenerator::new(b, k);
         let prefix = store
             .read_prefix(SaveKind::SecondaryIntermediate, g, 16)
             .unwrap();
-        assert_eq!(prefix.as_deref(), Some(&full[..16]));
+        assert_eq!(prefix, Some((full[..16].to_vec(), size as u64)));
     }
 
     // Unwritten: in a shard that exists, in one that doesn't, and in an array that doesn't.
@@ -72,7 +72,7 @@ fn read_checks_the_element_crc() {
     let err = reopened.read(SaveKind::ChainMap, b).unwrap_err();
     assert!(err.to_string().contains("corrupt element"), "{err:#}");
     let prefix = reopened.read_prefix(SaveKind::ChainMap, b, 16).unwrap();
-    assert_eq!(prefix.as_deref(), Some(&data[..16]));
+    assert_eq!(prefix, Some((data[..16].to_vec(), data.len() as u64)));
 }
 
 #[cfg(feature = "nassau")]
@@ -106,7 +106,9 @@ mod nassau {
         let saved = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
         saved.compute_through_stem(SAVED);
 
-        let lazy = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        let mut lazy = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        lazy.set_load_eagerly(false);
+        lazy.set_load_budget(None);
         lazy.compute_through_stem(SAVED);
         let mut eager = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
         eager.set_load_eagerly(true);
@@ -136,12 +138,37 @@ mod nassau {
         let further = Bidegree::n_s(40, 16);
         let fresh = construct_nassau("S_2", None).unwrap();
         fresh.compute_through_stem(further);
-        let resumed = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        let mut resumed = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        resumed.set_load_eagerly(false);
         resumed.compute_through_stem(further);
         assert_eq!(
             fresh.graded_dimension_string(),
             resumed.graded_dimension_string()
         );
+    }
+
+    /// A generator count changed on disk is caught by checking it against the element's length,
+    /// which the shard index's CRC covers, rather than registered as if it were true.
+    #[test]
+    #[should_panic(expected = "does not fit")]
+    fn lazy_load_rejects_a_corrupt_header() {
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let saved = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        saved.compute_through_stem(SAVED);
+
+        // h_1 at (n, s) = (1, 1): zarr coordinates (1 - N_MIN, 1) = (1025, 1), in shard (128, 0)
+        // at position 1 * 8 + 1 of its 8 x 8 elements. Its payload starts with the generator count.
+        let shard = tempdir.path().join("nassau_differential/c/128/0");
+        let mut bytes = std::fs::read(&shard).unwrap();
+        let index = &bytes[bytes.len() - 4 - 64 * 16..];
+        let offset = u64::from_le_bytes(index[9 * 16..][..8].try_into().unwrap()) as usize;
+        assert_eq!(bytes[offset + 8], 1, "h_1 is one generator");
+        bytes[offset + 8] = 2;
+        std::fs::write(&shard, bytes).unwrap();
+
+        let mut lazy = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        lazy.set_load_eagerly(false);
+        lazy.compute_through_stem(SAVED);
     }
 
     /// Under a budget far below the save, concurrent reads evict and read degrees again, always
@@ -157,6 +184,7 @@ mod nassau {
         let want = |s: i32, t: i32| saved.differential(s).outputs_in_degree(t).to_vec();
 
         let mut lazy = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+        lazy.set_load_eagerly(false);
         lazy.set_load_budget(Some(BUDGET));
         lazy.compute_through_stem(SAVED);
         let cache = std::sync::Arc::clone(lazy.load_cache().unwrap());
