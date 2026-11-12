@@ -70,7 +70,7 @@ fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i3
                 // Mathematically, there is no reason these should be lietrally
                 // equal.
                 assert_eq!(
-                    map.output(t, idx),
+                    &*map.output(t, idx),
                     &correct_result,
                     "Check failed at s = {s}, t = {t}, idx = {idx}"
                 );

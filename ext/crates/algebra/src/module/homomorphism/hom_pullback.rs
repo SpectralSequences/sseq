@@ -117,11 +117,12 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
             let target_range = self.target.block_structures[fn_degree + degree_shift]
                 .generator_to_block(target_gen_deg, target_gen_idx);
 
+            let output = self.map.output(target_gen_deg, target_gen_idx);
             let slice = source_free_module.slice_vector(
                 target_gen_deg - degree_shift,
                 *generator_degree,
                 *generator_index,
-                self.map.output(target_gen_deg, target_gen_idx).as_slice(),
+                output.as_slice(),
             );
 
             // Needed if the output is shorter due to resolve_through_stem

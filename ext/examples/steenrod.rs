@@ -150,7 +150,7 @@ fn main() -> anyhow::Result<()> {
                 for j in 0..num_gens {
                     if let Some(m) = &prev_delta {
                         // Δ_{i-1} x
-                        let prevd = m.output(t, j);
+                        let prevd = &*m.output(t, j);
 
                         // τ Δ_{i-1}x
                         square.swap(&mut result, prevd, b + shift_s - Bidegree::s_t(1, 0));

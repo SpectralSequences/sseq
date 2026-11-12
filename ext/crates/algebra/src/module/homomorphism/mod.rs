@@ -12,6 +12,7 @@ mod free_module_homomorphism;
 mod full_module_homomorphism;
 mod generic_zero_homomorphism;
 mod hom_pullback;
+mod output_cache;
 mod quotient_homomorphism;
 
 pub use free_module_homomorphism::{
@@ -20,6 +21,7 @@ pub use free_module_homomorphism::{
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
+pub use output_cache::{Output, OutputCache, OutputLoader, Outputs};
 // If `concurrent` is disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and so has an
 // `enumerate` method. However, if it is disabled, it does *not* implement `Iterator`, and the
 // `enumerate` method is provided by `rayon::prelude::IndexedParallelIterator`, which is loaded in
