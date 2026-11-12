@@ -478,19 +478,18 @@ pub trait SecondaryLift: Sync + Sized {
     #[tracing::instrument(skip(self))]
     fn compute_intermediates(&self) {
         let tracing_span = tracing::Span::current();
+        // Whether the bidegree needs no intermediates: its homotopy is computed or saved. The saved
+        // homotopy is one payload per bidegree, so this is checked once, not per generator.
+        let skip = |b: Bidegree| {
+            let _tracing_guard = tracing_span.enter();
+            self.homotopies()[b.s()].homotopies.next_degree() >= b.t()
+                || self
+                    .save_dir()
+                    .store()
+                    .is_some_and(|store| store.exists(SaveKind::SecondaryHomotopy, b))
+        };
         let f = |g: BidegreeGenerator| {
             let _tracing_guard = tracing_span.enter();
-
-            // If we already have homotopies, we don't need to compute intermediate
-            if self.homotopies()[g.s()].homotopies.next_degree() >= g.t() {
-                return;
-            }
-            // Check if we have a saved homotopy
-            if let Some(store) = self.save_dir().store()
-                && store.exists(SaveKind::SecondaryHomotopy, g.degree())
-            {
-                return;
-            }
             self.intermediates().insert(g, self.get_intermediate(g));
         };
 
@@ -502,6 +501,10 @@ pub trait SecondaryLift: Sync + Sized {
                     .composites
                     .range()
                     .into_maybe_par_iter()
+                    .filter(|&t| {
+                        homotopy.source.number_of_gens_in_degree(t) > 0
+                            && !skip(Bidegree::s_t(s, t))
+                    })
                     .for_each(|t| {
                         (0..homotopy.source.number_of_gens_in_degree(t))
                             .into_maybe_par_iter()
