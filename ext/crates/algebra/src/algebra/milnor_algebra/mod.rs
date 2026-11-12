@@ -14,7 +14,10 @@ use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, comb
 mod algebra_impl;
 mod antidiagonal;
 mod basis_element;
+pub mod batch;
 mod bialgebra_impl;
+#[cfg(feature = "gpu")]
+mod cuda;
 mod generated_impl;
 mod kind;
 mod multiplication;

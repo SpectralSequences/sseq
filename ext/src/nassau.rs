@@ -21,6 +21,9 @@ use itertools::{Either, Itertools};
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
+#[cfg(feature = "gpu")]
+mod batch;
+
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::{NassauCommand, NassauQiWriter, SaveDirectory, SaveKind},
@@ -222,11 +225,20 @@ impl Subalgebra {
         let source_mask: Vec<usize> = self
             .signature_mask(&algebra, &source, degree, signature, None)
             .collect();
+        let target_dim = target.dimension_from_gens_below(target_degree, target_max_gen_degree);
 
-        let mut scratch = FpVector::new(
-            p,
-            target.dimension_from_gens_below(target_degree, target_max_gen_degree),
-        );
+        #[cfg(feature = "gpu")]
+        if batch::applicable(hom) {
+            return batch::partial_matrix(
+                hom,
+                degree,
+                &source_mask,
+                target_dim,
+                Some(&target_mask),
+            );
+        }
+
+        let mut scratch = FpVector::new(p, target_dim);
         let mut result = Matrix::new(p, source_mask.len(), target_mask.len());
 
         for (mut row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
@@ -630,7 +642,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let full_matrix = {
             let _guard = ParallelGuard::new();
-            self.differentials[b.s() - 1].get_partial_matrix_restricted(
+            restricted_matrix(
+                &self.differentials[b.s() - 1],
                 b.t(),
                 &target_mask,
                 next_dim,
@@ -720,7 +733,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
             let full_matrix = {
                 let _guard = ParallelGuard::new();
-                self.differentials[b.s() - 1].get_partial_matrix_restricted(
+                restricted_matrix(
+                    &self.differentials[b.s() - 1],
                     b.t(),
                     &target_mask,
                     next_dim,
@@ -1351,6 +1365,21 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
     fn chain_map(&self, s: i32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s])
     }
+}
+
+/// [`FreeModuleHomomorphism::get_partial_matrix_restricted`], built as batches of Milnor products
+/// on the GPU when there is one.
+fn restricted_matrix(
+    hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
+    degree: i32,
+    inputs: &[usize],
+    target_dim: usize,
+) -> Matrix {
+    #[cfg(feature = "gpu")]
+    if batch::applicable(hom) {
+        return batch::partial_matrix(hom, degree, inputs, target_dim, None);
+    }
+    hom.get_partial_matrix_restricted(degree, inputs, target_dim)
 }
 
 #[cfg(test)]
