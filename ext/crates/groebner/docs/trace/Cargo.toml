@@ -1,0 +1,17 @@
+[package]
+name = "groebner-trace"
+version = "0.1.0"
+edition = "2024"
+description = "Replays a resolution of the sphere by the groebner crate step by step, as JSON"
+publish = false
+
+[dependencies]
+algebra = { path = "../../../algebra", default-features = false }
+groebner = { path = "../..", default-features = false }
+serde_json = "1.0.154"
+
+[features]
+concurrent = ["algebra/concurrent", "groebner/concurrent"]
+
+# Not a member of the ext workspace, so that the crates there do not depend on serde_json.
+[workspace]

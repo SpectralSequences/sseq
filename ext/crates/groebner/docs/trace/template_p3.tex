@@ -1,0 +1,148 @@
+% PDF 1.4 without object streams, for older viewers.
+\pdfminorversion=4
+\pdfobjcompresslevel=0
+\documentclass[11pt]{article}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array,longtable}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{tikz}
+\usepackage[hidelinks]{hyperref}
+
+\renewcommand{\P}{\mathcal{P}}
+\newcommand{\F}{\mathbb{F}_3}
+\newcommand{\A}{\mathcal{A}}
+\DeclareMathOperator{\LT}{LT}
+\DeclareMathOperator{\Ext}{Ext}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+\title{A minimal resolution over the Steenrod algebra at $p = 3$,\\ computed by Gröbner bases}
+\author{Trace of the \texttt{groebner} crate (branch \texttt{groebner\_lin})}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+@ABSTRACT_LEAD@ the computation of the minimal free resolution
+$\dots \to C_3 \to C_2 \to C_1 \to C_0 \to \F$ of the ground field over the mod $3$ Steenrod
+algebra $\A$ by the \texttt{groebner} crate, a port of Weinan Lin's Gröbner basis method
+extended to odd primes. The range is homological degree $s \le @S_MAX@$ and stem $t - s \le @N_MAX@$, so
+internal degrees $t \le @T_MAX@$. Compared with $p = 2$, there are three new features: the exterior
+generators $Q_k$, coefficients in $\F$, and polynomial generators of height $3$ in the
+associated graded algebra. Every formula below is taken from the program's own data: the
+critical pairs it formed, the elements it reduced, and the bases and differentials it
+produced. Only the bookkeeping of the reduction steps was replayed outside the program, and the
+replay was checked to reproduce the program's results exactly.
+\end{abstract}
+
+\section{Setting}
+
+\paragraph{The algebra.}
+We work in the Milnor basis $Q(E)\,\P(R) = Q_0^{\epsilon_0}Q_1^{\epsilon_1}\cdots
+\P(r_1, r_2, \dots)$ of $\A$, writing $\P^r = \P(r)$. Here $Q_0 = \beta$ is the Bockstein,
+$|Q_k| = 2\cdot 3^k - 1$, and $|\P(R)| = \sum_n 2 r_n (3^n - 1)$. Thus $|Q_0| = 1$, $|Q_1| = 5$,
+$|\P^1| = 4$, and $|\P(0,1)| = 16$. Write $r_n = \sum_i d_{i,n} 3^i$ with ternary digits
+$d_{i,n} \in \{0, 1, 2\}$. The digit records the power of $\xi_n^{3^i}$ in the dual basis,
+of degree $2\cdot 3^i(3^n - 1)$. We record $Q(E)\,\P(R)$ by the monomial
+\[ Q(E) \prod x_{in}^{d_{i,n}} \]
+in the associated graded algebra of the May filtration
+\[ E^0\A = E[Q_0, Q_1, \dots] \otimes \bigotimes_{i \ge 0,\, n \ge 1} \F[x_{in}]/(x_{in}^3). \]
+For example $\P^2 \leftrightarrow x_{01}^2$, $\P^3 \leftrightarrow x_{11}$ and
+$Q_0\P^1 \leftrightarrow Q_0x_{01}$. A monomial is given by a set of $Q_k$ and a digit
+$0 \le d \le 2$ in each position. Divisibility is inclusion of the sets together with digitwise
+$\le$; quotients, greatest common divisors and least common multiples are digitwise too. The
+product in $E^0\A$ is non-zero exactly when no $Q_k$ repeats and no digit sum reaches $3$. Even
+then it carries a coefficient: a binomial coefficient for each digit, and a sign from
+reordering the $Q_k$. The positions in this range, in increasing degree, are @POSITIONS@.
+
+\paragraph{The monomial order.}
+A term of a free module is $c\, Q(E)\P(R)\, g$ with $c \in \F^\times$ and $g$ a generator.
+Terms are compared by
+\begin{enumerate}
+\item the generator: the generator added later (of higher degree) comes first;
+\item the May weight $\sum_{k \in E}(2k+1) + \sum d_{i,n}(2n - 1)$: smaller comes first;
+\item the exterior part, read as a binary number with $Q_0$ most significant: smaller comes
+  first;
+\item the digits, read as a number with the position of lowest degree most significant:
+  smaller comes first.
+\end{enumerate}
+The \emph{leading term} $\LT(x)$ is the first term in this order, and elements are always
+printed with it first. The leading term of a product $Q(E)\P(R)\cdot x$ is the product of
+$Q(E)\,x^R$ with $\LT(x)$ in $E^0\A$, \emph{including its coefficient}, whenever that product
+is non-zero. Elements of a Gröbner basis are normalized to leading coefficient $1$. Since
+$p = 3$, coefficients are printed as $\pm 1$.
+
+\paragraph{Names.}
+The generator of $C_0$ is $\iota$. The generators of $C_s$, $s \ge 1$, are named after the
+classes of $\Ext_\A^{s,t}(\F, \F)$ they represent. The names of the decomposable classes are
+found from the differentials: in a minimal resolution, the product $a_0 x$ or $h_i x$ of the
+class $x$ dual to a generator $g$ of $C_s$ is non-zero on a generator $g'$ of $C_{s+1}$ exactly
+when $Q_0 g$ or $\P^{3^i} g$ occurs in $d g'$. A generator is named $a_0 x$ or $h_i x$ when that
+product is dual to it alone, up to sign. @NAME_NOTE@
+These are only labels. The program numbers the generators of each $C_s$ in the order they are
+found.
+
+\section{The algorithm}
+
+The algorithm is the same as at $p = 2$. We recall it briefly, with the changes for odd primes.
+
+\paragraph{Levels.}
+Level $s$ is a Gröbner basis $b^s_0, b^s_1, \dots$ of the graph of the differential,
+\[ \Gamma_s = \{ (d y, y) : y \in C_{s+1} \} \subseteq C_s \oplus C_{s+1}, \]
+for the order on the first component. Each $b^s_k = (x_1 \mid x_2)$ satisfies $d x_2 = x_1$, its
+leading term is that of $x_1$, and its leading coefficient is $1$. The module being resolved
+enters as ``level $-1$'': $\F = \A/\A\{Q_0, \P^1, \P^3, \P^9, \dots\}$, so the relations are
+$Q_0\iota = 0$ and $\P^{3^i}\iota = 0$.
+
+\paragraph{Critical pairs and singles.}
+When an element with leading term $L$ joins level $s$, the program forms
+\begin{itemize}
+\item a \emph{critical pair} with each earlier element $b$ whose leading term $L'$ lies on the
+  same generator. Let $M = \operatorname{lcm}(L, L')$ in $E^0\A$, with cofactors $u = M/L'$ and
+  $u' = M/L$. The products $u\cdot b$ and $u'\cdot b_{\text{new}}$ have leading terms
+  $\lambda M$ and $\mu M$. The S-element is $\lambda\, u'\cdot b_{\text{new}} - \mu\, u\cdot b$,
+  in which the leading terms cancel. The pairs are pruned by the Gebauer--Möller criteria;
+\item a \emph{critical single} $m \cdot b_{\text{new}}$ for each generator $m$ of the
+  annihilator of $L$ in $E^0\A$. These are $m = x_{in}^{3-d}$ for each digit $d$ of $L$ in
+  position $x_{in}$, and $m = Q_k$ for each $Q_k$ in $L$. Then $m \cdot L = 0$ in $E^0\A$, so
+  the product must be reduced.
+\end{itemize}
+
+\paragraph{One degree.}
+In degree $t$, the program does the following:
+\begin{enumerate}
+\item Every level hands out its pairs and singles of degree $t$, and the relations of degree
+  $t$ are taken up.
+\item Each of them is reduced. The first component is reduced modulo level $s$: a term
+  $c\,m$ divisible by $\LT(b)$, with quotient $u$, is cancelled by adding $-c/\lambda$ times
+  $u \cdot b$, where $\lambda$ is the leading coefficient of $u \cdot b$. The second component
+  is carried along. Then the second component is reduced modulo the first components of level
+  $s+1$, i.e.\ modulo the boundaries known so far. If the first component has become zero, the
+  second component $z \in C_{s+1}$ is a cycle.
+\item Going down from the top level, the results are compared with the elements found earlier
+  in the same degree, normalized, and sorted. A non-zero first component gives a \textbf{new
+  basis element}. If both components are zero, the reduction was \textbf{useless}. Otherwise
+  $z$ is a cycle that is not a boundary, and it becomes $d$ of a \textbf{new generator} of
+  $C_{s+2}$, or the outcome is \textbf{beyond} if $s + 2 > @S_MAX@$.
+\end{enumerate}
+
+\paragraph{Truncation.}
+We want stems $\le @N_MAX@$. A cycle found at level $s$ in degree $t$ is a generator of $C_{s+2}$ in
+stem $t-s-2$, so level $s$ is only needed for $t \le s + @N_MAX2@$. Relations are only needed for
+$t \le @N_MAX1@$.
+
+\paragraph{Running it.}\sloppy
+The computation was run by a small driver around the public API of the crate, in
+\texttt{docs/trace}. It runs \texttt{Resolution::sphere} at $p = 3$ with
+\texttt{SteenrodKind::Classical} and \texttt{Bounds \{ s\_max: @S_MAX@, n\_max: @N_MAX@ \}}, and
+calls \texttt{compute\_through(@T_MAX@)}. It also replays the divisibility criterion on the final
+leading terms, and checks that it prunes as many pairs in each degree as the program counted.
+
+@STEPS@
+\section{The result}
+
+@RESULT@

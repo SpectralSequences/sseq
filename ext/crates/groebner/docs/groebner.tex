@@ -1,0 +1,406 @@
+% PDF 1.4 without object streams, for older viewers.
+\pdfminorversion=4
+\pdfobjcompresslevel=0
+\documentclass[11pt]{article}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array,longtable}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{tikz}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Sq}{\mathrm{Sq}}
+\newcommand{\F}{\mathbb{F}_2}
+\newcommand{\A}{\mathcal{A}}
+\DeclareMathOperator{\LT}{LT}
+\DeclareMathOperator{\Ext}{Ext}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+\title{A minimal resolution over the Steenrod algebra,\\ computed by Gröbner bases}
+\author{Trace of the \texttt{groebner} crate (branch \texttt{groebner\_lin})}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We record the computation of the minimal free resolution
+$\dots \to C_3 \to C_2 \to C_1 \to C_0 \to \F$ of the ground field over the mod $2$ Steenrod
+algebra $\A$ by the \texttt{groebner} crate, a port of Weinan Lin's Gröbner basis method. The
+range is homological degree $s \le 10$ and stem $t - s \le 20$, so internal degrees $t \le 30$.
+Every formula below is taken from the program's own data: the critical pairs it formed, the
+elements it reduced, and the bases and differentials it produced. Only the bookkeeping of the
+reduction steps was replayed outside the program, and the replay was checked to reproduce the
+program's results exactly.
+\end{abstract}
+
+\section{Setting}
+
+\paragraph{The algebra.}
+We work in the Milnor basis $\Sq(R) = \Sq(r_1, r_2, \dots)$ of $\A$, writing $\Sq^r = \Sq(r)$.
+Write $r_n = \sum_i d_{i,n} 2^i$ in binary. The digit $d_{i,n}$ records the power
+$\xi_n^{2^i}$ of the dual basis, of degree $2^i(2^n - 1)$, and we record $\Sq(R)$ by the
+monomial
+\[ x^R = \prod_{d_{i,n} = 1} x_{in} \]
+in the associated graded algebra of the May filtration
+\[ E^0\A = \bigotimes_{i \ge 0,\, n \ge 1} \F[x_{in}]/(x_{in}^2). \]
+For example $\Sq^3 = \Sq(3) \leftrightarrow x_{01}x_{11}$, $\Sq(0,1) \leftrightarrow x_{02}$ and
+$\Sq(1,1) \leftrightarrow x_{01}x_{02}$. In $E^0\A$ a monomial is just a set of positions, so
+divisibility, quotients and least common multiples are inclusion, difference and union of sets.
+The positions relevant here, in increasing degree, are
+$x_{01}$ (1), $x_{11}$ (2), $x_{02}$ (3), $x_{21}$ (4), $x_{12}$ (6), $x_{03}$ (7), $x_{31}$ (8), $x_{22}$ (12), $x_{13}$ (14), $x_{04}$ (15), $x_{41}$ (16), $x_{32}$ (24), $x_{23}$ (28), $x_{14}$ (30).
+
+\paragraph{The monomial order.}
+A term of a free module is $\Sq(R)\,g$ with $g$ a generator. Terms are compared by
+\begin{enumerate}
+\item the generator: the generator added later (of higher degree) comes first;
+\item the May weight $\sum_{d_{i,n} = 1} (2n - 1)$: smaller comes first;
+\item the digits read as a binary number, with the position of lowest degree most significant:
+  smaller comes first.
+\end{enumerate}
+The \emph{leading term} $\LT(x)$ of an element is its first term in this order. Elements are
+always printed with their leading term first. The point of this order is that the leading term
+of a product $\Sq(R)\cdot x$ is $x^R \cdot \LT(x)$ computed in $E^0\A$, \emph{whenever that
+product is non-zero}. Products of leading terms vanish exactly when a position occurs twice, and
+those are the cases the algorithm treats separately (``singles'' below).
+
+\paragraph{Names.}
+The generator of $C_0$ is $\iota$. Generators of $C_s$, $s \ge 1$, are named after the classes of
+$\Ext_\A^{s,t}(\F, \F)$ they represent: $[h_0], [h_1], [h_2], [h_3] \in C_1$, $[h_0^2], [h_1^2],
+[h_0h_2], \dots \in C_2$, $[c_0], [Ph_1]$, and so on. The names of the decomposable classes are
+found from the differentials: in a minimal resolution, the product $h_i x$ of the class $x$ dual to
+a generator $g$ of $C_s$ takes the value $1$ on a generator $g'$ of $C_{s+1}$ exactly when
+$\Sq^{2^i} g$ occurs in $d g'$. A generator is named $h_i x$ when that product is dual to it alone.
+The remaining generators are named after the indecomposable classes $P^2h_1$, $P^2h_2$, $Pc_0$, $Ph_1$, $Ph_2$, $c_0$, $c_1$, $d_0$, $e_0$, $f_0$, $g$ of the standard Adams chart. These names are only labels; the program numbers the generators of
+each $C_s$ in the order they are found.
+
+\section{The algorithm}
+
+\paragraph{Levels.}
+Level $s$ is a Gröbner basis $b^s_0, b^s_1, \dots$ of the graph of the differential,
+\[ \Gamma_s = \{ (d y, y) : y \in C_{s+1} \} \subseteq C_s \oplus C_{s+1}, \]
+for the order on the first component. Each $b^s_k = (x_1 \mid x_2)$ satisfies $d x_2 = x_1$,
+and its leading term is that of $x_1$. The first components form a Gröbner basis of
+$\operatorname{im}(d \colon C_{s+1} \to C_s)$, and pairs whose first component reduces to zero
+produce elements of the kernel. The module being resolved enters as ``level $-1$'': the relations
+$\Sq^{2^i}\iota = 0$ presenting $\F = \A/\A\{\Sq^1, \Sq^2, \Sq^4, \dots\}$.
+
+\paragraph{Critical pairs and singles.}
+When an element with leading term $L = x^{R}\,g$ joins level $s$, the program forms
+\begin{itemize}
+\item a \emph{critical pair} with each earlier element $b$ whose leading term $L'$ lies on the
+  same generator: with $M = \operatorname{lcm}(L, L')$ in $E^0\A$, the S-element is
+  $\Sq(M/L')\cdot b + \Sq(M/L)\cdot b_{\text{new}}$, in which the leading terms cancel. The pairs
+  are pruned by the Gebauer--Möller criteria (divisibility and the chain criterion);
+\item a \emph{critical single} $\Sq(x_{in}) \cdot b_{\text{new}}$ for each position $x_{in}$
+  dividing $L$: then $x_{in} \cdot L = 0$ in $E^0\A$, so the leading term of the product is not
+  predicted by the leading terms and the product must be reduced.
+\end{itemize}
+A pair or single has the degree of its leading monomial, and it is filed under that degree.
+
+\paragraph{One degree.}
+The program runs through $t = 1, 2, \dots$. In degree $t$:
+\begin{enumerate}
+\item Every level hands out its pairs and singles of degree $t$, and the relations of degree $t$
+  are taken up.
+\item Each of them is reduced: the first component modulo level $s$, carrying the second component
+  along so that $d x_2 = x_1$ is preserved; then the second component modulo the first components
+  of level $s+1$, i.e.\ modulo the boundaries $d(C_{s+2})$ known so far, which preserves
+  $d x_2 = x_1$ because $dd = 0$. If the first component has become zero, the second component
+  $z \in C_{s+1}$ is a cycle.
+\item Going down from the top level, the results are compared with the elements found earlier in
+  the same degree (``triangulation''), and then sorted:
+  \begin{itemize}
+  \item first component non-zero: a \textbf{new basis element} of level $s$;
+  \item both components zero: \textbf{useless};
+  \item first component zero, second component $z \ne 0$: $z$ is a cycle that is not a boundary
+    (it is reduced modulo the whole image in degree $t$), so it becomes $d$ of a
+    \textbf{new generator} $g$ of $C_{s+2}$, and $(z \mid g)$ joins level $s+1$. If $s + 2$
+    exceeds the range, the outcome is \textbf{beyond} instead.
+  \end{itemize}
+\end{enumerate}
+Because the levels are handled from the top down, the new elements of level $s+1$ in degree $t$
+are known when the cycles of level $s$ are tested, which is what makes the resolution minimal.
+No linear algebra is ever done: everything is rewriting of sparse sums of terms.
+
+\paragraph{Truncation.}
+A cycle found at level $s$ in degree $t$ is a generator of $C_{s+2}$ in stem $t-s-2$. Since we
+want stems $\le 20$, level $s$ is only needed for $t \le s + 22$, and pairs of higher degree are
+never formed. Likewise the relations are only needed for $t \le 21$.
+
+\paragraph{Running it.}\sloppy
+The trace was produced by a small driver around the public API of the crate
+(\texttt{Resolution::sphere} with \texttt{Bounds \{ s\_max: 10, n\_max: 20 \}} at $p = 2$,
+\texttt{SteenrodKind::Classical}), which calls \texttt{compute\_through(t)} for $t = 1, \dots, 30$
+and records every reduction through a \texttt{PairObserver}. The driver then redid each reduction
+with the crate's own products, recording the individual steps, and checked after every degree that
+the outcomes, the new basis elements and the differentials agree with the program's. It also
+replays the divisibility criterion on the final leading terms, and checks that it prunes as many
+pairs in each degree as the program counted. The driver and the script that renders this document
+are in \texttt{docs/trace}.
+
+
+
+\section{The result}
+
+\paragraph{Pruning and boundaries.} The Gebauer--M\"oller divisibility criterion prunes $(b^{1}_{9}, b^{1}_{10})$ in degree $15$, $(b^{1}_{9}, b^{1}_{11})$ in degree $22$, $(b^{2}_{5}, b^{2}_{9})$ in degree $18$ and $(b^{2}_{6}, b^{2}_{11})$ in degree $22$. The chain criterion never applies. A cycle turns out to be a boundary of another cycle of its degree at level $2$ in degree $24$.
+
+\paragraph{Generators and differentials.}
+\begin{center}\small
+\begin{longtable}{lccc>{\raggedright\arraybackslash}p{0.62\linewidth}}
+\toprule
+generator & $s$ & $t$ & $t-s$ & differential \\
+\midrule\endhead
+$\iota$ & 0 & 0 & 0 & --- \\
+$[h_0]$ & 1 & 1 & 0 & $\Sq^{1}\iota$ \\
+$[h_1]$ & 1 & 2 & 1 & $\Sq^{2}\iota$ \\
+$[h_0^{2}]$ & 2 & 2 & 0 & $\Sq^{1}[h_0]$ \\
+$[h_0^{3}]$ & 3 & 3 & 0 & $\Sq^{1}[h_0^{2}]$ \\
+$[h_2]$ & 1 & 4 & 3 & $\Sq^{4}\iota$ \\
+$[h_1^{2}]$ & 2 & 4 & 2 & $\Sq^{2}[h_1] + \Sq(0,1)[h_0]$ \\
+$[h_0^{4}]$ & 4 & 4 & 0 & $\Sq^{1}[h_0^{3}]$ \\
+$[h_0h_2]$ & 2 & 5 & 3 & $\Sq^{1}[h_2] + \Sq(0,1)[h_1] + \Sq^{4}[h_0]$ \\
+$[h_0^{5}]$ & 5 & 5 & 0 & $\Sq^{1}[h_0^{4}]$ \\
+$[h_0^{2}h_2]$ & 3 & 6 & 3 & $\Sq^{1}[h_0h_2] + \Sq^{2}[h_1^{2}] + \Sq^{4}[h_0^{2}]$ \\
+$[h_0^{6}]$ & 6 & 6 & 0 & $\Sq^{1}[h_0^{5}]$ \\
+$[h_0^{7}]$ & 7 & 7 & 0 & $\Sq^{1}[h_0^{6}]$ \\
+$[h_3]$ & 1 & 8 & 7 & $\Sq^{8}\iota$ \\
+$[h_2^{2}]$ & 2 & 8 & 6 & $\Sq^{4}[h_2] + \Sq(0,2)[h_1] + \Sq(0,0,1)[h_0]$ \\
+$[h_0^{8}]$ & 8 & 8 & 0 & $\Sq^{1}[h_0^{7}]$ \\
+$[h_0h_3]$ & 2 & 9 & 7 & $\Sq^{1}[h_3] + \Sq(4,1)[h_1] + \Sq(1,2)[h_1] + \Sq(0,0,1)[h_1] + \Sq^{8}[h_0] + \Sq(2,2)[h_0]$ \\
+$[h_0^{9}]$ & 9 & 9 & 0 & $\Sq^{1}[h_0^{8}]$ \\
+$[h_1h_3]$ & 2 & 10 & 8 & $\Sq^{2}[h_3] + \Sq(0,2)[h_2] + \Sq^{8}[h_1] + \Sq(1,0,1)[h_1]$ \\
+$[h_0^{2}h_3]$ & 3 & 10 & 7 & $\Sq^{1}[h_0h_3] + \Sq^{6}[h_1^{2}] + \Sq(0,2)[h_1^{2}] + \Sq^{8}[h_0^{2}] + \Sq(2,2)[h_0^{2}]$ \\
+$[h_0^{10}]$ & 10 & 10 & 0 & $\Sq^{1}[h_0^{9}]$ \\
+$[c_0]$ & 3 & 11 & 8 & $\Sq^{3}[h_2^{2}] + \Sq(0,1)[h_2^{2}] + \Sq^{6}[h_0h_2] + \Sq(4,1)[h_1^{2}] + \Sq(1,2)[h_1^{2}] + \Sq(0,0,1)[h_1^{2}] + \Sq(6,1)[h_0^{2}] + \Sq(2,0,1)[h_0^{2}]$ \\
+$[h_0^{3}h_3]$ & 4 & 11 & 7 & $\Sq^{1}[h_0^{2}h_3] + \Sq^{5}[h_0^{2}h_2] + \Sq(2,1)[h_0^{2}h_2] + \Sq^{8}[h_0^{3}]$ \\
+$[h_1^{2}h_3]$ & 3 & 12 & 9 & $\Sq^{2}[h_1h_3] + \Sq(0,1)[h_0h_3] + \Sq^{4}[h_2^{2}] + \Sq^{8}[h_1^{2}] + \Sq(2,2)[h_1^{2}]$ \\
+$[h_1c_0]$ & 4 & 13 & 9 & $\Sq^{2}[c_0] + \Sq(4,1)[h_0^{2}h_2] + \Sq(1,2)[h_0^{2}h_2] + \Sq(0,0,1)[h_0^{2}h_2] + \Sq(4,2)[h_0^{3}] + \Sq(0,1,1)[h_0^{3}]$ \\
+$[Ph_1]$ & 5 & 14 & 9 & $\Sq^{3}[h_0^{3}h_3] + \Sq(0,1)[h_0^{3}h_3] + \Sq^{10}[h_0^{4}]$ \\
+$[h_4]$ & 1 & 16 & 15 & $\Sq^{16}\iota$ \\
+$[h_3^{2}]$ & 2 & 16 & 14 & $\Sq^{8}[h_3] + \Sq(0,4)[h_2] + \Sq(0,0,2)[h_1] + \Sq(4,1,1)[h_1] + \Sq(0,0,0,1)[h_0] + \Sq(6,3)[h_0] + \Sq(2,2,1)[h_0]$ \\
+$[Ph_2]$ & 5 & 16 & 11 & $\Sq^{3}[h_1c_0] + \Sq^{5}[h_0^{3}h_3] + \Sq(2,1)[h_0^{3}h_3] + \Sq^{12}[h_0^{4}] + \Sq(2,1,1)[h_0^{4}]$ \\
+$[h_1Ph_1]$ & 6 & 16 & 10 & $\Sq^{2}[Ph_1] + \Sq(8,1)[h_0^{5}]$ \\
+$[h_0h_4]$ & 2 & 17 & 15 & $\Sq^{1}[h_4] + \Sq(0,2,1)[h_2] + \Sq(12,1)[h_1] + \Sq(9,2)[h_1] + \Sq(8,0,1)[h_1] + \Sq^{16}[h_0] + \Sq(10,2)[h_0]$ \\
+$[h_0h_3^{2}]$ & 3 & 17 & 14 & $\Sq^{1}[h_3^{2}] + \Sq(4,1)[h_1h_3] + \Sq(1,2)[h_1h_3] + \Sq(0,0,1)[h_1h_3] + \Sq^{8}[h_0h_3] + \Sq(2,2)[h_0h_3] + \Sq(0,3)[h_2^{2}] + \Sq(0,4)[h_0h_2] + \Sq(2,1,1)[h_0h_2] + \Sq(6,0,1)[h_1^{2}] + \Sq(0,0,0,1)[h_0^{2}] + \Sq(2,2,1)[h_0^{2}]$ \\
+$[h_0Ph_2]$ & 6 & 17 & 11 & $\Sq^{1}[Ph_2] + \Sq(0,1)[Ph_1] + \Sq^{12}[h_0^{5}] + \Sq(2,1,1)[h_0^{5}]$ \\
+$[h_1h_4]$ & 2 & 18 & 16 & $\Sq^{2}[h_4] + \Sq(8,2)[h_2] + \Sq(2,4)[h_2] + \Sq(0,0,2)[h_2] + \Sq^{16}[h_1] + \Sq(4,4)[h_1] + \Sq(9,0,1)[h_1] + \Sq(0,1,2)[h_0] + \Sq(2,0,0,1)[h_0] + \Sq(4,2,1)[h_0]$ \\
+$[h_0^{2}h_4]$ & 3 & 18 & 15 & $\Sq^{1}[h_0h_4] + \Sq(0,2,1)[h_0h_2] + \Sq^{14}[h_1^{2}] + \Sq(8,2)[h_1^{2}] + \Sq(5,3)[h_1^{2}] + \Sq(4,1,1)[h_1^{2}] + \Sq^{16}[h_0^{2}] + \Sq(10,2)[h_0^{2}] + \Sq(0,3,1)[h_0^{2}]$ \\
+$[d_0]$ & 4 & 18 & 14 & $\Sq(3,1)[h_1^{2}h_3] + \Sq(4,1)[c_0] + \Sq(1,2)[c_0] + \Sq(0,0,1)[c_0] + \Sq(6,2)[h_0^{2}h_2] + \Sq(9,1)[h_0^{2}h_2] + \Sq(5,0,1)[h_0^{2}h_2] + \Sq(2,1,1)[h_0^{2}h_2] + \Sq(12,1)[h_0^{3}] + \Sq(0,5)[h_0^{3}] + \Sq(6,3)[h_0^{3}] + \Sq(2,2,1)[h_0^{3}]$ \\
+$[h_0^{2}Ph_2]$ & 7 & 18 & 11 & $\Sq^{1}[h_0Ph_2] + \Sq^{2}[h_1Ph_1] + \Sq^{12}[h_0^{6}] + \Sq(2,1,1)[h_0^{6}]$ \\
+$[h_0^{3}h_4]$ & 4 & 19 & 15 & $\Sq^{1}[h_0^{2}h_4] + \Sq^{13}[h_0^{2}h_2] + \Sq(10,1)[h_0^{2}h_2] + \Sq(7,2)[h_0^{2}h_2] + \Sq(4,3)[h_0^{2}h_2] + \Sq(6,0,1)[h_0^{2}h_2] + \Sq(0,2,1)[h_0^{2}h_2] + \Sq^{16}[h_0^{3}] + \Sq(4,4)[h_0^{3}] + \Sq(6,1,1)[h_0^{3}]$ \\
+$[h_0d_0]$ & 5 & 19 & 14 & $\Sq^{1}[d_0] + \Sq^{6}[h_1c_0] + \Sq(0,2)[h_1c_0] + \Sq(12,1)[h_0^{4}] + \Sq(0,5)[h_0^{4}]$ \\
+$[h_2h_4]$ & 2 & 20 & 18 & $\Sq^{4}[h_4] + \Sq(0,4)[h_3] + \Sq^{16}[h_2] + \Sq(2,0,2)[h_2] + \Sq(8,1,1)[h_1] + \Sq(10,3)[h_0] + \Sq(2,1,2)[h_0] + \Sq(6,2,1)[h_0]$ \\
+$[h_1^{2}h_4]$ & 3 & 20 & 17 & $\Sq^{2}[h_1h_4] + \Sq(0,1)[h_0h_4] + \Sq^{12}[h_2^{2}] + \Sq(0,4)[h_2^{2}] + \Sq(5,0,1)[h_2^{2}] + \Sq(0,5)[h_0h_2] + \Sq^{16}[h_1^{2}] + \Sq(4,4)[h_1^{2}] + \Sq(10,2)[h_1^{2}] + \Sq(0,3,1)[h_1^{2}] + \Sq(0,1,0,1)[h_0^{2}]$ \\
+$[h_1d_0]$ & 5 & 20 & 15 & $\Sq^{2}[d_0] + \Sq(4,1)[h_1c_0] + \Sq(1,2)[h_1c_0] + \Sq(0,0,1)[h_1c_0] + \Sq^{9}[h_0^{3}h_3] + \Sq(6,1)[h_0^{3}h_3] + \Sq(4,4)[h_0^{4}]$ \\
+$[h_0^{4}h_4]$ & 5 & 20 & 15 & $\Sq^{1}[h_0^{3}h_4] + \Sq^{9}[h_0^{3}h_3] + \Sq(6,1)[h_0^{3}h_3] + \Sq^{16}[h_0^{4}] + \Sq(6,1,1)[h_0^{4}]$ \\
+$[h_0^{2}d_0]$ & 6 & 20 & 14 & $\Sq^{1}[h_0d_0] + \Sq^{4}[Ph_2] + \Sq(0,2)[Ph_1] + \Sq(12,1)[h_0^{5}] + \Sq(8,0,1)[h_0^{5}] + \Sq(0,5)[h_0^{5}]$ \\
+$[h_0h_2h_4]$ & 3 & 21 & 18 & $\Sq^{1}[h_2h_4] + \Sq(0,1)[h_1h_4] + \Sq^{4}[h_0h_4] + \Sq(2,1)[h_3^{2}] + \Sq(8,1)[h_1h_3] + \Sq(5,2)[h_1h_3] + \Sq(4,0,1)[h_1h_3] + \Sq(0,4)[h_0h_3] + \Sq(6,2)[h_0h_3] + \Sq(1,4)[h_2^{2}] + \Sq(10,1)[h_2^{2}] + \Sq(0,2,1)[h_2^{2}] + \Sq^{16}[h_0h_2] + \Sq(4,4)[h_0h_2] + \Sq(0,3,1)[h_0h_2] + \Sq(8,3)[h_1^{2}] + \Sq(10,0,1)[h_1^{2}] + \Sq(0,1,2)[h_1^{2}] + \Sq(1,3,1)[h_1^{2}] + \Sq(0,4,1)[h_0^{2}] + \Sq(10,3)[h_0^{2}] + \Sq(6,2,1)[h_0^{2}]$ \\
+$[e_0]$ & 4 & 21 & 17 & $\Sq(1,1)[h_0h_3^{2}] + \Sq(6,1)[h_1^{2}h_3] + \Sq(3,2)[h_1^{2}h_3] + \Sq(0,3)[h_1^{2}h_3] + \Sq(2,0,1)[h_1^{2}h_3] + \Sq(4,2)[c_0] + \Sq(8,1)[h_0^{2}h_3] + \Sq(9,2)[h_0^{2}h_2] + \Sq(8,0,1)[h_0^{2}h_2] + \Sq(0,5)[h_0^{2}h_2] + \Sq(2,2,1)[h_0^{2}h_2] + \Sq(5,1,1)[h_0^{2}h_2] + \Sq(12,2)[h_0^{3}] + \Sq(0,6)[h_0^{3}] + \Sq(0,1,0,1)[h_0^{3}]$ \\
+$[h_0^{5}h_4]$ & 6 & 21 & 15 & $\Sq^{1}[h_0^{4}h_4] + \Sq(4,1)[Ph_1] + \Sq(1,2)[Ph_1] + \Sq(0,0,1)[Ph_1] + \Sq^{16}[h_0^{5}] + \Sq(10,2)[h_0^{5}] + \Sq(6,1,1)[h_0^{5}]$ \\
+$[c_1]$ & 3 & 22 & 19 & $\Sq^{6}[h_3^{2}] + \Sq(0,2)[h_3^{2}] + \Sq^{12}[h_1h_3] + \Sq(10,1)[h_0h_3] + \Sq(4,3)[h_0h_3] + \Sq(6,0,1)[h_0h_3] + \Sq(8,2)[h_2^{2}] + \Sq(2,4)[h_2^{2}] + \Sq(0,0,2)[h_2^{2}] + \Sq(1,2,1)[h_2^{2}] + \Sq(10,0,1)[h_0h_2] + \Sq(2,5)[h_0h_2] + \Sq(0,1,2)[h_0h_2] + \Sq(2,0,0,1)[h_0h_2] + \Sq(12,2)[h_1^{2}] + \Sq(4,0,2)[h_1^{2}] + \Sq(5,2,1)[h_1^{2}] + \Sq(10,1,1)[h_0^{2}] + \Sq(4,3,1)[h_0^{2}]$ \\
+$[f_0]$ & 4 & 22 & 18 & $\Sq^{5}[h_0h_3^{2}] + \Sq(2,1)[h_0h_3^{2}] + \Sq(1,3)[h_1^{2}h_3] + \Sq(3,0,1)[h_1^{2}h_3] + \Sq(0,1,1)[h_1^{2}h_3] + \Sq(4,0,1)[c_0] + \Sq^{12}[h_0^{2}h_3] + \Sq(4,4)[h_0^{2}h_2] + \Sq(13,1)[h_0^{2}h_2] + \Sq(9,0,1)[h_0^{2}h_2] + \Sq(6,1,1)[h_0^{2}h_2] + \Sq(3,2,1)[h_0^{2}h_2] + \Sq(0,3,1)[h_0^{2}h_2] + \Sq(12,0,1)[h_0^{3}] + \Sq(4,5)[h_0^{3}] + \Sq(0,4,1)[h_0^{3}] + \Sq(4,0,0,1)[h_0^{3}]$ \\
+$[h_0^{2}h_2h_4]$ & 4 & 22 & 18 & $\Sq^{1}[h_0h_2h_4] + \Sq^{2}[h_1^{2}h_4] + \Sq^{4}[h_0^{2}h_4] + \Sq(2,1)[h_0h_3^{2}] + \Sq^{10}[h_1^{2}h_3] + \Sq(4,2)[h_1^{2}h_3] + \Sq(8,1)[c_0] + \Sq(0,4)[h_0^{2}h_3] + \Sq(6,2)[h_0^{2}h_3] + \Sq^{16}[h_0^{2}h_2] + \Sq(4,4)[h_0^{2}h_2] + \Sq(9,0,1)[h_0^{2}h_2] + \Sq(1,5)[h_0^{2}h_2] + \Sq(6,1,1)[h_0^{2}h_2] + \Sq(12,0,1)[h_0^{3}] + \Sq(4,5)[h_0^{3}] + \Sq(10,3)[h_0^{3}]$ \\
+$[h_0e_0]$ & 5 & 22 & 17 & $\Sq^{1}[e_0] + \Sq^{4}[d_0] + \Sq(2,0,1)[h_1c_0] + \Sq(8,1)[h_0^{3}h_3] + \Sq(5,2)[h_0^{3}h_3] + \Sq(4,0,1)[h_0^{3}h_3] + \Sq(2,3)[h_0^{3}h_3] + \Sq(0,6)[h_0^{4}] + \Sq(0,1,0,1)[h_0^{4}]$ \\
+$[h_1^{2}d_0]$ & 6 & 22 & 16 & $\Sq^{2}[h_1d_0] + \Sq(0,1)[h_0d_0] + \Sq(0,2)[Ph_2] + \Sq^{8}[Ph_1] + \Sq(1,0,1)[Ph_1] + \Sq(14,1)[h_0^{5}] + \Sq(2,5)[h_0^{5}]$ \\
+$[h_0^{6}h_4]$ & 7 & 22 & 15 & $\Sq^{1}[h_0^{5}h_4] + \Sq^{6}[h_1Ph_1] + \Sq(0,2)[h_1Ph_1] + \Sq^{16}[h_0^{6}] + \Sq(10,2)[h_0^{6}] + \Sq(6,1,1)[h_0^{6}]$ \\
+$[h_0f_0]$ & 5 & 23 & 18 & $\Sq^{1}[f_0] + \Sq^{2}[e_0] + \Sq(4,2)[h_1c_0] + \Sq(0,1,1)[h_1c_0] + \Sq^{12}[h_0^{3}h_3] + \Sq(5,0,1)[h_0^{3}h_3] + \Sq(2,1,1)[h_0^{3}h_3] + \Sq(4,5)[h_0^{4}] + \Sq(0,4,1)[h_0^{4}] + \Sq(4,0,0,1)[h_0^{4}] + \Sq(10,3)[h_0^{4}]$ \\
+$[h_0^{2}e_0]$ & 6 & 23 & 17 & $\Sq^{1}[h_0e_0] + \Sq(0,1)[h_1d_0] + \Sq^{4}[h_0d_0] + \Sq(4,1)[Ph_2] + \Sq(0,0,1)[Ph_2] + \Sq(0,6)[h_0^{5}] + \Sq(0,1,0,1)[h_0^{5}]$ \\
+$[Pc_0]$ & 7 & 23 & 16 & $\Sq^{3}[h_0^{2}d_0] + \Sq(0,1)[h_0^{2}d_0] + \Sq^{6}[h_0Ph_2] + \Sq(4,1)[h_1Ph_1] + \Sq(1,2)[h_1Ph_1] + \Sq(0,0,1)[h_1Ph_1] + \Sq(10,0,1)[h_0^{6}] + \Sq(2,5)[h_0^{6}]$ \\
+$[h_0^{7}h_4]$ & 8 & 23 & 15 & $\Sq^{1}[h_0^{6}h_4] + \Sq^{5}[h_0^{2}Ph_2] + \Sq(2,1)[h_0^{2}Ph_2] + \Sq^{16}[h_0^{7}] + \Sq(0,3,1)[h_0^{7}]$ \\
+$[g]$ & 4 & 24 & 20 & $\Sq(1,2)[h_0h_3^{2}] + \Sq(0,0,1)[h_0h_3^{2}] + \Sq(6,2)[h_1^{2}h_3] + \Sq(5,0,1)[h_1^{2}h_3] + \Sq(4,3)[c_0] + \Sq(8,2)[h_0^{2}h_3] + \Sq(4,1,1)[h_0^{2}h_3] + \Sq(0,6)[h_0^{2}h_2] + \Sq(14,0,1)[h_0^{3}] + \Sq(8,2,1)[h_0^{3}] + \Sq(0,2,0,1)[h_0^{3}]$ \\
+$[h_0^{3}e_0]$ & 7 & 24 & 17 & $\Sq^{1}[h_0^{2}e_0] + \Sq^{2}[h_1^{2}d_0] + \Sq^{4}[h_0^{2}d_0] + \Sq(4,1)[h_0Ph_2] + \Sq(0,0,1)[h_0Ph_2] + \Sq^{8}[h_1Ph_1] + \Sq(1,0,1)[h_1Ph_1] + \Sq(0,6)[h_0^{6}] + \Sq(8,1,1)[h_0^{6}] + \Sq(0,1,0,1)[h_0^{6}]$ \\
+$[h_0g]$ & 5 & 25 & 20 & $\Sq^{1}[g] + \Sq(0,1)[f_0] + \Sq^{4}[e_0] + \Sq(0,0,1)[d_0] + \Sq(6,2)[h_1c_0] + \Sq(5,0,1)[h_1c_0] + \Sq(8,2)[h_0^{3}h_3] + \Sq(4,1,1)[h_0^{3}h_3] + \Sq(1,2,1)[h_0^{3}h_3] + \Sq(2,4,1)[h_0^{4}] + \Sq(0,2,0,1)[h_0^{4}]$ \\
+$[h_1Pc_0]$ & 8 & 25 & 17 & $\Sq^{2}[Pc_0] + \Sq(4,1)[h_0^{2}Ph_2] + \Sq(1,2)[h_0^{2}Ph_2] + \Sq(0,0,1)[h_0^{2}Ph_2] + \Sq(12,2)[h_0^{7}] + \Sq(8,1,1)[h_0^{7}] + \Sq(2,3,1)[h_0^{7}]$ \\
+$[h_0^{2}g]$ & 6 & 26 & 20 & $\Sq^{1}[h_0g] + \Sq(0,1)[h_0f_0] + \Sq^{4}[h_0e_0] + \Sq(0,2)[h_1d_0] + \Sq(4,2)[Ph_2] + \Sq(0,1,1)[Ph_2] + \Sq(14,0,1)[h_0^{5}] + \Sq(8,2,1)[h_0^{5}] + \Sq(0,2,0,1)[h_0^{5}]$ \\
+$[P^2h_1]$ & 9 & 26 & 17 & $\Sq^{3}[h_0^{7}h_4] + \Sq(0,1)[h_0^{7}h_4] + \Sq^{18}[h_0^{8}] + \Sq(2,3,1)[h_0^{8}]$ \\
+$[P^2h_2]$ & 9 & 28 & 19 & $\Sq^{3}[h_1Pc_0] + \Sq^{5}[h_0^{7}h_4] + \Sq(2,1)[h_0^{7}h_4] + \Sq^{20}[h_0^{8}] + \Sq(10,1,1)[h_0^{8}] + \Sq(4,3,1)[h_0^{8}]$ \\
+$[h_1P^2h_1]$ & 10 & 28 & 18 & $\Sq^{2}[P^2h_1] + \Sq(16,1)[h_0^{9}]$ \\
+$[h_0P^2h_2]$ & 10 & 29 & 19 & $\Sq^{1}[P^2h_2] + \Sq(0,1)[P^2h_1] + \Sq^{20}[h_0^{9}] + \Sq(10,1,1)[h_0^{9}] + \Sq(4,3,1)[h_0^{9}]$ \\
+\bottomrule
+\end{longtable}
+\end{center}
+Since the resolution is minimal, the generators are a basis of $\Ext_\A^{s,t}(\F, \F)$ in this range:
+\begin{center}\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{c|ccccccccccc}
+$t-s \backslash s$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\
+\midrule
+$0$ & $1$ & $h_0$ & $h_0^{2}$ & $h_0^{3}$ & $h_0^{4}$ & $h_0^{5}$ & $h_0^{6}$ & $h_0^{7}$ & $h_0^{8}$ & $h_0^{9}$ & $h_0^{10}$ \\
+$1$ &  & $h_1$ &  &  &  &  &  &  &  &  &  \\
+$2$ &  &  & $h_1^{2}$ &  &  &  &  &  &  &  &  \\
+$3$ &  & $h_2$ & $h_0h_2$ & $h_0^{2}h_2$ &  &  &  &  &  &  &  \\
+$4$ &  &  &  &  &  &  &  &  &  &  &  \\
+$5$ &  &  &  &  &  &  &  &  &  &  &  \\
+$6$ &  &  & $h_2^{2}$ &  &  &  &  &  &  &  &  \\
+$7$ &  & $h_3$ & $h_0h_3$ & $h_0^{2}h_3$ & $h_0^{3}h_3$ &  &  &  &  &  &  \\
+$8$ &  &  & $h_1h_3$ & $c_0$ &  &  &  &  &  &  &  \\
+$9$ &  &  &  & $h_1^{2}h_3$ & $h_1c_0$ & $Ph_1$ &  &  &  &  &  \\
+$10$ &  &  &  &  &  &  & $h_1Ph_1$ &  &  &  &  \\
+$11$ &  &  &  &  &  & $Ph_2$ & $h_0Ph_2$ & $h_0^{2}Ph_2$ &  &  &  \\
+$12$ &  &  &  &  &  &  &  &  &  &  &  \\
+$13$ &  &  &  &  &  &  &  &  &  &  &  \\
+$14$ &  &  & $h_3^{2}$ & $h_0h_3^{2}$ & $d_0$ & $h_0d_0$ & $h_0^{2}d_0$ &  &  &  &  \\
+$15$ &  & $h_4$ & $h_0h_4$ & $h_0^{2}h_4$ & $h_0^{3}h_4$ & \shortstack{$h_1d_0$\\ $h_0^{4}h_4$} & $h_0^{5}h_4$ & $h_0^{6}h_4$ & $h_0^{7}h_4$ &  &  \\
+$16$ &  &  & $h_1h_4$ &  &  &  & $h_1^{2}d_0$ & $Pc_0$ &  &  &  \\
+$17$ &  &  &  & $h_1^{2}h_4$ & $e_0$ & $h_0e_0$ & $h_0^{2}e_0$ & $h_0^{3}e_0$ & $h_1Pc_0$ & $P^2h_1$ &  \\
+$18$ &  &  & $h_2h_4$ & $h_0h_2h_4$ & \shortstack{$f_0$\\ $h_0^{2}h_2h_4$} & $h_0f_0$ &  &  &  &  & $h_1P^2h_1$ \\
+$19$ &  &  &  & $c_1$ &  &  &  &  &  & $P^2h_2$ & $h_0P^2h_2$ \\
+$20$ &  &  &  &  & $g$ & $h_0g$ & $h_0^{2}g$ &  &  &  &  \\
+\end{tabular}
+\end{center}
+
+\paragraph{The Gröbner bases.}
+\begin{center}\scriptsize
+\begin{longtable}{lcl>{\raggedright\arraybackslash}p{0.35\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}}
+\toprule
+element & $t$ & leading term & first component $x_1$ & second component $x_2$ \\
+\midrule\endhead
+$b^{0}_{0}$ & 1 & $x_{01}\,\iota$ & $\Sq^{1}\iota$ & $[h_0]$ \\
+$b^{0}_{1}$ & 2 & $x_{11}\,\iota$ & $\Sq^{2}\iota$ & $[h_1]$ \\
+$b^{0}_{2}$ & 3 & $x_{02}\,\iota$ & $\Sq(0,1)\iota$ & $\Sq^{1}[h_1] + \Sq^{2}[h_0]$ \\
+$b^{0}_{3}$ & 4 & $x_{21}\,\iota$ & $\Sq^{4}\iota$ & $[h_2]$ \\
+$b^{0}_{4}$ & 6 & $x_{12}\,\iota$ & $\Sq(0,2)\iota$ & $\Sq^{2}[h_2] + \Sq^{4}[h_1]$ \\
+$b^{0}_{5}$ & 7 & $x_{03}\,\iota$ & $\Sq(0,0,1)\iota$ & $\Sq(0,1)[h_2] + \Sq^{5}[h_1] + \Sq^{6}[h_0] + \Sq(0,2)[h_0]$ \\
+$b^{0}_{6}$ & 8 & $x_{31}\,\iota$ & $\Sq^{8}\iota$ & $[h_3]$ \\
+$b^{0}_{7}$ & 12 & $x_{22}\,\iota$ & $\Sq(0,4)\iota$ & $\Sq^{4}[h_3] + \Sq^{8}[h_2] + \Sq(0,1,1)[h_1] + \Sq(2,3)[h_0]$ \\
+$b^{0}_{8}$ & 14 & $x_{13}\,\iota$ & $\Sq(0,0,2)\iota$ & $\Sq(0,2)[h_3] + \Sq^{10}[h_2] + \Sq^{12}[h_1] + \Sq(0,4)[h_1] + \Sq(4,3)[h_0] + \Sq(6,0,1)[h_0] + \Sq(0,2,1)[h_0]$ \\
+$b^{0}_{9}$ & 15 & $x_{04}\,\iota$ & $\Sq(0,0,0,1)\iota$ & $\Sq(0,0,1)[h_3] + \Sq(8,1)[h_2] + \Sq^{13}[h_1] + \Sq(1,4)[h_1] + \Sq(0,2,1)[h_1] + \Sq^{14}[h_0] + \Sq(8,2)[h_0] + \Sq(2,4)[h_0] + \Sq(0,0,2)[h_0]$ \\
+$b^{0}_{10}$ & 16 & $x_{41}\,\iota$ & $\Sq^{16}\iota$ & $[h_4]$ \\
+$b^{1}_{0}$ & 2 & $x_{01}\,[h_0]$ & $\Sq^{1}[h_0]$ & $[h_0^{2}]$ \\
+$b^{1}_{1}$ & 4 & $x_{11}\,[h_1]$ & $\Sq^{2}[h_1] + \Sq(0,1)[h_0]$ & $[h_1^{2}]$ \\
+$b^{1}_{2}$ & 5 & $x_{01}\,[h_2]$ & $\Sq^{1}[h_2] + \Sq(0,1)[h_1] + \Sq^{4}[h_0]$ & $[h_0h_2]$ \\
+$b^{1}_{3}$ & 6 & $x_{01}x_{02}\,[h_1]$ & $\Sq(1,1)[h_1] + \Sq(2,1)[h_0]$ & $\Sq^{2}[h_1^{2}]$ \\
+$b^{1}_{4}$ & 8 & $x_{21}\,[h_2]$ & $\Sq^{4}[h_2] + \Sq(0,2)[h_1] + \Sq(0,0,1)[h_0]$ & $[h_2^{2}]$ \\
+$b^{1}_{5}$ & 9 & $x_{11}x_{02}\,[h_2]$ & $\Sq(2,1)[h_2] + \Sq(4,1)[h_1] + \Sq(1,2)[h_1] + \Sq(0,0,1)[h_1] + \Sq(2,2)[h_0]$ & $\Sq^{1}[h_2^{2}] + \Sq^{4}[h_0h_2] + \Sq(0,0,1)[h_0^{2}]$ \\
+$b^{1}_{6}$ & 9 & $x_{01}\,[h_3]$ & $\Sq^{1}[h_3] + \Sq(4,1)[h_1] + \Sq(1,2)[h_1] + \Sq(0,0,1)[h_1] + \Sq^{8}[h_0] + \Sq(2,2)[h_0]$ & $[h_0h_3]$ \\
+$b^{1}_{7}$ & 10 & $x_{11}\,[h_3]$ & $\Sq^{2}[h_3] + \Sq(0,2)[h_2] + \Sq^{8}[h_1] + \Sq(1,0,1)[h_1]$ & $[h_1h_3]$ \\
+$b^{1}_{8}$ & 11 & $x_{02}\,[h_3]$ & $\Sq(0,1)[h_3] + \Sq(0,0,1)[h_2] + \Sq^{9}[h_1] + \Sq(0,3)[h_1] + \Sq^{10}[h_0] + \Sq(4,2)[h_0] + \Sq(0,1,1)[h_0]$ & $\Sq^{1}[h_1h_3] + \Sq^{2}[h_0h_3] + \Sq(0,2)[h_0h_2] + \Sq(4,1)[h_1^{2}] + \Sq(1,2)[h_1^{2}] + \Sq(0,0,1)[h_1^{2}] + \Sq(6,1)[h_0^{2}] + \Sq(2,0,1)[h_0^{2}]$ \\
+$b^{1}_{9}$ & 12 & $x_{11}x_{12}\,[h_2]$ & $\Sq(2,2)[h_2] + \Sq(4,2)[h_1] + \Sq(0,1,1)[h_1] + \Sq(4,0,1)[h_0]$ & $\Sq^{4}[h_2^{2}]$ \\
+$b^{1}_{10}$ & 13 & $x_{02}x_{12}\,[h_2]$ & $\Sq(0,3)[h_2] + \Sq(2,0,1)[h_2] + \Sq(5,2)[h_1] + \Sq(6,2)[h_0] + \Sq(2,1,1)[h_0]$ & $\Sq^{5}[h_2^{2}] + \Sq(2,2)[h_0h_2] + \Sq(0,3)[h_1^{2}] + \Sq(4,0,1)[h_0^{2}] + \Sq(2,3)[h_0^{2}]$ \\
+$b^{1}_{11}$ & 14 & $x_{02}x_{03}\,[h_2]$ & $\Sq(0,1,1)[h_2] + \Sq(5,0,1)[h_1] + \Sq(6,0,1)[h_0] + \Sq(0,2,1)[h_0]$ & $\Sq^{6}[h_2^{2}] + \Sq(6,1)[h_0h_2] + \Sq(0,3)[h_0h_2] + \Sq(4,2)[h_1^{2}] + \Sq(1,3)[h_1^{2}] + \Sq(0,1,1)[h_1^{2}] + \Sq(2,1,1)[h_0^{2}]$ \\
+$b^{1}_{12}$ & 16 & $x_{31}\,[h_3]$ & $\Sq^{8}[h_3] + \Sq(0,4)[h_2] + \Sq(0,0,2)[h_1] + \Sq(4,1,1)[h_1] + \Sq(0,0,0,1)[h_0] + \Sq(6,3)[h_0] + \Sq(2,2,1)[h_0]$ & $[h_3^{2}]$ \\
+$b^{1}_{13}$ & 17 & $x_{01}\,[h_4]$ & $\Sq^{1}[h_4] + \Sq(0,2,1)[h_2] + \Sq(12,1)[h_1] + \Sq(9,2)[h_1] + \Sq(8,0,1)[h_1] + \Sq^{16}[h_0] + \Sq(10,2)[h_0]$ & $[h_0h_4]$ \\
+$b^{1}_{14}$ & 18 & $x_{21}x_{12}\,[h_3]$ & $\Sq(4,2)[h_3] + \Sq(8,2)[h_2] + \Sq(2,4)[h_2] + \Sq(0,0,2)[h_2] + \Sq(4,4)[h_1] + \Sq(9,0,1)[h_1] + \Sq(0,3,1)[h_1] + \Sq(0,1,2)[h_0] + \Sq(2,0,0,1)[h_0]$ & $\Sq^{2}[h_3^{2}] + \Sq^{8}[h_1h_3] + \Sq(0,1,1)[h_2^{2}] + \Sq(0,0,2)[h_1^{2}] + \Sq(5,3)[h_1^{2}]$ \\
+$b^{1}_{15}$ & 18 & $x_{11}\,[h_4]$ & $\Sq^{2}[h_4] + \Sq(8,2)[h_2] + \Sq(2,4)[h_2] + \Sq(0,0,2)[h_2] + \Sq^{16}[h_1] + \Sq(4,4)[h_1] + \Sq(9,0,1)[h_1] + \Sq(0,1,2)[h_0] + \Sq(2,0,0,1)[h_0] + \Sq(4,2,1)[h_0]$ & $[h_1h_4]$ \\
+$b^{1}_{16}$ & 19 & $x_{21}x_{03}\,[h_3]$ & $\Sq(4,0,1)[h_3] + \Sq(8,0,1)[h_2] + \Sq(0,5)[h_2] + \Sq(0,0,0,1)[h_2] + \Sq(5,4)[h_1] + \Sq(4,2,1)[h_1] + \Sq(6,4)[h_0] + \Sq(0,6)[h_0] + \Sq(4,0,2)[h_0]$ & $\Sq(0,1)[h_3^{2}] + \Sq^{9}[h_1h_3] + \Sq(0,3)[h_1h_3] + \Sq^{10}[h_0h_3] + \Sq(4,2)[h_0h_3] + \Sq(0,1,1)[h_0h_3] + \Sq(2,3)[h_2^{2}] + \Sq(8,2)[h_0h_2] + \Sq(0,0,2)[h_0h_2] + \Sq(4,1,1)[h_0h_2] + \Sq(12,1)[h_1^{2}] + \Sq(9,2)[h_1^{2}] + \Sq(8,0,1)[h_1^{2}] + \Sq(0,5)[h_1^{2}] + \Sq(1,0,2)[h_1^{2}] + \Sq(0,0,0,1)[h_1^{2}] + \Sq(2,2,1)[h_1^{2}] + \Sq(5,1,1)[h_1^{2}] + \Sq(14,1)[h_0^{2}] + \Sq(10,0,1)[h_0^{2}] + \Sq(2,5)[h_0^{2}] + \Sq(2,0,0,1)[h_0^{2}]$ \\
+$b^{1}_{17}$ & 19 & $x_{02}\,[h_4]$ & $\Sq(0,1)[h_4] + \Sq(8,0,1)[h_2] + \Sq(0,5)[h_2] + \Sq(0,0,0,1)[h_2] + \Sq^{17}[h_1] + \Sq(5,4)[h_1] + \Sq(8,3)[h_1] + \Sq^{18}[h_0] + \Sq(12,2)[h_0] + \Sq(6,4)[h_0] + \Sq(0,6)[h_0] + \Sq(4,0,2)[h_0] + \Sq(8,1,1)[h_0] + \Sq(2,3,1)[h_0]$ & $\Sq^{1}[h_1h_4] + \Sq^{2}[h_0h_4] + \Sq(2,3)[h_2^{2}] + \Sq(8,2)[h_0h_2] + \Sq(2,4)[h_0h_2] + \Sq(0,0,2)[h_0h_2] + \Sq(12,1)[h_1^{2}] + \Sq(9,2)[h_1^{2}] + \Sq(8,0,1)[h_1^{2}] + \Sq(0,5)[h_1^{2}] + \Sq(0,0,0,1)[h_1^{2}] + \Sq(5,1,1)[h_1^{2}] + \Sq(14,1)[h_0^{2}] + \Sq(10,0,1)[h_0^{2}] + \Sq(2,5)[h_0^{2}] + \Sq(4,2,1)[h_0^{2}]$ \\
+$b^{1}_{18}$ & 20 & $x_{21}\,[h_4]$ & $\Sq^{4}[h_4] + \Sq(0,4)[h_3] + \Sq^{16}[h_2] + \Sq(2,0,2)[h_2] + \Sq(8,1,1)[h_1] + \Sq(10,3)[h_0] + \Sq(2,1,2)[h_0] + \Sq(6,2,1)[h_0]$ & $[h_2h_4]$ \\
+$b^{1}_{19}$ & 21 & $x_{12}x_{03}\,[h_3]$ & $\Sq(0,2,1)[h_3] + \Sq(10,0,1)[h_2] + \Sq(0,1,2)[h_2] + \Sq(12,0,1)[h_1] + \Sq(5,0,2)[h_1] + \Sq(0,4,1)[h_1] + \Sq(4,0,0,1)[h_1] + \Sq(6,0,2)[h_0] + \Sq(0,2,2)[h_0] + \Sq(2,1,0,1)[h_0] + \Sq(4,3,1)[h_0]$ & $\Sq(2,1)[h_3^{2}] + \Sq(8,1)[h_1h_3] + \Sq(5,2)[h_1h_3] + \Sq(4,0,1)[h_1h_3] + \Sq(6,2)[h_0h_3] + \Sq^{13}[h_2^{2}] + \Sq(4,4)[h_0h_2] + \Sq(10,2)[h_0h_2] + \Sq(0,3,1)[h_0h_2] + \Sq(8,3)[h_1^{2}] + \Sq(10,0,1)[h_1^{2}] + \Sq(0,1,2)[h_1^{2}] + \Sq(12,0,1)[h_0^{2}] + \Sq(4,0,0,1)[h_0^{2}] + \Sq(10,3)[h_0^{2}] + \Sq(2,1,2)[h_0^{2}]$ \\
+$b^{1}_{20}$ & 22 & $x_{12}\,[h_4]$ & $\Sq(0,2)[h_4] + \Sq(0,0,2)[h_3] + \Sq^{18}[h_2] + \Sq(0,6)[h_2] + \Sq^{20}[h_1] + \Sq(8,4)[h_1] + \Sq(0,2,2)[h_1] + \Sq(1,4,1)[h_1] + \Sq(5,0,0,1)[h_1] + \Sq(4,3,1)[h_1] + \Sq(12,3)[h_0] + \Sq(14,0,1)[h_0] + \Sq(6,5)[h_0] + \Sq(8,2,1)[h_0] + \Sq(0,0,3)[h_0]$ & $\Sq^{2}[h_2h_4] + \Sq^{4}[h_1h_4] + \Sq(0,4)[h_1h_3] + \Sq(0,2,1)[h_0h_3] + \Sq(8,2)[h_2^{2}] + \Sq(2,4)[h_2^{2}] + \Sq(0,0,2)[h_2^{2}] + \Sq(14,1)[h_0h_2] + \Sq(10,0,1)[h_0h_2] + \Sq(2,0,0,1)[h_0h_2] + \Sq(4,2,1)[h_0h_2] + \Sq(12,2)[h_1^{2}] + \Sq(4,0,2)[h_1^{2}] + \Sq(9,3)[h_1^{2}] + \Sq(8,1,1)[h_1^{2}] + \Sq(1,1,2)[h_1^{2}] + \Sq(0,1,0,1)[h_1^{2}] + \Sq(10,1,1)[h_0^{2}] + \Sq(4,3,1)[h_0^{2}]$ \\
+$b^{1}_{21}$ & 23 & $x_{03}\,[h_4]$ & $\Sq(0,0,1)[h_4] + \Sq(0,0,0,1)[h_3] + \Sq(16,1)[h_2] + \Sq(0,4,1)[h_2] + \Sq^{21}[h_1] + \Sq(9,4)[h_1] + \Sq(8,2,1)[h_1] + \Sq(0,7)[h_1] + \Sq(4,1,2)[h_1] + \Sq(0,0,3)[h_1] + \Sq^{22}[h_0] + \Sq(16,2)[h_0] + \Sq(10,4)[h_0] + \Sq(8,0,2)[h_0] + \Sq(4,6)[h_0] + \Sq(0,5,1)[h_0] + \Sq(4,1,0,1)[h_0] + \Sq(0,0,1,1)[h_0]$ & $\Sq(0,1)[h_2h_4] + \Sq^{5}[h_1h_4] + \Sq^{6}[h_0h_4] + \Sq(0,2)[h_0h_4] + \Sq(1,4)[h_1h_3] + \Sq(0,2,1)[h_1h_3] + \Sq(2,4)[h_0h_3] + \Sq(0,0,2)[h_0h_3] + \Sq(9,2)[h_2^{2}] + \Sq(0,5)[h_2^{2}] + \Sq(1,0,2)[h_2^{2}] + \Sq(6,4)[h_0h_2] + \Sq(0,6)[h_0h_2] + \Sq(8,1,1)[h_0h_2] + \Sq(0,1,0,1)[h_0h_2] + \Sq(2,3,1)[h_0h_2] + \Sq(5,0,2)[h_1^{2}] + \Sq(6,2,1)[h_1^{2}] + \Sq(14,0,1)[h_0^{2}] + \Sq(2,4,1)[h_0^{2}] + \Sq(0,2,0,1)[h_0^{2}]$ \\
+$b^{2}_{0}$ & 3 & $x_{01}\,[h_0^{2}]$ & $\Sq^{1}[h_0^{2}]$ & $[h_0^{3}]$ \\
+$b^{2}_{1}$ & 6 & $x_{01}\,[h_0h_2]$ & $\Sq^{1}[h_0h_2] + \Sq^{2}[h_1^{2}] + \Sq^{4}[h_0^{2}]$ & $[h_0^{2}h_2]$ \\
+$b^{2}_{2}$ & 7 & $x_{01}x_{11}\,[h_1^{2}]$ & $\Sq^{3}[h_1^{2}] + \Sq(2,1)[h_0^{2}]$ & $\Sq^{1}[h_0^{2}h_2] + \Sq^{4}[h_0^{3}]$ \\
+$b^{2}_{3}$ & 9 & $x_{11}x_{02}\,[h_1^{2}]$ & $\Sq(2,1)[h_1^{2}]$ & $\Sq^{3}[h_0^{2}h_2] + \Sq(0,1)[h_0^{2}h_2] + \Sq^{6}[h_0^{3}]$ \\
+$b^{2}_{4}$ & 10 & $x_{01}\,[h_0h_3]$ & $\Sq^{1}[h_0h_3] + \Sq^{6}[h_1^{2}] + \Sq(0,2)[h_1^{2}] + \Sq^{8}[h_0^{2}] + \Sq(2,2)[h_0^{2}]$ & $[h_0^{2}h_3]$ \\
+$b^{2}_{5}$ & 11 & $x_{01}x_{11}\,[h_2^{2}]$ & $\Sq^{3}[h_2^{2}] + \Sq(0,1)[h_2^{2}] + \Sq^{6}[h_0h_2] + \Sq(4,1)[h_1^{2}] + \Sq(1,2)[h_1^{2}] + \Sq(0,0,1)[h_1^{2}] + \Sq(6,1)[h_0^{2}] + \Sq(2,0,1)[h_0^{2}]$ & $[c_0]$ \\
+$b^{2}_{6}$ & 12 & $x_{01}x_{02}\,[h_2^{2}]$ & $\Sq(1,1)[h_2^{2}] + \Sq(4,1)[h_0h_2] + \Sq(2,2)[h_1^{2}] + \Sq(1,0,1)[h_1^{2}]$ & $\Sq^{1}[c_0] + \Sq^{6}[h_0^{2}h_2] + \Sq(0,3)[h_0^{3}] + \Sq(2,0,1)[h_0^{3}]$ \\
+$b^{2}_{7}$ & 12 & $x_{11}\,[h_1h_3]$ & $\Sq^{2}[h_1h_3] + \Sq(0,1)[h_0h_3] + \Sq^{4}[h_2^{2}] + \Sq^{8}[h_1^{2}] + \Sq(2,2)[h_1^{2}]$ & $[h_1^{2}h_3]$ \\
+$b^{2}_{8}$ & 14 & $x_{01}x_{02}\,[h_1h_3]$ & $\Sq(1,1)[h_1h_3] + \Sq(2,1)[h_0h_3] + \Sq^{6}[h_2^{2}] + \Sq(6,1)[h_0h_2] + \Sq^{10}[h_1^{2}] + \Sq(1,3)[h_1^{2}] + \Sq(0,1,1)[h_1^{2}]$ & $\Sq^{2}[h_1^{2}h_3] + \Sq(0,1)[c_0] + \Sq(5,1)[h_0^{2}h_2] + \Sq(2,3)[h_0^{3}]$ \\
+$b^{2}_{9}$ & 15 & $x_{02}x_{21}\,[h_2^{2}]$ & $\Sq(4,1)[h_2^{2}] + \Sq(1,2)[h_2^{2}] + \Sq(0,0,1)[h_2^{2}] + \Sq(4,2)[h_0h_2] + \Sq(6,0,1)[h_0^{2}]$ & $\Sq^{3}[h_1^{2}h_3] + \Sq^{4}[c_0] + \Sq(2,1)[h_0^{2}h_3] + \Sq^{9}[h_0^{2}h_2] + \Sq(3,2)[h_0^{2}h_2] + \Sq(0,3)[h_0^{2}h_2] + \Sq(2,0,1)[h_0^{2}h_2] + \Sq^{12}[h_0^{3}] + \Sq(0,4)[h_0^{3}]$ \\
+$b^{2}_{10}$ & 17 & $x_{01}\,[h_3^{2}]$ & $\Sq^{1}[h_3^{2}] + \Sq(4,1)[h_1h_3] + \Sq(1,2)[h_1h_3] + \Sq(0,0,1)[h_1h_3] + \Sq^{8}[h_0h_3] + \Sq(2,2)[h_0h_3] + \Sq(0,3)[h_2^{2}] + \Sq(0,4)[h_0h_2] + \Sq(2,1,1)[h_0h_2] + \Sq(6,0,1)[h_1^{2}] + \Sq(0,0,0,1)[h_0^{2}] + \Sq(2,2,1)[h_0^{2}]$ & $[h_0h_3^{2}]$ \\
+$b^{2}_{11}$ & 18 & $x_{21}x_{12}\,[h_2^{2}]$ & $\Sq(4,2)[h_2^{2}] + \Sq(0,1,1)[h_2^{2}] + \Sq(6,0,1)[h_0h_2] + \Sq(0,2,1)[h_0h_2] + \Sq(4,1,1)[h_1^{2}] + \Sq(6,1,1)[h_0^{2}] + \Sq(0,3,1)[h_0^{2}]$ & $\Sq^{1}[h_0h_3^{2}] + \Sq^{6}[h_1^{2}h_3] + \Sq(0,2)[h_1^{2}h_3] + \Sq(3,1)[h_1^{2}h_3] + \Sq(0,0,1)[c_0] + \Sq^{8}[h_0^{2}h_3] + \Sq(2,2)[h_0^{2}h_3] + \Sq(0,4)[h_0^{2}h_2] + \Sq(9,1)[h_0^{2}h_2] + \Sq(5,0,1)[h_0^{2}h_2] + \Sq(12,1)[h_0^{3}] + \Sq(0,5)[h_0^{3}] + \Sq(0,0,0,1)[h_0^{3}]$ \\
+$b^{2}_{12}$ & 18 & $x_{01}\,[h_0h_4]$ & $\Sq^{1}[h_0h_4] + \Sq(0,2,1)[h_0h_2] + \Sq^{14}[h_1^{2}] + \Sq(8,2)[h_1^{2}] + \Sq(5,3)[h_1^{2}] + \Sq(4,1,1)[h_1^{2}] + \Sq^{16}[h_0^{2}] + \Sq(10,2)[h_0^{2}] + \Sq(0,3,1)[h_0^{2}]$ & $[h_0^{2}h_4]$ \\
+$b^{2}_{13}$ & 20 & $x_{11}\,[h_1h_4]$ & $\Sq^{2}[h_1h_4] + \Sq(0,1)[h_0h_4] + \Sq^{12}[h_2^{2}] + \Sq(0,4)[h_2^{2}] + \Sq(5,0,1)[h_2^{2}] + \Sq(0,5)[h_0h_2] + \Sq^{16}[h_1^{2}] + \Sq(4,4)[h_1^{2}] + \Sq(10,2)[h_1^{2}] + \Sq(0,3,1)[h_1^{2}] + \Sq(0,1,0,1)[h_0^{2}]$ & $[h_1^{2}h_4]$ \\
+$b^{2}_{14}$ & 21 & $x_{11}x_{21}x_{03}\,[h_2^{2}]$ & $\Sq(6,0,1)[h_2^{2}] + \Sq(6,1,1)[h_0h_2] + \Sq(0,3,1)[h_0h_2] + \Sq(4,2,1)[h_1^{2}] + \Sq(1,3,1)[h_1^{2}]$ & $\Sq(1,1)[h_0h_3^{2}] + \Sq(2,0,1)[h_1^{2}h_3] + \Sq(0,1,1)[c_0] + \Sq(8,1)[h_0^{2}h_3] + \Sq(2,3)[h_0^{2}h_3] + \Sq^{15}[h_0^{2}h_2] + \Sq(12,1)[h_0^{2}h_2] + \Sq(9,2)[h_0^{2}h_2] + \Sq(8,0,1)[h_0^{2}h_2] + \Sq(0,5)[h_0^{2}h_2] + \Sq(6,3)[h_0^{2}h_2] + \Sq(12,2)[h_0^{3}] + \Sq(6,4)[h_0^{3}] + \Sq(0,6)[h_0^{3}] + \Sq(0,1,0,1)[h_0^{3}]$ \\
+$b^{2}_{15}$ & 21 & $x_{01}\,[h_2h_4]$ & $\Sq^{1}[h_2h_4] + \Sq(0,1)[h_1h_4] + \Sq^{4}[h_0h_4] + \Sq(2,1)[h_3^{2}] + \Sq(8,1)[h_1h_3] + \Sq(5,2)[h_1h_3] + \Sq(4,0,1)[h_1h_3] + \Sq(0,4)[h_0h_3] + \Sq(6,2)[h_0h_3] + \Sq(1,4)[h_2^{2}] + \Sq(10,1)[h_2^{2}] + \Sq(0,2,1)[h_2^{2}] + \Sq^{16}[h_0h_2] + \Sq(4,4)[h_0h_2] + \Sq(0,3,1)[h_0h_2] + \Sq(8,3)[h_1^{2}] + \Sq(10,0,1)[h_1^{2}] + \Sq(0,1,2)[h_1^{2}] + \Sq(1,3,1)[h_1^{2}] + \Sq(0,4,1)[h_0^{2}] + \Sq(10,3)[h_0^{2}] + \Sq(6,2,1)[h_0^{2}]$ & $[h_0h_2h_4]$ \\
+$b^{2}_{16}$ & 22 & $x_{01}x_{02}\,[h_1h_4]$ & $\Sq(1,1)[h_1h_4] + \Sq(2,1)[h_0h_4] + \Sq^{14}[h_2^{2}] + \Sq(2,4)[h_2^{2}] + \Sq(14,1)[h_0h_2] + \Sq^{18}[h_1^{2}] + \Sq(6,4)[h_1^{2}] + \Sq(9,3)[h_1^{2}] + \Sq(8,1,1)[h_1^{2}] + \Sq(0,1,0,1)[h_1^{2}] + \Sq(5,2,1)[h_1^{2}] + \Sq(2,1,0,1)[h_0^{2}] + \Sq(4,3,1)[h_0^{2}]$ & $\Sq^{2}[h_1^{2}h_4] + \Sq(8,1)[c_0] + \Sq(5,2)[c_0] + \Sq(13,1)[h_0^{2}h_2] + \Sq(1,5)[h_0^{2}h_2] + \Sq(6,1,1)[h_0^{2}h_2] + \Sq(0,3,1)[h_0^{2}h_2] + \Sq(10,3)[h_0^{3}] + \Sq(2,1,2)[h_0^{3}]$ \\
+$b^{2}_{17}$ & 22 & $x_{11}x_{21}\,[h_3^{2}]$ & $\Sq^{6}[h_3^{2}] + \Sq(0,2)[h_3^{2}] + \Sq^{12}[h_1h_3] + \Sq(10,1)[h_0h_3] + \Sq(4,3)[h_0h_3] + \Sq(6,0,1)[h_0h_3] + \Sq(8,2)[h_2^{2}] + \Sq(2,4)[h_2^{2}] + \Sq(0,0,2)[h_2^{2}] + \Sq(1,2,1)[h_2^{2}] + \Sq(10,0,1)[h_0h_2] + \Sq(2,5)[h_0h_2] + \Sq(0,1,2)[h_0h_2] + \Sq(2,0,0,1)[h_0h_2] + \Sq(12,2)[h_1^{2}] + \Sq(4,0,2)[h_1^{2}] + \Sq(5,2,1)[h_1^{2}] + \Sq(10,1,1)[h_0^{2}] + \Sq(4,3,1)[h_0^{2}]$ & $[c_1]$ \\
+$b^{2}_{18}$ & 23 & $x_{02}x_{21}\,[h_3^{2}]$ & $\Sq(4,1)[h_3^{2}] + \Sq(0,0,1)[h_3^{2}] + \Sq^{13}[h_1h_3] + \Sq^{14}[h_0h_3] + \Sq(8,2)[h_0h_3] + \Sq(9,2)[h_2^{2}] + \Sq(0,5)[h_2^{2}] + \Sq(0,0,0,1)[h_2^{2}] + \Sq(0,6)[h_0h_2] + \Sq(4,0,2)[h_0h_2] + \Sq(8,1,1)[h_0h_2] + \Sq(4,5)[h_1^{2}] + \Sq(1,6)[h_1^{2}] + \Sq(5,0,2)[h_1^{2}] + \Sq(0,4,1)[h_1^{2}] + \Sq(4,0,0,1)[h_1^{2}] + \Sq(6,2,1)[h_1^{2}] + \Sq(1,1,0,1)[h_1^{2}] + \Sq(14,0,1)[h_0^{2}] + \Sq(6,5)[h_0^{2}] + \Sq(6,0,0,1)[h_0^{2}] + \Sq(0,0,3)[h_0^{2}] + \Sq(0,2,0,1)[h_0^{2}]$ & $\Sq^{1}[c_1] + \Sq^{6}[h_0h_3^{2}] + \Sq(0,2)[h_0h_3^{2}] + \Sq(5,2)[h_1^{2}h_3] + \Sq(2,3)[h_1^{2}h_3] + \Sq(1,1,1)[h_1^{2}h_3] + \Sq(0,4)[c_0] + \Sq(5,0,1)[c_0] + \Sq(10,1)[h_0^{2}h_3] + \Sq(10,0,1)[h_0^{2}h_2] + \Sq(2,5)[h_0^{2}h_2] + \Sq(0,1,2)[h_0^{2}h_2] + \Sq(2,0,0,1)[h_0^{2}h_2] + \Sq(1,3,1)[h_0^{2}h_2]$ \\
+$b^{2}_{19}$ & 24 & $x_{11}x_{12}\,[h_3^{2}]$ & $\Sq(2,2)[h_3^{2}] + \Sq(8,2)[h_1h_3] + \Sq(4,1,1)[h_1h_3] + \Sq(1,2,1)[h_1h_3] + \Sq(8,0,1)[h_0h_3] + \Sq(2,2,1)[h_0h_3] + \Sq(4,4)[h_2^{2}] + \Sq(2,0,2)[h_2^{2}] + \Sq(1,0,0,1)[h_2^{2}] + \Sq(0,3,1)[h_2^{2}] + \Sq(4,0,0,1)[h_0h_2] + \Sq(6,2,1)[h_0h_2] + \Sq(13,0,1)[h_1^{2}] + \Sq(1,4,1)[h_1^{2}] + \Sq(12,1,1)[h_0^{2}] + \Sq(0,5,1)[h_0^{2}] + \Sq(6,3,1)[h_0^{2}]$ & $\Sq^{2}[c_1] + \Sq(4,1)[h_0h_3^{2}] + \Sq^{12}[h_1^{2}h_3] + \Sq(6,2)[h_1^{2}h_3] + \Sq(5,0,1)[h_1^{2}h_3] + \Sq(1,4)[c_0] + \Sq(4,3)[c_0] + \Sq(6,4)[h_0^{2}h_2] + \Sq(4,0,2)[h_0^{2}h_2] + \Sq(8,1,1)[h_0^{2}h_2] + \Sq(0,1,0,1)[h_0^{2}h_2] + \Sq(2,3,1)[h_0^{2}h_2] + \Sq(0,7)[h_0^{3}] + \Sq(2,4,1)[h_0^{3}] + \Sq(0,0,3)[h_0^{3}] + \Sq(0,2,0,1)[h_0^{3}]$ \\
+$b^{3}_{0}$ & 4 & $x_{01}\,[h_0^{3}]$ & $\Sq^{1}[h_0^{3}]$ & $[h_0^{4}]$ \\
+$b^{3}_{1}$ & 11 & $x_{01}\,[h_0^{2}h_3]$ & $\Sq^{1}[h_0^{2}h_3] + \Sq^{5}[h_0^{2}h_2] + \Sq(2,1)[h_0^{2}h_2] + \Sq^{8}[h_0^{3}]$ & $[h_0^{3}h_3]$ \\
+$b^{3}_{2}$ & 12 & $x_{01}x_{11}x_{02}\,[h_0^{2}h_2]$ & $\Sq(3,1)[h_0^{2}h_2] + \Sq(6,1)[h_0^{3}]$ & $\Sq^{1}[h_0^{3}h_3] + \Sq^{8}[h_0^{4}]$ \\
+$b^{3}_{3}$ & 13 & $x_{11}\,[c_0]$ & $\Sq^{2}[c_0] + \Sq(4,1)[h_0^{2}h_2] + \Sq(1,2)[h_0^{2}h_2] + \Sq(0,0,1)[h_0^{2}h_2] + \Sq(4,2)[h_0^{3}] + \Sq(0,1,1)[h_0^{3}]$ & $[h_1c_0]$ \\
+$b^{3}_{4}$ & 15 & $x_{01}x_{02}\,[c_0]$ & $\Sq(1,1)[c_0] + \Sq(6,1)[h_0^{2}h_2] + \Sq(3,2)[h_0^{2}h_2] + \Sq(0,3)[h_0^{2}h_2] + \Sq(2,0,1)[h_0^{2}h_2] + \Sq(6,2)[h_0^{3}]$ & $\Sq^{2}[h_1c_0] + \Sq(2,3)[h_0^{4}]$ \\
+$b^{3}_{5}$ & 18 & $x_{01}x_{11}x_{02}\,[h_1^{2}h_3]$ & $\Sq(3,1)[h_1^{2}h_3] + \Sq(4,1)[c_0] + \Sq(1,2)[c_0] + \Sq(0,0,1)[c_0] + \Sq(6,2)[h_0^{2}h_2] + \Sq(9,1)[h_0^{2}h_2] + \Sq(5,0,1)[h_0^{2}h_2] + \Sq(2,1,1)[h_0^{2}h_2] + \Sq(12,1)[h_0^{3}] + \Sq(0,5)[h_0^{3}] + \Sq(6,3)[h_0^{3}] + \Sq(2,2,1)[h_0^{3}]$ & $[d_0]$ \\
+$b^{3}_{6}$ & 19 & $x_{01}\,[h_0^{2}h_4]$ & $\Sq^{1}[h_0^{2}h_4] + \Sq^{13}[h_0^{2}h_2] + \Sq(10,1)[h_0^{2}h_2] + \Sq(7,2)[h_0^{2}h_2] + \Sq(4,3)[h_0^{2}h_2] + \Sq(6,0,1)[h_0^{2}h_2] + \Sq(0,2,1)[h_0^{2}h_2] + \Sq^{16}[h_0^{3}] + \Sq(4,4)[h_0^{3}] + \Sq(6,1,1)[h_0^{3}]$ & $[h_0^{3}h_4]$ \\
+$b^{3}_{7}$ & 21 & $x_{01}x_{02}\,[h_0h_3^{2}]$ & $\Sq(1,1)[h_0h_3^{2}] + \Sq(6,1)[h_1^{2}h_3] + \Sq(3,2)[h_1^{2}h_3] + \Sq(0,3)[h_1^{2}h_3] + \Sq(2,0,1)[h_1^{2}h_3] + \Sq(4,2)[c_0] + \Sq(8,1)[h_0^{2}h_3] + \Sq(9,2)[h_0^{2}h_2] + \Sq(8,0,1)[h_0^{2}h_2] + \Sq(0,5)[h_0^{2}h_2] + \Sq(2,2,1)[h_0^{2}h_2] + \Sq(5,1,1)[h_0^{2}h_2] + \Sq(12,2)[h_0^{3}] + \Sq(0,6)[h_0^{3}] + \Sq(0,1,0,1)[h_0^{3}]$ & $[e_0]$ \\
+$b^{3}_{8}$ & 22 & $x_{01}x_{21}\,[h_0h_3^{2}]$ & $\Sq^{5}[h_0h_3^{2}] + \Sq(2,1)[h_0h_3^{2}] + \Sq(1,3)[h_1^{2}h_3] + \Sq(3,0,1)[h_1^{2}h_3] + \Sq(0,1,1)[h_1^{2}h_3] + \Sq(4,0,1)[c_0] + \Sq^{12}[h_0^{2}h_3] + \Sq(4,4)[h_0^{2}h_2] + \Sq(13,1)[h_0^{2}h_2] + \Sq(9,0,1)[h_0^{2}h_2] + \Sq(6,1,1)[h_0^{2}h_2] + \Sq(3,2,1)[h_0^{2}h_2] + \Sq(0,3,1)[h_0^{2}h_2] + \Sq(12,0,1)[h_0^{3}] + \Sq(4,5)[h_0^{3}] + \Sq(0,4,1)[h_0^{3}] + \Sq(4,0,0,1)[h_0^{3}]$ & $[f_0]$ \\
+$b^{3}_{9}$ & 22 & $x_{01}\,[h_0h_2h_4]$ & $\Sq^{1}[h_0h_2h_4] + \Sq^{2}[h_1^{2}h_4] + \Sq^{4}[h_0^{2}h_4] + \Sq(2,1)[h_0h_3^{2}] + \Sq^{10}[h_1^{2}h_3] + \Sq(4,2)[h_1^{2}h_3] + \Sq(8,1)[c_0] + \Sq(0,4)[h_0^{2}h_3] + \Sq(6,2)[h_0^{2}h_3] + \Sq^{16}[h_0^{2}h_2] + \Sq(4,4)[h_0^{2}h_2] + \Sq(9,0,1)[h_0^{2}h_2] + \Sq(1,5)[h_0^{2}h_2] + \Sq(6,1,1)[h_0^{2}h_2] + \Sq(12,0,1)[h_0^{3}] + \Sq(4,5)[h_0^{3}] + \Sq(10,3)[h_0^{3}]$ & $[h_0^{2}h_2h_4]$ \\
+$b^{3}_{10}$ & 23 & $x_{01}x_{11}\,[h_1^{2}h_4]$ & $\Sq^{3}[h_1^{2}h_4] + \Sq(2,1)[h_0^{2}h_4] + \Sq^{11}[h_1^{2}h_3] + \Sq(5,2)[h_1^{2}h_3] + \Sq(1,1,1)[h_1^{2}h_3] + \Sq(10,1)[h_0^{2}h_3] + \Sq(4,3)[h_0^{2}h_3] + \Sq(6,0,1)[h_0^{2}h_3] + \Sq(0,2,1)[h_0^{2}h_3] + \Sq^{17}[h_0^{2}h_2] + \Sq(14,1)[h_0^{2}h_2] + \Sq(11,2)[h_0^{2}h_2] + \Sq(8,3)[h_0^{2}h_2] + \Sq(10,0,1)[h_0^{2}h_2] + \Sq(2,5)[h_0^{2}h_2] + \Sq^{20}[h_0^{3}] + \Sq(8,4)[h_0^{3}] + \Sq(2,6)[h_0^{3}] + \Sq(10,1,1)[h_0^{3}] + \Sq(2,1,0,1)[h_0^{3}] + \Sq(4,3,1)[h_0^{3}]$ & $\Sq^{1}[h_0^{2}h_2h_4] + \Sq^{2}[e_0] + \Sq^{4}[h_0^{3}h_4] + \Sq^{10}[h_1c_0] + \Sq(1,3)[h_1c_0] + \Sq(0,4)[h_0^{3}h_3] + \Sq(6,2)[h_0^{3}h_3] + \Sq(5,0,1)[h_0^{3}h_3] + \Sq(2,1,1)[h_0^{3}h_3] + \Sq(4,5)[h_0^{4}] + \Sq(10,3)[h_0^{4}] + \Sq(2,1,2)[h_0^{4}] + \Sq(6,2,1)[h_0^{4}]$ \\
+$b^{3}_{11}$ & 24 & $x_{01}x_{12}\,[h_0h_3^{2}]$ & $\Sq(1,2)[h_0h_3^{2}] + \Sq(0,0,1)[h_0h_3^{2}] + \Sq(6,2)[h_1^{2}h_3] + \Sq(5,0,1)[h_1^{2}h_3] + \Sq(4,3)[c_0] + \Sq(8,2)[h_0^{2}h_3] + \Sq(4,1,1)[h_0^{2}h_3] + \Sq(0,6)[h_0^{2}h_2] + \Sq(14,0,1)[h_0^{3}] + \Sq(8,2,1)[h_0^{3}] + \Sq(0,2,0,1)[h_0^{3}]$ & $[g]$ \\
+$b^{3}_{12}$ & 25 & $x_{11}x_{02}\,[h_1^{2}h_4]$ & $\Sq(2,1)[h_1^{2}h_4] + \Sq(10,1)[h_1^{2}h_3] + \Sq(7,2)[h_1^{2}h_3] + \Sq(4,3)[h_1^{2}h_3] + \Sq(4,1,1)[c_0] + \Sq(1,2,1)[c_0] + \Sq(6,3)[h_0^{2}h_3] + \Sq(2,2,1)[h_0^{2}h_3] + \Sq^{19}[h_0^{2}h_2] + \Sq(16,1)[h_0^{2}h_2] + \Sq(6,2,1)[h_0^{2}h_2] + \Sq^{22}[h_0^{3}] + \Sq(10,4)[h_0^{3}] + \Sq(6,3,1)[h_0^{3}]$ & $\Sq^{3}[h_0^{2}h_2h_4] + \Sq(0,1)[h_0^{2}h_2h_4] + \Sq^{6}[h_0^{3}h_4] + \Sq(6,2)[h_1c_0] + \Sq(9,1)[h_1c_0] + \Sq(5,0,1)[h_1c_0] + \Sq(2,4)[h_0^{3}h_3] + \Sq(14,0,1)[h_0^{4}] + \Sq(6,5)[h_0^{4}]$ \\
+$b^{3}_{13}$ & 25 & $x_{01}x_{03}\,[h_0h_3^{2}]$ & $\Sq(1,0,1)[h_0h_3^{2}] + \Sq(7,2)[h_1^{2}h_3] + \Sq(4,1,1)[c_0] + \Sq(1,2,1)[c_0] + \Sq(8,0,1)[h_0^{2}h_3] + \Sq(6,3)[h_0^{2}h_3] + \Sq(13,2)[h_0^{2}h_2] + \Sq(12,0,1)[h_0^{2}h_2] + \Sq(0,4,1)[h_0^{2}h_2] + \Sq(10,3)[h_0^{2}h_2] + \Sq(6,2,1)[h_0^{2}h_2] + \Sq(9,1,1)[h_0^{2}h_2] + \Sq(4,6)[h_0^{3}] + \Sq(12,1,1)[h_0^{3}] + \Sq(0,5,1)[h_0^{3}] + \Sq(0,0,1,1)[h_0^{3}]$ & $\Sq^{1}[g] + \Sq(6,2)[h_1c_0] + \Sq(5,0,1)[h_1c_0] + \Sq(8,2)[h_0^{3}h_3] + \Sq(4,1,1)[h_0^{3}h_3] + \Sq(8,2,1)[h_0^{4}] + \Sq(2,4,1)[h_0^{4}] + \Sq(0,2,0,1)[h_0^{4}]$ \\
+$b^{4}_{0}$ & 5 & $x_{01}\,[h_0^{4}]$ & $\Sq^{1}[h_0^{4}]$ & $[h_0^{5}]$ \\
+$b^{4}_{1}$ & 14 & $x_{01}x_{11}\,[h_0^{3}h_3]$ & $\Sq^{3}[h_0^{3}h_3] + \Sq(0,1)[h_0^{3}h_3] + \Sq^{10}[h_0^{4}]$ & $[Ph_1]$ \\
+$b^{4}_{2}$ & 15 & $x_{01}x_{02}\,[h_0^{3}h_3]$ & $\Sq(1,1)[h_0^{3}h_3] + \Sq(8,1)[h_0^{4}]$ & $\Sq^{1}[Ph_1] + \Sq^{10}[h_0^{5}]$ \\
+$b^{4}_{3}$ & 16 & $x_{01}x_{11}\,[h_1c_0]$ & $\Sq^{3}[h_1c_0] + \Sq^{5}[h_0^{3}h_3] + \Sq(2,1)[h_0^{3}h_3] + \Sq^{12}[h_0^{4}] + \Sq(2,1,1)[h_0^{4}]$ & $[Ph_2]$ \\
+$b^{4}_{4}$ & 18 & $x_{11}x_{02}\,[h_1c_0]$ & $\Sq(2,1)[h_1c_0] + \Sq(1,2)[h_0^{3}h_3] + \Sq(0,0,1)[h_0^{3}h_3] + \Sq(8,2)[h_0^{4}]$ & $\Sq^{2}[Ph_2] + \Sq^{4}[Ph_1]$ \\
+$b^{4}_{5}$ & 19 & $x_{01}\,[d_0]$ & $\Sq^{1}[d_0] + \Sq^{6}[h_1c_0] + \Sq(0,2)[h_1c_0] + \Sq(12,1)[h_0^{4}] + \Sq(0,5)[h_0^{4}]$ & $[h_0d_0]$ \\
+$b^{4}_{6}$ & 20 & $x_{11}\,[d_0]$ & $\Sq^{2}[d_0] + \Sq(4,1)[h_1c_0] + \Sq(1,2)[h_1c_0] + \Sq(0,0,1)[h_1c_0] + \Sq^{9}[h_0^{3}h_3] + \Sq(6,1)[h_0^{3}h_3] + \Sq(4,4)[h_0^{4}]$ & $[h_1d_0]$ \\
+$b^{4}_{7}$ & 20 & $x_{01}\,[h_0^{3}h_4]$ & $\Sq^{1}[h_0^{3}h_4] + \Sq^{9}[h_0^{3}h_3] + \Sq(6,1)[h_0^{3}h_3] + \Sq^{16}[h_0^{4}] + \Sq(6,1,1)[h_0^{4}]$ & $[h_0^{4}h_4]$ \\
+$b^{4}_{8}$ & 21 & $x_{02}\,[d_0]$ & $\Sq(0,1)[d_0] + \Sq(2,2)[h_1c_0] + \Sq(1,0,1)[h_1c_0] + \Sq(4,2,1)[h_0^{4}]$ & $\Sq^{1}[h_1d_0] + \Sq^{2}[h_0d_0] + \Sq(4,1)[Ph_1] + \Sq(1,2)[Ph_1] + \Sq(0,0,1)[Ph_1] + \Sq(4,4)[h_0^{5}] + \Sq(10,2)[h_0^{5}]$ \\
+$b^{4}_{9}$ & 22 & $x_{01}\,[e_0]$ & $\Sq^{1}[e_0] + \Sq^{4}[d_0] + \Sq(2,0,1)[h_1c_0] + \Sq(8,1)[h_0^{3}h_3] + \Sq(5,2)[h_0^{3}h_3] + \Sq(4,0,1)[h_0^{3}h_3] + \Sq(2,3)[h_0^{3}h_3] + \Sq(0,6)[h_0^{4}] + \Sq(0,1,0,1)[h_0^{4}]$ & $[h_0e_0]$ \\
+$b^{4}_{10}$ & 23 & $x_{01}\,[f_0]$ & $\Sq^{1}[f_0] + \Sq^{2}[e_0] + \Sq(4,2)[h_1c_0] + \Sq(0,1,1)[h_1c_0] + \Sq^{12}[h_0^{3}h_3] + \Sq(5,0,1)[h_0^{3}h_3] + \Sq(2,1,1)[h_0^{3}h_3] + \Sq(4,5)[h_0^{4}] + \Sq(0,4,1)[h_0^{4}] + \Sq(4,0,0,1)[h_0^{4}] + \Sq(10,3)[h_0^{4}]$ & $[h_0f_0]$ \\
+$b^{4}_{11}$ & 24 & $x_{02}\,[e_0]$ & $\Sq(0,1)[e_0] + \Sq(0,2)[d_0] + \Sq(1,1,1)[h_1c_0] + \Sq(10,1,1)[h_0^{4}]$ & $\Sq^{1}[h_0f_0] + \Sq^{2}[h_0e_0] + \Sq^{4}[h_1d_0] + \Sq(4,5)[h_0^{5}] + \Sq(0,4,1)[h_0^{5}] + \Sq(4,0,0,1)[h_0^{5}] + \Sq(10,3)[h_0^{5}]$ \\
+$b^{4}_{12}$ & 25 & $x_{01}\,[g]$ & $\Sq^{1}[g] + \Sq(0,1)[f_0] + \Sq^{4}[e_0] + \Sq(0,0,1)[d_0] + \Sq(6,2)[h_1c_0] + \Sq(5,0,1)[h_1c_0] + \Sq(8,2)[h_0^{3}h_3] + \Sq(4,1,1)[h_0^{3}h_3] + \Sq(1,2,1)[h_0^{3}h_3] + \Sq(2,4,1)[h_0^{4}] + \Sq(0,2,0,1)[h_0^{4}]$ & $[h_0g]$ \\
+$b^{5}_{0}$ & 6 & $x_{01}\,[h_0^{5}]$ & $\Sq^{1}[h_0^{5}]$ & $[h_0^{6}]$ \\
+$b^{5}_{1}$ & 16 & $x_{11}\,[Ph_1]$ & $\Sq^{2}[Ph_1] + \Sq(8,1)[h_0^{5}]$ & $[h_1Ph_1]$ \\
+$b^{5}_{2}$ & 17 & $x_{01}\,[Ph_2]$ & $\Sq^{1}[Ph_2] + \Sq(0,1)[Ph_1] + \Sq^{12}[h_0^{5}] + \Sq(2,1,1)[h_0^{5}]$ & $[h_0Ph_2]$ \\
+$b^{5}_{3}$ & 18 & $x_{01}x_{02}\,[Ph_1]$ & $\Sq(1,1)[Ph_1] + \Sq(10,1)[h_0^{5}]$ & $\Sq^{2}[h_1Ph_1]$ \\
+$b^{5}_{4}$ & 20 & $x_{01}\,[h_0d_0]$ & $\Sq^{1}[h_0d_0] + \Sq^{4}[Ph_2] + \Sq(0,2)[Ph_1] + \Sq(12,1)[h_0^{5}] + \Sq(8,0,1)[h_0^{5}] + \Sq(0,5)[h_0^{5}]$ & $[h_0^{2}d_0]$ \\
+$b^{5}_{5}$ & 21 & $x_{11}x_{02}\,[Ph_2]$ & $\Sq(2,1)[Ph_2] + \Sq(4,1)[Ph_1] + \Sq(1,2)[Ph_1] + \Sq(0,0,1)[Ph_1] + \Sq(10,2)[h_0^{5}]$ & $\Sq^{1}[h_0^{2}d_0] + \Sq^{4}[h_0Ph_2] + \Sq(12,1)[h_0^{6}] + \Sq(8,0,1)[h_0^{6}] + \Sq(0,5)[h_0^{6}]$ \\
+$b^{5}_{6}$ & 21 & $x_{01}\,[h_0^{4}h_4]$ & $\Sq^{1}[h_0^{4}h_4] + \Sq(4,1)[Ph_1] + \Sq(1,2)[Ph_1] + \Sq(0,0,1)[Ph_1] + \Sq^{16}[h_0^{5}] + \Sq(10,2)[h_0^{5}] + \Sq(6,1,1)[h_0^{5}]$ & $[h_0^{5}h_4]$ \\
+$b^{5}_{7}$ & 22 & $x_{11}\,[h_1d_0]$ & $\Sq^{2}[h_1d_0] + \Sq(0,1)[h_0d_0] + \Sq(0,2)[Ph_2] + \Sq^{8}[Ph_1] + \Sq(1,0,1)[Ph_1] + \Sq(14,1)[h_0^{5}] + \Sq(2,5)[h_0^{5}]$ & $[h_1^{2}d_0]$ \\
+$b^{5}_{8}$ & 23 & $x_{01}\,[h_0e_0]$ & $\Sq^{1}[h_0e_0] + \Sq(0,1)[h_1d_0] + \Sq^{4}[h_0d_0] + \Sq(4,1)[Ph_2] + \Sq(0,0,1)[Ph_2] + \Sq(0,6)[h_0^{5}] + \Sq(0,1,0,1)[h_0^{5}]$ & $[h_0^{2}e_0]$ \\
+$b^{5}_{9}$ & 24 & $x_{01}x_{02}\,[h_1d_0]$ & $\Sq(1,1)[h_1d_0] + \Sq(2,1)[h_0d_0] + \Sq(2,2)[Ph_2] + \Sq(4,2)[Ph_1] + \Sq(0,1,1)[Ph_1] + \Sq(12,0,1)[h_0^{5}] + \Sq(4,5)[h_0^{5}] + \Sq(6,2,1)[h_0^{5}]$ & $\Sq^{2}[h_1^{2}d_0] + \Sq^{8}[h_1Ph_1] + \Sq(1,0,1)[h_1Ph_1] + \Sq(8,1,1)[h_0^{6}]$ \\
+$b^{5}_{10}$ & 26 & $x_{01}\,[h_0g]$ & $\Sq^{1}[h_0g] + \Sq(0,1)[h_0f_0] + \Sq^{4}[h_0e_0] + \Sq(0,2)[h_1d_0] + \Sq(4,2)[Ph_2] + \Sq(0,1,1)[Ph_2] + \Sq(14,0,1)[h_0^{5}] + \Sq(8,2,1)[h_0^{5}] + \Sq(0,2,0,1)[h_0^{5}]$ & $[h_0^{2}g]$ \\
+$b^{5}_{11}$ & 27 & $x_{01}x_{02}\,[h_0f_0]$ & $\Sq(1,1)[h_0f_0] + \Sq(2,1)[h_0e_0] + \Sq(4,1)[h_1d_0] + \Sq(1,2)[h_1d_0] + \Sq(0,0,1)[h_1d_0] + \Sq(2,2)[h_0d_0] + \Sq(4,0,1)[Ph_2] + \Sq(4,3)[Ph_1] + \Sq(0,2,1)[Ph_1] + \Sq(4,6)[h_0^{5}] + \Sq(12,1,1)[h_0^{5}] + \Sq(0,5,1)[h_0^{5}] + \Sq(4,1,0,1)[h_0^{5}] + \Sq(6,3,1)[h_0^{5}]$ & $\Sq^{1}[h_0^{2}g] + \Sq^{4}[h_0^{2}e_0] + \Sq(4,2)[h_0Ph_2] + \Sq(0,1,1)[h_0Ph_2] + \Sq(0,2,0,1)[h_0^{6}]$ \\
+$b^{6}_{0}$ & 7 & $x_{01}\,[h_0^{6}]$ & $\Sq^{1}[h_0^{6}]$ & $[h_0^{7}]$ \\
+$b^{6}_{1}$ & 18 & $x_{01}\,[h_0Ph_2]$ & $\Sq^{1}[h_0Ph_2] + \Sq^{2}[h_1Ph_1] + \Sq^{12}[h_0^{6}] + \Sq(2,1,1)[h_0^{6}]$ & $[h_0^{2}Ph_2]$ \\
+$b^{6}_{2}$ & 19 & $x_{01}x_{11}\,[h_1Ph_1]$ & $\Sq^{3}[h_1Ph_1] + \Sq(10,1)[h_0^{6}]$ & $\Sq^{1}[h_0^{2}Ph_2] + \Sq^{12}[h_0^{7}] + \Sq(2,1,1)[h_0^{7}]$ \\
+$b^{6}_{3}$ & 21 & $x_{11}x_{02}\,[h_1Ph_1]$ & $\Sq(2,1)[h_1Ph_1]$ & $\Sq^{3}[h_0^{2}Ph_2] + \Sq(0,1)[h_0^{2}Ph_2] + \Sq^{14}[h_0^{7}]$ \\
+$b^{6}_{4}$ & 22 & $x_{01}\,[h_0^{5}h_4]$ & $\Sq^{1}[h_0^{5}h_4] + \Sq^{6}[h_1Ph_1] + \Sq(0,2)[h_1Ph_1] + \Sq^{16}[h_0^{6}] + \Sq(10,2)[h_0^{6}] + \Sq(6,1,1)[h_0^{6}]$ & $[h_0^{6}h_4]$ \\
+$b^{6}_{5}$ & 23 & $x_{01}x_{11}\,[h_0^{2}d_0]$ & $\Sq^{3}[h_0^{2}d_0] + \Sq(0,1)[h_0^{2}d_0] + \Sq^{6}[h_0Ph_2] + \Sq(4,1)[h_1Ph_1] + \Sq(1,2)[h_1Ph_1] + \Sq(0,0,1)[h_1Ph_1] + \Sq(10,0,1)[h_0^{6}] + \Sq(2,5)[h_0^{6}]$ & $[Pc_0]$ \\
+$b^{6}_{6}$ & 24 & $x_{01}x_{02}\,[h_0^{2}d_0]$ & $\Sq(1,1)[h_0^{2}d_0] + \Sq(4,1)[h_0Ph_2] + \Sq(2,2)[h_1Ph_1] + \Sq(1,0,1)[h_1Ph_1]$ & $\Sq^{1}[Pc_0] + \Sq^{6}[h_0^{2}Ph_2] + \Sq(14,1)[h_0^{7}] + \Sq(8,3)[h_0^{7}] + \Sq(10,0,1)[h_0^{7}] + \Sq(2,5)[h_0^{7}]$ \\
+$b^{6}_{7}$ & 24 & $x_{01}\,[h_0^{2}e_0]$ & $\Sq^{1}[h_0^{2}e_0] + \Sq^{2}[h_1^{2}d_0] + \Sq^{4}[h_0^{2}d_0] + \Sq(4,1)[h_0Ph_2] + \Sq(0,0,1)[h_0Ph_2] + \Sq^{8}[h_1Ph_1] + \Sq(1,0,1)[h_1Ph_1] + \Sq(0,6)[h_0^{6}] + \Sq(8,1,1)[h_0^{6}] + \Sq(0,1,0,1)[h_0^{6}]$ & $[h_0^{3}e_0]$ \\
+$b^{6}_{8}$ & 25 & $x_{01}x_{11}\,[h_1^{2}d_0]$ & $\Sq^{3}[h_1^{2}d_0] + \Sq^{5}[h_0^{2}d_0] + \Sq^{9}[h_1Ph_1] + \Sq(12,0,1)[h_0^{6}] + \Sq(0,4,1)[h_0^{6}] + \Sq(10,3)[h_0^{6}]$ & $\Sq^{1}[h_0^{3}e_0] + \Sq^{7}[h_0^{2}Ph_2] + \Sq(1,2)[h_0^{2}Ph_2] + \Sq(12,2)[h_0^{7}] + \Sq(0,6)[h_0^{7}] + \Sq(8,1,1)[h_0^{7}] + \Sq(0,1,0,1)[h_0^{7}]$ \\
+$b^{6}_{9}$ & 27 & $x_{11}x_{02}\,[h_1^{2}d_0]$ & $\Sq(2,1)[h_1^{2}d_0] + \Sq(1,2)[h_0^{2}d_0] + \Sq(0,0,1)[h_0^{2}d_0] + \Sq(4,2)[h_0Ph_2] + \Sq(8,1)[h_1Ph_1] + \Sq(1,1,1)[h_1Ph_1] + \Sq(12,3)[h_0^{6}] + \Sq(14,0,1)[h_0^{6}] + \Sq(0,7)[h_0^{6}]$ & $\Sq^{3}[h_0^{3}e_0] + \Sq(0,1)[h_0^{3}e_0] + \Sq^{4}[Pc_0] + \Sq^{9}[h_0^{2}Ph_2] + \Sq(6,1)[h_0^{2}Ph_2] + \Sq(3,2)[h_0^{2}Ph_2] + \Sq(0,3)[h_0^{2}Ph_2] + \Sq(8,4)[h_0^{7}] + \Sq(2,6)[h_0^{7}] + \Sq(10,1,1)[h_0^{7}] + \Sq(4,3,1)[h_0^{7}]$ \\
+$b^{7}_{0}$ & 8 & $x_{01}\,[h_0^{7}]$ & $\Sq^{1}[h_0^{7}]$ & $[h_0^{8}]$ \\
+$b^{7}_{1}$ & 23 & $x_{01}\,[h_0^{6}h_4]$ & $\Sq^{1}[h_0^{6}h_4] + \Sq^{5}[h_0^{2}Ph_2] + \Sq(2,1)[h_0^{2}Ph_2] + \Sq^{16}[h_0^{7}] + \Sq(0,3,1)[h_0^{7}]$ & $[h_0^{7}h_4]$ \\
+$b^{7}_{2}$ & 24 & $x_{01}x_{11}x_{02}\,[h_0^{2}Ph_2]$ & $\Sq(3,1)[h_0^{2}Ph_2] + \Sq(14,1)[h_0^{7}]$ & $\Sq^{1}[h_0^{7}h_4] + \Sq^{16}[h_0^{8}] + \Sq(0,3,1)[h_0^{8}]$ \\
+$b^{7}_{3}$ & 25 & $x_{11}\,[Pc_0]$ & $\Sq^{2}[Pc_0] + \Sq(4,1)[h_0^{2}Ph_2] + \Sq(1,2)[h_0^{2}Ph_2] + \Sq(0,0,1)[h_0^{2}Ph_2] + \Sq(12,2)[h_0^{7}] + \Sq(8,1,1)[h_0^{7}] + \Sq(2,3,1)[h_0^{7}]$ & $[h_1Pc_0]$ \\
+$b^{7}_{4}$ & 27 & $x_{01}x_{02}\,[Pc_0]$ & $\Sq(1,1)[Pc_0] + \Sq(6,1)[h_0^{2}Ph_2] + \Sq(3,2)[h_0^{2}Ph_2] + \Sq(0,3)[h_0^{2}Ph_2] + \Sq(2,0,1)[h_0^{2}Ph_2] + \Sq(14,2)[h_0^{7}]$ & $\Sq^{2}[h_1Pc_0] + \Sq(10,3)[h_0^{8}]$ \\
+$b^{8}_{0}$ & 9 & $x_{01}\,[h_0^{8}]$ & $\Sq^{1}[h_0^{8}]$ & $[h_0^{9}]$ \\
+$b^{8}_{1}$ & 26 & $x_{01}x_{11}\,[h_0^{7}h_4]$ & $\Sq^{3}[h_0^{7}h_4] + \Sq(0,1)[h_0^{7}h_4] + \Sq^{18}[h_0^{8}] + \Sq(2,3,1)[h_0^{8}]$ & $[P^2h_1]$ \\
+$b^{8}_{2}$ & 27 & $x_{01}x_{02}\,[h_0^{7}h_4]$ & $\Sq(1,1)[h_0^{7}h_4] + \Sq(16,1)[h_0^{8}]$ & $\Sq^{1}[P^2h_1] + \Sq^{18}[h_0^{9}] + \Sq(2,3,1)[h_0^{9}]$ \\
+$b^{8}_{3}$ & 28 & $x_{01}x_{11}\,[h_1Pc_0]$ & $\Sq^{3}[h_1Pc_0] + \Sq^{5}[h_0^{7}h_4] + \Sq(2,1)[h_0^{7}h_4] + \Sq^{20}[h_0^{8}] + \Sq(10,1,1)[h_0^{8}] + \Sq(4,3,1)[h_0^{8}]$ & $[P^2h_2]$ \\
+$b^{8}_{4}$ & 30 & $x_{11}x_{02}\,[h_1Pc_0]$ & $\Sq(2,1)[h_1Pc_0] + \Sq(1,2)[h_0^{7}h_4] + \Sq(0,0,1)[h_0^{7}h_4] + \Sq(16,2)[h_0^{8}]$ & $\Sq^{2}[P^2h_2] + \Sq^{4}[P^2h_1]$ \\
+$b^{9}_{0}$ & 10 & $x_{01}\,[h_0^{9}]$ & $\Sq^{1}[h_0^{9}]$ & $[h_0^{10}]$ \\
+$b^{9}_{1}$ & 28 & $x_{11}\,[P^2h_1]$ & $\Sq^{2}[P^2h_1] + \Sq(16,1)[h_0^{9}]$ & $[h_1P^2h_1]$ \\
+$b^{9}_{2}$ & 29 & $x_{01}\,[P^2h_2]$ & $\Sq^{1}[P^2h_2] + \Sq(0,1)[P^2h_1] + \Sq^{20}[h_0^{9}] + \Sq(10,1,1)[h_0^{9}] + \Sq(4,3,1)[h_0^{9}]$ & $[h_0P^2h_2]$ \\
+$b^{9}_{3}$ & 30 & $x_{01}x_{02}\,[P^2h_1]$ & $\Sq(1,1)[P^2h_1] + \Sq(18,1)[h_0^{9}]$ & $\Sq^{2}[h_1P^2h_1]$ \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\paragraph{Counters.}
+The statistics the program keeps per level ($s = -1$ are the module relations):
+\begin{center}
+\footnotesize\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{rrrrrrrrrrrr}
+\toprule
+$s$ & formed & divisible & chain & singles & reduced & useless & elements & boundary & gens & beyond & steps \\
+\midrule
+-1 & 0 & 0 & 0 & 0 & 5 & 0 & 0 & 0 & 5 & 0 & 0 \\
+0 & 46 & 0 & 0 & 7 & 53 & 37 & 6 & 0 & 10 & 0 & 272 \\
+1 & 37 & 2 & 0 & 22 & 57 & 35 & 12 & 0 & 10 & 0 & 506 \\
+2 & 13 & 2 & 0 & 25 & 36 & 16 & 10 & 1 & 9 & 0 & 247 \\
+3 & 2 & 0 & 0 & 19 & 21 & 7 & 5 & 0 & 9 & 0 & 116 \\
+4 & 6 & 0 & 0 & 16 & 22 & 10 & 4 & 0 & 8 & 0 & 93 \\
+5 & 3 & 0 & 0 & 14 & 17 & 8 & 4 & 0 & 5 & 0 & 53 \\
+6 & 3 & 0 & 0 & 14 & 17 & 9 & 5 & 0 & 3 & 0 & 61 \\
+7 & 1 & 0 & 0 & 7 & 8 & 3 & 2 & 0 & 3 & 0 & 10 \\
+8 & 1 & 0 & 0 & 7 & 8 & 3 & 2 & 0 & 3 & 0 & 12 \\
+9 & 0 & 0 & 0 & 3 & 3 & 0 & 1 & 0 & 0 & 2 & 3 \\
+all & 112 & 4 & 0 & 134 & 247 & 128 & 51 & 1 & 65 & 2 & 1373 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Here ``formed'' counts critical pairs, ``divisible'' and ``chain'' those removed by the Gebauer--M\"oller criteria, and ``steps'' the reduction steps. Of the 247 reductions, 128 were useless, 1 found a boundary and 2 went beyond the range; the other 116 each produced a basis element or a generator.
+
+\end{document}

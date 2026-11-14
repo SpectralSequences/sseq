@@ -1,0 +1,149 @@
+% PDF 1.4 without object streams, for older viewers.
+\pdfminorversion=4
+\pdfobjcompresslevel=0
+\documentclass[11pt]{article}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array,longtable}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{tikz}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Sq}{\mathrm{Sq}}
+\newcommand{\F}{\mathbb{F}_2}
+\newcommand{\A}{\mathcal{A}}
+\DeclareMathOperator{\LT}{LT}
+\DeclareMathOperator{\Ext}{Ext}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+\title{A minimal resolution over the Steenrod algebra,\\ computed by Gröbner bases}
+\author{Trace of the \texttt{groebner} crate (branch \texttt{groebner\_lin})}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+@ABSTRACT_LEAD@ the computation of the minimal free resolution
+$\dots \to C_3 \to C_2 \to C_1 \to C_0 \to \F$ of the ground field over the mod $2$ Steenrod
+algebra $\A$ by the \texttt{groebner} crate, a port of Weinan Lin's Gröbner basis method. The
+range is homological degree $s \le @S_MAX@$ and stem $t - s \le @N_MAX@$, so internal degrees $t \le @T_MAX@$.
+Every formula below is taken from the program's own data: the critical pairs it formed, the
+elements it reduced, and the bases and differentials it produced. Only the bookkeeping of the
+reduction steps was replayed outside the program, and the replay was checked to reproduce the
+program's results exactly.
+\end{abstract}
+
+\section{Setting}
+
+\paragraph{The algebra.}
+We work in the Milnor basis $\Sq(R) = \Sq(r_1, r_2, \dots)$ of $\A$, writing $\Sq^r = \Sq(r)$.
+Write $r_n = \sum_i d_{i,n} 2^i$ in binary. The digit $d_{i,n}$ records the power
+$\xi_n^{2^i}$ of the dual basis, of degree $2^i(2^n - 1)$, and we record $\Sq(R)$ by the
+monomial
+\[ x^R = \prod_{d_{i,n} = 1} x_{in} \]
+in the associated graded algebra of the May filtration
+\[ E^0\A = \bigotimes_{i \ge 0,\, n \ge 1} \F[x_{in}]/(x_{in}^2). \]
+For example $\Sq^3 = \Sq(3) \leftrightarrow x_{01}x_{11}$, $\Sq(0,1) \leftrightarrow x_{02}$ and
+$\Sq(1,1) \leftrightarrow x_{01}x_{02}$. In $E^0\A$ a monomial is just a set of positions, so
+divisibility, quotients and least common multiples are inclusion, difference and union of sets.
+The positions relevant here, in increasing degree, are
+@POSITIONS@.
+
+\paragraph{The monomial order.}
+A term of a free module is $\Sq(R)\,g$ with $g$ a generator. Terms are compared by
+\begin{enumerate}
+\item the generator: the generator added later (of higher degree) comes first;
+\item the May weight $\sum_{d_{i,n} = 1} (2n - 1)$: smaller comes first;
+\item the digits read as a binary number, with the position of lowest degree most significant:
+  smaller comes first.
+\end{enumerate}
+The \emph{leading term} $\LT(x)$ of an element is its first term in this order. Elements are
+always printed with their leading term first. The point of this order is that the leading term
+of a product $\Sq(R)\cdot x$ is $x^R \cdot \LT(x)$ computed in $E^0\A$, \emph{whenever that
+product is non-zero}. Products of leading terms vanish exactly when a position occurs twice, and
+those are the cases the algorithm treats separately (``singles'' below).
+
+\paragraph{Names.}
+The generator of $C_0$ is $\iota$. Generators of $C_s$, $s \ge 1$, are named after the classes of
+$\Ext_\A^{s,t}(\F, \F)$ they represent: $[h_0], [h_1], [h_2], [h_3] \in C_1$, $[h_0^2], [h_1^2],
+[h_0h_2], \dots \in C_2$, $[c_0], [Ph_1]$, and so on. The names of the decomposable classes are
+found from the differentials: in a minimal resolution, the product $h_i x$ of the class $x$ dual to
+a generator $g$ of $C_s$ takes the value $1$ on a generator $g'$ of $C_{s+1}$ exactly when
+$\Sq^{2^i} g$ occurs in $d g'$. A generator is named $h_i x$ when that product is dual to it alone.
+@NAME_NOTE@ These names are only labels; the program numbers the generators of
+each $C_s$ in the order they are found.
+
+\section{The algorithm}
+
+\paragraph{Levels.}
+Level $s$ is a Gröbner basis $b^s_0, b^s_1, \dots$ of the graph of the differential,
+\[ \Gamma_s = \{ (d y, y) : y \in C_{s+1} \} \subseteq C_s \oplus C_{s+1}, \]
+for the order on the first component. Each $b^s_k = (x_1 \mid x_2)$ satisfies $d x_2 = x_1$,
+and its leading term is that of $x_1$. The first components form a Gröbner basis of
+$\operatorname{im}(d \colon C_{s+1} \to C_s)$, and pairs whose first component reduces to zero
+produce elements of the kernel. The module being resolved enters as ``level $-1$'': the relations
+$\Sq^{2^i}\iota = 0$ presenting $\F = \A/\A\{\Sq^1, \Sq^2, \Sq^4, \dots\}$.
+
+\paragraph{Critical pairs and singles.}
+When an element with leading term $L = x^{R}\,g$ joins level $s$, the program forms
+\begin{itemize}
+\item a \emph{critical pair} with each earlier element $b$ whose leading term $L'$ lies on the
+  same generator: with $M = \operatorname{lcm}(L, L')$ in $E^0\A$, the S-element is
+  $\Sq(M/L')\cdot b + \Sq(M/L)\cdot b_{\text{new}}$, in which the leading terms cancel. The pairs
+  are pruned by the Gebauer--Möller criteria (divisibility and the chain criterion);
+\item a \emph{critical single} $\Sq(x_{in}) \cdot b_{\text{new}}$ for each position $x_{in}$
+  dividing $L$: then $x_{in} \cdot L = 0$ in $E^0\A$, so the leading term of the product is not
+  predicted by the leading terms and the product must be reduced.
+\end{itemize}
+A pair or single has the degree of its leading monomial, and it is filed under that degree.
+
+\paragraph{One degree.}
+The program runs through $t = 1, 2, \dots$. In degree $t$:
+\begin{enumerate}
+\item Every level hands out its pairs and singles of degree $t$, and the relations of degree $t$
+  are taken up.
+\item Each of them is reduced: the first component modulo level $s$, carrying the second component
+  along so that $d x_2 = x_1$ is preserved; then the second component modulo the first components
+  of level $s+1$, i.e.\ modulo the boundaries $d(C_{s+2})$ known so far, which preserves
+  $d x_2 = x_1$ because $dd = 0$. If the first component has become zero, the second component
+  $z \in C_{s+1}$ is a cycle.
+\item Going down from the top level, the results are compared with the elements found earlier in
+  the same degree (``triangulation''), and then sorted:
+  \begin{itemize}
+  \item first component non-zero: a \textbf{new basis element} of level $s$;
+  \item both components zero: \textbf{useless};
+  \item first component zero, second component $z \ne 0$: $z$ is a cycle that is not a boundary
+    (it is reduced modulo the whole image in degree $t$), so it becomes $d$ of a
+    \textbf{new generator} $g$ of $C_{s+2}$, and $(z \mid g)$ joins level $s+1$. If $s + 2$
+    exceeds the range, the outcome is \textbf{beyond} instead.
+  \end{itemize}
+\end{enumerate}
+Because the levels are handled from the top down, the new elements of level $s+1$ in degree $t$
+are known when the cycles of level $s$ are tested, which is what makes the resolution minimal.
+No linear algebra is ever done: everything is rewriting of sparse sums of terms.
+
+\paragraph{Truncation.}
+A cycle found at level $s$ in degree $t$ is a generator of $C_{s+2}$ in stem $t-s-2$. Since we
+want stems $\le @N_MAX@$, level $s$ is only needed for $t \le s + @N_MAX2@$, and pairs of higher degree are
+never formed. Likewise the relations are only needed for $t \le @N_MAX1@$.
+
+\paragraph{Running it.}\sloppy
+The trace was produced by a small driver around the public API of the crate
+(\texttt{Resolution::sphere} with \texttt{Bounds \{ s\_max: @S_MAX@, n\_max: @N_MAX@ \}} at $p = 2$,
+\texttt{SteenrodKind::Classical}), which calls \texttt{compute\_through(t)} for $t = 1, \dots, @T_MAX@$
+and records every reduction through a \texttt{PairObserver}. The driver then redid each reduction
+with the crate's own products, recording the individual steps, and checked after every degree that
+the outcomes, the new basis elements and the differentials agree with the program's. It also
+replays the divisibility criterion on the final leading terms, and checks that it prunes as many
+pairs in each degree as the program counted. The driver and the script that renders this document
+are in \texttt{docs/trace}.
+
+@STEPS@
+
+\section{The result}
+
+@RESULT@

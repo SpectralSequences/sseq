@@ -27,6 +27,13 @@ $$E[Q_0, Q_1, \dots] \otimes \bigotimes_{i,n} \mathbb{F}_p[x_{i,n}]/(x_{i,n}^p)$
 whenever that is non-zero (see the `leading_terms_multiply` test). Divisibility, gcd and lcm there
 are digitwise comparisons, done on the whole word at once.
 
+The `DIGIT_BITS` bits of digits are split into fields of equal width, handed out in order of increasing
+degree; this bounds the degrees a `Params` supports (`Params::max_degree`). At $p = 2$ a field is
+one bit, and the digitwise operations are plain bit operations. At an odd prime a field has
+$\lceil \log_2 p \rceil + 1$ bits, the top one a guard bit that is zero in every valid monomial.
+Additions and subtractions then cannot carry across fields, and the guard bits record per field
+whether $d_a + d_b \ge p$ (the product vanishes) or $d_a \ge d_b$ (divisibility, gcd, lcm).
+
 Level $s$ of a `Resolution` is a Gröbner basis of the graph of $d \colon C_{s+1} \to C_s$, ordered
 by the $C_s$ component. In each internal degree $t$:
 
