@@ -131,16 +131,7 @@ A cycle found at level $s$ in degree $t$ is a generator of $C_{s+2}$ in stem $t-
 want stems $\le @N_MAX@$, level $s$ is only needed for $t \le s + @N_MAX2@$, and pairs of higher degree are
 never formed. Likewise the relations are only needed for $t \le @N_MAX1@$.
 
-\paragraph{Running it.}\sloppy
-The trace was produced by a small driver around the public API of the crate
-(\texttt{Resolution::sphere} with \texttt{Bounds \{ s\_max: @S_MAX@, n\_max: @N_MAX@ \}} at $p = 2$,
-\texttt{SteenrodKind::Classical}), which calls \texttt{compute\_through(t)} for $t = 1, \dots, @T_MAX@$
-and records every reduction through a \texttt{PairObserver}. The driver then redid each reduction
-with the crate's own products, recording the individual steps, and checked after every degree that
-the outcomes, the new basis elements and the differentials agree with the program's. It also
-replays the divisibility criterion on the final leading terms, and checks that it prunes as many
-pairs in each degree as the program counted. The driver and the script that renders this document
-are in \texttt{docs/trace}.
+@RUNNING@
 
 @STEPS@
 

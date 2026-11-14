@@ -275,7 +275,7 @@ fn main() {
                         let c = params.neg(c);
                         Poly::add_scaled(&mut it.elem.x1, &g.x1, c, p);
                         Poly::add_scaled(&mut it.elem.x2, &g.x2, c, p);
-                        tri1.push(json!({"k": before[s as usize] + j, "after": elem_json(&params, &it.elem)}));
+                        tri1.push(json!({"k": before[s as usize] + j, "factor": c, "after": elem_json(&params, &it.elem)}));
                     }
                 }
                 if let Some(next) = new.get((s + 1) as usize) {
@@ -284,7 +284,7 @@ fn main() {
                         let c = it.elem.x2.coefficient(lead);
                         if c != 0 {
                             Poly::add_scaled(&mut it.elem.x2, &g.x1, params.neg(c), p);
-                            tri2.push(json!({"k": before[(s + 1) as usize] + j, "after": poly_json(&params, &it.elem.x2)}));
+                            tri2.push(json!({"k": before[(s + 1) as usize] + j, "factor": params.neg(c), "after": poly_json(&params, &it.elem.x2)}));
                         }
                     }
                 }
@@ -298,6 +298,15 @@ fn main() {
                     "lcm": it.ev.pair.filter(|p| !p.is_single()).map(|p| {
                         let leads = res.level(s as u32).leads();
                         mono_json(&params, params.lcm(leads[p.i1 as usize].mono(), leads[p.i2 as usize].mono()))
+                    }),
+                    // The leading coefficients of m1 * b_i1 and m2 * b_i2, which the S-element
+                    // cross-multiplies.
+                    "lambda": it.ev.pair.filter(|p| !p.is_single()).map(|p| {
+                        let elements = res.level(s as u32).elements();
+                        let lc = |k: u32, m: Mono| {
+                            params.mul_poly(m, 1, &elements[k as usize].x1).lead().unwrap().1
+                        };
+                        [lc(p.i1, p.m1), lc(p.i2, p.m2)]
                     }),
                     "start": it.start,
                     "steps1": it.steps1,
@@ -337,7 +346,7 @@ fn main() {
                         let c = it.elem.x2.coefficient(lead);
                         if c != 0 {
                             Poly::add_scaled(&mut it.elem.x2, &g.x1, params.neg(c), p);
-                            tri3.push(json!({"k": before[(s + 1) as usize] + j, "after": poly_json(&params, &it.elem.x2)}));
+                            tri3.push(json!({"k": before[(s + 1) as usize] + j, "factor": params.neg(c), "after": poly_json(&params, &it.elem.x2)}));
                         }
                     }
                 }
@@ -514,7 +523,7 @@ fn main() {
         .collect();
     println!(
         "{}",
-        json!({"p": p, "s_max": s_max, "n_max": n_max, "degrees": degrees, "generators": gens,
+        json!({"p": p, "relations": relations.keys().collect::<Vec<_>>(), "s_max": s_max, "n_max": n_max, "degrees": degrees, "generators": gens,
                "levels": levels, "stats": by_level, "pruned": pruned, "boundaries": boundaries})
     );
 }

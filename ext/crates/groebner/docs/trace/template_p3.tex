@@ -135,12 +135,7 @@ We want stems $\le @N_MAX@$. A cycle found at level $s$ in degree $t$ is a gener
 stem $t-s-2$, so level $s$ is only needed for $t \le s + @N_MAX2@$. Relations are only needed for
 $t \le @N_MAX1@$.
 
-\paragraph{Running it.}\sloppy
-The computation was run by a small driver around the public API of the crate, in
-\texttt{docs/trace}. It runs \texttt{Resolution::sphere} at $p = 3$ with
-\texttt{SteenrodKind::Classical} and \texttt{Bounds \{ s\_max: @S_MAX@, n\_max: @N_MAX@ \}}, and
-calls \texttt{compute\_through(@T_MAX@)}. It also replays the divisibility criterion on the final
-leading terms, and checks that it prunes as many pairs in each degree as the program counted.
+@RUNNING@
 
 @STEPS@
 \section{The result}

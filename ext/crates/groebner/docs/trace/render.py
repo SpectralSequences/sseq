@@ -2,8 +2,8 @@
 
 Usage: python3 render.py [--summary] trace.json template.tex out.tex
 
-With --summary, the step-by-step account is left out and only the results are shown. The
-step-by-step account is only supported at p = 2. Use template_p3.tex at p = 3.
+With --summary, the step-by-step account is left out and only the results are shown. Use
+template_p3.tex at p = 3.
 """
 
 import argparse
@@ -19,7 +19,6 @@ args = parser.parse_args()
 d = json.load(open(args.trace))
 S_MAX, N_MAX = d["s_max"], d["n_max"]
 P = d.get("p", 2)
-assert P == 2 or args.summary, "the step-by-step account is only supported at p = 2"
 
 
 if P == 2:
@@ -62,7 +61,8 @@ def fmt(f):
     for k in H + sorted(x for x in f if x not in H):
         e = f.get(k, 0)
         if e:
-            out += k if e == 1 else (f"{k}^{{{e}}}" if "^" not in k else f"({k})^{{{e}}}")
+            exp = str(e) if e < 10 else f"{{{e}}}"
+            out += k if e == 1 else (f"{k}^{exp}" if "^" not in k else f"({k})^{exp}")
     return out
 
 
@@ -155,7 +155,7 @@ def xmono(m):
             if n <= len(R):
                 digit = R[n - 1] // P**i % P
                 if digit:
-                    parts.append(f"x_{{{i}{n}}}" + (f"^{digit}" if digit > 1 else ""))
+                    parts.append(f"x_{{{i}{n}}}" + (f"^{{{digit}}}" if digit > 1 else ""))
     return "".join(parts) if parts else "1"
 
 
@@ -166,6 +166,33 @@ def coef(c, first):
     if c == P - 1:
         return "-" if first else " - "
     return f"{c}" if first else f" + {c}"
+
+
+def scalar(c):
+    """The scalar c mod p, as a signed integer."""
+    return "-1" if c == P - 1 and P != 2 else str(c)
+
+
+def times(c, m):
+    """The operation c * m, with m a Milnor basis element and c a scalar mod p."""
+    body = sq(m)
+    if not body:
+        return scalar(c)
+    return {1: "", P - 1: "-"}.get(c, f"{c}") + body if P != 2 else body
+
+
+def adding(c, what):
+    """Adding c times what, in words."""
+    if c == 1:
+        return f"adding {what}"
+    if c == P - 1:
+        return f"subtracting {what}"
+    return f"adding ${c}$ times {what}"
+
+
+def scale(x, c):
+    """The element x multiplied by the scalar c."""
+    return [[t[0], t[1], t[2] * c % P] for t in x if t[2] * c % P]
 
 
 def term(s, t):
@@ -230,21 +257,27 @@ def steps_list(s, steps, comp, out):
         tm = st["term"]
         k = st["k"]
         q = st["quotient"]
+        f = st["factor"]
+        # At p = 2 the factor is always 1, and the term cancels without saying so.
+        leaves = "leaves" if P == 2 else "cancels it and leaves"
         if comp == "x1":
-            prod = elem(s, {"x1": st["prod_x1"], "x2": st["prod_x2"]})
+            prod = elem(s, {"x1": scale(st["prod_x1"], f), "x2": scale(st["prod_x2"], f)})
             after = elem(s, {"x1": st["after_x1"], "x2": st["after_x2"]})
+            op = times(f, q) if P != 2 else (sq(q) or "1")
             out.append(
-                rf"\item The term ${term(s, tm)}$ has leading monomial ${lt(s, tm)}$, divisible by "
-                rf"$\LT({b(s, k)})$ with quotient ${xmono(q)}$. Adding ${sq(q) or '1'}\cdot {b(s, k)} = {prod}$ "
-                rf"leaves ${after}$."
+                rf"\item The term ${coef(st['coef'], True)}{term(s, tm)}$ has leading monomial ${lt(s, tm)}$, divisible by "
+                rf"$\LT({b(s, k)})$ with quotient ${xmono(q)}$. Adding ${op}\cdot {b(s, k)} = {prod}$ "
+                rf"{leaves} ${after}$."
             )
         else:
             s1 = s + 1
             after = poly(s1, st["after_x1"])
+            op = times(f, q)
+            op = {"1": "", "-1": "-"}.get(op, op + r"\cdot ")
             out.append(
-                rf"\item The term ${term(s1, tm)}$ has leading monomial ${lt(s1, tm)}$, divisible by "
+                rf"\item The term ${coef(st['coef'], True)}{term(s1, tm)}$ has leading monomial ${lt(s1, tm)}$, divisible by "
                 rf"$\LT({b(s1, k)})$ with quotient ${xmono(q)}$. Adding "
-                rf"${sq(q) + r'\cdot ' if sq(q) else ''}\pi_1({b(s1, k)}) = {poly(s1, st['prod_x1'])}$ leaves ${after}$."
+                rf"${op}\pi_1({b(s1, k)}) = {poly(s1, scale(st['prod_x1'], f))}$ {leaves} ${after}$."
             )
     out.append(r"\end{itemize}")
 
@@ -263,9 +296,29 @@ def header(it):
     i2 = it["i2"]
     if it["kind"] == "single":
         m = it["m2"]
+        if P == 2:
+            why = (
+                rf"Since ${xmono(m)}$ divides $\LT({b(s, i2)}) = {LT(s, i2)}$ and $x_{{in}}^2 = 0$ in "
+                r"$E^0\A$,"
+            )
+        elif m["e"]:
+            why = rf"In $E^0\A$ we have ${xmono(m)}^2 = 0$, so"
+        else:
+            # m = x_{in}^{p - d}, where d is the digit of the leading term in that position.
+            (i, n, dm), = [
+                (i, n, r // P**i % P)
+                for n, r in enumerate(m["r"], 1)
+                for i in range(12)
+                if r // P**i % P
+            ]
+            x = f"x_{{{i}{n}}}"
+            d = P - dm
+            why = (
+                rf"In $E^0\A$ we have ${xmono(m)}\cdot {x}{'' if d == 1 else f'^{{{d}}}'} = 0$ "
+                rf"(as ${'x_{in}'}^{{{P}}} = 0$), so"
+            )
         return (
-            rf"\paragraph{{Level ${s}$, single ${xmono(m)}\cdot {b(s, i2)}$.}} Since ${xmono(m)}$ divides "
-            rf"$\LT({b(s, i2)}) = {LT(s, i2)}$ and $x_{{in}}^2 = 0$ in $E^0\A$, the leading term of "
+            rf"\paragraph{{Level ${s}$, single ${xmono(m)}\cdot {b(s, i2)}$.}} {why} the leading term of "
             rf"${sq(m)}\cdot {b(s, i2)}$ is not the product of the leading terms, and the product has to "
             rf"be reduced:" + "\n" + display(s, it['start'])
         )
@@ -273,12 +326,26 @@ def header(it):
     m1, m2 = it["m1"], it["m2"]
     lead = levels[s][i1]["x1"][0]
     lcm = it["lcm"]
-    return (
+    head = (
         rf"\paragraph{{Level ${s}$, pair $({b(s, i1)}, {b(s, i2)})$.}} The leading terms "
         rf"$\LT({b(s, i1)}) = {LT(s, i1)}$ and $\LT({b(s, i2)}) = {LT(s, i2)}$ have least common multiple "
-        rf"${xmono(lcm)}\,{gname(s, lead[0])}$, with cofactors ${xmono(m1)}$ and ${xmono(m2)}$. The "
-        rf"S-element ${sq(m1)}\cdot {b(s, i1)} + {sq(m2)}\cdot {b(s, i2)}$, in which the leading terms "
-        rf"cancel, is" + "\n" + display(s, it['start'])
+        rf"${xmono(lcm)}\,{gname(s, lead[0])}$, with cofactors ${xmono(m1)}$ and ${xmono(m2)}$."
+    )
+    if P == 2:
+        return (
+            head + rf" The S-element ${sq(m1)}\cdot {b(s, i1)} + {sq(m2)}\cdot {b(s, i2)}$, in which the "
+            rf"leading terms cancel, is" + "\n" + display(s, it['start'])
+        )
+    # The program forms l1 * (m2 * b_i2) - l2 * (m1 * b_i1), where l1 and l2 are the leading
+    # coefficients of m1 * b_i1 and m2 * b_i2.
+    l1, l2 = it["lambda"]
+    s_elem = (
+        rf"{coef(l1, True)}{sq(m2)}\cdot {b(s, i2)}{coef(P - l2, False)}{sq(m1)}\cdot {b(s, i1)}"
+    )
+    return (
+        head + "\n" + rf"The leading terms of ${sq(m1)}\cdot {b(s, i1)}$ and ${sq(m2)}\cdot {b(s, i2)}$ are "
+        rf"${scalar(l1)}$ and ${scalar(l2)}$ times this monomial, so the S-element is ${s_elem}$:"
+        + "\n" + display(s, it['start'])
     )
 
 
@@ -325,19 +392,21 @@ def item_tex(it, cyc=None):
         k = tr["k"]
         out.append(
             rf"Its first component contains $\LT({b(s, k)})$ of the element ${b(s, k)}$ just found in "
-            rf"this degree; adding it gives ${elem(s, tr['after'])}$."
+            rf"this degree; {adding(tr['factor'], 'it')} gives ${elem(s, tr['after'])}$."
         )
         x1, x2 = tr["after"]["x1"], tr["after"]["x2"]
     for tr in it["tri2"]:
         k = tr["k"]
         out.append(
             rf"The second component contains the leading term of ${b(s + 1, k)}$, found in this degree; "
-            rf"adding its first component leaves ${poly(s + 1, tr['after'])}$."
+            rf"{adding(tr['factor'], 'its first component')} leaves ${poly(s + 1, tr['after'])}$."
         )
         x2 = tr["after"]
     o = it["outcome"]
     if o == "element":
         k = it["index"]
+        if it.get("scale", 1) != 1:
+            out.append(rf"Multiply by ${scalar(it['scale'])}$ to make the leading coefficient $1$.")
         out.append(
             rf"\textbf{{Outcome: new basis element}} ${b(s, k)} = {elem(s, it['result'])}$ of level "
             rf"${s}$, with leading term ${LT(s, k)}$."
@@ -345,10 +414,13 @@ def item_tex(it, cyc=None):
     elif o == "useless":
         if it["tri2"]:
             k = it["tri2"][-1]["k"]
-            src = poly(s + 2, levels[s + 1][k]["x2"])
+            # The cycle is c times the first component, where adding -c times it cancelled it.
+            c = P - it["tri2"][-1]["factor"]
+            src = poly(s + 2, scale(levels[s + 1][k]["x2"], c))
+            what = "the first component" if c == 1 else "a multiple of the first component"
             if len(it["tri2"]) == 1:
                 out.append(
-                    rf"\textbf{{Outcome: useless.}} The cycle is the first component of ${b(s + 1, k)}$, "
+                    rf"\textbf{{Outcome: useless.}} The cycle is {what} of ${b(s + 1, k)}$, "
                     rf"found one level up earlier in this degree, so it is the boundary $d\bigl({src}\bigr)$. "
                     r"Both components now vanish, and the reduction contributed nothing."
                 )
@@ -381,7 +453,8 @@ def cycle_outcome(s, c, inline=False):
         k = tr["k"]
         out.append(
             rf"The cycle ${poly(s1, z)}$ contains the leading term of ${b(s1, k)}$, found in this degree "
-            rf"from an earlier cycle; adding its first component leaves ${poly(s1, tr['after'])}$."
+            rf"from an earlier cycle; {adding(tr['factor'], 'its first component')} leaves "
+            rf"${poly(s1, tr['after'])}$."
         )
         z = tr["after"]
     o = c["outcome"]
@@ -402,8 +475,17 @@ def cycle_outcome(s, c, inline=False):
         s2, i = c["gen"]
         g = gname(s2, i)
         what = "relation" if inline else "cycle"
+        c_scale = c.get("scale", 1)
+        if c_scale != 1:
+            what += (
+                rf" ${poly(s1, z)}$, multiplied by ${scalar(c_scale)}$ to make the leading "
+                r"coefficient $1$,"
+            )
+        else:
+            what += rf" ${poly(s1, z)}$"
+        z = c["cycle"]
         out.append(
-            rf"\textbf{{Outcome: new generator.}} The {what} ${poly(s1, z)}$ is not a boundary, so "
+            rf"\textbf{{Outcome: new generator.}} The {what} is not a boundary, so "
             rf"$C_{{{s2}}}$ gets a generator ${g}$ in degree ${gens[s2][i]['t']}$ with "
             rf"$d{g} = {poly(s1, z)}$."
         )
@@ -443,6 +525,11 @@ for deg in d["degrees"]:
     if not items:
         continue
     body.append(rf"\subsection*{{Degree $t = {t}$}}")
+    if t in d.get("relations", []) and -1 not in deg["active"]:
+        body.append(
+            rf"\noindent Relations of degree ${t}$ would give generators of $C_1$ in stem "
+            rf"${t - 1} > {N_MAX}$ and are no longer taken up."
+        )
     dropped = [s for s in range(-1, S_MAX) if s not in deg["active"]]
     if dropped and dropped != [-1]:
         lv = [s for s in dropped if s >= 0]
@@ -744,6 +831,31 @@ if P != 2:
         r" The other generators that are not such products are labelled $x_{n,s}$ by their stem "
         r"$n$ and homological degree $s$, with primes to tell apart several in one bidegree."
     )
+bounds = (
+    r"(\texttt{Resolution::sphere} with \texttt{Bounds \{ "
+    rf"s\_max: {S_MAX}, n\_max: {N_MAX} \}}}} at $p = {P}$, \texttt{{SteenrodKind::Classical}})"
+)
+if args.summary:
+    running = (
+        r"\paragraph{Running it.}\sloppy" + "\n"
+        rf"The computation was run by a small driver around the public API of the crate {bounds}, "
+        rf"which calls \texttt{{compute\_through({S_MAX + N_MAX})}}. It also replays the divisibility "
+        r"criterion on the final leading terms, and checks that it prunes as many pairs in each "
+        r"degree as the program counted. The driver and the script that renders this document are in "
+        r"\texttt{docs/trace}."
+    )
+else:
+    running = (
+        r"\paragraph{Running it.}\sloppy" + "\n"
+        rf"The trace was produced by a small driver around the public API of the crate {bounds}, "
+        rf"which calls \texttt{{compute\_through(t)}} for $t = 1, \dots, {S_MAX + N_MAX}$ and records "
+        r"every reduction through a \texttt{PairObserver}. The driver then redid each reduction "
+        r"with the crate's own products, recording the individual steps, and checked after every "
+        r"degree that the outcomes, the new basis elements and the differentials agree with the "
+        r"program's. It also replays the divisibility criterion on the final leading terms, and "
+        r"checks that it prunes as many pairs in each degree as the program counted. The driver "
+        r"and the script that renders this document are in \texttt{docs/trace}."
+    )
 tex = open(args.template).read()
 for key, val in {
     "S_MAX": S_MAX,
@@ -754,6 +866,7 @@ for key, val in {
     "POSITIONS": ", ".join(p for _, p in sorted(positions)),
     "NAME_NOTE": note,
     "STEPS": steps,
+    "RUNNING": running,
     "ABSTRACT_LEAD": lead,
     "RESULT": result + "\n\\end{document}",
 }.items():

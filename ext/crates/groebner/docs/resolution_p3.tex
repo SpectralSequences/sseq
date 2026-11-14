@@ -8,6 +8,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{microtype}
+\usepackage{tikz}
 \usepackage[hidelinks]{hyperref}
 
 \renewcommand{\P}{\mathcal{P}}
@@ -18,7 +19,7 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.4em}
 
-\title{A small minimal resolution over the Steenrod algebra at $p = 3$,\\ computed by Gröbner bases}
+\title{A minimal resolution over the Steenrod algebra at $p = 3$,\\ computed by Gröbner bases}
 \author{Trace of the \texttt{groebner} crate (branch \texttt{groebner\_lin})}
 \date{}
 
@@ -56,8 +57,7 @@ $0 \le d \le 2$ in each position. Divisibility is inclusion of the sets together
 $\le$; quotients, greatest common divisors and least common multiples are digitwise too. The
 product in $E^0\A$ is non-zero exactly when no $Q_k$ repeats and no digit sum reaches $3$. Even
 then it carries a coefficient: a binomial coefficient for each digit, and a sign from
-reordering the $Q_k$. The positions in this range, in increasing degree, are
-\[ x_{01}\ (4),\quad x_{11}\ (12),\quad x_{02}\ (16). \]
+reordering the $Q_k$. The positions in this range, in increasing degree, are $x_{01}$ (4), $x_{11}$ (12).
 
 \paragraph{The monomial order.}
 A term of a free module is $c\, Q(E)\P(R)\, g$ with $c \in \F^\times$ and $g$ a generator.
@@ -78,13 +78,11 @@ $p = 3$, coefficients are printed as $\pm 1$.
 
 \paragraph{Names.}
 The generator of $C_0$ is $\iota$. The generators of $C_s$, $s \ge 1$, are named after the
-classes of $\Ext_\A^{s,t}(\F, \F)$ they represent:
-\begin{itemize}
-\item $[a_0] \in C_1$ (dual to $Q_0$) and $[h_0] \in C_1$ (dual to $\P^1$);
-\item the tower $[a_0^s]$;
-\item $[a_1]$ and $[b_0]$ in $C_2$;
-\item $[a_0b_0]$ in $C_3$.
-\end{itemize}
+classes of $\Ext_\A^{s,t}(\F, \F)$ they represent. The names of the decomposable classes are
+found from the differentials: in a minimal resolution, the product $a_0 x$ or $h_i x$ of the
+class $x$ dual to a generator $g$ of $C_s$ is non-zero on a generator $g'$ of $C_{s+1}$ exactly
+when $Q_0 g$ or $\P^{3^i} g$ occurs in $d g'$. A generator is named $a_0 x$ or $h_i x$ when that
+product is dual to it alone, up to sign. The remaining generators are named after the indecomposable classes $a_1$, $b_0$ of the standard Adams chart. The other generators that are not such products are labelled $x_{n,s}$ by their stem $n$ and homological degree $s$, with primes to tell apart several in one bidegree.
 These are only labels. The program numbers the generators of each $C_s$ in the order they are
 found.
 
@@ -135,26 +133,26 @@ In degree $t$, the program does the following:
 \paragraph{Truncation.}
 We want stems $\le 10$. A cycle found at level $s$ in degree $t$ is a generator of $C_{s+2}$ in
 stem $t-s-2$, so level $s$ is only needed for $t \le s + 12$. Relations are only needed for
-$t \le 11$, which leaves out $\P^3\iota$ in degree $12$ (it would give $h_1$ in stem $11$).
+$t \le 11$.
 
 \paragraph{Running it.}\sloppy
-The trace was produced by a small driver around the public API of the crate. It runs
-\texttt{Resolution::sphere} at $p = 3$ with \texttt{SteenrodKind::Classical} and
-\texttt{Bounds \{ s\_max: 3, n\_max: 10 \}}, calls \texttt{compute\_through(t)} for
-$t = 1, \dots, 13$, and records every reduction through a \texttt{PairObserver}.
+The trace was produced by a small driver around the public API of the crate (\texttt{Resolution::sphere} with \texttt{Bounds \{ s\_max: 3, n\_max: 10 \}} at $p = 3$, \texttt{SteenrodKind::Classical}), which calls \texttt{compute\_through(t)} for $t = 1, \dots, 13$ and records every reduction through a \texttt{PairObserver}. The driver then redid each reduction with the crate's own products, recording the individual steps, and checked after every degree that the outcomes, the new basis elements and the differentials agree with the program's. It also replays the divisibility criterion on the final leading terms, and checks that it prunes as many pairs in each degree as the program counted. The driver and the script that renders this document are in \texttt{docs/trace}.
 
 \section{Step by step}
 
+\paragraph{Where to look.} The Gebauer--M\"oller divisibility criterion prunes no pair in this range. The chain criterion never applies. No cycle is a boundary of another cycle of its degree.
+
 \subsection*{Degree $t = 1$}
-\noindent The work of this degree: the relation $Q_0\iota$. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: the relation $Q_{0}\iota$. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
-\paragraph{Relation $Q_0\iota = 0$.} The module relation enters as the element $(0 \mid Q_0\iota)$ of level $-1$, so its $C_0$ component is a candidate for $d$ of a new generator. It is reduced modulo the image $\operatorname{im}(d\colon C_1\to C_0)$, i.e.\ the first components of level $0$.
+\paragraph{Relation $Q_{0}\iota = 0$.} The module relation enters as the element $(0 \mid Q_{0}\iota)$ of level $-1$, so its $C_0$ component is a candidate for $d$ of a new generator. It is reduced modulo the image $\operatorname{im}(d\colon C_1\to C_0)$, i.e.\ the first components of level $0$.
 No term of it is divisible by a leading term of level $0$ from earlier degrees.
 \textbf{Outcome: new generator.} The relation $Q_{0}\iota$ is not a boundary, so $C_{1}$ gets a generator $[a_0]$ in degree $1$ with $d[a_0] = Q_{0}\iota$.
 Level $0$ gets the element $b^{0}_{0} = \bigl(Q_{0}\iota \;\big|\; [a_0]\bigr)$, with leading term $Q_{0}\,\iota$.
-\medskip\noindent\emph{End of degree 1.} New basis elements: level $0$: $b^{0}_{0}$. New generators: $[a_0]\in C_{1}$.
+\medskip
+\par\noindent\emph{End of degree 1.} New basis elements: level $0$: $b^{0}_{0}$. New generators: $[a_0]\in C_{1}$.
 \subsection*{Degree $t = 2$}
-\noindent The work of this degree: level $0$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $0$, single $Q_{0}\cdot b^{0}_{0}$.} In $E^0\A$ we have $Q_{0}^2 = 0$, so the leading term of $Q_{0}\cdot b^{0}_{0}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(0 \;\big|\; Q_{0}[a_0]\bigr).\]
@@ -165,9 +163,10 @@ The cycle $Q_{0}[a_0]$ is set aside: cycles are tested once all results of level
 \paragraph{The cycles of level $0$.} There is one.
 \textbf{Outcome: new generator.} The cycle $Q_{0}[a_0]$ is not a boundary, so $C_{2}$ gets a generator $[a_0^2]$ in degree $2$ with $d[a_0^2] = Q_{0}[a_0]$.
 Level $1$ gets the element $b^{1}_{0} = \bigl(Q_{0}[a_0] \;\big|\; [a_0^2]\bigr)$, with leading term $Q_{0}\,[a_0]$.
-\medskip\noindent\emph{End of degree 2.} New basis elements: level $1$: $b^{1}_{0}$. New generators: $[a_0^2]\in C_{2}$.
+\medskip
+\par\noindent\emph{End of degree 2.} New basis elements: level $1$: $b^{1}_{0}$. New generators: $[a_0^2]\in C_{2}$.
 \subsection*{Degree $t = 3$}
-\noindent The work of this degree: level $1$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $1$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $1$, single $Q_{0}\cdot b^{1}_{0}$.} In $E^0\A$ we have $Q_{0}^2 = 0$, so the leading term of $Q_{0}\cdot b^{1}_{0}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(0 \;\big|\; Q_{0}[a_0^2]\bigr).\]
@@ -178,9 +177,10 @@ The cycle $Q_{0}[a_0^2]$ is set aside: cycles are tested once all results of lev
 \paragraph{The cycles of level $1$.} There is one.
 \textbf{Outcome: new generator.} The cycle $Q_{0}[a_0^2]$ is not a boundary, so $C_{3}$ gets a generator $[a_0^3]$ in degree $3$ with $d[a_0^3] = Q_{0}[a_0^2]$.
 Level $2$ gets the element $b^{2}_{0} = \bigl(Q_{0}[a_0^2] \;\big|\; [a_0^3]\bigr)$, with leading term $Q_{0}\,[a_0^2]$.
-\medskip\noindent\emph{End of degree 3.} New basis elements: level $2$: $b^{2}_{0}$. New generators: $[a_0^3]\in C_{3}$.
+\medskip
+\par\noindent\emph{End of degree 3.} New basis elements: level $2$: $b^{2}_{0}$. New generators: $[a_0^3]\in C_{3}$.
 \subsection*{Degree $t = 4$}
-\noindent The work of this degree: the relation $\P^{1}\iota$; level $2$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: the relation $\P^{1}\iota$; level $2$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $2$, single $Q_{0}\cdot b^{2}_{0}$.} In $E^0\A$ we have $Q_{0}^2 = 0$, so the leading term of $Q_{0}\cdot b^{2}_{0}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(0 \;\big|\; Q_{0}[a_0^3]\bigr).\]
@@ -195,9 +195,10 @@ The cycle $Q_{0}[a_0^3]$ is set aside: cycles are tested once all results of lev
 No term of it is divisible by a leading term of level $0$ from earlier degrees.
 \textbf{Outcome: new generator.} The relation $\P^{1}\iota$ is not a boundary, so $C_{1}$ gets a generator $[h_0]$ in degree $4$ with $d[h_0] = \P^{1}\iota$.
 Level $0$ gets the element $b^{0}_{1} = \bigl(\P^{1}\iota \;\big|\; [h_0]\bigr)$, with leading term $x_{01}\,\iota$.
-\medskip\noindent\emph{End of degree 4.} New basis elements: level $0$: $b^{0}_{1}$. New generators: $[h_0]\in C_{1}$.
+\medskip
+\par\noindent\emph{End of degree 4.} New basis elements: level $0$: $b^{0}_{1}$. New generators: $[h_0]\in C_{1}$.
 \subsection*{Degree $t = 5$}
-\noindent The work of this degree: level $0$: pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $0$, pair $(b^{0}_{0}, b^{0}_{1})$.} The leading terms $\LT(b^{0}_{0}) = Q_{0}\,\iota$ and $\LT(b^{0}_{1}) = x_{01}\,\iota$ have least common multiple $Q_{0}x_{01}\,\iota$, with cofactors $x_{01}$ and $Q_{0}$.
 The leading terms of $\P^{1}\cdot b^{0}_{0}$ and $Q_{0}\cdot b^{0}_{1}$ are $1$ and $1$ times this monomial, so the S-element is $Q_{0}\cdot b^{0}_{1} - \P^{1}\cdot b^{0}_{0}$:
@@ -205,9 +206,10 @@ The leading terms of $\P^{1}\cdot b^{0}_{0}$ and $Q_{0}\cdot b^{0}_{1}$ are $1$ 
 No term of the first component is divisible by a leading term of level $0$.
 Multiply by $-1$ to make the leading coefficient $1$.
 \textbf{Outcome: new basis element} $b^{0}_{2} = \bigl(Q_{1}\iota \;\big|\; -Q_{0}[h_0] + \P^{1}[a_0]\bigr)$ of level $0$, with leading term $Q_{1}\,\iota$.
-\medskip\noindent\emph{End of degree 5.} New basis elements: level $0$: $b^{0}_{2}$. No new generators.
+\medskip
+\par\noindent\emph{End of degree 5.} New basis elements: level $0$: $b^{0}_{2}$. No new generators.
 \subsection*{Degree $t = 6$}
-\noindent The work of this degree: level $0$: pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $0$, pair $(b^{0}_{0}, b^{0}_{2})$.} The leading terms $\LT(b^{0}_{0}) = Q_{0}\,\iota$ and $\LT(b^{0}_{2}) = Q_{1}\,\iota$ have least common multiple $Q_{0}Q_{1}\,\iota$, with cofactors $Q_{1}$ and $Q_{0}$.
 The leading terms of $Q_{1}\cdot b^{0}_{0}$ and $Q_{0}\cdot b^{0}_{2}$ are $-1$ and $1$ times this monomial, so the S-element is $-Q_{0}\cdot b^{0}_{2} - Q_{1}\cdot b^{0}_{0}$:
@@ -218,13 +220,10 @@ Reduce it modulo $\operatorname{im}(d\colon C_{2}\to C_{1})$, the first componen
 \item The term $-Q_{0}\P^{1}[a_0]$ has leading monomial $Q_{0}x_{01}\,[a_0]$, divisible by $\LT(b^{1}_{0})$ with quotient $x_{01}$. Adding $\P^{1}\cdot \pi_1(b^{1}_{0}) = Q_{0}\P^{1}[a_0] + Q_{1}[a_0]$ cancels it and leaves $0$.
 \end{itemize}
 \textbf{Outcome: useless.} Both components vanish, and the reduction contributed nothing.
-\medskip\noindent\emph{End of degree 6.} No new generators.
-\subsection*{Degree $t = 7$}
-\noindent There are no critical pairs, singles or relations in this degree. Nothing happens.
-\subsection*{Degree $t = 8$}
-\noindent There are no critical pairs, singles or relations in this degree. Nothing happens.
+\medskip
+\par\noindent\emph{End of degree 6.} No new basis elements. No new generators.
 \subsection*{Degree $t = 9$}
-\noindent The work of this degree: level $0$: pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $0$, pair $(b^{0}_{1}, b^{0}_{2})$.} The leading terms $\LT(b^{0}_{1}) = x_{01}\,\iota$ and $\LT(b^{0}_{2}) = Q_{1}\,\iota$ have least common multiple $Q_{1}x_{01}\,\iota$, with cofactors $Q_{1}$ and $x_{01}$.
 The leading terms of $Q_{1}\cdot b^{0}_{1}$ and $\P^{1}\cdot b^{0}_{2}$ are $1$ and $1$ times this monomial, so the S-element is $\P^{1}\cdot b^{0}_{2} - Q_{1}\cdot b^{0}_{1}$:
@@ -234,11 +233,12 @@ No term of it is divisible by a leading term of level $1$ from earlier degrees.
 The cycle $-Q_{0}\P^{1}[h_0] + Q_{1}[h_0] - \P^{2}[a_0]$ is set aside: cycles are tested once all results of level $0$ in this degree are sorted.
 \medskip
 \paragraph{The cycles of level $0$.} There is one.
-\textbf{Outcome: new generator.} The cycle $Q_{0}\P^{1}[h_0] - Q_{1}[h_0] + \P^{2}[a_0]$, multiplied by $-1$ to make the leading coefficient $1$, is not a boundary, so $C_{2}$ gets a generator $[a_1]$ in degree $9$ with $d[a_1] = Q_{0}\P^{1}[h_0] - Q_{1}[h_0] + \P^{2}[a_0]$.
+\textbf{Outcome: new generator.} The cycle $-Q_{0}\P^{1}[h_0] + Q_{1}[h_0] - \P^{2}[a_0]$, multiplied by $-1$ to make the leading coefficient $1$, is not a boundary, so $C_{2}$ gets a generator $[a_1]$ in degree $9$ with $d[a_1] = Q_{0}\P^{1}[h_0] - Q_{1}[h_0] + \P^{2}[a_0]$.
 Level $1$ gets the element $b^{1}_{1} = \bigl(Q_{0}\P^{1}[h_0] - Q_{1}[h_0] + \P^{2}[a_0] \;\big|\; [a_1]\bigr)$, with leading term $Q_{0}x_{01}\,[h_0]$.
-\medskip\noindent\emph{End of degree 9.} New basis elements: level $1$: $b^{1}_{1}$. New generators: $[a_1]\in C_{2}$.
+\medskip
+\par\noindent\emph{End of degree 9.} New basis elements: level $1$: $b^{1}_{1}$. New generators: $[a_1]\in C_{2}$.
 \subsection*{Degree $t = 10$}
-\noindent The work of this degree: level $0$: single; level $1$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one single; level $1$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $1$, single $Q_{0}\cdot b^{1}_{1}$.} In $E^0\A$ we have $Q_{0}^2 = 0$, so the leading term of $Q_{0}\cdot b^{1}_{1}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(-Q_{0}Q_{1}[h_0] + Q_{0}\P^{2}[a_0] \;\big|\; Q_{0}[a_1]\bigr).\]
@@ -254,10 +254,11 @@ Multiply by $-1$ to make the leading coefficient $1$.
 The first component is zero, so the second component $z = Q_{0}Q_{1}[h_0] + Q_{1}\P^{1}[a_0]$ is a cycle in $C_{1}$.
 No term of it is divisible by a leading term of level $1$ from earlier degrees.
 The second component contains the leading term of $b^{1}_{2}$, found in this degree; subtracting its first component leaves $0$.
-\textbf{Outcome: useless.} The cycle is a multiple of the first component of $b^{1}_{2}$, found one level up earlier in this degree, so it is the boundary $d\bigl(-Q_{0}[a_1] + \P^{2}[a_0^2]\bigr)$. Both components now vanish, and the reduction contributed nothing.
-\medskip\noindent\emph{End of degree 10.} New basis elements: level $1$: $b^{1}_{2}$. No new generators.
+\textbf{Outcome: useless.} The cycle is the first component of $b^{1}_{2}$, found one level up earlier in this degree, so it is the boundary $d\bigl(-Q_{0}[a_1] + \P^{2}[a_0^2]\bigr)$. Both components now vanish, and the reduction contributed nothing.
+\medskip
+\par\noindent\emph{End of degree 10.} New basis elements: level $1$: $b^{1}_{2}$. No new generators.
 \subsection*{Degree $t = 11$}
-\noindent The work of this degree: level $1$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $1$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $1$, single $Q_{0}\cdot b^{1}_{2}$.} In $E^0\A$ we have $Q_{0}^2 = 0$, so the leading term of $Q_{0}\cdot b^{1}_{2}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(Q_{0}Q_{1}\P^{1}[a_0] \;\big|\; Q_{0}\P^{2}[a_0^2]\bigr).\]
@@ -271,10 +272,11 @@ Reduce it modulo $\operatorname{im}(d\colon C_{3}\to C_{2})$, the first componen
 \item The term $Q_{0}\P^{2}[a_0^2]$ has leading monomial $Q_{0}x_{01}^{2}\,[a_0^2]$, divisible by $\LT(b^{2}_{0})$ with quotient $x_{01}^{2}$. Adding $-\P^{2}\cdot \pi_1(b^{2}_{0}) = -Q_{0}\P^{2}[a_0^2] - Q_{1}\P^{1}[a_0^2]$ cancels it and leaves $0$.
 \end{itemize}
 \textbf{Outcome: useless.} Both components vanish, and the reduction contributed nothing.
-\medskip\noindent\emph{End of degree 11.} No new generators.
+\medskip
+\par\noindent\emph{End of degree 11.} No new basis elements. No new generators.
 \subsection*{Degree $t = 12$}
 \noindent Relations of degree $12$ would give generators of $C_1$ in stem $11 > 10$ and are no longer taken up.
-\noindent The work of this degree: level $0$: single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent The work of this degree: level $0$: one single. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $0$, single $x_{01}^{2}\cdot b^{0}_{1}$.} In $E^0\A$ we have $x_{01}^{2}\cdot x_{01} = 0$ (as $x_{in}^{3} = 0$), so the leading term of $\P^{2}\cdot b^{0}_{1}$ is not the product of the leading terms, and the product has to be reduced:
 \[\bigl(0 \;\big|\; \P^{2}[h_0]\bigr).\]
@@ -285,10 +287,11 @@ The cycle $\P^{2}[h_0]$ is set aside: cycles are tested once all results of leve
 \paragraph{The cycles of level $0$.} There is one.
 \textbf{Outcome: new generator.} The cycle $\P^{2}[h_0]$ is not a boundary, so $C_{2}$ gets a generator $[b_0]$ in degree $12$ with $d[b_0] = \P^{2}[h_0]$.
 Level $1$ gets the element $b^{1}_{3} = \bigl(\P^{2}[h_0] \;\big|\; [b_0]\bigr)$, with leading term $x_{01}^{2}\,[h_0]$.
-\medskip\noindent\emph{End of degree 12.} New basis elements: level $1$: $b^{1}_{3}$. New generators: $[b_0]\in C_{2}$.
+\medskip
+\par\noindent\emph{End of degree 12.} New basis elements: level $1$: $b^{1}_{3}$. New generators: $[b_0]\in C_{2}$.
 \subsection*{Degree $t = 13$}
-\noindent Level $0$ is no longer needed: a cycle found at level $s$ in this degree would be a generator of $C_{s+2}$ in stem $13-s-2 > 10$, so its pairs are not formed.
-\noindent The work of this degree: level $1$: pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
+\noindent Level $0$ is no longer needed: a cycle found at level $s$ in this degree would be a generator of $C_{s+2}$ in stem $13-s-2 > 10$ for $s \le 0$, so its pairs are not formed.
+\noindent The work of this degree: level $1$: one pair. All of them are reduced independently (in parallel in the program), and the results are then sorted from the top level down.
 \medskip
 \paragraph{Level $1$, pair $(b^{1}_{1}, b^{1}_{3})$.} The leading terms $\LT(b^{1}_{1}) = Q_{0}x_{01}\,[h_0]$ and $\LT(b^{1}_{3}) = x_{01}^{2}\,[h_0]$ have least common multiple $Q_{0}x_{01}^{2}\,[h_0]$, with cofactors $x_{01}$ and $Q_{0}$.
 The leading terms of $\P^{1}\cdot b^{1}_{1}$ and $Q_{0}\cdot b^{1}_{3}$ are $-1$ and $1$ times this monomial, so the S-element is $-Q_{0}\cdot b^{1}_{3} - \P^{1}\cdot b^{1}_{1}$:
@@ -298,18 +301,19 @@ No term of it is divisible by a leading term of level $2$ from earlier degrees.
 The cycle $-Q_{0}[b_0] - \P^{1}[a_1]$ is set aside: cycles are tested once all results of level $1$ in this degree are sorted.
 \medskip
 \paragraph{The cycles of level $1$.} There is one.
-\textbf{Outcome: new generator.} The cycle $Q_{0}[b_0] + \P^{1}[a_1]$, multiplied by $-1$ to make the leading coefficient $1$, is not a boundary, so $C_{3}$ gets a generator $[a_0b_0]$ in degree $13$ with $d[a_0b_0] = Q_{0}[b_0] + \P^{1}[a_1]$.
+\textbf{Outcome: new generator.} The cycle $-Q_{0}[b_0] - \P^{1}[a_1]$, multiplied by $-1$ to make the leading coefficient $1$, is not a boundary, so $C_{3}$ gets a generator $[a_0b_0]$ in degree $13$ with $d[a_0b_0] = Q_{0}[b_0] + \P^{1}[a_1]$.
 Level $2$ gets the element $b^{2}_{1} = \bigl(Q_{0}[b_0] + \P^{1}[a_1] \;\big|\; [a_0b_0]\bigr)$, with leading term $Q_{0}\,[b_0]$.
-\medskip\noindent\emph{End of degree 13.} New basis elements: level $2$: $b^{2}_{1}$. New generators: $[a_0b_0]\in C_{3}$.
+\medskip
+\par\noindent\emph{End of degree 13.} New basis elements: level $2$: $b^{2}_{1}$. New generators: $[a_0b_0]\in C_{3}$.
 
 \section{The result}
 
 \paragraph{Generators and differentials.}
-\begin{center}
-\begin{tabular}{lcccl}
+\begin{center}\small
+\begin{longtable}{lccc>{\raggedright\arraybackslash}p{0.62\linewidth}}
 \toprule
 generator & $s$ & $t$ & $t-s$ & differential \\
-\midrule
+\midrule\endhead
 $\iota$ & 0 & 0 & 0 & --- \\
 $[a_0]$ & 1 & 1 & 0 & $Q_{0}\iota$ \\
 $[a_0^2]$ & 2 & 2 & 0 & $Q_{0}[a_0]$ \\
@@ -319,11 +323,10 @@ $[a_1]$ & 2 & 9 & 7 & $Q_{0}\P^{1}[h_0] - Q_{1}[h_0] + \P^{2}[a_0]$ \\
 $[b_0]$ & 2 & 12 & 10 & $\P^{2}[h_0]$ \\
 $[a_0b_0]$ & 3 & 13 & 10 & $Q_{0}[b_0] + \P^{1}[a_1]$ \\
 \bottomrule
-\end{tabular}
+\end{longtable}
 \end{center}
-Since the resolution is minimal, the generators are a basis of $\Ext_\A^{s,t}(\F,\F)$ in this
-range:
-\begin{center}
+Since the resolution is minimal, the generators are a basis of $\Ext_\A^{s,t}(\F, \F)$ in this range:
+\begin{center}\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{c|ccccccccccc}
 $s \backslash t-s$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\
 \midrule
@@ -333,21 +336,13 @@ $1$ & $a_0$ &  &  & $h_0$ &  &  &  &  &  &  &  \\
 $0$ & $1$ &  &  &  &  &  &  &  &  &  &  \\
 \end{tabular}
 \end{center}
-This is the familiar picture at $p = 3$. There is the $a_0$-tower in stem $0$, $h_0$ in stem
-$3$ (detecting $\alpha_1$), $a_1$ in stem $7$ (detecting $\alpha_2$), and $b_0$ in stem $10$
-(detecting $\beta_1$). In a minimal resolution, the coefficient of $Q_0$ (respectively $\P^1$)
-on a generator $g$ in $d$ of a generator $g'$ is the coefficient of $g'$ in the Yoneda product
-$a_0 g$ (respectively $h_0 g$). So $d[a_0b_0] = Q_0[b_0] + \P^1[a_1]$ shows that the class in
-stem $10$, $s = 3$, is $a_0 b_0 = h_0 a_1$, up to sign. The cycle beyond $s = 3$ found in
-degree $4$ is $a_0^4$.
 
 \paragraph{The Gröbner bases.}
-\begin{center}
-\small
-\begin{longtable}{lclll}
+\begin{center}\scriptsize
+\begin{longtable}{lcl>{\raggedright\arraybackslash}p{0.35\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}}
 \toprule
 element & $t$ & leading term & first component $x_1$ & second component $x_2$ \\
-\midrule
+\midrule\endhead
 $b^{0}_{0}$ & 1 & $Q_{0}\,\iota$ & $Q_{0}\iota$ & $[a_0]$ \\
 $b^{0}_{1}$ & 4 & $x_{01}\,\iota$ & $\P^{1}\iota$ & $[h_0]$ \\
 $b^{0}_{2}$ & 5 & $Q_{1}\,\iota$ & $Q_{1}\iota$ & $-Q_{0}[h_0] + \P^{1}[a_0]$ \\
@@ -377,9 +372,6 @@ all & 4 & 0 & 0 & 7 & 13 & 3 & 2 & 0 & 7 & 1 & 4 \\
 \bottomrule
 \end{tabular}
 \end{center}
-Here ``formed'' counts critical pairs, ``divisible'' and ``chain'' those removed by the
-Gebauer--Möller criteria (none in this small range), and ``steps'' the reduction steps. Of the
-13 reductions, 3 were useless and one was beyond the range. The other 9 each produced a basis
-element or a generator.
+Here ``formed'' counts critical pairs, ``divisible'' and ``chain'' those removed by the Gebauer--M\"oller criteria, and ``steps'' the reduction steps. Of the 13 reductions, 3 were useless, 0 found a boundary and 1 went beyond the range; the other 9 each produced a basis element or a generator.
 
 \end{document}

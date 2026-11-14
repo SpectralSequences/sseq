@@ -1,7 +1,7 @@
 # Trace of a resolution
 
-`resolution.tex` follows the `groebner` crate through a minimal resolution of $\mathbb{F}_2$ over the
-Steenrod algebra, one reduction at a time.
+`resolution.tex` and `resolution_p3.tex` follow the `groebner` crate through a minimal resolution of
+the ground field over the Steenrod algebra at $p = 2$ and $p = 3$, one reduction at a time.
 `groebner.tex` and `groebner_p3.tex` show only the results of larger computations, at $p = 2$ and
 $p = 3$. All are generated in two steps.
 
@@ -24,6 +24,8 @@ cd ext/crates/groebner/docs/trace
 # The full account, step by step.
 cargo run --release -- 6 10 > trace.json        # s_max, n_max
 python3 render.py trace.json template.tex ../resolution.tex
+cargo run --release -- --prime 3 3 10 > trace.json
+python3 render.py trace.json template_p3.tex ../resolution_p3.tex
 # Only the results: --summary computes in one go and skips the step-by-step replay.
 cargo run --release -- --summary 10 20 > trace.json
 python3 render.py --summary trace.json template.tex ../groebner.tex
@@ -32,5 +34,3 @@ cargo run --release --features concurrent -- --summary --prime 3 25 100 > trace.
 python3 render.py --summary trace.json template_p3.tex ../groebner_p3.tex
 cd .. && pdflatex resolution.tex && pdflatex resolution.tex   # likewise the others
 ```
-
-The step-by-step account is only supported at $p = 2$.
