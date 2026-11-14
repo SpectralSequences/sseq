@@ -24,6 +24,7 @@ struct Ev {
 struct Rec(Arc<Mutex<Vec<Ev>>>);
 
 impl PairObserver for Rec {
+    /// Record the event.
     fn observe(&mut self, e: &PairEvent) {
         self.0.lock().unwrap().push(Ev {
             s: e.s,
@@ -198,6 +199,7 @@ fn main() {
         }
 
         // Reduce, as `Resolution::step` does.
+        /// A reduction, with the steps that brought it to its state before sorting.
         struct Item {
             ev: Ev,
             elem: GbElement,

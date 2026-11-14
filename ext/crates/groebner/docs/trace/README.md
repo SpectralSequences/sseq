@@ -33,5 +33,4 @@ python3 render.py --summary trace.json template_p3.tex ../groebner_p3.tex
 cd .. && pdflatex resolution.tex && pdflatex resolution.tex   # likewise the others
 ```
 
-The crate is not a member of the `ext` workspace, so that `serde_json` stays out of the
-dependencies of the crates there. The step-by-step account is only supported at $p = 2$.
+The step-by-step account is only supported at $p = 2$.

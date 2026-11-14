@@ -118,6 +118,7 @@ assert not UNNAMED, f"no names for {UNNAMED}"
 
 
 def gname(s, i):
+    """The name of generator i of C_s."""
     if s == 0:
         return r"\iota"
     return f"[{NAMES[s][i]}]"
@@ -168,17 +169,20 @@ def coef(c, first):
 
 
 def term(s, t):
+    """A term [generator, monomial, ...] of C_s, without its coefficient."""
     g, m = t[0], t[1]
     return f"{sq(m)}{gname(s, g)}"
 
 
 def poly(s, x):
+    """An element of C_s, with signs."""
     if not x:
         return "0"
     return "".join(coef(t[2] if len(t) > 2 else 1, i == 0) + term(s, t) for i, t in enumerate(x))
 
 
 def lt(s, t):
+    """The leading monomial of the term t of C_s, in the associated graded algebra."""
     m = xmono(t[1])
     return (m + r"\," if m != "1" else "") + gname(s, t[0])
 
@@ -200,6 +204,7 @@ def display(s, e):
 
 
 def elem(s, e):
+    """The element (x_1 | x_2) of C_s + C_{s+1}."""
     return rf"\bigl({poly(s, e['x1'])} \;\big|\; {poly(s + 1, e['x2'])}\bigr)"
 
 
@@ -207,16 +212,19 @@ levels = d["levels"]
 
 
 def b(s, k):
+    """The name of element k of level s."""
     return f"b^{{{s}}}_{{{k}}}"
 
 
 def LT(s, k):
+    """The leading term of element k of level s."""
     return lt(s, levels[s][k]["x1"][0])
 
 
 def steps_list(s, steps, comp, out):
-    """comp: 'x1' reduces the first component of level s (shown with second component);
-    'x2' reduces a cycle of C_{s+1} modulo level s+1."""
+    """List the reduction steps: of the first component modulo level s, shown together with the
+    second component, if comp is 'x1', and of a cycle of C_{s+1} modulo level s + 1 if it is
+    'x2'."""
     out.append(r"\begin{itemize}")
     for st in steps:
         tm = st["term"]
@@ -241,11 +249,8 @@ def steps_list(s, steps, comp, out):
     out.append(r"\end{itemize}")
 
 
-def kind_word(it):
-    return {"single": "single", "pair": "pair"}[it["kind"]]
-
-
 def header(it):
+    """The paragraph heading and starting element of a reduction."""
     s = it["s"]
     if it["kind"] == "relation":
         r = it["start"]["x2"][0]
@@ -278,6 +283,7 @@ def header(it):
 
 
 def item_tex(it, cyc=None):
+    """The account of one reduction; cyc is its cycle's outcome for a module relation."""
     s = it["s"]
     out = [header(it)]
     x1 = it["start"]["x1"]
@@ -366,6 +372,7 @@ def item_tex(it, cyc=None):
 
 
 def cycle_outcome(s, c, inline=False):
+    """What became of a cycle of level s; inline for a module relation."""
     out = []
     it = items[c["item"]]
     z = it["cycle"]
@@ -410,6 +417,7 @@ def cycle_outcome(s, c, inline=False):
 
 
 def pruned_tex(pr):
+    """Why the divisibility criterion pruned a pair."""
     s, i, n, j = pr["s"], pr["i"], pr["n"], pr["by"]
     return (
         rf"\paragraph{{Pruned: level ${s}$, pair $({b(s, i)}, {b(s, n)})$.}} Its cofactors are "
@@ -447,7 +455,6 @@ for deg in d["degrees"]:
                 rf"$C_{{s+2}}$ in stem ${t}-s-2 > {N_MAX}$ for $s \le {last}$, so "
                 rf"{'their' if len(lv) > 1 else 'its'} pairs are not formed."
             )
-    # Work summary.
     work = []
     rel = [it for it in items if it.get("kind") == "relation"]
     if rel:
@@ -520,7 +527,6 @@ for deg in d["degrees"]:
         ng = "No new generators."
     body.append(rf"\par\noindent\emph{{End of degree {t}.}} {ne} {ng}")
 
-# Results.
 res = []
 res.append(r"\paragraph{Generators and differentials.}")
 res.append(r"\begin{center}\small")
@@ -545,6 +551,7 @@ res.append(
 
 
 def chart_cell(s, n):
+    """The classes in bidegree (s, n), stacked if there are several."""
     names = [f"${NAMES[s][j] if s else '1'}$" for j, g in enumerate(gens[s]) if g["t"] - s == n]
     if len(names) > 1:
         return r"\shortstack{" + r"\\ ".join(names) + "}"
@@ -552,7 +559,7 @@ def chart_cell(s, n):
 
 
 # The number of classes of H whose products the chart draws: h_0, h_1, h_2 at p = 2, and a_0, h_0
-# at odd primes, where the lines for h_1 run across eleven stems and hide the rest.
+# at odd primes, where the lines for h_1 are long and shallow and hide the rest.
 CHART_LINES = 3 if P == 2 else 2
 
 
