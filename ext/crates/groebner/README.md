@@ -1,7 +1,7 @@
 # groebner
 
-Minimal resolutions over Steenrod algebras by Gröbner bases, after Weinan Lin's SSeqCpp. It
-supports every kind of Milnor algebra in the `algebra` crate:
+Minimal resolutions over Steenrod algebras by Gröbner bases. It supports every kind of Milnor
+algebra in the `algebra` crate:
 
 | kind                         | prime | algebra                                   |
 |------------------------------|-------|-------------------------------------------|
@@ -11,6 +11,12 @@ supports every kind of Milnor algebra in the `algebra` crate:
 | `SteenrodKind::ReducedPowers`| odd   | the reduced powers $\mathcal{P}$          |
 
 No linear algebra is involved: everything is rewriting of sparse module elements.
+
+This crate is a port of Weinan Lin's [SSeqCpp](https://github.com/WayneLin92/SSeqCpp), which is
+licensed under the Apache License 2.0. The code is loosely based on it: the method, the packing of
+monomials, the Gebauer–Möller pruning and the x2m criterion follow Lin, but the code is written
+anew in Rust rather than translated line by line (but `pairs.rs` follows Lin's `AddToBuffers` and `Minimize` very
+closely).
 
 ## How it works
 
