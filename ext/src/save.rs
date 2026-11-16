@@ -26,10 +26,7 @@ use zarrs::{
 
 #[cfg(any(windows, unix))]
 mod platform {
-    use std::sync::{
-        LazyLock,
-        atomic::{AtomicU64, Ordering},
-    };
+    use std::sync::{LazyLock, Mutex};
 
     use zarrs::{
         array::codec::ZstdCodec,
@@ -47,7 +44,6 @@ mod platform {
     pub fn open_store(path: &Path) -> anyhow::Result<ReadableWritableListableStorage> {
         Ok(Arc::new(AtomicWrites {
             inner: FilesystemStore::new(path)?,
-            next_temporary: AtomicU64::new(0),
         }))
     }
 
@@ -56,21 +52,34 @@ mod platform {
     /// `FilesystemStore::set` truncates the file before writing it, and the sharding codec rewrites
     /// a whole shard on every store, so a crash mid-write would lose every element already in the
     /// shard. Here each value goes to a temporary key that is then renamed over the destination.
-    /// Temporary keys are unique, so writers of one key, such as threads creating the same group,
-    /// never collide; a crash leaves at most an orphaned temporary file, which nothing reads.
+    /// A crash leaves at most an orphaned temporary file, which nothing reads.
     struct AtomicWrites {
         /// The store every operation goes to.
         inner: FilesystemStore,
-        /// Counter that makes each temporary key unique within the process.
-        next_temporary: AtomicU64,
     }
 
     impl AtomicWrites {
-        /// A fresh temporary key beside `key`, unique across processes and threads.
-        fn temporary_key(&self, key: &StoreKey) -> Result<StoreKey, StorageError> {
-            let n = self.next_temporary.fetch_add(1, Ordering::Relaxed);
-            StoreKey::new(format!("{key}.{}.{n}.tmp", std::process::id()))
+        /// The temporary key for `key` in this process.
+        ///
+        /// One name per destination, rather than one per write, because `FilesystemStore` keeps a
+        /// lock for every key it has written and never frees them.
+        fn temporary_key(key: &StoreKey) -> Result<StoreKey, StorageError> {
+            StoreKey::new(format!("{key}.{}.tmp", std::process::id()))
                 .map_err(|e| StorageError::Other(e.to_string()))
+        }
+
+        /// The lock serializing this process's writes to `key`, which share its temporary key.
+        ///
+        /// Keyed by file path, so separate stores opened on one directory share it. Threads can
+        /// write one key at the same time, e.g. when they create the same group.
+        fn write_lock(&self, key: &StoreKey) -> Arc<Mutex<()>> {
+            static LOCKS: LazyLock<DashMap<PathBuf, Arc<Mutex<()>>>> = LazyLock::new(DashMap::new);
+            Arc::clone(
+                LOCKS
+                    .entry(self.inner.key_to_fspath(key))
+                    .or_default()
+                    .value(),
+            )
         }
     }
 
@@ -112,7 +121,9 @@ mod platform {
 
     impl WritableStorageTraits for AtomicWrites {
         fn set(&self, key: &StoreKey, value: Bytes) -> Result<(), StorageError> {
-            let temporary = self.temporary_key(key)?;
+            let temporary = Self::temporary_key(key)?;
+            let lock = self.write_lock(key);
+            let _guard = lock.lock().unwrap();
             // `set` syncs the file, so the rename never exposes unwritten data.
             self.inner.set(&temporary, value)?;
             self.inner.rename(&temporary, key).inspect_err(|_| {

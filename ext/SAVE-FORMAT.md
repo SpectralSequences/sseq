@@ -53,7 +53,8 @@ corrupt.
 
 `res_qi` (the quasi-inverse of a standard resolution's differential): attributes `source_dim`,
 `target_dim` and `image_dim`; `pivots`, an `i64` array of length `target_dim`; and `rows`, a `u8`
-array of shape `[image_dim, 8 * limbs]` holding the lift of each pivot.
+array of shape `[image_dim, 8 * limbs]` holding the lift of each pivot. A dimension of 0 is stored
+as 1, so the attributes, not the array shapes, give the lengths.
 
 `nassau_qi` (the quasi-inverse in Nassau's algorithm): attributes `target_dim`, `zero_mask_dim`
 (the masked dimension under the zero signature), `subalgebra_profile` and `num_commands`, and a
