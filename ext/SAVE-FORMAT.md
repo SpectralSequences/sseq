@@ -16,9 +16,14 @@ save_dir/
     chain_homotopy/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
 ```
 
-The root group's attributes identify the complex: `algebra_magic`, `prime` and `algebra_prefix`
-bind the algebra, `module_spec` binds the module (the JSON it was built from), and `complex_name`
-is a label. Opening a store for a different algebra or module is an error.
+The root group's attributes identify the resolution: `algebra_magic`, `prime` and
+`algebra_prefix` bind the algebra, `module_spec` binds the module (the JSON it was built from),
+`resolver` binds the algorithm (`classic`, `classic_unstable` or `nassau`), and `complex_name` is a
+label. Opening a store for a different algebra, module or algorithm is an error, and so is opening
+a directory that holds a save in the format before the zarr store.
+
+Map names become group names under `products/` and `homotopies/`, so they must be valid zarr node
+names: no `/`, and not starting with `__`.
 
 Each file is written to a temporary `{key}.{pid}.{n}.tmp` beside it and renamed into place, so an
 interrupted write leaves the old file intact. Nothing reads the temporary files, and one left by a

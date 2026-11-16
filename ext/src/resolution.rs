@@ -139,6 +139,7 @@ where
         let algebra = complex.algebra();
         if let Some(store) = save_dir.store() {
             store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
+            store.bind_resolver(if U { "classic_unstable" } else { "classic" })?;
         }
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(MuFreeModule::new(algebra, "F_{-1}".to_string(), min_degree));

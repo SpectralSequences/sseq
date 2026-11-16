@@ -437,6 +437,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         if let Some(store) = save_dir.store() {
             let algebra = target.algebra();
             store.bind_to_algebra(algebra.magic(), algebra.prime().as_u32(), algebra.prefix())?;
+            store.bind_resolver("nassau")?;
         }
 
         Ok(Self {

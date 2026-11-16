@@ -316,8 +316,9 @@ fn bind_module_spec(save_dir: &SaveDirectory, spec: &Value) -> anyhow::Result<()
 /// Reconstruct a resolution from a save directory alone, without re-supplying the module spec.
 ///
 /// Rebuilds the [`Config`] from the `module_spec` and `algebra_prefix` that [`construct`] recorded,
-/// and resolves into the same directory. A directory with no recorded spec, such as one made by
-/// `new_with_save` directly, is an error.
+/// and resolves into the same directory with the algorithm [`construct`] uses. A directory with no
+/// recorded spec, such as one made by `new_with_save` directly, or one resolved by another
+/// algorithm, is an error.
 pub fn construct_from_save(save_dir: impl AsRef<Path>) -> anyhow::Result<QueryModuleResolution> {
     let save_dir = save_dir.as_ref().to_owned();
     let attrs = ZarrSaveStore::read_root_attributes(&save_dir)

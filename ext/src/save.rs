@@ -240,6 +240,24 @@ mod platform {
 /// offset. Sparse arrays cost nothing for the empty negative region beyond `zarr.json` metadata.
 const N_MIN: i32 = -1024;
 
+/// Subdirectories of a save in the format before the zarr store, one per kind of data.
+///
+/// Opening such a directory as a fresh store would silently recompute everything beside the old
+/// files, so [`ZarrSaveStore::create`] refuses it instead.
+const OLD_FORMAT_DIRS: [&str; 11] = [
+    "kernels",
+    "differentials",
+    "res_qis",
+    "augmentation_qis",
+    "secondary_composites",
+    "secondary_intermediates",
+    "secondary_homotopys",
+    "chain_maps",
+    "chain_homotopys",
+    "nassau_differentials",
+    "nassau_qis",
+];
+
 /// Initial number of slots in the n dimension, starting at [`N_MIN`].
 ///
 /// This and the other spans are only the shape a shard-tier array is created with; a write past
@@ -369,6 +387,13 @@ impl ZarrSaveStore {
         let store: ReadableWritableListableStorage = platform::open_store(&path)?;
 
         if platform::root_group_missing(&path) {
+            if let Some(old) = OLD_FORMAT_DIRS.iter().find(|dir| path.join(dir).is_dir()) {
+                anyhow::bail!(
+                    "{:?} holds a save in the format before the zarr store (it has {old}/), which \
+                     this version cannot read; use a separate save directory",
+                    path,
+                );
+            }
             GroupBuilder::new()
                 .build(store.clone(), "/")?
                 .store_metadata()?;
@@ -452,15 +477,35 @@ impl ZarrSaveStore {
     ///
     /// [`construct_from_save`]: crate::utils::construct_from_save
     pub fn bind_module_spec(&self, spec: &serde_json::Value) -> anyhow::Result<()> {
+        self.bind_root_attribute("module_spec", spec, "complex")
+    }
+
+    /// Bind this store to the algorithm that resolves the complex, e.g. `"nassau"`.
+    ///
+    /// Algorithms choose different generators and differentials, so data built on one
+    /// resolution, such as secondary homotopies, is wrong for another resolution of the same
+    /// complex. A store bound to another algorithm is an error.
+    pub fn bind_resolver(&self, resolver: &str) -> anyhow::Result<()> {
+        self.bind_root_attribute("resolver", &resolver.into(), "resolution algorithm")
+    }
+
+    /// Record `value` as the root attribute `key`, or check that it matches the recorded one.
+    ///
+    /// `what` names the thing `key` identifies, for the error.
+    fn bind_root_attribute(
+        &self,
+        key: &str,
+        value: &serde_json::Value,
+        what: &str,
+    ) -> anyhow::Result<()> {
         let root = zarrs::group::Group::open(self.store.clone(), "/").map_err(zarr_err)?;
         let attrs = root.attributes();
-        if let Some(stored) = attrs.get("module_spec") {
-            if stored != spec {
+        if let Some(stored) = attrs.get(key) {
+            if stored != value {
                 anyhow::bail!(
-                    "Save store at {:?} was created for a different complex: the stored module \
-                     spec does not match the one being resolved. Refusing to mix cached data \
-                     between distinct complexes; use a separate save directory.\n  stored:   \
-                     {stored}\n  expected: {spec}",
+                    "Save store at {:?} was created for a different {what}: its {key} does not \
+                     match. Refusing to mix cached data between them; use a separate save \
+                     directory.\n  stored:   {stored}\n  expected: {value}",
                     self.path,
                 );
             }
@@ -468,7 +513,7 @@ impl ZarrSaveStore {
         }
 
         let mut new_attrs = attrs.clone();
-        new_attrs.insert("module_spec".into(), spec.clone());
+        new_attrs.insert(key.into(), value.clone());
         let group = GroupBuilder::new()
             .attributes(new_attrs)
             .build(self.store.clone(), "/")

@@ -61,6 +61,45 @@ fn test_wrong_complex() {
     construct_standard::<false, _, _>("C2", Some(tempdir.path().into())).unwrap();
 }
 
+/// Two algorithms resolve one complex differently, so a save made by Nassau's algorithm must not
+/// be reused by the classic one: their secondary data would not match.
+#[test]
+#[should_panic(expected = "different resolution algorithm")]
+fn test_wrong_resolver() {
+    use ext::utils::construct_nassau;
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let resolution1 = construct_nassau("S_2", Some(tempdir.path().into())).unwrap();
+    resolution1.compute_through_stem(Bidegree::n_s(4, 2));
+
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
+}
+
+/// The stable and unstable resolutions over the Milnor algebra use different bases, so neither may
+/// reuse the other's save.
+#[test]
+#[should_panic(expected = "different resolution algorithm")]
+fn test_wrong_stability() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+    let resolution1 =
+        construct_standard::<true, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
+    resolution1.compute_through_bidegree(Bidegree::s_t(2, 2));
+
+    construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
+}
+
+/// A directory holding a save in the format before the zarr store is refused rather than silently
+/// recomputed beside the old files.
+#[test]
+fn test_old_format_dir() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+    std::fs::create_dir(tempdir.path().join("differentials")).unwrap();
+    let Err(err) = construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())) else {
+        panic!("opened a directory in the old format");
+    };
+    assert!(format!("{err:#}").contains("format before"), "{err:#}");
+}
+
 #[test]
 fn test_save_load_stem() {
     let tempdir = tempfile::TempDir::new().unwrap();
@@ -203,12 +242,12 @@ fn test_zarr_store_exists() {
 /// saved data.
 #[test]
 fn test_construct_from_save() {
-    use ext::utils::{construct_from_save, construct_standard};
+    use ext::utils::{construct, construct_from_save};
 
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let resolution1 =
-        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
+    // `construct` picks the algorithm `construct_from_save` rebuilds with.
+    let resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_stem(Bidegree::n_s(10, 6));
 
     // Reopen the directory without telling the code what module it holds.
