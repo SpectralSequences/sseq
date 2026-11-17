@@ -2,11 +2,13 @@
 
 use std::{sync::Arc, time::Instant};
 
+use algebra::module::Module;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     ext_algebra::ExtModule,
     utils::query_module,
 };
+use sseq::coordinates::Bidegree;
 
 /// Extend every product map and report how long it took.
 ///
@@ -27,7 +29,17 @@ fn main() -> anyhow::Result<()> {
 
     // Loading (from the save dir) is untimed; only the product-map extension is timed.
     let resolution = Arc::new(query_module(None, true)?);
-    let e2 = ExtModule::from_resolution(resolution)?;
+    let e2 = ExtModule::from_resolution(Arc::clone(&resolution))?;
+    // `query_module` resolves only `M`; a separate unit must be resolved through the same range, or
+    // the product maps would have nothing to lift into.
+    if !e2.is_unit() {
+        e2.algebra()
+            .resolution()
+            .compute_through_stem(Bidegree::n_s(
+                resolution.module(0).max_computed_degree(),
+                resolution.next_homological_degree() - 1,
+            ));
+    }
 
     let per_map = std::env::var_os("EXT_PER_MAP").is_some();
 
