@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     let start = Instant::now();
     let mut num_maps = 0usize;
     if per_map {
-        // Old path: extend each product map on its own (recomputes each qi once per map).
+        // Per-map path: extend each product map on its own (recomputes each qi once per map).
         for b in e2.resolution().iter_stem() {
             for g in e2.basis(b) {
                 e2.generator_product_map(g).extend_all();

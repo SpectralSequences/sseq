@@ -149,9 +149,9 @@ where
     /// Read the bracket representative off an already-extended null-homotopy of `b ∘ c` (the
     /// `homotopy`), by pairing its top level (filtration `tot.s()`) against the first factor `a`.
     ///
-    /// Factored out of [`massey_bracket_of`](Self::massey_bracket_of) so the batched
-    /// [`massey_iter_c`](Self::massey_iter_c), which extends all the null-homotopies together through
-    /// [`MultiLift`] before reading any bracket, shares the exact same read.
+    /// Shared by [`massey_bracket_of`](Self::massey_bracket_of) and
+    /// [`massey_iter_c`](Self::massey_iter_c), which extends all its null-homotopies together
+    /// through [`MultiLift`] before reading any bracket.
     fn massey_read_representative(
         &self,
         a: &BidegreeElement,
@@ -241,12 +241,10 @@ where
     ///
     /// Brackets that contain `0` are omitted.
     ///
-    /// This iterates over the third factor. Rather than building and extending a fresh null-homotopy
-    /// of `b ∘ c` per `c` — which, with quasi-inverses recomputed on demand, would re-solve the
-    /// unit's quasi-inverse at every bidegree once per third factor — it builds every map up front
-    /// and extends them together through [`MultiLift`], so each quasi-inverse is solved once and
-    /// shared across all third factors. To vary the *first* factor with `b, c` fixed instead, use
-    /// [`massey_iter_a`](Self::massey_iter_a), which already reuses a single null-homotopy.
+    /// This iterates over the third factor. It builds the null-homotopy of `b ∘ c` for every `c` up
+    /// front and extends them together through [`MultiLift`], so the unit's quasi-inverse at each
+    /// bidegree is solved once for all third factors. To vary the *first* factor with `b, c` fixed
+    /// instead, use [`massey_iter_a`](Self::massey_iter_a), which reuses a single null-homotopy.
     pub fn massey_iter_c(
         &self,
         a: &BidegreeElement,

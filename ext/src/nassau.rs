@@ -1439,9 +1439,10 @@ impl QiSink for VecDeque<NassauCommand> {
 /// The quasi-inverse of `d_{b.s}` at `b`, regenerated from `differentials[b.s]` as the command
 /// stream [`Resolution::write_qi`] would have saved.
 ///
-/// It row-reduces one signature at a time as the commands are consumed, so it holds about what
-/// resolving `b` held, never the whole quasi-inverse. The resolution is complete through `b` by the
-/// time anything lifts into it, so the full bases are used and no [`NassauCommand::Fix`] is needed.
+/// It row-reduces one signature at a time as the commands are consumed, so it holds about as much as
+/// the step that would have saved it, never the whole quasi-inverse. The resolution is complete
+/// through `b` by the time anything lifts into it, so the full bases are used and no
+/// [`NassauCommand::Fix`] is needed.
 struct QiRecompute<'a, M: ZeroModule<Algebra = MilnorAlgebra>> {
     res: &'a Resolution<M>,
     b: Bidegree,
