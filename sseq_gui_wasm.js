@@ -45,7 +45,7 @@ let wasm_bindgen = (function(exports) {
          * @param {string} m
          */
         run(m) {
-            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
             const len0 = WASM_VECTOR_LEN;
             __wbg_call_guard();
             try {
@@ -99,7 +99,7 @@ let wasm_bindgen = (function(exports) {
          * @param {string} m
          */
         run(m) {
-            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const ptr0 = passStringToWasm0(m, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
             const len0 = WASM_VECTOR_LEN;
             __wbg_call_guard();
             try {
@@ -116,7 +116,7 @@ let wasm_bindgen = (function(exports) {
             __proto__: null,
             __wbg___wbindgen_debug_string_f249a2a76caa9a55: function(arg0, arg1) {
                 const ret = debugString(arg1);
-                const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+                const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
                 const len1 = WASM_VECTOR_LEN;
                 getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 1, len1, true);
                 getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 0, ptr1, true);
@@ -134,6 +134,9 @@ let wasm_bindgen = (function(exports) {
             __wbg_call_a410eb4b59ed5965: function(arg0, arg1, arg2) {
                 const ret = arg0.call(arg1, arg2);
                 return ret;
+            },
+            __wbg_getRandomValues_5d8c030b527203a6: function(arg0, arg1) {
+                globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
             },
             __wbindgen_generic_0000000000000001: function(arg0, arg1) {
                 // Cast intrinsic for `Ref(String) -> Externref`.
@@ -252,6 +255,11 @@ let wasm_bindgen = (function(exports) {
             // Per MDN: 'This list of values is exhaustive.'
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof#description
         }
+    }
+
+    function getArrayU8FromWasm0(ptr, len) {
+        ptr = ptr >>> 0;
+        return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
     }
 
     let cachedDataViewMemory0 = null;
