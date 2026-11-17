@@ -65,13 +65,16 @@ const MAX_NEW_GENS: usize = 10;
 /// Candidate subalgebras whose top degree exceeds this are never applicable in practice.
 const MAX_TOP_DEGREE: i32 = 10_000;
 
-/// Whether to persist quasi-inverses during resolution. `EXT_NASSAU_NO_SAVE_QI` turns it off, so that
-/// only the differentials are saved and every lift recomputes its quasi-inverse (see [`QiRecompute`]).
+/// Whether to persist quasi-inverses during resolution.
+///
+/// `EXT_NASSAU_NO_SAVE_QI` turns it off, so that only the differentials are saved and every lift
+/// recomputes its quasi-inverse (see [`QiRecompute`]).
 static SAVE_QI: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("EXT_NASSAU_NO_SAVE_QI").is_none());
 
-/// Whether lifts recompute their quasi-inverse even when a saved one exists, as
-/// `EXT_NASSAU_RECOMPUTE_QI` requests. Used to measure the recompute cost in isolation.
+/// Whether lifts recompute their quasi-inverse even when a saved one exists.
+///
+/// `EXT_NASSAU_RECOMPUTE_QI` turns it on, to measure the recompute cost in isolation.
 static RECOMPUTE_QI: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("EXT_NASSAU_RECOMPUTE_QI").is_some());
 
@@ -1436,13 +1439,13 @@ impl QiSink for VecDeque<NassauCommand> {
     }
 }
 
-/// The quasi-inverse of `d_{b.s}` at `b`, regenerated from `differentials[b.s]` as the command
-/// stream [`Resolution::write_qi`] would have saved.
+/// The quasi-inverse of `d_{b.s}` at `b`, regenerated from `differentials[b.s]`.
 ///
-/// It row-reduces one signature at a time as the commands are consumed, so it holds about as much as
-/// the step that would have saved it, never the whole quasi-inverse. The resolution is complete
-/// through `b` by the time anything lifts into it, so the full bases are used and no
-/// [`NassauCommand::Fix`] is needed.
+/// It yields the command stream [`Resolution::write_qi`] would have saved, and row-reduces one
+/// signature at a time as the commands are consumed, so it holds about as much as the step that
+/// would have saved it, never the whole quasi-inverse. The resolution is complete through `b` by
+/// the time anything lifts into it, so the full bases are used and no [`NassauCommand::Fix`] is
+/// needed.
 struct QiRecompute<'a, M: ZeroModule<Algebra = MilnorAlgebra>> {
     res: &'a Resolution<M>,
     b: Bidegree,
