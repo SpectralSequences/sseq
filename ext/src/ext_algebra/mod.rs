@@ -16,6 +16,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
+    lift::{LiftError, Liftable, MultiLift},
     resolution_homomorphism::ResolutionHomomorphism,
     utils::{QueryModuleResolution, get_unit},
 };
@@ -452,6 +453,35 @@ where
         )
     }
 
+    /// Build the product map for every generator of $\Ext(M, k)$ in the computed range and extend
+    /// them all together, in bidegree-major order, via [`MultiLift`].
+    ///
+    /// All the product maps share the unit resolution as target, so lifting them together means the
+    /// unit's quasi-inverse at each output bidegree is solved once and reused across every product,
+    /// rather than once per product.
+    ///
+    /// # Errors
+    ///
+    /// If the unit resolution cannot lift at some bidegree; see [`LiftError`].
+    pub fn extend_all_products(&self) -> Result<(), LiftError>
+    where
+        CC: Sync + 'static,
+    {
+        let liftables: Vec<Arc<dyn Liftable>> = self
+            .resolution
+            .iter_stem()
+            .flat_map(|b| {
+                (0..self.resolution.number_of_gens_in_bidegree(b))
+                    .map(move |i| BidegreeGenerator::new(b, i))
+            })
+            .map(|g| self.generator_product_map(g) as Arc<dyn Liftable>)
+            .collect();
+        if liftables.is_empty() {
+            return Ok(());
+        }
+        MultiLift::new(Arc::clone(self.algebra.resolution()), liftables).extend_all()
+    }
+
     /// Left-multiplication by the class `x` (in $\Ext(M, k)$), applied to every basis generator of
     /// $\Ext(k, k)$ at bidegree `b`.
     ///
@@ -853,5 +883,50 @@ mod tests {
 
         let x = module.algebra().element(Bidegree::n_s(15, 5), &[0, 0]);
         check_class_product_map(&module, &x, max);
+    }
+
+    /// Every product of generators, as `(x, y degree, rows of x · basis(y degree))`.
+    fn product_table<CC>(
+        module: &ExtModule<CC>,
+    ) -> Vec<(BidegreeGenerator, Bidegree, Vec<Vec<u32>>)>
+    where
+        CC: FreeChainComplex + AugmentedChainComplex,
+    {
+        let mut table = Vec::new();
+        for x_deg in module.resolution().iter_stem() {
+            for g in module.basis(x_deg) {
+                let x = module.generator(g);
+                for b in module.algebra().resolution().iter_nonzero_stem() {
+                    if let Some(matrix) = module.multiply_into(&x, b) {
+                        let rows = matrix.iter().map(|row| row.iter().collect()).collect();
+                        table.push((g, b, rows));
+                    }
+                }
+            }
+        }
+        table
+    }
+
+    /// Without a save directory, Nassau's resolution recomputes each quasi-inverse on demand, so
+    /// [`ExtModule::extend_all_products`] works and gives exactly the products read from saved
+    /// quasi-inverses.
+    #[test]
+    fn test_nassau_products_without_save_dir() {
+        let max = Bidegree::n_s(14, 6);
+        let products = |save_dir: Option<std::path::PathBuf>| {
+            let res = Arc::new(crate::utils::construct_nassau("S_2", save_dir).unwrap());
+            res.compute_through_stem(max);
+            let module = ExtModule::intrinsic(res);
+            module.extend_all_products().unwrap();
+            product_table(&module)
+        };
+        let tempdir = tempfile::TempDir::new().unwrap();
+        let unsaved = products(None);
+        assert!(
+            unsaved
+                .iter()
+                .any(|(_, _, rows)| rows.iter().flatten().any(|&c| c != 0))
+        );
+        assert_eq!(unsaved, products(Some(tempdir.path().to_owned())));
     }
 }
