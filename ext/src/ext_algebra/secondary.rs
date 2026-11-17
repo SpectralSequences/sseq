@@ -14,7 +14,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use super::{ExtDifferential, ExtModule};
 use crate::{
     chain_complex::FreeChainComplex,
-    lift::LiftError,
+    lift::{LiftError, Liftable, MultiLift},
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::{
         LAMBDA_BIDEGREE, SecondaryLift, SecondaryResolution, SecondaryResolutionHomomorphism,
@@ -274,7 +274,7 @@ where
 
     /// Build the secondary product lift for every generator of $\Ext(M, k)$ of positive filtration
     /// in the computed range and extend them all together, in bidegree-major order, via
-    /// [`MultiLift`](crate::lift::MultiLift) — the secondary analogue of
+    /// [`MultiLift`] — the secondary analogue of
     /// [`ExtModule::extend_all_products`](ExtModule::extend_all_products). Must be called after
     /// [`extend_all`](Self::extend_all).
     ///
@@ -311,15 +311,16 @@ where
             return Ok(());
         }
 
-        // Extend the underlying primary maps first (the secondary composites read them), each to
-        // its own extent exactly as `secondary_multiply_into` does — the secondary machinery's
-        // `max()` assumes that bound, so they are *not* over-extended through `MultiLift` here.
-        // Then batch the secondary homotopy solves, which all share the unit's quasi-inverse.
-        for lift in &lifts {
-            lift.underlying().extend_all();
-        }
+        // The secondary composites read the underlying primary maps, so those go first, in a batch
+        // of their own. Each is extended exactly as far as its own `extend_all` would take it.
+        let unit = self.module.algebra().resolution();
+        let underlying: Vec<Arc<dyn Liftable>> = lifts
+            .iter()
+            .map(|lift| lift.underlying() as Arc<dyn Liftable>)
+            .collect();
+        MultiLift::new(Arc::clone(unit), underlying).extend_all()?;
 
-        batch_extend_secondary(Arc::clone(self.module.algebra().resolution()), lifts)
+        batch_extend_secondary(Arc::clone(unit), lifts)
     }
 
     /// The secondary product of `x` with every $E_3$-surviving class of the unit at bidegree `b`,
