@@ -73,9 +73,11 @@ pub struct LiftRequest<'a> {
 ///
 /// [`ChainComplex::apply_quasi_inverse`] returns `false` when the quasi-inverse it needs is not
 /// available, e.g. a save directory that is missing quasi-inverses. The sweep then stops scheduling
-/// new bidegrees, lets the ones already running finish, and reports the first failure here. The
-/// liftables are left extended up to (not including) the failed bidegree and whatever else had
-/// already finished.
+/// new bidegrees, lets the ones already running finish, and reports the first failure here.
+///
+/// The liftables keep the outputs of every cell that finished, including cells past the failed
+/// bidegree, which a step's "already computed" check does not see. Sweeping them again would
+/// register those outputs twice and panic, so discard the liftables and rebuild them instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LiftError {
     /// The output (target) bidegree at which the quasi-inverse was unavailable.
@@ -83,6 +85,7 @@ pub struct LiftError {
 }
 
 impl std::fmt::Display for LiftError {
+    /// Name the bidegree the target could not lift at.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -291,6 +294,8 @@ impl<CC: ChainComplex + Sync> Sweep<'_, CC> {
         t
     }
 
+    /// Sweep every cell: start the cells with no dependencies, then spawn again any cell handed
+    /// back by [`Self::spawn`], until no cell task is left.
     fn run(&self) {
         maybe_rayon::in_place_scope(|scope| {
             let (sender, receiver) = mpsc::channel();
@@ -310,6 +315,9 @@ impl<CC: ChainComplex + Sync> Sweep<'_, CC> {
         });
     }
 
+    /// Spawn cell `b` as a task that runs it and then spawns the cells of the next row its frontier
+    /// unblocks. A task that starts inside another cell's fan-out sends `b` back through `sender`
+    /// instead of running it there.
     fn spawn<'s>(
         &'s self,
         scope: &maybe_rayon::Scope<'s>,
@@ -356,16 +364,19 @@ struct Failure {
 }
 
 impl Failure {
+    /// Whether some cell has failed, so the remaining cells should do no work.
     fn is_set(&self) -> bool {
         self.stop.load(Ordering::Relaxed)
     }
 
+    /// Record `error` and tell the remaining cells to stop.
     fn set(&self, error: LiftError) {
         // Concurrent failures race for `first`; any of them is a correct report.
         let _ = self.first.set(error);
         self.stop.store(true, Ordering::Relaxed);
     }
 
+    /// The outcome of the sweep: the recorded error, if any cell failed.
     fn into_result(self) -> Result<(), LiftError> {
         match self.first.into_inner() {
             Some(error) => Err(error),
