@@ -112,8 +112,8 @@ impl FpVector {
         v
     }
 
-    // Convenient for some matrix methods
-    pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
+    /// The number of `Limb`s in an [`FpVector`] of length `len` over `F_p`.
+    pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
         Fp::new(p).number(len)
     }
 

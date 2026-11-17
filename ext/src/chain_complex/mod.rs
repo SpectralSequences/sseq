@@ -262,20 +262,6 @@ pub trait ChainComplex: Send + Sync {
     fn save_dir(&self) -> &SaveDirectory {
         &SaveDirectory::None
     }
-
-    /// Get the save file of a bidegree
-    fn save_file(
-        &self,
-        kind: crate::save::SaveKind,
-        b: Bidegree,
-    ) -> crate::save::SaveFile<Self::Algebra> {
-        crate::save::SaveFile {
-            algebra: self.algebra(),
-            kind,
-            b,
-            idx: None,
-        }
-    }
 }
 
 /// An iterator returned by [`ChainComplex::iter_stem`]
