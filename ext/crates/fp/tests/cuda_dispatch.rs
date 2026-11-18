@@ -39,7 +39,7 @@ fn random_matrix(rows: usize, cols: usize, seed: u64) -> Matrix {
     from_limbs(rows, cols, data)
 }
 
-/// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
+/// Mirrors the private `blas::cuda::gemm::threshold`, which an integration test cannot reach.
 fn threshold() -> usize {
     std::env::var("FP_CUDA_THRESHOLD")
         .ok()
@@ -68,8 +68,8 @@ proptest! {
 
 /// Many threads matmul-ing on the GPU at once must each stay bit-identical to the CPU.
 ///
-/// Each thread submits on its own stream with its own buffers (see `GpuContext::stream`); shared
-/// device state would corrupt results or fail the launch.
+/// The submissions queue on the driver thread, each with its own buffers; shared device state
+/// would corrupt results or fail the launch.
 #[test]
 fn gpu_matmul_concurrent() {
     const THREADS: usize = 16;
@@ -94,4 +94,185 @@ fn gpu_matmul_concurrent() {
             });
         }
     });
+}
+
+/// A well-formed random 0/1 matrix, of rank at most `rank` when `rank > 0`.
+fn rank_matrix(rows: usize, cols: usize, rank: usize, seed: u64) -> Matrix {
+    if rank == 0 {
+        return random_matrix(rows, cols, seed);
+    }
+    &random_matrix(rows, rank, 2 * seed) * &random_matrix(rank, cols, 2 * seed + 1)
+}
+
+/// Records the `path` field of every `fp::rr` `row_reduce` event.
+///
+/// Without this the GPU tests are vacuous: `row_reduce` falls back to the CPU whenever the gate
+/// declines or no device is present, and comparing that against `row_reduce_cpu` then passes while
+/// touching no GPU at all. Asserting on the emitted path is what makes the test require the device.
+#[derive(Clone, Default)]
+struct PathLog(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+impl PathLog {
+    /// Whether any reduction reported `path="gpu"`.
+    fn saw_gpu(&self) -> bool {
+        self.0.lock().unwrap().iter().any(|p| p == "gpu")
+    }
+}
+
+impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for PathLog {
+    /// Record the `path` of an `fp::rr` event.
+    fn on_event(&self, ev: &tracing::Event<'_>, _: tracing_subscriber::layer::Context<'_, S>) {
+        if ev.metadata().target() != "fp::rr" {
+            return;
+        }
+        struct Grab(Option<String>);
+        impl tracing::field::Visit for Grab {
+            /// Keep the `path` field's value.
+            fn record_debug(&mut self, f: &tracing::field::Field, v: &dyn std::fmt::Debug) {
+                if f.name() == "path" {
+                    self.0 = Some(format!("{v:?}").trim_matches('"').to_string());
+                }
+            }
+        }
+        let mut g = Grab(None);
+        ev.record(&mut g);
+        if let Some(p) = g.0 {
+            self.0.lock().unwrap().push(p);
+        }
+    }
+}
+
+/// A recorder, and the dispatcher that feeds it.
+///
+/// The dispatcher is returned rather than installed because `set_default` is thread-local: a test
+/// that spawns threads has to hand each one the same `Dispatch`, or their events go unrecorded and
+/// the assertion fires on a run that did use the device.
+fn watch_paths() -> (PathLog, tracing::Dispatch) {
+    use tracing_subscriber::layer::SubscriberExt;
+    let log = PathLog::default();
+    let sub = tracing_subscriber::registry().with(log.clone());
+    (log, tracing::Dispatch::new(sub))
+}
+
+/// The dispatched `row_reduce` must be bit-identical to `row_reduce_cpu`: RREF, rank and pivots.
+///
+/// The shapes clear the production gate as it ships, rather than lowering it through the
+/// environment: an override that reached the device would be testing a configuration nobody runs.
+/// They are correspondingly slow.
+#[test]
+fn gpu_row_reduce_matches_cpu() {
+    let (paths, dispatch) = watch_paths();
+    tracing::dispatcher::with_default(&dispatch, || {
+        for (i, &(rows, cols, rank)) in [
+            (8192, 8192, 0),
+            (8192, 12288, 0),
+            (1131, 611_461, 0), // wide, the shape family the resolution produces
+            (8192, 8192, 500),  // rank-deficient
+        ]
+        .iter()
+        .enumerate()
+        {
+            let base = rank_matrix(rows, cols, rank, 1000 + i as u64);
+            let mut gpu = base.clone();
+            let rank_gpu = gpu.row_reduce();
+            let mut cpu = base.clone();
+            let rank_cpu = cpu.row_reduce_cpu();
+            assert_eq!(rank_gpu, rank_cpu, "rank mismatch at {rows}x{cols}");
+            assert_eq!(
+                gpu.pivots(),
+                cpu.pivots(),
+                "pivot mismatch at {rows}x{cols}"
+            );
+            assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
+        }
+    });
+    assert!(
+        paths.saw_gpu(),
+        "no reduction reported path=\"gpu\": the gate declined every shape, or no device was \
+         present. The comparison above would pass either way, so it proves nothing."
+    );
+}
+
+/// Many threads row-reducing on the GPU at once must each stay bit-identical to the CPU.
+#[test]
+fn gpu_row_reduce_concurrent() {
+    let (paths, dispatch) = watch_paths();
+    // Few, large reductions: each has to clear the production gate to reach the device at all.
+    const THREADS: usize = 8;
+    const ITERS: usize = 2;
+    std::thread::scope(|s| {
+        for t in 0..THREADS {
+            let dispatch = dispatch.clone();
+            s.spawn(move || {
+                tracing::dispatcher::with_default(&dispatch, || {
+                    for i in 0..ITERS {
+                        let rows = 8192 + 256 * (t % 4);
+                        let cols = 8192 + 256 * (i % 3);
+                        let base = random_matrix(rows, cols, (100 * t + i) as u64);
+                        let mut gpu = base.clone();
+                        let rank_gpu = gpu.row_reduce();
+                        let mut cpu = base.clone();
+                        let rank_cpu = cpu.row_reduce_cpu();
+                        assert_eq!(
+                            rank_gpu, rank_cpu,
+                            "rank mismatch {rows}x{cols} (t{t} i{i})"
+                        );
+                        assert_eq!(gpu, cpu, "RREF mismatch {rows}x{cols} (t{t} i{i})");
+                    }
+                });
+            });
+        }
+    });
+    assert!(
+        paths.saw_gpu(),
+        "no reduction reported path=\"gpu\"; the comparisons above would pass on the CPU alone."
+    );
+}
+
+/// Matrices of an odd number of limbs reduce on the device, bit-identical to the CPU, with every
+/// trailing update XORed straight into the matrix.
+///
+/// The device copy pads each row to an even number of limbs, so this is the shape where padding
+/// columns exist and must stay pivot-free and zero. Like the tests above it requires the device:
+/// without one there is no `path="gpu"` event and it fails.
+#[test]
+fn gpu_row_reduce_odd_limbs() {
+    let (paths, dispatch) = watch_paths();
+    tracing::dispatcher::with_default(&dispatch, || {
+        for (i, &(rows, cols, rank)) in [
+            (8192, 8256usize, 0), // 129 limbs
+            (8193, 10_241, 0),    // 161 limbs, the last one holding a single column
+            (8192, 8256, 700),    // rank-deficient
+            (1131, 611_461, 0),   // 9555 limbs, wide
+        ]
+        .iter()
+        .enumerate()
+        {
+            assert!(
+                cols.div_ceil(64) % 2 == 1,
+                "{cols} columns is an even number of limbs"
+            );
+            let base = rank_matrix(rows, cols, rank, 2000 + i as u64);
+            let mut gpu = base.clone();
+            let rank_gpu = gpu.row_reduce();
+            let mut cpu = base.clone();
+            let rank_cpu = cpu.row_reduce_cpu();
+            assert_eq!(rank_gpu, rank_cpu, "rank mismatch at {rows}x{cols}");
+            assert_eq!(
+                gpu.pivots(),
+                cpu.pivots(),
+                "pivot mismatch at {rows}x{cols}"
+            );
+            assert_eq!(gpu, cpu, "RREF mismatch at {rows}x{cols} rank={rank}");
+        }
+    });
+    assert!(
+        paths.saw_gpu(),
+        "no reduction reported path=\"gpu\"; the comparisons above would pass on the CPU alone."
+    );
+    assert_eq!(
+        fp::blas::cuda::product_fallbacks(),
+        0,
+        "a trailing update went through a product buffer: the DeviceMatrix stride invariant broke"
+    );
 }
