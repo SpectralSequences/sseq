@@ -39,7 +39,7 @@ fn random_matrix(rows: usize, cols: usize, seed: u64) -> Matrix {
     from_limbs(rows, cols, data)
 }
 
-/// Mirrors the private `blas::cuda::threshold`, which an integration test cannot reach.
+/// Mirrors the private `blas::cuda::gemm::threshold`, which an integration test cannot reach.
 fn threshold() -> usize {
     std::env::var("FP_CUDA_THRESHOLD")
         .ok()

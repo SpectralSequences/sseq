@@ -191,6 +191,33 @@ Neither is worth doing. The kernel runs 113 us against `matmul_b1_kernel`'s 1.36
 end-to-end call. Making it infinitely fast would buy about 0.15%. Of that 77 ms, roughly 55 ms is
 H2D/D2H and device allocation, which is where the time actually is.
 
+## The XOR epilogue reduces into the matrix (2026-10-19, H200)
+
+**Chosen:** `gemm_xor_into` has the GEMM XOR each output tile straight into the destination with a
+TMA bulk tensor reduce store (`matmul_b1_kernel_xor`), always. Every `DeviceMatrix` has an even row
+stride, padded at construction, and an odd first limb starts the product one limb early against a
+zero leading limb of the right operand, so the alignment below holds by construction. The
+product-buffer path survives only as a counted, loud fallback for a broken invariant.
+
+The product buffer is as large as the region it updates, so for a trailing update it is up to one
+more matrix: what put a device row reduction's peak at about two matrices. Writing the tile out by
+reduce store instead is also faster, 1.5-1.9x on the write-out at the `TM` × `NG` tile, since the
+tile no longer makes a round trip through global memory and a second kernel.
+
+The reduce store's preconditions were probed rather than taken from the documentation, on CUDA 12.4
+(`ptxas` emits `UTMAREDG.2D.XOR`). It is correct, atomic per element, and fine past 2^32 elements,
+but:
+
+| violation | result |
+|---|---|
+| odd row stride, in limbs | `cuTensorMapEncodeTiled` rejects the map |
+| box starting on an odd limb | illegal instruction |
+| negative coordinate | illegal instruction |
+| odd tensor width | the 16-byte granule straddling the right edge is still XORed: silent corruption of the limb past the row |
+
+The last one is why the map spans the destination's whole row stride rather than just the region,
+and why every precondition is checked on the host before the launch rather than left to the driver.
+
 ## Kernel-only throughput after the persistent grid (2026-07-07, H200 NVL)
 
 `bench_kernel_only`, host setup and H2D/D2H excluded:
