@@ -37,14 +37,6 @@ macro_rules! populate_binomial_table {
     };
 }
 
-pub(crate) const BINOMIAL4_TABLE_SIZE: usize = 50;
-
-pub(crate) const BINOMIAL4_TABLE: [[u32; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE] = {
-    let mut res = [[0; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE];
-    populate_binomial_table!(res, BINOMIAL4_TABLE_SIZE, 4);
-    res
-};
-
 pub(crate) static BINOMIAL_TABLE: [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = {
     let mut result = [[[0; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES];
     const_for! { i in 0 .. NUM_PRIMES {

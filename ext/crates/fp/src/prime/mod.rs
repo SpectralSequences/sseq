@@ -438,15 +438,6 @@ pub(crate) mod tests {
                     );
                 }
                 assert_eq!(u32::binomial4(n, j), ans % 4, "{n} choose {j} mod 4");
-                // binomial4_rec is only called on large n. It does not handle the n = 0, 1 cases
-                // correctly.
-                if n > 1 {
-                    assert_eq!(
-                        u32::binomial4_rec(n, j),
-                        ans % 4,
-                        "{n} choose {j} mod 4 rec"
-                    );
-                }
             }
         }
     }

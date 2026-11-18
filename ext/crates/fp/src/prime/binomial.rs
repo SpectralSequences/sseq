@@ -1,8 +1,5 @@
 use super::{Prime, ValidPrime};
-use crate::{
-    PRIME_TO_INDEX_MAP,
-    constants::{BINOMIAL_TABLE, BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE},
-};
+use crate::{PRIME_TO_INDEX_MAP, constants::BINOMIAL_TABLE};
 
 /// This uses a lookup table for n choose k when n and k are both less than p.
 /// Lucas's theorem reduces general binomial coefficients to this case.
@@ -28,20 +25,13 @@ pub trait Binomial: Sized {
     /// mod 2 binomial coefficient n choose k
     fn binomial2(n: Self, k: Self) -> Self;
 
-    /// Binomial coefficients mod 4. We pre-compute the coefficients for small values of n. For large
-    /// n, we recursively use the fact that if n = 2^k + l, l < 2^k, then
+    /// Binomial coefficient n choose k mod 4. Zero when `k > n` or either is negative.
     ///
-    ///    n choose r = l choose r + 2 (l choose (r - 2^{k - 1})) + (l choose (r - 2^k))
-    ///
-    /// This is easy to verify using the fact that
-    ///
-    ///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
+    /// By Kummer's theorem the 2-adic valuation of `n choose k` is the number of carries when
+    /// adding `k` and `m = n - k` in base 2. When there are none the coefficient is odd, and its
+    /// residue mod 4 is `-1` raised to the number of adjacent bit positions where one of `k` and
+    /// `m` has a 1 directly above a 1 of the other.
     fn binomial4(n: Self, k: Self) -> Self;
-
-    /// Compute binomial coefficients mod 4 using the recursion relation in the documentation of
-    /// [Binomial::binomial4]. This calls into binomial4 instead of binomial4_rec. The main purpose
-    /// of this is to separate out the logic for testing.
-    fn binomial4_rec(n: Self, k: Self) -> Self;
 
     /// Computes the multinomial coefficient mod p using Lucas' theorem. This modifies the
     /// underlying list. For p = 2 it is more efficient to use multinomial2
@@ -181,36 +171,13 @@ macro_rules! impl_binomial {
                 false
             }
 
-            fn binomial4(n: Self, j: Self) -> Self {
-                if (n as usize) < BINOMIAL4_TABLE_SIZE {
-                    return BINOMIAL4_TABLE[n as usize][j as usize] as Self;
-                }
-                if (n - j) & j == 0 {
-                    // Answer is odd
-                    Self::binomial4_rec(n, j)
-                } else if (n - j).count_ones() + j.count_ones() - n.count_ones() == 1 {
-                    2
-                } else {
-                    0
-                }
-            }
-
             #[inline]
-            fn binomial4_rec(n: Self, j: Self) -> Self {
-                let k = (std::mem::size_of::<Self>() * 8) as u32 - n.leading_zeros() - 1;
-                let l = n - (1 << k);
-                let mut ans = 0;
-                if j <= l {
-                    ans += Self::binomial4(l, j)
+            fn binomial4(n: Self, k: Self) -> Self {
+                #[allow(unused_comparisons)] // unused when ty is unsigned
+                if n < 0 || k < 0 {
+                    return 0;
                 }
-                let pow = 1 << (k - 1);
-                if pow <= j && j <= l + pow {
-                    ans += 2 * Self::binomial2(l, j - pow);
-                }
-                if j >= (1 << k) {
-                    ans += Self::binomial4(l, j - (1 << k));
-                }
-                ans % 4
+                binomial4_u64(n as u64, k as u64) as Self
             }
         }
     };
@@ -219,3 +186,117 @@ macro_rules! impl_binomial {
 impl_binomial!(u32);
 impl_binomial!(u16);
 impl_binomial!(i32);
+
+/// Residues mod 4 packed two bits apiece, indexed by `2 * min(carries, 2) + parity`.
+///
+/// Only the no-carry entries depend on the parity: one carry gives 2 and more give 0.
+const MOD4_BY_CARRIES_AND_PARITY: u32 = 0b00_00_10_10_11_01;
+
+/// [`Binomial::binomial4`] on `u64`, without the sign check.
+///
+/// The carries of `k + m` are the bits of `n ^ k ^ m`. Reading the result from
+/// [`MOD4_BY_CARRIES_AND_PARITY`] rather than branching on the carry count keeps the cost
+/// independent of the inputs, which otherwise mispredict on mixed odd and even coefficients.
+#[inline]
+fn binomial4_u64(n: u64, k: u64) -> u8 {
+    let m = n.wrapping_sub(k);
+    let carries = (n ^ k ^ m).count_ones().min(2);
+    let parity = ((k & (m >> 1)) | (m & (k >> 1))).count_ones() & 1;
+    let ans = (MOD4_BY_CARRIES_AND_PARITY >> (2 * (2 * carries + parity))) & 3;
+    (ans as u8) & 0u8.wrapping_sub((k <= n) as u8)
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    /// Upper bound, exclusive, on the `n` and `k` checked exhaustively.
+    const EXHAUSTIVE: u32 = 1024;
+
+    /// Slow model of n choose k mod 4, independent of Kummer's theorem.
+    ///
+    /// For `n = 2^t + l` with `l < 2^t`, expanding `(x + y)^{2^t}` mod 4 as
+    /// `x^{2^t} + 2 x^{2^{t-1}} y^{2^{t-1}} + y^{2^t}` gives
+    ///
+    /// ```text
+    /// n choose k = l choose k + 2 (l choose (k - 2^{t-1})) + l choose (k - 2^t)
+    /// ```
+    ///
+    /// where the middle term only matters mod 2.
+    fn binomial4_model(n: u32, k: u32) -> u32 {
+        if k > n {
+            return 0;
+        }
+        if n <= 1 {
+            return 1;
+        }
+        let t = u32::BITS - 1 - n.leading_zeros();
+        let l = n - (1 << t);
+        let half = 1 << (t - 1);
+        let mut ans = binomial4_model(l, k);
+        if k >= half {
+            ans += 2 * u32::binomial2(l, k - half);
+        }
+        if k >= 1 << t {
+            ans += binomial4_model(l, k - (1 << t));
+        }
+        ans % 4
+    }
+
+    /// The model agrees with Pascal's triangle mod 4.
+    #[test]
+    fn model_vs_pascal() {
+        let mut row = vec![1u32];
+        for n in 0..EXHAUSTIVE {
+            for k in 0..EXHAUSTIVE {
+                let want = row.get(k as usize).copied().unwrap_or(0);
+                assert_eq!(binomial4_model(n, k), want, "{n} choose {k}");
+            }
+            let mut next = vec![1; row.len() + 1];
+            for k in 1..row.len() {
+                next[k] = (row[k - 1] + row[k]) % 4;
+            }
+            row = next;
+        }
+    }
+
+    /// [`Binomial::binomial4`] agrees with the model for every type, including where `k > n`.
+    #[test]
+    fn binomial4_vs_model() {
+        for n in 0..EXHAUSTIVE {
+            for k in 0..EXHAUSTIVE {
+                let want = binomial4_model(n, k);
+                assert_eq!(u32::binomial4(n, k), want, "{n} choose {k}");
+                assert_eq!(
+                    u16::binomial4(n as u16, k as u16),
+                    want as u16,
+                    "{n} choose {k}"
+                );
+                assert_eq!(
+                    i32::binomial4(n as i32, k as i32),
+                    want as i32,
+                    "{n} choose {k}"
+                );
+            }
+        }
+    }
+
+    proptest! {
+        /// [`Binomial::binomial4`] agrees with the model for large `n`.
+        #[test]
+        fn binomial4_vs_model_large(n in 0u32..1 << 20, k_bits: u32, subset: bool) {
+            // A bit-subset of `n` makes the coefficient odd, which uniform `k` rarely does.
+            let k = if subset { n & k_bits } else { k_bits % (n + 1) };
+            prop_assert_eq!(u32::binomial4(n, k), binomial4_model(n, k));
+        }
+
+        /// [`Binomial::binomial4`] is zero whenever `n` or `k` is negative.
+        #[test]
+        fn binomial4_negative(n: i32, k: i32) {
+            prop_assume!(n < 0 || k < 0);
+            prop_assert_eq!(i32::binomial4(n, k), 0);
+        }
+    }
+}

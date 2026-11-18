@@ -63,6 +63,10 @@ name = "reduce"
 harness = false
 
 [[bench]]
+name = "binomial"
+harness = false
+
+[[bench]]
 name = "smallfq"
 harness = false
 required-features = ["odd-primes"]
