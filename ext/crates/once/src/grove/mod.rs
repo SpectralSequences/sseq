@@ -1,15 +1,11 @@
 mod block;
+mod zeroed;
 
-use std::{
-    num::NonZero,
-    ops::{Index, IndexMut},
-};
+use std::ops::{Index, IndexMut};
 
-use block::Block;
+pub(crate) use zeroed::{ZeroedGrove, ZeroedTwoEndedGrove};
 
-use crate::std_or_loom::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
-
-const MAX_NUM_BLOCKS: usize = 32;
+use crate::write_once::WriteOnce;
 
 /// A sparse vector with pinned elements and geometrically growing capacity.
 ///
@@ -23,14 +19,6 @@ const MAX_NUM_BLOCKS: usize = 32;
 ///
 /// This data structure is primarily used as the backing store for other collections in this crate,
 /// such as [`OnceVec`](crate::OnceVec) and [`MultiIndexed`](crate::MultiIndexed).
-///
-/// # Implementation Details
-///
-/// `Grove` uses a series of fixed-size blocks to store elements. Each block's size is a power of 2,
-/// and the block number determines its size. This approach allows for efficient memory usage while
-/// still supporting large indices without allocating memory for all intermediate elements. We use
-/// distinct lazily-allocated blocks to avoid any reallocation, which would invalidate pointers held
-/// by other threads.
 ///
 /// # Examples
 ///
@@ -50,11 +38,15 @@ const MAX_NUM_BLOCKS: usize = 32;
 /// assert_eq!(grove.get(1000), Some(&30));
 /// assert_eq!(grove.get(50), None); // No element at this index
 /// ```
-pub struct Grove<T> {
-    blocks: [Block<T>; MAX_NUM_BLOCKS],
-    /// The maximum index that has been inserted into the `Grove` (exclusive).
-    max: AtomicUsize,
-}
+///
+/// A `Grove` can be shared across threads only when its values can be sent across them too:
+///
+/// ```compile_fail
+/// fn assert_sync<T: Sync>() {}
+/// assert_sync::<once::Grove<std::sync::MutexGuard<'static, i32>>>();
+/// ```
+#[repr(transparent)]
+pub struct Grove<T>(ZeroedGrove<WriteOnce<T>>);
 
 impl<T> Grove<T> {
     /// Creates a new empty `Grove`.
@@ -67,44 +59,43 @@ impl<T> Grove<T> {
     /// let grove = Grove::<i32>::new();
     /// ```
     pub fn new() -> Self {
-        Self {
-            blocks: std::array::from_fn(|_| Block::new()),
-            max: AtomicUsize::new(0),
-        }
+        Self(ZeroedGrove::new())
     }
 
-    /// Finds the block and offset within the block for the given index.
+    /// Creates a `Grove` from a `Vec`.
     ///
-    /// This is an internal method used to determine which block contains the element
-    /// at the specified index and the offset within that block.
+    /// The elements in the vector will be inserted into the `Grove` at their respective indices.
     ///
     /// # Parameters
     ///
-    /// * `index`: The index to locate
+    /// * `v`: The vector to convert
     ///
     /// # Returns
     ///
-    /// A tuple containing the block number and the offset within that block.
-    fn locate(&self, index: usize) -> (usize, usize) {
-        let block_num = (usize::BITS - 1 - (index + 1).leading_zeros()) as usize;
-        let block_offset = (index + 1) - (1 << block_num);
-        (block_num, block_offset)
+    /// A new `Grove` containing the elements from the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::Grove;
+    ///
+    /// let vec = vec![10, 20, 30];
+    /// let grove = Grove::from_vec(vec);
+    ///
+    /// assert_eq!(grove.get(0), Some(&10));
+    /// assert_eq!(grove.get(1), Some(&20));
+    /// assert_eq!(grove.get(2), Some(&30));
+    /// ```
+    pub fn from_vec(v: Vec<T>) -> Self {
+        let grove = Self::default();
+        for (i, value) in v.into_iter().enumerate() {
+            grove.insert(i, value);
+        }
+        grove
     }
+}
 
-    /// Ensures that the specified block is initialized.
-    ///
-    /// This is an internal method that initializes a block if it hasn't been initialized yet.
-    /// It is called before any operation that needs to access a block.
-    ///
-    /// # Parameters
-    ///
-    /// * `block_num`: The block number to initialize
-    fn ensure_init(&self, block_num: usize) {
-        // Safety: `Block::init` is only ever called through this method, and every block has a
-        // well-defined `block_num`, and therefore a well-defined size.
-        unsafe { self.blocks[block_num].init(NonZero::new(1 << block_num).unwrap()) };
-    }
-
+impl<T> Grove<T> {
     /// Inserts a value at the specified index.
     ///
     /// This operation is thread-safe and can be called from multiple threads. However, this method
@@ -126,11 +117,7 @@ impl<T> Grove<T> {
     /// grove.insert(100, 20);
     /// ```
     pub fn insert(&self, index: usize, value: T) {
-        let (block_num, block_offset) = self.locate(index);
-        self.ensure_init(block_num);
-        // Safety: We just initialized the block, and `locate` only returns valid indices
-        unsafe { self.blocks[block_num].insert(block_offset, value) };
-        self.max.fetch_max(index + 1, Ordering::Release);
+        self.0.entry(index).set(value);
     }
 
     /// Attempts to insert a value at the specified index.
@@ -159,14 +146,7 @@ impl<T> Grove<T> {
     /// assert_eq!(grove.try_insert(0, 20), Err(20)); // Index already occupied
     /// ```
     pub fn try_insert(&self, index: usize, value: T) -> Result<(), T> {
-        let (block_num, block_offset) = self.locate(index);
-        self.ensure_init(block_num);
-        // Safety: We just initialized the block, and `locate` only returns valid indices
-        let ret = unsafe { self.blocks[block_num].try_insert(block_offset, value) };
-        if ret.is_ok() {
-            self.max.fetch_max(index + 1, Ordering::Release);
-        }
-        ret
+        self.0.entry(index).try_set(value)
     }
 
     /// Retrieves a reference to the value at the specified index, if it exists.
@@ -192,13 +172,7 @@ impl<T> Grove<T> {
     /// assert_eq!(grove.get(1), None);
     /// ```
     pub fn get(&self, index: usize) -> Option<&T> {
-        let (block_num, block_offset) = self.locate(index);
-        if self.blocks[block_num].is_init() {
-            // Safety: We just observed that the block is initialized
-            unsafe { self.blocks[block_num].get(block_offset) }
-        } else {
-            None
-        }
+        self.0.get_entry(index)?.get()
     }
 
     /// Retrieves a mutable reference to the value at the specified index, if it exists.
@@ -230,8 +204,7 @@ impl<T> Grove<T> {
     /// assert_eq!(grove.get(0), Some(&20));
     /// ```
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        let (block_num, block_offset) = self.locate(index);
-        self.blocks[block_num].get_mut(block_offset)
+        self.0.get_entry_mut(index)?.get_mut()
     }
 
     /// Retrieves a reference to the value at the specified index without checking that a value
@@ -241,11 +214,8 @@ impl<T> Grove<T> {
     ///
     /// A value must have been previously inserted at the specified index.
     pub unsafe fn get_unchecked(&self, index: usize) -> &T {
-        let (block_num, block_offset) = self.locate(index);
-        // We know that we already observed the block to be initialized, so we can get away with a
-        // relaxed load.
-        let data_ptr = self.blocks[block_num].data().load(Ordering::Relaxed);
-        unsafe { (*data_ptr.add(block_offset)).get_unchecked() }
+        // SAFETY: a value was inserted at `index`, so its block is allocated and its cell is set.
+        unsafe { self.0.get_entry_unchecked(index).get_unchecked() }
     }
 
     /// Checks if a value exists at the specified index.
@@ -270,22 +240,15 @@ impl<T> Grove<T> {
     /// assert!(!grove.is_set(1));
     /// ```
     pub fn is_set(&self, index: usize) -> bool {
-        let (block_num, block_offset) = self.locate(index);
-        if self.blocks[block_num].is_init() {
-            // Safety: We just observed that the block is initialized
-            unsafe { self.blocks[block_num].is_set(block_offset) }
-        } else {
-            false
-        }
+        self.0.get_entry(index).is_some_and(WriteOnce::is_set)
     }
 
     /// Returns the length of the `Grove`.
     ///
     /// The length is defined as the maximum index that has been inserted into the `Grove` plus one.
     /// Note that this does not necessarily reflect the number of elements in the `Grove`, as there
-    /// may be gaps. Also, since this is a wait-free data structure, the return value may not be
-    /// accurate, but it will always be a lower bound for the true length from the perspective of
-    /// any thread.
+    /// may be gaps. Also, since this is a wait-free data structure, a concurrent reader may see a
+    /// stale length, or one that counts an index whose value another thread is still inserting.
     ///
     /// # Returns
     ///
@@ -303,43 +266,12 @@ impl<T> Grove<T> {
     /// assert_eq!(grove.len(), 6); // 5 + 1
     /// ```
     pub fn len(&self) -> usize {
-        self.max.load(Ordering::Acquire)
+        self.0.len()
     }
 
+    /// Whether no value has been inserted.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    /// Creates a `Grove` from a `Vec`.
-    ///
-    /// The elements in the vector will be inserted into the `Grove` at their respective indices.
-    ///
-    /// # Parameters
-    ///
-    /// * `v`: The vector to convert
-    ///
-    /// # Returns
-    ///
-    /// A new `Grove` containing the elements from the vector.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use once::Grove;
-    ///
-    /// let vec = vec![10, 20, 30];
-    /// let grove = Grove::from_vec(vec);
-    ///
-    /// assert_eq!(grove.get(0), Some(&10));
-    /// assert_eq!(grove.get(1), Some(&20));
-    /// assert_eq!(grove.get(2), Some(&30));
-    /// ```
-    pub fn from_vec(v: Vec<T>) -> Self {
-        let grove = Self::new();
-        for (i, value) in v.into_iter().enumerate() {
-            grove.insert(i, value);
-        }
-        grove
     }
 
     /// Returns an iterator over the index-value pairs in the `Grove`.
@@ -371,13 +303,11 @@ impl<T> Grove<T> {
         }
     }
 
+    /// Returns an iterator over the index-value pairs in the `Grove`, with mutable values.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
-        let ptr = self as *mut Self;
-        (0..self.len()).filter_map(move |i| {
-            // SAFETY: Each index maps to a unique (block, offset) pair, so the returned `&mut T`
-            // references are non-aliasing. We have `&mut self` so no other references exist.
-            unsafe { (*ptr).get_mut(i).map(|value| (i, value)) }
-        })
+        self.0
+            .entries_mut()
+            .filter_map(|(i, cell)| cell.get_mut().map(|value| (i, value)))
     }
 
     /// Returns an iterator over the values in the `Grove`.
@@ -483,7 +413,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
 
 impl<T: Clone> Clone for Grove<T> {
     fn clone(&self) -> Self {
-        let new_grove = Self::new();
+        let new_grove = Self::default();
         for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
@@ -527,10 +457,9 @@ impl<T> IndexMut<usize> for Grove<T> {
 /// A bidirectional sparse vector that supports both positive and negative indices.
 ///
 /// `TwoEndedGrove` extends the functionality of [`Grove`] by allowing elements to be indexed using
-/// both positive and negative integers. It maintains two separate `Grove` instances: one for
-/// non-negative indices and another for negative indices.
+/// both positive and negative integers.
 ///
-/// This data structure is primarily used as the backing store for the nodes in
+/// This data structure is primarily used as the backing store for the leaves of
 /// [`KdTrie`](crate::multiindexed::KdTrie).
 ///
 /// # Examples
@@ -554,12 +483,8 @@ impl<T> IndexMut<usize> for Grove<T> {
 /// // Get the range of valid indices
 /// assert_eq!(grove.range(), -5..6);
 /// ```
-pub struct TwoEndedGrove<T> {
-    non_neg: Grove<T>,
-    neg: Grove<T>,
-    min: AtomicI32,
-    max: AtomicI32,
-}
+#[repr(transparent)]
+pub struct TwoEndedGrove<T>(ZeroedTwoEndedGrove<WriteOnce<T>>);
 
 impl<T> TwoEndedGrove<T> {
     /// Creates a new empty `TwoEndedGrove`.
@@ -572,12 +497,7 @@ impl<T> TwoEndedGrove<T> {
     /// let grove = TwoEndedGrove::<i32>::new();
     /// ```
     pub fn new() -> Self {
-        Self {
-            non_neg: Grove::new(),
-            neg: Grove::new(),
-            min: AtomicI32::new(i32::MAX),
-            max: AtomicI32::new(i32::MIN + 1),
-        }
+        Self(ZeroedTwoEndedGrove::new())
     }
 
     /// Inserts a value at the specified index.
@@ -600,13 +520,7 @@ impl<T> TwoEndedGrove<T> {
     /// grove.insert(5, 20);
     /// ```
     pub fn insert(&self, idx: i32, value: T) {
-        if idx >= 0 {
-            self.non_neg.insert(idx as usize, value);
-        } else {
-            self.neg.insert((-idx) as usize, value);
-        }
-        self.max.fetch_max(idx + 1, Ordering::Relaxed);
-        self.min.fetch_min(idx, Ordering::Release);
+        self.0.entry(idx).set(value);
     }
 
     /// Attempts to insert a value at the specified index.
@@ -635,16 +549,7 @@ impl<T> TwoEndedGrove<T> {
     /// assert_eq!(grove.try_insert(-5, 20), Err(20)); // Index already occupied
     /// ```
     pub fn try_insert(&self, idx: i32, value: T) -> Result<(), T> {
-        let ret = if idx >= 0 {
-            self.non_neg.try_insert(idx as usize, value)
-        } else {
-            self.neg.try_insert((-idx) as usize, value)
-        };
-        if ret.is_ok() {
-            self.max.fetch_max(idx + 1, Ordering::Relaxed);
-            self.min.fetch_min(idx, Ordering::Release);
-        }
-        ret
+        self.0.entry(idx).try_set(value)
     }
 
     /// Retrieves a reference to the value at the specified index, if it exists.
@@ -670,11 +575,7 @@ impl<T> TwoEndedGrove<T> {
     /// assert_eq!(grove.get(0), None);
     /// ```
     pub fn get(&self, idx: i32) -> Option<&T> {
-        if idx >= 0 {
-            self.non_neg.get(idx as usize)
-        } else {
-            self.neg.get((-idx) as usize)
-        }
+        self.0.get_entry(idx)?.get()
     }
 
     /// Retrieves a mutable reference to the value at the specified index, if it exists.
@@ -707,11 +608,7 @@ impl<T> TwoEndedGrove<T> {
     /// assert_eq!(grove.get(-5), Some(&20));
     /// ```
     pub fn get_mut(&mut self, idx: i32) -> Option<&mut T> {
-        if idx >= 0 {
-            self.non_neg.get_mut(idx as usize)
-        } else {
-            self.neg.get_mut((-idx) as usize)
-        }
+        self.0.get_entry_mut(idx)?.get_mut()
     }
 
     /// Returns the range of indices that have values in the `TwoEndedGrove`.
@@ -739,40 +636,30 @@ impl<T> TwoEndedGrove<T> {
     /// assert_eq!(grove.range(), -5..6);
     /// ```
     pub fn range(&self) -> std::ops::Range<i32> {
-        // We use a Relaxed max load because all insertion operations end with a release-store of
-        // the min. We have a chain of happens-before relationships:
-        // load max <- acquire-load min <- release-store min <- store max
-        self.min.load(Ordering::Acquire)..self.max.load(Ordering::Relaxed)
+        self.0.range()
     }
 
+    /// Returns an iterator over the index-value pairs, non-negative indices first.
     pub fn iter(&self) -> impl Iterator<Item = (i32, &T)> {
-        let non_negs = self
-            .non_neg
-            .iter()
-            .map(move |(idx, value)| (idx as i32, value));
-        let negs = self
-            .neg
-            .iter()
-            .map(move |(idx, value)| (-(idx as i32), value));
-        non_negs.chain(negs)
+        self.0
+            .entries()
+            .filter_map(|(idx, cell)| cell.get().map(|value| (idx, value)))
     }
 
+    /// Returns an iterator over the index-value pairs with mutable values, non-negative indices
+    /// first.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (i32, &mut T)> {
-        let non_negs = self
-            .non_neg
-            .iter_mut()
-            .map(move |(idx, value)| (idx as i32, value));
-        let negs = self
-            .neg
-            .iter_mut()
-            .map(move |(idx, value)| (-(idx as i32), value));
-        non_negs.chain(negs)
+        self.0
+            .entries_mut()
+            .filter_map(|(idx, cell)| cell.get_mut().map(|value| (idx, value)))
     }
 
+    /// Returns an iterator over the values, non-negative indices first.
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.iter().map(move |(_, value)| value)
     }
 
+    /// Returns an iterator over the values, mutably, non-negative indices first.
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.iter_mut().map(move |(_, value)| value)
     }
@@ -799,11 +686,7 @@ impl<T> TwoEndedGrove<T> {
     /// assert!(!grove.is_set(0));
     /// ```
     pub fn is_set(&self, idx: i32) -> bool {
-        if idx >= 0 {
-            self.non_neg.is_set(idx as usize)
-        } else {
-            self.neg.is_set((-idx) as usize)
-        }
+        self.0.get_entry(idx).is_some_and(WriteOnce::is_set)
     }
 }
 
@@ -825,7 +708,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
 
 impl<T: Clone> Clone for TwoEndedGrove<T> {
     fn clone(&self) -> Self {
-        let new_grove = Self::new();
+        let new_grove = Self::default();
         for (i, value) in self.iter() {
             new_grove.insert(i, value.clone());
         }
@@ -874,30 +757,6 @@ mod tests {
     };
 
     use super::*;
-
-    #[test]
-    fn test_locate() {
-        let vec = Grove::<i32>::new();
-        assert_eq!(vec.locate(0), (0, 0));
-        assert_eq!(vec.locate(1), (1, 0));
-        assert_eq!(vec.locate(2), (1, 1));
-        assert_eq!(vec.locate(3), (2, 0));
-        assert_eq!(vec.locate(4), (2, 1));
-        assert_eq!(vec.locate(5), (2, 2));
-        assert_eq!(vec.locate(6), (2, 3));
-        assert_eq!(vec.locate(7), (3, 0));
-        assert_eq!(vec.locate(8), (3, 1));
-        assert_eq!(vec.locate(9), (3, 2));
-        assert_eq!(vec.locate(10), (3, 3));
-        assert_eq!(vec.locate(11), (3, 4));
-        assert_eq!(vec.locate(12), (3, 5));
-        assert_eq!(vec.locate(13), (3, 6));
-        assert_eq!(vec.locate(14), (3, 7));
-        assert_eq!(vec.locate(15), (4, 0));
-        assert_eq!(vec.locate(16), (4, 1));
-        assert_eq!(vec.locate(17), (4, 2));
-        // This should be good enough
-    }
 
     #[test]
     fn test_grove_insert_get() {

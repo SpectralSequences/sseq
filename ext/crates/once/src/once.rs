@@ -209,13 +209,43 @@ impl<T> OnceVec<T> {
         self.data.get_mut(index)
     }
 
+    /// The element at `index`, pushing `to_insert()` there first if the vector ends at `index`.
+    ///
+    /// Threads may race to fill the same `index`. Each builds its own value, outside the lock so
+    /// that `to_insert` may itself use the vector; one value is pushed and the rest are dropped.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is unfilled and either lies past the end of the vector or there are out-of-order
+    /// elements.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v = OnceVec::<u32>::new();
+    /// assert_eq!(*v.get_or_insert(0, || 1), 1);
+    /// assert_eq!(*v.get_or_insert(0, || 2), 1);
+    /// ```
     pub fn get_or_insert(&self, index: usize, to_insert: impl FnOnce() -> T) -> &T {
         if let Some(val) = self.get(index) {
-            val
-        } else {
-            self.push_checked(to_insert(), index);
-            self.get(index).unwrap()
+            return val;
         }
+        let value = to_insert();
+        let ooo = self.lock();
+        // A racing thread may have pushed `index` while this one built its value.
+        if let Some(val) = self.get(index) {
+            return val;
+        }
+        assert!(
+            ooo.0.is_empty(),
+            "Cannot push while there are out-of-order elements"
+        );
+        let old_len = self.len.load(Ordering::Acquire);
+        assert_eq!(old_len, index, "get_or_insert past the end of the vector");
+        self.data.insert(old_len, value);
+        self.len.store(old_len + 1, Ordering::Release);
+        // SAFETY: the element at `index` was written just above, under the lock.
+        unsafe { self.data.get_unchecked(index) }
     }
 
     /// The number of leading elements for which `pred` is true, as [`slice::partition_point`].
@@ -531,8 +561,11 @@ impl<T> IndexMut<u32> for OnceVec<T> {
     }
 }
 
+// SAFETY: the vector owns its values, so sending the vector sends the values.
 unsafe impl<T: Send> Send for OnceVec<T> {}
-unsafe impl<T: Sync> Sync for OnceVec<T> {}
+// SAFETY: a shared vector hands out `&T` to every thread, and a value pushed from one thread can
+// be dropped from another.
+unsafe impl<T: Send + Sync> Sync for OnceVec<T> {}
 
 impl<T> FromIterator<T> for OnceVec<T> {
     /// ```
@@ -985,6 +1018,37 @@ mod tests {
             found[v[i]] = true;
         }
         assert!(found.iter().all(|&x| x));
+    }
+
+    /// Threads racing `get_or_insert` on the same indices agree on one value per index.
+    #[test]
+    fn test_concurrent_get_or_insert() {
+        let v = OnceVec::<usize>::new();
+        let len = 1000;
+        thread::scope(|s| {
+            for thread_id in 0..crate::test_utils::num_threads() {
+                let v = &v;
+                s.spawn(move || {
+                    for i in 0..len {
+                        let got = *v.get_or_insert(i, || thread_id);
+                        assert_eq!(got, v[i]);
+                    }
+                });
+            }
+        });
+        assert_eq!(v.len(), len);
+    }
+
+    /// A builder that fills `index` itself makes the outer call find it filled under the lock.
+    #[test]
+    fn test_get_or_insert_reentrant() {
+        let v = OnceVec::<u32>::new();
+        let got = *v.get_or_insert(0, || {
+            assert_eq!(*v.get_or_insert(0, || 1), 1);
+            2
+        });
+        assert_eq!(got, 1);
+        assert_eq!(v.len(), 1);
     }
 
     #[test]

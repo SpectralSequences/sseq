@@ -1,6 +1,6 @@
 use std::{cell::UnsafeCell, mem::MaybeUninit, sync::atomic::Ordering};
 
-use crate::std_or_loom::{GetMut, sync::atomic::AtomicU8};
+use crate::std_or_loom::{GetMut, Zeroable, sync::atomic::AtomicU8};
 
 /// A thread-safe, wait-free, write-once cell that allows a value to be set exactly once.
 ///
@@ -56,6 +56,8 @@ use crate::std_or_loom::{GetMut, sync::atomic::AtomicU8};
 ///     assert_eq!(value, "Another value".to_string());
 /// }
 /// ```
+// Zero bytes are an empty cell, since `WriteOnceState::Uninit` is zero.
+#[cfg_attr(not(loom), derive(Zeroable), zeroable(bound = ""))]
 pub struct WriteOnce<T> {
     value: UnsafeCell<MaybeUninit<T>>,
     state: AtomicU8,
@@ -130,7 +132,8 @@ impl<T> WriteOnce<T> {
     ///
     /// This method tries to set the value of the cell if it hasn't been set yet.
     /// If the cell already has a value, this method will return an error containing
-    /// the value that was attempted to be set.
+    /// the value that was attempted to be set. A cell that another thread is still filling counts
+    /// as having a value, so [`Self::get`] can return `None` straight after an `Err`.
     ///
     /// # Returns
     ///
@@ -272,6 +275,14 @@ impl<T> WriteOnce<T> {
     }
 }
 
+// SAFETY: `zeroed` is the empty cell, as zero bytes are outside loom.
+#[cfg(loom)]
+unsafe impl<T> Zeroable for WriteOnce<T> {
+    fn zeroed() -> Self {
+        Self::none()
+    }
+}
+
 impl<T> Drop for WriteOnce<T> {
     fn drop(&mut self) {
         // We have an exclusive reference to `self`, so we know that no other thread is accessing
@@ -329,8 +340,11 @@ impl<T: std::hash::Hash> std::hash::Hash for WriteOnce<T> {
     }
 }
 
+// SAFETY: the cell owns its value, so sending the cell sends the value.
 unsafe impl<T: Send> Send for WriteOnce<T> {}
-unsafe impl<T: Sync> Sync for WriteOnce<T> {}
+// SAFETY: a shared cell hands out `&T` to every thread, and a value set from one thread can be
+// dropped from another.
+unsafe impl<T: Send + Sync> Sync for WriteOnce<T> {}
 
 /// The possible states of a `WriteOnce`.
 ///

@@ -1,6 +1,9 @@
 use std::mem::ManuallyDrop;
 
-use crate::grove::TwoEndedGrove;
+use crate::{
+    grove::{TwoEndedGrove, ZeroedTwoEndedGrove},
+    std_or_loom::Zeroable,
+};
 
 /// A node in the K-dimensional trie structure.
 ///
@@ -13,8 +16,10 @@ use crate::grove::TwoEndedGrove;
 /// There are two types of nodes in the trie:
 ///
 /// 1. **Inner Nodes**: These nodes contain child nodes and are used for all dimensions except the
-///    last one. Each inner node is a [`TwoEndedGrove`] of other `Node` instances, allowing for
-///    efficient storage of sparse child nodes.
+///    last one. Each inner node is a [`ZeroedTwoEndedGrove`] of child `Node`s, allowing for
+///    efficient storage of sparse child nodes. A child exists, empty, from the moment its block is
+///    allocated, so threads that reach the same child find the same node and none is ever created
+///    twice.
 ///
 /// 2. **Leaf Nodes**: These nodes contain the actual values and are used for the last dimension.
 ///    Each leaf node is a [`TwoEndedGrove`] of values of type `V`.
@@ -41,7 +46,7 @@ use crate::grove::TwoEndedGrove;
 /// drop glue. Unions don't know what they contain, and so can't know which drop implementation to
 /// run. We delegate the responsibility of dropping the node to the `KdTrie`, using `drop_level`.
 pub(super) union Node<V> {
-    inner: ManuallyDrop<TwoEndedGrove<Self>>,
+    inner: ManuallyDrop<ZeroedTwoEndedGrove<Self>>,
     leaf: ManuallyDrop<TwoEndedGrove<V>>,
 }
 
@@ -51,7 +56,7 @@ impl<V> Node<V> {
     /// An inner node contains child nodes and is used for all dimensions except the last one.
     pub(super) fn new_inner() -> Self {
         Self {
-            inner: ManuallyDrop::new(TwoEndedGrove::new()),
+            inner: ManuallyDrop::new(ZeroedTwoEndedGrove::new()),
         }
     }
 
@@ -64,30 +69,17 @@ impl<V> Node<V> {
         }
     }
 
-    /// Ensures that a child node exists at the specified index, creating it if necessary.
+    /// The child node at `idx`, allocating its block if needed.
     ///
-    /// # Parameters
-    ///
-    /// * `idx`: The index at which to ensure a child node exists
-    /// * `to_insert`: The node to insert if no child exists at the specified index
-    ///
-    /// # Returns
-    ///
-    /// A reference to the child node at the specified index
+    /// A child nothing was put in yet is an empty node, which serves as either an inner node or a
+    /// leaf, whichever the trie needs at the child's level.
     ///
     /// # Safety
     ///
     /// Can only be called on an inner node.
-    pub(super) unsafe fn ensure_child(&self, idx: i32, to_insert: Self) -> &Self {
-        // Safety: this is an inner node by assumption
-        if let Some(child) = unsafe { self.get_child(idx) } {
-            child
-        } else {
-            let _ = unsafe { self.inner.try_insert(idx, to_insert) };
-            // Safety: either we inserted the node or another thread did. In either case, we can now
-            // unwrap the child node.
-            unsafe { self.get_child(idx).unwrap() }
-        }
+    pub(super) unsafe fn ensure_child(&self, idx: i32) -> &Self {
+        // SAFETY: this is an inner node by assumption.
+        unsafe { self.inner.entry(idx) }
     }
 
     /// Retrieves a reference to the child node at the specified index, if it exists.
@@ -98,14 +90,15 @@ impl<V> Node<V> {
     ///
     /// # Returns
     ///
-    /// * `Some(&Self)` if a child node exists at the specified index
-    /// * `None` if no child node exists at the specified index
+    /// * `Some(&Self)` if the block holding the child is allocated, even if the child is empty
+    /// * `None` otherwise
     ///
     /// # Safety
     ///
     /// Can only be called on an inner node.
     pub(super) unsafe fn get_child(&self, idx: i32) -> Option<&Self> {
-        unsafe { self.inner.get(idx) }
+        // SAFETY: this is an inner node by assumption.
+        unsafe { self.inner.get_entry(idx) }
     }
 
     /// Retrieves a mutable reference to the child node at the specified index, if it exists.
@@ -116,14 +109,15 @@ impl<V> Node<V> {
     ///
     /// # Returns
     ///
-    /// * `Some(&mut Self)` if a child node exists at the specified index
-    /// * `None` if no child node exists at the specified index
+    /// * `Some(&mut Self)` if the block holding the child is allocated, even if the child is empty
+    /// * `None` otherwise
     ///
     /// # Safety
     ///
     /// Can only be called on an inner node.
     pub(super) unsafe fn get_child_mut(&mut self, idx: i32) -> Option<&mut Self> {
-        unsafe { self.inner.get_mut(idx) }
+        // SAFETY: this is an inner node by assumption.
+        unsafe { self.inner.get_entry_mut(idx) }
     }
 
     /// Retrieves a reference to the value at the specified index, if it exists.
@@ -201,8 +195,22 @@ impl<V> Node<V> {
     /// # Safety
     ///
     /// Can only be called on an inner node.
-    pub(super) unsafe fn inner(&self) -> &TwoEndedGrove<Self> {
+    pub(super) unsafe fn inner(&self) -> &ZeroedTwoEndedGrove<Self> {
         unsafe { &self.inner }
+    }
+
+    /// The range of indices this node holds children or values at.
+    ///
+    /// # Safety
+    ///
+    /// `is_leaf` must say whether this is a leaf node.
+    pub(super) unsafe fn range(&self, is_leaf: bool) -> std::ops::Range<i32> {
+        // SAFETY: `is_leaf` names the variant this node is, by assumption.
+        if is_leaf {
+            unsafe { self.leaf.range() }
+        } else {
+            unsafe { self.inner.range() }
+        }
     }
 
     /// Returns a reference to the leaf grove.
@@ -233,12 +241,40 @@ impl<V> Node<V> {
             unsafe { ManuallyDrop::drop(&mut self.leaf) };
         } else {
             // This is an inner node
+            let child_is_leaf = level + 1 == dimensions - 1;
+            // SAFETY: a node above the last level is an inner node, and its children are leaves
+            // exactly when they sit at the last level. The inner grove is dropped once, after its
+            // children.
             unsafe {
-                for node in self.inner.values_mut() {
-                    node.drop_level(dimensions, level + 1);
+                for (_, child) in self.inner.entries_mut() {
+                    // A child with an empty range was never touched, so it owns no memory.
+                    if !child.range(child_is_leaf).is_empty() {
+                        child.drop_level(dimensions, level + 1);
+                    }
                 }
                 ManuallyDrop::drop(&mut self.inner);
             }
         }
+    }
+}
+
+// SAFETY: the bounds require zero bytes to be valid for both variants, so an all-zero node is an
+// empty inner node and an empty leaf at once (`TwoEndedGrove` is a transparent
+// `ZeroedTwoEndedGrove`).
+#[cfg(not(loom))]
+unsafe impl<V> Zeroable for Node<V>
+where
+    ZeroedTwoEndedGrove<Self>: Zeroable,
+    ZeroedTwoEndedGrove<crate::write_once::WriteOnce<V>>: Zeroable,
+{
+}
+
+// SAFETY: `zeroed` builds the inner variant, which reads as an empty leaf too: `Block`,
+// `ZeroedGrove` and `ZeroedTwoEndedGrove` are `repr(C)`, `TwoEndedGrove` is a transparent
+// `ZeroedTwoEndedGrove`, and no field's layout depends on the element type.
+#[cfg(loom)]
+unsafe impl<V> Zeroable for Node<V> {
+    fn zeroed() -> Self {
+        Self::new_inner()
     }
 }

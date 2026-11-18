@@ -592,6 +592,113 @@ mod tests {
         assert_eq!(ACTIVE_ALLOCS.load(Ordering::Relaxed), 0);
     }
 
+    /// Threads that reach the same inner nodes at once all find the same node.
+    #[test]
+    fn test_concurrent_shared_prefix() {
+        use std::thread;
+
+        let num_threads = crate::test_utils::num_threads() as i32;
+        let arr = MultiIndexed::<3, i32>::new();
+        thread::scope(|s| {
+            for thread_id in 0..num_threads {
+                let arr = &arr;
+                s.spawn(move || {
+                    for i in 0..64 {
+                        arr.insert([i, -i, thread_id], thread_id);
+                    }
+                });
+            }
+        });
+        for i in 0..64 {
+            for thread_id in 0..num_threads {
+                assert_eq!(arr.get([i, -i, thread_id]), Some(&thread_id));
+            }
+        }
+    }
+
+    /// Threads racing `try_insert` on the same coordinates each get exactly one winner, and every
+    /// loser gets its own value back.
+    #[test]
+    fn test_concurrent_try_insert_same_coords() {
+        use std::{
+            sync::atomic::{AtomicUsize, Ordering},
+            thread,
+        };
+
+        let num_threads = crate::test_utils::num_threads();
+        let arr = MultiIndexed::<2, usize>::new();
+        let wins: Vec<AtomicUsize> = (0..256).map(|_| AtomicUsize::new(0)).collect();
+        let owners: Vec<AtomicUsize> = (0..256).map(|_| AtomicUsize::new(usize::MAX)).collect();
+        thread::scope(|s| {
+            for thread_id in 0..num_threads {
+                let (arr, wins, owners) = (&arr, &wins, &owners);
+                s.spawn(move || {
+                    for i in 0..256 {
+                        match arr.try_insert([i, -i], thread_id) {
+                            Ok(()) => {
+                                wins[i as usize].fetch_add(1, Ordering::Relaxed);
+                                owners[i as usize].store(thread_id, Ordering::Relaxed);
+                            }
+                            Err(lost) => assert_eq!(lost, thread_id),
+                        }
+                    }
+                });
+            }
+        });
+        for i in 0..256 {
+            assert_eq!(wins[i as usize].load(Ordering::Relaxed), 1);
+            assert_eq!(
+                arr.get([i, -i]),
+                Some(&owners[i as usize].load(Ordering::Relaxed))
+            );
+        }
+    }
+
+    /// Keys far apart leave untouched children in allocated blocks, which lookup, iteration and
+    /// drop all see as empty.
+    #[test]
+    fn test_sparse_inner_levels() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static ACTIVE_ALLOCS: AtomicUsize = AtomicUsize::new(0);
+
+        struct DropCounter(i32);
+
+        impl DropCounter {
+            fn new(i: i32) -> Self {
+                ACTIVE_ALLOCS.fetch_add(1, Ordering::Relaxed);
+                Self(i)
+            }
+        }
+
+        impl Drop for DropCounter {
+            fn drop(&mut self) {
+                ACTIVE_ALLOCS.fetch_sub(1, Ordering::Relaxed);
+            }
+        }
+
+        // Miri tracks every byte of the zeroed blocks, so it gets fewer, closer keys.
+        let n = if cfg!(miri) { 5 } else { 20 };
+        let keys: Vec<[i32; 3]> = (0..n).map(|i| [i * 97, -i * 31, i]).collect();
+        let arr = MultiIndexed::<3, DropCounter>::new();
+        for (i, &key) in keys.iter().enumerate() {
+            arr.insert(key, DropCounter::new(i as i32));
+        }
+        assert_eq!(ACTIVE_ALLOCS.load(Ordering::Relaxed), keys.len());
+
+        // Neighbours of the keys share their blocks, so their nodes exist but are empty.
+        assert!(arr.get([96, -31, 1]).is_none());
+        assert!(arr.get([97, -30, 1]).is_none());
+        assert!(arr.get([97, -31, 0]).is_none());
+
+        let found: Vec<([i32; 3], i32)> = arr.iter().map(|(k, v)| (k, v.0)).collect();
+        let expected: Vec<([i32; 3], i32)> = keys.iter().copied().zip(0..).collect();
+        assert_eq!(found, expected);
+
+        drop(arr);
+        assert_eq!(ACTIVE_ALLOCS.load(Ordering::Relaxed), 0);
+    }
+
     #[test]
     fn test_debug() {
         let arr = MultiIndexed::<2, i32>::new();
@@ -913,6 +1020,25 @@ mod tests {
                 assert_eq!(arr.get([2, 0]), Some(&50));
                 assert_eq!(arr.get([0, 2]), Some(&60));
                 assert_eq!(arr.get([2, 2]), None);
+            });
+        }
+
+        /// Two threads race to create the inner node `[0]`; each must find it.
+        #[test]
+        fn loom_concurrent_shared_prefix() {
+            loom::model(|| {
+                let arr = Arc::new(MultiIndexed::<2, i32>::new());
+
+                let arr1 = Arc::clone(&arr);
+                let t1 = thread::spawn(move || arr1.insert([0, 0], 10));
+                let arr2 = Arc::clone(&arr);
+                let t2 = thread::spawn(move || arr2.insert([0, 1], 20));
+
+                t1.join().unwrap();
+                t2.join().unwrap();
+
+                assert_eq!(arr.get([0, 0]), Some(&10));
+                assert_eq!(arr.get([0, 1]), Some(&20));
             });
         }
 

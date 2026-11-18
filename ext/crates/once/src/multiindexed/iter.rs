@@ -75,7 +75,12 @@ impl<R: NodeRef, C: Coordinates> Iterator for KdIterator<R, C> {
                         return Some((self.coordinates.get(), value));
                     }
                 } else if let Some(child_node) = unsafe { current_node.child(idx) } {
-                    // This is an inner node, check if there's a child at this index
+                    // This is an inner node, check if there's a child at this index. A child with
+                    // an empty range was never touched, so there is nothing below it.
+                    let child_range = unsafe { child_node.range(depth + 1 == self.dimensions - 1) };
+                    if child_range.is_empty() {
+                        continue;
+                    }
 
                     // Push back the remaining range for this node
                     if !range.is_empty() {
@@ -88,7 +93,6 @@ impl<R: NodeRef, C: Coordinates> Iterator for KdIterator<R, C> {
 
                     // Add the current index to coordinates and push the child
                     self.coordinates.set_coord(depth, idx);
-                    let child_range = unsafe { child_node.range(depth + 1 == self.dimensions - 1) };
                     self.stack.push(IterFrame {
                         depth: depth + 1,
                         current_node: child_node,
@@ -130,7 +134,7 @@ unsafe trait NodeRef: Copy {
     /// `is_leaf` must correctly indicate whether this is a leaf node.
     unsafe fn range(self, is_leaf: bool) -> Range<i32>;
 
-    /// Returns a handle to the child node at `idx`, or `None` if no child exists.
+    /// Returns a handle to the child node at `idx`, or `None` if its block was never allocated.
     ///
     /// # Safety
     ///
@@ -158,7 +162,7 @@ unsafe impl<'a, V> NodeRef for &'a Node<V> {
     }
 
     unsafe fn child(self, idx: i32) -> Option<Self> {
-        unsafe { self.inner().get(idx) }
+        unsafe { self.get_child(idx) }
     }
 
     unsafe fn value(self, idx: i32) -> Option<Self::Value> {
