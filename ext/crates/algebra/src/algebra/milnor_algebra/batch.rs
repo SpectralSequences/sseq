@@ -5,7 +5,7 @@
 //! such product `Sq(R) · s`, where `s` is a sum of basis elements, together with where its result
 //! goes; [`multiply_batch`] evaluates a list of them into row-major `u32` limbs.
 //!
-//! With the `gpu` feature, large batches run on an NVIDIA GPU (see [`super::cuda`]), and
+//! With the `gpu` feature, large batches run on an NVIDIA GPU (the `cuda` module), and
 //! [`cpu_multiply_batch`] is the reference the device is checked against bit for bit.
 //!
 //! Only the classical algebra at `p = 2` with trivial profile is supported: the terms are ranked

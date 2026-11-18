@@ -102,8 +102,8 @@ pub(super) fn partial_matrix(
 /// clearing the bits past `len`, which the vector requires to be zero.
 fn read_row(buf: &mut [u8], limbs: &[u32], len: usize) {
     buf.fill(0);
-    for (bytes, limb) in buf.chunks_exact_mut(4).zip(limbs) {
-        bytes.copy_from_slice(&limb.to_le_bytes());
+    for (bytes, limb) in buf.as_chunks_mut::<4>().0.iter_mut().zip(limbs) {
+        *bytes = limb.to_le_bytes();
     }
     let tail = len % 64;
     if tail != 0 {
