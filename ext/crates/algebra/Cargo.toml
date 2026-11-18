@@ -28,6 +28,13 @@ rustc-hash = "2.1.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 enum_dispatch = "0.3.13"
+cudarc = { version = "0.19", optional = true, default-features = false, features = [
+    "std",
+    "driver",
+    "nvrtc",
+    "cuda-12080",
+    "dynamic-loading",
+] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -40,6 +47,8 @@ default = ["odd-primes"]
 cache-multiplication = []
 concurrent = ["fp/concurrent", "maybe-rayon/concurrent"]
 odd-primes = ["fp/odd-primes"]
+# Run large batches of Milnor products at p = 2 on an NVIDIA GPU (see `milnor_algebra::batch`).
+gpu = ["dep:cudarc"]
 
 [[bench]]
 name = "milnor"

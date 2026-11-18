@@ -18,6 +18,30 @@ pub struct SeqnoTables {
 }
 
 impl SeqnoTables {
+    /// The tables rank elements of degree at most this.
+    #[cfg(feature = "gpu")]
+    pub(super) fn max_degree(&self) -> i32 {
+        self.max_degree
+    }
+
+    /// The row width of [`Self::g`]: the number of $\xi_i$.
+    #[cfg(feature = "gpu")]
+    pub(super) fn width(&self) -> usize {
+        self.width
+    }
+
+    /// The table, row-major: entry `(e, h)` at `g[e * width + h]`.
+    #[cfg(feature = "gpu")]
+    pub(super) fn g(&self) -> &[usize] {
+        &self.g
+    }
+
+    /// The degrees of the $\xi_i$.
+    #[cfg(feature = "gpu")]
+    pub(super) fn xi(&self) -> &[i32] {
+        self.xi
+    }
+
     /// The index of `P(p_part)` in the Milnor basis of `degree`.
     ///
     /// `p_part` must be a basis element of `degree`, and `degree` at most the degree the tables
