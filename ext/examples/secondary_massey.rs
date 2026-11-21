@@ -21,6 +21,7 @@ use std::sync::Arc;
 use algebra::{module::Module, pair_algebra::PairAlgebra};
 use ext::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    ext_algebra::{ExtModule, SecondaryElement, SecondaryExtModule},
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::*,
     utils::{QueryModuleResolution, query_module},
@@ -30,7 +31,7 @@ use fp::{
     vector::FpVector,
 };
 use itertools::Itertools;
-use sseq::coordinates::{Bidegree, BidegreeElement};
+use sseq::coordinates::Bidegree;
 
 struct HomData {
     name: String,
@@ -134,17 +135,15 @@ fn main() -> anyhow::Result<()> {
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
-    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
+    let module = Arc::new(ExtModule::from_resolution(Arc::clone(&resolution))?);
+    let sec = SecondaryExtModule::from_module(Arc::clone(&module));
+    let is_unit = sec.is_unit();
+    let unit = Arc::clone(module.algebra().resolution());
 
     let p = resolution.prime();
 
-    let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(&resolution)));
-    let unit_lift = if is_unit {
-        Arc::clone(&res_lift)
-    } else {
-        let lift = SecondaryResolution::new(Arc::clone(&unit));
-        Arc::new(lift)
-    };
+    let res_lift = Arc::clone(sec.lift());
+    let unit_lift = Arc::clone(sec.algebra().lift());
 
     let HomData {
         name: a_name,
@@ -173,11 +172,7 @@ fn main() -> anyhow::Result<()> {
         unit.compute_through_stem(res_max - a.underlying().shift);
     }
 
-    if is_unit {
-        res_lift.extend_all();
-    } else {
-        maybe_rayon::join(|| res_lift.extend_all(), || unit_lift.extend_all());
-    }
+    sec.extend_all();
 
     // Now extend homomorphisms
     maybe_rayon::scope(|s| {
@@ -201,7 +196,7 @@ fn main() -> anyhow::Result<()> {
     let unit_sseq = if is_unit {
         Arc::clone(&res_sseq)
     } else {
-        Arc::new(res_lift.e3_page())
+        Arc::new(unit_lift.e3_page())
     };
 
     let b_shift = b.underlying().shift;
@@ -387,44 +382,8 @@ fn main() -> anyhow::Result<()> {
         let mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
 
         for g in e3_kernel.iter() {
-            // Print name
-            {
-                print!("<{a_name}, {b_name}, ");
-                let has_ext = {
-                    let ext_part = g.restrict(0, target_num_gens);
-                    if ext_part.iter_nonzero().count() > 0 {
-                        print!(
-                            "[{basis_string}]",
-                            basis_string =
-                                BidegreeElement::new(c, ext_part.to_owned()).to_basis_string()
-                        );
-                        true
-                    } else {
-                        false
-                    }
-                };
-
-                let lambda_part = g.restrict(target_num_gens, target_all_gens);
-                let num_entries = lambda_part.iter_nonzero().count();
-                if num_entries > 0 {
-                    if has_ext {
-                        print!(" + ");
-                    }
-                    print!("λ");
-
-                    let basis_string = BidegreeElement::new(
-                        c + LAMBDA_BIDEGREE,
-                        g.restrict(target_num_gens, target_all_gens).to_owned(),
-                    )
-                    .to_basis_string();
-                    if num_entries == 1 {
-                        print!("{basis_string}",);
-                    } else {
-                        print!("({basis_string})",);
-                    }
-                }
-                print!("> = ±");
-            }
+            let name = SecondaryElement::from_concatenated(c, g, target_num_gens);
+            print!("<{a_name}, {b_name}, {name}> = ±");
 
             scratch0.clear();
             scratch0.resize(source_num_gens, 0);
