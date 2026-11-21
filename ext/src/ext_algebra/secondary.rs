@@ -1,15 +1,18 @@
 //! The secondary ($d_2$) layer over [`ExtAlgebra`] and [`ExtModule`].
 
-use std::sync::Arc;
+use std::{
+    fmt::{self, Display, Formatter},
+    sync::Arc,
+};
 
 use algebra::pair_algebra::PairAlgebra;
 use dashmap::DashMap;
 use fp::{
     matrix::{Matrix, Subquotient},
-    prime::Prime,
-    vector::FpVector,
+    prime::{Prime, ValidPrime},
+    vector::{FpSlice, FpVector},
 };
-use sseq::coordinates::{Bidegree, BidegreeElement};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 use super::{ExtAlgebra, ExtDifferential, ExtModule};
 use crate::{
@@ -90,16 +93,256 @@ where
     }))
 }
 
+/// The λ-adic weight of a homogeneous secondary class: [`Ext`](Weight::Ext) is the weight-0
+/// (bottom) part, [`Lambda`](Weight::Lambda) the weight-1 (λ) part. In $\Mod_{C\lambda^2}$ only
+/// these two weights occur, since $\lambda^2 = 0$.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Weight {
+    Ext,
+    Lambda,
+}
+
+impl Weight {
+    /// The weight as an integer, the power of $\lambda$.
+    pub fn as_i32(self) -> i32 {
+        match self {
+            Self::Ext => 0,
+            Self::Lambda => 1,
+        }
+    }
+}
+
+impl Display for Weight {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_i32())
+    }
+}
+
+/// A degree of the secondary ($\Mod_{C\lambda^2}$) homotopy: a base bidegree `b`, whose weight-0
+/// (Ext) part lives at `b` and weight-1 (λ) part at `b + LAMBDA_BIDEGREE`.
+///
+/// The secondary analog of [`Bidegree`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SecondaryDegree {
+    base: Bidegree,
+}
+
+impl SecondaryDegree {
+    /// The secondary degree with base bidegree `base`.
+    pub fn new(base: Bidegree) -> Self {
+        Self { base }
+    }
+
+    /// The base bidegree, where the weight-0 part lives.
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The bidegree of the weight-1 part, `base + LAMBDA_BIDEGREE`.
+    pub fn lambda_bidegree(&self) -> Bidegree {
+        self.base + LAMBDA_BIDEGREE
+    }
+
+    /// The bidegree the part of the given `weight` lives in.
+    pub fn bidegree(&self, weight: Weight) -> Bidegree {
+        match weight {
+            Weight::Ext => self.base,
+            Weight::Lambda => self.lambda_bidegree(),
+        }
+    }
+}
+
+impl From<Bidegree> for SecondaryDegree {
+    fn from(base: Bidegree) -> Self {
+        Self::new(base)
+    }
+}
+
+impl Display for SecondaryDegree {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.base, f)
+    }
+}
+
+/// A basis generator of a secondary ($\Mod_{C\lambda^2}$) homotopy group: a base bidegree, a
+/// [`Weight`], and an index into the generators of the bidegree that weight lives in.
+///
+/// The secondary analog of [`BidegreeGenerator`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SecondaryGenerator {
+    base: Bidegree,
+    weight: Weight,
+    idx: usize,
+}
+
+impl SecondaryGenerator {
+    /// The `idx`-th generator of the weight-`weight` part at base bidegree `base`.
+    pub fn new(base: Bidegree, weight: Weight, idx: usize) -> Self {
+        Self { base, weight, idx }
+    }
+
+    /// The base bidegree, where the weight-0 part lives.
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The secondary degree this generator belongs to.
+    pub fn degree(&self) -> SecondaryDegree {
+        SecondaryDegree::new(self.base)
+    }
+
+    /// The weight of the part this generator lies in.
+    pub fn weight(&self) -> Weight {
+        self.weight
+    }
+
+    /// The index among the generators of the bidegree this generator lives in.
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+
+    /// The bidegree this generator lives in.
+    pub fn bidegree(&self) -> Bidegree {
+        self.degree().bidegree(self.weight)
+    }
+
+    /// This generator as a [`SecondaryElement`] whose parts have dimensions `ext_ambient` and
+    /// `lambda_ambient`. Mirrors `MultiDegreeGenerator::into_element`.
+    pub fn into_element(
+        self,
+        p: ValidPrime,
+        ext_ambient: usize,
+        lambda_ambient: usize,
+    ) -> SecondaryElement {
+        let mut ext = FpVector::new(p, ext_ambient);
+        let mut lambda = FpVector::new(p, lambda_ambient);
+        match self.weight {
+            Weight::Ext => ext.set_entry(self.idx, 1),
+            Weight::Lambda => lambda.set_entry(self.idx, 1),
+        }
+        SecondaryElement::new(self.base, ext, lambda)
+    }
+}
+
+impl Display for SecondaryGenerator {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let g = BidegreeGenerator::new(self.bidegree(), self.idx);
+        match self.weight {
+            Weight::Ext => write!(f, "x_{g}"),
+            Weight::Lambda => write!(f, "λx_{g}"),
+        }
+    }
+}
+
+/// A class in a secondary ($\Mod_{C\lambda^2}$) homotopy group at base bidegree `b`: an Ext
+/// (weight 0) part in bidegree `b` and a $\lambda$ (weight 1) part in bidegree
+/// `b + LAMBDA_BIDEGREE`. A class need not be weight-homogeneous, so both parts are stored.
+///
+/// The secondary analog of [`BidegreeElement`]. It holds coordinates only; the reduction of the
+/// $\lambda$ part by the image of $d_2$ is done by whatever produces it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SecondaryElement {
+    base: Bidegree,
+    ext: FpVector,
+    lambda: FpVector,
+}
+
+impl SecondaryElement {
+    /// The class with Ext part `ext` (in bidegree `base`) and $\lambda$ part `lambda` (in bidegree
+    /// `base + LAMBDA_BIDEGREE`).
+    pub fn new(base: Bidegree, ext: FpVector, lambda: FpVector) -> Self {
+        Self { base, ext, lambda }
+    }
+
+    /// Split a vector laid out as `[ext | lambda]`, the output layout of
+    /// [`SecondaryResolutionHomomorphism::hom_k`], where `ext_dim` is the length of the Ext part.
+    pub fn from_concatenated(base: Bidegree, concatenated: FpSlice, ext_dim: usize) -> Self {
+        let total = concatenated.len();
+        Self {
+            base,
+            ext: concatenated.restrict(0, ext_dim).to_owned(),
+            lambda: concatenated.restrict(ext_dim, total).to_owned(),
+        }
+    }
+
+    /// The base bidegree, where the Ext part lives.
+    pub fn base(&self) -> Bidegree {
+        self.base
+    }
+
+    /// The secondary degree of this class.
+    pub fn degree(&self) -> SecondaryDegree {
+        SecondaryDegree::new(self.base)
+    }
+
+    /// The Ext (weight 0) part, in bidegree [`base`](Self::base).
+    pub fn ext(&self) -> FpSlice<'_> {
+        self.ext.as_slice()
+    }
+
+    /// The $\lambda$ (weight 1) part, in bidegree `base + LAMBDA_BIDEGREE`.
+    pub fn lambda(&self) -> FpSlice<'_> {
+        self.lambda.as_slice()
+    }
+
+    /// The Ext part as a [`BidegreeElement`].
+    pub fn ext_element(&self) -> BidegreeElement {
+        BidegreeElement::new(self.base, self.ext.clone())
+    }
+
+    /// The $\lambda$ part as a [`BidegreeElement`].
+    pub fn lambda_element(&self) -> BidegreeElement {
+        BidegreeElement::new(self.base + LAMBDA_BIDEGREE, self.lambda.clone())
+    }
+
+    /// Whether both parts vanish.
+    pub fn is_zero(&self) -> bool {
+        self.ext.is_zero() && self.lambda.is_zero()
+    }
+
+    /// The class as a linear combination of generators: the Ext part in brackets, then the
+    /// $\lambda$ part prefixed by `λ` and parenthesized when it has several terms; `0` for the zero
+    /// class.
+    pub fn to_basis_string(&self) -> String {
+        let has_ext = !self.ext.is_zero();
+        let lambda_entries = self.lambda.iter_nonzero().count();
+
+        let mut out = String::new();
+        if has_ext {
+            out.push_str(&format!("[{}]", self.ext_element().to_basis_string()));
+        }
+        if lambda_entries > 0 {
+            if has_ext {
+                out.push_str(" + ");
+            }
+            let s = self.lambda_element().to_basis_string();
+            if lambda_entries == 1 {
+                out.push_str(&format!("λ{s}"));
+            } else {
+                out.push_str(&format!("λ({s})"));
+            }
+        }
+        if out.is_empty() {
+            out.push('0');
+        }
+        out
+    }
+}
+
+impl Display for SecondaryElement {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(&self.to_basis_string())
+    }
+}
+
 /// A single secondary product `x · y` in $\Mod_{C\lambda^2}$, where `y` is an $E_3$-surviving
 /// class. See [`SecondaryExtModule::secondary_multiply_into`].
 pub struct SecondaryProduct {
     /// The multiplicand: an $E_3$-surviving generator of the unit at the queried bidegree `b`.
     pub source: BidegreeElement,
-    /// The $\Ext$ part of the product, in bidegree `b + x.degree()`.
-    pub ext_part: FpVector,
-    /// The $\lambda$ part of the product, in bidegree `b + x.degree() + LAMBDA_BIDEGREE`, already
-    /// reduced by the image of $d_2$.
-    pub lambda_part: FpVector,
+    /// The product, with base bidegree `b + x.degree()`; its $\lambda$ part is already reduced by
+    /// the image of $d_2$.
+    pub value: SecondaryElement,
 }
 
 /// The secondary layer over the ring $\Ext(k, k)$: the secondary resolution of `k` and its $E_3$
@@ -151,6 +394,33 @@ where
     /// Mirrors [`SecondaryLift::compute_partial`].
     pub fn compute_partial(&self, s: i32) {
         self.lift.compute_partial(s);
+    }
+
+    /// The number of generators in the weight-`weight` part of the secondary homotopy of `k` at
+    /// `deg`.
+    pub fn weight_dimension(&self, deg: SecondaryDegree, weight: Weight) -> usize {
+        indexing::weight_dimension(self.algebra.resolution(), deg, weight)
+    }
+
+    /// The number of generators of the secondary homotopy of `k` at `deg`, over both weights.
+    pub fn dimension(&self, deg: SecondaryDegree) -> usize {
+        self.weight_dimension(deg, Weight::Ext) + self.weight_dimension(deg, Weight::Lambda)
+    }
+
+    /// The generators of the secondary homotopy of `k` at `deg`, weight 0 before weight 1.
+    pub fn basis(&self, deg: SecondaryDegree) -> Vec<SecondaryGenerator> {
+        indexing::basis(self.algebra.resolution(), deg)
+    }
+
+    /// The class of the secondary homotopy of `k` at `deg` with weight-0 coordinates `ext` and
+    /// weight-1 coordinates `lambda`.
+    pub fn element(&self, deg: SecondaryDegree, ext: &[u32], lambda: &[u32]) -> SecondaryElement {
+        indexing::element(self.algebra.resolution(), deg, ext, lambda)
+    }
+
+    /// A generator of the secondary homotopy of `k` as a class.
+    pub fn generator(&self, g: SecondaryGenerator) -> SecondaryElement {
+        indexing::generator(self.algebra.resolution(), g)
     }
 
     /// The $E_3$-page subquotient of $\Ext(k, k)$ at bidegree `b`.
@@ -294,6 +564,33 @@ where
         self.d2(x).map(|d| d.vec().is_zero())
     }
 
+    /// The number of generators in the weight-`weight` part of the secondary homotopy of `M` at
+    /// `deg`.
+    pub fn weight_dimension(&self, deg: SecondaryDegree, weight: Weight) -> usize {
+        indexing::weight_dimension(self.module.resolution(), deg, weight)
+    }
+
+    /// The number of generators of the secondary homotopy of `M` at `deg`, over both weights.
+    pub fn dimension(&self, deg: SecondaryDegree) -> usize {
+        self.weight_dimension(deg, Weight::Ext) + self.weight_dimension(deg, Weight::Lambda)
+    }
+
+    /// The generators of the secondary homotopy of `M` at `deg`, weight 0 before weight 1.
+    pub fn basis(&self, deg: SecondaryDegree) -> Vec<SecondaryGenerator> {
+        indexing::basis(self.module.resolution(), deg)
+    }
+
+    /// The class of the secondary homotopy of `M` at `deg` with weight-0 coordinates `ext` and
+    /// weight-1 coordinates `lambda`.
+    pub fn element(&self, deg: SecondaryDegree, ext: &[u32], lambda: &[u32]) -> SecondaryElement {
+        indexing::element(self.module.resolution(), deg, ext, lambda)
+    }
+
+    /// A generator of the secondary homotopy of `M` as a class.
+    pub fn generator(&self, g: SecondaryGenerator) -> SecondaryElement {
+        indexing::generator(self.module.resolution(), g)
+    }
+
     /// The $E_3$-page subquotient of $\Ext(M, k)$ at bidegree `b`.
     pub fn page_data(&self, b: Bidegree) -> Subquotient {
         self.e3
@@ -388,10 +685,72 @@ where
             .zip(outputs)
             .map(|(g, out)| SecondaryProduct {
                 source: BidegreeElement::new(b, g.to_owned()),
-                ext_part: out.slice(0, ext_dim).to_owned(),
-                lambda_part: out.slice(ext_dim, ext_dim + lambda_dim).to_owned(),
+                value: SecondaryElement::from_concatenated(b + shift, out.as_slice(), ext_dim),
             })
             .collect()
+    }
+}
+
+/// The indexing [`SecondaryExtAlgebra`] and [`SecondaryExtModule`] share, read off the ambient
+/// generators of one resolution. An uncomputed bidegree panics, as in [`ExtModule::dimension`].
+mod indexing {
+    use super::*;
+
+    /// The number of generators in the weight-`weight` part at `deg`.
+    pub(super) fn weight_dimension<CC: FreeChainComplex>(
+        resolution: &Arc<CC>,
+        deg: SecondaryDegree,
+        weight: Weight,
+    ) -> usize {
+        resolution.number_of_gens_in_bidegree(deg.bidegree(weight))
+    }
+
+    /// The generators at `deg`, weight 0 before weight 1.
+    pub(super) fn basis<CC: FreeChainComplex>(
+        resolution: &Arc<CC>,
+        deg: SecondaryDegree,
+    ) -> Vec<SecondaryGenerator> {
+        [Weight::Ext, Weight::Lambda]
+            .into_iter()
+            .flat_map(|w| {
+                (0..weight_dimension(resolution, deg, w))
+                    .map(move |i| SecondaryGenerator::new(deg.base(), w, i))
+            })
+            .collect()
+    }
+
+    /// The class at `deg` with weight-0 coordinates `ext` and weight-1 coordinates `lambda`.
+    pub(super) fn element<CC: FreeChainComplex>(
+        resolution: &Arc<CC>,
+        deg: SecondaryDegree,
+        ext: &[u32],
+        lambda: &[u32],
+    ) -> SecondaryElement {
+        assert_eq!(weight_dimension(resolution, deg, Weight::Ext), ext.len());
+        assert_eq!(
+            weight_dimension(resolution, deg, Weight::Lambda),
+            lambda.len()
+        );
+        let p = resolution.prime();
+        SecondaryElement::new(
+            deg.base(),
+            FpVector::from_slice(p, ext),
+            FpVector::from_slice(p, lambda),
+        )
+    }
+
+    /// The generator `g` as a class.
+    pub(super) fn generator<CC: FreeChainComplex>(
+        resolution: &Arc<CC>,
+        g: SecondaryGenerator,
+    ) -> SecondaryElement {
+        let deg = g.degree();
+        assert!(weight_dimension(resolution, deg, g.weight()) > g.idx());
+        g.into_element(
+            resolution.prime(),
+            weight_dimension(resolution, deg, Weight::Ext),
+            weight_dimension(resolution, deg, Weight::Lambda),
+        )
     }
 }
 
@@ -573,10 +932,63 @@ mod tests {
         for prod in &products {
             let primary = e2.multiply(&h0, &prod.source);
             assert_eq!(
-                prod.ext_part,
-                primary.vec().to_owned(),
+                prod.value.ext_element(),
+                primary,
                 "secondary product Ext part must equal the primary product"
             );
         }
+    }
+    /// Check the secondary indexing of `$layer` at `$deg` against the generators of `$res`.
+    macro_rules! assert_indexing {
+        ($layer:expr, $res:expr, $deg:expr) => {{
+            let (layer, res, deg) = (&$layer, &$res, $deg);
+            let ext_dim = res.number_of_gens_in_bidegree(deg.base());
+            let lambda_dim = res.number_of_gens_in_bidegree(deg.lambda_bidegree());
+            assert_eq!(layer.weight_dimension(deg, Weight::Ext), ext_dim);
+            assert_eq!(layer.weight_dimension(deg, Weight::Lambda), lambda_dim);
+            assert_eq!(layer.dimension(deg), ext_dim + lambda_dim);
+
+            let basis = layer.basis(deg);
+            assert_eq!(basis.len(), ext_dim + lambda_dim);
+            for (i, g) in basis.into_iter().enumerate() {
+                let (weight, idx) = if i < ext_dim {
+                    (Weight::Ext, i)
+                } else {
+                    (Weight::Lambda, i - ext_dim)
+                };
+                assert_eq!((g.base(), g.weight(), g.idx()), (deg.base(), weight, idx));
+
+                let mut ext = vec![0; ext_dim];
+                let mut lambda = vec![0; lambda_dim];
+                match weight {
+                    Weight::Ext => ext[idx] = 1,
+                    Weight::Lambda => lambda[idx] = 1,
+                }
+                assert_eq!(layer.generator(g), layer.element(deg, &ext, &lambda));
+            }
+        }};
+    }
+
+    #[test]
+    fn secondary_indexing_reads_the_ambient_generators() {
+        let max = Bidegree::n_s(8, 8);
+        let unit = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        let m = Arc::new(construct_standard::<false, _, _>("C2", None).unwrap());
+        unit.compute_through_stem(max);
+        m.compute_through_stem(max);
+        let module = ExtModule::new(Arc::clone(&m), Arc::new(ExtAlgebra::new(Arc::clone(&unit))));
+        let sec = SecondaryExtModule::from_module(Arc::new(module));
+
+        let mut ring_and_module_differ = false;
+        for (n, s) in [(0, 0), (0, 1), (1, 1), (3, 2)] {
+            let deg = SecondaryDegree::new(Bidegree::n_s(n, s));
+            assert_indexing!(sec, m, deg);
+            assert_indexing!(sec.algebra(), unit, deg);
+            ring_and_module_differ |= sec.dimension(deg) != sec.algebra().dimension(deg);
+        }
+        assert!(
+            ring_and_module_differ,
+            "C2 and S_2 should differ somewhere in range"
+        );
     }
 }
