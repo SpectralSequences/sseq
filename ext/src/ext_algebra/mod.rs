@@ -13,7 +13,7 @@ use fp::{
 };
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
-pub use self::secondary::{SecondaryExtAlgebra, SecondaryProduct};
+pub use self::secondary::{SecondaryExtAlgebra, SecondaryExtModule, SecondaryProduct};
 use crate::{
     chain_complex::{AugmentedChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,

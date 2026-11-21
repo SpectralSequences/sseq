@@ -1,4 +1,4 @@
-//! The secondary ($d_2$) layer of [`ExtModule`].
+//! The secondary ($d_2$) layer over [`ExtAlgebra`] and [`ExtModule`].
 
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ use fp::{
 };
 use sseq::coordinates::{Bidegree, BidegreeElement};
 
-use super::{ExtDifferential, ExtModule};
+use super::{ExtAlgebra, ExtDifferential, ExtModule};
 use crate::{
     chain_complex::FreeChainComplex,
     resolution_homomorphism::ResolutionHomomorphism,
@@ -77,8 +77,21 @@ where
     }
 }
 
+/// `resolution`'s Ext with the $d_2$ of `lift` attached, so that its cohomology is the $E_3$ page.
+fn with_d2<CC: FreeChainComplex + 'static>(
+    resolution: &Arc<CC>,
+    lift: &Arc<SecondaryResolution<CC>>,
+) -> ExtModule<CC>
+where
+    CC::Algebra: PairAlgebra,
+{
+    ExtModule::intrinsic(Arc::clone(resolution)).with_differential(Arc::new(SecondaryCoboundary {
+        res_lift: Arc::clone(lift),
+    }))
+}
+
 /// A single secondary product `x · y` in $\Mod_{C\lambda^2}$, where `y` is an $E_3$-surviving
-/// class. See [`SecondaryExtAlgebra::secondary_multiply_into`].
+/// class. See [`SecondaryExtModule::secondary_multiply_into`].
 pub struct SecondaryProduct {
     /// The multiplicand: an $E_3$-surviving generator of the unit at the queried bidegree `b`.
     pub source: BidegreeElement,
@@ -89,95 +102,163 @@ pub struct SecondaryProduct {
     pub lambda_part: FpVector,
 }
 
-/// The secondary layer over an [`ExtModule`]: the $d_2$ differential and the $\Mod_{C\lambda^2}$
-/// product.
+/// The secondary layer over the ring $\Ext(k, k)$: the secondary resolution of `k` and its $E_3$
+/// page.
 ///
-/// This wraps [`SecondaryResolution`] and [`SecondaryResolutionHomomorphism`] for `M` and the unit
-/// `k`. It is a separate type from [`ExtModule`] because it requires `CC::Algebra: PairAlgebra`, a
+/// It is a separate type from [`ExtAlgebra`] because it requires `CC::Algebra: PairAlgebra`, a
 /// bound the primary layer does not impose.
 pub struct SecondaryExtAlgebra<CC: FreeChainComplex>
 where
     CC::Algebra: PairAlgebra,
 {
-    module: Arc<ExtModule<CC>>,
-    res_lift: Arc<SecondaryResolution<CC>>,
-    /// `Arc`-shared with `res_lift` when `M == k`.
-    unit_lift: Arc<SecondaryResolution<CC>>,
-    /// The module with [`SecondaryCoboundary`] attached, so that its
-    /// [`cohomology_subquotient`](ExtModule::cohomology_subquotient) is the $E_3$ page.
-    alg_d2: ExtModule<CC>,
-    /// The unit Ext with $d_2$ attached: the $E_3$ page of $\Ext(k, k)$.
-    unit_d2: ExtModule<CC>,
-    /// Secondary lift of the multiplication map, cached per multiplier class `(degree, coords)`.
-    secondary_products: DashMap<BidegreeElement, Arc<SecondaryResolutionHomomorphism<CC, CC>>>,
+    algebra: Arc<ExtAlgebra<CC>>,
+    lift: Arc<SecondaryResolution<CC>>,
+    /// The ring with $d_2$ attached; its cohomology is the $E_3$ page.
+    e3: ExtModule<CC>,
 }
 
 impl<CC: FreeChainComplex + 'static> SecondaryExtAlgebra<CC>
 where
     CC::Algebra: PairAlgebra,
 {
-    /// Build the secondary layer over `module`.
+    /// Build the secondary layer over the ring `algebra`.
     ///
     /// Construction is cheap; call [`extend_all`](Self::extend_all) to compute the secondary
-    /// resolutions and $E_3$ pages.
-    pub fn new(module: Arc<ExtModule<CC>>) -> Self {
-        let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(module.resolution())));
-        let unit_lift = if module.is_unit() {
-            Arc::clone(&res_lift)
-        } else {
-            Arc::new(SecondaryResolution::new(Arc::clone(
-                module.algebra().resolution(),
-            )))
-        };
-        // The coboundary reads the secondary homotopies lazily, so this is cheap before `extend_all`.
-        let alg_d2 = ExtModule::intrinsic(Arc::clone(module.resolution())).with_differential(
-            Arc::new(SecondaryCoboundary {
-                res_lift: Arc::clone(&res_lift),
-            }),
+    /// resolution.
+    pub fn new(algebra: Arc<ExtAlgebra<CC>>) -> Self {
+        let lift = Arc::new(SecondaryResolution::new(Arc::clone(algebra.resolution())));
+        let e3 = with_d2(algebra.resolution(), &lift);
+        Self { algebra, lift, e3 }
+    }
+
+    /// The primary ring this is built on.
+    pub fn algebra(&self) -> &Arc<ExtAlgebra<CC>> {
+        &self.algebra
+    }
+
+    /// The secondary resolution of `k`.
+    pub fn lift(&self) -> &Arc<SecondaryResolution<CC>> {
+        &self.lift
+    }
+
+    /// Extend the secondary resolution of `k` as far as its resolution allows; the $E_3$ page is
+    /// then computed on demand.
+    pub fn extend_all(&self) {
+        self.lift.extend_all();
+    }
+
+    /// Sharding entry point: compute only the secondary resolution data for filtration `s`.
+    /// Mirrors [`SecondaryLift::compute_partial`].
+    pub fn compute_partial(&self, s: i32) {
+        self.lift.compute_partial(s);
+    }
+
+    /// The $E_3$-page subquotient of $\Ext(k, k)$ at bidegree `b`.
+    pub fn page_data(&self, b: Bidegree) -> Subquotient {
+        self.e3
+            .cohomology_subquotient(b)
+            .expect("call extend_all() first (and query a computed bidegree)")
+    }
+}
+
+/// The secondary layer over a module $\Ext(M, k)$: the secondary resolution of `M`, its $E_3$ page,
+/// the $d_2$ differential and the $\Mod_{C\lambda^2}$ product.
+pub struct SecondaryExtModule<CC: FreeChainComplex>
+where
+    CC::Algebra: PairAlgebra,
+{
+    module: Arc<ExtModule<CC>>,
+    algebra: Arc<SecondaryExtAlgebra<CC>>,
+    /// The same `Arc` as `algebra.lift()` when `M == k`.
+    lift: Arc<SecondaryResolution<CC>>,
+    /// The module with $d_2$ attached; its cohomology is the $E_3$ page.
+    e3: ExtModule<CC>,
+    /// Secondary lift of the multiplication map, cached per multiplier class `(degree, coords)`.
+    secondary_products: DashMap<BidegreeElement, Arc<SecondaryResolutionHomomorphism<CC, CC>>>,
+}
+
+impl<CC: FreeChainComplex + 'static> SecondaryExtModule<CC>
+where
+    CC::Algebra: PairAlgebra,
+{
+    /// Build the secondary layer over `module`, together with a secondary layer over its ring.
+    ///
+    /// Construction is cheap; call [`extend_all`](Self::extend_all) to compute the secondary
+    /// resolutions.
+    pub fn from_module(module: Arc<ExtModule<CC>>) -> Self {
+        let algebra = Arc::new(SecondaryExtAlgebra::new(Arc::clone(module.algebra())));
+        Self::new(module, algebra)
+    }
+
+    /// Build the secondary layer over `module`, sharing an existing secondary layer over its ring.
+    ///
+    /// Panics if `algebra` is not built on `module`'s ring.
+    pub fn new(module: Arc<ExtModule<CC>>, algebra: Arc<SecondaryExtAlgebra<CC>>) -> Self {
+        assert!(
+            Arc::ptr_eq(module.algebra(), algebra.algebra()),
+            "the secondary ring layer must be built on the module's ring"
         );
-        let unit_d2 = ExtModule::intrinsic(Arc::clone(module.algebra().resolution()))
-            .with_differential(Arc::new(SecondaryCoboundary {
-                res_lift: Arc::clone(&unit_lift),
-            }));
+        let lift = if module.is_unit() {
+            Arc::clone(algebra.lift())
+        } else {
+            Arc::new(SecondaryResolution::new(Arc::clone(module.resolution())))
+        };
+        let e3 = with_d2(module.resolution(), &lift);
         Self {
             module,
-            res_lift,
-            unit_lift,
-            alg_d2,
-            unit_d2,
+            algebra,
+            lift,
+            e3,
             secondary_products: DashMap::new(),
         }
     }
 
-    /// Extend the secondary resolutions as far as the underlying resolutions allow.
-    /// Must be called before [`d2`](Self::d2), [`page_data`](Self::page_data) or
-    /// [`secondary_multiply_into`](Self::secondary_multiply_into); the $E_3$ pages are
-    /// then computed on demand from the extended homotopies.
-    pub fn extend_all(&self) {
-        self.res_lift.extend_all();
-        if !self.module.is_unit() {
-            self.unit_lift.extend_all();
-        }
-    }
-
-    /// Sharding entry point: compute only the secondary resolution data for filtration `s`,
-    /// distributed across machines sharing a save directory (see the `secondary` example docs).
-    /// Mirrors [`SecondaryLift::compute_partial`]. Returns before any $E_3$ page is built.
-    pub fn compute_partial(&self, s: i32) {
-        self.res_lift.compute_partial(s);
-        if !self.module.is_unit() {
-            self.unit_lift.compute_partial(s);
-        }
-    }
-
-    /// The primary [`ExtModule`] this is built on.
+    /// The primary module this is built on.
     pub fn module(&self) -> &Arc<ExtModule<CC>> {
         &self.module
+    }
+
+    /// The secondary layer over the ring.
+    pub fn algebra(&self) -> &Arc<SecondaryExtAlgebra<CC>> {
+        &self.algebra
+    }
+
+    /// The secondary resolution of `M`.
+    pub fn lift(&self) -> &Arc<SecondaryResolution<CC>> {
+        &self.lift
+    }
+
+    /// Whether `M == k`.
+    pub fn is_unit(&self) -> bool {
+        self.module.is_unit()
     }
 
     /// The prime of the underlying resolution.
     fn prime(&self) -> fp::prime::ValidPrime {
         self.module.prime()
+    }
+
+    /// Extend the secondary resolutions of `M` and `k` as far as their resolutions allow.
+    ///
+    /// Must be called before [`d2`](Self::d2), [`page_data`](Self::page_data) or
+    /// [`secondary_multiply_into`](Self::secondary_multiply_into); the $E_3$ pages are then
+    /// computed on demand.
+    pub fn extend_all(&self) {
+        if self.is_unit() {
+            self.lift.extend_all();
+        } else {
+            maybe_rayon::join(|| self.lift.extend_all(), || self.algebra.extend_all());
+        }
+    }
+
+    /// Sharding entry point: compute only the secondary resolution data for filtration `s`,
+    /// distributed across machines sharing a save directory (see the `secondary` example docs).
+    /// Mirrors [`SecondaryLift::compute_partial`].
+    pub fn compute_partial(&self, s: i32) {
+        self.lift.compute_partial(s);
+        if !self.is_unit() {
+            self.algebra.compute_partial(s);
+        }
     }
 
     /// The secondary differential $d_2(x)$, a class in bidegree `(n - 1, s + 2)`.
@@ -187,7 +268,7 @@ where
     pub fn d2(&self, x: &BidegreeElement) -> Option<BidegreeElement> {
         let b = x.degree();
         let target = b + Bidegree::n_s(-1, 2);
-        let res = self.res_lift.underlying();
+        let res = self.lift.underlying();
         if !(b.t() > 0 && res.has_computed_bidegree(target)) {
             return None;
         }
@@ -195,9 +276,8 @@ where
         let target_dim = res.number_of_gens_in_bidegree(target);
         let mut out = FpVector::new(self.prime(), target_dim);
 
-        // `m[i]` is the d2 of the i-th generator of `b`, as a vector at `target`. This is exactly
-        // the matrix `SecondaryResolution::e3_page` reads to install d2 differentials.
-        let m = self.res_lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+        // `m[i]` is the d2 of the i-th generator of `b`, as a vector at `target`.
+        let m = self.lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
         if !m.is_empty() && !m[0].is_empty() {
             let p = self.prime().as_u32();
             for (i, c) in x.vec().iter_nonzero() {
@@ -214,25 +294,16 @@ where
         self.d2(x).map(|d| d.vec().is_zero())
     }
 
-    /// The $E_3$-page subquotient of $\Ext(M, k)$ at bidegree `b` — the cohomology of
-    /// the primary Ext with the Adams $d_2$ attached, on the shared
-    /// [`cohomology_subquotient`](ExtModule::cohomology_subquotient) path.
+    /// The $E_3$-page subquotient of $\Ext(M, k)$ at bidegree `b`.
     pub fn page_data(&self, b: Bidegree) -> Subquotient {
-        self.alg_d2
-            .cohomology_subquotient(b)
-            .expect("call extend_all() first (and query a computed bidegree)")
-    }
-
-    /// The $E_3$-page subquotient of the unit $\Ext(k, k)$ at bidegree `b`.
-    pub fn unit_page_data(&self, b: Bidegree) -> Subquotient {
-        self.unit_d2
+        self.e3
             .cohomology_subquotient(b)
             .expect("call extend_all() first (and query a computed bidegree)")
     }
 }
 
 impl<CC: FreeChainComplex + crate::chain_complex::AugmentedChainComplex + 'static>
-    SecondaryExtAlgebra<CC>
+    SecondaryExtModule<CC>
 where
     CC::Algebra: PairAlgebra,
 {
@@ -257,8 +328,8 @@ where
             &x.vec().iter().collect::<Vec<_>>(),
         ));
         let lift = Arc::new(SecondaryResolutionHomomorphism::new(
-            Arc::clone(&self.res_lift),
-            Arc::clone(&self.unit_lift),
+            Arc::clone(&self.lift),
+            Arc::clone(self.algebra.lift()),
             underlying,
         ));
 
@@ -284,7 +355,7 @@ where
         let p = self.prime();
         let shift = x.degree();
         // `hom_k` queries the page at the λ-part's source, which only it knows.
-        let lambda_page = |bd: Bidegree| self.alg_d2.cohomology_subquotient(bd);
+        let lambda_page = |bd: Bidegree| self.e3.cohomology_subquotient(bd);
 
         let ext_dim = self
             .module
@@ -295,7 +366,7 @@ where
             .resolution()
             .number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
-        let page = self.unit_page_data(b);
+        let page = self.algebra.page_data(b);
         let n = page.subspace_dimension();
         if n == 0 {
             return Vec::new();
@@ -337,7 +408,7 @@ mod tests {
         // Far enough to reach the first Adams differential d2(h4) = h0 h3^2 at (14, 3).
         res.compute_through_stem(Bidegree::n_s(16, 6));
         let e2 = Arc::new(ExtModule::intrinsic(res));
-        let sec_e2 = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        let sec_e2 = SecondaryExtModule::from_module(Arc::clone(&e2));
         sec_e2.extend_all();
 
         // h_0, h_1, h_2 are permanent cycles.
@@ -367,17 +438,47 @@ mod tests {
     }
 
     #[test]
+    fn a_module_over_its_own_ring_shares_the_secondary_resolution() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(16, 6));
+        let sec = SecondaryExtModule::from_module(Arc::new(ExtModule::intrinsic(res)));
+        assert!(sec.is_unit());
+        assert!(Arc::ptr_eq(sec.lift(), sec.algebra().lift()));
+        sec.extend_all();
+
+        for (n, s) in [(0, 1), (14, 3), (15, 1)] {
+            let b = Bidegree::n_s(n, s);
+            assert_eq!(
+                sec.page_data(b).dimension(),
+                sec.algebra().page_data(b).dimension(),
+                "module and ring E3 pages differ at (n={n}, s={s})"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "built on the module's ring")]
+    fn a_secondary_ring_over_another_ring_is_rejected() {
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(4, 4));
+        let module = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
+        // Same resolution, but a different `ExtAlgebra` handle than the module's ring.
+        let other = Arc::new(SecondaryExtAlgebra::new(Arc::new(ExtAlgebra::new(res))));
+        let _ = SecondaryExtModule::new(module, other);
+    }
+
+    #[test]
     fn d2_as_ext_differential_reproduces_the_e3_page() {
         // `cohomology_subquotient` under `SecondaryCoboundary` must match `page_data`: same
         // dimension at every bidegree and the same d2-image quotient.
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(16, 6));
         let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
-        let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        let sec = SecondaryExtModule::from_module(Arc::clone(&e2));
         sec.extend_all();
 
         let coboundary = Arc::new(SecondaryCoboundary {
-            res_lift: Arc::clone(&sec.res_lift),
+            res_lift: Arc::clone(&sec.lift),
         });
         let e2_d2 = ExtModule::intrinsic(Arc::clone(&res)).with_differential(coboundary);
 
@@ -423,11 +524,11 @@ mod tests {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(8, 4));
         let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
-        let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        let sec = SecondaryExtModule::from_module(Arc::clone(&e2));
         sec.extend_all();
         let e2_d2 = ExtModule::intrinsic(Arc::clone(&res)).with_differential(Arc::new(
             SecondaryCoboundary {
-                res_lift: Arc::clone(&sec.res_lift),
+                res_lift: Arc::clone(&sec.lift),
             },
         ));
 
@@ -458,7 +559,7 @@ mod tests {
         let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
         res.compute_through_stem(Bidegree::n_s(10, 8));
         let e2 = Arc::new(ExtModule::intrinsic(Arc::clone(&res)));
-        let sec = SecondaryExtAlgebra::new(Arc::clone(&e2));
+        let sec = SecondaryExtModule::from_module(Arc::clone(&e2));
         sec.extend_all();
 
         // Multiply h0 into the classes at (0,1); the lone survivor is h0, so the Ext
