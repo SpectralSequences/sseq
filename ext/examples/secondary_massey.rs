@@ -21,6 +21,7 @@ use std::sync::Arc;
 use algebra::{module::Module, pair_algebra::PairAlgebra};
 use ext::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    ext_algebra::{ExtModule, SecondaryExtModule},
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::*,
     utils::{QueryModuleResolution, query_module},
@@ -134,17 +135,15 @@ fn main() -> anyhow::Result<()> {
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
-    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
+    let module = Arc::new(ExtModule::from_resolution(Arc::clone(&resolution))?);
+    let sec = SecondaryExtModule::from_module(Arc::clone(&module));
+    let is_unit = sec.is_unit();
+    let unit = Arc::clone(module.algebra().resolution());
 
     let p = resolution.prime();
 
-    let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(&resolution)));
-    let unit_lift = if is_unit {
-        Arc::clone(&res_lift)
-    } else {
-        let lift = SecondaryResolution::new(Arc::clone(&unit));
-        Arc::new(lift)
-    };
+    let res_lift = Arc::clone(sec.lift());
+    let unit_lift = Arc::clone(sec.algebra().lift());
 
     let HomData {
         name: a_name,
@@ -173,11 +172,7 @@ fn main() -> anyhow::Result<()> {
         unit.compute_through_stem(res_max - a.underlying().shift);
     }
 
-    if is_unit {
-        res_lift.extend_all();
-    } else {
-        maybe_rayon::join(|| res_lift.extend_all(), || unit_lift.extend_all());
-    }
+    sec.extend_all();
 
     // Now extend homomorphisms
     maybe_rayon::scope(|s| {
@@ -201,7 +196,7 @@ fn main() -> anyhow::Result<()> {
     let unit_sseq = if is_unit {
         Arc::clone(&res_sseq)
     } else {
-        Arc::new(res_lift.e3_page())
+        Arc::new(unit_lift.e3_page())
     };
 
     let b_shift = b.underlying().shift;
