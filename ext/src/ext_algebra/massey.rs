@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use fp::{
     matrix::{AffineSubspace, AugmentedMatrix, Matrix, Subspace},
+    prime::Prime,
     vector::{FpSlice, FpVector},
 };
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
-use super::ExtModule;
+use super::{Cochain, CochainCup, ExtModule};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -70,8 +71,8 @@ where
         if !resolution.has_computed_bidegree(prod_deg) {
             return None;
         }
-        let num_gens = resolution.number_of_gens_in_bidegree(c_deg);
-        let product_num_gens = resolution.number_of_gens_in_bidegree(prod_deg);
+        let num_gens = self.dimension(c_deg);
+        let product_num_gens = self.dimension(prod_deg);
 
         let mut product = AugmentedMatrix::<2>::new(p, num_gens, [product_num_gens, num_gens]);
         product.segment(1, 1).add_identity();
@@ -99,10 +100,15 @@ where
     fn massey_bracket_of(
         &self,
         a: &BidegreeElement,
+        b: &BidegreeElement,
         b_hom: Arc<ResolutionHomomorphism<CC, CC>>,
         shift: Bidegree,
         c: &BidegreeElement,
     ) -> Option<MasseyResult> {
+        if let Some(cup) = self.cup() {
+            return self.massey_bracket_dga(cup, a, b, shift, c);
+        }
+
         let p = self.prime();
         let resolution = self.resolution();
         let unit = self.algebra().resolution();
@@ -110,6 +116,11 @@ where
         let c_deg = c.degree();
         let tot = c_deg + shift;
         if !resolution.has_computed_bidegree(tot) {
+            return None;
+        }
+        // The representative is projected into the cohomology at `tot`, so that must be known.
+        self.cohomology(tot)?;
+        if !self.cochain_product_vanishes(c, b)? {
             return None;
         }
         let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
@@ -126,7 +137,8 @@ where
                 unit.module(a.degree().s())
                     .generator_offset(a.degree().t(), a.degree().t(), 0);
             let a_coords: Vec<u32> = a.vec().iter().collect();
-            let c_coords: Vec<u32> = c.vec().iter().collect();
+            // `f_c` realises a cocycle representing `c`, in the resolution's own coordinates.
+            let c_coords: Vec<u32> = self.lift(c).vec().iter().collect();
 
             let f_c = Arc::new(ResolutionHomomorphism::from_class(
                 String::new(),
@@ -153,11 +165,170 @@ where
             representative
         };
 
+        let representative = self.project(&Cochain::new(tot, representative)).into_vec();
         let indeterminacy = self.massey_indeterminacy(a, c, tot);
         Some(MasseyResult {
             degree: tot,
             coset: AffineSubspace::new(representative, indeterminacy),
         })
+    }
+
+    /// Whether `c · b` vanishes on cochains, as the null-homotopy of the chain-map bracket needs.
+    ///
+    /// With a differential attached, `c · b` can vanish as a class while the composite of chain
+    /// maps it is read from does not. `None` out of the computed range.
+    fn cochain_product_vanishes(&self, c: &BidegreeElement, b: &BidegreeElement) -> Option<bool> {
+        if self.differential().is_none() {
+            return Some(self.try_multiply(c, b)?.vec().is_zero());
+        }
+        let products = self.cochain_products_into(self.lift(c).vec(), c.degree(), b.degree())?;
+        let mut product = FpVector::new(self.prime(), products.columns());
+        for (j, coef) in b.vec().iter_nonzero() {
+            product.as_slice_mut().add(products.row(j), coef);
+        }
+        Some(product.is_zero())
+    }
+
+    /// The bracket $\langle a, b, c\rangle$ for a module carrying a [`CochainCup`].
+    ///
+    /// With the cup $x \cup v = v \circ (f_x \otimes 1)$, it is the class of
+    /// $a \cup v + c \circ (H \otimes 1)$, where $\delta v = b \cup c$ and $H$ is a null-homotopy
+    /// of the chain map $f_b \circ f_a$. `None` if `b · c != 0` or the range is uncomputed.
+    fn massey_bracket_dga(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        a: &BidegreeElement,
+        b: &BidegreeElement,
+        shift: Bidegree,
+        c: &BidegreeElement,
+    ) -> Option<MasseyResult> {
+        let tot = c.degree() + shift;
+        let v_deg = Self::massey_v_degree(b, c.degree());
+        if !self.dga_range_computed(b, c.degree(), Some(tot)) {
+            return None;
+        }
+        let v = self.massey_dga_v(cup, b, c)?;
+        let mut bracket = self.cup_apply(cup, a, v_deg, v.as_slice());
+        let h = self.massey_ab_homotopy(a, b, tot);
+        self.massey_ab_homotopy_matrix(cup, &h, c.degree(), tot)
+            .apply(bracket.as_slice_mut(), 1, self.lift(c).vec());
+        let representative = self.project(&Cochain::new(tot, bracket)).into_vec();
+        let indeterminacy = self.massey_indeterminacy(a, c, tot);
+        Some(MasseyResult {
+            degree: tot,
+            coset: AffineSubspace::new(representative, indeterminacy),
+        })
+    }
+
+    /// A null-homotopy of $f_b \circ f_a$, for classes `a` and `b` of $\Ext(k, k)$ with `a · b = 0`.
+    fn massey_ab_homotopy(
+        &self,
+        a: &BidegreeElement,
+        b: &BidegreeElement,
+        max: Bidegree,
+    ) -> ChainHomotopy<CC, CC, CC> {
+        ChainHomotopy::new(
+            self.algebra().class_product_map(a, max),
+            self.algebra().class_product_map(b, max),
+        )
+    }
+
+    /// The matrix of $c \mapsto c \circ (H \otimes 1)$ from the cochains at `c_deg` to those at
+    /// `tot`, for the null-homotopy `h` of [`massey_ab_homotopy`](Self::massey_ab_homotopy).
+    fn massey_ab_homotopy_matrix(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        h: &ChainHomotopy<CC, CC, CC>,
+        c_deg: Bidegree,
+        tot: Bidegree,
+    ) -> Matrix {
+        h.left().extend_through_stem(tot);
+        h.right().extend_through_stem(tot);
+        h.extend(tot);
+        cup.cup_matrix(&h.homotopy(tot.s()), c_deg, tot)
+    }
+
+    /// The bidegree of the cochain $v$ with $\delta v = b \cup c$, for `c` at `c_deg`: one
+    /// filtration below $b \cup c$, since the coboundary raises `s` by one.
+    fn massey_v_degree(b: &BidegreeElement, c_deg: Bidegree) -> Bidegree {
+        b.degree() + c_deg + Bidegree::s_t(-1, 0)
+    }
+
+    /// Whether the cochains $b \cup c$ and $v$ of a third factor at `c_deg`, and the cohomology at
+    /// the bracket bidegree `tot`, are in the computed range.
+    fn dga_range_computed(
+        &self,
+        b: &BidegreeElement,
+        c_deg: Bidegree,
+        tot: Option<Bidegree>,
+    ) -> bool {
+        let res = self.resolution();
+        let bc_deg = b.degree() + c_deg;
+        [bc_deg, Self::massey_v_degree(b, c_deg)]
+            .into_iter()
+            .chain(tot)
+            .all(|d| d.s() >= 0 && d.t() >= 0 && res.has_computed_bidegree(d))
+            && tot.is_none_or(|tot| self.cohomology(tot).is_some())
+    }
+
+    /// `x ∪ y` for the class `x` of $\Ext(k, k)$ and the cochain `y` at `src`.
+    fn cup_apply(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        x: &BidegreeElement,
+        src: Bidegree,
+        y: FpSlice,
+    ) -> FpVector {
+        let m = self.cup_class_matrix(cup, x, src);
+        let mut out = FpVector::new(self.prime(), m.columns());
+        m.apply(out.as_slice_mut(), 1, y);
+        out
+    }
+
+    /// A cochain $v$ with $\delta v = b \cup c$, or `None` if $b \cup c$ is not a coboundary,
+    /// that is if `b · c != 0`.
+    fn massey_dga_v(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        b: &BidegreeElement,
+        c: &BidegreeElement,
+    ) -> Option<FpVector> {
+        let bc = self.cup_apply(cup, b, c.degree(), self.lift(c).vec());
+        self.delta_preimage(Self::massey_v_degree(b, c.degree()), bc.as_slice())
+    }
+
+    /// A cochain `v` at `v_deg` with `δ v = z`, or `None` if `z` is not in the image of `δ`.
+    fn delta_preimage(&self, v_deg: Bidegree, z: FpSlice) -> Option<FpVector> {
+        let p = self.prime();
+        let Some(differential) = self.differential() else {
+            // The zero differential hits only zero.
+            return z
+                .is_zero()
+                .then(|| FpVector::new(p, self.cochain_dimension(v_deg)));
+        };
+        assert_eq!(
+            differential.shift(),
+            Bidegree::s_t(1, 0),
+            "the cochain Massey bracket needs the coboundary δ: (s, t) → (s + 1, t)"
+        );
+        let d = differential.matrix(v_deg)?;
+        // A mismatch is a caller bug, and must not read as "not a coboundary".
+        assert_eq!(
+            z.len(),
+            d.columns(),
+            "delta_preimage at {v_deg:?}: cocycle has length {} but δ has {} columns",
+            z.len(),
+            d.columns()
+        );
+        let qi = self.delta_quasi_inverse(v_deg, &d);
+        let mut v = FpVector::new(p, d.rows());
+        qi.apply(v.as_slice_mut(), 1, z);
+
+        // The quasi-inverse drops any component of `z` outside the image, so check.
+        let mut back = FpVector::new(p, d.columns());
+        d.apply(back.as_slice_mut(), 1, v.as_slice());
+        back.as_slice_mut().add(z, p.as_u32() - 1);
+        back.is_zero().then_some(v)
     }
 
     /// Compute a representative of a Massey product evaluated at `row` from the per-generator
@@ -180,6 +351,7 @@ where
         tot: Bidegree,
     ) -> MasseyResult {
         let representative = self.massey_representative(answers, row);
+        let representative = self.project(&Cochain::new(tot, representative)).into_vec();
         let indeterminacy = self.massey_indeterminacy(a, c, tot);
         MasseyResult {
             degree: tot,
@@ -195,21 +367,31 @@ where
         c: &BidegreeElement,
         tot: Bidegree,
     ) -> Subspace {
-        let mut sub = Subspace::new(self.prime(), self.dimension(tot));
+        let mut sub = self.massey_indeterminacy_a(a, tot);
+        self.massey_indeterminacy_c(c, tot, &mut sub);
+        sub
+    }
 
+    /// The $a \cdot \Ext$ half of the indeterminacy at `tot`, which does not depend on `c`.
+    fn massey_indeterminacy_a(&self, a: &BidegreeElement, tot: Bidegree) -> Subspace {
+        let mut sub = Subspace::new(self.prime(), self.dimension(tot));
         // a · Ext(M, k)^{tot - a.degree()}, computed as y · a (equal up to sign).
         for y in self.basis(tot - a.degree()) {
             if let Some(prod) = self.try_multiply(&self.generator(y), a) {
                 sub.add_vector(prod.vec());
             }
         }
+        sub
+    }
+
+    /// Add the $\Ext \cdot c$ half of the indeterminacy at `tot` to `sub`.
+    fn massey_indeterminacy_c(&self, c: &BidegreeElement, tot: Bidegree, sub: &mut Subspace) {
         // Ext(k, k)^{tot - c.degree()} · c, computed as c · x (equal up to sign).
         for x in self.algebra().basis(tot - c.degree()) {
             if let Some(prod) = self.try_multiply(c, &self.algebra().generator(x)) {
                 sub.add_vector(prod.vec());
             }
         }
-        sub
     }
 
     /// Compute the family of Massey products $\langle a, b, -\rangle$ for fixed `a` and `b` and
@@ -230,17 +412,93 @@ where
         b: &BidegreeElement,
     ) -> Vec<(BidegreeElement, MasseyResult)> {
         let shift = Self::massey_shift(a, b);
+        if let Some(cup) = self.cup() {
+            return self.massey_iter_c_cup(cup, a, b, shift);
+        }
         let b_hom = self.massey_b_hom(b, shift);
 
         let mut results = Vec::new();
         for c_deg in self.resolution().iter_nonzero_stem() {
+            if self.dimension(c_deg) == 0 {
+                continue;
+            }
             let Some(kernel) = self.massey_kernel(b, c_deg) else {
                 continue;
             };
             for row in kernel.iter() {
                 let c = BidegreeElement::new(c_deg, row.to_owned());
-                let Some(result) = self.massey_bracket_of(a, Arc::clone(&b_hom), shift, &c) else {
+                let Some(result) = self.massey_bracket_of(a, b, Arc::clone(&b_hom), shift, &c)
+                else {
                     continue;
+                };
+                if result.contains_zero() {
+                    continue;
+                }
+                results.push((c, result));
+            }
+        }
+        results
+    }
+
+    /// [`massey_iter_c`](Self::massey_iter_c) for a module carrying a [`CochainCup`].
+    ///
+    /// The cup matrices, the quasi-inverse of `δ` and the `a · Ext` half of the indeterminacy are
+    /// built once per third-factor bidegree and shared by its kernel.
+    fn massey_iter_c_cup(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        a: &BidegreeElement,
+        b: &BidegreeElement,
+        shift: Bidegree,
+    ) -> Vec<(BidegreeElement, MasseyResult)> {
+        let p = self.prime();
+        // The bracket is defined only when `a · b = 0`, and otherwise `H` does not exist.
+        match self.algebra().try_multiply(a, b) {
+            Some(ab) if ab.vec().is_zero() => {}
+            _ => return Vec::new(),
+        }
+        let h = self.massey_ab_homotopy(a, b, a.degree() + b.degree());
+        let mut results = Vec::new();
+        // The resolution is that of `k`, so its generators do not show where `Ext(M, k)` lives.
+        for c_deg in self.resolution().iter_stem() {
+            if self.dimension(c_deg) == 0 {
+                continue;
+            }
+            let tot = c_deg + shift;
+            if !self.dga_range_computed(b, c_deg, Some(tot)) {
+                continue;
+            }
+            let Some(kernel) = self.massey_kernel(b, c_deg) else {
+                continue;
+            };
+            if kernel.dimension() == 0 {
+                continue;
+            }
+
+            let v_deg = Self::massey_v_degree(b, c_deg);
+            let bc_mat = self.cup_class_matrix(cup, b, c_deg);
+            let av_mat = self.cup_class_matrix(cup, a, v_deg);
+            let h_mat = self.massey_ab_homotopy_matrix(cup, &h, c_deg, tot);
+            let a_indet = self.massey_indeterminacy_a(a, tot);
+
+            for row in kernel.iter() {
+                let c = BidegreeElement::new(c_deg, row.to_owned());
+                let lc = self.lift(&c);
+                let mut bc = FpVector::new(p, bc_mat.columns());
+                bc_mat.apply(bc.as_slice_mut(), 1, lc.vec());
+                let Some(v) = self.delta_preimage(v_deg, bc.as_slice()) else {
+                    continue;
+                };
+                let mut bracket = FpVector::new(p, av_mat.columns());
+                av_mat.apply(bracket.as_slice_mut(), 1, v.as_slice());
+                h_mat.apply(bracket.as_slice_mut(), 1, lc.vec());
+                let representative = self.project(&Cochain::new(tot, bracket)).into_vec();
+
+                let mut indeterminacy = a_indet.clone();
+                self.massey_indeterminacy_c(&c, tot, &mut indeterminacy);
+                let result = MasseyResult {
+                    degree: tot,
+                    coset: AffineSubspace::new(representative, indeterminacy),
                 };
                 if result.contains_zero() {
                     continue;
@@ -267,6 +525,12 @@ where
         b: &BidegreeElement,
         c: &BidegreeElement,
     ) -> Vec<(BidegreeElement, MasseyResult)> {
+        if let Some(cup) = self.cup() {
+            return self.massey_iter_a_cup(cup, b, c);
+        }
+        if self.cochain_product_vanishes(c, b) != Some(true) {
+            return Vec::new();
+        }
         let p = self.prime();
         let resolution = self.resolution();
         let unit = self.algebra().resolution();
@@ -276,7 +540,7 @@ where
 
         // `f_c` realises `c` (resolution of `M` → unit); `f_b` is multiplication by `b` (in the
         // unit). The single null-homotopy `s_bc` of `b ∘ c` is reused for every first factor.
-        let c_coords: Vec<u32> = c.vec().iter().collect();
+        let c_coords: Vec<u32> = self.lift(c).vec().iter().collect();
         let f_c = Arc::new(ResolutionHomomorphism::from_class(
             String::new(),
             Arc::clone(resolution),
@@ -290,7 +554,7 @@ where
         let mut results = Vec::new();
         for a_deg in unit.iter_nonzero_stem() {
             let tot = a_deg + bc_shift;
-            if !resolution.has_computed_bidegree(tot) {
+            if !resolution.has_computed_bidegree(tot) || self.cohomology(tot).is_none() {
                 continue;
             }
             let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
@@ -333,6 +597,85 @@ where
             for row in kernel.iter() {
                 let a = BidegreeElement::new(a_deg, row.to_owned());
                 let result = self.massey_result(&a, c, &answers, row, tot);
+                if result.contains_zero() {
+                    continue;
+                }
+                results.push((a, result));
+            }
+        }
+        results
+    }
+
+    /// [`massey_iter_a`](Self::massey_iter_a) for a module carrying a [`CochainCup`].
+    ///
+    /// The cochain $v$ with $\delta v = b \cup c$ does not depend on the first factor, so it is
+    /// solved once. The null-homotopy of $f_b \circ f_a$ does, so it is built for each first
+    /// factor. Returns no brackets if `b · c != 0`.
+    fn massey_iter_a_cup(
+        &self,
+        cup: &Arc<dyn CochainCup<CC>>,
+        b: &BidegreeElement,
+        c: &BidegreeElement,
+    ) -> Vec<(BidegreeElement, MasseyResult)> {
+        let p = self.prime();
+        let unit = self.algebra().resolution();
+        let bc_shift = b.degree() + c.degree() - Bidegree::s_t(1, 0);
+        let v_deg = Self::massey_v_degree(b, c.degree());
+        if !self.dga_range_computed(b, c.degree(), None) {
+            return Vec::new();
+        }
+        let Some(v) = self.massey_dga_v(cup, b, c) else {
+            return Vec::new();
+        };
+
+        let mut results = Vec::new();
+        for a_deg in unit.iter_nonzero_stem() {
+            let tot = a_deg + bc_shift;
+            if !self.resolution().has_computed_bidegree(tot) || self.cohomology(tot).is_none() {
+                continue;
+            }
+            let target_dim = self.dimension(tot);
+            let unit_dim = self.algebra().dimension(a_deg);
+            if target_dim == 0 || unit_dim == 0 {
+                continue;
+            }
+            let Some(b_times) = self.algebra().multiply_into(b, a_deg) else {
+                continue;
+            };
+
+            // `a ∪ v` is linear in `a`, so read it off once per generator of `Ext(k, k)` at `a_deg`.
+            let mut av = Matrix::new(p, unit_dim, self.cochain_dimension(tot));
+            for j in 0..unit_dim {
+                let a_gen = self.algebra().generator(BidegreeGenerator::new(a_deg, j));
+                let row = self.cup_apply(cup, &a_gen, v_deg, v.as_slice());
+                av.row_mut(j).add(row.as_slice(), 1);
+            }
+
+            // Valid first factors are the kernel of `b · -` on `Ext(k, k)` at `a_deg`.
+            let product_dim = b_times.columns();
+            let mut product = AugmentedMatrix::<2>::new(p, unit_dim, [product_dim, unit_dim]);
+            product.segment(1, 1).add_identity();
+            for j in 0..unit_dim {
+                product
+                    .row_mut(j)
+                    .slice_mut(0, product_dim)
+                    .add(b_times.row(j), 1);
+            }
+            product.row_reduce();
+            let kernel = product.compute_kernel();
+
+            for row in kernel.iter() {
+                let a = BidegreeElement::new(a_deg, row.to_owned());
+                let mut bracket = self.massey_representative(&av, row);
+                let h = self.massey_ab_homotopy(&a, b, tot);
+                self.massey_ab_homotopy_matrix(cup, &h, c.degree(), tot)
+                    .apply(bracket.as_slice_mut(), 1, self.lift(c).vec());
+                let representative = self.project(&Cochain::new(tot, bracket)).into_vec();
+                let indeterminacy = self.massey_indeterminacy(&a, c, tot);
+                let result = MasseyResult {
+                    degree: tot,
+                    coset: AffineSubspace::new(representative, indeterminacy),
+                };
                 if result.contains_zero() {
                     continue;
                 }
@@ -391,7 +734,7 @@ where
             _ => return None,
         }
 
-        self.massey_bracket_of(a, b_hom, shift, c)
+        self.massey_bracket_of(a, b, b_hom, shift, c)
     }
 }
 
@@ -400,7 +743,7 @@ mod tests {
     use sseq::coordinates::BidegreeGenerator;
 
     use super::*;
-    use crate::utils::construct_standard;
+    use crate::{chain_complex::ChainComplex, utils::construct_standard};
 
     #[test]
     fn test_sphere_massey() {
@@ -452,6 +795,56 @@ mod tests {
             alg.massey(&h1_sq, &h0, &h0).is_none(),
             "<h1^2, h0, h0> should be undefined since h0^2 != 0, and must not panic"
         );
+    }
+
+    /// With a differential killing `h0`, `1 · h0` vanishes as a class but `f_{h0}` is no
+    /// null-homotopic chain map, so `<h1, h0, 1>` has no chain-map bracket and is undefined.
+    #[test]
+    fn test_massey_needs_the_cochain_product_to_vanish() {
+        use fp::{matrix::Matrix, prime::TWO};
+
+        use crate::ext_algebra::ExtDifferential;
+
+        /// `d(h0²) = h0`, filtration-lowering, so that `h0` dies.
+        struct KillH0(Arc<dyn Fn(Bidegree) -> usize + Send + Sync>);
+        impl ExtDifferential for KillH0 {
+            fn shift(&self) -> Bidegree {
+                Bidegree::n_s(0, -1)
+            }
+
+            fn matrix(&self, b: Bidegree) -> Option<Matrix> {
+                let (rows, cols) = ((self.0)(b), (self.0)(b + self.shift()));
+                let mut m = Matrix::new(TWO, rows, cols);
+                if b == Bidegree::n_s(0, 2) && rows == 1 && cols == 1 {
+                    m.row_mut(0).set_entry(0, 1);
+                }
+                Some(m)
+            }
+        }
+
+        let res = Arc::new(construct_standard::<false, _, _>("S_2", None).unwrap());
+        res.compute_through_stem(Bidegree::n_s(6, 5));
+        let dims = {
+            let res = Arc::clone(&res);
+            Arc::new(move |b: Bidegree| {
+                if b.n() >= 0 && b.s() >= 0 && res.has_computed_bidegree(b) {
+                    res.number_of_gens_in_bidegree(b)
+                } else {
+                    0
+                }
+            })
+        };
+        let ext = ExtModule::intrinsic(Arc::clone(&res)).with_differential(Arc::new(KillH0(dims)));
+
+        let h0 = ext
+            .algebra()
+            .generator(BidegreeGenerator::new(Bidegree::n_s(0, 1), 0));
+        let h1 = ext
+            .algebra()
+            .generator(BidegreeGenerator::new(Bidegree::n_s(1, 1), 0));
+        let one = ext.generator(BidegreeGenerator::new(Bidegree::n_s(0, 0), 0));
+        assert!(ext.try_multiply(&one, &h0).unwrap().vec().is_zero());
+        assert!(ext.massey(&h1, &h0, &one).is_none());
     }
 
     /// For `M == k`, iterating the first factor must agree with iterating the third, via the

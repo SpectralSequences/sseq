@@ -1494,6 +1494,9 @@ pub enum SaveKind {
     ChainHomotopy,
     NassauDifferential,
     NassauQi,
+    /// The coboundary of an untwisted tensor resolution; see
+    /// [`TensorResolutionDifferential`](crate::ext_algebra::TensorResolutionDifferential).
+    TensorDifferential,
 }
 
 impl SaveKind {
@@ -1511,6 +1514,7 @@ impl SaveKind {
             Self::ChainHomotopy => "chain_homotopy",
             Self::NassauDifferential => "nassau_differential",
             Self::NassauQi => "nassau_qi",
+            Self::TensorDifferential => "tensor_differential",
         }
     }
 

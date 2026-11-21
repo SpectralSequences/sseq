@@ -120,7 +120,17 @@ where
     ///
     /// Construction is cheap; call [`extend_all`](Self::extend_all) to compute the secondary
     /// resolutions and $E_3$ pages.
+    ///
+    /// # Panics
+    ///
+    /// If `module` carries a differential. Its classes must be the generators of its resolution,
+    /// which must be minimal; for the untwisted tensor resolution use
+    /// [`TensorResolutionSecondary`](super::tensor_resolution::TensorResolutionSecondary).
     pub fn new(module: Arc<ExtModule<CC>>) -> Self {
+        assert!(
+            module.differential().is_none(),
+            "SecondaryExtAlgebra needs a module whose classes are its resolution's generators"
+        );
         let res_lift = Arc::new(SecondaryResolution::new(Arc::clone(module.resolution())));
         let unit_lift = if module.is_unit() {
             Arc::clone(&res_lift)

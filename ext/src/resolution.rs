@@ -1007,6 +1007,8 @@ pub(crate) mod secondary {
         /// s -> t -> idx -> homotopy
         pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<CC::Algebra>>,
         intermediates: DashMap<BidegreeGenerator, FpVector>,
+        /// The value of [`SecondaryLift::hit_generator`].
+        hit_generator: bool,
     }
 
     impl<CC: FreeChainComplex> SecondaryLift for SecondaryResolution<CC>
@@ -1017,6 +1019,15 @@ pub(crate) mod secondary {
         type Source = CC;
         type Target = CC;
         type Underlying = CC;
+
+        fn hit_generator(&self) -> bool {
+            self.hit_generator
+        }
+
+        fn same_degree_dependency(&self) -> bool {
+            // A resolution whose composites hit same-degree generators is non-minimal.
+            self.hit_generator
+        }
 
         fn underlying(&self) -> Arc<CC> {
             Arc::clone(&self.underlying)
@@ -1089,11 +1100,21 @@ pub(crate) mod secondary {
     where
         CC::Algebra: PairAlgebra,
     {
+        /// The secondary resolution of a minimal resolution `cc`.
+        ///
+        /// For a non-minimal one, use [`new_with_hit_generator`](Self::new_with_hit_generator).
         pub fn new(cc: Arc<CC>) -> Self {
+            Self::new_with_hit_generator(cc, false)
+        }
+
+        /// [`new`](Self::new), choosing [`SecondaryLift::hit_generator`], which a non-minimal
+        /// resolution needs to be `true`.
+        pub fn new_with_hit_generator(cc: Arc<CC>, hit_generator: bool) -> Self {
             Self {
                 underlying: cc,
                 homotopies: OnceBiVec::new(2),
                 intermediates: DashMap::new(),
+                hit_generator,
             }
         }
 

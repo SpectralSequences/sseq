@@ -14,6 +14,8 @@ save_dir/
     chain_map/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
   homotopies/{left}__{right}/        # a ChainHomotopy between two named maps
     chain_homotopy/, secondary_composite/, secondary_intermediate/, secondary_homotopy/
+  tensor/{module}/                   # the untwisted tensor resolution P ⊗ M of this k-resolution
+    tensor_differential/
 ```
 
 The root group's attributes identify the resolution: `algebra_magic`, `prime` and
@@ -23,7 +25,11 @@ label. Opening a store for a different algebra, module or algorithm is an error,
 a directory that holds a save in the format before the zarr store.
 
 Map names become group names under `products/` and `homotopies/`, so they must be valid zarr node
-names: no `/`, and not starting with `__`.
+names: no `/`, and not starting with `__`. A module's name becomes its group name under `tensor/`
+percent-encoded byte by byte, so that distinct names get distinct groups that are directory names
+on every platform, even ignoring case: every byte outside `[a-z0-9._-]` is encoded with uppercase
+hex digits, and so are a leading `_`, a trailing `.` and the first letter of a Windows device name
+such as `con` or `nul.txt`. The empty name becomes `%`.
 
 Each file is written to a temporary `{key}.{pid}.{n}.tmp` beside it and renamed into place, so an
 interrupted write leaves the old file intact. Nothing reads the temporary files, and one left by a
@@ -42,12 +48,22 @@ into shards with a CRC32C each. An empty element means nothing is saved there.
 | `kernel` | bidegree | `bitcode` of the `Subspace`, in reduced row echelon form |
 | `augmentation_qi` | bidegree | `bitcode` of the quasi-inverse of the augmentation |
 | `nassau_differential` | bidegree | `num_new_gens: u64, target_dim: u64`, then `d` of each new generator |
+| `tensor_differential` | bidegree | `fingerprint: u64, rows: u64, cols: u64`, then the matrix of `δ_Q` |
 | `chain_map`, `chain_homotopy` | bidegree | the value on each generator of the source |
 | `secondary_composite` | generator | `SecondaryComposite::to_bytes` |
 | `secondary_intermediate` | generator | `len: u64`, then the intermediate vector |
 | `secondary_homotopy` | bidegree | the value on each generator |
 
 A `kernel` is deleted once the next filtration is computed.
+
+The `fingerprint` of a `tensor_differential` at internal degree `t` is a 64-bit FNV-1a hash,
+chained by degree. Below the module's minimum degree it hashes the module's name in UTF-8 and its
+minimum degree as `i32`. At each degree `d` from there it hashes the fingerprint at `d - 1` as
+`u64`, the module's dimension in degree `d` as `u64`, and then, for every algebra basis element
+acting from a lower degree into `d`, ordered by source degree, algebra index and source basis
+index, each nonzero entry of the result in ascending target basis index, as five `i32`s: source
+degree, algebra index, source basis index, target basis index, coefficient. Two modules with the same name share a group, and the
+fingerprint keeps either from reading the other's matrices.
 
 ## Stream tier
 
