@@ -37,7 +37,7 @@ impl MasseyResult {
 
 impl<CC> ExtModule<CC>
 where
-    CC: FreeChainComplex + AugmentedChainComplex,
+    CC: FreeChainComplex + AugmentedChainComplex + 'static,
 {
     /// The bidegree shift of $\langle a, b, -\rangle$: a class `c` produces a bracket in bidegree
     /// `c.degree() + a.degree() + b.degree() - (1, 0)`.
