@@ -177,6 +177,48 @@ There are two required parameters
   Note that when there is a non-trivial profile, you should not attempt to set
   an action if the generator doesn't exist in the subalgebra.
 
+There is one optional parameter
+
+* `secondary_actions`: The secondary structure of the module, used by the
+  secondary computations (d2 and secondary products). It is a list of entries
+  `[a|b] m = n`, where `a` and `b` are basis elements of the Steenrod algebra
+  of positive degree, `m` is a basis element of the module and `n` is an
+  element of degree `|a| + |b| + |m| - 1`. Only `p = 2` is supported. For
+  example, the Joker needs
+
+  ```json
+  "secondary_actions": ["[Sq1|Sq3] x0 = x3"]
+  ```
+
+  The entries define `F(a, b; m) = n`, a 2-cochain on the bar resolution
+  `B(A, A, M)` of the module, which sets the secondary homotopy `H_2` of a
+  resolution `ε: C → M`. On a generator `g` of `C_2`, `ε H_2(g)` is the sum of
+  `F(a, b; ε x)` over the terms `a e` of `d g` and `b x` of `d e`, plus a
+  correction from the comparison map between `C` and the bar resolution that
+  does not depend on `F`. Its cost is proportional to the size of the
+  resolution, not of the bar resolution.
+
+  If the entries solve the bar equation, the secondary structure they give is
+  the same on every resolution. Otherwise a resolution reads the entries its
+  `d ∘ d` reaches, and different resolutions reach different ones. Entries
+  that do not give a secondary structure make the computation fail at
+  `s = 3`.
+
+  Without `secondary_actions`, `H_2` is zero. This assumes that the module has
+  a single secondary structure and that the zero homotopy on a minimal
+  resolution gives it; otherwise the result is a convention. Examples where
+  the assumption fails:
+  - For the Joker the zero homotopy does not lift: the computation fails at
+    `(n, s) = (2, 3)`, and the entry above is required.
+  - `C4_secondary` and the split module `S^0 ∨ S^1` both have cohomology
+    `F_2{x0, x1}` with no actions, and two secondary structures between them.
+    `C4_secondary` selects the other one with `[Sq1|Sq1] x0 = x1`, which gives
+    the Adams d2 from the top cell to `h_0^2` on the bottom cell.
+  - Stunted projective spaces can have several secondary structures, and for
+    some of them, such as `RP_110^127`, the zero homotopy does not lift.
+
+  This is not supported together with `cofiber`.
+
 ### Finitely Presented Module
 
 TODO

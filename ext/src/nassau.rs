@@ -24,6 +24,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::{NassauCommand, NassauQiWriter, SaveDirectory, SaveKind},
+    secondary::{SecondaryActions, SecondaryInput},
     utils::parallel::ParallelGuard,
 };
 
@@ -403,6 +404,7 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     target: Arc<FiniteChainComplex<M>>,
     chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: SaveDirectory,
+    secondary_actions: Option<SecondaryActions<MilnorAlgebra>>,
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
@@ -451,7 +453,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             target,
             max_degree,
             save_dir,
+            secondary_actions: None,
         })
+    }
+
+    /// Sets the secondary actions of the module, which select the secondary lift of this
+    /// resolution.
+    pub fn set_secondary_actions(&mut self, actions: Option<SecondaryActions<MilnorAlgebra>>) {
+        self.secondary_actions = actions;
     }
 
     fn add_generators(&self, b: Bidegree, num_new_gens: usize) {
@@ -1130,6 +1139,21 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         }
     }
 
+    /// The module's secondary actions, with ε given by `self.chain_maps[0]`.
+    fn secondary_input(&self) -> Option<SecondaryInput<'_, Self::Algebra>> {
+        let actions = self.secondary_actions.as_ref()?;
+        let target = self.target.module(0);
+        let chain_map = &self.chain_maps[0];
+        Some(SecondaryInput {
+            actions,
+            augmentation: Box::new(move |d, i| {
+                let mut v = FpVector::new(fp::prime::TWO, target.dimension(d));
+                chain_map.apply_to_basis_element(v.as_slice_mut(), 1, d, i);
+                v
+            }),
+        })
+    }
+
     fn next_homological_degree(&self) -> i32 {
         self.modules.len()
     }
@@ -1444,6 +1468,43 @@ mod tests {
             "secondary d2 chart differs between Nassau (save-backed, relaxed schedule) and \
              standard"
         );
+    }
+
+    /// The Joker's secondary actions give the same d2 under Nassau's algorithm as under the
+    /// standard resolution. The bases of Ext differ, so the comparison is by rank.
+    #[test]
+    fn joker_secondary_actions() {
+        use std::sync::Arc;
+
+        use crate::{
+            resolution::secondary::SecondaryResolution,
+            secondary::{
+                SecondaryLift,
+                tests::{d2_rank, joker},
+            },
+            utils::construct_standard,
+        };
+
+        let json = joker(Some(&["[Sq1|Sq3] x0 = x3"]));
+        let max = Bidegree::n_s(40, 10);
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let nassau = crate::utils::construct_nassau(
+            (json.clone(), algebra::AlgebraType::Milnor),
+            Some(dir.path().to_owned()),
+        )
+        .unwrap();
+        nassau.compute_through_stem(max);
+        let nassau_lift = SecondaryResolution::new(Arc::new(nassau));
+        nassau_lift.extend_all();
+
+        let standard =
+            construct_standard::<false, _, _>((json, algebra::AlgebraType::Milnor), None).unwrap();
+        standard.compute_through_stem(max);
+        let standard_lift = SecondaryResolution::new(Arc::new(standard));
+        standard_lift.extend_all();
+
+        assert_eq!(d2_rank(&nassau_lift), d2_rank(&standard_lift));
     }
 
     /// The trivial module over `algebra`.

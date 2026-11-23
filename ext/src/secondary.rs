@@ -1,4 +1,8 @@
-use std::{io, sync::Arc};
+use std::{
+    collections::HashMap,
+    io,
+    sync::{Arc, Mutex},
+};
 
 use algebra::{
     Algebra,
@@ -8,10 +12,12 @@ use algebra::{
     },
     pair_algebra::PairAlgebra,
 };
+use anyhow::{Context, anyhow};
 use bivec::BiVec;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use fp::{
+    matrix::{AugmentedMatrix, QuasiInverse},
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
@@ -44,6 +50,343 @@ pub type CompositeData<A> = Vec<(
     Arc<FreeModuleHomomorphism<FreeModule<A>>>,
     Arc<FreeModuleHomomorphism<FreeModule<A>>>,
 )>;
+
+/// The `secondary_actions` of a module spec: a normalized bar 2-cochain `F: Ā ⊗ Ā ⊗ M → M` of
+/// degree -1, written `"[a|b] m = n"` for `F(a, b; m) = n`.
+///
+/// `F` sets `ε H_2` on `C_2` of a resolution `ε: C → M` to `F(f_2 g) + r(g)`:
+///  - `f_2 g = Σ [a|b] ε x`, over the terms `a e` of `d g` and `b x` of `d e` with `|a|, |b| > 0`,
+///    is the comparison map from `C` to the two-sided bar resolution `B(A, A, M)`.
+///  - `r(g)` is what that comparison map fails to commute with the differentials by in the pair
+///    algebra; see [`Self::correction`].
+///
+/// A solution of the bar equation gives the same secondary structure on every resolution. A list
+/// that is not a full solution is read on the resolution at hand, which only reads the entries its
+/// `d ∘ d` reaches. An invalid one makes the lift fail at `s = 3`.
+pub struct SecondaryActions<A: Algebra> {
+    module: Arc<dyn Module<Algebra = A>>,
+    /// `[a, b, m] -> F(a, b; m)`, each entry a `(degree, index)` basis element.
+    values: HashMap<[(i32, usize); 3], FpVector>,
+    /// degree -> quasi-inverse of ε on `C_0`, built on first use.
+    lifts: Mutex<HashMap<i32, Arc<QuasiInverse>>>,
+}
+
+impl<A: Algebra> std::fmt::Debug for SecondaryActions<A> {
+    /// The number of entries, as the module and its cached lifts are not printable.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecondaryActions")
+            .field("entries", &self.values.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// What [`SecondaryResolution`] needs from a resolution whose module has secondary actions.
+pub struct SecondaryInput<'a, A: Algebra> {
+    pub actions: &'a SecondaryActions<A>,
+    /// ε on the basis element `(degree, index)` of `C_0`, in the basis of `M`.
+    pub augmentation: Box<dyn Fn(i32, usize) -> FpVector + 'a>,
+}
+
+/// The comparison composite `Γ(e)` of one generator `e` of `C_1`: for each basis element `m` of
+/// `M`, a pair algebra element of degree `|e| - |m|` on the generator `[] m` of the bar
+/// resolution.
+pub type ComparisonComposite<A> = Vec<((i32, usize), <A as PairAlgebra>::Element)>;
+
+impl<A: Algebra> SecondaryActions<A> {
+    /// Parses the `secondary_actions` field of a module spec. Returns `None` when the field is
+    /// absent.
+    pub fn from_json(
+        module: Arc<dyn Module<Algebra = A>>,
+        json: &serde_json::Value,
+    ) -> anyhow::Result<Option<Self>> {
+        let entries = &json["secondary_actions"];
+        if entries.is_null() {
+            return Ok(None);
+        }
+        let algebra = module.algebra();
+        anyhow::ensure!(
+            algebra.prime() == 2,
+            "`secondary_actions` are only supported at p = 2"
+        );
+        let entries = entries
+            .as_array()
+            .context("`secondary_actions` must be a list of strings")?;
+        let max_degree = module
+            .max_degree()
+            .context("`secondary_actions` requires a bounded module")?;
+
+        let mut names = HashMap::new();
+        for deg in module.min_degree()..=max_degree {
+            for idx in 0..module.dimension(deg) {
+                names.insert(module.basis_element_to_string(deg, idx), (deg, idx));
+            }
+        }
+        let element = |name: &str| {
+            names
+                .get(name.trim())
+                .copied()
+                .ok_or_else(|| anyhow!("Unknown module element: {name}"))
+        };
+        let operation = |name: &str| {
+            let (deg, idx) = algebra
+                .basis_element_from_string(name.trim())
+                .ok_or_else(|| anyhow!("Invalid algebra element: {name}"))?;
+            anyhow::ensure!(
+                deg > 0,
+                "Operations in secondary actions have positive degree"
+            );
+            Ok((deg, idx))
+        };
+
+        let p = algebra.prime();
+        let mut values: HashMap<[(i32, usize); 3], FpVector> = HashMap::new();
+        for entry in entries {
+            let entry = entry
+                .as_str()
+                .context("`secondary_actions` must be a list of strings")?;
+            let mut parse = || -> anyhow::Result<()> {
+                let (lhs, rhs) = entry.split_once(" = ").context("Missing ` = `")?;
+                let (ops, m) = lhs
+                    .trim()
+                    .strip_prefix('[')
+                    .and_then(|s| s.split_once(']'))
+                    .context("Expected `[a|b] m`")?;
+                let (a, b) = ops.split_once('|').context("Expected `[a|b] m`")?;
+                let key = [operation(a)?, operation(b)?, element(m)?];
+                let out_deg = key.iter().map(|x| x.0).sum::<i32>() - 1;
+
+                let value = values
+                    .entry(key)
+                    .or_insert_with(|| FpVector::new(p, module.dimension(out_deg)));
+                if rhs.trim() == "0" {
+                    return Ok(());
+                }
+                for item in rhs.split(" + ") {
+                    let (coef, n) = match item.trim().split_once(' ') {
+                        Some((coef, n)) => (
+                            coef.parse::<u32>()
+                                .map_err(|_| anyhow!("Invalid coefficient in {item}"))?,
+                            n,
+                        ),
+                        None => (1, item),
+                    };
+                    let (deg, idx) = element(n)?;
+                    anyhow::ensure!(
+                        deg == out_deg,
+                        "Degree of {n} is {deg} but the value has degree {out_deg}"
+                    );
+                    value.add_basis_element(idx, coef % p);
+                }
+                Ok(())
+            };
+            parse().with_context(|| format!("Failed to parse secondary action: {entry}"))?;
+        }
+        Ok(Some(Self {
+            module,
+            values,
+            lifts: Mutex::default(),
+        }))
+    }
+
+    /// `F(f_2 g) ∈ M_{t-1}` for the generator `g = (t, idx)` of `C_2`.
+    pub fn pullback(
+        &self,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        t: i32,
+        idx: usize,
+    ) -> FpVector {
+        let p = self.module.prime();
+        let c1 = d2.target();
+        let c0 = d1.target();
+        let mut value = FpVector::new(p, self.module.dimension(t - 1));
+        if value.is_empty() || self.values.is_empty() {
+            return value;
+        }
+        let dg = d2.output(t, idx);
+        for (e_deg, e_idx, a_deg, a) in c1.iter_slices(t, dg.as_slice()) {
+            if a_deg == 0 || a.is_zero() {
+                continue;
+            }
+            let de = d1.output(e_deg, e_idx);
+            for (x_deg, x_idx, b_deg, b) in c0.iter_slices(e_deg, de.as_slice()) {
+                if b_deg == 0 || b.is_zero() {
+                    continue;
+                }
+                let ex = augmentation(x_deg, c0.generator_offset(x_deg, x_deg, x_idx));
+                for (ai, ac) in a.iter_nonzero() {
+                    for (bi, bc) in b.iter_nonzero() {
+                        for (mi, mc) in ex.iter_nonzero() {
+                            let key = [(a_deg, ai), (b_deg, bi), (x_deg, mi)];
+                            if let Some(v) = self.values.get(&key) {
+                                value.add(v, (ac * bc % p) * mc % p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        value
+    }
+
+    /// An element of `C_0` in degree `d` whose image under ε is `v`.
+    pub fn lift(
+        &self,
+        c0: &FreeModule<A>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        d: i32,
+        v: &FpVector,
+    ) -> FpVector {
+        let p = self.module.prime();
+        let c0_dim = c0.dimension(d);
+        let mut result = FpVector::new(p, c0_dim);
+        if v.is_zero() {
+            return result;
+        }
+        let qi = {
+            let mut lifts = self.lifts.lock().unwrap();
+            Arc::clone(lifts.entry(d).or_insert_with(|| {
+                let m_dim = self.module.dimension(d);
+                let mut matrix = AugmentedMatrix::<2>::new(p, c0_dim, [m_dim, c0_dim]);
+                for i in 0..c0_dim {
+                    matrix
+                        .row_segment_mut(i, 0, 0)
+                        .add(augmentation(d, i).as_slice(), 1);
+                    matrix.row_segment_mut(i, 1, 1).set_entry(i, 1);
+                }
+                matrix.row_reduce();
+                Arc::new(matrix.compute_quasi_inverse())
+            }))
+        };
+        qi.apply(result.as_slice_mut(), 1, v.as_slice());
+        result
+    }
+}
+
+impl<A: PairAlgebra> SecondaryActions<A> {
+    /// `H_2(g)` for the generator `g = (t, idx)` of `C_2`: the lift along ε of
+    /// `F(f_2 g) + r(g)`. `cache` keeps the comparison composites of the generators of `C_1`
+    /// between calls.
+    pub fn base_homotopy(
+        &self,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        t: i32,
+        idx: usize,
+        cache: &mut HashMap<(i32, usize), ComparisonComposite<A>>,
+    ) -> FpVector {
+        let mut value = self.pullback(d2, d1, augmentation, t, idx);
+        if !value.is_empty() {
+            value.add(&self.correction(d2, d1, augmentation, t, idx, cache), 1);
+        }
+        self.lift(&d1.target(), augmentation, t - 1, &value)
+    }
+
+    /// `r(g) ∈ M_{t-1}` for the generator `g = (t, idx)` of `C_2`: `ε(Σ A(a, Γ(e)))` over the
+    /// terms `a e` of `d g`. `Γ(e)` is the composite `f_0 d + d f_1` on `e` in the pair algebra,
+    /// where `f_0 x = [] ε x` and `f_1 e = Σ [b] ε x` over the terms `b x` of `d e` with `|b| > 0`
+    /// are the comparison maps to the bar resolution.
+    pub fn correction(
+        &self,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        t: i32,
+        idx: usize,
+        cache: &mut HashMap<(i32, usize), ComparisonComposite<A>>,
+    ) -> FpVector {
+        let algebra = self.module.algebra();
+        let p = algebra.prime();
+        let mut out = FpVector::new(p, self.module.dimension(t - 1));
+        let c1 = d2.target();
+        let dg = d2.output(t, idx);
+        for (e_deg, e_idx, a_deg, a) in c1.iter_slices(t, dg.as_slice()) {
+            // A(1, -) = 0
+            if a_deg == 0 || a.is_zero() {
+                continue;
+            }
+            let gamma = cache
+                .entry((e_deg, e_idx))
+                .or_insert_with(|| self.comparison_composite(d1, augmentation, e_deg, e_idx));
+            for ((m_deg, m_idx), elt) in gamma.iter() {
+                let y_deg = a_deg + e_deg - m_deg - 1;
+                if y_deg < 0 {
+                    continue;
+                }
+                let mut y = FpVector::new(p, algebra.dimension(y_deg));
+                algebra.a_multiply(y.as_slice_mut(), 1, a_deg, a, e_deg - m_deg, elt);
+                for (yi, c) in y.iter_nonzero() {
+                    self.module
+                        .act_on_basis(out.as_slice_mut(), c, y_deg, yi, *m_deg, *m_idx);
+                }
+            }
+        }
+        out
+    }
+
+    /// `Γ(e)` for the generator `e = (e_deg, e_idx)` of `C_1`; see [`Self::correction`].
+    fn comparison_composite(
+        &self,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        e_deg: i32,
+        e_idx: usize,
+    ) -> ComparisonComposite<A> {
+        let algebra = self.module.algebra();
+        let p = algebra.prime();
+        let mut one = FpVector::new(p, 1);
+        one.set_entry(0, 1);
+        let mut elts: HashMap<(i32, usize), A::Element> = HashMap::new();
+        let c0 = d1.target();
+        let de = d1.output(e_deg, e_idx);
+        for (x_deg, x_idx, b_deg, b) in c0.iter_slices(e_deg, de.as_slice()) {
+            if b.is_zero() {
+                continue;
+            }
+            let ex = augmentation(x_deg, c0.generator_offset(x_deg, x_deg, x_idx));
+            for (mi, mc) in ex.iter_nonzero() {
+                // f_0 d: b · [] m
+                let elt = elts
+                    .entry((x_deg, mi))
+                    .or_insert_with(|| algebra.new_pair_element(e_deg - x_deg));
+                algebra.sigma_multiply(elt, mc, b_deg, b, 0, one.as_slice());
+                if b_deg == 0 {
+                    continue;
+                }
+                // d f_1: [b_i] m ↦ b_i · [] m + [] (b_i m)
+                for (bi, bc) in b.iter_nonzero() {
+                    let coef = bc * mc % p;
+                    let mut unit = FpVector::new(p, algebra.dimension(b_deg));
+                    unit.set_entry(bi, 1);
+                    let elt = elts
+                        .entry((x_deg, mi))
+                        .or_insert_with(|| algebra.new_pair_element(e_deg - x_deg));
+                    algebra.sigma_multiply(elt, coef, 0, one.as_slice(), b_deg, unit.as_slice());
+                    let mut bm = FpVector::new(p, self.module.dimension(e_deg));
+                    if bm.is_empty() {
+                        continue;
+                    }
+                    self.module
+                        .act_on_basis(bm.as_slice_mut(), coef, b_deg, bi, x_deg, mi);
+                    for (mj, c) in bm.iter_nonzero() {
+                        let elt = elts
+                            .entry((e_deg, mj))
+                            .or_insert_with(|| algebra.new_pair_element(0));
+                        algebra.sigma_multiply(elt, c, 0, one.as_slice(), 0, one.as_slice());
+                    }
+                }
+            }
+        }
+        elts.into_iter()
+            .map(|(k, mut elt)| {
+                A::finalize_element(&mut elt);
+                (k, elt)
+            })
+            .collect()
+    }
+}
 
 /// A homotopy of a map A -> M of pair modules. We assume this map does not hit generators.
 pub struct SecondaryComposite<A: PairAlgebra> {
@@ -557,7 +900,7 @@ pub trait SecondaryLift: Sync + Sized {
 
             let g = BidegreeGenerator::new(b, i);
             let mut v = self.get_intermediate(g);
-            if g.s() > shift.s() + 1 {
+            if g.s() > shift.s() + 1 || (g.s() == shift.s() + 1 && !self.base_homotopy_is_zero()) {
                 self.homotopies()[g.s() - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
@@ -614,15 +957,23 @@ pub trait SecondaryLift: Sync + Sized {
             .add_generators_from_rows_ooo(b.t(), results))
     }
 
+    /// Computes the homotopy at `s = shift.s()`, the input of the recursion. It is zero unless
+    /// overridden.
+    fn compute_base_homotopy(&self) {
+        let h = &self.homotopies()[self.shift().s()];
+        h.homotopies.extend_by_zero(h.composites.max_degree());
+    }
+
+    /// Whether [`compute_base_homotopy`](Self::compute_base_homotopy) produced the zero map, in
+    /// which case the steps at `s = shift.s() + 1` skip applying it.
+    fn base_homotopy_is_zero(&self) -> bool {
+        true
+    }
+
     #[tracing::instrument(skip(self))]
     fn compute_homotopies(&self) {
         let shift = self.shift();
-
-        // When s = shift_s, the homotopies are just zero
-        {
-            let h = &self.homotopies()[shift.s()];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
+        self.compute_base_homotopy();
 
         let min_t = self.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = self.homotopies().range();
@@ -641,11 +992,142 @@ pub trait SecondaryLift: Sync + Sized {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use serde_json::json;
 
     use super::*;
     use crate::utils;
+
+    /// The Joker, whose zero secondary lift fails; `actions` are its `secondary_actions`.
+    pub(crate) fn joker(actions: Option<&[&str]>) -> serde_json::Value {
+        let mut json = json!({
+            "type": "finite dimensional module",
+            "p": 2,
+            "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4},
+            "actions": [
+                "Sq1 x0 = x1",
+                "Sq2 x0 = x2",
+                "Sq2 x1 = x3",
+                "Sq2 x2 = x4",
+                "Sq1 x3 = x4"
+            ]
+        });
+        if let Some(actions) = actions {
+            json["secondary_actions"] = json!(actions);
+        }
+        json
+    }
+
+    /// The total rank of the d2 differentials of `lift`.
+    pub(crate) fn d2_rank<CC: FreeChainComplex>(lift: &SecondaryResolution<CC>) -> usize
+    where
+        CC::Algebra: PairAlgebra,
+    {
+        let p = lift.prime();
+        let underlying = lift.underlying();
+        let mut rank = 0;
+        for b in underlying.iter_stem() {
+            if b.t() > 0 && underlying.has_computed_bidegree(b + Bidegree::n_s(-1, 2)) {
+                let rows = lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                if rows.first().is_some_and(|row| !row.is_empty()) {
+                    rank += fp::matrix::Matrix::from_vec(p, &rows).row_reduce();
+                }
+            }
+        }
+        rank
+    }
+
+    /// Without secondary actions, the Joker's secondary lift fails at the first step it can.
+    #[test]
+    fn joker_zero_lift_fails() {
+        let resolution = utils::construct_standard::<false, _, _>(
+            (joker(None), algebra::AlgebraType::Milnor),
+            None,
+        )
+        .unwrap();
+        resolution.compute_through_stem(Bidegree::n_s(10, 5));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+        lift.initialize_homotopies();
+        lift.compute_composites();
+        lift.compute_base_homotopy();
+        assert!(lift.try_compute_homotopy_step(Bidegree::n_s(2, 3)).is_err());
+    }
+
+    /// With its secondary actions, the Joker's secondary lift exists. The rank is that of the
+    /// d2 the `secondary` example prints for the same range.
+    #[test]
+    fn joker_secondary_actions() {
+        let resolution = utils::construct_standard::<false, _, _>(
+            (
+                joker(Some(&["[Sq1|Sq3] x0 = x3"])),
+                algebra::AlgebraType::Milnor,
+            ),
+            None,
+        )
+        .unwrap();
+        resolution.compute_through_stem(Bidegree::n_s(40, 10));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+        lift.extend_all();
+        assert_eq!(d2_rank(&lift), 16);
+    }
+
+    /// `C4_secondary` and the split module `S^0 ∨ S^1` have the same cohomology and differ only
+    /// in their secondary actions. Below the sphere's first d2 (from `h_4`), the split module has
+    /// no d2, while `C4_secondary` has `d2(h_0^s ι_1) = h_0^{s+2} ι_0` among others.
+    #[test]
+    fn c4_secondary_actions() {
+        let rank = |json: serde_json::Value| {
+            let resolution = utils::construct_standard::<false, _, _>(
+                (json, algebra::AlgebraType::Milnor),
+                None,
+            )
+            .unwrap();
+            resolution.compute_through_stem(Bidegree::n_s(13, 8));
+            let lift = SecondaryResolution::new(Arc::new(resolution));
+            lift.extend_all();
+            d2_rank(&lift)
+        };
+        let c4 = utils::load_module_json("C4_secondary").unwrap();
+        let mut split = c4.clone();
+        split["secondary_actions"].take();
+        assert_eq!(rank(split), 0);
+        assert_eq!(rank(c4), 11);
+    }
+
+    /// Malformed `secondary_actions` entries are rejected with a message naming the problem.
+    #[test]
+    fn secondary_actions_parse_errors() {
+        let module: Arc<dyn Module<Algebra = algebra::MilnorAlgebra>> = Arc::new(
+            algebra::module::FDModule::from_json(
+                Arc::new(algebra::MilnorAlgebra::new(fp::prime::TWO, false)),
+                &joker(None),
+            )
+            .unwrap(),
+        );
+        let parse = |entry: &str| {
+            SecondaryActions::from_json(Arc::clone(&module), &joker(Some(&[entry])))
+                .map_err(|e| format!("{e:#}"))
+        };
+        assert!(parse("[Sq1|Sq3] x0 = x3").unwrap().is_some());
+        assert!(parse("[Sq1|Sq3] x0 = 0").is_ok());
+        assert!(parse("[Sq1|Sq3] x0 = x4").unwrap_err().contains("degree 3"));
+        assert!(
+            parse("[Sq1|Sq3] y0 = x3")
+                .unwrap_err()
+                .contains("Unknown module element")
+        );
+        assert!(
+            parse("[Sq0|Sq4] x0 = x3")
+                .unwrap_err()
+                .contains("positive degree")
+        );
+        assert!(parse("Sq1 Sq3 x0 = x3").unwrap_err().contains("[a|b] m"));
+        assert!(
+            SecondaryActions::from_json(Arc::clone(&module), &joker(None))
+                .unwrap()
+                .is_none()
+        );
+    }
 
     #[test]
     #[should_panic(
@@ -695,10 +1177,7 @@ mod tests {
         lift.compute_intermediates();
 
         let shift = lift.shift();
-        {
-            let h = &lift.homotopies()[shift.s()];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
+        lift.compute_base_homotopy();
         let min_t = lift.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = lift.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);

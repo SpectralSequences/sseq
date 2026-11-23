@@ -24,6 +24,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
     save::{SaveDirectory, SaveKind},
+    secondary::{SecondaryActions, SecondaryInput},
     utils::parallel::ParallelGuard,
 };
 
@@ -120,6 +121,8 @@ where
     /// augmentation map are useful when the target chain complex is not concentrated in one
     /// degree, and they tend to be quite small anyway.
     pub load_quasi_inverse: bool,
+
+    secondary_actions: Option<SecondaryActions<CC::Algebra>>,
 }
 
 impl<const U: bool, CC: ChainComplex> MuResolution<U, CC>
@@ -157,6 +160,7 @@ where
             differentials: OnceVec::new(),
             kernels: DashMap::new(),
             load_quasi_inverse: true,
+            secondary_actions: None,
         })
     }
 
@@ -169,6 +173,12 @@ where
             tracing::warn!("Failed to record complex name in save store: {e}");
         }
         self.name = name;
+    }
+
+    /// Sets the secondary actions of the module, which select the secondary lift of this
+    /// resolution. They must be the secondary actions of `self.target().module(0)`.
+    pub fn set_secondary_actions(&mut self, actions: Option<SecondaryActions<CC::Algebra>>) {
+        self.secondary_actions = actions;
     }
 
     pub fn name(&self) -> &str {
@@ -931,6 +941,22 @@ where
         self.compute_through_bidegree_with_callback(b, |_| ())
     }
 
+    /// The module's secondary actions, with ε given by `self.chain_map(0)`.
+    fn secondary_input(&self) -> Option<SecondaryInput<'_, Self::Algebra>> {
+        let actions = self.secondary_actions.as_ref()?;
+        let p = self.prime();
+        let target = self.complex.module(0);
+        let chain_map = self.chain_map(0);
+        Some(SecondaryInput {
+            actions,
+            augmentation: Box::new(move |d, i| {
+                let mut v = FpVector::new(p, target.dimension(d));
+                chain_map.apply_to_basis_element(v.as_slice_mut(), 1, d, i);
+                v
+            }),
+        })
+    }
+
     fn next_homological_degree(&self) -> i32 {
         self.modules.len()
     }
@@ -985,7 +1011,13 @@ where
 // pairs each variant with its primary for locality. The module is `pub(crate)`; `SecondaryResolution`
 // is re-exported from `crate::secondary` so the public API path is unchanged.
 pub(crate) mod secondary {
-    use std::sync::Arc;
+    use std::{
+        collections::HashMap,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+    };
 
     use algebra::{module::Module, pair_algebra::PairAlgebra};
     use dashmap::DashMap;
@@ -1007,6 +1039,8 @@ pub(crate) mod secondary {
         /// s -> t -> idx -> homotopy
         pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<CC::Algebra>>,
         intermediates: DashMap<BidegreeGenerator, FpVector>,
+        /// Whether `H_2` is non-zero somewhere, see [`SecondaryLift::base_homotopy_is_zero`].
+        base_nonzero: AtomicBool,
     }
 
     impl<CC: FreeChainComplex> SecondaryLift for SecondaryResolution<CC>
@@ -1063,6 +1097,41 @@ pub(crate) mod secondary {
             self.underlying.save_dir()
         }
 
+        /// `H_2` comes from the module's secondary actions, see
+        /// [`SecondaryActions`](crate::secondary::SecondaryActions), and is zero without them.
+        fn compute_base_homotopy(&self) {
+            let h = &self.homotopies[2];
+            let p = self.prime();
+            let input = self.underlying.secondary_input();
+            let d2 = self.underlying.differential(2);
+            let d1 = self.underlying.differential(1);
+            let mut cache = HashMap::new();
+            for t in h.homotopies.next_degree()..=h.composites.max_degree() {
+                let rows: Vec<FpVector> = (0..h.source.number_of_gens_in_degree(t))
+                    .map(|idx| match &input {
+                        Some(input) => input.actions.base_homotopy(
+                            &d2,
+                            &d1,
+                            &*input.augmentation,
+                            t,
+                            idx,
+                            &mut cache,
+                        ),
+                        None => FpVector::new(p, h.target.dimension(t - 1)),
+                    })
+                    .collect();
+                if rows.iter().any(|row| !row.is_zero()) {
+                    self.base_nonzero.store(true, Ordering::Relaxed);
+                }
+                h.homotopies.add_generators_from_rows(t, rows);
+            }
+        }
+
+        /// Read from the flag that [`Self::compute_base_homotopy`] sets.
+        fn base_homotopy_is_zero(&self) -> bool {
+            !self.base_nonzero.load(Ordering::Relaxed)
+        }
+
         fn composite(&self, s: i32) -> CompositeData<CC::Algebra> {
             let d1 = self.underlying.differential(s);
             let d0 = self.underlying.differential(s - 1);
@@ -1094,6 +1163,7 @@ pub(crate) mod secondary {
                 underlying: cc,
                 homotopies: OnceBiVec::new(2),
                 intermediates: DashMap::new(),
+                base_nonzero: AtomicBool::new(false),
             }
         }
 

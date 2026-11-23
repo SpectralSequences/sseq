@@ -21,7 +21,7 @@ use fp::{
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
-use crate::{save::SaveDirectory, utils::unicode_num};
+use crate::{save::SaveDirectory, secondary::SecondaryInput, utils::unicode_num};
 
 pub enum ChainComplexGrading {
     Homological,
@@ -219,6 +219,12 @@ pub trait ChainComplex: Send + Sync {
 
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
+
+    /// The secondary actions of the module this complex resolves, with its augmentation, when the
+    /// module spec gives them. `None` selects the zero secondary lift.
+    fn secondary_input(&self) -> Option<SecondaryInput<'_, Self::Algebra>> {
+        None
+    }
 
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
