@@ -897,6 +897,29 @@ pub(crate) mod tests {
         assert_eq!(d2_rank(&lift), 16);
     }
 
+    /// `C4_secondary` and the split module `S^0 ∨ S^1` have the same cohomology and differ only
+    /// in their secondary actions. Below the sphere's first d2 (from `h_4`), the split module has
+    /// no d2, while `C4_secondary` has `d2(h_0^s ι_1) = h_0^{s+2} ι_0` among others.
+    #[test]
+    fn c4_secondary_actions() {
+        let rank = |json: serde_json::Value| {
+            let resolution = utils::construct_standard::<false, _, _>(
+                (json, algebra::AlgebraType::Milnor),
+                None,
+            )
+            .unwrap();
+            resolution.compute_through_stem(Bidegree::n_s(13, 8));
+            let lift = SecondaryResolution::new(Arc::new(resolution));
+            lift.extend_all();
+            d2_rank(&lift)
+        };
+        let c4 = utils::load_module_json("C4_secondary").unwrap();
+        let mut split = c4.clone();
+        split["secondary_actions"].take();
+        assert_eq!(rank(split), 0);
+        assert_eq!(rank(c4), 11);
+    }
+
     /// Malformed `secondary_actions` entries are rejected with a message naming the problem.
     #[test]
     fn secondary_actions_parse_errors() {

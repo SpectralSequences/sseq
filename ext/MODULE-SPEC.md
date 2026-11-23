@@ -197,8 +197,11 @@ There is one optional parameter
   is zero. That is the right choice for many modules, but not for all: for
   the Joker it does not lift, and the secondary computation fails at
   `(n, s) = (2, 3)`. When the module has more than one secondary structure,
-  this field also selects among them. Entries that do not define a secondary
-  structure make the computation fail at `s = 3` in the same way.
+  this field also selects among them. For example, `C4_secondary` and the split
+  module `S^0 ∨ S^1` both have cohomology `F_2{x0, x1}` with no actions.
+  `C4_secondary` sets `[Sq1|Sq1] x0 = x1`, which gives the Adams d2 from the
+  top cell to `h_0^2` on the bottom cell. Entries that do not define a
+  secondary structure make the computation fail at `s = 3` in the same way.
 
   This is not supported together with `cofiber`.
 
