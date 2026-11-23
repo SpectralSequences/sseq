@@ -203,6 +203,17 @@ There is one optional parameter
   top cell to `h_0^2` on the bottom cell. Entries that do not define a
   secondary structure make the computation fail at `s = 3` in the same way.
 
+  A resolution only reads the entries whose `[a|b] m` occurs in its `d∘d`, and
+  different resolutions read different entries. A minimal resolution's
+  relations are among the module's generators, while a non-minimal one, such
+  as `P ⊗ M` for a resolution `P` of the base field, has a relation on every
+  basis element. A spec meant for every resolution lists the entries each one
+  needs:
+  - The Joker's `[Sq1|Sq3] x0 = x3` is read by its minimal resolution, but
+    not by `P ⊗ M`, where the zero lift is already correct.
+  - `DA1` is the other way around: its minimal resolution needs nothing, but
+    `P ⊗ M` needs `[Sq4|Sq1] x2 = x62` and `[Sq4|Sq1] x62 = x10`.
+
   This is not supported together with `cofiber`.
 
 ### Finitely Presented Module

@@ -22,5 +22,6 @@
         "Sq4 x62 = x10",
         "Sq4 x8 = x12",
         "Sq2 x10 = x12"
-    ]
+    ],
+    "secondary_actions": ["[Sq4|Sq1] x2 = x62", "[Sq4|Sq1] x62 = x10"]
 }

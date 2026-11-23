@@ -920,6 +920,30 @@ pub(crate) mod tests {
         assert_eq!(rank(c4), 11);
     }
 
+    /// `DA1`'s secondary actions are entries a minimal resolution never reads, so `H_2` stays
+    /// zero and the d2 is that of the zero secondary lift.
+    #[test]
+    fn da1_secondary_actions_unread_by_minimal_resolution() {
+        let rank = |json: serde_json::Value| {
+            let resolution = utils::construct_standard::<false, _, _>(
+                (json, algebra::AlgebraType::Milnor),
+                None,
+            )
+            .unwrap();
+            resolution.compute_through_stem(Bidegree::n_s(20, 6));
+            let lift = SecondaryResolution::new(Arc::new(resolution));
+            lift.extend_all();
+            (d2_rank(&lift), lift.base_homotopy_is_zero())
+        };
+        let da1 = utils::load_module_json("DA1").unwrap();
+        assert!(!da1["secondary_actions"].is_null());
+        let mut plain = da1.clone();
+        plain["secondary_actions"].take();
+        let (with, base_zero) = rank(da1);
+        assert!(base_zero, "DA1's secondary actions reached H_2");
+        assert_eq!(with, rank(plain).0);
+    }
+
     /// Malformed `secondary_actions` entries are rejected with a message naming the problem.
     #[test]
     fn secondary_actions_parse_errors() {
