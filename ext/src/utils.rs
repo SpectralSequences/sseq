@@ -210,7 +210,10 @@ where
     if !json["cofiber"].is_null() {
         return Err(anyhow!("Nassau's algorithm does not support cofiber"));
     }
-    let actions = SecondaryActions::from_json(&*algebra, &*module, &json)?;
+    let actions = SecondaryActions::from_json(
+        Arc::clone(&module) as Arc<dyn algebra::module::Module<Algebra = MilnorAlgebra>>,
+        &json,
+    )?;
     let mut resolution = crate::nassau::Resolution::new_with_save(module, save_dir)?;
     bind_module_spec(resolution.save_dir(), &json)?;
     resolution.set_secondary_actions(actions);
@@ -235,7 +238,7 @@ where
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra, U)?);
     let module = Arc::new(steenrod_module::from_json(Arc::clone(&algebra), &json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-    let actions = SecondaryActions::from_json(&*algebra, &*module, &json)?;
+    let actions = SecondaryActions::from_json(Arc::clone(&*module), &json)?;
 
     let cofiber = &json["cofiber"];
     if !cofiber.is_null() {

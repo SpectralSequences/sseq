@@ -24,7 +24,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::{NassauCommand, NassauQiWriter, SaveDirectory, SaveKind},
-    secondary::SecondaryActions,
+    secondary::{SecondaryActions, SecondaryInput},
     utils::parallel::ParallelGuard,
 };
 
@@ -404,7 +404,7 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     target: Arc<FiniteChainComplex<M>>,
     chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: SaveDirectory,
-    secondary_actions: Option<SecondaryActions>,
+    secondary_actions: Option<SecondaryActions<MilnorAlgebra>>,
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
@@ -459,7 +459,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     /// Sets the secondary actions of the module, which select the secondary lift of this
     /// resolution.
-    pub fn set_secondary_actions(&mut self, actions: Option<SecondaryActions>) {
+    pub fn set_secondary_actions(&mut self, actions: Option<SecondaryActions<MilnorAlgebra>>) {
         self.secondary_actions = actions;
     }
 
@@ -1139,16 +1139,19 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         }
     }
 
-    /// Pulls the module's secondary actions back to `C_2`.
-    fn secondary_base_homotopy(&self, g: BidegreeGenerator) -> Option<FpVector> {
+    /// The module's secondary actions, with ε given by `self.chain_maps[0]`.
+    fn secondary_input(&self) -> Option<SecondaryInput<'_, Self::Algebra>> {
         let actions = self.secondary_actions.as_ref()?;
-        Some(actions.base_homotopy(
-            &self.differential(2),
-            &self.differential(1),
-            &self.chain_maps[0],
-            g.t(),
-            g.idx(),
-        ))
+        let target = self.target.module(0);
+        let chain_map = &self.chain_maps[0];
+        Some(SecondaryInput {
+            actions,
+            augmentation: Box::new(move |d, i| {
+                let mut v = FpVector::new(fp::prime::TWO, target.dimension(d));
+                chain_map.apply_to_basis_element(v.as_slice_mut(), 1, d, i);
+                v
+            }),
+        })
     }
 
     fn next_homological_degree(&self) -> i32 {

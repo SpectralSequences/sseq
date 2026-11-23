@@ -1,10 +1,14 @@
-use std::{collections::HashMap, io, sync::Arc};
+use std::{
+    collections::HashMap,
+    io,
+    sync::{Arc, Mutex},
+};
 
 use algebra::{
-    Algebra, MuAlgebra,
+    Algebra,
     module::{
-        FreeModule, Module, MuFreeModule,
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism, MuFreeModuleHomomorphism},
+        FreeModule, Module,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
     pair_algebra::PairAlgebra,
 };
@@ -13,7 +17,7 @@ use bivec::BiVec;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use fp::{
-    matrix::AugmentedMatrix,
+    matrix::{AugmentedMatrix, QuasiInverse},
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
@@ -50,30 +54,60 @@ pub type CompositeData<A> = Vec<(
 /// The `secondary_actions` of a module spec: a normalized bar 2-cochain `F: Ā ⊗ Ā ⊗ M → M` of
 /// degree -1, written `"[a|b] m = n"` for `F(a, b; m) = n`.
 ///
-/// `F` selects the secondary lift of a resolution `ε: C → M` by fixing `ε H_2` on `C_2`:
-/// `ε H_2(g) = Σ F(a, b; ε x)` over the terms `a e` of `d g` and `b x` of `d e`. This is `F`
-/// pulled back along the comparison map `g ↦ Σ [a|b] ε x` from `C` to the two-sided bar
-/// resolution of `M`. Leaving `F` out is the same as `F = 0`, which gives `H_2 = 0`.
+/// `F` sets `ε H_2` on `C_2` of a resolution `ε: C → M` to `F(f_2 g) + r(g)`:
+///  - `f_2 g = Σ [a|b] ε x`, over the terms `a e` of `d g` and `b x` of `d e` with `|a|, |b| > 0`,
+///    is the comparison map from `C` to the two-sided bar resolution `B(A, A, M)`.
+///  - `r(g)` is what that comparison map fails to commute with the differentials by in the pair
+///    algebra; see [`Self::correction`].
 ///
-/// Not every `F` gives a secondary lift: an invalid one makes the lift fail at `s = 3`.
-#[derive(Clone, Debug, Default)]
-pub struct SecondaryActions {
+/// A solution of the bar equation gives the same secondary structure on every resolution. A list
+/// that is not a full solution is read on the resolution at hand, which only reads the entries its
+/// `d ∘ d` reaches. An invalid one makes the lift fail at `s = 3`.
+pub struct SecondaryActions<A: Algebra> {
+    module: Arc<dyn Module<Algebra = A>>,
     /// `[a, b, m] -> F(a, b; m)`, each entry a `(degree, index)` basis element.
     values: HashMap<[(i32, usize); 3], FpVector>,
+    /// degree -> quasi-inverse of ε on `C_0`, built on first use.
+    lifts: Mutex<HashMap<i32, Arc<QuasiInverse>>>,
 }
 
-impl SecondaryActions {
+impl<A: Algebra> std::fmt::Debug for SecondaryActions<A> {
+    /// The number of entries, as the module and its cached lifts are not printable.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecondaryActions")
+            .field("entries", &self.values.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// What [`SecondaryResolution`] needs from a resolution whose module has secondary actions.
+pub struct SecondaryInput<'a, A: Algebra> {
+    pub actions: &'a SecondaryActions<A>,
+    /// ε on the basis element `(degree, index)` of `C_0`, in the basis of `M`.
+    pub augmentation: Box<dyn Fn(i32, usize) -> FpVector + 'a>,
+}
+
+/// The comparison composite `Γ(e)` of one generator `e` of `C_1`: for each basis element `m` of
+/// `M`, a pair algebra element of degree `|e| - |m|` on the generator `[] m` of the bar
+/// resolution.
+pub type ComparisonComposite<A> = Vec<((i32, usize), <A as PairAlgebra>::Element)>;
+
+impl<A: Algebra> SecondaryActions<A> {
     /// Parses the `secondary_actions` field of a module spec. Returns `None` when the field is
     /// absent.
     pub fn from_json(
-        algebra: &impl Algebra,
-        module: &impl Module,
+        module: Arc<dyn Module<Algebra = A>>,
         json: &serde_json::Value,
     ) -> anyhow::Result<Option<Self>> {
         let entries = &json["secondary_actions"];
         if entries.is_null() {
             return Ok(None);
         }
+        let algebra = module.algebra();
+        anyhow::ensure!(
+            algebra.prime() == 2,
+            "`secondary_actions` are only supported at p = 2"
+        );
         let entries = entries
             .as_array()
             .context("`secondary_actions` must be a list of strings")?;
@@ -105,7 +139,7 @@ impl SecondaryActions {
         };
 
         let p = algebra.prime();
-        let mut result = Self::default();
+        let mut values: HashMap<[(i32, usize); 3], FpVector> = HashMap::new();
         for entry in entries {
             let entry = entry
                 .as_str()
@@ -121,8 +155,7 @@ impl SecondaryActions {
                 let key = [operation(a)?, operation(b)?, element(m)?];
                 let out_deg = key.iter().map(|x| x.0).sum::<i32>() - 1;
 
-                let value = result
-                    .values
+                let value = values
                     .entry(key)
                     .or_insert_with(|| FpVector::new(p, module.dimension(out_deg)));
                 if rhs.trim() == "0" {
@@ -148,30 +181,29 @@ impl SecondaryActions {
             };
             parse().with_context(|| format!("Failed to parse secondary action: {entry}"))?;
         }
-        Ok(Some(result))
+        Ok(Some(Self {
+            module,
+            values,
+            lifts: Mutex::default(),
+        }))
     }
 
-    /// `H_2(g)` for the generator `g = (t, idx)` of `C_2`: an element of `C_0` in degree `t - 1`
-    /// whose image under `eps` is `ε H_2(g)`.
-    pub fn base_homotopy<const U: bool, A: MuAlgebra<U>, M: Module<Algebra = A>>(
+    /// `F(f_2 g) ∈ M_{t-1}` for the generator `g = (t, idx)` of `C_2`.
+    pub fn pullback(
         &self,
-        d2: &MuFreeModuleHomomorphism<U, MuFreeModule<U, A>>,
-        d1: &MuFreeModuleHomomorphism<U, MuFreeModule<U, A>>,
-        eps: &MuFreeModuleHomomorphism<U, M>,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
         t: i32,
         idx: usize,
     ) -> FpVector {
-        let p = eps.prime();
+        let p = self.module.prime();
         let c1 = d2.target();
         let c0 = d1.target();
-        let module = eps.target();
-        let mut result = FpVector::new(p, c0.dimension(t - 1));
-        let out_dim = module.dimension(t - 1);
-        if out_dim == 0 {
-            return result;
+        let mut value = FpVector::new(p, self.module.dimension(t - 1));
+        if value.is_empty() || self.values.is_empty() {
+            return value;
         }
-
-        let mut value = FpVector::new(p, out_dim);
         let dg = d2.output(t, idx);
         for (e_deg, e_idx, a_deg, a) in c1.iter_slices(t, dg.as_slice()) {
             if a_deg == 0 || a.is_zero() {
@@ -182,7 +214,7 @@ impl SecondaryActions {
                 if b_deg == 0 || b.is_zero() {
                     continue;
                 }
-                let ex = eps.output(x_deg, x_idx);
+                let ex = augmentation(x_deg, c0.generator_offset(x_deg, x_deg, x_idx));
                 for (ai, ac) in a.iter_nonzero() {
                     for (bi, bc) in b.iter_nonzero() {
                         for (mi, mc) in ex.iter_nonzero() {
@@ -195,22 +227,164 @@ impl SecondaryActions {
                 }
             }
         }
-        if value.is_zero() {
+        value
+    }
+
+    /// An element of `C_0` in degree `d` whose image under ε is `v`.
+    pub fn lift(
+        &self,
+        c0: &FreeModule<A>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        d: i32,
+        v: &FpVector,
+    ) -> FpVector {
+        let p = self.module.prime();
+        let c0_dim = c0.dimension(d);
+        let mut result = FpVector::new(p, c0_dim);
+        if v.is_zero() {
             return result;
         }
-
-        // Lift `value` along `eps` in degree `t - 1`.
-        let c0_dim = c0.dimension(t - 1);
-        let mut matrix = AugmentedMatrix::<2>::new(p, c0_dim, [out_dim, c0_dim]);
-        for i in 0..c0_dim {
-            eps.apply_to_basis_element(matrix.row_segment_mut(i, 0, 0), 1, t - 1, i);
-            matrix.row_segment_mut(i, 1, 1).set_entry(i, 1);
-        }
-        matrix.row_reduce();
-        matrix
-            .compute_quasi_inverse()
-            .apply(result.as_slice_mut(), 1, value.as_slice());
+        let qi = {
+            let mut lifts = self.lifts.lock().unwrap();
+            Arc::clone(lifts.entry(d).or_insert_with(|| {
+                let m_dim = self.module.dimension(d);
+                let mut matrix = AugmentedMatrix::<2>::new(p, c0_dim, [m_dim, c0_dim]);
+                for i in 0..c0_dim {
+                    matrix
+                        .row_segment_mut(i, 0, 0)
+                        .add(augmentation(d, i).as_slice(), 1);
+                    matrix.row_segment_mut(i, 1, 1).set_entry(i, 1);
+                }
+                matrix.row_reduce();
+                Arc::new(matrix.compute_quasi_inverse())
+            }))
+        };
+        qi.apply(result.as_slice_mut(), 1, v.as_slice());
         result
+    }
+}
+
+impl<A: PairAlgebra> SecondaryActions<A> {
+    /// `H_2(g)` for the generator `g = (t, idx)` of `C_2`: the lift along ε of
+    /// `F(f_2 g) + r(g)`. `cache` keeps the comparison composites of the generators of `C_1`
+    /// between calls.
+    pub fn base_homotopy(
+        &self,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        t: i32,
+        idx: usize,
+        cache: &mut HashMap<(i32, usize), ComparisonComposite<A>>,
+    ) -> FpVector {
+        let mut value = self.pullback(d2, d1, augmentation, t, idx);
+        if !value.is_empty() {
+            value.add(&self.correction(d2, d1, augmentation, t, idx, cache), 1);
+        }
+        self.lift(&d1.target(), augmentation, t - 1, &value)
+    }
+
+    /// `r(g) ∈ M_{t-1}` for the generator `g = (t, idx)` of `C_2`: `ε(Σ A(a, Γ(e)))` over the
+    /// terms `a e` of `d g`. `Γ(e)` is the composite `f_0 d + d f_1` on `e` in the pair algebra,
+    /// where `f_0 x = [] ε x` and `f_1 e = Σ [b] ε x` over the terms `b x` of `d e` with `|b| > 0`
+    /// are the comparison maps to the bar resolution.
+    pub fn correction(
+        &self,
+        d2: &FreeModuleHomomorphism<FreeModule<A>>,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        t: i32,
+        idx: usize,
+        cache: &mut HashMap<(i32, usize), ComparisonComposite<A>>,
+    ) -> FpVector {
+        let algebra = self.module.algebra();
+        let p = algebra.prime();
+        let mut out = FpVector::new(p, self.module.dimension(t - 1));
+        let c1 = d2.target();
+        let dg = d2.output(t, idx);
+        for (e_deg, e_idx, a_deg, a) in c1.iter_slices(t, dg.as_slice()) {
+            // A(1, -) = 0
+            if a_deg == 0 || a.is_zero() {
+                continue;
+            }
+            let gamma = cache
+                .entry((e_deg, e_idx))
+                .or_insert_with(|| self.comparison_composite(d1, augmentation, e_deg, e_idx));
+            for ((m_deg, m_idx), elt) in gamma.iter() {
+                let y_deg = a_deg + e_deg - m_deg - 1;
+                if y_deg < 0 {
+                    continue;
+                }
+                let mut y = FpVector::new(p, algebra.dimension(y_deg));
+                algebra.a_multiply(y.as_slice_mut(), 1, a_deg, a, e_deg - m_deg, elt);
+                for (yi, c) in y.iter_nonzero() {
+                    self.module
+                        .act_on_basis(out.as_slice_mut(), c, y_deg, yi, *m_deg, *m_idx);
+                }
+            }
+        }
+        out
+    }
+
+    /// `Γ(e)` for the generator `e = (e_deg, e_idx)` of `C_1`; see [`Self::correction`].
+    fn comparison_composite(
+        &self,
+        d1: &FreeModuleHomomorphism<FreeModule<A>>,
+        augmentation: &dyn Fn(i32, usize) -> FpVector,
+        e_deg: i32,
+        e_idx: usize,
+    ) -> ComparisonComposite<A> {
+        let algebra = self.module.algebra();
+        let p = algebra.prime();
+        let mut one = FpVector::new(p, 1);
+        one.set_entry(0, 1);
+        let mut elts: HashMap<(i32, usize), A::Element> = HashMap::new();
+        let c0 = d1.target();
+        let de = d1.output(e_deg, e_idx);
+        for (x_deg, x_idx, b_deg, b) in c0.iter_slices(e_deg, de.as_slice()) {
+            if b.is_zero() {
+                continue;
+            }
+            let ex = augmentation(x_deg, c0.generator_offset(x_deg, x_deg, x_idx));
+            for (mi, mc) in ex.iter_nonzero() {
+                // f_0 d: b · [] m
+                let elt = elts
+                    .entry((x_deg, mi))
+                    .or_insert_with(|| algebra.new_pair_element(e_deg - x_deg));
+                algebra.sigma_multiply(elt, mc, b_deg, b, 0, one.as_slice());
+                if b_deg == 0 {
+                    continue;
+                }
+                // d f_1: [b_i] m ↦ b_i · [] m + [] (b_i m)
+                for (bi, bc) in b.iter_nonzero() {
+                    let coef = bc * mc % p;
+                    let mut unit = FpVector::new(p, algebra.dimension(b_deg));
+                    unit.set_entry(bi, 1);
+                    let elt = elts
+                        .entry((x_deg, mi))
+                        .or_insert_with(|| algebra.new_pair_element(e_deg - x_deg));
+                    algebra.sigma_multiply(elt, coef, 0, one.as_slice(), b_deg, unit.as_slice());
+                    let mut bm = FpVector::new(p, self.module.dimension(e_deg));
+                    if bm.is_empty() {
+                        continue;
+                    }
+                    self.module
+                        .act_on_basis(bm.as_slice_mut(), coef, b_deg, bi, x_deg, mi);
+                    for (mj, c) in bm.iter_nonzero() {
+                        let elt = elts
+                            .entry((e_deg, mj))
+                            .or_insert_with(|| algebra.new_pair_element(0));
+                        algebra.sigma_multiply(elt, c, 0, one.as_slice(), 0, one.as_slice());
+                    }
+                }
+            }
+        }
+        elts.into_iter()
+            .map(|(k, mut elt)| {
+                A::finalize_element(&mut elt);
+                (k, elt)
+            })
+            .collect()
     }
 }
 
@@ -920,41 +1094,18 @@ pub(crate) mod tests {
         assert_eq!(rank(c4), 11);
     }
 
-    /// `DA1`'s secondary actions are entries a minimal resolution never reads, so `H_2` stays
-    /// zero and the d2 is that of the zero secondary lift.
-    #[test]
-    fn da1_secondary_actions_unread_by_minimal_resolution() {
-        let rank = |json: serde_json::Value| {
-            let resolution = utils::construct_standard::<false, _, _>(
-                (json, algebra::AlgebraType::Milnor),
-                None,
-            )
-            .unwrap();
-            resolution.compute_through_stem(Bidegree::n_s(20, 6));
-            let lift = SecondaryResolution::new(Arc::new(resolution));
-            lift.extend_all();
-            (d2_rank(&lift), lift.base_homotopy_is_zero())
-        };
-        let da1 = utils::load_module_json("DA1").unwrap();
-        assert!(!da1["secondary_actions"].is_null());
-        let mut plain = da1.clone();
-        plain["secondary_actions"].take();
-        let (with, base_zero) = rank(da1);
-        assert!(base_zero, "DA1's secondary actions reached H_2");
-        assert_eq!(with, rank(plain).0);
-    }
-
     /// Malformed `secondary_actions` entries are rejected with a message naming the problem.
     #[test]
     fn secondary_actions_parse_errors() {
-        let algebra = algebra::MilnorAlgebra::new(fp::prime::TWO, false);
-        let module = algebra::module::FDModule::from_json(
-            Arc::new(algebra::MilnorAlgebra::new(fp::prime::TWO, false)),
-            &joker(None),
-        )
-        .unwrap();
+        let module: Arc<dyn Module<Algebra = algebra::MilnorAlgebra>> = Arc::new(
+            algebra::module::FDModule::from_json(
+                Arc::new(algebra::MilnorAlgebra::new(fp::prime::TWO, false)),
+                &joker(None),
+            )
+            .unwrap(),
+        );
         let parse = |entry: &str| {
-            SecondaryActions::from_json(&algebra, &module, &joker(Some(&[entry])))
+            SecondaryActions::from_json(Arc::clone(&module), &joker(Some(&[entry])))
                 .map_err(|e| format!("{e:#}"))
         };
         assert!(parse("[Sq1|Sq3] x0 = x3").unwrap().is_some());
@@ -972,7 +1123,7 @@ pub(crate) mod tests {
         );
         assert!(parse("Sq1 Sq3 x0 = x3").unwrap_err().contains("[a|b] m"));
         assert!(
-            SecondaryActions::from_json(&algebra, &module, &joker(None))
+            SecondaryActions::from_json(Arc::clone(&module), &joker(None))
                 .unwrap()
                 .is_none()
         );
