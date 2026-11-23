@@ -16,7 +16,7 @@ pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
 use fp::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpSlice, FpSliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
@@ -219,6 +219,13 @@ pub trait ChainComplex: Send + Sync {
 
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> i32;
+
+    /// The secondary homotopy `H_2` on the generator `g` of `C_2`, when the module this complex
+    /// resolves has [`SecondaryActions`](crate::secondary::SecondaryActions). `None` selects the
+    /// zero secondary lift.
+    fn secondary_base_homotopy(&self, _g: BidegreeGenerator) -> Option<FpVector> {
+        None
+    }
 
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {

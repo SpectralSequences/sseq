@@ -1,17 +1,19 @@
-use std::{io, sync::Arc};
+use std::{collections::HashMap, io, sync::Arc};
 
 use algebra::{
-    Algebra,
+    Algebra, MuAlgebra,
     module::{
-        FreeModule, Module,
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, Module, MuFreeModule,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism, MuFreeModuleHomomorphism},
     },
     pair_algebra::PairAlgebra,
 };
+use anyhow::{Context, anyhow};
 use bivec::BiVec;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use fp::{
+    matrix::AugmentedMatrix,
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut, FpVector},
 };
@@ -44,6 +46,173 @@ pub type CompositeData<A> = Vec<(
     Arc<FreeModuleHomomorphism<FreeModule<A>>>,
     Arc<FreeModuleHomomorphism<FreeModule<A>>>,
 )>;
+
+/// The `secondary_actions` of a module spec: a normalized bar 2-cochain `F: Ā ⊗ Ā ⊗ M → M` of
+/// degree -1, written `"[a|b] m = n"` for `F(a, b; m) = n`.
+///
+/// `F` selects the secondary lift of a resolution `ε: C → M` by fixing `ε H_2` on `C_2`:
+/// `ε H_2(g) = Σ F(a, b; ε x)` over the terms `a e` of `d g` and `b x` of `d e`. This is `F`
+/// pulled back along the comparison map `g ↦ Σ [a|b] ε x` from `C` to the two-sided bar
+/// resolution of `M`. Leaving `F` out is the same as `F = 0`, which gives `H_2 = 0`.
+///
+/// Not every `F` gives a secondary lift: an invalid one makes the lift fail at `s = 3`.
+#[derive(Clone, Debug, Default)]
+pub struct SecondaryActions {
+    /// `[a, b, m] -> F(a, b; m)`, each entry a `(degree, index)` basis element.
+    values: HashMap<[(i32, usize); 3], FpVector>,
+}
+
+impl SecondaryActions {
+    /// Parses the `secondary_actions` field of a module spec. Returns `None` when the field is
+    /// absent.
+    pub fn from_json(
+        algebra: &impl Algebra,
+        module: &impl Module,
+        json: &serde_json::Value,
+    ) -> anyhow::Result<Option<Self>> {
+        let entries = &json["secondary_actions"];
+        if entries.is_null() {
+            return Ok(None);
+        }
+        let entries = entries
+            .as_array()
+            .context("`secondary_actions` must be a list of strings")?;
+        let max_degree = module
+            .max_degree()
+            .context("`secondary_actions` requires a bounded module")?;
+
+        let mut names = HashMap::new();
+        for deg in module.min_degree()..=max_degree {
+            for idx in 0..module.dimension(deg) {
+                names.insert(module.basis_element_to_string(deg, idx), (deg, idx));
+            }
+        }
+        let element = |name: &str| {
+            names
+                .get(name.trim())
+                .copied()
+                .ok_or_else(|| anyhow!("Unknown module element: {name}"))
+        };
+        let operation = |name: &str| {
+            let (deg, idx) = algebra
+                .basis_element_from_string(name.trim())
+                .ok_or_else(|| anyhow!("Invalid algebra element: {name}"))?;
+            anyhow::ensure!(
+                deg > 0,
+                "Operations in secondary actions have positive degree"
+            );
+            Ok((deg, idx))
+        };
+
+        let p = algebra.prime();
+        let mut result = Self::default();
+        for entry in entries {
+            let entry = entry
+                .as_str()
+                .context("`secondary_actions` must be a list of strings")?;
+            let mut parse = || -> anyhow::Result<()> {
+                let (lhs, rhs) = entry.split_once(" = ").context("Missing ` = `")?;
+                let (ops, m) = lhs
+                    .trim()
+                    .strip_prefix('[')
+                    .and_then(|s| s.split_once(']'))
+                    .context("Expected `[a|b] m`")?;
+                let (a, b) = ops.split_once('|').context("Expected `[a|b] m`")?;
+                let key = [operation(a)?, operation(b)?, element(m)?];
+                let out_deg = key.iter().map(|x| x.0).sum::<i32>() - 1;
+
+                let value = result
+                    .values
+                    .entry(key)
+                    .or_insert_with(|| FpVector::new(p, module.dimension(out_deg)));
+                if rhs.trim() == "0" {
+                    return Ok(());
+                }
+                for item in rhs.split(" + ") {
+                    let (coef, n) = match item.trim().split_once(' ') {
+                        Some((coef, n)) => (
+                            coef.parse::<u32>()
+                                .map_err(|_| anyhow!("Invalid coefficient in {item}"))?,
+                            n,
+                        ),
+                        None => (1, item),
+                    };
+                    let (deg, idx) = element(n)?;
+                    anyhow::ensure!(
+                        deg == out_deg,
+                        "Degree of {n} is {deg} but the value has degree {out_deg}"
+                    );
+                    value.add_basis_element(idx, coef % p);
+                }
+                Ok(())
+            };
+            parse().with_context(|| format!("Failed to parse secondary action: {entry}"))?;
+        }
+        Ok(Some(result))
+    }
+
+    /// `H_2(g)` for the generator `g = (t, idx)` of `C_2`: an element of `C_0` in degree `t - 1`
+    /// whose image under `eps` is `ε H_2(g)`.
+    pub fn base_homotopy<const U: bool, A: MuAlgebra<U>, M: Module<Algebra = A>>(
+        &self,
+        d2: &MuFreeModuleHomomorphism<U, MuFreeModule<U, A>>,
+        d1: &MuFreeModuleHomomorphism<U, MuFreeModule<U, A>>,
+        eps: &MuFreeModuleHomomorphism<U, M>,
+        t: i32,
+        idx: usize,
+    ) -> FpVector {
+        let p = eps.prime();
+        let c1 = d2.target();
+        let c0 = d1.target();
+        let module = eps.target();
+        let mut result = FpVector::new(p, c0.dimension(t - 1));
+        let out_dim = module.dimension(t - 1);
+        if out_dim == 0 {
+            return result;
+        }
+
+        let mut value = FpVector::new(p, out_dim);
+        let dg = d2.output(t, idx);
+        for (e_deg, e_idx, a_deg, a) in c1.iter_slices(t, dg.as_slice()) {
+            if a_deg == 0 || a.is_zero() {
+                continue;
+            }
+            let de = d1.output(e_deg, e_idx);
+            for (x_deg, x_idx, b_deg, b) in c0.iter_slices(e_deg, de.as_slice()) {
+                if b_deg == 0 || b.is_zero() {
+                    continue;
+                }
+                let ex = eps.output(x_deg, x_idx);
+                for (ai, ac) in a.iter_nonzero() {
+                    for (bi, bc) in b.iter_nonzero() {
+                        for (mi, mc) in ex.iter_nonzero() {
+                            let key = [(a_deg, ai), (b_deg, bi), (x_deg, mi)];
+                            if let Some(v) = self.values.get(&key) {
+                                value.add(v, (ac * bc % p) * mc % p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if value.is_zero() {
+            return result;
+        }
+
+        // Lift `value` along `eps` in degree `t - 1`.
+        let c0_dim = c0.dimension(t - 1);
+        let mut matrix = AugmentedMatrix::<2>::new(p, c0_dim, [out_dim, c0_dim]);
+        for i in 0..c0_dim {
+            eps.apply_to_basis_element(matrix.row_segment_mut(i, 0, 0), 1, t - 1, i);
+            matrix.row_segment_mut(i, 1, 1).set_entry(i, 1);
+        }
+        matrix.row_reduce();
+        matrix
+            .compute_quasi_inverse()
+            .apply(result.as_slice_mut(), 1, value.as_slice());
+        result
+    }
+}
 
 /// A homotopy of a map A -> M of pair modules. We assume this map does not hit generators.
 pub struct SecondaryComposite<A: PairAlgebra> {
@@ -557,7 +726,7 @@ pub trait SecondaryLift: Sync + Sized {
 
             let g = BidegreeGenerator::new(b, i);
             let mut v = self.get_intermediate(g);
-            if g.s() > shift.s() + 1 {
+            if g.s() > shift.s() + 1 || (g.s() == shift.s() + 1 && !self.base_homotopy_is_zero()) {
                 self.homotopies()[g.s() - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
@@ -614,15 +783,23 @@ pub trait SecondaryLift: Sync + Sized {
             .add_generators_from_rows_ooo(b.t(), results))
     }
 
+    /// Computes the homotopy at `s = shift.s()`, the input of the recursion. It is zero unless
+    /// overridden.
+    fn compute_base_homotopy(&self) {
+        let h = &self.homotopies()[self.shift().s()];
+        h.homotopies.extend_by_zero(h.composites.max_degree());
+    }
+
+    /// Whether [`compute_base_homotopy`](Self::compute_base_homotopy) produced the zero map, in
+    /// which case the steps at `s = shift.s() + 1` skip applying it.
+    fn base_homotopy_is_zero(&self) -> bool {
+        true
+    }
+
     #[tracing::instrument(skip(self))]
     fn compute_homotopies(&self) {
         let shift = self.shift();
-
-        // When s = shift_s, the homotopies are just zero
-        {
-            let h = &self.homotopies()[shift.s()];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
+        self.compute_base_homotopy();
 
         let min_t = self.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = self.homotopies().range();
@@ -641,11 +818,118 @@ pub trait SecondaryLift: Sync + Sized {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use serde_json::json;
 
     use super::*;
     use crate::utils;
+
+    /// The Joker, whose zero secondary lift fails; `actions` are its `secondary_actions`.
+    pub(crate) fn joker(actions: Option<&[&str]>) -> serde_json::Value {
+        let mut json = json!({
+            "type": "finite dimensional module",
+            "p": 2,
+            "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4},
+            "actions": [
+                "Sq1 x0 = x1",
+                "Sq2 x0 = x2",
+                "Sq2 x1 = x3",
+                "Sq2 x2 = x4",
+                "Sq1 x3 = x4"
+            ]
+        });
+        if let Some(actions) = actions {
+            json["secondary_actions"] = json!(actions);
+        }
+        json
+    }
+
+    /// The total rank of the d2 differentials of `lift`.
+    pub(crate) fn d2_rank<CC: FreeChainComplex>(lift: &SecondaryResolution<CC>) -> usize
+    where
+        CC::Algebra: PairAlgebra,
+    {
+        let p = lift.prime();
+        let underlying = lift.underlying();
+        let mut rank = 0;
+        for b in underlying.iter_stem() {
+            if b.t() > 0 && underlying.has_computed_bidegree(b + Bidegree::n_s(-1, 2)) {
+                let rows = lift.homotopy(b.s() + 2).homotopies.hom_k(b.t());
+                if rows.first().is_some_and(|row| !row.is_empty()) {
+                    rank += fp::matrix::Matrix::from_vec(p, &rows).row_reduce();
+                }
+            }
+        }
+        rank
+    }
+
+    /// Without secondary actions, the Joker's secondary lift fails at the first step it can.
+    #[test]
+    fn joker_zero_lift_fails() {
+        let resolution = utils::construct_standard::<false, _, _>(
+            (joker(None), algebra::AlgebraType::Milnor),
+            None,
+        )
+        .unwrap();
+        resolution.compute_through_stem(Bidegree::n_s(10, 5));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+        lift.initialize_homotopies();
+        lift.compute_composites();
+        lift.compute_base_homotopy();
+        assert!(lift.try_compute_homotopy_step(Bidegree::n_s(2, 3)).is_err());
+    }
+
+    /// With its secondary actions, the Joker's secondary lift exists. The rank is that of the
+    /// d2 the `secondary` example prints for the same range.
+    #[test]
+    fn joker_secondary_actions() {
+        let resolution = utils::construct_standard::<false, _, _>(
+            (
+                joker(Some(&["[Sq1|Sq3] x0 = x3"])),
+                algebra::AlgebraType::Milnor,
+            ),
+            None,
+        )
+        .unwrap();
+        resolution.compute_through_stem(Bidegree::n_s(40, 10));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+        lift.extend_all();
+        assert_eq!(d2_rank(&lift), 16);
+    }
+
+    /// Malformed `secondary_actions` entries are rejected with a message naming the problem.
+    #[test]
+    fn secondary_actions_parse_errors() {
+        let algebra = algebra::MilnorAlgebra::new(fp::prime::TWO, false);
+        let module = algebra::module::FDModule::from_json(
+            Arc::new(algebra::MilnorAlgebra::new(fp::prime::TWO, false)),
+            &joker(None),
+        )
+        .unwrap();
+        let parse = |entry: &str| {
+            SecondaryActions::from_json(&algebra, &module, &joker(Some(&[entry])))
+                .map_err(|e| format!("{e:#}"))
+        };
+        assert!(parse("[Sq1|Sq3] x0 = x3").unwrap().is_some());
+        assert!(parse("[Sq1|Sq3] x0 = 0").is_ok());
+        assert!(parse("[Sq1|Sq3] x0 = x4").unwrap_err().contains("degree 3"));
+        assert!(
+            parse("[Sq1|Sq3] y0 = x3")
+                .unwrap_err()
+                .contains("Unknown module element")
+        );
+        assert!(
+            parse("[Sq0|Sq4] x0 = x3")
+                .unwrap_err()
+                .contains("positive degree")
+        );
+        assert!(parse("Sq1 Sq3 x0 = x3").unwrap_err().contains("[a|b] m"));
+        assert!(
+            SecondaryActions::from_json(&algebra, &module, &joker(None))
+                .unwrap()
+                .is_none()
+        );
+    }
 
     #[test]
     #[should_panic(
@@ -695,10 +979,7 @@ mod tests {
         lift.compute_intermediates();
 
         let shift = lift.shift();
-        {
-            let h = &lift.homotopies()[shift.s()];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
+        lift.compute_base_homotopy();
         let min_t = lift.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = lift.homotopies().range();
         let min = Bidegree::s_t(s_range.start + 1, min_t);

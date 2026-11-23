@@ -177,6 +177,31 @@ There are two required parameters
   Note that when there is a non-trivial profile, you should not attempt to set
   an action if the generator doesn't exist in the subalgebra.
 
+There is one optional parameter
+
+* `secondary_actions`: The secondary structure of the module, used by the
+  secondary computations (d2 and secondary products). It is a list of entries
+  `[a|b] m = n`, where `a` and `b` are basis elements of the Steenrod algebra
+  of positive degree, `m` is a basis element of the module and `n` is an
+  element of degree `|a| + |b| + |m| - 1`. Unlisted values are zero. For
+  example, the Joker needs
+
+  ```json
+  "secondary_actions": ["[Sq1|Sq3] x0 = x3"]
+  ```
+
+  These entries define a function `F(a, b; m) = n`, a 2-cochain on the bar
+  resolution of the module. It sets the secondary homotopy `H_2` on `C_2` of a
+  resolution `ε: C → M`: `ε H_2(g)` is the sum of `F(a, b; ε x)` over the
+  terms `a e` of `d g` and `b x` of `d e`. Without `secondary_actions`, `H_2`
+  is zero. That is the right choice for many modules, but not for all: for
+  the Joker it does not lift, and the secondary computation fails at
+  `(n, s) = (2, 3)`. When the module has more than one secondary structure,
+  this field also selects among them. Entries that do not define a secondary
+  structure make the computation fail at `s = 3` in the same way.
+
+  This is not supported together with `cofiber`.
+
 ### Finitely Presented Module
 
 TODO
